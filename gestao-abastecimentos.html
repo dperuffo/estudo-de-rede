@@ -1136,9 +1136,9 @@
       <div class="form-group" id="iv-ref-group">
         <label id="iv-ref-label">Referência</label>
         <select id="iv-referencia" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);">
-          <option value="Todos">Todos (regra geral)</option>
+          <option value="">— Selecione o Tipo primeiro —</option>
         </select>
-        <span style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;display:block">"Todos" aplica a regra a qualquer veículo/motorista sem regra específica.</span>
+        <span id="iv-ref-hint" style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;display:block">Selecione o Tipo de Regra acima para escolher um item específico ou aplicar a todos.</span>
       </div>
 
       <!-- Intervalo -->
@@ -2477,6 +2477,11 @@ async function saveRecord() {
 
   if (!placa || !motorista || !posto || !combustivel || !data || !hora || !volume || !preco) {
     showToast('Preencha todos os campos obrigatórios (*).', 'error');
+    return;
+  }
+  if (!hodometro || hodometro <= 0) {
+    document.getElementById('f-new-hodometro').classList.add('field-invalid');
+    showToast('Hodômetro é obrigatório. Informe a quilometragem atual do veículo.', 'error');
     return;
   }
   if (cpfMotorista && !validarCPF(cpfMotorista)) {
@@ -4951,34 +4956,53 @@ function ivLimparFiltros() {
   renderIntervalos();
 }
 
-// Ao mudar o tipo no modal, atualiza a label e opções do select de referência
+// Ao mudar o tipo no modal, atualiza label e popula select de referência com itens reais
 function ivTipoChanged() {
-  const tipo    = document.getElementById('iv-tipo').value;
-  const selRef  = document.getElementById('iv-referencia');
-  const lblRef  = document.getElementById('iv-ref-label');
+  const tipo   = document.getElementById('iv-tipo').value;
+  const selRef = document.getElementById('iv-referencia');
+  const lblRef = document.getElementById('iv-ref-label');
+  const hint   = document.getElementById('iv-ref-hint');
 
-  if (!tipo) { selRef.innerHTML = '<option value="Todos">Todos (regra geral)</option>'; return; }
+  if (!tipo) {
+    lblRef.textContent = 'Referência';
+    selRef.innerHTML   = '<option value="">— Selecione o Tipo primeiro —</option>';
+    hint.textContent   = 'Selecione o Tipo de Regra acima para escolher um item específico ou aplicar a todos.';
+    return;
+  }
 
-  lblRef.textContent = tipo === 'Veículo' ? 'Veículo específico' : 'Motorista específico';
-  const opcoes = tipo === 'Veículo'
-    ? veiculos.map(v => `<option value="${v.placa}">${v.placa}${v.marca?' — '+v.marca+' '+v.modelo:''}</option>`)
-    : motoristas.map(m => `<option value="${m.nome}">${m.nome}${m.cpf?' — '+m.cpf:''}</option>`);
-  selRef.innerHTML = '<option value="Todos">Todos (regra geral)</option>' + opcoes.join('');
+  if (tipo === 'Veículo') {
+    lblRef.textContent = 'Veículo (Placa)';
+    hint.textContent   = '"Todos" aplica a regra a qualquer veículo sem regra específica.';
+    const opcoes = veiculos.map(v =>
+      `<option value="${v.placa}">${v.placa}${v.marca ? ' — ' + v.marca + ' ' + (v.modelo||'') : ''}</option>`
+    );
+    selRef.innerHTML = '<option value="Todos">Todos os veículos (regra geral)</option>' + opcoes.join('');
+  } else {
+    lblRef.textContent = 'Motorista';
+    hint.textContent   = '"Todos" aplica a regra a qualquer motorista sem regra específica.';
+    const opcoes = motoristas.map(m =>
+      `<option value="${m.nome}">${m.nome}${m.cpf ? ' — CPF: ' + m.cpf : ''}${m.matricula ? ' · Mat: ' + m.matricula : ''}</option>`
+    );
+    selRef.innerHTML = '<option value="Todos">Todos os motoristas (regra geral)</option>' + opcoes.join('');
+  }
 }
 
-function openIntervaloModal(id) {
+async function openIntervaloModal(id) {
+  // Garante que veículos e motoristas estão carregados para popular o select
+  const loads = [];
+  if (!veiculos.length)   loads.push(apiCall('GET', '/api/veiculos').then(rows   => { veiculos   = rows.map(mapVeiculo);   }).catch(()=>{}));
+  if (!motoristas.length) loads.push(apiCall('GET', '/api/motoristas').then(rows => { motoristas = rows.map(mapMotorista); }).catch(()=>{}));
+  if (loads.length) await Promise.allSettled(loads);
+
   const isEdit = !!id;
   document.getElementById('intervaloModalTitle').textContent = isEdit ? 'Editar Regra de Intervalo' : 'Nova Regra de Intervalo';
   document.getElementById('iv-edit-id').value = id || '';
-
-  // Reseta selects dependentes
-  ivTipoChanged();
 
   if (isEdit) {
     const r = intervalos.find(x => x.id === id);
     if (!r) return;
     document.getElementById('iv-tipo').value      = r.tipo;
-    ivTipoChanged(); // repopula referências com o tipo correto
+    ivTipoChanged(); // popula referências com o tipo correto
     document.getElementById('iv-referencia').value = r.referencia;
     document.getElementById('iv-intervalo').value  = r.intervaloMinimo;
     document.getElementById('iv-unidade').value    = r.unidade;
@@ -4986,6 +5010,7 @@ function openIntervaloModal(id) {
     document.getElementById('iv-observacao').value = r.observacao;
   } else {
     document.getElementById('iv-tipo').value       = '';
+    ivTipoChanged(); // reseta referência para placeholder
     document.getElementById('iv-intervalo').value  = '';
     document.getElementById('iv-unidade').value    = 'Horas';
     document.getElementById('iv-status').value     = 'Ativo';
@@ -5010,7 +5035,8 @@ async function saveIntervalo() {
   const observacao     = document.getElementById('iv-observacao').value.trim();
   const editId         = document.getElementById('iv-edit-id').value;
 
-  if (!tipo)                       { showToast('Selecione o tipo de regra.', 'error'); return; }
+  if (!tipo)                        { showToast('Selecione o tipo de regra (Veículo ou Motorista).', 'error'); return; }
+  if (!referencia)                  { showToast('Selecione a referência (ou escolha "Todos").', 'error'); return; }
   if (!intervaloMinimo || intervaloMinimo <= 0) { showToast('Informe um intervalo mínimo maior que zero.', 'error'); return; }
 
   const rec = { tipo, referencia, intervaloMinimo, unidade, status, observacao };
