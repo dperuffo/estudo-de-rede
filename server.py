@@ -124,6 +124,16 @@ def init_db():
         observacao      TEXT    DEFAULT '',
         created_at      TEXT    DEFAULT (datetime('now','localtime'))
     )''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS intervalos_abastecimento (
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipo                TEXT    NOT NULL,
+        referencia          TEXT    DEFAULT 'Todos',
+        intervalo_minimo    REAL    NOT NULL,
+        unidade             TEXT    DEFAULT 'Horas',
+        status              TEXT    DEFAULT 'Ativo',
+        observacao          TEXT    DEFAULT '',
+        created_at          TEXT    DEFAULT (datetime('now','localtime'))
+    )''')
     conn.commit()
     conn.close()
 
@@ -205,6 +215,11 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/vinculos':
             conn = get_db()
             rows = conn.execute('SELECT * FROM vinculos ORDER BY data_inicio DESC').fetchall()
+            conn.close()
+            self.send_json([dict(r) for r in rows])
+        elif path == '/api/intervalos':
+            conn = get_db()
+            rows = conn.execute('SELECT * FROM intervalos_abastecimento ORDER BY tipo, referencia').fetchall()
             conn.close()
             self.send_json([dict(r) for r in rows])
         elif path == '/api/status':
@@ -370,6 +385,20 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json({'id': new_id}, 201)
 
+        elif path == '/api/intervalos':
+            conn = get_db()
+            cur  = conn.execute('''INSERT INTO intervalos_abastecimento
+                (tipo, referencia, intervalo_minimo, unidade, status, observacao)
+                VALUES (?,?,?,?,?,?)''', [
+                d.get('tipo',''), d.get('referencia','Todos'),
+                d.get('intervaloMinimo', 0), d.get('unidade','Horas'),
+                d.get('status','Ativo'), d.get('observacao','')
+            ])
+            conn.commit()
+            new_id = cur.lastrowid
+            conn.close()
+            self.send_json({'id': new_id}, 201)
+
         else:
             self.send_json({'error': 'Not found'}, 404)
 
@@ -483,6 +512,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True})
             return
 
+        m = re.match(r'^/api/intervalos/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            conn.execute('''UPDATE intervalos_abastecimento SET
+                tipo=?, referencia=?, intervalo_minimo=?, unidade=?, status=?, observacao=?
+                WHERE id=?''', [
+                d.get('tipo',''), d.get('referencia','Todos'),
+                d.get('intervaloMinimo', 0), d.get('unidade','Horas'),
+                d.get('status','Ativo'), d.get('observacao',''), id_
+            ])
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True})
+            return
+
         self.send_json({'error': 'Not found'}, 404)
 
     def do_DELETE(self):
@@ -538,6 +583,15 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             conn.execute('DELETE FROM vinculos WHERE id=?', [int(m.group(1))])
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True})
+            return
+
+        m = re.match(r'^/api/intervalos/(\d+)$', path)
+        if m:
+            conn = get_db()
+            conn.execute('DELETE FROM intervalos_abastecimento WHERE id=?', [int(m.group(1))])
             conn.commit()
             conn.close()
             self.send_json({'ok': True})

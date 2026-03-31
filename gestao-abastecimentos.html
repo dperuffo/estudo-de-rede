@@ -979,6 +979,73 @@
         </div>
         <!-- fim param-card Vínculo -->
 
+        <!-- ── PARÂMETRO 2: INTERVALO ENTRE ABASTECIMENTOS ── -->
+        <div class="param-card">
+          <div class="param-card-header">
+            <div class="param-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Intervalo entre Abastecimentos
+            </div>
+            <button onclick="openIntervaloModal()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(255,255,255,0.18);color:#fff;border:1.5px solid rgba(255,255,255,0.4);border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nova Regra
+            </button>
+          </div>
+
+          <div class="param-card-body">
+            <p style="font-size:0.83rem;color:var(--text-muted);margin:0 0 16px">
+              Define o intervalo mínimo obrigatório entre dois abastecimentos consecutivos — por <strong>veículo</strong> ou por <strong>motorista</strong>. O sistema bloqueará o registro se o intervalo for inferior ao definido.
+            </p>
+
+            <!-- Filtros -->
+            <div class="param-filter-row">
+              <div class="form-group">
+                <label>Tipo</label>
+                <select id="iv-f-tipo" onchange="renderIntervalos()">
+                  <option value="">Todos</option>
+                  <option value="Veículo">Veículo</option>
+                  <option value="Motorista">Motorista</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select id="iv-f-status" onchange="renderIntervalos()">
+                  <option value="">Todos</option>
+                  <option value="Ativo">Ativo</option>
+                  <option value="Inativo">Inativo</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <button onclick="ivLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">
+                  Limpar
+                </button>
+              </div>
+            </div>
+
+            <!-- Tabela de regras -->
+            <div id="intervalos-empty" class="vl-empty" style="display:none">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;color:var(--text-muted)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <p>Nenhuma regra de intervalo cadastrada. Clique em <strong>Nova Regra</strong> para definir um intervalo mínimo.</p>
+            </div>
+            <div id="intervalosTableWrap" style="display:none;overflow-x:auto">
+              <table class="vinculos-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Referência</th>
+                    <th>Intervalo Mínimo</th>
+                    <th>Status</th>
+                    <th>Observação</th>
+                    <th style="text-align:right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="intervalosTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- fim param-card Intervalo -->
+
       </div><!-- /param-section -->
 
     </div>
@@ -1039,6 +1106,76 @@
       <button class="btn btn-success" onclick="saveVinculo()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         Salvar Vínculo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL INTERVALO ABASTECIMENTO ░░ -->
+<div class="modal-overlay" id="intervaloModalOverlay" onclick="closeIntervaloModalOutside(event)">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="intervaloModalTitle">Nova Regra de Intervalo</h2>
+      <button class="modal-close" onclick="closeIntervaloModal()">×</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+      <input type="hidden" id="iv-edit-id" />
+
+      <!-- Tipo -->
+      <div class="form-group">
+        <label>Tipo de Regra <span style="color:#dc2626">*</span></label>
+        <select id="iv-tipo" onchange="ivTipoChanged()" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);">
+          <option value="">Selecione...</option>
+          <option value="Veículo">Por Veículo</option>
+          <option value="Motorista">Por Motorista</option>
+        </select>
+        <span style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;display:block">Define se a regra se aplica ao veículo ou ao motorista do abastecimento.</span>
+      </div>
+
+      <!-- Referência -->
+      <div class="form-group" id="iv-ref-group">
+        <label id="iv-ref-label">Referência</label>
+        <select id="iv-referencia" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);">
+          <option value="Todos">Todos (regra geral)</option>
+        </select>
+        <span style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;display:block">"Todos" aplica a regra a qualquer veículo/motorista sem regra específica.</span>
+      </div>
+
+      <!-- Intervalo -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Intervalo Mínimo <span style="color:#dc2626">*</span></label>
+          <input type="number" id="iv-intervalo" min="1" step="1" placeholder="Ex: 4" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);" />
+        </div>
+        <div class="form-group">
+          <label>Unidade</label>
+          <select id="iv-unidade" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);">
+            <option value="Horas">Horas</option>
+            <option value="Dias">Dias</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Status + Observação -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Status</label>
+          <select id="iv-status" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);">
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Observação</label>
+          <input type="text" id="iv-observacao" placeholder="Observação opcional..." style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeIntervaloModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="saveIntervalo()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Salvar Regra
       </button>
     </div>
   </div>
@@ -1836,7 +1973,8 @@ async function initApp() {
     loadPostos(),
     loadVeiculos(),
     loadMotoristas(),
-    loadVinculos()
+    loadVinculos(),
+    loadIntervalos()
   ]);
   // Se nenhuma carga teve sucesso, marca como offline e exibe banner
   if (!serverOnline) {
@@ -2153,7 +2291,8 @@ async function openModal(id = null) {
     apiCall('GET', '/api/veiculos').then(rows   => { veiculos   = rows.map(mapVeiculo);   _setOnline(); }).catch(()=>{}),
     apiCall('GET', '/api/motoristas').then(rows => { motoristas = rows.map(mapMotorista); _setOnline(); }).catch(()=>{}),
     apiCall('GET', '/api/postos').then(rows     => { postos     = rows.map(mapPosto);     _setOnline(); }).catch(()=>{}),
-    apiCall('GET', '/api/vinculos').then(rows   => { vinculos   = rows.map(mapVinculo);   _setOnline(); }).catch(()=>{})
+    apiCall('GET', '/api/vinculos').then(rows   => { vinculos   = rows.map(mapVinculo);   _setOnline(); }).catch(()=>{}),
+    apiCall('GET', '/api/intervalos').then(rows => { intervalos = rows.map(mapIntervalo); _setOnline(); }).catch(()=>{})
   ]);
 
   document.getElementById('editId').value = id || '';
@@ -2402,6 +2541,19 @@ async function saveRecord() {
       document.getElementById('f-new-hodometro').classList.add('field-invalid');
       document.getElementById('f-new-hodometro').classList.remove('field-valid');
       showToast(`Hodômetro inválido: ${resHodo.msg}`, 'error');
+      return;
+    }
+  }
+  // ── Validação de intervalo entre abastecimentos ──────────────────────────
+  if (!editId) {
+    const ivVeiculo   = _validarIntervalo('Veículo',   placa,     data, hora);
+    const ivMotorista = _validarIntervalo('Motorista', motorista, data, hora);
+    if (!ivVeiculo.ok) {
+      showToast(`⏱ Intervalo insuficiente (Veículo): ${ivVeiculo.msg}`, 'error');
+      return;
+    }
+    if (!ivMotorista.ok) {
+      showToast(`⏱ Intervalo insuficiente (Motorista): ${ivMotorista.msg}`, 'error');
       return;
     }
   }
@@ -3115,7 +3267,7 @@ function switchTab(tab) {
   if (tab === 'postos')      loadPostos();
   if (tab === 'veiculos')    loadVeiculos();
   if (tab === 'motoristas')  loadMotoristas();
-  if (tab === 'parametros')  { loadVeiculos(); loadMotoristas(); loadVinculos(); }
+  if (tab === 'parametros')  { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4665,6 +4817,234 @@ async function deleteVinculo(id) {
   showToast('Vínculo removido.', '');
   if (serverOnline) {
     try { await apiCall('DELETE', `/api/vinculos/${id}`); }
+    catch(e) { /* offline */ }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARÂMETROS DE USO – INTERVALO ENTRE ABASTECIMENTOS
+// ═══════════════════════════════════════════════════════════════
+let intervalos    = [];
+let nextIntervaloId = 1;
+
+function mapIntervalo(r) {
+  return {
+    id:              r.id,
+    tipo:            r.tipo             || '',
+    referencia:      r.referencia       || 'Todos',
+    intervaloMinimo: parseFloat(r.intervalo_minimo) || 0,
+    unidade:         r.unidade          || 'Horas',
+    status:          r.status           || 'Ativo',
+    observacao:      r.observacao       || ''
+  };
+}
+
+async function loadIntervalos() {
+  try {
+    const rows = await apiCall('GET', '/api/intervalos');
+    intervalos      = rows.map(mapIntervalo);
+    nextIntervaloId = intervalos.length ? Math.max(...intervalos.map(v => v.id)) + 1 : 1;
+    _setOnline();
+  } catch(e) { /* mantém em memória */ }
+  renderIntervalos();
+}
+
+// Converte intervalo para horas para comparação uniforme
+function _toHoras(valor, unidade) {
+  return unidade === 'Dias' ? valor * 24 : valor;
+}
+
+// Valida intervalo mínimo entre abastecimentos
+// tipo: 'Veículo' ou 'Motorista'; referencia: placa ou nome; data/hora: do novo registro
+function _validarIntervalo(tipo, referencia, data, hora) {
+  // Filtra regras ativas do tipo solicitado
+  const regras = intervalos.filter(r =>
+    r.status === 'Ativo' &&
+    r.tipo   === tipo &&
+    (r.referencia === 'Todos' || r.referencia === referencia)
+  );
+  if (!regras.length) return { ok: true };
+
+  // Usa a regra mais específica (referencia exata tem prioridade sobre Todos)
+  const regraEspecifica = regras.find(r => r.referencia === referencia);
+  const regra = regraEspecifica || regras[0];
+
+  // Encontra o último abastecimento para esta referência (exceto Arla 32)
+  const dtNovo = new Date(`${data}T${hora || '00:00'}`);
+  let ultimoRec = null;
+  if (tipo === 'Veículo') {
+    ultimoRec = [...records]
+      .filter(r => r.placa === referencia && r.combustivel !== _ARLA)
+      .sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora))[0];
+  } else {
+    ultimoRec = [...records]
+      .filter(r => r.motorista === referencia && r.combustivel !== _ARLA)
+      .sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora))[0];
+  }
+  if (!ultimoRec) return { ok: true };
+
+  const dtUltimo  = new Date(`${ultimoRec.data}T${ultimoRec.hora || '00:00'}`);
+  const diffHoras = (dtNovo - dtUltimo) / (1000 * 60 * 60);
+  const minHoras  = _toHoras(regra.intervaloMinimo, regra.unidade);
+
+  if (diffHoras < minHoras) {
+    const diffFmt = diffHoras < 1
+      ? `${Math.round(diffHoras * 60)} minutos`
+      : `${diffHoras.toFixed(1)} horas`;
+    const minFmt = regra.unidade === 'Dias'
+      ? `${regra.intervaloMinimo} ${regra.intervaloMinimo === 1 ? 'dia' : 'dias'}`
+      : `${regra.intervaloMinimo} ${regra.intervaloMinimo === 1 ? 'hora' : 'horas'}`;
+    return {
+      ok: false,
+      msg: `Último abastecimento foi há ${diffFmt}. Intervalo mínimo configurado: ${minFmt}.`
+    };
+  }
+  return { ok: true };
+}
+
+function renderIntervalos() {
+  const filTipo   = (document.getElementById('iv-f-tipo')?.value   || '');
+  const filStatus = (document.getElementById('iv-f-status')?.value || '');
+
+  const filtered = intervalos.filter(r => {
+    if (filTipo   && r.tipo   !== filTipo)   return false;
+    if (filStatus && r.status !== filStatus) return false;
+    return true;
+  });
+
+  const empty = document.getElementById('intervalos-empty');
+  const wrap  = document.getElementById('intervalosTableWrap');
+  const tbody = document.getElementById('intervalosTbody');
+  if (!empty || !wrap || !tbody) return;
+
+  if (!filtered.length) {
+    empty.style.display = ''; wrap.style.display = 'none'; return;
+  }
+  empty.style.display = 'none'; wrap.style.display = '';
+
+  tbody.innerHTML = filtered.map(r => {
+    const badgeCls = r.status === 'Ativo' ? 'vl-badge-ativo' : 'vl-badge-inativo';
+    const refLabel = r.referencia === 'Todos'
+      ? '<em style="color:var(--text-muted)">Todos</em>'
+      : `<strong>${r.referencia}</strong>`;
+    const tipoIcon = r.tipo === 'Veículo'
+      ? '🚗'
+      : '👤';
+    return `<tr>
+      <td>${tipoIcon} ${r.tipo}</td>
+      <td>${refLabel}</td>
+      <td><strong>${r.intervaloMinimo}</strong> ${r.unidade.toLowerCase()}</td>
+      <td><span class="vl-badge ${badgeCls}">${r.status}</span></td>
+      <td style="font-size:0.82rem;color:var(--text-muted)">${r.observacao||'—'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button onclick="openIntervaloModal(${r.id})" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:0.78rem;cursor:pointer;margin-right:4px;">Editar</button>
+        <button onclick="deleteIntervalo(${r.id})" style="padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:0.78rem;cursor:pointer;">Excluir</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function ivLimparFiltros() {
+  ['iv-f-tipo','iv-f-status'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  renderIntervalos();
+}
+
+// Ao mudar o tipo no modal, atualiza a label e opções do select de referência
+function ivTipoChanged() {
+  const tipo    = document.getElementById('iv-tipo').value;
+  const selRef  = document.getElementById('iv-referencia');
+  const lblRef  = document.getElementById('iv-ref-label');
+
+  if (!tipo) { selRef.innerHTML = '<option value="Todos">Todos (regra geral)</option>'; return; }
+
+  lblRef.textContent = tipo === 'Veículo' ? 'Veículo específico' : 'Motorista específico';
+  const opcoes = tipo === 'Veículo'
+    ? veiculos.map(v => `<option value="${v.placa}">${v.placa}${v.marca?' — '+v.marca+' '+v.modelo:''}</option>`)
+    : motoristas.map(m => `<option value="${m.nome}">${m.nome}${m.cpf?' — '+m.cpf:''}</option>`);
+  selRef.innerHTML = '<option value="Todos">Todos (regra geral)</option>' + opcoes.join('');
+}
+
+function openIntervaloModal(id) {
+  const isEdit = !!id;
+  document.getElementById('intervaloModalTitle').textContent = isEdit ? 'Editar Regra de Intervalo' : 'Nova Regra de Intervalo';
+  document.getElementById('iv-edit-id').value = id || '';
+
+  // Reseta selects dependentes
+  ivTipoChanged();
+
+  if (isEdit) {
+    const r = intervalos.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('iv-tipo').value      = r.tipo;
+    ivTipoChanged(); // repopula referências com o tipo correto
+    document.getElementById('iv-referencia').value = r.referencia;
+    document.getElementById('iv-intervalo').value  = r.intervaloMinimo;
+    document.getElementById('iv-unidade').value    = r.unidade;
+    document.getElementById('iv-status').value     = r.status;
+    document.getElementById('iv-observacao').value = r.observacao;
+  } else {
+    document.getElementById('iv-tipo').value       = '';
+    document.getElementById('iv-intervalo').value  = '';
+    document.getElementById('iv-unidade').value    = 'Horas';
+    document.getElementById('iv-status').value     = 'Ativo';
+    document.getElementById('iv-observacao').value = '';
+  }
+  document.getElementById('intervaloModalOverlay').classList.add('open');
+}
+
+function closeIntervaloModal() {
+  document.getElementById('intervaloModalOverlay').classList.remove('open');
+}
+function closeIntervaloModalOutside(e) {
+  if (e.target === document.getElementById('intervaloModalOverlay')) closeIntervaloModal();
+}
+
+async function saveIntervalo() {
+  const tipo           = document.getElementById('iv-tipo').value;
+  const referencia     = document.getElementById('iv-referencia').value;
+  const intervaloMinimo = parseFloat(document.getElementById('iv-intervalo').value);
+  const unidade        = document.getElementById('iv-unidade').value;
+  const status         = document.getElementById('iv-status').value;
+  const observacao     = document.getElementById('iv-observacao').value.trim();
+  const editId         = document.getElementById('iv-edit-id').value;
+
+  if (!tipo)                       { showToast('Selecione o tipo de regra.', 'error'); return; }
+  if (!intervaloMinimo || intervaloMinimo <= 0) { showToast('Informe um intervalo mínimo maior que zero.', 'error'); return; }
+
+  const rec = { tipo, referencia, intervaloMinimo, unidade, status, observacao };
+
+  if (editId) {
+    const idx = intervalos.findIndex(r => String(r.id) === String(editId));
+    if (idx > -1) intervalos[idx] = { ...intervalos[idx], ...rec };
+    if (serverOnline) {
+      try { await apiCall('PUT', `/api/intervalos/${editId}`, rec); }
+      catch(e) { /* offline */ }
+    }
+    showToast('Regra atualizada!', 'success');
+  } else {
+    const newR = { id: nextIntervaloId++, ...rec };
+    intervalos.push(newR);
+    if (serverOnline) {
+      try {
+        const res = await apiCall('POST', '/api/intervalos', rec);
+        if (res && res.id) { newR.id = res.id; nextIntervaloId = res.id + 1; }
+      } catch(e) { /* offline */ }
+    }
+    showToast('Regra criada!', 'success');
+  }
+  closeIntervaloModal();
+  renderIntervalos();
+}
+
+async function deleteIntervalo(id) {
+  if (!confirm('Remover esta regra de intervalo?')) return;
+  intervalos = intervalos.filter(r => r.id !== id);
+  renderIntervalos();
+  showToast('Regra removida.', '');
+  if (serverOnline) {
+    try { await apiCall('DELETE', `/api/intervalos/${id}`); }
     catch(e) { /* offline */ }
   }
 }
