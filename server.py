@@ -113,6 +113,17 @@ def init_db():
         renavam             TEXT    DEFAULT '',
         created_at          TEXT    DEFAULT (datetime('now','localtime'))
     )''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS vinculos (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        placa           TEXT    NOT NULL,
+        motorista_nome  TEXT    NOT NULL,
+        motorista_cpf   TEXT    DEFAULT '',
+        data_inicio     TEXT    NOT NULL,
+        data_fim        TEXT    DEFAULT '',
+        status          TEXT    DEFAULT 'Ativo',
+        observacao      TEXT    DEFAULT '',
+        created_at      TEXT    DEFAULT (datetime('now','localtime'))
+    )''')
     conn.commit()
     conn.close()
 
@@ -189,6 +200,11 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/veiculos':
             conn = get_db()
             rows = conn.execute('SELECT * FROM veiculos ORDER BY placa').fetchall()
+            conn.close()
+            self.send_json([dict(r) for r in rows])
+        elif path == '/api/vinculos':
+            conn = get_db()
+            rows = conn.execute('SELECT * FROM vinculos ORDER BY data_inicio DESC').fetchall()
             conn.close()
             self.send_json([dict(r) for r in rows])
         elif path == '/api/status':
@@ -339,6 +355,21 @@ class Handler(BaseHTTPRequestHandler):
                 conn.close()
                 self.send_json({'error': str(e)}, 409)
 
+        elif path == '/api/vinculos':
+            conn = get_db()
+            cur  = conn.execute('''INSERT INTO vinculos
+                (placa, motorista_nome, motorista_cpf, data_inicio, data_fim, status, observacao)
+                VALUES (?,?,?,?,?,?,?)''', [
+                d.get('placa','').upper(), d.get('motoristaNome',''),
+                d.get('motoristaCpf',''), d.get('dataInicio',''),
+                d.get('dataFim',''), d.get('status','Ativo'),
+                d.get('observacao','')
+            ])
+            conn.commit()
+            new_id = cur.lastrowid
+            conn.close()
+            self.send_json({'id': new_id}, 201)
+
         else:
             self.send_json({'error': 'Not found'}, 404)
 
@@ -434,6 +465,24 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True})
             return
 
+        m = re.match(r'^/api/vinculos/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            conn.execute('''UPDATE vinculos SET
+                placa=?, motorista_nome=?, motorista_cpf=?,
+                data_inicio=?, data_fim=?, status=?, observacao=?
+                WHERE id=?''', [
+                d.get('placa','').upper(), d.get('motoristaNome',''),
+                d.get('motoristaCpf',''), d.get('dataInicio',''),
+                d.get('dataFim',''), d.get('status','Ativo'),
+                d.get('observacao',''), id_
+            ])
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True})
+            return
+
         self.send_json({'error': 'Not found'}, 404)
 
     def do_DELETE(self):
@@ -480,6 +529,15 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             conn.execute('DELETE FROM veiculos WHERE id=?', [int(m.group(1))])
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True})
+            return
+
+        m = re.match(r'^/api/vinculos/(\d+)$', path)
+        if m:
+            conn = get_db()
+            conn.execute('DELETE FROM vinculos WHERE id=?', [int(m.group(1))])
             conn.commit()
             conn.close()
             self.send_json({'ok': True})

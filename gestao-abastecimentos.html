@@ -9,7 +9,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --primary: #3d5bbc;
+      --primary: #1e40af;
       --primary-light: #3b82f6;
       --primary-dark: #1e3a8a;
       --success: #16a34a;
@@ -346,6 +346,27 @@
     .photo-preview-item img { width:80px; height:80px; object-fit:cover; border-radius:8px; border:1.5px solid var(--border); }
     .photo-remove-btn { position:absolute; top:-6px; right:-6px; width:20px; height:20px; background:#dc2626; color:#fff; border:none; border-radius:50%; font-size:0.7rem; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; }
 
+    /* ─── PARÂMETROS DE USO ─── */
+    .param-section { display:flex; flex-direction:column; gap:24px; }
+    .param-card { background:var(--surface); border:1.5px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+    .param-card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%); color:#fff; }
+    .param-card-title { display:flex; align-items:center; gap:10px; font-size:1rem; font-weight:700; }
+    .param-card-body { padding:20px; }
+    .param-filter-row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px; }
+    .param-filter-row .form-group { margin:0; flex:1; min-width:160px; }
+    .param-filter-row label { font-size:0.78rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px; }
+    .param-filter-row select, .param-filter-row input[type=text] { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:0.88rem; background:var(--bg); color:var(--text); }
+    .param-filter-row select:focus, .param-filter-row input:focus { outline:none; border-color:var(--primary); }
+    .vinculos-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+    .vinculos-table th { background:#f1f5f9; color:var(--text-muted); font-weight:600; font-size:0.77rem; text-transform:uppercase; letter-spacing:.03em; padding:9px 12px; text-align:left; border-bottom:2px solid var(--border); }
+    .vinculos-table td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .vinculos-table tr:last-child td { border-bottom:none; }
+    .vinculos-table tr:hover td { background:#f8fafc; }
+    .vl-badge { display:inline-block; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:20px; }
+    .vl-badge-ativo { background:#dcfce7; color:#16a34a; }
+    .vl-badge-inativo { background:#fee2e2; color:#dc2626; }
+    .vl-empty { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:0.88rem; }
+
     /* ─── MODAL LARGE ─── */
     .modal-lg { max-width:820px; }
 
@@ -503,6 +524,10 @@
     <button class="tab-btn" id="tab-btn-motoristas" onclick="switchTab('motoristas')">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Motoristas
+    </button>
+    <button class="tab-btn" id="tab-btn-parametros" onclick="switchTab('parametros')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Parâmetros de Uso
     </button>
   </div>
 
@@ -842,6 +867,96 @@
     </div>
   </div>
 
+  <!-- ── VIEW PARÂMETROS DE USO ── -->
+  <div id="view-parametros" style="display:none">
+    <div class="panel">
+
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Parâmetros de Uso
+        </h2>
+      </div>
+
+      <div class="param-section">
+
+        <!-- ── PARÂMETRO 1: VÍNCULO MOTORISTA ↔ VEÍCULO ── -->
+        <div class="param-card">
+          <div class="param-card-header">
+            <div class="param-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Vínculo Motorista ↔ Veículo
+            </div>
+            <button onclick="openVinculoModal()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(255,255,255,0.18);color:#fff;border:1.5px solid rgba(255,255,255,0.4);border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Novo Vínculo
+            </button>
+          </div>
+
+          <div class="param-card-body">
+            <!-- Filtros -->
+            <div class="param-filter-row">
+              <div class="form-group">
+                <label>Veículo (Placa)</label>
+                <select id="vl-filter-placa">
+                  <option value="">Todos os veículos</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Motorista</label>
+                <select id="vl-filter-motorista">
+                  <option value="">Todos os motoristas</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:0 0 140px">
+                <label>Status</label>
+                <select id="vl-filter-status">
+                  <option value="">Todos</option>
+                  <option value="Ativo">Ativo</option>
+                  <option value="Inativo">Inativo</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <button onclick="renderVinculos()" style="padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:0.85rem;cursor:pointer;">
+                  Pesquisar
+                </button>
+                <button onclick="vlLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">
+                  Limpar
+                </button>
+              </div>
+            </div>
+
+            <!-- Tabela de vínculos -->
+            <div id="vinculos-empty" class="vl-empty" style="display:none">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;color:var(--text-muted)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <p>Nenhum vínculo encontrado. Clique em <strong>Novo Vínculo</strong> para associar um motorista a um veículo.</p>
+            </div>
+            <div id="vinculos-table-wrap" style="display:none;overflow-x:auto">
+              <table class="vinculos-table">
+                <thead>
+                  <tr>
+                    <th>Placa</th>
+                    <th>Motorista</th>
+                    <th>CPF</th>
+                    <th>Data Início</th>
+                    <th>Data Fim</th>
+                    <th>Status</th>
+                    <th>Observação</th>
+                    <th style="text-align:right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="vinculosTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- fim param-card Vínculo -->
+
+      </div><!-- /param-section -->
+
+    </div>
+  </div><!-- /view-parametros -->
+
 </main>
 
 <!-- ░░ MODAL MOTORISTA ░░ -->
@@ -1044,6 +1159,64 @@
       <button class="btn btn-success" onclick="saveVeiculo()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         Salvar Veículo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL VÍNCULO ░░ -->
+<div class="modal-overlay" id="vinculoModalOverlay" onclick="closeVinculoModalOutside(event)">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="vinculoModalTitle">Novo Vínculo</h2>
+      <button class="modal-close" onclick="closeVinculoModal()">×</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <input type="hidden" id="vl-edit-id" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>Veículo (Placa) <span style="color:#dc2626">*</span></label>
+          <select id="vl-placa" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);">
+            <option value="">Selecione o veículo...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Motorista <span style="color:#dc2626">*</span></label>
+          <select id="vl-motorista" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);">
+            <option value="">Selecione o motorista...</option>
+          </select>
+        </div>
+      </div>
+      <div id="vl-cpf-display" style="display:none;font-size:0.82rem;color:var(--text-muted);padding:4px 0 0 2px">CPF: <span id="vl-cpf-val"></span></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data de Início <span style="color:#dc2626">*</span></label>
+          <input type="date" id="vl-data-inicio" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);" />
+        </div>
+        <div class="form-group">
+          <label>Data de Fim <span style="color:var(--text-muted);font-weight:400">(deixe em branco para prazo indeterminado)</span></label>
+          <input type="date" id="vl-data-fim" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Status</label>
+          <select id="vl-status" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);">
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Observação</label>
+          <input type="text" id="vl-observacao" placeholder="Observação opcional..." style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text);" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeVinculoModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveVinculo()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Salvar Vínculo
       </button>
     </div>
   </div>
@@ -1626,12 +1799,12 @@ function renderUI() {
 
 async function initApp() {
   setServerStatus('connecting');
-  // Tenta todas as cargas independentemente — cada load detecta o servidor por conta própria
   await Promise.allSettled([
     loadAbastecimentos(),
     loadPostos(),
     loadVeiculos(),
-    loadMotoristas()
+    loadMotoristas(),
+    loadVinculos()
   ]);
   // Se nenhuma carga teve sucesso, marca como offline e exibe banner
   if (!serverOnline) {
@@ -1933,6 +2106,8 @@ async function openModal(id = null) {
   if (!veiculos.length)   loads.push(apiCall('GET', '/api/veiculos').then(rows   => { veiculos   = rows.map(mapVeiculo);   _setOnline(true); }).catch(()=>{}));
   if (!motoristas.length) loads.push(apiCall('GET', '/api/motoristas').then(rows => { motoristas = rows.map(mapMotorista); _setOnline(true); }).catch(()=>{}));
   if (!postos.length)     loads.push(apiCall('GET', '/api/postos').then(rows     => { postos     = rows;                   _setOnline(true); }).catch(()=>{}));
+  // Sempre recarrega vínculos para ter associações atualizadas
+  loads.push(apiCall('GET', '/api/vinculos').then(rows => { vinculos = rows.map(mapVinculo); _setOnline(true); }).catch(()=>{}));
   if (loads.length) await Promise.allSettled(loads);
 
   document.getElementById('editId').value = id || '';
@@ -1963,6 +2138,12 @@ async function openModal(id = null) {
     const now = new Date();
     document.getElementById('f-new-data').value = now.toISOString().slice(0,10);
     document.getElementById('f-new-hora').value = now.toTimeString().slice(0,5);
+    // Garante que motorista não fica bloqueado por vínculo
+    const motorElReset = document.getElementById('f-new-motorista');
+    motorElReset.readOnly        = false;
+    motorElReset.style.background = '';
+    const motorInfoReset = document.getElementById('ac-motorista-info');
+    if (motorInfoReset) { motorInfoReset.textContent = ''; motorInfoReset.style.color = ''; }
   }
 
   document.getElementById('modalOverlay').classList.add('open');
@@ -2539,12 +2720,10 @@ function renderConsumoVeiculos() {
 //  TABS
 // ═══════════════════════════════════════════════════════════════
 function switchTab(tab) {
-  ['abastecimentos','postos','veiculos','motoristas'].forEach(t => {
+  ['abastecimentos','postos','veiculos','motoristas','parametros'].forEach(t => {
     document.getElementById('view-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('tab-btn-' + t).classList.toggle('active', tab === t);
   });
-  // Sempre tenta carregar do servidor ao trocar de aba.
-  // As funções de load tentam a API e, se falharem, mantêm os dados em memória.
   if (tab === 'abastecimentos') {
     loadAbastecimentos();
     if (!veiculos.length)   loadVeiculos();
@@ -2554,6 +2733,7 @@ function switchTab(tab) {
   if (tab === 'postos')     loadPostos();
   if (tab === 'veiculos')   loadVeiculos();
   if (tab === 'motoristas') loadMotoristas();
+  if (tab === 'parametros') { loadVeiculos(); loadMotoristas(); loadVinculos(); }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3464,13 +3644,38 @@ function _comboItemPlaca(v) {
   };
 }
 function _onSelectPlaca(item) {
-  const v = item.data;
+  const v  = item.data;
   const el = document.getElementById('f-new-placa');
   el.value = v.placa;
   el.classList.remove('field-invalid'); el.classList.add('field-valid');
   if (v.hodometro) document.getElementById('f-new-hodometro').value = v.hodometro;
   document.getElementById('ac-placa-info').textContent =
     `✔ ${[v.marca,v.modelo,v.ano_fabricacao].filter(Boolean).join(' ')} — ${v.classificacao||''} ${v.tipo||''}`.trim();
+
+  // Vínculo Motorista ↔ Veículo: preenche motorista automaticamente se houver vínculo ativo
+  const dataAtual    = document.getElementById('f-new-data').value || new Date().toISOString().slice(0,10);
+  const vinculoAtivo = getVinculoAtivo(v.placa, dataAtual);
+  const motorEl      = document.getElementById('f-new-motorista');
+  const motorInfo    = document.getElementById('ac-motorista-info');
+  if (vinculoAtivo) {
+    motorEl.value = vinculoAtivo.motoristaNome;
+    document.getElementById('f-new-cpf').value = vinculoAtivo.motoristaCpf || '';
+    motorEl.classList.remove('field-invalid'); motorEl.classList.add('field-valid');
+    motorInfo.textContent = `🔗 Motorista vinculado automaticamente`;
+    motorInfo.style.color = '#1d4ed8';
+    motorEl.readOnly      = true;
+    motorEl.style.background = '#f0f9ff';
+  } else {
+    motorEl.readOnly         = false;
+    motorEl.style.background = '';
+    if (motorInfo.textContent.startsWith('🔗')) {
+      motorInfo.textContent = '';
+      motorInfo.style.color = '';
+      motorEl.value = '';
+      document.getElementById('f-new-cpf').value = '';
+      motorEl.classList.remove('field-valid');
+    }
+  }
 }
 function comboAbrirPlaca() {
   if (!veiculos.length) { showToast('Nenhum veículo cadastrado.', ''); return; }
@@ -3579,6 +3784,230 @@ function acBuscarPosto() {
     (p.cidade||'').toLowerCase().includes(q)
   ).slice(0, 8);
   acShow('ac-posto', matches.map(p => _comboItemPosto(p)), _onSelectPosto);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARÂMETROS DE USO — VÍNCULOS MOTORISTA ↔ VEÍCULO
+// ═══════════════════════════════════════════════════════════════
+let vinculos = [];
+
+function mapVinculo(r) {
+  return {
+    id:            r.id,
+    placa:         r.placa          || '',
+    motoristaNome: r.motorista_nome  || '',
+    motoristaCpf:  r.motorista_cpf   || '',
+    dataInicio:    r.data_inicio     || '',
+    dataFim:       r.data_fim        || '',
+    status:        r.status          || 'Ativo',
+    observacao:    r.observacao      || ''
+  };
+}
+
+async function loadVinculos() {
+  try {
+    const rows = await apiCall('GET', '/api/vinculos');
+    vinculos = rows.map(mapVinculo);
+  } catch(e) { /* mantém em memória */ }
+  _populateVlFilters();
+  renderVinculos();
+}
+
+// Retorna o vínculo ativo para uma placa numa determinada data
+function getVinculoAtivo(placa, data) {
+  const dt = data || new Date().toISOString().slice(0, 10);
+  return vinculos.find(v =>
+    v.placa === placa &&
+    v.status === 'Ativo' &&
+    v.dataInicio <= dt &&
+    (v.dataFim === '' || v.dataFim >= dt)
+  ) || null;
+}
+
+// Popula os <select> de filtro com veículos e motoristas reais
+function _populateVlFilters() {
+  const selPlaca = document.getElementById('vl-filter-placa');
+  const selMot   = document.getElementById('vl-filter-motorista');
+  if (!selPlaca || !selMot) return;
+
+  const curPlaca = selPlaca.value;
+  const curMot   = selMot.value;
+
+  // Placas presentes nos vínculos + todas cadastradas
+  const placas = [...new Set([
+    ...veiculos.map(v => v.placa),
+    ...vinculos.map(v => v.placa)
+  ])].sort();
+  selPlaca.innerHTML = '<option value="">Todos os veículos</option>' +
+    placas.map(p => `<option value="${p}"${p === curPlaca ? ' selected' : ''}>${p}</option>`).join('');
+
+  // Motoristas cadastrados + presentes nos vínculos
+  const nomes = [...new Set([
+    ...motoristas.map(m => m.nome),
+    ...vinculos.map(v => v.motoristaNome)
+  ])].filter(Boolean).sort();
+  selMot.innerHTML = '<option value="">Todos os motoristas</option>' +
+    nomes.map(n => `<option value="${n}"${n === curMot ? ' selected' : ''}>${n}</option>`).join('');
+}
+
+function vlLimparFiltros() {
+  document.getElementById('vl-filter-placa').value    = '';
+  document.getElementById('vl-filter-motorista').value = '';
+  document.getElementById('vl-filter-status').value   = '';
+  renderVinculos();
+}
+
+function renderVinculos() {
+  const filPlaca = (document.getElementById('vl-filter-placa')?.value    || '').trim();
+  const filMot   = (document.getElementById('vl-filter-motorista')?.value || '').trim();
+  const filStat  = (document.getElementById('vl-filter-status')?.value    || '').trim();
+
+  const filtered = vinculos.filter(v => {
+    if (filPlaca && v.placa !== filPlaca) return false;
+    if (filMot   && v.motoristaNome !== filMot) return false;
+    if (filStat  && v.status !== filStat) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('vinculosTbody');
+  const empty = document.getElementById('vinculos-empty');
+  const wrap  = document.getElementById('vinculos-table-wrap');
+  if (!tbody) return;
+
+  if (!filtered.length) {
+    empty.style.display = '';
+    wrap.style.display  = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  wrap.style.display  = '';
+
+  const fmtData = d => d ? d.split('-').reverse().join('/') : '—';
+
+  tbody.innerHTML = filtered.map(v => {
+    const badgeCls = v.status === 'Ativo' ? 'vl-badge-ativo' : 'vl-badge-inativo';
+    return `<tr>
+      <td><strong>${v.placa}</strong></td>
+      <td>${v.motoristaNome}</td>
+      <td style="color:var(--text-muted);font-size:0.82rem">${v.motoristaCpf || '—'}</td>
+      <td>${fmtData(v.dataInicio)}</td>
+      <td>${fmtData(v.dataFim)}</td>
+      <td><span class="vl-badge ${badgeCls}">${v.status}</span></td>
+      <td style="font-size:0.82rem;color:var(--text-muted)">${v.observacao || '—'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button onclick="openVinculoModal(${v.id})" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:0.78rem;cursor:pointer;margin-right:4px;">Editar</button>
+        <button onclick="deleteVinculo(${v.id})" style="padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:0.78rem;cursor:pointer;">Excluir</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Modal Vínculo — abrir para criação ou edição
+function openVinculoModal(id = null) {
+  // Popula selects de veículo e motorista no modal
+  const selPlaca = document.getElementById('vl-placa');
+  const selMot   = document.getElementById('vl-motorista');
+
+  selPlaca.innerHTML = '<option value="">Selecione o veículo...</option>' +
+    veiculos.map(v => `<option value="${v.placa}">${v.placa}${v.marca?' — '+v.marca:''} ${v.modelo||''}</option>`).join('');
+  selMot.innerHTML = '<option value="">Selecione o motorista...</option>' +
+    motoristas.map(m => `<option value="${m.nome}|${m.cpf||''}">${m.nome}${m.cpf?' — CPF: '+m.cpf:''}</option>`).join('');
+
+  // Evento para mostrar CPF do motorista selecionado
+  selMot.onchange = function() {
+    const parts = this.value.split('|');
+    const cpf   = parts[1] || '';
+    const cpfDiv = document.getElementById('vl-cpf-display');
+    const cpfVal = document.getElementById('vl-cpf-val');
+    if (cpf) { cpfDiv.style.display = ''; cpfVal.textContent = cpf; }
+    else      { cpfDiv.style.display = 'none'; }
+  };
+
+  if (id) {
+    const v = vinculos.find(x => x.id === id);
+    if (!v) return;
+    document.getElementById('vinculoModalTitle').textContent = 'Editar Vínculo';
+    document.getElementById('vl-edit-id').value    = v.id;
+    document.getElementById('vl-placa').value      = v.placa;
+    document.getElementById('vl-data-inicio').value = v.dataInicio;
+    document.getElementById('vl-data-fim').value    = v.dataFim;
+    document.getElementById('vl-status').value      = v.status;
+    document.getElementById('vl-observacao').value  = v.observacao;
+    // Seleciona motorista pelo nome|cpf
+    const opt = [...selMot.options].find(o => o.value.startsWith(v.motoristaNome + '|'));
+    if (opt) selMot.value = opt.value;
+    const cpfDiv = document.getElementById('vl-cpf-display');
+    const cpfVal = document.getElementById('vl-cpf-val');
+    if (v.motoristaCpf) { cpfDiv.style.display = ''; cpfVal.textContent = v.motoristaCpf; }
+    else cpfDiv.style.display = 'none';
+  } else {
+    document.getElementById('vinculoModalTitle').textContent = 'Novo Vínculo';
+    document.getElementById('vl-edit-id').value     = '';
+    document.getElementById('vl-placa').value       = '';
+    document.getElementById('vl-motorista').value   = '';
+    document.getElementById('vl-data-inicio').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('vl-data-fim').value    = '';
+    document.getElementById('vl-status').value      = 'Ativo';
+    document.getElementById('vl-observacao').value  = '';
+    document.getElementById('vl-cpf-display').style.display = 'none';
+  }
+
+  document.getElementById('vinculoModalOverlay').classList.add('open');
+}
+
+function closeVinculoModal() {
+  document.getElementById('vinculoModalOverlay').classList.remove('open');
+}
+function closeVinculoModalOutside(e) {
+  if (e.target === document.getElementById('vinculoModalOverlay')) closeVinculoModal();
+}
+
+async function saveVinculo() {
+  const editId    = document.getElementById('vl-edit-id').value;
+  const placa     = document.getElementById('vl-placa').value.trim();
+  const motVal    = document.getElementById('vl-motorista').value; // "Nome|CPF"
+  const dataInicio = document.getElementById('vl-data-inicio').value;
+  const dataFim   = document.getElementById('vl-data-fim').value;
+  const status    = document.getElementById('vl-status').value;
+  const observacao = document.getElementById('vl-observacao').value.trim();
+
+  if (!placa)      { showToast('Selecione um veículo.', 'error'); return; }
+  if (!motVal)     { showToast('Selecione um motorista.', 'error'); return; }
+  if (!dataInicio) { showToast('Informe a data de início.', 'error'); return; }
+  if (dataFim && dataFim < dataInicio) {
+    showToast('A data de fim não pode ser anterior à data de início.', 'error'); return;
+  }
+
+  const parts        = motVal.split('|');
+  const motoristaNome = parts[0] || '';
+  const motoristaCpf  = parts[1] || '';
+
+  const payload = { placa, motoristaNome, motoristaCpf, dataInicio, dataFim, status, observacao };
+
+  try {
+    if (editId) {
+      await apiCall('PUT', `/api/vinculos/${editId}`, payload);
+      showToast('Vínculo atualizado com sucesso!', 'success');
+    } else {
+      await apiCall('POST', '/api/vinculos', payload);
+      showToast('Vínculo criado com sucesso!', 'success');
+    }
+    closeVinculoModal();
+    await loadVinculos();
+  } catch(e) {
+    showToast('Erro ao salvar vínculo: ' + e.message, 'error');
+  }
+}
+
+async function deleteVinculo(id) {
+  if (!confirm('Deseja excluir este vínculo?')) return;
+  try {
+    await apiCall('DELETE', `/api/vinculos/${id}`);
+    showToast('Vínculo excluído.', 'success');
+    await loadVinculos();
+  } catch(e) {
+    showToast('Erro ao excluir: ' + e.message, 'error');
+  }
 }
 
 // Inicia aplicação (conecta ao servidor e carrega dados)
