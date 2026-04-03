@@ -878,6 +878,22 @@
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M5 7v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7M7 12v5a2 2 0 0 0 2 2h2"/></svg>
     Rotograma
   </button>
+
+  <!-- ── Orçamento (grupo colapsável) ── -->
+  <div class="sidebar-group">
+    <button class="sidebar-item sidebar-group-header" id="side-btn-orcamento" onclick="toggleSidebarGroup('orcamento')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h2m2 0h2m2 0h2M7 12h2m4 0h4"/></svg>
+      Orçamento
+      <svg class="sidebar-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="sidebar-submenu" id="sidebar-submenu-orcamento">
+      <button class="sidebar-item sidebar-subitem" id="side-btn-plano-viagem" onclick="switchTab('plano-viagem')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M3.6 9h16.8M3.6 15h16.8"/><path d="M11.5 3a17 17 0 0 0 0 18M12.5 3a17 17 0 0 1 0 18"/></svg>
+        Plano de Viagem
+      </button>
+    </div>
+  </div>
+
   <!-- ── Painel Dinâmico (grupo colapsável) ── -->
   <div class="sidebar-group">
     <button class="sidebar-item sidebar-group-header" id="side-btn-paineldinamico" onclick="toggleSidebarGroup('paineldinamico')">
@@ -901,21 +917,6 @@
       <button class="sidebar-item sidebar-subitem" id="side-btn-volprojetado" onclick="switchTab('volprojetado')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><polyline points="2 20 22 20"/></svg>
         Volume Projetado
-      </button>
-    </div>
-  </div>
-
-  <!-- ── Orçamento (grupo colapsável) ── -->
-  <div class="sidebar-group">
-    <button class="sidebar-item sidebar-group-header" id="side-btn-orcamento" onclick="toggleSidebarGroup('orcamento')">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h2m2 0h2m2 0h2M7 12h2m4 0h4"/></svg>
-      Orçamento
-      <svg class="sidebar-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <div class="sidebar-submenu" id="sidebar-submenu-orcamento">
-      <button class="sidebar-item sidebar-subitem" id="side-btn-plano-viagem" onclick="switchTab('plano-viagem')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M3.6 9h16.8M3.6 15h16.8"/><path d="M11.5 3a17 17 0 0 0 0 18M12.5 3a17 17 0 0 1 0 18"/></svg>
-        Plano de Viagem
       </button>
     </div>
   </div>
@@ -1443,6 +1444,10 @@
           <button class="btn btn-outline btn-sm" onclick="exportPostosExcel()" title="Exportar dados para Excel">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Exportar
+          </button>
+          <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="limparTodosPostos()" title="Excluir todos os postos cadastrados">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            Limpar Dados
           </button>
           <button class="btn btn-primary btn-sm" onclick="openPostoModal()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -2375,23 +2380,23 @@
     </div>
 
     <!-- Popup de posto no mapa (flutuante) -->
-    <div id="roteiz-posto-popup" style="display:none;position:fixed;z-index:700;background:#fff;border:1.5px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.2);width:300px;padding:16px;">
+    <div id="roteiz-posto-popup" style="display:none;position:fixed;z-index:700;background:#fff;border:1.5px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.2);width:320px;padding:16px;">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="M7 10h5m0 0v6m0-6h2a2 2 0 1 1 0 4h-2"/></svg>
-        <div style="flex:1;">
-          <div id="roteiz-popup-nome" style="font-weight:700;font-size:0.95rem;color:var(--text);"></div>
-          <div id="roteiz-popup-end" style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;"></div>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8" style="flex-shrink:0;"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="M7 10h5m0 0v6m0-6h2a2 2 0 1 1 0 4h-2"/></svg>
+        <div style="flex:1;min-width:0;">
+          <div id="roteiz-popup-nome" style="font-weight:700;font-size:0.95rem;color:var(--text);word-break:break-word;"></div>
+          <div id="roteiz-popup-end" style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;word-break:break-word;"></div>
         </div>
-        <button onclick="document.getElementById('roteiz-posto-popup').style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;">✕</button>
+        <button onclick="document.getElementById('roteiz-posto-popup').style.display='none'" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;flex-shrink:0;line-height:1;">✕</button>
       </div>
       <div id="roteiz-popup-combustiveis" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
-      <div id="roteiz-popup-servicos" style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;"></div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-primary btn-sm" style="flex:1;" onclick="adicionarPostoNaRota()">
+      <div id="roteiz-popup-servicos" style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;display:flex;flex-wrap:wrap;gap:4px;"></div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="adicionarPostoNaRota()">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Adicionar à Rota
         </button>
-        <button class="btn btn-outline btn-sm" style="flex:1;" onclick="tracarRotaAtePosto()">
+        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;" onclick="tracarRotaAtePosto()">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
           Traçar Rota até Posto
         </button>
@@ -4821,10 +4826,12 @@ function fmtDate(d) {
   return `${dd}/${m}/${y}`;
 }
 function fmtBRL(v) {
-  return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const n = (typeof v === 'number' && !isNaN(v)) ? v : (parseFloat(v) || 0);
+  return 'R$ ' + n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 function fmtBRLp(v) {
-  return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:3, maximumFractionDigits:3});
+  const n = (typeof v === 'number' && !isNaN(v)) ? v : (parseFloat(v) || 0);
+  return 'R$ ' + n.toLocaleString('pt-BR', {minimumFractionDigits:3, maximumFractionDigits:3});
 }
 
 function _updateTotalizadores() {
@@ -6229,7 +6236,7 @@ function _renderTopPostos(curr) {
   const rows = Object.values(byPosto).map(({ posto, cidade, uf, recs }) => {
     const volume = recs.reduce((s,r) => s + r.volume, 0);
     const gasto  = recs.reduce((s,r) => s + r.valorTotal, 0);
-    const preco  = recs.length ? recs.reduce((s,r) => s + r.precoUnitario, 0) / recs.length : 0;
+    const preco  = recs.length ? recs.reduce((s,r) => s + (parseFloat(r.precoUnitario) || 0), 0) / recs.length : 0;
     // Combustível predominante por volume
     const combVol = {};
     recs.forEach(r => { combVol[r.combustivel] = (combVol[r.combustivel] || 0) + r.volume; });
@@ -6254,7 +6261,7 @@ function _renderTopPostos(curr) {
       <td class="td-right">${d.abast}</td>
       <td class="td-right" style="font-weight:700">${d.volume.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} L</td>
       <td class="td-right"><span class="price-total">${fmtBRL(d.gasto)}</span></td>
-      <td class="td-right" style="color:var(--text-muted);font-size:0.82rem">R$ ${d.preco.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
+      <td class="td-right" style="color:var(--text-muted);font-size:0.82rem">R$ ${(isNaN(d.preco)?0:d.preco).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
     </tr>`;
   }).join('');
 }
@@ -7162,6 +7169,19 @@ async function deletePosto(id) {
   showToast('Posto removido.', 'success');
   if (serverOnline) {
     try { await apiCall('DELETE', `/api/postos/${id}`); }
+    catch(e) { serverOnline = false; setServerStatus('offline'); document.getElementById('offline-banner').style.display = 'flex'; }
+  }
+}
+
+async function limparTodosPostos() {
+  const total = postos.length;
+  if (total === 0) { showToast('Nenhum posto cadastrado para remover.', 'info'); return; }
+  if (!confirm(`Tem certeza que deseja excluir TODOS os ${total} postos cadastrados? Esta ação não pode ser desfeita.`)) return;
+  postos = [];
+  renderPostos();
+  showToast(`${total} postos removidos.`, 'success');
+  if (serverOnline) {
+    try { await apiCall('DELETE', '/api/postos'); }
     catch(e) { serverOnline = false; setServerStatus('offline'); document.getElementById('offline-banner').style.display = 'flex'; }
   }
 }

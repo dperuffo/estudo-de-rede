@@ -1433,6 +1433,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True})
             return
 
+        if path == '/api/postos':
+            conn = get_db()
+            conn.execute('DELETE FROM postos')
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True})
+            return
+
         m = re.match(r'^/api/postos/(\d+)$', path)
         if m:
             conn = get_db()
