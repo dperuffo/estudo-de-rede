@@ -330,6 +330,41 @@
 
     /* seção form */
     .form-section { margin-bottom: 20px; }
+    /* ── Serviços (abastecimento modal) ──────────────────────────────── */
+    .svc-grid { display:flex; flex-direction:column; gap:7px; }
+    .svc-item { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0; transition:background 0.15s; }
+    .svc-item:has(input[type="checkbox"]:checked) { background:#eff6ff; border-color:#93c5fd; }
+    .svc-item input[type="checkbox"] { width:17px; height:17px; cursor:pointer; accent-color:#2563eb; flex-shrink:0; }
+    .svc-label { flex:1; font-size:0.84rem; font-weight:600; color:#334155; }
+    .svc-val { width:110px !important; min-width:0; text-align:right; font-weight:600; color:#15803d !important; }
+    .svc-outros-inner { flex:1; display:flex; align-items:center; gap:8px; }
+    .svc-outros-desc { flex:1; font-size:0.83rem; border:1px solid #cbd5e1; border-radius:6px; padding:4px 8px; color:#334155; background:#fff; }
+    /* ── Badge de negociação no form de abastecimento ───────────────── */
+    .neg-notice {
+      grid-column: span 2;
+      display:flex; align-items:flex-start; gap:9px;
+      background:#f0fdf4; border:1.5px solid #86efac;
+      border-radius:10px; padding:9px 13px;
+      font-size:0.8rem; color:#15803d; line-height:1.45;
+    }
+    .neg-notice svg { flex-shrink:0; margin-top:1px; }
+    .neg-notice-body { flex:1; }
+    .neg-notice-body .neg-notice-title { font-weight:800; margin-bottom:2px; font-size:0.79rem; text-transform:uppercase; letter-spacing:.4px; }
+    .neg-notice-body .neg-notice-detail { color:#166534; }
+    .neg-notice-body .neg-notice-preco  { font-weight:700; font-size:0.88rem; }
+    .neg-notice-body .neg-notice-base   { color:#6b7280; font-size:0.77rem; text-decoration:line-through; margin-left:4px; }
+    /* ── Arla 32 destaque ─────────────────────────────────────────────── */
+    #arla32-section { border-left:3px solid #3b82f6; background:#eff6ff; border-radius:0 8px 8px 0; padding-left:14px; }
+    /* ── Painel de total em tempo real ───────────────────────────────── */
+    .total-panel { background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%); color:#fff; border-radius:14px; padding:16px 20px 14px; margin-bottom:4px; box-shadow:0 4px 18px rgba(37,99,235,0.28); }
+    .total-panel-title { font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.9px; opacity:0.7; margin-bottom:10px; }
+    .total-panel-row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:0.84rem; }
+    .total-panel-row .tp-label { opacity:0.82; display:flex; align-items:center; gap:6px; }
+    .total-panel-row .tp-val { font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:0.3px; }
+    .total-panel-sep { border:none; border-top:1px solid rgba(255,255,255,0.22); margin:8px 0; }
+    .total-panel-grand { display:flex; justify-content:space-between; align-items:center; padding:2px 0; }
+    .total-panel-grand .tp-label { font-size:0.82rem; font-weight:700; opacity:0.9; letter-spacing:0.3px; }
+    .total-panel-grand .tp-grand-val { font-size:1.25rem; font-weight:900; letter-spacing:0.5px; text-shadow:0 1px 4px rgba(0,0,0,0.18); }
     .form-section-title {
       font-size: 0.7rem; font-weight: 800; color: var(--primary);
       text-transform: uppercase; letter-spacing: 0.8px;
@@ -809,6 +844,56 @@
       background: #fff; border: 2.5px solid #2563eb; border-radius: 50%;
       width: 12px; height: 12px;
     }
+
+    /* ── NEGOCIAÇÕES ── */
+    .neg-kpi-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+    .neg-kpi { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; flex:1; min-width:130px; box-shadow:var(--shadow); }
+    .neg-kpi-label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:6px; }
+    .neg-kpi-value { font-size:1.4rem; font-weight:800; color:var(--text); }
+    .neg-kpi-sub { font-size:0.72rem; color:var(--text-muted); margin-top:3px; }
+    .neg-filter-bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+    .neg-filter-bar select, .neg-filter-bar input { padding:7px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:0.85rem; background:var(--card); color:var(--text); }
+    .neg-table-wrap { overflow-x:auto; }
+    .neg-table { width:100%; border-collapse:collapse; font-size:0.83rem; }
+    .neg-table th { padding:10px 12px; text-align:left; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--text-muted); border-bottom:2px solid var(--border); background:#f8fafc; white-space:nowrap; }
+    .neg-table th.td-right, .neg-table td.td-right { text-align:right; }
+    .neg-table td { padding:11px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .neg-table tr:hover td { background:#f8fafc; }
+    .neg-table tr:last-child td { border-bottom:none; }
+    .neg-status { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; white-space:nowrap; }
+    .neg-status.ativa      { background:#dcfce7; color:#15803d; }
+    .neg-status.pendente   { background:#fef9c3; color:#854d0e; }
+    .neg-status.expirada   { background:#f1f5f9; color:#64748b; }
+    .neg-status.cancelada  { background:#fee2e2; color:#dc2626; }
+    .neg-tipo { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:8px; font-size:0.72rem; font-weight:700; white-space:nowrap; }
+    .neg-tipo.desconto  { background:#dbeafe; color:#1d4ed8; }
+    .neg-tipo.acrescimo { background:#fce7f3; color:#9d174d; }
+    .neg-tipo.fixo      { background:#fef3c7; color:#92400e; }
+    .neg-preco-negociado { font-weight:800; color:#15803d; font-size:0.92rem; }
+    .neg-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:900; display:flex; align-items:center; justify-content:center; padding:16px; }
+    .neg-modal { background:var(--card); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25); width:100%; max-width:640px; max-height:90vh; overflow-y:auto; }
+    .neg-modal-header { padding:20px 24px 0; display:flex; align-items:center; justify-content:space-between; }
+    .neg-modal-title { font-size:1.05rem; font-weight:700; color:var(--text); }
+    .neg-modal-body { padding:20px 24px; display:grid; grid-template-columns:1fr 1fr; gap:14px 18px; }
+    .neg-modal-body .full-col { grid-column:1/-1; }
+    .neg-modal-footer { padding:0 24px 20px; display:flex; gap:10px; justify-content:flex-end; }
+    .neg-form-group { display:flex; flex-direction:column; gap:5px; }
+    .neg-form-label { font-size:0.78rem; font-weight:700; color:var(--text-muted); }
+    .neg-form-input { padding:8px 11px; border:1.5px solid var(--border); border-radius:8px; font-size:0.88rem; background:var(--bg); color:var(--text); transition:border-color .15s; }
+    .neg-form-input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+    .neg-form-input:disabled { background:#f1f5f9; color:var(--text-muted); cursor:not-allowed; }
+    .neg-comb-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:8px; margin-top:4px; }
+    .neg-comb-option { border:1.5px solid var(--border); border-radius:8px; padding:8px 12px; cursor:pointer; transition:all .15s; }
+    .neg-comb-option:hover { border-color:var(--primary-light); background:#eff6ff; }
+    .neg-comb-option.selected { border-color:var(--primary); background:#eff6ff; box-shadow:0 0 0 2px rgba(59,130,246,.2); }
+    .neg-comb-name { font-size:0.8rem; font-weight:700; color:var(--text); }
+    .neg-comb-preco { font-size:0.78rem; color:#15803d; font-weight:700; margin-top:2px; }
+    .neg-preview-box { background:linear-gradient(135deg,#eff6ff,#f0fdf4); border:1.5px solid #bfdbfe; border-radius:10px; padding:14px 16px; }
+    .neg-preview-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:0.83rem; }
+    .neg-preview-row.highlight { font-weight:800; font-size:0.95rem; margin-top:6px; padding-top:10px; border-top:1px solid #bfdbfe; }
+    .neg-preview-economia { color:#15803d; font-weight:700; }
+    .neg-preview-acrescimo { color:#dc2626; font-weight:700; }
+    @media (max-width:560px) { .neg-modal-body { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -847,6 +932,11 @@
   <button class="sidebar-item" id="side-btn-postos" onclick="switchTab('postos')">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h4v7H3zm0 0"/><path d="M3 14h4v7H3zm0 0"/><path d="M10 3h4v4h-4zm0 0"/><path d="M10 10h4v11h-4zm0 0"/><path d="M17 3h4v18h-4z"/></svg>
     Postos Cadastrados
+  </button>
+
+  <button class="sidebar-item" id="side-btn-negociacoes" onclick="switchTab('negociacoes')">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Negociações
   </button>
 
   <button class="sidebar-item" id="side-btn-veiculos" onclick="switchTab('veiculos')">
@@ -1436,9 +1526,13 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
             Template
           </a>
-          <label class="btn btn-outline btn-sm" style="cursor:pointer;" title="Importar planilha Excel">
+          <button class="btn btn-outline btn-sm" onclick="_tryLoadPostosJson(true)" title="Carregar base de postos pré-carregada (postos-data.json)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/></svg>
+            Carregar Base
+          </button>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;" title="Importar planilha Excel (Relatório PdV ou template do sistema)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Importar
+            Importar xlsx
             <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importPostosExcel(this)" />
           </label>
           <button class="btn btn-outline btn-sm" onclick="exportPostosExcel()" title="Exportar dados para Excel">
@@ -1462,6 +1556,255 @@
       </div>
 
       <div class="postos-grid" id="postosGrid"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       VIEW NEGOCIAÇÕES
+  ══════════════════════════════════════════════════════════ -->
+  <div id="view-negociacoes" style="display:none; padding:20px 24px;">
+
+    <!-- Page header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:1.1rem;font-weight:700;color:var(--text);margin:0 0 4px;">Negociações com Postos</h2>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Gerencie acordos comerciais de preço de combustível com postos parceiros</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="exportNegociacoesExcel()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Exportar Excel
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="exportNegociacoesPDF()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          PDF
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="openNegociacaoModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nova Negociação
+        </button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="neg-kpi-row" id="neg-kpi-row">
+      <div class="neg-kpi">
+        <div class="neg-kpi-label">Total</div>
+        <div class="neg-kpi-value" id="neg-kpi-total">0</div>
+        <div class="neg-kpi-sub">negociações</div>
+      </div>
+      <div class="neg-kpi" style="border-color:#bbf7d0;">
+        <div class="neg-kpi-label" style="color:#15803d;">Ativas</div>
+        <div class="neg-kpi-value" style="color:#15803d;" id="neg-kpi-ativas">0</div>
+        <div class="neg-kpi-sub">em vigência hoje</div>
+      </div>
+      <div class="neg-kpi" style="border-color:#fde68a;">
+        <div class="neg-kpi-label" style="color:#92400e;">Pendentes</div>
+        <div class="neg-kpi-value" style="color:#92400e;" id="neg-kpi-pendentes">0</div>
+        <div class="neg-kpi-sub">a iniciar</div>
+      </div>
+      <div class="neg-kpi" style="border-color:#fca5a5;">
+        <div class="neg-kpi-label" style="color:#dc2626;">Expiradas/Canceladas</div>
+        <div class="neg-kpi-value" style="color:#dc2626;" id="neg-kpi-inativas">0</div>
+        <div class="neg-kpi-sub">fora de vigência</div>
+      </div>
+      <div class="neg-kpi" style="border-color:#bfdbfe;">
+        <div class="neg-kpi-label" style="color:#1d4ed8;">Vol. Estimado</div>
+        <div class="neg-kpi-value" style="color:#1d4ed8;font-size:1.1rem;" id="neg-kpi-volume">0 L</div>
+        <div class="neg-kpi-sub">acordos ativos</div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="neg-filter-bar">
+      <input type="text" id="neg-f-busca" placeholder="Buscar posto, combustível…" oninput="renderNegociacoes()" style="flex:1;min-width:200px;">
+      <select id="neg-f-status" onchange="renderNegociacoes()">
+        <option value="">Todos os status</option>
+        <option value="ativa">Ativa</option>
+        <option value="pendente">Pendente</option>
+        <option value="expirada">Expirada</option>
+        <option value="cancelada">Cancelada</option>
+      </select>
+      <select id="neg-f-tipo" onchange="renderNegociacoes()">
+        <option value="">Todos os tipos</option>
+        <option value="desconto_pct">Desconto %</option>
+        <option value="desconto_val">Desconto R$</option>
+        <option value="acrescimo_pct">Acréscimo %</option>
+        <option value="acrescimo_val">Acréscimo R$</option>
+        <option value="preco_fixo">Preço Fixo</option>
+      </select>
+      <select id="neg-f-comb" onchange="renderNegociacoes()">
+        <option value="">Todos os combustíveis</option>
+      </select>
+    </div>
+
+    <!-- Tabela -->
+    <div class="panel" style="padding:0;">
+      <div class="neg-table-wrap">
+        <table class="neg-table">
+          <thead>
+            <tr>
+              <th>Posto</th>
+              <th>Combustível</th>
+              <th>Tipo de Acordo</th>
+              <th class="td-right">Preço Base</th>
+              <th class="td-right">Valor Acordo</th>
+              <th class="td-right">Preço Negociado</th>
+              <th class="td-right">Vol. Est. (L)</th>
+              <th>Vigência</th>
+              <th>Status</th>
+              <th style="text-align:center;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="neg-tbody">
+            <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted);">Carregando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /view-negociacoes -->
+
+  <!-- ══════════════════════════════════════════════════════════
+       MODAL NOVA/EDITAR NEGOCIAÇÃO
+  ══════════════════════════════════════════════════════════ -->
+  <div id="neg-modal-overlay" class="neg-modal-overlay" style="display:none;" onclick="if(event.target===this)closeNegociacaoModal()">
+    <div class="neg-modal" onclick="event.stopPropagation()">
+      <div class="neg-modal-header">
+        <span class="neg-modal-title" id="neg-modal-title">Nova Negociação</span>
+        <button onclick="closeNegociacaoModal()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.2rem;line-height:1;">✕</button>
+      </div>
+      <div class="neg-modal-body">
+
+        <!-- Seleção de Posto -->
+        <div class="neg-form-group full-col">
+          <label class="neg-form-label">Posto *</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="neg-posto-busca" class="neg-form-input" placeholder="Digite para buscar posto pelo nome ou CNPJ…"
+              oninput="_negBuscarPosto(this.value)" autocomplete="off" style="flex:1;">
+          </div>
+          <div id="neg-posto-dropdown" style="display:none;border:1.5px solid var(--border);border-radius:8px;background:var(--card);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;margin-top:2px;"></div>
+          <div id="neg-posto-selecionado" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:0.83rem;margin-top:4px;">
+            <span id="neg-posto-nome" style="font-weight:700;color:var(--text);"></span>
+            <span id="neg-posto-cnpj" style="color:var(--text-muted);margin-left:8px;"></span>
+            <span id="neg-posto-loc" style="color:var(--text-muted);margin-left:6px;"></span>
+            <button onclick="_negLimparPosto()" style="float:right;background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.78rem;">Trocar</button>
+          </div>
+        </div>
+
+        <!-- Combustíveis do Posto -->
+        <div class="neg-form-group full-col" id="neg-combs-section" style="display:none;">
+          <label class="neg-form-label">Combustível * <span id="neg-comb-hint" style="font-weight:400;color:var(--text-muted);font-size:0.72rem;"></span></label>
+          <div class="neg-comb-grid" id="neg-combs-grid"></div>
+        </div>
+        <div class="neg-form-group full-col" id="neg-no-comb-msg" style="display:none;">
+          <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#92400e;">
+            ⚠️ Este posto não possui combustíveis com preços cadastrados. Cadastre os preços primeiro na aba <strong>Postos Cadastrados</strong>.
+          </div>
+        </div>
+
+        <!-- Tipo de Acordo -->
+        <div class="neg-form-group full-col" id="neg-acordo-section" style="display:none;">
+          <label class="neg-form-label">Tipo de Acordo *</label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;">
+            <label style="display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:all .15s;" id="neg-tipo-desc-pct-label">
+              <input type="radio" name="neg-tipo-acordo" value="desconto_pct" onchange="_negCalcPreco()" style="accent-color:var(--primary);">
+              <span style="font-size:0.83rem;font-weight:600;">Desconto %</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:all .15s;" id="neg-tipo-desc-val-label">
+              <input type="radio" name="neg-tipo-acordo" value="desconto_val" onchange="_negCalcPreco()">
+              <span style="font-size:0.83rem;font-weight:600;">Desconto R$</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:all .15s;" id="neg-tipo-acr-pct-label">
+              <input type="radio" name="neg-tipo-acordo" value="acrescimo_pct" onchange="_negCalcPreco()">
+              <span style="font-size:0.83rem;font-weight:600;">Acréscimo %</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:all .15s;" id="neg-tipo-acr-val-label">
+              <input type="radio" name="neg-tipo-acordo" value="acrescimo_val" onchange="_negCalcPreco()">
+              <span style="font-size:0.83rem;font-weight:600;">Acréscimo R$</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:all .15s;" id="neg-tipo-fixo-label">
+              <input type="radio" name="neg-tipo-acordo" value="preco_fixo" onchange="_negCalcPreco()">
+              <span style="font-size:0.83rem;font-weight:600;">Preço Fixo R$</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Valor do Acordo -->
+        <div class="neg-form-group" id="neg-valor-section" style="display:none;">
+          <label class="neg-form-label" id="neg-valor-label">Valor do Desconto *</label>
+          <input type="number" id="neg-valor-acordo" class="neg-form-input" min="0" step="0.001" placeholder="0,000" oninput="_negCalcPreco()">
+        </div>
+
+        <!-- Preço Base (somente leitura) -->
+        <div class="neg-form-group" id="neg-base-section" style="display:none;">
+          <label class="neg-form-label">Preço Base (R$/L)</label>
+          <input type="text" id="neg-preco-base-display" class="neg-form-input" disabled placeholder="—">
+        </div>
+
+        <!-- Preview do preço negociado -->
+        <div class="full-col" id="neg-preview-section" style="display:none;">
+          <div class="neg-preview-box">
+            <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#1d4ed8;margin-bottom:8px;">💡 Prévia do Preço Negociado</div>
+            <div class="neg-preview-row"><span style="color:var(--text-muted);">Preço tabela (R$/L)</span><span id="neg-prev-base">—</span></div>
+            <div class="neg-preview-row"><span style="color:var(--text-muted);" id="neg-prev-tipo-label">Desconto aplicado</span><span id="neg-prev-valor">—</span></div>
+            <div class="neg-preview-row highlight"><span>Preço negociado (R$/L)</span><span id="neg-prev-final" style="color:#15803d;font-size:1.05rem;">—</span></div>
+            <div class="neg-preview-row"><span style="color:var(--text-muted);">Economia/Custo por litro</span><span id="neg-prev-dif">—</span></div>
+          </div>
+        </div>
+
+        <!-- Volume Estimado -->
+        <div class="neg-form-group" id="neg-volume-section" style="display:none;">
+          <label class="neg-form-label">Volume Estimado (L)</label>
+          <input type="number" id="neg-volume-estimado" class="neg-form-input" min="0" step="100" placeholder="0" oninput="_negCalcPreco()">
+        </div>
+
+        <!-- Custo Estimado Total (somente leitura) -->
+        <div class="neg-form-group" id="neg-custo-section" style="display:none;">
+          <label class="neg-form-label">Custo Total Estimado (R$)</label>
+          <input type="text" id="neg-custo-estimado-display" class="neg-form-input" disabled placeholder="—">
+        </div>
+
+        <!-- Datas -->
+        <div class="neg-form-group" id="neg-data-ini-section" style="display:none;">
+          <label class="neg-form-label">Data de Início *</label>
+          <input type="date" id="neg-data-inicio" class="neg-form-input" onchange="_negCalcStatus();_negValidarForm()">
+        </div>
+        <div class="neg-form-group" id="neg-data-fim-section" style="display:none;">
+          <label class="neg-form-label">Data de Fim *</label>
+          <input type="date" id="neg-data-fim" class="neg-form-input" onchange="_negCalcStatus();_negValidarForm()">
+        </div>
+
+        <!-- Status -->
+        <div class="neg-form-group" id="neg-status-section" style="display:none;">
+          <label class="neg-form-label">Status</label>
+          <select id="neg-status" class="neg-form-input">
+            <option value="pendente">Pendente</option>
+            <option value="ativa">Ativa</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+        </div>
+
+        <!-- Justificativa -->
+        <div class="neg-form-group full-col" id="neg-just-section" style="display:none;">
+          <label class="neg-form-label">Justificativa *</label>
+          <textarea id="neg-justificativa" class="neg-form-input" rows="3" oninput="_negValidarForm()" placeholder="Descreva o motivo desta negociação (ex.: volume comprometido, fidelização, bonificação…)" style="resize:vertical;"></textarea>
+        </div>
+
+        <!-- Observações -->
+        <div class="neg-form-group full-col" id="neg-obs-section" style="display:none;">
+          <label class="neg-form-label">Observações (opcional)</label>
+          <textarea id="neg-observacoes" class="neg-form-input" rows="2" placeholder="Informações adicionais sobre o acordo…" style="resize:vertical;"></textarea>
+        </div>
+
+      </div>
+      <div class="neg-modal-footer">
+        <button class="btn btn-outline" onclick="closeNegociacaoModal()">Cancelar</button>
+        <button class="btn btn-primary" id="neg-salvar-btn" onclick="salvarNegociacao()" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Salvar Negociação
+        </button>
+      </div>
     </div>
   </div>
 
@@ -3927,6 +4270,8 @@
             <select id="f-new-combustivel" onchange="onCombustivelChange()">
               <option value="">Selecione...</option>
               <option>Diesel</option>
+              <option>Diesel Comum</option>
+              <option>Diesel S-10</option>
               <option>Gasolina Aditivada</option>
               <option>Gasolina Comum</option>
               <option>Etanol Aditivado</option>
@@ -3944,10 +4289,106 @@
             <label>Preço por Litro (R$) *</label>
             <input type="number" id="f-new-preco" placeholder="Ex: 6.49" step="0.001" min="0" oninput="calcTotal()" />
           </div>
-          <div class="form-group">
-            <label>Valor Total (R$)</label>
-            <input type="number" id="f-new-total" placeholder="Calculado automaticamente" step="0.01" readonly style="background:#f8fafc; color: var(--primary); font-weight:700;" />
+          <!-- Aviso de negociação ativa (span 2 colunas) -->
+          <div class="neg-notice" id="f-neg-notice" style="display:none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <div class="neg-notice-body">
+              <div class="neg-notice-title">🤝 Negociação aplicada</div>
+              <div class="neg-notice-detail" id="f-neg-notice-detail"></div>
+            </div>
           </div>
+          <input type="hidden" id="f-new-total" />
+        </div>
+      </div>
+
+      <!-- Arla 32 (exibido quando Diesel / Diesel Comum / Diesel S-10 é selecionado) -->
+      <div class="form-section" id="arla32-section" style="display:none;">
+        <div class="form-section-title">🧴 Arla 32 <span style="font-size:0.78rem;font-weight:400;color:#64748b;margin-left:6px;">Opcional — preencha se utilizou Arla 32</span></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Quantidade Arla 32 (L)</label>
+            <input type="number" id="f-arla-volume" placeholder="Ex: 10.00" step="0.01" min="0" oninput="calcTotal()" />
+          </div>
+          <div class="form-group">
+            <label>Preço por Litro (R$)</label>
+            <input type="number" id="f-arla-preco" placeholder="Ex: 4.99" step="0.001" min="0" oninput="calcTotal()" />
+          </div>
+          <div class="form-group">
+            <label>Total Arla 32 (R$)</label>
+            <input type="number" id="f-arla-total" placeholder="Calculado automaticamente" step="0.01" readonly style="background:#f8fafc;color:#2563eb;font-weight:700;" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Serviços -->
+      <div class="form-section">
+        <div class="form-section-title">🛠️ Serviços <span style="font-size:0.78rem;font-weight:400;color:#64748b;margin-left:6px;">Selecione os serviços utilizados no posto</span></div>
+        <div class="svc-grid">
+          <div class="svc-item">
+            <input type="checkbox" id="svc-lavagem-cb" onchange="calcTotal()" />
+            <span class="svc-label">Lavagem</span>
+            <input type="number" id="svc-lavagem-val" class="svc-val form-group" value="150" step="0.01" min="0" oninput="calcTotal()" placeholder="R$" />
+          </div>
+          <div class="svc-item">
+            <input type="checkbox" id="svc-lubrificacao-cb" onchange="calcTotal()" />
+            <span class="svc-label">Lubrificação</span>
+            <input type="number" id="svc-lubrificacao-val" class="svc-val form-group" value="450" step="0.01" min="0" oninput="calcTotal()" placeholder="R$" />
+          </div>
+          <div class="svc-item">
+            <input type="checkbox" id="svc-restaurante-cb" onchange="calcTotal()" />
+            <span class="svc-label">Restaurante</span>
+            <input type="number" id="svc-restaurante-val" class="svc-val form-group" value="80" step="0.01" min="0" oninput="calcTotal()" placeholder="R$" />
+          </div>
+          <div class="svc-item">
+            <input type="checkbox" id="svc-banheiro-cb" onchange="calcTotal()" />
+            <span class="svc-label">Banheiro</span>
+            <input type="number" id="svc-banheiro-val" class="svc-val form-group" value="35" step="0.01" min="0" oninput="calcTotal()" placeholder="R$" />
+          </div>
+          <div class="svc-item">
+            <input type="checkbox" id="svc-estacionamento-cb" onchange="calcTotal()" />
+            <span class="svc-label">Estacionamento</span>
+            <input type="number" id="svc-estacionamento-val" class="svc-val form-group" value="25" step="0.01" min="0" oninput="calcTotal()" placeholder="R$" />
+          </div>
+          <div class="svc-item">
+            <input type="checkbox" id="svc-hotel-cb" onchange="calcTotal()" />
+            <span class="svc-label">Hotel/Pousada</span>
+            <input type="number" id="svc-hotel-val" class="svc-val form-group" value="120" step="0.01" min="0" oninput="calcTotal()" placeholder="R$" />
+          </div>
+          <div class="svc-item">
+            <input type="checkbox" id="svc-outros-cb" onchange="calcTotal()" />
+            <span class="svc-outros-inner">
+              <span style="font-size:0.84rem;font-weight:600;color:#334155;">Outros</span>
+              <input type="text" id="svc-outros-desc" class="svc-outros-desc" placeholder="Especifique…" />
+            </span>
+            <input type="number" id="svc-outros-val" class="svc-val form-group" value="50" step="0.01" min="0" oninput="calcTotal()" placeholder="R$" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ░░ PAINEL TOTAL EM TEMPO REAL ░░ -->
+      <div class="total-panel" id="total-panel">
+        <div class="total-panel-title">💰 Resumo do Abastecimento</div>
+        <div class="total-panel-row" id="tp-comb-row" style="display:none;">
+          <span class="tp-label">⛽ Combustível</span>
+          <span class="tp-val" id="tp-comb-val">R$ 0,00</span>
+        </div>
+        <div class="total-panel-row" id="tp-arla-row" style="display:none;">
+          <span class="tp-label">🧴 Arla 32</span>
+          <span class="tp-val" id="tp-arla-val">R$ 0,00</span>
+        </div>
+        <div class="total-panel-row" id="tp-svc-row" style="display:none;">
+          <span class="tp-label">🛠️ Serviços</span>
+          <span class="tp-val" id="tp-svc-val">R$ 0,00</span>
+        </div>
+        <div id="tp-sep" style="display:none;"><hr class="total-panel-sep" /></div>
+        <div class="total-panel-grand">
+          <span class="tp-label">TOTAL DO ABASTECIMENTO</span>
+          <span class="tp-grand-val" id="tp-grand-val">R$ 0,00</span>
         </div>
       </div>
 
@@ -3988,20 +4429,78 @@
             <label>Bandeira *</label>
             <select id="p-bandeira">
               <option value="">Selecione...</option>
-              <option value="Ipiranga">Ipiranga</option>
-              <option value="Shell">Shell</option>
-              <option value="BR Petrobras">BR Petrobras</option>
-              <option value="Vibra">Vibra</option>
-              <option value="Bandeira Branca">Bandeira Branca</option>
               <option value="Ale">Ale</option>
+              <option value="Bandeira Branca">Bandeira Branca</option>
+              <option value="BR / Petrobras">BR / Petrobras</option>
+              <option value="Br">Br</option>
+              <option value="Ipiranga">Ipiranga</option>
+              <option value="Petrox">Petrox</option>
+              <option value="Raizen">Raizen</option>
               <option value="Raízen">Raízen</option>
-              <option value="Petrobras Distribuidora">Petrobras Distribuidora</option>
+              <option value="Rodoil">Rodoil</option>
+              <option value="Shell">Shell</option>
+              <option value="Vibra">Vibra</option>
               <option value="Outros">Outros</option>
             </select>
           </div>
           <div class="form-group span2">
             <label>Razão Social *</label>
             <input type="text" id="p-razao" placeholder="Nome da empresa / razão social" />
+          </div>
+          <div class="form-group">
+            <label>Rede / Grupo</label>
+            <input type="text" id="p-rede" placeholder="Nome da rede ou grupo de postos" />
+          </div>
+          <div class="form-group">
+            <label>Grupo Econômico</label>
+            <input type="text" id="p-grupo-economico" placeholder="Grupo econômico" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Classificação -->
+      <div class="form-section">
+        <div class="form-section-title">📊 Classificação e Status</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Perfil de Venda</label>
+            <select id="p-perfil-venda">
+              <option value="">Selecione...</option>
+              <option value="Urbano">Urbano</option>
+              <option value="Rodovia">Rodovia</option>
+              <option value="Rodo Rede">Rodo Rede</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tipo de Bandeira</label>
+            <select id="p-tipo-bandeira">
+              <option value="">Selecione...</option>
+              <option value="Própria">Própria</option>
+              <option value="Comum">Comum</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="p-status-posto">
+              <option value="Ativo">Ativo</option>
+              <option value="Inativo">Inativo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Situação</label>
+            <select id="p-situacao">
+              <option value="Habilitado">Habilitado</option>
+              <option value="Desabilitado">Desabilitado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Taxa de Adm. Padrão (%)</label>
+            <input type="number" id="p-taxa-admin" placeholder="0.0" step="0.01" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Data de Habilitação</label>
+            <input type="text" id="p-data-habilitacao" placeholder="dd/mm/aaaa" />
           </div>
         </div>
       </div>
@@ -4149,7 +4648,10 @@
             <input type="checkbox" value="Estacionamento" /> 🅿️ Estacionamento
           </label>
           <label class="servico-check" onclick="toggleServico(this)">
-            <input type="checkbox" value="Segurança 24h" /> 🛡️ Segurança 24h
+            <input type="checkbox" value="Segurança 24H" /> 🛡️ Segurança 24h
+          </label>
+          <label class="servico-check" onclick="toggleServico(this)">
+            <input type="checkbox" value="Internet" /> 📶 Internet / Wi-Fi
           </label>
           <label class="servico-check" onclick="toggleServico(this)">
             <input type="checkbox" value="Outros" /> ➕ Outros
@@ -4294,6 +4796,8 @@ const API_BASE = 'http://localhost:8080';
 let serverOnline = false;
 
 function mapAbast(r) {
+  let svcs = r.servicos_abast;
+  if (typeof svcs === 'string') { try { svcs = JSON.parse(svcs); } catch(e) { svcs = []; } }
   return {
     id: r.id, data: r.data, hora: r.hora,
     placa: r.placa, motorista: r.motorista,
@@ -4303,12 +4807,21 @@ function mapAbast(r) {
     cidadePosto: r.cidade_posto || '', ufPosto: r.uf_posto || '',
     combustivel: r.combustivel,
     volume: r.volume || 0, precoUnitario: r.preco_unitario || 0,
-    valorTotal: r.valor_total || 0
+    valorTotal: r.valor_total || 0,
+    arla32Volume: r.arla32_volume || 0,
+    arla32Preco:  r.arla32_preco  || 0,
+    arla32Total:  r.arla32_total  || 0,
+    servicosAbast: Array.isArray(svcs) ? svcs : []
   };
 }
 function mapPosto(r) {
   return {
     id: r.id, cnpj: r.cnpj, razao: r.razao, bandeira: r.bandeira,
+    rede: r.rede || '', grupoEconomico: r.grupo_economico || '',
+    perfilVenda: r.perfil_venda || '', tipoBandeira: r.tipo_bandeira || '',
+    statusPosto: r.status_posto || 'Ativo', situacao: r.situacao || 'Habilitado',
+    taxaAdmin: r.taxa_admin || 0, dataHabilitacao: r.data_habilitacao || '',
+    possuiInternet: r.possui_internet || '',
     cep: r.cep, logradouro: r.logradouro, numero: r.numero,
     complemento: r.complemento, bairro: r.bairro, cidade: r.cidade, uf: r.uf,
     lat: r.lat, lon: r.lon, gestor: r.gestor, telefone: r.telefone,
@@ -4356,7 +4869,15 @@ async function loadPostos() {
     _mesclarPrecosPorCnpj();
     _setOnline();
   } catch(e) { /* mantém dados em memória */ }
+  // Se ainda vazio, tenta carregar da base pré-gerada
+  await _tryLoadPostosJson();
   renderPostos();
+  // Se o roteirizador já está aberto, re-plota os postos no mapa
+  const viewRoteiz = document.getElementById('view-roteirizador');
+  if (viewRoteiz && viewRoteiz.style.display !== 'none' && _roteizMap) {
+    updatePostosMap();
+    _atualizarContadoresPostos();
+  }
 }
 
 // Mescla combustíveis e serviços de registros duplicados pelo mesmo CNPJ.
@@ -4986,14 +5507,61 @@ async function openModal(id = null) {
     document.getElementById('f-new-volume').value     = r.volume;
     document.getElementById('f-new-preco').value      = r.precoUnitario;
     document.getElementById('f-new-total').value      = r.valorTotal;
+    // Arla 32
+    const arlaSecEdit = document.getElementById('arla32-section');
+    const isDieselEdit = /diesel/i.test(r.combustivel || '');
+    if (arlaSecEdit) arlaSecEdit.style.display = isDieselEdit ? '' : 'none';
+    document.getElementById('f-arla-volume').value = r.arla32Volume || '';
+    document.getElementById('f-arla-preco').value  = r.arla32Preco  || '';
+    document.getElementById('f-arla-total').value  = r.arla32Total  || '';
+    // Serviços
+    const _svcDefsEdit = ['lavagem','lubrificacao','restaurante','banheiro','estacionamento','hotel','outros'];
+    _svcDefsEdit.forEach(id => {
+      const cb  = document.getElementById(`svc-${id}-cb`);
+      if (cb) cb.checked = false;
+    });
+    (r.servicosAbast || []).forEach(s => {
+      const nome = (s.nome || '').toLowerCase();
+      let id = null;
+      if (nome.includes('lavagem'))          id = 'lavagem';
+      else if (nome.includes('lubrifica'))   id = 'lubrificacao';
+      else if (nome.includes('restaurante')) id = 'restaurante';
+      else if (nome.includes('banheiro'))    id = 'banheiro';
+      else if (nome.includes('estaciona'))   id = 'estacionamento';
+      else if (nome.includes('hotel') || nome.includes('pousada')) id = 'hotel';
+      else if (nome.includes('outros'))      id = 'outros';
+      if (id) {
+        const cb  = document.getElementById(`svc-${id}-cb`);
+        const val = document.getElementById(`svc-${id}-val`);
+        if (cb) cb.checked = true;
+        if (val) val.value = s.valor || '';
+        if (id === 'outros') {
+          const desc = document.getElementById('svc-outros-desc');
+          if (desc) desc.value = s.nome.replace(/^[Oo]utros\s*[—-]?\s*/,'');
+        }
+      }
+    });
     // Mostra hint de hodômetro com contexto da data/hora do registro
     checkHodometro();
   } else {
     ['f-new-placa','f-new-motorista','f-new-cpf','f-new-posto',
      'f-new-cnpj','f-new-cidade','f-new-uf',
-     'f-new-hodometro','f-new-volume','f-new-preco','f-new-total'].forEach(fid => {
+     'f-new-hodometro','f-new-volume','f-new-preco','f-new-total',
+     'f-arla-volume','f-arla-preco','f-arla-total'].forEach(fid => {
       document.getElementById(fid).value = '';
     });
+    // Reset serviços
+    ['lavagem','lubrificacao','restaurante','banheiro','estacionamento','hotel','outros'].forEach(id => {
+      const cb = document.getElementById(`svc-${id}-cb`);
+      if (cb) cb.checked = false;
+    });
+    const outrosDesc = document.getElementById('svc-outros-desc');
+    if (outrosDesc) outrosDesc.value = '';
+    // Oculta Arla 32 section e badge de negociação
+    const arlaSecNew = document.getElementById('arla32-section');
+    if (arlaSecNew) arlaSecNew.style.display = 'none';
+    const negNoticeNew = document.getElementById('f-neg-notice');
+    if (negNoticeNew) negNoticeNew.style.display = 'none';
     const now = new Date();
     document.getElementById('f-new-data').value = now.toISOString().slice(0,10);
     document.getElementById('f-new-hora').value = now.toTimeString().slice(0,5);
@@ -5006,6 +5574,9 @@ async function openModal(id = null) {
     motorElReset.readOnly = false;
     motorElReset.style.background = '';
   }
+
+  // Atualiza painel de total (novo: zera / edição: recalcula)
+  calcTotal();
 
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('f-new-placa').focus(), 200);
@@ -5021,7 +5592,43 @@ function closeModalOutside(e) {
 function calcTotal() {
   const v = parseFloat(document.getElementById('f-new-volume').value) || 0;
   const p = parseFloat(document.getElementById('f-new-preco').value) || 0;
-  document.getElementById('f-new-total').value = v && p ? (v * p).toFixed(2) : '';
+  const combTotal = v * p;
+
+  // Arla 32 (visível apenas quando diesel selecionado)
+  let arlaTotal = 0;
+  const arlaSection = document.getElementById('arla32-section');
+  if (arlaSection && arlaSection.style.display !== 'none') {
+    const aVol  = parseFloat(document.getElementById('f-arla-volume').value) || 0;
+    const aPrec = parseFloat(document.getElementById('f-arla-preco').value) || 0;
+    arlaTotal = aVol * aPrec;
+    document.getElementById('f-arla-total').value = arlaTotal > 0 ? arlaTotal.toFixed(2) : '';
+  }
+
+  // Serviços
+  const svcIds = ['lavagem','lubrificacao','restaurante','banheiro','estacionamento','hotel','outros'];
+  let svcTotal = 0;
+  svcIds.forEach(id => {
+    const cb  = document.getElementById(`svc-${id}-cb`);
+    const val = document.getElementById(`svc-${id}-val`);
+    if (cb && cb.checked && val) svcTotal += parseFloat(val.value) || 0;
+  });
+
+  const grand = combTotal + arlaTotal + svcTotal;
+  document.getElementById('f-new-total').value = grand > 0 ? grand.toFixed(2) : '';
+
+  // ── Atualiza painel de breakdown em tempo real ──────────────────────
+  const _show = (id, vis) => { const el = document.getElementById(id); if (el) el.style.display = vis ? '' : 'none'; };
+  const _txt  = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmtBRL(val); };
+  _show('tp-comb-row',  combTotal > 0);
+  _txt ('tp-comb-val',  combTotal);
+  _show('tp-arla-row',  arlaTotal > 0);
+  _txt ('tp-arla-val',  arlaTotal);
+  _show('tp-svc-row',   svcTotal  > 0);
+  _txt ('tp-svc-val',   svcTotal);
+  // separador só aparece quando há mais de um componente
+  const multiLine = (combTotal > 0 ? 1 : 0) + (arlaTotal > 0 ? 1 : 0) + (svcTotal > 0 ? 1 : 0);
+  _show('tp-sep', multiLine > 1);
+  _txt ('tp-grand-val', grand);
 }
 
 function maskCPF(input) {
@@ -5204,6 +5811,30 @@ async function saveRecord() {
     showToast(`Posto "${posto}" não está cadastrado. Cadastre-o na aba Postos antes de registrar o abastecimento.`, 'error');
     return;
   }
+  // ── Validação de negociação vigente ─────────────────────────────────────
+  if (!editId) {
+    const negVig = _negAtiva(postoCad.id, combustivel, postoCad.cnpj);
+    if (negVig) {
+      const precoNeg = parseFloat(negVig.preco_negociado);
+      const precoInf = parseFloat(preco);
+      // Tolerância de R$ 0,005 para arredondamentos
+      if (!isNaN(precoNeg) && Math.abs(precoInf - precoNeg) > 0.005) {
+        const fmtP = v => `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L`;
+        const continuar = confirm(
+          `⚠️ Negociação ativa para ${combustivel} neste posto!\n\n` +
+          `Preço negociado: ${fmtP(precoNeg)}\n` +
+          `Preço informado:  ${fmtP(precoInf)}\n\n` +
+          `Deseja salvar mesmo assim com o preço informado?`
+        );
+        if (!continuar) {
+          // Restaura o preço negociado
+          document.getElementById('f-new-preco').value = precoNeg.toFixed(3);
+          calcTotal();
+          return;
+        }
+      }
+    }
+  }
   // ── Validação do hodômetro ───────────────────────────────────────────────
   if (hodometro > 0) {
     const resHodo = _validarHodometro(placa, hodometro, data, hora, editId, combustivel);
@@ -5272,8 +5903,43 @@ async function saveRecord() {
   }
   // ────────────────────────────────────────────────────────────────────────
 
-  const valorTotal = parseFloat((volume * preco).toFixed(2));
-  const rec = { data, hora, placa, cpfMotorista, motorista, posto, cnpjPosto, cidadePosto, ufPosto, combustivel, hodometro, volume, precoUnitario: preco, valorTotal };
+  // ── Coleta Arla 32 ────────────────────────────────────────────────────
+  const arlaSection = document.getElementById('arla32-section');
+  const arlaVisible = arlaSection && arlaSection.style.display !== 'none';
+  const arla32Volume = arlaVisible ? (parseFloat(document.getElementById('f-arla-volume').value) || 0) : 0;
+  const arla32Preco  = arlaVisible ? (parseFloat(document.getElementById('f-arla-preco').value)  || 0) : 0;
+  const arla32Total  = parseFloat((arla32Volume * arla32Preco).toFixed(2));
+
+  // ── Coleta serviços ────────────────────────────────────────────────────
+  const _svcDefs = [
+    { id: 'lavagem',       label: 'Lavagem' },
+    { id: 'lubrificacao',  label: 'Lubrificação' },
+    { id: 'restaurante',   label: 'Restaurante' },
+    { id: 'banheiro',      label: 'Banheiro' },
+    { id: 'estacionamento',label: 'Estacionamento' },
+    { id: 'hotel',         label: 'Hotel/Pousada' },
+    { id: 'outros',        label: 'Outros' },
+  ];
+  const servicosAbast = [];
+  let svcTotal = 0;
+  _svcDefs.forEach(({ id, label }) => {
+    const cb  = document.getElementById(`svc-${id}-cb`);
+    const val = document.getElementById(`svc-${id}-val`);
+    if (cb && cb.checked) {
+      const v = parseFloat(val?.value) || 0;
+      let nome = label;
+      if (id === 'outros') {
+        const desc = (document.getElementById('svc-outros-desc')?.value || '').trim();
+        if (desc) nome = `Outros — ${desc}`;
+      }
+      servicosAbast.push({ nome, valor: v });
+      svcTotal += v;
+    }
+  });
+
+  const combustivelTotal = parseFloat((volume * preco).toFixed(2));
+  const valorTotal = parseFloat((combustivelTotal + arla32Total + svcTotal).toFixed(2));
+  const rec = { data, hora, placa, cpfMotorista, motorista, posto, cnpjPosto, cidadePosto, ufPosto, combustivel, hodometro, volume, precoUnitario: preco, valorTotal, arla32Volume, arla32Preco, arla32Total, servicosAbast };
 
   // ── Aplica localmente primeiro ──
   if (editId) {
@@ -5503,43 +6169,61 @@ function importExcel(input) {
 // ═══════════════════════════════════════════════════════════════
 //  EXCEL – POSTOS (EXPORTAR / IMPORTAR)
 // ═══════════════════════════════════════════════════════════════
+const _EXPORT_COMBS = ['Diesel S10','Diesel Comum','Gasolina Aditivada','Gasolina Comum','Etanol Aditivado','Etanol Comum','GNV','Arla 32'];
+const _EXPORT_SVCS  = ['Lavagem','Lubrificação','Restaurante','Banheiro','Estacionamento','Hotel/Pousada','Segurança 24H','Internet'];
+
 function exportPostosExcel() {
-  const COMBS = ['Diesel S-10','Gasolina Aditivada','Gasolina Comum','Etanol Aditivado','Etanol Comum','GNV','Arla 32'];
   const header = [
-    'CNPJ','RAZÃO SOCIAL','BANDEIRA','CEP','LOGRADOURO','NÚMERO','COMPLEMENTO',
-    'BAIRRO','CIDADE','UF','GESTOR','TELEFONE','E-MAIL RESP.','E-MAIL NF',
+    'CNPJ','RAZÃO SOCIAL','BANDEIRA','REDE','GRUPO ECONÔMICO',
+    'PERFIL DE VENDA','TIPO BANDEIRA','STATUS','SITUAÇÃO','TAXA ADM (%)','DATA HABILITAÇÃO',
+    'CEP','LOGRADOURO','NÚMERO','COMPLEMENTO','BAIRRO','CIDADE','UF','LATITUDE','LONGITUDE',
+    'GESTOR','TELEFONE','E-MAIL RESP.','E-MAIL NF',
     'BANCO','AGÊNCIA','CONTA',
-    ...COMBS.map(c => c + ' (R$/L)')
+    ..._EXPORT_COMBS.map(c => c + ' (R$/L)'),
+    ..._EXPORT_SVCS
   ];
   const rows = [header];
   postos.forEach(p => {
     const combs = p.combustiveis || {};
+    const svcs  = p.servicos || [];
     rows.push([
-      p.cnpj||'', p.razao||'', p.bandeira||'',
+      p.cnpj||'', p.razao||'', p.bandeira||'', p.rede||'', p.grupoEconomico||'',
+      p.perfilVenda||'', p.tipoBandeira||'', p.statusPosto||'', p.situacao||'',
+      p.taxaAdmin||'', p.dataHabilitacao||'',
       p.cep||'', p.logradouro||'', p.numero||'', p.complemento||'',
-      p.bairro||'', p.cidade||'', p.uf||'',
+      p.bairro||'', p.cidade||'', p.uf||'', p.lat||'', p.lon||'',
       p.gestor||'', p.telefone||'', p.emailResp||'', p.emailNf||'',
       p.banco||'', p.agencia||'', p.conta||'',
-      ...COMBS.map(c => combs[c] != null && combs[c] !== '' ? Number(combs[c]) : '')
+      ..._EXPORT_COMBS.map(c => { const v = combs[c]; const n = _combPrecoNum(v); return n != null ? n : ''; }),
+      ..._EXPORT_SVCS.map(s => svcs.includes(s) ? 'Sim' : 'Não')
     ]);
   });
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [
-    {wch:18},{wch:35},{wch:16},{wch:10},{wch:28},{wch:8},{wch:14},
-    {wch:18},{wch:18},{wch:5},{wch:20},{wch:14},{wch:26},{wch:26},
-    {wch:14},{wch:10},{wch:14},
-    ...COMBS.map(() => ({wch:20}))
-  ];
   XLSX.utils.book_append_sheet(wb, ws, 'Postos');
   XLSX.writeFile(wb, `postos_${new Date().toISOString().slice(0,10)}.xlsx`);
   showToast('Postos exportados!', 'success');
 }
 
+// ── Normaliza string para comparação de cabeçalhos ──
+const _normHeader = s => String(s||'').trim().toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[ºª]/g,'').replace(/\s+/g,' ');
+
+// ── Detecta e converte latitude/longitude com vírgula decimal ──
+const _parseLatLon = v => {
+  const s = String(v||'').trim().replace(',','.');
+  const f = parseFloat(s);
+  return isNaN(f) ? '' : String(f);
+};
+
+// ── Converte Sim/Não/- em booleano ──
+const _simNao = v => String(v||'').trim().toLowerCase() === 'sim';
+
+// ── Importa planilha Excel (suporta formato PdV e formato do sistema) ──
 function importPostosExcel(input) {
   const file = input.files[0];
   if (!file) return;
-  const COMBS = ['Diesel S-10','Gasolina Aditivada','Gasolina Comum','Etanol Aditivado','Etanol Comum','GNV','Arla 32'];
   const reader = new FileReader();
   reader.onload = async function(e) {
     try {
@@ -5548,19 +6232,66 @@ function importPostosExcel(input) {
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
       if (rows.length < 2) { showToast('Arquivo vazio ou sem dados.', 'error'); return; }
 
-      const norm = s => String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/º/g,'o').replace(/ª/g,'a');
-      const headers = rows[0].map(norm);
-      const col = n => headers.indexOf(norm(n));
+      const headers = rows[0].map(_normHeader);
+      const col = (...names) => {
+        for (const n of names) {
+          const idx = headers.indexOf(_normHeader(n));
+          if (idx > -1) return idx;
+        }
+        return -1;
+      };
 
-      const iCnpj  = col('cnpj');           const iRazao  = col('razao social');
-      const iBand  = col('bandeira');        const iCep    = col('cep');
-      const iLogr  = col('logradouro');      const iNum    = col('numero');
-      const iComp  = col('complemento');     const iBairro = col('bairro');
-      const iCid   = col('cidade');          const iUf     = col('uf');
-      const iGest  = col('gestor');          const iTel    = col('telefone');
-      const iEresp = col('e-mail resp.');    const iEnf    = col('e-mail nf');
-      const iBanc  = col('banco');           const iAg     = col('agencia');
-      const iConta = col('conta');
+      // Mapeamentos de colunas (suporta formato PdV e formato do sistema)
+      const iCnpj   = col('cnpj');
+      const iRazao  = col('nome','razao social','razão social');
+      const iBand   = col('bandeira');
+      const iRede   = col('rede');
+      const iGrupo  = col('grupo economico');
+      const iPerfil = col('perfil de venda');
+      const iTipBand= col('tipo de bandeira','tipo bandeira');
+      const iStatus = col('status');
+      const iSit    = col('situacao','situação');
+      const iTaxa   = col('taxa de adminstração padrão','taxa adm (%)','taxa de administracao padrao');
+      const iDataHab= col('data/hora de habilitacao','data habilitacao','data/hora de habilitação');
+      const iCep    = col('cep');
+      const iLogr   = col('logradouro');
+      const iNum    = col('numero','número');
+      const iComp   = col('complemento');
+      const iBairro = col('bairro');
+      const iCid    = col('cidade');
+      const iUf     = col('uf');
+      const iLat    = col('latitude');
+      const iLon    = col('longitude');
+      const iGest   = col('nome contato','gestor');
+      const iTel    = col('telefone');
+      const iEresp  = col('e-mail','e-mail resp.','email');
+      const iEnf    = col('e-mail nf','e-mail para recebimento de nf');
+      const iBanc   = col('banco');
+      const iAg     = col('agencia','agência');
+      const iConta  = col('conta corrente','conta');
+
+      // Mapeamento combustíveis: [colunas possíveis no Excel] → nome interno
+      const COMB_ALIAS = [
+        [['diesel s10','diesel s-10'], 'Diesel S10'],
+        [['diesel comum'],             'Diesel Comum'],
+        [['gasolina aditivada'],        'Gasolina Aditivada'],
+        [['gasolina comum'],            'Gasolina Comum'],
+        [['etanol aditivado'],          'Etanol Aditivado'],
+        [['etanol comum','etnol comum'],'Etanol Comum'],
+        [['gnv'],                       'GNV'],
+        [['arla 32'],                   'Arla 32'],
+      ];
+      // Mapeamento serviços: [colunas possíveis no Excel] → nome interno
+      const SVC_ALIAS = [
+        [['lavagem'],                    'Lavagem'],
+        [['lubrificacao','lubrificação'], 'Lubrificação'],
+        [['restaurante'],                'Restaurante'],
+        [['banheiro'],                   'Banheiro'],
+        [['estacionamento'],             'Estacionamento'],
+        [['hotel/pousada'],              'Hotel/Pousada'],
+        [['seguranca 24h','segurança 24h','seguranca 24h'],'Segurança 24H'],
+        [['possui internet?','internet'],'Internet'],
+      ];
 
       const imported = [];
       for (let i = 1; i < rows.length; i++) {
@@ -5568,40 +6299,71 @@ function importPostosExcel(input) {
         if (!r || r.every(c => c == null || c === '')) continue;
         const razao = String(r[iRazao]||'').trim();
         if (!razao) continue;
+
+        // Combustíveis
         const combustiveis = {};
-        COMBS.forEach(c => {
-          const idx = col(c + ' (r$/l)');
+        COMB_ALIAS.forEach(([aliases, nome]) => {
+          const idx = col(...aliases);
           if (idx > -1 && r[idx] != null && r[idx] !== '') {
-            const v = parseFloat(r[idx]);
-            if (!isNaN(v) && v > 0) combustiveis[c] = { preco: v }; // formato padrão do sistema
+            const v = parseFloat(String(r[idx]).replace(',','.'));
+            if (!isNaN(v) && v > 0) combustiveis[nome] = { preco: v };
           }
         });
+        // Também tenta colunas no formato "Diesel S10 (R$/L)"
+        _EXPORT_COMBS.forEach(nome => {
+          if (combustiveis[nome]) return;
+          const idx = col(nome + ' (r$/l)', nome + ' (r$/l)');
+          if (idx > -1 && r[idx] != null && r[idx] !== '') {
+            const v = parseFloat(String(r[idx]).replace(',','.'));
+            if (!isNaN(v) && v > 0) combustiveis[nome] = { preco: v };
+          }
+        });
+
+        // Serviços
+        const servicos = [];
+        SVC_ALIAS.forEach(([aliases, nome]) => {
+          const idx = col(...aliases);
+          if (idx > -1 && _simNao(r[idx])) servicos.push(nome);
+        });
+
         imported.push({
-          cnpj: String(r[iCnpj]||'').trim(), razao,
-          bandeira: String(r[iBand]||'').trim(), cep: String(r[iCep]||'').trim(),
-          logradouro: String(r[iLogr]||'').trim(), numero: String(r[iNum]||'').trim(),
-          complemento: String(r[iComp]||'').trim(), bairro: String(r[iBairro]||'').trim(),
-          cidade: String(r[iCid]||'').trim(), uf: String(r[iUf]||'').trim().toUpperCase(),
-          gestor: String(r[iGest]||'').trim(), telefone: String(r[iTel]||'').trim(),
-          emailResp: String(r[iEresp]||'').trim(), emailNf: String(r[iEnf]||'').trim(),
-          banco: String(r[iBanc]||'').trim(), agencia: String(r[iAg]||'').trim(),
-          conta: String(r[iConta]||'').trim(),
-          combustiveis, servicos: [], fotos: []
+          cnpj:            String(r[iCnpj]||'').trim(),
+          razao,
+          bandeira:        String(r[iBand]||'').trim(),
+          rede:            iRede   > -1 ? String(r[iRede]||'').trim()   : '',
+          grupoEconomico:  iGrupo  > -1 ? String(r[iGrupo]||'').trim()  : '',
+          perfilVenda:     iPerfil > -1 ? String(r[iPerfil]||'').trim() : '',
+          tipoBandeira:    iTipBand> -1 ? String(r[iTipBand]||'').trim(): '',
+          statusPosto:     iStatus > -1 ? String(r[iStatus]||'Ativo').trim() : 'Ativo',
+          situacao:        iSit    > -1 ? String(r[iSit]||'Habilitado').trim() : 'Habilitado',
+          taxaAdmin:       iTaxa   > -1 ? (parseFloat(String(r[iTaxa]||'').replace(',','.')) || 0) : 0,
+          dataHabilitacao: iDataHab> -1 ? String(r[iDataHab]||'').trim() : '',
+          cep:             iCep    > -1 ? String(r[iCep]||'').trim()   : '',
+          logradouro:      iLogr   > -1 ? String(r[iLogr]||'').trim()  : '',
+          numero:          iNum    > -1 ? String(r[iNum]||'').trim()   : '',
+          complemento:     iComp   > -1 ? String(r[iComp]||'').trim()  : '',
+          bairro:          iBairro > -1 ? String(r[iBairro]||'').trim(): '',
+          cidade:          iCid    > -1 ? String(r[iCid]||'').trim()   : '',
+          uf:              iUf     > -1 ? String(r[iUf]||'').trim().slice(0,2).toUpperCase() : '',
+          lat:             iLat    > -1 ? _parseLatLon(r[iLat])        : '',
+          lon:             iLon    > -1 ? _parseLatLon(r[iLon])        : '',
+          gestor:          iGest   > -1 ? String(r[iGest]||'').trim()  : '',
+          telefone:        iTel    > -1 ? String(r[iTel]||'').trim()   : '',
+          emailResp:       iEresp  > -1 ? String(r[iEresp]||'').trim() : '',
+          emailNf:         iEnf    > -1 ? String(r[iEnf]||'').trim()   : '',
+          banco:           iBanc   > -1 ? String(r[iBanc]||'').trim()  : '',
+          agencia:         iAg     > -1 ? String(r[iAg]||'').trim()    : '',
+          conta:           iConta  > -1 ? String(r[iConta]||'').trim() : '',
+          combustiveis, servicos, fotos: []
         });
       }
       if (!imported.length) { showToast('Nenhum registro válido encontrado.', 'error'); return; }
-      if (!confirm(`Importar ${imported.length} posto(s)? Os dados serão adicionados aos já existentes.`)) return;
+      if (!confirm(`Importar ${imported.length} posto(s)? Os dados serão adicionados aos já existentes.`)) { input.value=''; return; }
 
-      // Adiciona localmente
       let ok = 0;
-      imported.forEach(p => {
-        const id = nextPostoId++;
-        postos.push({...p, id});
-        ok++;
-      });
+      imported.forEach(p => { postos.push({...p, id: nextPostoId++}); ok++; });
       renderPostos();
-      showToast(`${ok} posto(s) importado(s)!`, 'success');
-      // Sincroniza com servidor
+      showToast(`${ok} posto(s) importado(s) com sucesso!`, 'success');
       if (serverOnline) {
         try { await apiCall('POST', '/api/postos/bulk', imported); }
         catch(e) { serverOnline = false; setServerStatus('offline'); document.getElementById('offline-banner').style.display='flex'; }
@@ -5610,6 +6372,48 @@ function importPostosExcel(input) {
     input.value = '';
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ── Carrega postos-data.json (base pré-gerada) ──
+// force=false → só carrega se postos vazio; force=true → sempre adiciona novos (pelo CNPJ)
+async function _tryLoadPostosJson(force = false) {
+  if (!force && postos.length > 0) return;
+  try {
+    showToast('Carregando base de postos…', 'info');
+    const resp = await fetch(`${API_BASE}/postos-data.json`);
+    if (!resp.ok) {
+      showToast('Arquivo postos-data.json não encontrado no servidor.', 'error');
+      return;
+    }
+    const data = await resp.json();
+    if (!Array.isArray(data) || !data.length) {
+      showToast('Arquivo vazio ou formato inválido.', 'error');
+      return;
+    }
+    // Ao forçar, só insere os que ainda não existem (por CNPJ)
+    const cnpjsExistentes = new Set(postos.map(p => (p.cnpj||'').replace(/\D/g,'')));
+    let inseridos = 0;
+    data.forEach(p => {
+      const cnpjNorm = (p.cnpj||'').replace(/\D/g,'');
+      if (force && cnpjsExistentes.has(cnpjNorm)) return; // já existe
+      postos.push({ ...p, id: nextPostoId++ });
+      if (cnpjNorm) cnpjsExistentes.add(cnpjNorm);
+      inseridos++;
+    });
+    if (inseridos === 0) {
+      showToast('Todos os postos da base já estão cadastrados.', 'info');
+      return;
+    }
+    renderPostos();
+    showToast(`${inseridos} postos carregados da base!`, 'success');
+    // Sincroniza com servidor em background
+    if (serverOnline) {
+      try { await apiCall('POST', '/api/postos/bulk', data); }
+      catch(e) { /* silencioso */ }
+    }
+  } catch(e) {
+    showToast('Erro ao carregar base: ' + e.message, 'error');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -6039,8 +6843,9 @@ function renderIndicadores() {
   const dieselRecsP = prevRecs.filter(r => _isDiesel(_combEfetivo(r)));
   const dieselVol   = dieselRecs.reduce((s,r) => s + r.volume, 0);
   const dieselGast  = dieselRecs.reduce((s,r) => s + r.valorTotal, 0);
-  const dieselPrec  = dieselRecs.length  ? dieselRecs.reduce((s,r)  => s + r.precoUnitario, 0) / dieselRecs.length  : 0;
-  const dieselPrecP = dieselRecsP.length ? dieselRecsP.reduce((s,r) => s + r.precoUnitario, 0) / dieselRecsP.length : 0;
+  const dieselPrec  = dieselVol  > 0 ? dieselRecs.reduce((s,r)  => s + (parseFloat(r.precoUnitario)||0) * (r.volume||0), 0) / dieselVol  : 0;
+  const dieselVolP  = dieselRecsP.reduce((s,r) => s + r.volume, 0);
+  const dieselPrecP = dieselVolP > 0 ? dieselRecsP.reduce((s,r) => s + (parseFloat(r.precoUnitario)||0) * (r.volume||0), 0) / dieselVolP : 0;
   const dieselKmL   = dieselRecs.map(r => consumoMap[r.id]).filter(v => v !== null && v > 0);
   const dieselAvg   = dieselKmL.length ? dieselKmL.reduce((a,b)=>a+b,0)/dieselKmL.length : null;
 
@@ -6059,8 +6864,9 @@ function renderIndicadores() {
   const gasRecsP = prevRecs.filter(r => _isGasoAlco(_combEfetivo(r)));
   const gasVol   = gasRecs.reduce((s,r) => s + r.volume, 0);
   const gasGast  = gasRecs.reduce((s,r) => s + r.valorTotal, 0);
-  const gasPrec  = gasRecs.length  ? gasRecs.reduce((s,r)  => s + r.precoUnitario, 0) / gasRecs.length  : 0;
-  const gasPrecP = gasRecsP.length ? gasRecsP.reduce((s,r) => s + r.precoUnitario, 0) / gasRecsP.length : 0;
+  const gasPrec  = gasVol  > 0 ? gasRecs.reduce((s,r)  => s + (parseFloat(r.precoUnitario)||0) * (r.volume||0), 0) / gasVol  : 0;
+  const gasVolP  = gasRecsP.reduce((s,r) => s + r.volume, 0);
+  const gasPrecP = gasVolP > 0 ? gasRecsP.reduce((s,r) => s + (parseFloat(r.precoUnitario)||0) * (r.volume||0), 0) / gasVolP : 0;
   const gasKmL   = gasRecs.map(r => consumoMap[r.id]).filter(v => v !== null && v > 0);
   const gasAvg   = gasKmL.length ? gasKmL.reduce((a,b)=>a+b,0)/gasKmL.length : null;
 
@@ -6236,7 +7042,7 @@ function _renderTopPostos(curr) {
   const rows = Object.values(byPosto).map(({ posto, cidade, uf, recs }) => {
     const volume = recs.reduce((s,r) => s + r.volume, 0);
     const gasto  = recs.reduce((s,r) => s + r.valorTotal, 0);
-    const preco  = recs.length ? recs.reduce((s,r) => s + (parseFloat(r.precoUnitario) || 0), 0) / recs.length : 0;
+    const preco  = volume > 0 ? recs.reduce((s,r) => s + (parseFloat(r.precoUnitario)||0) * (r.volume||0), 0) / volume : 0;
     // Combustível predominante por volume
     const combVol = {};
     recs.forEach(r => { combVol[r.combustivel] = (combVol[r.combustivel] || 0) + r.volume; });
@@ -6526,7 +7332,8 @@ function _renderPrecoMedioChart() {
         const key = useMonths ? r.data.slice(0, 7) : r.data;
         return key === b.key && s.filter(r);
       });
-      return bRecs.length ? bRecs.reduce((sum, r) => sum + r.precoUnitario, 0) / bRecs.length : null;
+      const bVol = bRecs.reduce((sum, r) => sum + (r.volume||0), 0);
+      return bVol > 0 ? bRecs.reduce((sum, r) => sum + (parseFloat(r.precoUnitario)||0) * (r.volume||0), 0) / bVol : null;
     });
     return { ...s, vals, hasData: vals.some(v => v !== null) };
   }).filter(s => s.hasData);
@@ -6665,8 +7472,8 @@ function _refreshArlaKPIs() {
   const volP   = arlaP.reduce((s, r) => s + r.volume,     0);
   const gastoC = arlaC.reduce((s, r) => s + r.valorTotal, 0);
   const gastoP = arlaP.reduce((s, r) => s + r.valorTotal, 0);
-  const precoMed = arlaC.length
-    ? arlaC.reduce((s, r) => s + r.precoUnitario, 0) / arlaC.length : 0;
+  const precoMed = volC > 0
+    ? arlaC.reduce((s, r) => s + (parseFloat(r.precoUnitario)||0) * (r.volume||0), 0) / volC : 0;
 
   const periodoLabel = `${_indPeriod.start.split('-').reverse().join('/')} – ${_indPeriod.end.split('-').reverse().join('/')}`;
   const placaLabel   = filPlaca ? ` · ${filPlaca}` : '';
@@ -6839,7 +7646,7 @@ function _renderArlaRanking(arlaRecs, allRecs) {
   const rows = Object.values(byPlaca).map(({ placa, recs }) => {
     const volArla  = recs.reduce((s, r) => s + r.volume,     0);
     const gastoArla = recs.reduce((s, r) => s + r.valorTotal, 0);
-    const precoMed  = recs.length ? recs.reduce((s, r) => s + r.precoUnitario, 0) / recs.length : 0;
+    const precoMed  = volArla > 0 ? recs.reduce((s, r) => s + (parseFloat(r.precoUnitario)||0) * (r.volume||0), 0) / volArla : 0;
     // Volume de diesel do mesmo veículo no mesmo período
     const volDiesel = allRecs.filter(r => r.placa === placa && _isDiesel(_combEfetivo(r))).reduce((s, r) => s + r.volume, 0);
     const relacao   = volDiesel > 0 ? (volArla / volDiesel) * 100 : null;
@@ -6880,7 +7687,7 @@ const _subItemGroup = {
 };
 
 function switchTab(tab) {
-  ['abastecimentos','indicadores','postos','veiculos','motoristas','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem'].forEach(t => {
+  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem'].forEach(t => {
     const view = document.getElementById('view-' + t);
     if (view) view.style.display = tab === t ? '' : 'none';
     const tabBtn  = document.getElementById('tab-btn-' + t);
@@ -6906,6 +7713,7 @@ function switchTab(tab) {
     else renderIndicadores();
   }
   if (tab === 'postos')        loadPostos();
+  if (tab === 'negociacoes')   loadNegociacoes();
   if (tab === 'veiculos')      loadVeiculos();
   if (tab === 'motoristas')    loadMotoristas();
   if (tab === 'parametros')    { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); loadValoresDiarios(); loadVolumesDiarios(); loadProdutosAbastecidos(); loadHodoVariacao(); }
@@ -6914,7 +7722,7 @@ function switchTab(tab) {
   if (tab === 'varprecos')     { _renderVarPrecos(); }
   if (tab === 'mapabandeira')  { _renderMapaBandeira(); }
   if (tab === 'volprojetado')  { _renderVolProjetado(); }
-  if (tab === 'roteirizador')  { initRoteirizador(); }
+  if (tab === 'roteirizador')  { if (postos.length === 0) loadPostos().then(() => initRoteirizador()); else initRoteirizador(); }
   if (tab === 'rotograma')     { loadRotogramas(); }
   if (tab === 'plano-viagem')  { loadPlanosViagem(); }
 }
@@ -6992,13 +7800,27 @@ function openPostoModal(id = null) {
   document.getElementById('postoModalTitle').textContent = id ? 'Editar Posto' : 'Novo Posto';
 
   // Limpa todos os campos
-  ['p-cnpj','p-bandeira','p-razao','p-cep','p-logradouro','p-numero',
+  ['p-cnpj','p-bandeira','p-razao','p-rede','p-grupo-economico',
+   'p-perfil-venda','p-tipo-bandeira','p-status-posto','p-situacao',
+   'p-taxa-admin','p-data-habilitacao',
+   'p-cep','p-logradouro','p-numero',
    'p-complemento','p-bairro','p-cidade','p-uf','p-lat','p-lon',
    'p-gestor','p-telefone','p-email-resp','p-email-nf',
    'p-banco','p-agencia','p-conta'].forEach(fid => {
     const el = document.getElementById(fid);
-    if (el) el.value = '';
+    if (!el) return;
+    if (el.tagName === 'SELECT') {
+      // reset to first option, but keep defaults for status/situacao
+      el.selectedIndex = 0;
+    } else {
+      el.value = '';
+    }
   });
+  // Defaults para selects
+  const spEl = document.getElementById('p-status-posto');
+  if (spEl) spEl.value = 'Ativo';
+  const sitEl = document.getElementById('p-situacao');
+  if (sitEl) sitEl.value = 'Habilitado';
   // Desmarca todos os serviços
   document.querySelectorAll('#servicosGrid .servico-check').forEach(lbl => {
     lbl.classList.remove('checked');
@@ -7018,25 +7840,33 @@ function openPostoModal(id = null) {
   if (id) {
     const p = postos.find(x => x.id === id);
     if (!p) return;
-    document.getElementById('p-cnpj').value        = p.cnpj || '';
-    document.getElementById('p-bandeira').value    = p.bandeira || '';
-    document.getElementById('p-razao').value       = p.razao || '';
-    document.getElementById('p-cep').value         = p.cep || '';
-    document.getElementById('p-logradouro').value  = p.logradouro || '';
-    document.getElementById('p-numero').value      = p.numero || '';
-    document.getElementById('p-complemento').value = p.complemento || '';
-    document.getElementById('p-bairro').value      = p.bairro || '';
-    document.getElementById('p-cidade').value      = p.cidade || '';
-    document.getElementById('p-uf').value          = p.uf || '';
-    document.getElementById('p-lat').value         = p.lat || '';
-    document.getElementById('p-lon').value         = p.lon || '';
-    document.getElementById('p-gestor').value      = p.gestor || '';
-    document.getElementById('p-telefone').value    = p.telefone || '';
-    document.getElementById('p-email-resp').value  = p.emailResp || '';
-    document.getElementById('p-email-nf').value    = p.emailNf || '';
-    document.getElementById('p-banco').value       = p.banco || '';
-    document.getElementById('p-agencia').value     = p.agencia || '';
-    document.getElementById('p-conta').value       = p.conta || '';
+    document.getElementById('p-cnpj').value              = p.cnpj || '';
+    document.getElementById('p-bandeira').value          = p.bandeira || '';
+    document.getElementById('p-razao').value             = p.razao || '';
+    document.getElementById('p-rede').value              = p.rede || '';
+    document.getElementById('p-grupo-economico').value   = p.grupoEconomico || '';
+    document.getElementById('p-perfil-venda').value      = p.perfilVenda || '';
+    document.getElementById('p-tipo-bandeira').value     = p.tipoBandeira || '';
+    document.getElementById('p-status-posto').value      = p.statusPosto || 'Ativo';
+    document.getElementById('p-situacao').value          = p.situacao || 'Habilitado';
+    document.getElementById('p-taxa-admin').value        = p.taxaAdmin || '';
+    document.getElementById('p-data-habilitacao').value  = p.dataHabilitacao || '';
+    document.getElementById('p-cep').value               = p.cep || '';
+    document.getElementById('p-logradouro').value        = p.logradouro || '';
+    document.getElementById('p-numero').value            = p.numero || '';
+    document.getElementById('p-complemento').value       = p.complemento || '';
+    document.getElementById('p-bairro').value            = p.bairro || '';
+    document.getElementById('p-cidade').value            = p.cidade || '';
+    document.getElementById('p-uf').value                = p.uf || '';
+    document.getElementById('p-lat').value               = p.lat || '';
+    document.getElementById('p-lon').value               = p.lon || '';
+    document.getElementById('p-gestor').value            = p.gestor || '';
+    document.getElementById('p-telefone').value          = p.telefone || '';
+    document.getElementById('p-email-resp').value        = p.emailResp || '';
+    document.getElementById('p-email-nf').value          = p.emailNf || '';
+    document.getElementById('p-banco').value             = p.banco || '';
+    document.getElementById('p-agencia').value           = p.agencia || '';
+    document.getElementById('p-conta').value             = p.conta || '';
     // Serviços
     (p.servicos || []).forEach(srv => {
       document.querySelectorAll('#servicosGrid .servico-check').forEach(lbl => {
@@ -7107,21 +7937,29 @@ async function savePosto() {
 
   const rec = {
     cnpj, bandeira, razao,
-    cep:          document.getElementById('p-cep').value.trim(),
+    rede:             document.getElementById('p-rede').value.trim(),
+    grupoEconomico:   document.getElementById('p-grupo-economico').value.trim(),
+    perfilVenda:      document.getElementById('p-perfil-venda').value,
+    tipoBandeira:     document.getElementById('p-tipo-bandeira').value,
+    statusPosto:      document.getElementById('p-status-posto').value || 'Ativo',
+    situacao:         document.getElementById('p-situacao').value || 'Habilitado',
+    taxaAdmin:        parseFloat(document.getElementById('p-taxa-admin').value) || 0,
+    dataHabilitacao:  document.getElementById('p-data-habilitacao').value.trim(),
+    cep:              document.getElementById('p-cep').value.trim(),
     logradouro,
-    numero:       document.getElementById('p-numero').value.trim(),
-    complemento:  document.getElementById('p-complemento').value.trim(),
-    bairro:       document.getElementById('p-bairro').value.trim(),
+    numero:           document.getElementById('p-numero').value.trim(),
+    complemento:      document.getElementById('p-complemento').value.trim(),
+    bairro:           document.getElementById('p-bairro').value.trim(),
     cidade, uf,
-    lat:          document.getElementById('p-lat').value.trim(),
-    lon:          document.getElementById('p-lon').value.trim(),
+    lat:              document.getElementById('p-lat').value.trim(),
+    lon:              document.getElementById('p-lon').value.trim(),
     gestor,
-    telefone:     document.getElementById('p-telefone').value.trim(),
-    emailResp:    document.getElementById('p-email-resp').value.trim(),
-    emailNf:      document.getElementById('p-email-nf').value.trim(),
-    banco:        document.getElementById('p-banco').value,
-    agencia:      document.getElementById('p-agencia').value.trim(),
-    conta:        document.getElementById('p-conta').value.trim(),
+    telefone:         document.getElementById('p-telefone').value.trim(),
+    emailResp:        document.getElementById('p-email-resp').value.trim(),
+    emailNf:          document.getElementById('p-email-nf').value.trim(),
+    banco:            document.getElementById('p-banco').value,
+    agencia:          document.getElementById('p-agencia').value.trim(),
+    conta:            document.getElementById('p-conta').value.trim(),
     servicos,
     combustiveis,
     fotos: [...postoFotos]
@@ -7201,7 +8039,7 @@ function renderPostos() {
   const limparBtn = document.getElementById('postos-limpar-btn');
   if (limparBtn) limparBtn.style.display = busca ? '' : 'none';
   const lista = (busca
-    ? postos.filter(p => [p.razao, p.cnpj, p.bandeira, p.cidade, p.uf, p.gestor, p.bairro]
+    ? postos.filter(p => [p.razao, p.cnpj, p.bandeira, p.cidade, p.uf, p.gestor, p.bairro, p.rede, p.grupoEconomico, p.perfilVenda]
         .some(v => (v || '').toLowerCase().includes(busca)))
     : [...postos]
   ).sort((a, b) => {
@@ -7242,14 +8080,23 @@ function renderPostos() {
     const nf    = p.emailNf ? `<div style="font-size:0.75rem;color:var(--text-muted);">📧 NF: ${p.emailNf}</div>` : '';
 
     const isIpiranga = (p.bandeira || '').toLowerCase().includes('ipiranga');
+    const statusCor  = p.statusPosto === 'Inativo' ? 'background:#fee2e2;color:#dc2626;border-color:#fca5a5;' : 'background:#dcfce7;color:#16a34a;border-color:#86efac;';
+    const statusBadge = p.statusPosto ? `<span style="font-size:0.68rem;font-weight:600;padding:2px 7px;border-radius:20px;border:1px solid;${statusCor}">${p.statusPosto}</span>` : '';
+    const perfilTag  = p.perfilVenda ? `<span style="font-size:0.68rem;color:#6b7280;background:#f3f4f6;padding:2px 6px;border-radius:12px;border:1px solid #e5e7eb;">${p.perfilVenda}</span>` : '';
+    const redeTag    = p.rede ? `<div style="font-size:0.74rem;color:#6b7280;margin-top:2px;">🔗 ${p.rede}${p.grupoEconomico && p.grupoEconomico !== p.rede ? ' · '+p.grupoEconomico : ''}</div>` : '';
+    const taxaTag    = p.taxaAdmin ? `<span style="font-size:0.68rem;color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:12px;border:1px solid #fde68a;">Taxa ${p.taxaAdmin}%</span>` : '';
     return `<div class="posto-card${isIpiranga ? ' ipiranga' : ''}">
       <div class="posto-card-top">
         <div>
           <div class="posto-razao">${p.razao}</div>
           <div class="posto-cnpj">CNPJ: ${p.cnpj}</div>
         </div>
-        <span class="bandeira-badge ${bCls}">${p.bandeira}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="bandeira-badge ${bCls}">${p.bandeira}</span>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">${statusBadge}${perfilTag}${taxaTag}</div>
+        </div>
       </div>
+      ${redeTag}
       ${loc ? `<div class="posto-location"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${loc}${geoLink}</div>` : ''}
       <div class="posto-gestor"><strong>${p.gestor}</strong>${p.telefone ? ' · '+p.telefone : ''}${p.emailResp ? ' · '+p.emailResp : ''}</div>
       ${nf}${banco}
@@ -7268,6 +8115,622 @@ function renderPostos() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  NEGOCIAÇÕES  — CRUD completo
+// ══════════════════════════════════════════════════════════════════
+let negociacoes  = [];           // cache local
+let nextNegId    = 1;            // contador local para IDs offline
+let _negEditId  = null;         // ID sendo editado (null = novo)
+let _negPostoSel = null;        // posto selecionado no modal
+let _negCombSel  = null;        // {nome, preco} combustível selecionado
+
+const NEG_TIPO_LABEL = {
+  desconto_pct:  'Desconto %',
+  desconto_val:  'Desconto R$',
+  acrescimo_pct: 'Acréscimo %',
+  acrescimo_val: 'Acréscimo R$',
+  preco_fixo:    'Preço Fixo R$',
+};
+
+// ── Retorna a negociação vigente para um posto + combustível ────
+// postoCnpj é opcional: usado como fallback quando o ID não coincide (ex.: reload pós-bulk-import)
+function _negAtiva(postoId, combustivel, postoCnpj) {
+  if (!combustivel) return null;
+  const today    = new Date().toISOString().split('T')[0];
+  const cnpjNorm = postoCnpj ? String(postoCnpj).replace(/\D/g, '') : '';
+  return negociacoes.find(n => {
+    // Correspondência por ID ou por CNPJ (garante robustez mesmo com IDs locais)
+    const idOk   = postoId && Number(n.posto_id) === Number(postoId);
+    const cnpjOk = cnpjNorm && n.posto_cnpj && String(n.posto_cnpj).replace(/\D/g,'') === cnpjNorm;
+    if (!idOk && !cnpjOk) return false;
+    return (
+      n.combustivel === combustivel &&
+      _negCalcStatusDyn(n, today) === 'ativa'
+    );
+  }) || null;
+}
+
+// ── Exibe ou oculta o badge de negociação no form de abastecimento
+function _negAplicarNotice(opt) {
+  const notice = document.getElementById('f-neg-notice');
+  const detail = document.getElementById('f-neg-notice-detail');
+  if (!notice || !detail) return;
+
+  const negId = opt && opt.dataset.negId;
+  if (!negId) { notice.style.display = 'none'; return; }
+  const neg = negociacoes.find(n => String(n.id) === String(negId));
+  if (!neg) { notice.style.display = 'none'; return; }
+
+  const tipo  = NEG_TIPO_LABEL[neg.tipo_acordo] || neg.tipo_acordo;
+  const fmtP  = v => `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L`;
+  const fmtV  = neg.tipo_acordo.endsWith('_pct')
+    ? `${Number(neg.valor_acordo).toLocaleString('pt-BR',{minimumFractionDigits:2})}%`
+    : fmtP(neg.valor_acordo);
+
+  detail.innerHTML =
+    `${tipo}: <strong>${fmtV}</strong> &mdash; ` +
+    `Preço: <span class="neg-notice-preco">${fmtP(neg.preco_negociado)}</span>` +
+    `<span class="neg-notice-base">${fmtP(neg.preco_base)}</span>` +
+    ` &bull; Validade: ${neg.data_inicio} a ${neg.data_fim}`;
+  notice.style.display = '';
+}
+
+// ── Calcula status dinâmico de uma negociação (sem alterar o objeto) ──
+function _negCalcStatusDyn(n, today) {
+  if (!today) today = new Date().toISOString().split('T')[0];
+  if (n.status === 'cancelada') return 'cancelada';
+  if (n.data_fim   && n.data_fim   < today) return 'expirada';
+  if (n.data_inicio && n.data_inicio > today) return 'pendente';
+  return 'ativa';
+}
+
+// ── Carrega negociações da API ─────────────────────────────────
+async function loadNegociacoes() {
+  try {
+    const data  = await apiCall('GET', '/api/negociacoes');
+    negociacoes = Array.isArray(data) ? data : [];
+    nextNegId   = negociacoes.length ? Math.max(...negociacoes.map(n => n.id || 0)) + 1 : 1;
+    _setOnline();
+  } catch(e) { console.warn('Negociações offline — mantém cache local'); }
+  renderNegociacoes();
+  _negAtualizarFiltroCombs();
+}
+
+// ── Atualiza filtro de combustíveis com base nos acordos ───────
+function _negAtualizarFiltroCombs() {
+  const sel = document.getElementById('neg-f-comb');
+  if (!sel) return;
+  const prev = sel.value;
+  const combs = [...new Set(negociacoes.map(n => n.combustivel).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todos os combustíveis</option>' +
+    combs.map(c => `<option value="${c}"${c===prev?' selected':''}>${c}</option>`).join('');
+}
+
+// ── Render tabela ──────────────────────────────────────────────
+function renderNegociacoes() {
+  const tbody = document.getElementById('neg-tbody');
+  if (!tbody) return;
+
+  // Filtros
+  const busca   = (document.getElementById('neg-f-busca')?.value || '').toLowerCase();
+  const fStatus = document.getElementById('neg-f-status')?.value || '';
+  const fTipo   = document.getElementById('neg-f-tipo')?.value   || '';
+  const fComb   = document.getElementById('neg-f-comb')?.value   || '';
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const lista = negociacoes.map(n => {
+    // Recalcula status dinâmico
+    let status = n.status;
+    if (status !== 'cancelada') {
+      if (n.data_fim && n.data_fim < today)        status = 'expirada';
+      else if (n.data_inicio && n.data_inicio > today) status = 'pendente';
+      else if (status !== 'expirada')               status = 'ativa';
+    }
+    return { ...n, _statusCalc: status };
+  }).filter(n => {
+    if (busca  && !`${n.posto_nome} ${n.combustivel} ${n.posto_cnpj}`.toLowerCase().includes(busca)) return false;
+    if (fStatus && n._statusCalc !== fStatus) return false;
+    if (fTipo   && n.tipo_acordo !== fTipo)  return false;
+    if (fComb   && n.combustivel !== fComb)  return false;
+    return true;
+  });
+
+  // KPIs
+  const ativas    = negociacoes.filter(n => { const s = _negCalcStatusDyn(n,today); return s==='ativa'; });
+  const pendentes = negociacoes.filter(n => _negCalcStatusDyn(n,today)==='pendente');
+  const inativas  = negociacoes.filter(n => ['expirada','cancelada'].includes(_negCalcStatusDyn(n,today)));
+  const volTotal  = ativas.reduce((s,n) => s+(parseFloat(n.volume_estimado)||0), 0);
+
+  const _s = (id,v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  _s('neg-kpi-total',    negociacoes.length);
+  _s('neg-kpi-ativas',   ativas.length);
+  _s('neg-kpi-pendentes',pendentes.length);
+  _s('neg-kpi-inativas', inativas.length);
+  _s('neg-kpi-volume',   volTotal.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})+' L');
+
+  if (lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted);">
+      ${negociacoes.length===0 ? 'Nenhuma negociação cadastrada. Clique em <strong>Nova Negociação</strong> para começar.' : 'Nenhum registro encontrado para os filtros selecionados.'}
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(n => {
+    const tipoLabel = NEG_TIPO_LABEL[n.tipo_acordo] || n.tipo_acordo;
+    const tipoCls   = n.tipo_acordo.startsWith('desconto') ? 'desconto' : n.tipo_acordo==='preco_fixo' ? 'fixo' : 'acrescimo';
+    const statusCls = n._statusCalc;
+    const statusDot = { ativa:'🟢', pendente:'🟡', expirada:'⚫', cancelada:'🔴' }[n._statusCalc] || '';
+
+    const precoBase     = parseFloat(n.preco_base)     || 0;
+    const precoNeg      = parseFloat(n.preco_negociado) || 0;
+    const volEst        = parseFloat(n.volume_estimado) || 0;
+    const valorAcordo   = parseFloat(n.valor_acordo)    || 0;
+
+    const fmtPreco = v => v > 0 ? `R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}` : '—';
+    const fmtVol   = v => v > 0 ? v.toLocaleString('pt-BR',{maximumFractionDigits:0}) : '—';
+
+    const valorAcordoStr = n.tipo_acordo==='desconto_pct'||n.tipo_acordo==='acrescimo_pct'
+      ? `${valorAcordo.toFixed(2)}%`
+      : `R$ ${valorAcordo.toFixed(3)}`;
+
+    const vigencia = `${_fmtDateBR(n.data_inicio)}<br><small style="color:var(--text-muted);">até ${_fmtDateBR(n.data_fim)}</small>`;
+
+    return `<tr>
+      <td>
+        <div style="font-weight:700;font-size:0.85rem;">${n.posto_nome || '—'}</div>
+        <div style="font-size:0.72rem;color:var(--text-muted);">${n.posto_cnpj ? 'CNPJ: '+n.posto_cnpj : ''}${n.posto_cidade ? ' · '+n.posto_cidade+'/'+n.posto_uf : ''}</div>
+      </td>
+      <td><span style="font-weight:600;">${n.combustivel || '—'}</span></td>
+      <td><span class="neg-tipo ${tipoCls}">${tipoLabel}</span></td>
+      <td class="td-right" style="color:var(--text-muted);">${fmtPreco(precoBase)}</td>
+      <td class="td-right">${valorAcordoStr}</td>
+      <td class="td-right"><span class="neg-preco-negociado">${fmtPreco(precoNeg)}</span></td>
+      <td class="td-right">${fmtVol(volEst)}</td>
+      <td>${vigencia}</td>
+      <td><span class="neg-status ${statusCls}">${statusDot} ${n._statusCalc.charAt(0).toUpperCase()+n._statusCalc.slice(1)}</span></td>
+      <td>
+        <div style="display:flex;gap:5px;justify-content:center;">
+          <button class="btn btn-outline btn-sm" title="Editar" onclick="editNegociacao(${n.id})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn btn-sm" title="Excluir" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="deleteNegociacao(${n.id})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function _negCalcStatusDyn(n, today) {
+  if (n.status === 'cancelada') return 'cancelada';
+  if (n.data_fim && n.data_fim < today) return 'expirada';
+  if (n.data_inicio && n.data_inicio > today) return 'pendente';
+  return 'ativa';
+}
+
+function _fmtDateBR(s) {
+  if (!s) return '—';
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// ── Modal: abrir, fechar, preencher ───────────────────────────
+function openNegociacaoModal(id) {
+  _negEditId   = id || null;
+  _negPostoSel = null;
+  _negCombSel  = null;
+
+  document.getElementById('neg-modal-title').textContent = id ? 'Editar Negociação' : 'Nova Negociação';
+
+  // Reseta campos
+  document.getElementById('neg-posto-busca').value = '';
+  document.getElementById('neg-posto-selecionado').style.display = 'none';
+  document.getElementById('neg-posto-busca').style.display = '';
+  document.getElementById('neg-posto-dropdown').style.display = 'none';
+  document.getElementById('neg-combs-section').style.display = 'none';
+  document.getElementById('neg-no-comb-msg').style.display = 'none';
+  document.getElementById('neg-acordo-section').style.display = 'none';
+  document.getElementById('neg-valor-section').style.display = 'none';
+  document.getElementById('neg-base-section').style.display = 'none';
+  document.getElementById('neg-preview-section').style.display = 'none';
+  document.getElementById('neg-volume-section').style.display = 'none';
+  document.getElementById('neg-custo-section').style.display = 'none';
+  document.getElementById('neg-data-ini-section').style.display = 'none';
+  document.getElementById('neg-data-fim-section').style.display = 'none';
+  document.getElementById('neg-status-section').style.display = 'none';
+  document.getElementById('neg-just-section').style.display = 'none';
+  document.getElementById('neg-obs-section').style.display = 'none';
+  document.getElementById('neg-salvar-btn').disabled = true;
+
+  document.querySelectorAll('input[name="neg-tipo-acordo"]').forEach(r => r.checked = false);
+  document.getElementById('neg-valor-acordo').value = '';
+  document.getElementById('neg-volume-estimado').value = '';
+  document.getElementById('neg-justificativa').value = '';
+  document.getElementById('neg-observacoes').value = '';
+  document.getElementById('neg-status').value = 'pendente';
+
+  // Se é edição, preenche com dados existentes
+  if (id) {
+    const neg = negociacoes.find(n => n.id === id);
+    if (neg) _negPreencherEdicao(neg);
+  }
+
+  document.getElementById('neg-modal-overlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('neg-posto-busca').focus(), 100);
+}
+
+function _negPreencherEdicao(neg) {
+  // Simula seleção de posto a partir dos dados salvos
+  _negPostoSel = postos.find(p => p.id === neg.posto_id) || {
+    id: neg.posto_id, razao: neg.posto_nome, cnpj: neg.posto_cnpj,
+    cidade: neg.posto_cidade, uf: neg.posto_uf,
+    combustiveis: {}
+  };
+  _negMostrarPostoSelecionado(_negPostoSel);
+
+  // Carrega combustíveis e seleciona o do acordo
+  _negCarregarCombs(_negPostoSel, neg.combustivel, neg.preco_base);
+
+  // Tipo de acordo
+  const radio = document.querySelector(`input[name="neg-tipo-acordo"][value="${neg.tipo_acordo}"]`);
+  if (radio) { radio.checked = true; _negCalcPreco(); }
+
+  // Valores
+  document.getElementById('neg-valor-acordo').value   = neg.valor_acordo || '';
+  document.getElementById('neg-volume-estimado').value = neg.volume_estimado || '';
+  document.getElementById('neg-justificativa').value  = neg.justificativa  || '';
+  document.getElementById('neg-observacoes').value    = neg.observacoes    || '';
+  document.getElementById('neg-status').value         = neg.status || 'pendente';
+  if (neg.data_inicio) document.getElementById('neg-data-inicio').value = neg.data_inicio;
+  if (neg.data_fim)    document.getElementById('neg-data-fim').value    = neg.data_fim;
+
+  _negCalcPreco();
+  document.getElementById('neg-salvar-btn').disabled = false;
+}
+
+function closeNegociacaoModal() {
+  document.getElementById('neg-modal-overlay').style.display = 'none';
+}
+
+// ── Busca de posto no modal ────────────────────────────────────
+let _negBuscaTimer = null;
+function _negBuscarPosto(q) {
+  clearTimeout(_negBuscaTimer);
+  const dd = document.getElementById('neg-posto-dropdown');
+  if (!q || q.length < 2) { dd.style.display = 'none'; return; }
+  _negBuscaTimer = setTimeout(() => {
+    const ql = q.toLowerCase();
+    const matches = postos.filter(p =>
+      (p.razao||'').toLowerCase().includes(ql) ||
+      (p.cnpj||'').toLowerCase().includes(ql) ||
+      (p.cidade||'').toLowerCase().includes(ql)
+    ).slice(0, 12);
+    if (matches.length === 0) {
+      dd.innerHTML = `<div style="padding:12px 14px;color:var(--text-muted);font-size:0.83rem;">Nenhum posto encontrado</div>`;
+    } else {
+      dd.innerHTML = matches.map(p => {
+        const combs = Object.keys(p.combustiveis || {});
+        const hasPrice = Object.values(p.combustiveis||{}).some(v => _combPrecoNum(v) !== null);
+        return `<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;"
+          onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background=''"
+          onclick="_negSelecionarPosto(${p.id})">
+          <div style="font-weight:700;font-size:0.88rem;color:var(--text);">${p.razao}</div>
+          <div style="font-size:0.74rem;color:var(--text-muted);">CNPJ: ${p.cnpj} · ${p.cidade||''}${p.uf?'/'+p.uf:''}</div>
+          ${hasPrice ? `<div style="font-size:0.72rem;color:#15803d;margin-top:2px;">⛽ ${combs.join(', ')}</div>` :
+            `<div style="font-size:0.72rem;color:#92400e;margin-top:2px;">⚠️ Sem preços cadastrados</div>`}
+        </div>`;
+      }).join('');
+    }
+    dd.style.display = '';
+  }, 200);
+}
+
+function _negSelecionarPosto(postoId) {
+  const p = postos.find(px => px.id === postoId);
+  if (!p) return;
+  _negPostoSel = p;
+  document.getElementById('neg-posto-dropdown').style.display = 'none';
+  _negMostrarPostoSelecionado(p);
+  _negCarregarCombs(p, null, null);
+}
+
+function _negMostrarPostoSelecionado(p) {
+  document.getElementById('neg-posto-busca').style.display = 'none';
+  const sel = document.getElementById('neg-posto-selecionado');
+  document.getElementById('neg-posto-nome').textContent = p.razao || p.nome || '—';
+  document.getElementById('neg-posto-cnpj').textContent = p.cnpj ? `CNPJ: ${p.cnpj}` : '';
+  document.getElementById('neg-posto-loc').textContent  = [p.cidade, p.uf].filter(Boolean).join('/');
+  sel.style.display = '';
+}
+
+function _negLimparPosto() {
+  _negPostoSel = null;
+  _negCombSel  = null;
+  document.getElementById('neg-posto-busca').style.display = '';
+  document.getElementById('neg-posto-busca').value = '';
+  document.getElementById('neg-posto-selecionado').style.display = 'none';
+  document.getElementById('neg-combs-section').style.display = 'none';
+  document.getElementById('neg-no-comb-msg').style.display = 'none';
+  document.getElementById('neg-acordo-section').style.display = 'none';
+  document.getElementById('neg-valor-section').style.display = 'none';
+  document.getElementById('neg-base-section').style.display = 'none';
+  document.getElementById('neg-preview-section').style.display = 'none';
+  document.getElementById('neg-volume-section').style.display = 'none';
+  document.getElementById('neg-custo-section').style.display = 'none';
+  document.getElementById('neg-data-ini-section').style.display = 'none';
+  document.getElementById('neg-data-fim-section').style.display = 'none';
+  document.getElementById('neg-status-section').style.display = 'none';
+  document.getElementById('neg-just-section').style.display = 'none';
+  document.getElementById('neg-obs-section').style.display = 'none';
+  document.getElementById('neg-salvar-btn').disabled = true;
+  document.getElementById('neg-posto-busca').focus();
+}
+
+// ── Carrega combustíveis do posto selecionado ──────────────────
+function _negCarregarCombs(posto, combSel, precoBaseSel) {
+  const grid    = document.getElementById('neg-combs-grid');
+  const section = document.getElementById('neg-combs-section');
+  const noMsg   = document.getElementById('neg-no-comb-msg');
+  const hint    = document.getElementById('neg-comb-hint');
+
+  const combs = _parseJSON(posto.combustiveis, {});
+  const entries = Object.entries(combs)
+    .map(([nome, val]) => ({ nome, preco: _combPrecoNum(val) }))
+    .filter(e => e.preco !== null);
+
+  if (entries.length === 0) {
+    section.style.display = 'none';
+    noMsg.style.display = '';
+    return;
+  }
+
+  noMsg.style.display = 'none';
+  hint.textContent = `(${entries.length} combustível${entries.length>1?'s':''} com preço cadastrado)`;
+
+  grid.innerHTML = entries.map(e => `
+    <div class="neg-comb-option${combSel===e.nome?' selected':''}" id="neg-comb-opt-${e.nome.replace(/\s/g,'_')}"
+      onclick="_negSelecionarComb('${e.nome}', ${e.preco})">
+      <div class="neg-comb-name">${e.nome}</div>
+      <div class="neg-comb-preco">R$ ${e.preco.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L</div>
+    </div>`).join('');
+
+  section.style.display = '';
+
+  // Se veio de edição e já há combustível selecionado, marca
+  if (combSel) {
+    _negCombSel = { nome: combSel, preco: precoBaseSel || (entries.find(e=>e.nome===combSel)?.preco||0) };
+    _negMostrarCamposAcordo();
+  }
+}
+
+function _negSelecionarComb(nome, preco) {
+  _negCombSel = { nome, preco };
+  // Atualiza visual de seleção
+  document.querySelectorAll('.neg-comb-option').forEach(el => el.classList.remove('selected'));
+  const opt = document.getElementById('neg-comb-opt-' + nome.replace(/\s/g,'_'));
+  if (opt) opt.classList.add('selected');
+  _negMostrarCamposAcordo();
+}
+
+function _negMostrarCamposAcordo() {
+  ['neg-acordo-section','neg-valor-section','neg-base-section',
+   'neg-volume-section','neg-custo-section','neg-data-ini-section',
+   'neg-data-fim-section','neg-status-section','neg-just-section',
+   'neg-obs-section'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
+
+  // Preenche preço base
+  const precoBaseEl = document.getElementById('neg-preco-base-display');
+  if (precoBaseEl && _negCombSel) {
+    precoBaseEl.value = `R$ ${_negCombSel.preco.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L`;
+  }
+
+  _negCalcPreco();
+}
+
+// ── Cálculo em tempo real do preço negociado ───────────────────
+function _negCalcPreco() {
+  if (!_negCombSel) return;
+
+  const tipo        = document.querySelector('input[name="neg-tipo-acordo"]:checked')?.value || '';
+  const valorAcordo = parseFloat(document.getElementById('neg-valor-acordo')?.value) || 0;
+  const precoBase   = _negCombSel.preco;
+  const volEst      = parseFloat(document.getElementById('neg-volume-estimado')?.value) || 0;
+
+  // Atualiza label do campo valor
+  const labelMap = {
+    desconto_pct:  'Percentual de Desconto (%)',
+    desconto_val:  'Valor do Desconto (R$/L)',
+    acrescimo_pct: 'Percentual de Acréscimo (%)',
+    acrescimo_val: 'Valor do Acréscimo (R$/L)',
+    preco_fixo:    'Preço Fixo Negociado (R$/L)',
+  };
+  const labelEl = document.getElementById('neg-valor-label');
+  if (labelEl && tipo) labelEl.textContent = labelMap[tipo] || 'Valor do Acordo';
+
+  // Calcula preço negociado
+  let precoNeg = precoBase;
+  if (tipo === 'desconto_pct')   precoNeg = precoBase * (1 - valorAcordo / 100);
+  else if (tipo === 'desconto_val')   precoNeg = precoBase - valorAcordo;
+  else if (tipo === 'acrescimo_pct')  precoNeg = precoBase * (1 + valorAcordo / 100);
+  else if (tipo === 'acrescimo_val')  precoNeg = precoBase + valorAcordo;
+  else if (tipo === 'preco_fixo')     precoNeg = valorAcordo;
+  precoNeg = Math.max(0, precoNeg);
+
+  const dif    = precoNeg - precoBase;
+  const fmtP   = v => `R$ ${Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L`;
+  const fmtBR  = v => `R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+
+  // Preview
+  const previewSection = document.getElementById('neg-preview-section');
+  if (previewSection && tipo) {
+    previewSection.style.display = '';
+    document.getElementById('neg-prev-base').textContent  = fmtP(precoBase);
+    document.getElementById('neg-prev-final').textContent = fmtP(precoNeg);
+
+    const tipoLbl = document.getElementById('neg-prev-tipo-label');
+    const difEl   = document.getElementById('neg-prev-dif');
+    const valorEl = document.getElementById('neg-prev-valor');
+
+    if (tipo.startsWith('desconto')) {
+      if (tipoLbl) tipoLbl.textContent = 'Desconto aplicado';
+      const valorStr = tipo==='desconto_pct' ? `-${valorAcordo.toFixed(2)}%` : `-${fmtP(valorAcordo)}`;
+      if (valorEl) valorEl.textContent = valorStr;
+      if (difEl) { difEl.textContent = `- ${fmtP(Math.abs(dif))} por litro`; difEl.className='neg-preview-economia'; }
+    } else if (tipo.startsWith('acrescimo')) {
+      if (tipoLbl) tipoLbl.textContent = 'Acréscimo aplicado';
+      const valorStr = tipo==='acrescimo_pct' ? `+${valorAcordo.toFixed(2)}%` : `+${fmtP(valorAcordo)}`;
+      if (valorEl) valorEl.textContent = valorStr;
+      if (difEl) { difEl.textContent = `+ ${fmtP(Math.abs(dif))} por litro`; difEl.className='neg-preview-acrescimo'; }
+    } else {
+      if (tipoLbl) tipoLbl.textContent = 'Preço fixo definido';
+      if (valorEl) valorEl.textContent = fmtP(precoNeg);
+      const difLabel = dif < 0 ? `- ${fmtP(Math.abs(dif))} vs. tabela` : dif > 0 ? `+ ${fmtP(Math.abs(dif))} vs. tabela` : '= tabela';
+      if (difEl) { difEl.textContent = difLabel; difEl.className = dif<0?'neg-preview-economia':'neg-preview-acrescimo'; }
+    }
+  }
+
+  // Custo total estimado
+  const custoTotal = precoNeg * volEst;
+  const custoEl = document.getElementById('neg-custo-estimado-display');
+  if (custoEl) custoEl.value = custoTotal > 0 ? fmtBR(custoTotal) : '—';
+
+  // Habilita salvar se dados mínimos estão OK
+  _negValidarForm();
+}
+
+// ── Calcula status automático com base nas datas ───────────────
+function _negCalcStatus() {
+  const ini = document.getElementById('neg-data-inicio')?.value || '';
+  const fim = document.getElementById('neg-data-fim')?.value   || '';
+  const today = new Date().toISOString().split('T')[0];
+  const selEl = document.getElementById('neg-status');
+  if (!selEl) return;
+  if (selEl.value === 'cancelada') return; // respeita cancelamento manual
+  if (fim && fim < today)        selEl.value = 'expirada';
+  else if (ini && ini > today)   selEl.value = 'pendente';
+  else                           selEl.value = 'ativa';
+  _negValidarForm();
+}
+
+function _negValidarForm() {
+  const posto   = _negPostoSel;
+  const comb    = _negCombSel;
+  const tipo    = document.querySelector('input[name="neg-tipo-acordo"]:checked')?.value;
+  const valor   = parseFloat(document.getElementById('neg-valor-acordo')?.value);
+  const ini     = document.getElementById('neg-data-inicio')?.value;
+  const fim     = document.getElementById('neg-data-fim')?.value;
+  const just    = (document.getElementById('neg-justificativa')?.value||'').trim();
+
+  const ok = posto && comb && tipo && !isNaN(valor) && valor >= 0 && ini && fim && ini <= fim && just.length >= 3;
+  const btn = document.getElementById('neg-salvar-btn');
+  if (btn) btn.disabled = !ok;
+}
+
+// ── Salvar (criar ou atualizar) — local-first ──────────────────
+async function salvarNegociacao() {
+  if (!_negPostoSel || !_negCombSel) return;
+
+  const tipo        = document.querySelector('input[name="neg-tipo-acordo"]:checked')?.value || '';
+  const valorAcordo = parseFloat(document.getElementById('neg-valor-acordo')?.value) || 0;
+  const precoBase   = _negCombSel.preco;
+  const volEst      = parseFloat(document.getElementById('neg-volume-estimado')?.value) || 0;
+
+  let precoNeg = precoBase;
+  if      (tipo === 'desconto_pct')  precoNeg = precoBase * (1 - valorAcordo / 100);
+  else if (tipo === 'desconto_val')  precoNeg = precoBase - valorAcordo;
+  else if (tipo === 'acrescimo_pct') precoNeg = precoBase * (1 + valorAcordo / 100);
+  else if (tipo === 'acrescimo_val') precoNeg = precoBase + valorAcordo;
+  else if (tipo === 'preco_fixo')    precoNeg = valorAcordo;
+  precoNeg = Math.max(0, precoNeg);
+
+  const payload = {
+    postoId:        _negPostoSel.id,
+    postoNome:      _negPostoSel.razao || _negPostoSel.nome || '',
+    postoCnpj:      _negPostoSel.cnpj  || '',
+    postoCidade:    _negPostoSel.cidade || '',
+    postoUf:        _negPostoSel.uf    || '',
+    combustivel:    _negCombSel.nome,
+    precoBase,
+    tipoAcordo:     tipo,
+    valorAcordo,
+    precoNegociado: parseFloat(precoNeg.toFixed(4)),
+    volumeEstimado: volEst,
+    custoEstimado:  parseFloat((precoNeg * volEst).toFixed(2)),
+    dataInicio:     document.getElementById('neg-data-inicio')?.value || '',
+    dataFim:        document.getElementById('neg-data-fim')?.value    || '',
+    status:         document.getElementById('neg-status')?.value      || 'pendente',
+    justificativa:  (document.getElementById('neg-justificativa')?.value || '').trim(),
+    observacoes:    (document.getElementById('neg-observacoes')?.value  || '').trim(),
+  };
+
+  // Objeto no formato do cache local (snake_case)
+  const localObj = {
+    posto_id: payload.postoId, posto_nome: payload.postoNome,
+    posto_cnpj: payload.postoCnpj, posto_cidade: payload.postoCidade, posto_uf: payload.postoUf,
+    combustivel: payload.combustivel, preco_base: payload.precoBase,
+    tipo_acordo: payload.tipoAcordo, valor_acordo: payload.valorAcordo,
+    preco_negociado: payload.precoNegociado, volume_estimado: payload.volumeEstimado,
+    custo_estimado: payload.custoEstimado, data_inicio: payload.dataInicio,
+    data_fim: payload.dataFim, status: payload.status,
+    justificativa: payload.justificativa, observacoes: payload.observacoes,
+  };
+
+  // ── 1. Aplica localmente IMEDIATAMENTE ──────────────────────────
+  if (_negEditId) {
+    const idx = negociacoes.findIndex(n => n.id === _negEditId);
+    if (idx >= 0) negociacoes[idx] = { ...negociacoes[idx], ...localObj };
+  } else {
+    const localId = nextNegId++;
+    negociacoes.unshift({ id: localId, ...localObj });
+    // guarda referência para atualizar o id real quando o servidor responder
+    payload._localId = localId;
+  }
+
+  closeNegociacaoModal();
+  renderNegociacoes();
+  _negAtualizarFiltroCombs();
+  showToast(_negEditId ? 'Negociação atualizada!' : 'Negociação cadastrada!', 'success');
+
+  // ── 2. Sincroniza com servidor em background ─────────────────────
+  if (serverOnline) {
+    try {
+      if (_negEditId) {
+        await apiCall('PUT', `/api/negociacoes/${_negEditId}`, payload);
+      } else {
+        const res = await apiCall('POST', '/api/negociacoes', payload);
+        // Substitui o id local pelo id real do banco
+        if (res && res.id && payload._localId) {
+          const rec = negociacoes.find(n => n.id === payload._localId);
+          if (rec) { rec.id = res.id; nextNegId = Math.max(nextNegId, res.id + 1); }
+        }
+      }
+    } catch(e) {
+      console.warn('Falha ao sincronizar negociação com servidor:', e);
+    }
+  }
+}
+
+// ── Editar e Excluir ───────────────────────────────────────────
+function editNegociacao(id) {
+  openNegociacaoModal(id);
+}
+
+async function deleteNegociacao(id) {
+  if (!confirm('Confirma a exclusão desta negociação?')) return;
+  negociacoes = negociacoes.filter(n => n.id !== id);
+  renderNegociacoes();
+  showToast('Negociação removida.', 'success');
+  if (serverOnline) {
+    try { await apiCall('DELETE', `/api/negociacoes/${id}`); }
+    catch(e) { console.warn('Erro ao excluir negociação no servidor'); }
+  }
 }
 
 // ─── FOTOS ───
@@ -7996,19 +9459,35 @@ function _atualizarCombustiveisPosto(posto) {
 
   if (entries.length > 0) {
     // Posto tem combustíveis com preços → monta opções enriquecidas
+    // Para cada combustível, verifica se há negociação ativa vigente
     sel.innerHTML = '<option value="">Selecione...</option>' +
       entries.map(([nome, val]) => {
-        const n = _combPrecoNum(val);
-        return `<option value="${nome}" data-preco="${n ?? ''}">${nome}${n ? ` — R$ ${n.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L` : ''}</option>`;
+        const precoBase = _combPrecoNum(val);
+        const neg       = posto ? _negAtiva(posto.id, nome, posto.cnpj) : null;
+        const precoFinal= (neg && neg.preco_negociado != null) ? neg.preco_negociado : precoBase;
+        const negTag    = neg ? ' 🤝' : '';
+        const fmtLP     = v => v != null ? `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L` : '';
+        const label     = precoFinal != null
+          ? `${nome}${negTag} — ${fmtLP(precoFinal)}${neg ? ` (tab. ${fmtLP(precoBase)})` : ''}`
+          : nome;
+        return `<option value="${nome}" data-preco="${precoFinal ?? ''}" data-preco-base="${precoBase ?? ''}" data-neg-id="${neg ? neg.id : ''}">${label}</option>`;
       }).join('');
-    if (hint) hint.textContent = `⛽ ${entries.length} tipo(s) cadastrado(s) neste posto`;
+    // Conta quantas negociações ativas há neste posto
+    const negCount = posto ? entries.filter(([nome]) => _negAtiva(posto.id, nome, posto.cnpj)).length : 0;
+    if (hint) hint.textContent = `⛽ ${entries.length} tipo(s) cadastrado(s) neste posto` +
+      (negCount ? ` · 🤝 ${negCount} com negociação ativa` : '');
     // Auto-seleciona se for o único tipo
     if (entries.length === 1) {
       sel.value   = entries[0][0];
-      preco.value = _combPrecoNum(entries[0][1]) ?? '';
+      const neg1  = posto ? _negAtiva(posto.id, entries[0][0], posto.cnpj) : null;
+      preco.value = (neg1 ? neg1.preco_negociado : _combPrecoNum(entries[0][1])) ?? '';
+      _negAplicarNotice(sel.options[sel.selectedIndex]);
       calcTotal();
     } else {
       preco.value = '';
+      // Limpa badge ao trocar posto
+      const notice = document.getElementById('f-neg-notice');
+      if (notice) notice.style.display = 'none';
     }
   } else {
     // Sem preços cadastrados → lista padrão, usuário preenche o preço
@@ -8032,6 +9511,20 @@ function onCombustivelChange() {
   }
   // Re-valida hodômetro pois as regras mudam conforme o combustível (Arla 32 vs. demais)
   checkHodometro();
+  // Mostra/oculta seção Arla 32
+  const isDiesel = /diesel/i.test(sel.value);
+  const arlaSection = document.getElementById('arla32-section');
+  if (arlaSection) {
+    arlaSection.style.display = isDiesel ? '' : 'none';
+    if (!isDiesel) {
+      document.getElementById('f-arla-volume').value = '';
+      document.getElementById('f-arla-preco').value  = '';
+      document.getElementById('f-arla-total').value  = '';
+    }
+    calcTotal();
+  }
+  // Exibe ou oculta badge de negociação ativa
+  _negAplicarNotice(opt);
 }
 
 // ─── AUTOCOMPLETE / COMBO ENGINE ─────────────────────────────────────────────
@@ -8273,6 +9766,9 @@ function _onSelectPosto(item) {
     `✔ ${p.bandeira} · CNPJ: ${p.cnpj||'—'} · ${p.cidade||''}${p.uf?' / '+p.uf:''}`;
   // Atualiza select de combustíveis com base nos preços cadastrados no posto
   _atualizarCombustiveisPosto(p);
+  // Limpa badge (será reaposto quando o combustível for (auto-)selecionado)
+  const notice = document.getElementById('f-neg-notice');
+  if (notice) notice.style.display = 'none';
 }
 function _postoComPreco(p) {
   return p.combustiveis && Object.values(p.combustiveis).some(v => v != null && v !== '');
@@ -9869,18 +11365,21 @@ function _renderMapaBandeira() {
   const cnpjBandMap = {};
   const razaoBandMap = {};
   postos.forEach(p => {
+    const band = (p.bandeira || '').trim();
+    if (!band) return; // posto sem bandeira não entra no mapa
     const cnpjNorm = (p.cnpj || '').replace(/\D/g, '');
-    if (cnpjNorm) cnpjBandMap[cnpjNorm] = p.bandeira || p.razao || 'Sem bandeira';
+    if (cnpjNorm) cnpjBandMap[cnpjNorm] = band;
     const razao = (p.razao || '').trim().toLowerCase();
-    if (razao) razaoBandMap[razao] = p.bandeira || p.razao || 'Sem bandeira';
+    if (razao) razaoBandMap[razao] = band;
   });
-  // Resolve bandeira de um abastecimento: CNPJ > razão > nome do posto > fallback
+  // Resolve bandeira de um abastecimento: CNPJ > razão > 'Sem bandeira'
+  // Nunca usa o nome do posto como bandeira
   const getBandeira = r => {
     const cnpj = (r.cnpjPosto || '').replace(/\D/g, '');
     if (cnpj && cnpjBandMap[cnpj]) return cnpjBandMap[cnpj];
     const razao = (r.posto || '').trim().toLowerCase();
     if (razao && razaoBandMap[razao]) return razaoBandMap[razao];
-    return (r.posto || '').trim() || 'Sem bandeira';
+    return 'Sem bandeira';
   };
 
   // Aggregate: volume por (UF do posto, bandeira)
@@ -11614,8 +13113,60 @@ let _roteizPopupPosto    = null;  // posto exibido no popup flutuante
 let _roteizPostosVisiveis = [];   // postos filtrados exibidos no mapa
 let _roteizInitialized   = false;
 
-const _OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving/';
-const _NOM_BASE  = 'https://nominatim.openstreetmap.org/search';
+const _OSRM_BASE     = 'https://router.project-osrm.org/route/v1/driving/';  // legado (inacessível)
+const _VALHALLA_BASE = 'https://valhalla1.openstreetmap.de/route';
+const _NOM_BASE      = 'https://nominatim.openstreetmap.org/search';
+
+// ── Valhalla helpers ───────────────────────────────────────────
+// Decodifica encoded polyline precision-6 para [[lon,lat], ...]
+function _decodeValhalla(str) {
+  let i = 0, lat = 0, lng = 0, coords = [];
+  while (i < str.length) {
+    let b, s = 0, r = 0;
+    do { b = str.charCodeAt(i++) - 63; r |= (b & 0x1f) << s; s += 5; } while (b >= 0x20);
+    lat += (r & 1) ? ~(r >> 1) : (r >> 1);
+    s = 0; r = 0;
+    do { b = str.charCodeAt(i++) - 63; r |= (b & 0x1f) << s; s += 5; } while (b >= 0x20);
+    lng += (r & 1) ? ~(r >> 1) : (r >> 1);
+    coords.push([lng / 1e6, lat / 1e6]); // [lon, lat] — GeoJSON order
+  }
+  return coords;
+}
+
+// Chama Valhalla; retorna {distM, durS, coords[[lon,lat]], numTolls}
+async function _routeValhalla(wpts, signal) {
+  const body = {
+    locations: wpts.map(p => ({ lon: p.lon, lat: p.lat })),
+    costing: 'auto',
+    directions_options: { units: 'kilometers' }
+  };
+  const res = await fetch(_VALHALLA_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal
+  });
+  const data = await res.json();
+  if (data.error_code) {
+    const err = new Error(data.error || 'Valhalla error');
+    err.valhallaCode = data.error_code;
+    throw err;
+  }
+  const trip = data.trip;
+  let coords = [];
+  let numTolls = 0;
+  (trip.legs || []).forEach(leg => {
+    const lc = _decodeValhalla(leg.shape || '');
+    coords = coords.length ? coords.concat(lc.slice(1)) : lc;
+    (leg.maneuvers || []).forEach(m => { if (m.toll) numTolls++; });
+  });
+  return {
+    distM:    (trip.summary.length || 0) * 1000,
+    durS:     trip.summary.time || 0,
+    coords,
+    numTolls
+  };
+}
 
 // ── Inicialização ─────────────────────────────────────────────
 function initRoteirizador() {
@@ -11623,6 +13174,12 @@ function initRoteirizador() {
     _roteizInitialized = true;
     _roteizIniciarMapa();
     _roteizPopularFiltros();
+  } else {
+    // Já inicializado — re-plota postos caso tenham carregado depois da 1ª visita
+    setTimeout(() => {
+      updatePostosMap();
+      _atualizarContadoresPostos();
+    }, 150);
   }
   loadRoteirizadorRotas();
 }
@@ -11779,8 +13336,15 @@ async function geocodeField(campo) {
   if (q.length < 3) { sugg.classList.remove('open'); return; }
   try {
     const url = `${_NOM_BASE}?q=${encodeURIComponent(q)}&format=json&countrycodes=br&limit=6&addressdetails=1`;
-    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
-    const data = await res.json();
+    const nomCtrl  = new AbortController();
+    const nomTimer = setTimeout(() => nomCtrl.abort(), 8000);
+    let data;
+    try {
+      const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' }, signal: nomCtrl.signal });
+      data = await res.json();
+    } finally {
+      clearTimeout(nomTimer);
+    }
     _geocodeSuggCache[campo] = data;
     sugg.innerHTML = data.map((d, i) =>
       `<div class="roteiz-sugg-item" onmousedown="selecionarLocalIdx('${campo}',${i})">${d.display_name}</div>`
@@ -11878,8 +13442,15 @@ async function geocodeParada(idx) {
   if (q.length < 3) { sugg.classList.remove('open'); return; }
   try {
     const url = `${_NOM_BASE}?q=${encodeURIComponent(q)}&format=json&countrycodes=br&limit=6`;
-    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
-    const data = await res.json();
+    const pCtrl  = new AbortController();
+    const pTimer = setTimeout(() => pCtrl.abort(), 8000);
+    let data;
+    try {
+      const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' }, signal: pCtrl.signal });
+      data = await res.json();
+    } finally {
+      clearTimeout(pTimer);
+    }
     _geocodeSuggCache[`parada_${idx}`] = data;
     sugg.innerHTML = data.map((d, i) =>
       `<div class="roteiz-sugg-item" onmousedown="selecionarParadaIdx(${idx},${i})">${d.display_name}</div>`
@@ -11960,7 +13531,8 @@ function updatePostosMap() {
   const filtrarPorTipo = filtUrb || filtRod;
 
   const postosVisiveis = postos.filter(p => {
-    if (!p.lat || !p.lon || isNaN(parseFloat(p.lat))) return false;
+    const lat = parseFloat(p.lat), lon = parseFloat(p.lon);
+    if (!isFinite(lat) || !isFinite(lon) || lat === 0 || lon === 0) return false;
     const isUrb = _roteizIsUrbano(p);
     if (filtrarPorTipo && isUrb  && !filtUrb) return false;
     if (filtrarPorTipo && !isUrb && !filtRod) return false;
@@ -12151,32 +13723,52 @@ async function calcularRoteizRota() {
       ..._roteizParadas.filter(Boolean),
       _roteizDestinoCoords
     ];
-    const coords = waypoints.map(p => `${p.lon},${p.lat}`).join(';');
-    const url = `${_OSRM_BASE}${coords}?overview=full&geometries=geojson&steps=true`;
-    const res  = await fetch(url);
-    const data = await res.json();
-
-    if (!data.routes || !data.routes[0]) {
-      showToast('Não foi possível calcular a rota. Verifique os pontos informados.', 'error'); return;
+    // ── Valhalla routing (substitui OSRM) ─────────────────────────
+    const routeCtrl  = new AbortController();
+    const routeTimer = setTimeout(() => routeCtrl.abort(), 30000);
+    let routeResult;
+    try {
+      try {
+        routeResult = await _routeValhalla(waypoints, routeCtrl.signal);
+      } catch(e) {
+        if (e.valhallaCode === 154) {
+          // Rota excede limite de 1500 km do servidor público — divide em 2 segmentos
+          showToast('Rota longa — dividindo em segmentos…', 'info');
+          const midPt = {
+            lat: (waypoints[0].lat + waypoints[waypoints.length-1].lat) / 2,
+            lon: (waypoints[0].lon + waypoints[waypoints.length-1].lon) / 2,
+            label: 'Ponto intermediário'
+          };
+          const half = Math.ceil(waypoints.length / 2);
+          const seg1 = await _routeValhalla([...waypoints.slice(0, half), midPt], routeCtrl.signal);
+          const seg2 = await _routeValhalla([midPt, ...waypoints.slice(half)],    routeCtrl.signal);
+          routeResult = {
+            distM:    seg1.distM + seg2.distM,
+            durS:     seg1.durS  + seg2.durS,
+            coords:   [...seg1.coords, ...seg2.coords.slice(1)],
+            numTolls: seg1.numTolls + seg2.numTolls
+          };
+        } else {
+          throw e;
+        }
+      }
+    } catch(fetchErr) {
+      if (fetchErr.name === 'AbortError') {
+        showToast('Serviço de roteamento não respondeu (timeout). Verifique sua conexão e tente novamente.', 'error');
+      } else {
+        showToast('Erro ao calcular rota: ' + fetchErr.message, 'error');
+      }
+      return;
+    } finally {
+      clearTimeout(routeTimer);
     }
 
-    const route = data.routes[0];
-    const distKm     = route.distance / 1000;
-    const duracaoMin = Math.round(route.duration / 60);
-    const geometry   = route.geometry;
+    const distKm     = routeResult.distM / 1000;
+    const duracaoMin = Math.round(routeResult.durS / 60);
+    const geometry   = { type: 'LineString', coordinates: routeResult.coords };
 
-    // Conta pedágios a partir dos steps OSRM (interseções com class "toll")
-    let numPedagios = 0;
-    try {
-      (route.legs || []).forEach(leg => {
-        (leg.steps || []).forEach(step => {
-          (step.intersections || []).forEach(inter => {
-            if ((inter.classes || []).includes('toll')) numPedagios++;
-          });
-        });
-      });
-    } catch(e) {}
-    // Estimativa alternativa se OSRM não retornou classes: ~1 pedágio por 80km em rodovias brasileiras
+    // Pedágios da Valhalla; fallback estimado ~1 a cada 80km
+    let numPedagios = routeResult.numTolls || 0;
     if (numPedagios === 0 && distKm > 100) {
       numPedagios = Math.round(distKm / 80);
     }
@@ -12561,7 +14153,7 @@ function _renderDetailSheet(rota) {
       <div style="background:${pedagioBg};border-radius:10px;padding:10px 14px;">
         <div style="font-size:0.7rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Pedágios</div>
         <div style="font-size:1.15rem;font-weight:800;color:${pedagioColor};">${pedagioStr}</div>
-        <div style="font-size:0.7rem;color:#94a3b8;">estimativa OSRM</div>
+        <div style="font-size:0.7rem;color:#94a3b8;">estimativa Valhalla</div>
       </div>
     </div>`;
 
@@ -13189,8 +14781,148 @@ function exportarRotaExcel() {
   showToast('Excel exportado!', 'success');
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  NEGOCIAÇÕES — Exportar PDF e Excel
+// ══════════════════════════════════════════════════════════════════
+function _negGetListaFiltrada() {
+  const busca   = (document.getElementById('neg-f-busca')?.value  || '').toLowerCase();
+  const fStatus = document.getElementById('neg-f-status')?.value  || '';
+  const fTipo   = document.getElementById('neg-f-tipo')?.value    || '';
+  const fComb   = document.getElementById('neg-f-comb')?.value    || '';
+  const today   = new Date().toISOString().split('T')[0];
+  return negociacoes.map(n => ({ ...n, _statusCalc: _negCalcStatusDyn(n, today) })).filter(n => {
+    if (busca  && !`${n.posto_nome} ${n.combustivel} ${n.posto_cnpj}`.toLowerCase().includes(busca)) return false;
+    if (fStatus && n._statusCalc !== fStatus) return false;
+    if (fTipo   && n.tipo_acordo !== fTipo)  return false;
+    if (fComb   && n.combustivel !== fComb)  return false;
+    return true;
+  });
+}
+
+function exportNegociacoesPDF() {
+  const lista = _negGetListaFiltrada();
+  if (lista.length === 0) { showToast('Nenhuma negociação para exportar.', 'info'); return; }
+
+  const fmtP  = v => v > 0 ? `R$ ${parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L` : '—';
+  const fmtV  = v => parseFloat(v) > 0 ? `${parseFloat(v).toLocaleString('pt-BR',{maximumFractionDigits:0})} L` : '—';
+  const fmtBR = v => parseFloat(v) > 0 ? `R$ ${parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—';
+  const today = new Date().toLocaleDateString('pt-BR');
+
+  const statusBadge = s => {
+    const colors = { ativa:'#dcfce7;color:#15803d', pendente:'#fef9c3;color:#854d0e', expirada:'#f1f5f9;color:#64748b', cancelada:'#fee2e2;color:#dc2626' };
+    const labels = { ativa:'Ativa', pendente:'Pendente', expirada:'Expirada', cancelada:'Cancelada' };
+    return `<span style="background:${colors[s]||'#f1f5f9;color:#64748b'};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">${labels[s]||s}</span>`;
+  };
+
+  const tipoBadge = t => {
+    const cores = { desconto_pct:'#dbeafe;color:#1d4ed8', desconto_val:'#dbeafe;color:#1d4ed8', acrescimo_pct:'#fce7f3;color:#9d174d', acrescimo_val:'#fce7f3;color:#9d174d', preco_fixo:'#fef3c7;color:#92400e' };
+    return `<span style="background:${cores[t]||'#f1f5f9;color:#64748b'};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${NEG_TIPO_LABEL[t]||t}</span>`;
+  };
+
+  const valorStr = n => {
+    const v = parseFloat(n.valor_acordo)||0;
+    return n.tipo_acordo==='desconto_pct'||n.tipo_acordo==='acrescimo_pct'
+      ? `${v.toFixed(2)}%` : `R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}`;
+  };
+
+  const rows = lista.map(n => `
+    <tr>
+      <td><strong>${n.posto_nome||'—'}</strong><br><small style="color:#64748b">${n.posto_cnpj||''} ${n.posto_cidade?'· '+n.posto_cidade+'/'+n.posto_uf:''}</small></td>
+      <td><strong>${n.combustivel||'—'}</strong></td>
+      <td>${tipoBadge(n.tipo_acordo)}</td>
+      <td style="text-align:right;">${fmtP(n.preco_base)}</td>
+      <td style="text-align:right;font-weight:700;">${valorStr(n)}</td>
+      <td style="text-align:right;color:#15803d;font-weight:800;">${fmtP(n.preco_negociado)}</td>
+      <td style="text-align:right;">${fmtV(n.volume_estimado)}</td>
+      <td style="text-align:right;">${fmtBR(n.custo_estimado)}</td>
+      <td>${_fmtDateBR(n.data_inicio)} – ${_fmtDateBR(n.data_fim)}</td>
+      <td>${statusBadge(n._statusCalc)}</td>
+    </tr>
+    ${n.justificativa ? `<tr><td colspan="10" style="padding:4px 10px 8px;font-size:11px;color:#64748b;border-top:none;"><em>Justificativa:</em> ${n.justificativa}</td></tr>` : ''}`
+  ).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:Arial,sans-serif;margin:0;padding:20px;font-size:12px;color:#1e293b;}
+    h1{font-size:20px;font-weight:700;color:#1e40af;margin:0;}
+    .sub{font-size:11px;color:#64748b;margin-top:4px;}
+    .header-bar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;}
+    table{width:100%;border-collapse:collapse;margin-top:10px;}
+    th{background:#1e40af;color:#fff;padding:8px 8px;font-size:10px;text-align:left;font-weight:700;}
+    th.r{text-align:right;} td{padding:8px 8px;border-bottom:1px solid #e2e8f0;vertical-align:top;}
+    tr:nth-child(even) td{background:#f8fafc;}
+    .footer{margin-top:20px;font-size:10px;color:#94a3b8;text-align:center;}
+  </style></head><body>
+  <div class="header-bar">
+    <div><h1>Gestão de Frotas — Negociações</h1><div class="sub">Gerado em ${today} · ${lista.length} registro${lista.length!==1?'s':''}</div></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>Posto</th><th>Combustível</th><th>Tipo</th>
+      <th class="r">Preço Base</th><th class="r">Acordo</th><th class="r">Preço Neg.</th>
+      <th class="r">Volume Est.</th><th class="r">Custo Est.</th><th>Vigência</th><th>Status</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">Gestão de Frotas · Negociações · ${today}</div>
+  </body></html>`;
+
+  const w = window.open('', '_blank', 'width=1100,height=700');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 600);
+}
+
+function exportNegociacoesExcel() {
+  const lista = _negGetListaFiltrada();
+  if (lista.length === 0) { showToast('Nenhuma negociação para exportar.', 'info'); return; }
+  if (typeof XLSX === 'undefined') { showToast('Biblioteca Excel não disponível.', 'error'); return; }
+
+  const today = new Date().toISOString().slice(0,10);
+  const fmtP  = v => parseFloat(v)||0;
+
+  const header = ['ID','Posto','CNPJ','Cidade','UF','Combustível','Tipo de Acordo',
+    'Preço Base (R$/L)','Valor do Acordo','Preço Negociado (R$/L)',
+    'Volume Estimado (L)','Custo Estimado (R$)',
+    'Data Início','Data Fim','Status','Justificativa','Observações'];
+
+  const rows = lista.map(n => [
+    n.id, n.posto_nome||'', n.posto_cnpj||'', n.posto_cidade||'', n.posto_uf||'',
+    n.combustivel||'', NEG_TIPO_LABEL[n.tipo_acordo]||n.tipo_acordo,
+    fmtP(n.preco_base), fmtP(n.valor_acordo), fmtP(n.preco_negociado),
+    fmtP(n.volume_estimado), fmtP(n.custo_estimado),
+    n.data_inicio||'', n.data_fim||'',
+    n._statusCalc||n.status||'', n.justificativa||'', n.observacoes||''
+  ]);
+
+  const aoa = [
+    ['GESTÃO DE FROTAS — Negociações'],
+    [`Gerado em: ${today}`],
+    [],
+    header,
+    ...rows,
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [
+    {wch:5},{wch:32},{wch:18},{wch:16},{wch:4},{wch:16},{wch:16},
+    {wch:14},{wch:12},{wch:16},{wch:15},{wch:14},
+    {wch:12},{wch:10},{wch:10},{wch:40},{wch:30}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Negociações');
+  XLSX.writeFile(wb, `negociacoes_${today}.xlsx`);
+  showToast('Excel exportado com sucesso!', 'success');
+}
+
 // Fecha sugestões ao clicar fora
 document.addEventListener('click', function(e) {
+  // Fecha dropdown de postos no modal de negociações
+  if (!e.target.closest('#neg-posto-busca') && !e.target.closest('#neg-posto-dropdown')) {
+    const dd = document.getElementById('neg-posto-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
   if (!e.target.closest('.roteiz-suggestions') && !e.target.closest('.form-input')) {
     document.querySelectorAll('.roteiz-suggestions.open').forEach(el => el.classList.remove('open'));
   }

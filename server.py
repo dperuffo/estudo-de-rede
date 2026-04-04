@@ -46,34 +46,76 @@ def init_db():
         volume          REAL    DEFAULT 0,
         preco_unitario  REAL    DEFAULT 0,
         valor_total     REAL    DEFAULT 0,
+        arla32_volume   REAL    DEFAULT 0,
+        arla32_preco    REAL    DEFAULT 0,
+        arla32_total    REAL    DEFAULT 0,
+        servicos_abast  TEXT    DEFAULT '[]',
         created_at      TEXT    DEFAULT (datetime('now','localtime'))
     )''')
+    # Migração: adiciona colunas de serviços/Arla 32 se não existirem
+    for col_def in [
+        ("arla32_volume",  "REAL DEFAULT 0"),
+        ("arla32_preco",   "REAL DEFAULT 0"),
+        ("arla32_total",   "REAL DEFAULT 0"),
+        ("servicos_abast", "TEXT DEFAULT '[]'"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE abastecimentos ADD COLUMN {col_def[0]} {col_def[1]}")
+            conn.commit()
+        except Exception:
+            pass  # coluna já existe
     conn.execute('''CREATE TABLE IF NOT EXISTS postos (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        cnpj        TEXT    NOT NULL,
-        razao       TEXT    NOT NULL,
-        bandeira    TEXT    NOT NULL,
-        cep         TEXT    DEFAULT '',
-        logradouro  TEXT    DEFAULT '',
-        numero      TEXT    DEFAULT '',
-        complemento TEXT    DEFAULT '',
-        bairro      TEXT    DEFAULT '',
-        cidade      TEXT    DEFAULT '',
-        uf          TEXT    DEFAULT '',
-        lat         TEXT    DEFAULT '',
-        lon         TEXT    DEFAULT '',
-        gestor      TEXT    DEFAULT '',
-        telefone    TEXT    DEFAULT '',
-        email_resp  TEXT    DEFAULT '',
-        email_nf    TEXT    DEFAULT '',
-        banco       TEXT    DEFAULT '',
-        agencia     TEXT    DEFAULT '',
-        conta       TEXT    DEFAULT '',
-        servicos    TEXT    DEFAULT '[]',
-        combustiveis TEXT   DEFAULT '{}',
-        fotos       TEXT    DEFAULT '[]',
-        created_at  TEXT    DEFAULT (datetime('now','localtime'))
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        cnpj             TEXT    NOT NULL,
+        razao            TEXT    NOT NULL,
+        bandeira         TEXT    NOT NULL,
+        cep              TEXT    DEFAULT '',
+        logradouro       TEXT    DEFAULT '',
+        numero           TEXT    DEFAULT '',
+        complemento      TEXT    DEFAULT '',
+        bairro           TEXT    DEFAULT '',
+        cidade           TEXT    DEFAULT '',
+        uf               TEXT    DEFAULT '',
+        lat              TEXT    DEFAULT '',
+        lon              TEXT    DEFAULT '',
+        gestor           TEXT    DEFAULT '',
+        telefone         TEXT    DEFAULT '',
+        email_resp       TEXT    DEFAULT '',
+        email_nf         TEXT    DEFAULT '',
+        banco            TEXT    DEFAULT '',
+        agencia          TEXT    DEFAULT '',
+        conta            TEXT    DEFAULT '',
+        servicos         TEXT    DEFAULT '[]',
+        combustiveis     TEXT    DEFAULT '{}',
+        fotos            TEXT    DEFAULT '[]',
+        perfil_venda     TEXT    DEFAULT '',
+        status_posto     TEXT    DEFAULT 'Ativo',
+        situacao         TEXT    DEFAULT 'Habilitado',
+        rede             TEXT    DEFAULT '',
+        tipo_bandeira    TEXT    DEFAULT '',
+        grupo_economico  TEXT    DEFAULT '',
+        taxa_admin       REAL    DEFAULT 0,
+        possui_internet  TEXT    DEFAULT '',
+        data_habilitacao TEXT    DEFAULT '',
+        created_at       TEXT    DEFAULT (datetime('now','localtime'))
     )''')
+    # Migração: adiciona novas colunas de postos se não existirem
+    for col_def in [
+        ("perfil_venda",    "TEXT DEFAULT ''"),
+        ("status_posto",    "TEXT DEFAULT 'Ativo'"),
+        ("situacao",        "TEXT DEFAULT 'Habilitado'"),
+        ("rede",            "TEXT DEFAULT ''"),
+        ("tipo_bandeira",   "TEXT DEFAULT ''"),
+        ("grupo_economico", "TEXT DEFAULT ''"),
+        ("taxa_admin",      "REAL DEFAULT 0"),
+        ("possui_internet", "TEXT DEFAULT ''"),
+        ("data_habilitacao","TEXT DEFAULT ''"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE postos ADD COLUMN {col_def[0]} {col_def[1]}")
+            conn.commit()
+        except Exception:
+            pass  # coluna já existe
     conn.execute('''CREATE TABLE IF NOT EXISTS motoristas (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         cpf             TEXT    NOT NULL UNIQUE,
@@ -293,6 +335,28 @@ def init_db():
         observacao      TEXT    DEFAULT '',
         created_at      TEXT    DEFAULT (datetime('now','localtime'))
     )''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS negociacoes (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        posto_id         INTEGER DEFAULT 0,
+        posto_nome       TEXT    DEFAULT '',
+        posto_cnpj       TEXT    DEFAULT '',
+        posto_cidade     TEXT    DEFAULT '',
+        posto_uf         TEXT    DEFAULT '',
+        combustivel      TEXT    DEFAULT '',
+        preco_base       REAL    DEFAULT 0,
+        tipo_acordo      TEXT    DEFAULT 'desconto_pct',
+        valor_acordo     REAL    DEFAULT 0,
+        preco_negociado  REAL    DEFAULT 0,
+        volume_estimado  REAL    DEFAULT 0,
+        custo_estimado   REAL    DEFAULT 0,
+        data_inicio      TEXT    DEFAULT '',
+        data_fim         TEXT    DEFAULT '',
+        status           TEXT    DEFAULT 'pendente',
+        justificativa    TEXT    DEFAULT '',
+        observacoes      TEXT    DEFAULT '',
+        created_at       TEXT    DEFAULT (datetime('now','localtime')),
+        updated_at       TEXT    DEFAULT (datetime('now','localtime'))
+    )''')
     conn.execute('''CREATE TABLE IF NOT EXISTS roteirizador_rotas (
         id                INTEGER PRIMARY KEY AUTOINCREMENT,
         nome              TEXT    DEFAULT '',
@@ -494,13 +558,35 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in ('/', '/index.html'):
             self.send_html()
+        elif path == '/postos-data.json':
+            json_path = os.path.join(BASE_DIR, 'postos-data.json')
+            try:
+                with open(json_path, 'rb') as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_json({'error': 'postos-data.json not found'}, 404)
         elif path == '/api/abastecimentos':
             conn = get_db()
             rows = conn.execute(
                 'SELECT * FROM abastecimentos ORDER BY data DESC, hora DESC'
             ).fetchall()
             conn.close()
-            self.send_json([dict(r) for r in rows])
+            result = []
+            for r in rows:
+                d = dict(r)
+                svcs = d.get('servicos_abast') or '[]'
+                try:
+                    d['servicos_abast'] = json.loads(svcs)
+                except Exception:
+                    d['servicos_abast'] = []
+                result.append(d)
+            self.send_json(result)
         elif path == '/api/postos':
             conn = get_db()
             rows = conn.execute('SELECT * FROM postos ORDER BY razao').fetchall()
@@ -661,6 +747,23 @@ class Handler(BaseHTTPRequestHandler):
                 rows = conn.execute('SELECT * FROM hodo_variacao ORDER BY tipo_veiculo, placa').fetchall()
             conn.close()
             self.send_json([dict(r) for r in rows])
+        elif path == '/api/negociacoes':
+            conn = get_db()
+            rows = conn.execute('SELECT * FROM negociacoes ORDER BY created_at DESC').fetchall()
+            conn.close()
+            # Auto-update expired status
+            today = __import__('datetime').date.today().isoformat()
+            result = []
+            for r in rows:
+                d = dict(r)
+                if d['status'] not in ('cancelada',) and d['data_fim'] and d['data_fim'] < today:
+                    d['status'] = 'expirada'
+                elif d['status'] not in ('cancelada', 'expirada') and d['data_inicio'] and d['data_inicio'] > today:
+                    d['status'] = 'pendente'
+                elif d['status'] not in ('cancelada', 'expirada', 'pendente'):
+                    d['status'] = 'ativa'
+                result.append(d)
+            self.send_json(result)
         elif path == '/api/roteirizador-rotas':
             conn = get_db()
             rows = conn.execute('SELECT * FROM roteirizador_rotas ORDER BY created_at DESC').fetchall()
@@ -691,14 +794,17 @@ class Handler(BaseHTTPRequestHandler):
             cur  = conn.execute('''INSERT INTO abastecimentos
                 (data,hora,placa,motorista,cpf_motorista,hodometro,
                  posto,cnpj_posto,cidade_posto,uf_posto,
-                 combustivel,volume,preco_unitario,valor_total)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
+                 combustivel,volume,preco_unitario,valor_total,
+                 arla32_volume,arla32_preco,arla32_total,servicos_abast)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
                 d.get('data'),   d.get('hora'),   d.get('placa'),
                 d.get('motorista'), d.get('cpfMotorista',''),
                 d.get('hodometro',0), d.get('posto'),
                 d.get('cnpjPosto',''), d.get('cidadePosto',''), d.get('ufPosto',''),
                 d.get('combustivel'), d.get('volume',0),
-                d.get('precoUnitario',0), d.get('valorTotal',0)
+                d.get('precoUnitario',0), d.get('valorTotal',0),
+                d.get('arla32Volume',0), d.get('arla32Preco',0), d.get('arla32Total',0),
+                json.dumps(d.get('servicosAbast',[]), ensure_ascii=False)
             ])
             conn.commit()
             new_id = cur.lastrowid
@@ -712,14 +818,17 @@ class Handler(BaseHTTPRequestHandler):
                 conn.execute('''INSERT INTO abastecimentos
                     (data,hora,placa,motorista,cpf_motorista,hodometro,
                      posto,cnpj_posto,cidade_posto,uf_posto,
-                     combustivel,volume,preco_unitario,valor_total)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
+                     combustivel,volume,preco_unitario,valor_total,
+                     arla32_volume,arla32_preco,arla32_total,servicos_abast)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
                     item.get('data'),    item.get('hora'),    item.get('placa'),
                     item.get('motorista'), item.get('cpfMotorista',''),
                     item.get('hodometro',0), item.get('posto'),
                     item.get('cnpjPosto',''), item.get('cidadePosto',''), item.get('ufPosto',''),
                     item.get('combustivel'), item.get('volume',0),
-                    item.get('precoUnitario',0), item.get('valorTotal',0)
+                    item.get('precoUnitario',0), item.get('valorTotal',0),
+                    item.get('arla32Volume',0), item.get('arla32Preco',0), item.get('arla32Total',0),
+                    json.dumps(item.get('servicosAbast',[]), ensure_ascii=False)
                 ])
             conn.commit()
             conn.close()
@@ -731,8 +840,10 @@ class Handler(BaseHTTPRequestHandler):
                 (cnpj,razao,bandeira,cep,logradouro,numero,complemento,
                  bairro,cidade,uf,lat,lon,gestor,telefone,
                  email_resp,email_nf,banco,agencia,conta,
-                 servicos,combustiveis,fotos)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
+                 servicos,combustiveis,fotos,
+                 perfil_venda,status_posto,situacao,rede,tipo_bandeira,
+                 grupo_economico,taxa_admin,possui_internet,data_habilitacao)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
                 d.get('cnpj'), d.get('razao'), d.get('bandeira'),
                 d.get('cep',''), d.get('logradouro',''), d.get('numero',''),
                 d.get('complemento',''), d.get('bairro',''),
@@ -743,7 +854,12 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('banco',''), d.get('agencia',''), d.get('conta',''),
                 json.dumps(d.get('servicos',[]),     ensure_ascii=False),
                 json.dumps(d.get('combustiveis',{}), ensure_ascii=False),
-                json.dumps(d.get('fotos',[]),         ensure_ascii=False)
+                json.dumps(d.get('fotos',[]),         ensure_ascii=False),
+                d.get('perfilVenda',''), d.get('statusPosto','Ativo'),
+                d.get('situacao','Habilitado'), d.get('rede',''),
+                d.get('tipoBandeira',''), d.get('grupoEconomico',''),
+                d.get('taxaAdmin',0), d.get('possuiInternet',''),
+                d.get('dataHabilitacao','')
             ])
             conn.commit()
             new_id = cur.lastrowid
@@ -760,8 +876,10 @@ class Handler(BaseHTTPRequestHandler):
                         (cnpj,razao,bandeira,cep,logradouro,numero,complemento,
                          bairro,cidade,uf,lat,lon,gestor,telefone,
                          email_resp,email_nf,banco,agencia,conta,
-                         servicos,combustiveis,fotos)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
+                         servicos,combustiveis,fotos,
+                         perfil_venda,status_posto,situacao,rede,tipo_bandeira,
+                         grupo_economico,taxa_admin,possui_internet,data_habilitacao)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
                         item.get('cnpj',''), item.get('razao',''), item.get('bandeira',''),
                         item.get('cep',''), item.get('logradouro',''), item.get('numero',''),
                         item.get('complemento',''), item.get('bairro',''),
@@ -773,6 +891,11 @@ class Handler(BaseHTTPRequestHandler):
                         json.dumps(item.get('servicos',[]),      ensure_ascii=False),
                         json.dumps(item.get('combustiveis',{}),  ensure_ascii=False),
                         json.dumps(item.get('fotos',[]),          ensure_ascii=False),
+                        item.get('perfilVenda',''), item.get('statusPosto','Ativo'),
+                        item.get('situacao','Habilitado'), item.get('rede',''),
+                        item.get('tipoBandeira',''), item.get('grupoEconomico',''),
+                        item.get('taxaAdmin',0), item.get('possuiInternet',''),
+                        item.get('dataHabilitacao',''),
                     ])
                     inseridos += 1
                 except Exception:
@@ -1031,6 +1154,27 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json({'id': new_id}, 201)
 
+        elif path == '/api/negociacoes':
+            conn = get_db()
+            cur = conn.execute('''INSERT INTO negociacoes
+                (posto_id,posto_nome,posto_cnpj,posto_cidade,posto_uf,
+                 combustivel,preco_base,tipo_acordo,valor_acordo,preco_negociado,
+                 volume_estimado,custo_estimado,data_inicio,data_fim,
+                 status,justificativa,observacoes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', [
+                d.get('postoId',0), d.get('postoNome',''), d.get('postoCnpj',''),
+                d.get('postoCidade',''), d.get('postoUf',''),
+                d.get('combustivel',''), d.get('precoBase',0),
+                d.get('tipoAcordo','desconto_pct'), d.get('valorAcordo',0),
+                d.get('precoNegociado',0), d.get('volumeEstimado',0),
+                d.get('custoEstimado',0), d.get('dataInicio',''), d.get('dataFim',''),
+                d.get('status','pendente'), d.get('justificativa',''), d.get('observacoes','')
+            ])
+            conn.commit()
+            new_id = cur.lastrowid
+            conn.close()
+            self.send_json({'id': new_id}, 201)
+
         elif path == '/api/roteirizador-rotas':
             import json as _json
             conn = get_db()
@@ -1090,14 +1234,18 @@ class Handler(BaseHTTPRequestHandler):
             conn.execute('''UPDATE abastecimentos SET
                 data=?,hora=?,placa=?,motorista=?,cpf_motorista=?,hodometro=?,
                 posto=?,cnpj_posto=?,cidade_posto=?,uf_posto=?,
-                combustivel=?,volume=?,preco_unitario=?,valor_total=?
+                combustivel=?,volume=?,preco_unitario=?,valor_total=?,
+                arla32_volume=?,arla32_preco=?,arla32_total=?,servicos_abast=?
                 WHERE id=?''', [
                 d.get('data'),   d.get('hora'),   d.get('placa'),
                 d.get('motorista'), d.get('cpfMotorista',''),
                 d.get('hodometro',0), d.get('posto'),
                 d.get('cnpjPosto',''), d.get('cidadePosto',''), d.get('ufPosto',''),
                 d.get('combustivel'), d.get('volume',0),
-                d.get('precoUnitario',0), d.get('valorTotal',0), id_
+                d.get('precoUnitario',0), d.get('valorTotal',0),
+                d.get('arla32Volume',0), d.get('arla32Preco',0), d.get('arla32Total',0),
+                json.dumps(d.get('servicosAbast',[]), ensure_ascii=False),
+                id_
             ])
             conn.commit()
             conn.close()
@@ -1112,7 +1260,10 @@ class Handler(BaseHTTPRequestHandler):
                 cnpj=?,razao=?,bandeira=?,cep=?,logradouro=?,numero=?,complemento=?,
                 bairro=?,cidade=?,uf=?,lat=?,lon=?,gestor=?,telefone=?,
                 email_resp=?,email_nf=?,banco=?,agencia=?,conta=?,
-                servicos=?,combustiveis=?,fotos=? WHERE id=?''', [
+                servicos=?,combustiveis=?,fotos=?,
+                perfil_venda=?,status_posto=?,situacao=?,rede=?,tipo_bandeira=?,
+                grupo_economico=?,taxa_admin=?,possui_internet=?,data_habilitacao=?
+                WHERE id=?''', [
                 d.get('cnpj'), d.get('razao'), d.get('bandeira'),
                 d.get('cep',''), d.get('logradouro',''), d.get('numero',''),
                 d.get('complemento',''), d.get('bairro',''),
@@ -1124,6 +1275,11 @@ class Handler(BaseHTTPRequestHandler):
                 json.dumps(d.get('servicos',[]),     ensure_ascii=False),
                 json.dumps(d.get('combustiveis',{}), ensure_ascii=False),
                 json.dumps(d.get('fotos',[]),         ensure_ascii=False),
+                d.get('perfilVenda',''), d.get('statusPosto','Ativo'),
+                d.get('situacao','Habilitado'), d.get('rede',''),
+                d.get('tipoBandeira',''), d.get('grupoEconomico',''),
+                d.get('taxaAdmin',0), d.get('possuiInternet',''),
+                d.get('dataHabilitacao',''),
                 id_
             ])
             conn.commit()
@@ -1321,6 +1477,30 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('tipoVeiculo',''), d.get('placa','Todos'),
                 d.get('variacaoMaxKm',0), d.get('status','Ativo'),
                 d.get('observacao',''), id_
+            ])
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True})
+            return
+
+        m = re.match(r'^/api/negociacoes/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            conn.execute('''UPDATE negociacoes SET
+                posto_id=?,posto_nome=?,posto_cnpj=?,posto_cidade=?,posto_uf=?,
+                combustivel=?,preco_base=?,tipo_acordo=?,valor_acordo=?,preco_negociado=?,
+                volume_estimado=?,custo_estimado=?,data_inicio=?,data_fim=?,
+                status=?,justificativa=?,observacoes=?,
+                updated_at=datetime('now','localtime') WHERE id=?''', [
+                d.get('postoId',0), d.get('postoNome',''), d.get('postoCnpj',''),
+                d.get('postoCidade',''), d.get('postoUf',''),
+                d.get('combustivel',''), d.get('precoBase',0),
+                d.get('tipoAcordo','desconto_pct'), d.get('valorAcordo',0),
+                d.get('precoNegociado',0), d.get('volumeEstimado',0),
+                d.get('custoEstimado',0), d.get('dataInicio',''), d.get('dataFim',''),
+                d.get('status','pendente'), d.get('justificativa',''), d.get('observacoes',''),
+                id_
             ])
             conn.commit()
             conn.close()
@@ -1596,6 +1776,15 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             conn.execute('DELETE FROM roteirizador_rotas WHERE id=?', [int(m.group(1))])
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True})
+            return
+
+        m = re.match(r'^/api/negociacoes/(\d+)$', path)
+        if m:
+            conn = get_db()
+            conn.execute('DELETE FROM negociacoes WHERE id=?', [int(m.group(1))])
             conn.commit()
             conn.close()
             self.send_json({'ok': True})
