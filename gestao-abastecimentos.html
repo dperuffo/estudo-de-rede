@@ -5076,6 +5076,9 @@ function setClienteAtual(id, nome) {
 async function populateClienteSelector() {
   try {
     const rows = await apiCall('GET', '/api/clientes');
+    // Sincroniza _clientes para que _clienteRowHtml() nos modais tenha dados disponíveis
+    _clientes     = rows || [];
+    _clientesFilt = [..._clientes];
     const sel  = document.getElementById('cliente-global-select');
     if (!sel) return;
     // preserva opção "todos"
