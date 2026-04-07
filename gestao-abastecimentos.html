@@ -674,6 +674,8 @@
       .dashboard { grid-template-columns: 1fr 1fr; }
       .servicos-grid { grid-template-columns: repeat(2,1fr); }
       .postos-grid { grid-template-columns: 1fr; }
+      #cliente-selector-wrap { max-width: 140px; }
+      #cliente-global-select { min-width: 80px; max-width: 100px; font-size:0.72rem; }
     }
 
     /* ── REGRAS DE SEGURANÇA ── */
@@ -907,6 +909,17 @@
       <span>Controle de Frotas</span>
     </div>
   </div>
+  <!-- ── Seletor global de Cliente ── -->
+  <div id="cliente-selector-wrap" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.25);border-radius:24px;padding:4px 6px 4px 12px;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+    <select id="cliente-global-select"
+      onchange="setClienteAtual(this.value, this.options[this.selectedIndex].text)"
+      style="background:transparent;border:none;color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;outline:none;max-width:180px;min-width:130px;">
+      <option value="">— Todos os Clientes —</option>
+    </select>
+    <span id="cliente-badge" style="display:none;background:#f59e0b;color:#fff;font-size:0.7rem;font-weight:700;border-radius:10px;padding:1px 7px;white-space:nowrap;"></span>
+  </div>
+
   <div class="header-actions">
     <span id="srv-dot" style="padding:5px 12px;background:rgba(255,255,255,0.15);border-radius:20px;font-size:0.78rem;font-weight:600;color:#f59e0b;letter-spacing:0.2px;white-space:nowrap;">● Conectando...</span>
   </div>
@@ -947,6 +960,11 @@
   <button class="sidebar-item" id="side-btn-motoristas" onclick="switchTab('motoristas')">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
     Motoristas
+  </button>
+
+  <button class="sidebar-item" id="side-btn-clientes" onclick="switchTab('clientes')">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+    Clientes
   </button>
 
   <button class="sidebar-item" id="side-btn-parametros" onclick="switchTab('parametros')">
@@ -1011,7 +1029,7 @@
     </div>
   </div>
 
-  <div class="sidebar-footer">Gestão de Frotas v1.0</div>
+  <div class="sidebar-footer">Gestão de Frotas v2.0</div>
 </nav>
 
 <!-- Overlay para mobile -->
@@ -1051,15 +1069,6 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Novo Abastecimento
         </button>
-        <a href="template_abastecimentos.xlsx" download class="btn btn-sm" style="background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;text-decoration:none;" title="Baixar template Excel de abastecimentos">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
-          Template
-        </a>
-        <label class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1.5px solid #93c5fd;cursor:pointer;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Importar Excel
-          <input type="file" accept=".xlsx,.xls" id="importFile" style="display:none" onchange="importExcel(this)" />
-        </label>
         <button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1.5px solid #93c5fd;" onclick="exportExcel()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Exportar Excel
@@ -1522,19 +1531,10 @@
           </button>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          <a href="template_postos.xlsx" download class="btn btn-outline btn-sm" title="Baixar template Excel para importação">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
-            Template
-          </a>
           <button class="btn btn-outline btn-sm" onclick="_tryLoadPostosJson(true)" title="Carregar base de postos pré-carregada (postos-data.json)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/></svg>
             Carregar Base
           </button>
-          <label class="btn btn-outline btn-sm" style="cursor:pointer;" title="Importar planilha Excel (Relatório PdV ou template do sistema)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Importar xlsx
-            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importPostosExcel(this)" />
-          </label>
           <button class="btn btn-outline btn-sm" onclick="exportPostosExcel()" title="Exportar dados para Excel">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Exportar
@@ -1954,6 +1954,203 @@
         </table>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ── VIEW CLIENTES ── -->
+  <div id="view-clientes" style="display:none">
+    <div class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          Clientes
+        </h2>
+        <div class="panel-actions">
+          <button class="btn btn-primary btn-sm" onclick="openClienteModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Cliente
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+        <input type="text" id="cli-busca" placeholder="Buscar por razão social, CNPJ ou contato…"
+          oninput="filtrarClientes()"
+          style="flex:1;min-width:200px;padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;">
+        <select id="cli-status" onchange="filtrarClientes()"
+          style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;background:#fff;">
+          <option value="">Todos os status</option>
+          <option value="Ativo">Ativo</option>
+          <option value="Inativo">Inativo</option>
+        </select>
+        <select id="cli-porte" onchange="filtrarClientes()"
+          style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;background:#fff;">
+          <option value="">Todos os portes</option>
+          <option value="Pequeno">Pequeno</option>
+          <option value="Médio">Médio</option>
+          <option value="Grande">Grande</option>
+        </select>
+        <select id="cli-segmento" onchange="filtrarClientes()"
+          style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;background:#fff;min-width:200px;">
+          <option value="">Todos os segmentos</option>
+          <option>Transporte Rodoviário de Cargas (TRC)</option>
+          <option>Transporte Rodoviário de Passageiros (TRP)</option>
+          <option>Transporte Urbano / Fretamento</option>
+          <option>Logística e Distribuição</option>
+          <option>Agronegócio / Grãos</option>
+          <option>Frigorífico / Alimentos</option>
+          <option>Mineração</option>
+          <option>Construção Civil</option>
+          <option>Óleo e Gás / Combustíveis</option>
+          <option>Siderurgia e Metalurgia</option>
+          <option>Madeireiro / Florestal</option>
+          <option>Químicos e Petroquímicos</option>
+          <option>Farmacêutico / Saúde</option>
+          <option>Varejo / E-commerce</option>
+          <option>Carga Viva (Animais)</option>
+          <option>Carga Perigosa (MOPP)</option>
+          <option>Resíduos / Saneamento</option>
+          <option>Multimodal / Outros</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="limparFiltrosClientes()" style="white-space:nowrap;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Limpar
+        </button>
+      </div>
+
+      <!-- KPIs rápidos -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;" id="cli-kpis"></div>
+
+      <!-- Tabela -->
+      <div class="table-wrap">
+        <table class="data-table" id="clientes-table">
+          <thead>
+            <tr>
+              <th>Razão Social</th>
+              <th>CNPJ</th>
+              <th>Segmento</th>
+              <th>Porte</th>
+              <th>Pagamento</th>
+              <th>Contato</th>
+              <th>Telefone</th>
+              <th style="text-align:right;">Veh. Pesados</th>
+              <th style="text-align:right;">Veh. Leves</th>
+              <th style="text-align:center;">Status</th>
+              <th style="text-align:center;">Selecionar</th>
+              <th style="text-align:center;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="clientes-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px;font-size:0.8rem;color:#64748b;" id="cli-count"></div>
+    </div>
+  </div>
+
+  <!-- Modal Clientes -->
+  <div id="modal-clientes" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;padding:28px 32px;width:min(680px,96vw);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.18);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <h3 id="cli-modal-title" style="font-size:1.1rem;font-weight:700;color:#0f172a;">Novo Cliente</h3>
+        <button onclick="closeClienteModal()" style="background:none;border:none;cursor:pointer;color:#64748b;font-size:1.3rem;line-height:1;">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="grid-column:1/-1;">
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Razão Social *</label>
+          <input id="cli-razao" placeholder="Nome da empresa" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">CNPJ</label>
+          <input id="cli-cnpj" placeholder="00.000.000/0001-00" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Status</label>
+          <select id="cli-status-f" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;">
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Contato</label>
+          <input id="cli-contato" placeholder="Nome do responsável" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Telefone</label>
+          <input id="cli-telefone" placeholder="(00) 90000-0000" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">E-mail</label>
+          <input id="cli-email" type="email" placeholder="email@empresa.com.br" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Grupo Econômico</label>
+          <input id="cli-grupo" placeholder="Nome do grupo (opcional)" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Porte da Empresa</label>
+          <select id="cli-porte-f" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;">
+            <option value="Pequeno">Pequeno</option>
+            <option value="Médio" selected>Médio</option>
+            <option value="Grande">Grande</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Segmento de Atuação</label>
+          <select id="cli-segmento-f" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;">
+            <option value="">Selecionar…</option>
+            <option>Transporte Rodoviário de Cargas (TRC)</option>
+            <option>Transporte Rodoviário de Passageiros (TRP)</option>
+            <option>Transporte Urbano / Fretamento</option>
+            <option>Logística e Distribuição</option>
+            <option>Agronegócio / Grãos</option>
+            <option>Frigorífico / Alimentos</option>
+            <option>Mineração</option>
+            <option>Construção Civil</option>
+            <option>Óleo e Gás / Combustíveis</option>
+            <option>Siderurgia e Metalurgia</option>
+            <option>Madeireiro / Florestal</option>
+            <option>Químicos e Petroquímicos</option>
+            <option>Farmacêutico / Saúde</option>
+            <option>Varejo / E-commerce</option>
+            <option>Carga Viva (Animais)</option>
+            <option>Carga Perigosa (MOPP)</option>
+            <option>Resíduos / Saneamento</option>
+            <option>Multimodal / Outros</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Pagamento</label>
+          <select id="cli-pagamento" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;">
+            <option value="Pós-Pago">Pós-Pago</option>
+            <option value="Pré-Pago">Pré-Pago</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Qtd. Veículos Pesados</label>
+          <input id="cli-veh-pesados" type="number" min="0" value="0" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Qtd. Veículos Leves</label>
+          <input id="cli-veh-leves" type="number" min="0" value="0" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Volume Diesel (L/mês est.)</label>
+          <input id="cli-vol-diesel" type="number" min="0" step="100" value="0" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Volume Gasolina + Álcool (L/mês est.)</label>
+          <input id="cli-vol-gas" type="number" min="0" step="100" value="0" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+        </div>
+        <div style="grid-column:1/-1;">
+          <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Observações</label>
+          <textarea id="cli-obs" rows="2" placeholder="Informações adicionais…" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        <button onclick="closeClienteModal()" class="btn btn-outline">Cancelar</button>
+        <button onclick="salvarCliente()" class="btn btn-primary">Salvar Cliente</button>
+      </div>
     </div>
   </div>
 
@@ -4832,13 +5029,87 @@ function mapPosto(r) {
   };
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  SELETOR GLOBAL DE CLIENTE
+// ═══════════════════════════════════════════════════════════════
+let _clienteAtualId   = null;
+let _clienteAtualNome = '';
+
+// Persiste no localStorage para sobreviver a reloads
+(function() {
+  const saved = localStorage.getItem('_clienteAtualId');
+  if (saved && saved !== 'null') {
+    _clienteAtualId   = parseInt(saved);
+    _clienteAtualNome = localStorage.getItem('_clienteAtualNome') || '';
+  }
+})();
+
+function setClienteAtual(id, nome) {
+  _clienteAtualId   = id ? parseInt(id) : null;
+  _clienteAtualNome = id ? nome : '';
+  localStorage.setItem('_clienteAtualId',   _clienteAtualId ?? 'null');
+  localStorage.setItem('_clienteAtualNome', _clienteAtualNome);
+  // Atualiza badge
+  const badge = document.getElementById('cliente-badge');
+  if (badge) {
+    badge.style.display = _clienteAtualId ? '' : 'none';
+    badge.textContent   = _clienteAtualId ? _clienteAtualNome.substring(0,22) : '';
+  }
+  // Recarrega a aba atual
+  const active = document.querySelector('.sidebar-item.active');
+  if (active) {
+    const t = active.id.replace('side-btn-','');
+    if (t && t !== 'clientes') switchTab(t);
+  }
+  if (_clienteAtualId) showToast(`Cliente: ${_clienteAtualNome}`, 'success');
+  else showToast('Exibindo todos os clientes', 'info');
+}
+
+async function populateClienteSelector() {
+  try {
+    const rows = await apiCall('GET', '/api/clientes');
+    const sel  = document.getElementById('cliente-global-select');
+    if (!sel) return;
+    // preserva opção "todos"
+    while (sel.options.length > 1) sel.remove(1);
+    rows.filter(r => r.status === 'Ativo').forEach(r => {
+      const opt = document.createElement('option');
+      opt.value       = r.id;
+      opt.textContent = r.razao_social;
+      if (r.id === _clienteAtualId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    // Restaura badge se havia seleção
+    if (_clienteAtualId) {
+      const badge = document.getElementById('cliente-badge');
+      if (badge) { badge.style.display = ''; badge.textContent = _clienteAtualNome.substring(0,22); }
+    }
+  } catch(e) { /* offline: ignora */ }
+}
+
 async function apiCall(method, path, body = null, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer      = setTimeout(() => controller.abort(), timeoutMs);
+
+  // ── Injeta cliente_id automaticamente ─────────────────────
+  const _skipClient = ['/api/clientes', '/api/postos', '/api/precos-anp', '/api/anp'];
+  const needsClient = _clienteAtualId &&
+    !_skipClient.some(p => path.startsWith(p));
+
+  let finalPath = path;
+  let finalBody = body;
+  if (needsClient) {
+    if (method === 'GET') {
+      finalPath += (path.includes('?') ? '&' : '?') + `cliente_id=${_clienteAtualId}`;
+    } else if ((method === 'POST' || method === 'PUT') && body !== null) {
+      finalBody = { ...body, cliente_id: _clienteAtualId };
+    }
+  }
+
   try {
     const opts = { method, headers: { 'Content-Type': 'application/json' }, signal: controller.signal };
-    if (body !== null) opts.body = JSON.stringify(body);
-    const r = await fetch(`${API_BASE}${path}`, opts);
+    if (finalBody !== null) opts.body = JSON.stringify(finalBody);
+    const r = await fetch(`${API_BASE}${finalPath}`, opts);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
   } finally {
@@ -4948,6 +5219,189 @@ function renderUI() {
 
 // Fecha popup de status ao clicar fora
 document.addEventListener('click', () => _closeExecStatusPopup());
+
+// ═══════════════════════════════════════════════════════════════
+//  CLIENTES — CRUD
+// ═══════════════════════════════════════════════════════════════
+let _clientes      = [];
+let _clientesFilt  = [];
+let _editClienteId = null;
+
+async function loadClientes() {
+  try {
+    const rows  = await apiCall('GET', '/api/clientes');
+    _clientes   = rows || [];
+  } catch(e) { _clientes = []; }
+  _clientesFilt = [..._clientes];
+  renderClientesKpis();
+  renderClientesTabela();
+}
+
+function filtrarClientes() {
+  const busca    = (document.getElementById('cli-busca')?.value    || '').toLowerCase();
+  const status   =  document.getElementById('cli-status')?.value   || '';
+  const porte    =  document.getElementById('cli-porte')?.value    || '';
+  const segmento =  document.getElementById('cli-segmento')?.value || '';
+  _clientesFilt = _clientes.filter(c => {
+    if (busca    && !`${c.razao_social} ${c.cnpj} ${c.contato}`.toLowerCase().includes(busca)) return false;
+    if (status   && c.status !== status)                      return false;
+    if (porte    && c.porte_empresa !== porte)                return false;
+    if (segmento && c.segmento_atuacao !== segmento)          return false;
+    return true;
+  });
+  renderClientesTabela();
+}
+
+function limparFiltrosClientes() {
+  ['cli-busca','cli-status','cli-porte','cli-segmento'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  filtrarClientes();
+}
+
+function renderClientesKpis() {
+  const wrap = document.getElementById('cli-kpis');
+  if (!wrap) return;
+  const total  = _clientes.length;
+  const ativos = _clientes.filter(c => c.status === 'Ativo').length;
+  const totalPesados = _clientes.reduce((s,c) => s + (c.qtd_veiculos_pesados||0), 0);
+  const totalLeves   = _clientes.reduce((s,c) => s + (c.qtd_veiculos_leves||0), 0);
+  const kpiStyle = 'background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 18px;display:flex;flex-direction:column;gap:3px;min-width:130px;';
+  wrap.innerHTML = `
+    <div style="${kpiStyle}"><span style="font-size:0.72rem;color:#64748b;font-weight:600;">CLIENTES</span><span style="font-size:1.4rem;font-weight:700;color:#1e40af;">${total}</span></div>
+    <div style="${kpiStyle}"><span style="font-size:0.72rem;color:#64748b;font-weight:600;">ATIVOS</span><span style="font-size:1.4rem;font-weight:700;color:#16a34a;">${ativos}</span></div>
+    <div style="${kpiStyle}"><span style="font-size:0.72rem;color:#64748b;font-weight:600;">VEH. PESADOS</span><span style="font-size:1.4rem;font-weight:700;color:#0f172a;">${totalPesados.toLocaleString('pt-BR')}</span></div>
+    <div style="${kpiStyle}"><span style="font-size:0.72rem;color:#64748b;font-weight:600;">VEH. LEVES</span><span style="font-size:1.4rem;font-weight:700;color:#0f172a;">${totalLeves.toLocaleString('pt-BR')}</span></div>
+  `;
+}
+
+function renderClientesTabela() {
+  const tbody = document.getElementById('clientes-tbody');
+  const count = document.getElementById('cli-count');
+  if (!tbody) return;
+  if (!_clientesFilt.length) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:32px;color:#94a3b8;">Nenhum cliente encontrado</td></tr>`;
+    if (count) count.textContent = '';
+    return;
+  }
+  tbody.innerHTML = _clientesFilt.map(c => {
+    const isSel = c.id === _clienteAtualId;
+    return `<tr style="${isSel ? 'background:#eff6ff;' : ''}">
+      <td style="font-weight:600;color:#1e40af;">${c.razao_social}</td>
+      <td style="font-family:monospace;font-size:0.82rem;">${c.cnpj || '—'}</td>
+      <td style="font-size:0.82rem;">${c.segmento_atuacao || '—'}</td>
+      <td><span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background:${c.porte_empresa==='Grande'?'#fef3c7;color:#92400e':c.porte_empresa==='Médio'?'#e0f2fe;color:#0369a1':'#f0fdf4;color:#166534'};">${c.porte_empresa||'—'}</span></td>
+      <td><span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background:${c.pagamento==='Pré-Pago'?'#fef9c3;color:#854d0e':'#f0fdf4;color:#166534'};">${c.pagamento||'—'}</span></td>
+      <td>${c.contato || '—'}</td>
+      <td>${c.telefone || '—'}</td>
+      <td style="text-align:right;">${(c.qtd_veiculos_pesados||0).toLocaleString('pt-BR')}</td>
+      <td style="text-align:right;">${(c.qtd_veiculos_leves||0).toLocaleString('pt-BR')}</td>
+      <td style="text-align:center;"><span style="padding:2px 10px;border-radius:10px;font-size:0.75rem;font-weight:600;background:${c.status==='Ativo'?'#dcfce7;color:#15803d':'#fee2e2;color:#b91c1c'};">${c.status}</span></td>
+      <td style="text-align:center;">
+        <button onclick="setClienteAtual('${c.id}','${c.razao_social.replace(/'/g,"\\'")}'); document.getElementById('cliente-global-select').value='${c.id}';"
+          style="padding:3px 10px;border-radius:8px;font-size:0.75rem;font-weight:700;border:1.5px solid ${isSel?'#2563eb':'#cbd5e1'};background:${isSel?'#2563eb':'#fff'};color:${isSel?'#fff':'#374151'};cursor:pointer;">
+          ${isSel ? '✔ Selecionado' : 'Selecionar'}
+        </button>
+      </td>
+      <td style="text-align:center;">
+        <button onclick="editarCliente(${c.id})" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;font-size:0.78rem;cursor:pointer;margin-right:4px;">Editar</button>
+        <button onclick="excluirCliente(${c.id},'${c.razao_social.replace(/'/g,"\\'")}') " style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:3px 9px;font-size:0.78rem;cursor:pointer;">Excluir</button>
+      </td>
+    </tr>`;
+  }).join('');
+  if (count) count.textContent = `${_clientesFilt.length} cliente(s) exibido(s)`;
+}
+
+function openClienteModal(cliente = null) {
+  _editClienteId = cliente ? cliente.id : null;
+  document.getElementById('cli-modal-title').textContent = cliente ? 'Editar Cliente' : 'Novo Cliente';
+  document.getElementById('cli-razao').value       = cliente?.razao_social      || '';
+  document.getElementById('cli-cnpj').value        = cliente?.cnpj               || '';
+  document.getElementById('cli-status-f').value    = cliente?.status             || 'Ativo';
+  document.getElementById('cli-contato').value     = cliente?.contato             || '';
+  document.getElementById('cli-telefone').value    = cliente?.telefone            || '';
+  document.getElementById('cli-email').value       = cliente?.email               || '';
+  document.getElementById('cli-grupo').value       = cliente?.grupo_economico     || '';
+  document.getElementById('cli-porte-f').value     = cliente?.porte_empresa       || 'Médio';
+  document.getElementById('cli-segmento-f').value  = cliente?.segmento_atuacao    || '';
+  document.getElementById('cli-pagamento').value   = cliente?.pagamento            || 'Pós-Pago';
+  document.getElementById('cli-veh-pesados').value = cliente?.qtd_veiculos_pesados ?? 0;
+  document.getElementById('cli-veh-leves').value   = cliente?.qtd_veiculos_leves   ?? 0;
+  document.getElementById('cli-vol-diesel').value  = cliente?.volume_diesel         ?? 0;
+  document.getElementById('cli-vol-gas').value     = cliente?.volume_gasolina_alcool ?? 0;
+  document.getElementById('cli-obs').value         = cliente?.observacoes            || '';
+  document.getElementById('modal-clientes').style.display = 'flex';
+}
+
+function closeClienteModal() {
+  document.getElementById('modal-clientes').style.display = 'none';
+  _editClienteId = null;
+}
+
+async function salvarCliente() {
+  const razao = document.getElementById('cli-razao').value.trim();
+  if (!razao) { showToast('Razão Social é obrigatória', 'error'); return; }
+  const payload = {
+    razaoSocial:          razao,
+    cnpj:                 document.getElementById('cli-cnpj').value.trim(),
+    status:               document.getElementById('cli-status-f').value,
+    contato:              document.getElementById('cli-contato').value.trim(),
+    telefone:             document.getElementById('cli-telefone').value.trim(),
+    email:                document.getElementById('cli-email').value.trim(),
+    grupoEconomico:       document.getElementById('cli-grupo').value.trim(),
+    porteEmpresa:         document.getElementById('cli-porte-f').value,
+    segmentoAtuacao:      document.getElementById('cli-segmento-f').value,
+    pagamento:            document.getElementById('cli-pagamento').value,
+    qtdVeiculosPesados:   parseInt(document.getElementById('cli-veh-pesados').value)||0,
+    qtdVeiculosLeves:     parseInt(document.getElementById('cli-veh-leves').value)||0,
+    volumeDiesel:         parseFloat(document.getElementById('cli-vol-diesel').value)||0,
+    volumeGasolinaAlcool: parseFloat(document.getElementById('cli-vol-gas').value)||0,
+    observacoes:          document.getElementById('cli-obs').value.trim(),
+  };
+  try {
+    if (_editClienteId) {
+      await apiCall('PUT', `/api/clientes/${_editClienteId}`, payload);
+      showToast('Cliente atualizado!', 'success');
+      // Atualiza nome no selector se era o selecionado
+      if (_clienteAtualId === _editClienteId) {
+        _clienteAtualNome = razao;
+        localStorage.setItem('_clienteAtualNome', razao);
+        const badge = document.getElementById('cliente-badge');
+        if (badge) badge.textContent = razao.substring(0,22);
+      }
+    } else {
+      const res = await apiCall('POST', '/api/clientes', payload);
+      showToast('Cliente cadastrado!', 'success');
+    }
+    closeClienteModal();
+    await loadClientes();
+    await populateClienteSelector();
+  } catch(e) {
+    showToast('Erro ao salvar cliente: ' + e.message, 'error');
+  }
+}
+
+function editarCliente(id) {
+  const c = _clientes.find(x => x.id === id);
+  if (c) openClienteModal(c);
+}
+
+async function excluirCliente(id, nome) {
+  if (!confirm(`Excluir o cliente "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  try {
+    await apiCall('DELETE', `/api/clientes/${id}`);
+    if (_clienteAtualId === id) {
+      setClienteAtual('', '');
+      document.getElementById('cliente-global-select').value = '';
+    }
+    showToast('Cliente excluído!', 'success');
+    await loadClientes();
+    await populateClienteSelector();
+  } catch(e) {
+    showToast('Erro ao excluir: ' + e.message, 'error');
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  VARIAÇÃO MÁXIMA DE HODÔMETRO — LEVES E PESADOS
@@ -5147,7 +5601,8 @@ async function initApp() {
     loadVolumesDiarios(),
     loadSeguranca(),
     loadProdutosAbastecidos(),
-    loadHodoVariacao()
+    loadHodoVariacao(),
+    populateClienteSelector(),
   ]);
   // Abre a aba "Comece seu dia!" por padrão ao iniciar
   switchTab('indicadores');
@@ -7687,7 +8142,7 @@ const _subItemGroup = {
 };
 
 function switchTab(tab) {
-  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem'].forEach(t => {
+  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem'].forEach(t => {
     const view = document.getElementById('view-' + t);
     if (view) view.style.display = tab === t ? '' : 'none';
     const tabBtn  = document.getElementById('tab-btn-' + t);
@@ -7725,6 +8180,7 @@ function switchTab(tab) {
   if (tab === 'roteirizador')  { if (postos.length === 0) loadPostos().then(() => initRoteirizador()); else initRoteirizador(); }
   if (tab === 'rotograma')     { loadRotogramas(); }
   if (tab === 'plano-viagem')  { loadPlanosViagem(); }
+  if (tab === 'clientes')      { loadClientes(); }
 }
 
 // Abre/fecha grupo colapsável na sidebar

@@ -402,6 +402,65 @@ def init_db():
         created_at        TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
     )''')
 
+    # ── Tabela de Clientes ────────────────────────────────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS clientes (
+        id                    SERIAL PRIMARY KEY,
+        cnpj                  TEXT    DEFAULT '',
+        razao_social          TEXT    NOT NULL,
+        contato               TEXT    DEFAULT '',
+        telefone              TEXT    DEFAULT '',
+        email                 TEXT    DEFAULT '',
+        status                TEXT    DEFAULT 'Ativo',
+        grupo_economico       TEXT    DEFAULT '',
+        porte_empresa         TEXT    DEFAULT 'Médio',
+        qtd_veiculos_pesados  INTEGER DEFAULT 0,
+        qtd_veiculos_leves    INTEGER DEFAULT 0,
+        segmento_atuacao      TEXT    DEFAULT '',
+        volume_diesel         REAL    DEFAULT 0,
+        volume_gasolina_alcool REAL   DEFAULT 0,
+        pagamento             TEXT    DEFAULT 'Pós-Pago',
+        observacoes           TEXT    DEFAULT '',
+        created_at            TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
+        updated_at            TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+    )''')
+
+    # ── Adiciona cliente_id nas tabelas existentes (idempotente) ──
+    _TABLES_WITH_CLIENT = [
+        'abastecimentos', 'motoristas', 'veiculos', 'vinculos',
+        'intervalos_abastecimento', 'valor_diario_motorista',
+        'volume_diario_veiculo', 'produto_abastecido_regras',
+        'rotogramas', 'rotograma_execucoes',
+        'planos_viagem', 'hodo_variacao',
+        'negociacoes', 'roteirizador_rotas',
+    ]
+    for tbl in _TABLES_WITH_CLIENT:
+        cur.execute(f'''
+            ALTER TABLE "{tbl}"
+            ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL
+        ''')
+
+    # seguranca_regras: chave primária precisa ser (tipo, cliente_id)
+    cur.execute('''ALTER TABLE seguranca_regras
+        ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL''')
+    # Recria constraint única composta caso ainda não exista
+    cur.execute('''
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'seguranca_regras_tipo_cliente_key'
+          ) THEN
+            BEGIN
+              ALTER TABLE seguranca_regras
+                DROP CONSTRAINT IF EXISTS seguranca_regras_pkey;
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+            ALTER TABLE seguranca_regras
+              ADD CONSTRAINT seguranca_regras_tipo_cliente_key
+              UNIQUE (tipo, cliente_id);
+          END IF;
+        END $$
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -600,9 +659,43 @@ class Handler(BaseHTTPRequestHandler):
             except FileNotFoundError:
                 self.send_json({'error': 'postos-data.json not found'}, 404)
 
+        elif path == '/api/clientes':
+            qs  = parse_qs(urlparse(self.path).query)
+            status_f  = qs.get('status',  [None])[0]
+            busca_f   = qs.get('busca',   [None])[0]
+            segmento_f= qs.get('segmento',[None])[0]
+            porte_f   = qs.get('porte',   [None])[0]
+            where, params = [], []
+            if status_f:   where.append('status = %s');            params.append(status_f)
+            if segmento_f: where.append('segmento_atuacao = %s'); params.append(segmento_f)
+            if porte_f:    where.append('porte_empresa = %s');     params.append(porte_f)
+            if busca_f:
+                where.append("(razao_social ILIKE %s OR cnpj ILIKE %s OR contato ILIKE %s)")
+                like = f'%{busca_f}%'
+                params += [like, like, like]
+            sql = 'SELECT * FROM clientes'
+            if where: sql += ' WHERE ' + ' AND '.join(where)
+            sql += ' ORDER BY razao_social'
+            conn = get_db()
+            rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
+
+        elif re.match(r'^/api/clientes/(\d+)$', path):
+            cid  = int(re.match(r'^/api/clientes/(\d+)$', path).group(1))
+            conn = get_db()
+            row  = _fetchone(conn, 'SELECT * FROM clientes WHERE id=%s', [cid])
+            conn.close()
+            self.send_json(row if row else {})
+
         elif path == '/api/abastecimentos':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn  = get_db()
-            rows  = _fetchall(conn, 'SELECT * FROM abastecimentos ORDER BY data DESC, hora DESC')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM abastecimentos WHERE cliente_id=%s ORDER BY data DESC, hora DESC', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM abastecimentos ORDER BY data DESC, hora DESC')
             conn.close()
             for d in rows:
                 svcs = d.get('servicos_abast') or '[]'
@@ -627,50 +720,90 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
 
         elif path == '/api/motoristas':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM motoristas ORDER BY nome')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM motoristas WHERE cliente_id=%s ORDER BY nome', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM motoristas ORDER BY nome')
             conn.close()
             self.send_json(rows)
 
         elif path == '/api/veiculos':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM veiculos ORDER BY placa')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM veiculos WHERE cliente_id=%s ORDER BY placa', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM veiculos ORDER BY placa')
             conn.close()
             self.send_json(rows)
 
         elif path == '/api/vinculos':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM vinculos ORDER BY data_inicio DESC')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM vinculos WHERE cliente_id=%s ORDER BY data_inicio DESC', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM vinculos ORDER BY data_inicio DESC')
             conn.close()
             self.send_json(rows)
 
         elif path == '/api/intervalos':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM intervalos_abastecimento ORDER BY tipo, referencia')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM intervalos_abastecimento WHERE cliente_id=%s ORDER BY tipo, referencia', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM intervalos_abastecimento ORDER BY tipo, referencia')
             conn.close()
             self.send_json(rows)
 
         elif path == '/api/valor-diario':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM valor_diario_motorista ORDER BY motorista')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM valor_diario_motorista WHERE cliente_id=%s ORDER BY motorista', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM valor_diario_motorista ORDER BY motorista')
             conn.close()
             self.send_json(rows)
 
         elif path == '/api/volume-diario':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM volume_diario_veiculo ORDER BY placa')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM volume_diario_veiculo WHERE cliente_id=%s ORDER BY placa', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM volume_diario_veiculo ORDER BY placa')
             conn.close()
             self.send_json(rows)
 
         elif path == '/api/produto-abastecido':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM produto_abastecido_regras ORDER BY id')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM produto_abastecido_regras WHERE cliente_id=%s ORDER BY id', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM produto_abastecido_regras ORDER BY id')
             conn.close()
             self.send_json(rows)
 
         elif path == '/api/seguranca-regras':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM seguranca_regras')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM seguranca_regras WHERE cliente_id=%s', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM seguranca_regras WHERE cliente_id IS NULL')
             conn.close()
             self.send_json(rows)
 
@@ -702,8 +835,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(row if row else {'status': 'idle', 'message': ''})
 
         elif path == '/api/rotogramas':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM rotogramas ORDER BY nome')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM rotogramas WHERE cliente_id=%s ORDER BY nome', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM rotogramas ORDER BY nome')
             conn.close()
             self.send_json(rows)
 
@@ -743,8 +881,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(rows)
 
         elif path == '/api/planos-viagem':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, '''
+            if cid:
+                rows = _fetchall(conn, '''
+                    SELECT p.*, r.nome AS rotograma_nome
+                    FROM planos_viagem p
+                    LEFT JOIN rotogramas r ON r.id = p.rotograma_id
+                    WHERE p.cliente_id=%s
+                    ORDER BY p.data_saida DESC, p.id DESC
+                ''', [int(cid)])
+            else:
+                rows = _fetchall(conn, '''
                 SELECT p.*, r.nome AS rotograma_nome
                 FROM planos_viagem p
                 LEFT JOIN rotogramas r ON r.id = p.rotograma_id
@@ -775,17 +924,26 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/hodo-variacao':
             qs   = parse_qs(urlparse(self.path).query)
             tipo = qs.get('tipo', [None])[0]
+            cid  = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            if tipo:
-                rows = _fetchall(conn, 'SELECT * FROM hodo_variacao WHERE tipo_veiculo=%s ORDER BY placa', [tipo])
-            else:
-                rows = _fetchall(conn, 'SELECT * FROM hodo_variacao ORDER BY tipo_veiculo, placa')
+            where, params = [], []
+            if tipo: where.append('tipo_veiculo=%s'); params.append(tipo)
+            if cid:  where.append('cliente_id=%s');  params.append(int(cid))
+            sql = 'SELECT * FROM hodo_variacao'
+            if where: sql += ' WHERE ' + ' AND '.join(where)
+            sql += ' ORDER BY tipo_veiculo, placa'
+            rows = _fetchall(conn, sql, params)
             conn.close()
             self.send_json(rows)
 
         elif path == '/api/negociacoes':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM negociacoes ORDER BY created_at DESC')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM negociacoes WHERE cliente_id=%s ORDER BY created_at DESC', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM negociacoes ORDER BY created_at DESC')
             conn.close()
             today = __import__('datetime').date.today().isoformat()
             result = []
@@ -800,8 +958,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result)
 
         elif path == '/api/roteirizador-rotas':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
             conn = get_db()
-            rows = _fetchall(conn, 'SELECT * FROM roteirizador_rotas ORDER BY created_at DESC')
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM roteirizador_rotas WHERE cliente_id=%s ORDER BY created_at DESC', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM roteirizador_rotas ORDER BY created_at DESC')
             conn.close()
             self.send_json(rows)
 
@@ -830,14 +993,36 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         d    = self.read_body()
 
+        if path == '/api/clientes':
+            conn = get_db()
+            cur  = _exec(conn, '''INSERT INTO clientes
+                (cnpj,razao_social,contato,telefone,email,status,grupo_economico,
+                 porte_empresa,qtd_veiculos_pesados,qtd_veiculos_leves,
+                 segmento_atuacao,volume_diesel,volume_gasolina_alcool,pagamento,observacoes)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id''', [
+                d.get('cnpj',''),           d.get('razaoSocial',''),
+                d.get('contato',''),        d.get('telefone',''),
+                d.get('email',''),          d.get('status','Ativo'),
+                d.get('grupoEconomico',''), d.get('porteEmpresa','Médio'),
+                d.get('qtdVeiculosPesados',0), d.get('qtdVeiculosLeves',0),
+                d.get('segmentoAtuacao',''),d.get('volumeDiesel',0),
+                d.get('volumeGasolinaAlcool',0), d.get('pagamento','Pós-Pago'),
+                d.get('observacoes',''),
+            ])
+            conn.commit()
+            new_id = cur.fetchone()['id']
+            conn.close()
+            self.send_json({'id': new_id}); return
+
         if path == '/api/abastecimentos':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO abastecimentos
                 (data,hora,placa,motorista,cpf_motorista,hodometro,
                  posto,cnpj_posto,cidade_posto,uf_posto,
                  combustivel,volume,preco_unitario,valor_total,
-                 arla32_volume,arla32_preco,arla32_total,servicos_abast)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                 arla32_volume,arla32_preco,arla32_total,servicos_abast,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id''', [
                 d.get('data'),   d.get('hora'),   d.get('placa'),
                 d.get('motorista'), d.get('cpfMotorista',''),
@@ -846,7 +1031,8 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('combustivel'), d.get('volume',0),
                 d.get('precoUnitario',0), d.get('valorTotal',0),
                 d.get('arla32Volume',0), d.get('arla32Preco',0), d.get('arla32Total',0),
-                json.dumps(d.get('servicosAbast',[]), ensure_ascii=False)
+                json.dumps(d.get('servicosAbast',[]), ensure_ascii=False),
+                d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -952,12 +1138,13 @@ class Handler(BaseHTTPRequestHandler):
             conn = get_db()
             try:
                 cur = _exec(conn, '''INSERT INTO motoristas
-                    (cpf,nome,status,classificacao,apelido,matricula,celular,email,num_cnh,vencimento_cnh)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                    (cpf,nome,status,classificacao,apelido,matricula,celular,email,num_cnh,vencimento_cnh,cliente_id)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                     d.get('cpf',''), d.get('nome',''),
                     d.get('status','Ativo'), d.get('classificacao','Próprio'),
                     d.get('apelido',''), d.get('matricula',''), d.get('celular',''),
-                    d.get('email',''), d.get('numCnh',''), d.get('vencimentoCnh','')
+                    d.get('email',''), d.get('numCnh',''), d.get('vencimentoCnh',''),
+                    d.get('cliente_id') or None,
                 ])
                 conn.commit()
                 new_id = cur.fetchone()['id']
@@ -974,8 +1161,8 @@ class Handler(BaseHTTPRequestHandler):
                 cur = _exec(conn, '''INSERT INTO veiculos
                     (placa,chassi,status,classificacao,tipo,subtipo,num_eixos,
                      marca,modelo,motor,ano_fabricacao,ano_modelo,
-                     capacidade_tanque,hodometro,renavam,combustivel_especificado)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                     capacidade_tanque,hodometro,renavam,combustivel_especificado,cliente_id)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                     d.get('placa','').upper(), d.get('chassi',''),
                     d.get('status','Ativo'), d.get('classificacao','Próprio'),
                     d.get('tipo','Leve'), d.get('subtipo','Passeio'),
@@ -983,7 +1170,8 @@ class Handler(BaseHTTPRequestHandler):
                     d.get('marca',''), d.get('modelo',''), d.get('motor',''),
                     d.get('anoFabricacao') or None, d.get('anoModelo') or None,
                     d.get('capacidadeTanque',0), d.get('hodometro',0),
-                    d.get('renavam',''), d.get('combustivelEspecificado','')
+                    d.get('renavam',''), d.get('combustivelEspecificado',''),
+                    d.get('cliente_id') or None,
                 ])
                 conn.commit()
                 new_id = cur.fetchone()['id']
@@ -997,12 +1185,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/vinculos':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO vinculos
-                (placa,motorista_nome,motorista_cpf,data_inicio,data_fim,status,observacao)
-                VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                (placa,motorista_nome,motorista_cpf,data_inicio,data_fim,status,observacao,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('placa','').upper(), d.get('motoristaNome',''),
                 d.get('motoristaCpf',''), d.get('dataInicio',''),
                 d.get('dataFim',''), d.get('status','Ativo'),
-                d.get('observacao','')
+                d.get('observacao',''), d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1012,11 +1200,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/intervalos':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO intervalos_abastecimento
-                (tipo,referencia,intervalo_minimo,unidade,status,observacao)
-                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                (tipo,referencia,intervalo_minimo,unidade,status,observacao,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('tipo',''), d.get('referencia','Todos'),
                 d.get('intervaloMinimo', 0), d.get('unidade','Horas'),
-                d.get('status','Ativo'), d.get('observacao','')
+                d.get('status','Ativo'), d.get('observacao',''),
+                d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1026,9 +1215,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/valor-diario':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO valor_diario_motorista
-                (motorista,valor_max,status,observacao) VALUES (%s,%s,%s,%s) RETURNING id''', [
+                (motorista,valor_max,status,observacao,cliente_id) VALUES (%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('motorista','Todos'), d.get('valorMax', 0),
-                d.get('status','Ativo'),    d.get('observacao','')
+                d.get('status','Ativo'),    d.get('observacao',''),
+                d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1038,9 +1228,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/volume-diario':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO volume_diario_veiculo
-                (placa,volume_max,status,observacao) VALUES (%s,%s,%s,%s) RETURNING id''', [
+                (placa,volume_max,status,observacao,cliente_id) VALUES (%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('placa','Todos'), d.get('volumeMax', 0),
-                d.get('status','Ativo'), d.get('observacao','')
+                d.get('status','Ativo'), d.get('observacao',''),
+                d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1050,11 +1241,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/produto-abastecido':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO produto_abastecido_regras
-                (placas,combustiveis,status,observacao) VALUES (%s,%s,%s,%s) RETURNING id''', [
+                (placas,combustiveis,status,observacao,cliente_id) VALUES (%s,%s,%s,%s,%s) RETURNING id''', [
                 json.dumps(d.get('placas', ['Todos'])),
                 json.dumps(d.get('combustiveis', [])),
                 d.get('status', 'Ativo'),
-                d.get('observacao', '')
+                d.get('observacao', ''),
+                d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1062,16 +1254,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'id': new_id}, 201)
 
         elif path == '/api/seguranca-regras':
+            cid  = d.get('cliente_id') or None
             conn = get_db()
-            _exec(conn, '''INSERT INTO seguranca_regras (tipo,ativo,valor_int,valor_text,updated_at)
-                VALUES (%s,%s,%s,%s,TO_CHAR(NOW(),'YYYY-MM-DD HH24:MI:SS'))
-                ON CONFLICT (tipo) DO UPDATE SET
+            _exec(conn, '''INSERT INTO seguranca_regras (tipo,ativo,valor_int,valor_text,cliente_id,updated_at)
+                VALUES (%s,%s,%s,%s,%s,TO_CHAR(NOW(),'YYYY-MM-DD HH24:MI:SS'))
+                ON CONFLICT (tipo, cliente_id) DO UPDATE SET
                     ativo       = EXCLUDED.ativo,
                     valor_int   = EXCLUDED.valor_int,
                     valor_text  = EXCLUDED.valor_text,
                     updated_at  = EXCLUDED.updated_at''', [
                 d.get('tipo',''), int(d.get('ativo', 0)),
-                int(d.get('valorInt', 0)), d.get('valorText','')
+                int(d.get('valorInt', 0)), d.get('valorText',''), cid,
             ])
             conn.commit()
             conn.close()
@@ -1080,12 +1273,13 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/api/rotogramas':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO rotogramas
-                (nome,origem,destino,distancia_km,rodovias,estados,descricao,status,versao,ultima_revisao,observacao_seguranca)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                (nome,origem,destino,distancia_km,rodovias,estados,descricao,status,versao,ultima_revisao,observacao_seguranca,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('nome',''), d.get('origem',''), d.get('destino',''),
                 d.get('distanciaKm', 0), d.get('rodovias',''), d.get('estados',''),
                 d.get('descricao',''), d.get('status','Ativo'), d.get('versao','1.0'),
-                d.get('ultimaRevisao',''), d.get('observacaoSeguranca','')
+                d.get('ultimaRevisao',''), d.get('observacaoSeguranca',''),
+                d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1167,8 +1361,8 @@ class Handler(BaseHTTPRequestHandler):
                  km_estimado,status,consumo_km_l,preco_combustivel,custo_combustivel,
                  custo_pedagio,num_diarias,valor_refeicao,valor_pernoite,valor_banho,
                  valor_lavagem,custo_diarias,custo_manutencao_km,custo_manutencao,
-                 custo_total_estimado,custo_total_real,observacoes)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                 custo_total_estimado,custo_total_real,observacoes,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id''', [
                 d.get('nome',''), d.get('placa',''), d.get('motorista',''),
                 d.get('rotogramaId') or None,
@@ -1180,7 +1374,7 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('valorBanho',0), d.get('valorLavagem',0), d.get('custoDiarias',0),
                 d.get('custoManutencaoKm',0), d.get('custoManutencao',0),
                 d.get('custoTotalEstimado',0), d.get('custoTotalReal',0),
-                d.get('observacoes','')
+                d.get('observacoes',''), d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1206,15 +1400,16 @@ class Handler(BaseHTTPRequestHandler):
                 (posto_id,posto_nome,posto_cnpj,posto_cidade,posto_uf,
                  combustivel,preco_base,tipo_acordo,valor_acordo,preco_negociado,
                  volume_estimado,custo_estimado,data_inicio,data_fim,
-                 status,justificativa,observacoes)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                 status,justificativa,observacoes,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('postoId',0), d.get('postoNome',''), d.get('postoCnpj',''),
                 d.get('postoCidade',''), d.get('postoUf',''),
                 d.get('combustivel',''), d.get('precoBase',0),
                 d.get('tipoAcordo','desconto_pct'), d.get('valorAcordo',0),
                 d.get('precoNegociado',0), d.get('volumeEstimado',0),
                 d.get('custoEstimado',0), d.get('dataInicio',''), d.get('dataFim',''),
-                d.get('status','pendente'), d.get('justificativa',''), d.get('observacoes','')
+                d.get('status','pendente'), d.get('justificativa',''), d.get('observacoes',''),
+                d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1227,8 +1422,8 @@ class Handler(BaseHTTPRequestHandler):
                 (nome,tipo_rota,origem,origem_lat,origem_lon,destino,destino_lat,destino_lon,
                  paradas,postos_rota,distancia_km,duracao_min,combustivel,placa,
                  litros_tanque,capacidade_tanque,media_consumo,custo_estimado,
-                 filtros,geometria,status,observacao)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                 filtros,geometria,status,observacao,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id''', [
                 d.get('nome',''), d.get('tipoRota','Personalizada'),
                 d.get('origem',''), d.get('origemLat',0), d.get('origemLon',0),
@@ -1239,7 +1434,8 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('litrosTanque',0), d.get('capacidadeTanque',0),
                 d.get('mediaConsumo',0), d.get('custoEstimado',0),
                 json.dumps(d.get('filtros',{})), d.get('geometria',''),
-                d.get('status','Rascunho'), d.get('observacao','')
+                d.get('status','Rascunho'), d.get('observacao',''),
+                d.get('cliente_id') or None,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -1597,6 +1793,29 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
+        m = re.match(r'^/api/clientes/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            _exec(conn, '''UPDATE clientes SET
+                cnpj=%s,razao_social=%s,contato=%s,telefone=%s,email=%s,status=%s,
+                grupo_economico=%s,porte_empresa=%s,qtd_veiculos_pesados=%s,
+                qtd_veiculos_leves=%s,segmento_atuacao=%s,volume_diesel=%s,
+                volume_gasolina_alcool=%s,pagamento=%s,observacoes=%s,
+                updated_at=TO_CHAR(NOW(),'YYYY-MM-DD HH24:MI:SS')
+                WHERE id=%s''', [
+                d.get('cnpj',''),           d.get('razaoSocial',''),
+                d.get('contato',''),        d.get('telefone',''),
+                d.get('email',''),          d.get('status','Ativo'),
+                d.get('grupoEconomico',''), d.get('porteEmpresa','Médio'),
+                d.get('qtdVeiculosPesados',0), d.get('qtdVeiculosLeves',0),
+                d.get('segmentoAtuacao',''),d.get('volumeDiesel',0),
+                d.get('volumeGasolinaAlcool',0), d.get('pagamento','Pós-Pago'),
+                d.get('observacoes',''),    id_
+            ])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
         self.send_json({'error': 'Not found'}, 404)
 
     # ──────────────────────────────────────────────────────────
@@ -1756,6 +1975,13 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM negociacoes WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/clientes/(\d+)$', path)
+        if m:
+            conn = get_db()
+            _exec(conn, 'DELETE FROM clientes WHERE id=%s', [int(m.group(1))])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
