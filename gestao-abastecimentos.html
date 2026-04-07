@@ -5087,22 +5087,72 @@ async function populateClienteSelector() {
   } catch(e) { /* offline: ignora */ }
 }
 
+// ── Shared client row for all modals ──────────────────────────
+function _clienteRowHtml(selectedId) {
+  const ativos  = (_clientes || []).filter(c => c.status === 'Ativo');
+  const opts    = ativos.map(c =>
+    `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.razao_social}</option>`
+  ).join('');
+  const hasClient = selectedId && ativos.some(c => c.id === selectedId);
+  const bg     = hasClient ? '#eff6ff' : '#fff7ed';
+  const border = hasClient ? '#bfdbfe' : '#fed7aa';
+  const color  = hasClient ? '#1e40af' : '#9a3412';
+  const stroke = hasClient ? '#2563eb' : '#c2410c';
+  return `<div id="_modal-cli-row" style="display:flex;align-items:center;gap:8px;background:${bg};border:1.5px solid ${border};border-radius:8px;padding:7px 12px;margin-bottom:12px;flex-wrap:wrap;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+    <label style="font-size:0.78rem;font-weight:700;color:${color};white-space:nowrap;">Cliente *</label>
+    <select id="_modal-cli-sel" style="flex:1;min-width:160px;padding:4px 8px;border:1.5px solid ${border};border-radius:6px;font-size:0.82rem;background:#fff;">
+      <option value="">— Selecionar Cliente —</option>
+      ${opts}
+    </select>
+    ${!hasClient ? '<span style="font-size:0.74rem;color:#c2410c;white-space:nowrap;">⚠ Selecione um cliente</span>' : ''}
+  </div>`;
+}
+
+function _injectClienteRow(bodyEl) {
+  if (!bodyEl) return;
+  const prev = bodyEl.querySelector('#_modal-cli-row');
+  if (prev) prev.remove();
+  bodyEl.insertAdjacentHTML('afterbegin', _clienteRowHtml(_clienteAtualId));
+}
+
+// Lê o cliente_id selecionado no modal corrente (ou cai no global)
+function _getModalClienteId() {
+  const sel = document.getElementById('_modal-cli-sel');
+  if (sel) return sel.value ? parseInt(sel.value) : null;
+  return _clienteAtualId;
+}
+
+// Valida se há cliente selecionado no modal corrente; exibe toast se não
+function _validarClienteModal() {
+  const cid = _getModalClienteId();
+  if (!cid) {
+    showToast('Selecione um cliente antes de salvar o registro.', 'error');
+    const sel = document.getElementById('_modal-cli-sel');
+    if (sel) sel.focus();
+    return false;
+  }
+  return true;
+}
+
 async function apiCall(method, path, body = null, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer      = setTimeout(() => controller.abort(), timeoutMs);
 
   // ── Injeta cliente_id automaticamente ─────────────────────
+  // Usa cliente do modal (se aberto) ou o global
+  const _effectiveClienteId = _getModalClienteId();
   const _skipClient = ['/api/clientes', '/api/postos', '/api/precos-anp', '/api/anp'];
-  const needsClient = _clienteAtualId &&
+  const needsClient = _effectiveClienteId &&
     !_skipClient.some(p => path.startsWith(p));
 
   let finalPath = path;
   let finalBody = body;
   if (needsClient) {
     if (method === 'GET') {
-      finalPath += (path.includes('?') ? '&' : '?') + `cliente_id=${_clienteAtualId}`;
+      finalPath += (path.includes('?') ? '&' : '?') + `cliente_id=${_effectiveClienteId}`;
     } else if ((method === 'POST' || method === 'PUT') && body !== null) {
-      finalBody = { ...body, cliente_id: _clienteAtualId };
+      finalBody = { ...body, cliente_id: _effectiveClienteId };
     }
   }
 
@@ -5503,6 +5553,7 @@ function openHodoVariacaoModal(tipo, id = null) {
     document.getElementById('hodo-f-status').value   = 'Ativo';
     document.getElementById('hodo-f-obs').value      = '';
   }
+  _injectClienteRow(document.querySelector('#hodoVariacaoModalOverlay .modal-body'));
   document.getElementById('hodoVariacaoModalOverlay').classList.add('open');
 }
 
@@ -5511,6 +5562,7 @@ function closeHodoVariacaoModal() {
 }
 
 async function saveHodoVariacao() {
+  if (!_validarClienteModal()) return;
   const variacaoMaxKm = parseInt(document.getElementById('hodo-f-variacao').value) || 0;
   if (variacaoMaxKm <= 0) { showToast('Informe a variação máxima em km.', 'error'); return; }
 
@@ -6033,6 +6085,7 @@ async function openModal(id = null) {
   // Atualiza painel de total (novo: zera / edição: recalcula)
   calcTotal();
 
+  _injectClienteRow(document.querySelector('#modal .modal-body'));
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('f-new-placa').focus(), 200);
 }
@@ -6188,6 +6241,7 @@ function checkCNPJ(input, msgId) {
 }
 
 async function saveRecord() {
+  if (!_validarClienteModal()) return;
   const data        = document.getElementById('f-new-data').value;
   const hora        = document.getElementById('f-new-hora').value;
   const placa       = document.getElementById('f-new-placa').value.trim().toUpperCase();
@@ -8815,6 +8869,7 @@ function openNegociacaoModal(id) {
     if (neg) _negPreencherEdicao(neg);
   }
 
+  _injectClienteRow(document.querySelector('#neg-modal-overlay .neg-modal-body'));
   document.getElementById('neg-modal-overlay').style.display = 'flex';
   setTimeout(() => document.getElementById('neg-posto-busca').focus(), 100);
 }
@@ -9091,6 +9146,7 @@ function _negValidarForm() {
 
 // ── Salvar (criar ou atualizar) — local-first ──────────────────
 async function salvarNegociacao() {
+  if (!_validarClienteModal()) return;
   if (!_negPostoSel || !_negCombSel) return;
 
   const tipo        = document.querySelector('input[name="neg-tipo-acordo"]:checked')?.value || '';
@@ -9374,6 +9430,7 @@ function openVeiculoModal(id = null) {
     atualizarSubtipos('Passeio');
   }
 
+  _injectClienteRow(document.querySelector('#veiculoModalOverlay .modal-body'));
   document.getElementById('veiculoModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('v-placa').focus(), 80);
 }
@@ -9387,6 +9444,7 @@ function closeVeiculoModalOutside(e) {
 
 // ─── SAVE ───
 async function saveVeiculo() {
+  if (!_validarClienteModal()) return;
   const placa = document.getElementById('v-placa').value.trim().toUpperCase();
   if (!placa) { showToast('Preencha a Placa do veículo.', 'error'); return; }
 
@@ -9603,6 +9661,7 @@ function openMotoristaModal(id = null) {
     }
   }
 
+  _injectClienteRow(document.querySelector('#motoristaModalOverlay .modal-body'));
   document.getElementById('motoristaModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('m-nome').focus(), 80);
 }
@@ -9616,6 +9675,7 @@ function closeMotoristaModalOutside(e) {
 
 // ─── SAVE ───
 async function saveMotorista() {
+  if (!_validarClienteModal()) return;
   const nome = document.getElementById('m-nome').value.trim();
   const cpf  = document.getElementById('m-cpf').value.trim();
 
@@ -10735,6 +10795,7 @@ function closeIntervaloModalOutside(e) {
 }
 
 async function saveIntervalo() {
+  if (!_clienteAtualId) { showToast('Selecione um cliente no topo da página antes de salvar parâmetros.', 'error'); return; }
   const tipo           = document.getElementById('iv-tipo').value;
   const referencia     = document.getElementById('iv-referencia').value;
   const intervaloMinimo = parseFloat(document.getElementById('iv-intervalo').value);
@@ -10889,6 +10950,7 @@ function closeValorDiarioModal() { document.getElementById('valorDiarioModalOver
 function closeValorDiarioModalOutside(e) { if (e.target === document.getElementById('valorDiarioModalOverlay')) closeValorDiarioModal(); }
 
 async function saveValorDiario() {
+  if (!_clienteAtualId) { showToast('Selecione um cliente no topo da página antes de salvar parâmetros.', 'error'); return; }
   const motorista  = document.getElementById('vd-motorista').value;
   const valorMax   = parseFloat(document.getElementById('vd-valor').value);
   const status     = document.getElementById('vd-status').value;
@@ -11072,6 +11134,7 @@ function closeVolumeDiarioModal() { document.getElementById('volumeDiarioModalOv
 function closeVolumeDiarioModalOutside(e) { if (e.target === document.getElementById('volumeDiarioModalOverlay')) closeVolumeDiarioModal(); }
 
 async function saveVolumeDiario() {
+  if (!_clienteAtualId) { showToast('Selecione um cliente no topo da página antes de salvar parâmetros.', 'error'); return; }
   const placa      = document.getElementById('vol-placa').value;
   const volumeMax  = parseFloat(document.getElementById('vol-volume').value);
   const status     = document.getElementById('vol-status').value;
@@ -11353,6 +11416,7 @@ function _paOnPlacaChange() {
 
 // ─── SAVE ───
 async function saveProdutoAbastecido() {
+  if (!_clienteAtualId) { showToast('Selecione um cliente no topo da página antes de salvar parâmetros.', 'error'); return; }
   // Lê placas selecionadas
   const isTodos = document.getElementById('pa-todos').checked;
   let placas;
@@ -11524,6 +11588,7 @@ function _updateSegToggle() {
 }
 
 async function saveSeguranca() {
+  if (!_clienteAtualId) { showToast('Selecione um cliente no topo da página antes de salvar regras.', 'error'); return; }
   const ativo  = document.getElementById('seg-inat-ativo')?.checked ? 1 : 0;
   const dias   = parseInt(document.getElementById('seg-inat-dias')?.value) || 30;
   if (dias < 1 || dias > 3650) { showToast('Informe entre 1 e 3650 dias.', 'error'); return; }
@@ -12879,6 +12944,7 @@ function openRotogramaModal(id) {
   document.getElementById('roto-f-seguranca').value = '';
   document.getElementById('roto-f-status').value = 'Ativo';
   document.getElementById('rotogramaModalTitle').textContent = 'Novo Rotograma';
+  _injectClienteRow(document.querySelector('#rotogramaModalOverlay .modal-body'));
   document.getElementById('rotogramaModalOverlay').classList.add('open');
 }
 
@@ -12898,6 +12964,7 @@ function editRotograma() {
   document.getElementById('roto-f-seguranca').value = r.observacao_seguranca || '';
   document.getElementById('roto-f-status').value = r.status || 'Ativo';
   document.getElementById('rotogramaModalTitle').textContent = 'Editar Rotograma';
+  _injectClienteRow(document.querySelector('#rotogramaModalOverlay .modal-body'));
   document.getElementById('rotogramaModalOverlay').classList.add('open');
 }
 
@@ -12906,6 +12973,7 @@ function closeRotogramaModal() {
 }
 
 async function saveRotograma() {
+  if (!_validarClienteModal()) return;
   const nome   = document.getElementById('roto-f-nome').value.trim();
   const origem = document.getElementById('roto-f-origem').value.trim();
   const dest   = document.getElementById('roto-f-destino').value.trim();
@@ -13355,6 +13423,7 @@ async function openPlanoModal(id) {
     _pvRenderPedagios();
     _pvCalcTotais();
   }
+  _injectClienteRow(document.querySelector('#planoViagemModalOverlay .modal-body'));
   document.getElementById('planoViagemModalOverlay').classList.add('open');
 }
 function closePlanoModal() { document.getElementById('planoViagemModalOverlay').classList.remove('open'); }
@@ -13475,6 +13544,7 @@ function _pvUpdatePedagio(idx, field, val) {
 
 // ── Salvar ───────────────────────────────────────────────────────
 async function savePlanoViagem() {
+  if (!_validarClienteModal()) return;
   const nome = document.getElementById('pv-f-nome').value.trim();
   if (!nome) { showToast('Informe o nome do plano.', 'error'); return; }
 
@@ -14893,6 +14963,7 @@ async function salvarRoteizRota() {
   const nome = prompt('Nome para salvar a rota:',
     `Monte Sua Rota — ${_roteizRotaAtual.origem.label.split(',')[0]} → ${_roteizRotaAtual.destino.label.split(',')[0]}`);
   if (!nome) return;
+  if (!_clienteAtualId) { showToast('Selecione um cliente no topo da página antes de salvar a rota.', 'error'); return; }
 
   const r = _roteizRotaAtual;
   const body = {
