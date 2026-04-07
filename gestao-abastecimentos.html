@@ -5015,7 +5015,8 @@ function mapAbast(r) {
     arla32Volume: r.arla32_volume || 0,
     arla32Preco:  r.arla32_preco  || 0,
     arla32Total:  r.arla32_total  || 0,
-    servicosAbast: Array.isArray(svcs) ? svcs : []
+    servicosAbast: Array.isArray(svcs) ? svcs : [],
+    cliente_id: r.cliente_id || null
   };
 }
 function mapPosto(r) {
@@ -5116,11 +5117,13 @@ function _clienteRowHtml(selectedId) {
   </div>`;
 }
 
-function _injectClienteRow(bodyEl) {
+function _injectClienteRow(bodyEl, clienteId) {
   if (!bodyEl) return;
   const prev = bodyEl.querySelector('#_modal-cli-row');
   if (prev) prev.remove();
-  bodyEl.insertAdjacentHTML('afterbegin', _clienteRowHtml(_clienteAtualId));
+  // Usa o cliente_id do registro existente; se nulo, cai no seletor global
+  const finalId = (clienteId != null) ? clienteId : _clienteAtualId;
+  bodyEl.insertAdjacentHTML('afterbegin', _clienteRowHtml(finalId));
 }
 
 // Lê o cliente_id selecionado no modal corrente (ou cai no global)
@@ -5560,7 +5563,7 @@ function openHodoVariacaoModal(tipo, id = null) {
     document.getElementById('hodo-f-status').value   = 'Ativo';
     document.getElementById('hodo-f-obs').value      = '';
   }
-  _injectClienteRow(document.querySelector('#hodoVariacaoModalOverlay .modal-body'));
+  _injectClienteRow(document.querySelector('#hodoVariacaoModalOverlay .modal-body'), id ? hodoVariacoes.find(x => x.id === id)?.cliente_id : null);
   document.getElementById('hodoVariacaoModalOverlay').classList.add('open');
 }
 
@@ -6092,7 +6095,7 @@ async function openModal(id = null) {
   // Atualiza painel de total (novo: zera / edição: recalcula)
   calcTotal();
 
-  _injectClienteRow(document.querySelector('#modal .modal-body'));
+  _injectClienteRow(document.querySelector('#modal .modal-body'), id ? records.find(x => x.id === id)?.cliente_id : null);
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('f-new-placa').focus(), 200);
 }
@@ -8887,7 +8890,7 @@ function openNegociacaoModal(id) {
     if (neg) _negPreencherEdicao(neg);
   }
 
-  _injectClienteRow(document.querySelector('#neg-modal-overlay .neg-modal-body'));
+  _injectClienteRow(document.querySelector('#neg-modal-overlay .neg-modal-body'), id ? negociacoes.find(n => n.id === id)?.cliente_id : null);
   document.getElementById('neg-modal-overlay').style.display = 'flex';
   setTimeout(() => document.getElementById('neg-posto-busca').focus(), 100);
 }
@@ -9379,7 +9382,8 @@ function mapVeiculo(r) {
     anoFabricacao: r.ano_fabricacao || null, anoModelo: r.ano_modelo || null,
     capacidadeTanque: r.capacidade_tanque || 0,
     hodometro: r.hodometro || 0, renavam: r.renavam || '',
-    combustivelEspecificado: r.combustivel_especificado || ''
+    combustivelEspecificado: r.combustivel_especificado || '',
+    cliente_id: r.cliente_id || null
   };
 }
 
@@ -9448,7 +9452,7 @@ function openVeiculoModal(id = null) {
     atualizarSubtipos('Passeio');
   }
 
-  _injectClienteRow(document.querySelector('#veiculoModalOverlay .modal-body'));
+  _injectClienteRow(document.querySelector('#veiculoModalOverlay .modal-body'), id ? veiculos.find(x => x.id === id)?.cliente_id : null);
   document.getElementById('veiculoModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('v-placa').focus(), 80);
 }
@@ -9606,7 +9610,8 @@ function mapMotorista(r) {
     status: r.status || 'Ativo', classificacao: r.classificacao || 'Próprio',
     apelido: r.apelido || '', matricula: r.matricula || '',
     celular: r.celular || '', email: r.email || '',
-    numCnh: r.num_cnh || '', vencimentoCnh: r.vencimento_cnh || ''
+    numCnh: r.num_cnh || '', vencimentoCnh: r.vencimento_cnh || '',
+    cliente_id: r.cliente_id || null
   };
 }
 
@@ -9679,7 +9684,7 @@ function openMotoristaModal(id = null) {
     }
   }
 
-  _injectClienteRow(document.querySelector('#motoristaModalOverlay .modal-body'));
+  _injectClienteRow(document.querySelector('#motoristaModalOverlay .modal-body'), id ? motoristas.find(x => x.id === id)?.cliente_id : null);
   document.getElementById('motoristaModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('m-nome').focus(), 80);
 }
@@ -12982,7 +12987,7 @@ function editRotograma() {
   document.getElementById('roto-f-seguranca').value = r.observacao_seguranca || '';
   document.getElementById('roto-f-status').value = r.status || 'Ativo';
   document.getElementById('rotogramaModalTitle').textContent = 'Editar Rotograma';
-  _injectClienteRow(document.querySelector('#rotogramaModalOverlay .modal-body'));
+  _injectClienteRow(document.querySelector('#rotogramaModalOverlay .modal-body'), _rotoAtivo?.cliente_id ?? null);
   document.getElementById('rotogramaModalOverlay').classList.add('open');
 }
 
@@ -13393,6 +13398,7 @@ function _renderPvVeiculoKpis(veiculos) {
 async function openPlanoModal(id) {
   _pvPedagios = [];
   _pvPedagiosSalvos = [];
+  let _pvExistingClienteId = null;
   document.getElementById('pv-edit-id').value = '';
   document.getElementById('planoViagemModalTitle').textContent = 'Novo Plano de Viagem';
   // Reset form
@@ -13436,12 +13442,13 @@ async function openPlanoModal(id) {
     document.getElementById('pv-f-obs').value           = p.observacoes || '';
     _pvPedagiosSalvos = pedagios;
     _pvPedagios = pedagios.map(pg => ({ ...pg, _saved: true }));
+    _pvExistingClienteId = p.cliente_id || null;
     _pvCalcTotais();
   } else {
     _pvRenderPedagios();
     _pvCalcTotais();
   }
-  _injectClienteRow(document.querySelector('#planoViagemModalOverlay .modal-body'));
+  _injectClienteRow(document.querySelector('#planoViagemModalOverlay .modal-body'), _pvExistingClienteId);
   document.getElementById('planoViagemModalOverlay').classList.add('open');
 }
 function closePlanoModal() { document.getElementById('planoViagemModalOverlay').classList.remove('open'); }
