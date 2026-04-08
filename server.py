@@ -1480,7 +1480,8 @@ class Handler(BaseHTTPRequestHandler):
                 data=%s,hora=%s,placa=%s,motorista=%s,cpf_motorista=%s,hodometro=%s,
                 posto=%s,cnpj_posto=%s,cidade_posto=%s,uf_posto=%s,
                 combustivel=%s,volume=%s,preco_unitario=%s,valor_total=%s,
-                arla32_volume=%s,arla32_preco=%s,arla32_total=%s,servicos_abast=%s
+                arla32_volume=%s,arla32_preco=%s,arla32_total=%s,servicos_abast=%s,
+                cliente_id=%s
                 WHERE id=%s''', [
                 d.get('data'),   d.get('hora'),   d.get('placa'),
                 d.get('motorista'), d.get('cpfMotorista',''),
@@ -1490,6 +1491,7 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('precoUnitario',0), d.get('valorTotal',0),
                 d.get('arla32Volume',0), d.get('arla32Preco',0), d.get('arla32Total',0),
                 json.dumps(d.get('servicosAbast',[]), ensure_ascii=False),
+                d.get('cliente_id') or None,
                 id_
             ])
             conn.commit(); conn.close()
@@ -1534,11 +1536,12 @@ class Handler(BaseHTTPRequestHandler):
             conn = get_db()
             _exec(conn, '''UPDATE motoristas SET
                 cpf=%s,nome=%s,status=%s,classificacao=%s,apelido=%s,matricula=%s,celular=%s,
-                email=%s,num_cnh=%s,vencimento_cnh=%s WHERE id=%s''', [
+                email=%s,num_cnh=%s,vencimento_cnh=%s,cliente_id=%s WHERE id=%s''', [
                 d.get('cpf',''), d.get('nome',''),
                 d.get('status','Ativo'), d.get('classificacao','Próprio'),
                 d.get('apelido',''), d.get('matricula',''), d.get('celular',''),
-                d.get('email',''), d.get('numCnh',''), d.get('vencimentoCnh',''), id_
+                d.get('email',''), d.get('numCnh',''), d.get('vencimentoCnh',''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1550,8 +1553,8 @@ class Handler(BaseHTTPRequestHandler):
             _exec(conn, '''UPDATE veiculos SET
                 placa=%s,chassi=%s,status=%s,classificacao=%s,tipo=%s,subtipo=%s,num_eixos=%s,
                 marca=%s,modelo=%s,motor=%s,ano_fabricacao=%s,ano_modelo=%s,
-                capacidade_tanque=%s,hodometro=%s,renavam=%s,combustivel_especificado=%s
-                WHERE id=%s''', [
+                capacidade_tanque=%s,hodometro=%s,renavam=%s,combustivel_especificado=%s,
+                cliente_id=%s WHERE id=%s''', [
                 d.get('placa','').upper(), d.get('chassi',''),
                 d.get('status','Ativo'), d.get('classificacao','Próprio'),
                 d.get('tipo','Leve'), d.get('subtipo','Passeio'),
@@ -1559,7 +1562,8 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('marca',''), d.get('modelo',''), d.get('motor',''),
                 d.get('anoFabricacao') or None, d.get('anoModelo') or None,
                 d.get('capacidadeTanque',0), d.get('hodometro',0),
-                d.get('renavam',''), d.get('combustivelEspecificado',''), id_
+                d.get('renavam',''), d.get('combustivelEspecificado',''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1584,11 +1588,12 @@ class Handler(BaseHTTPRequestHandler):
             id_ = int(m.group(1))
             conn = get_db()
             _exec(conn, '''UPDATE intervalos_abastecimento SET
-                tipo=%s,referencia=%s,intervalo_minimo=%s,unidade=%s,status=%s,observacao=%s
-                WHERE id=%s''', [
+                tipo=%s,referencia=%s,intervalo_minimo=%s,unidade=%s,status=%s,observacao=%s,
+                cliente_id=%s WHERE id=%s''', [
                 d.get('tipo',''), d.get('referencia','Todos'),
                 d.get('intervaloMinimo', 0), d.get('unidade','Horas'),
-                d.get('status','Ativo'), d.get('observacao',''), id_
+                d.get('status','Ativo'), d.get('observacao',''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1598,9 +1603,10 @@ class Handler(BaseHTTPRequestHandler):
             id_ = int(m.group(1))
             conn = get_db()
             _exec(conn, '''UPDATE valor_diario_motorista SET
-                motorista=%s,valor_max=%s,status=%s,observacao=%s WHERE id=%s''', [
+                motorista=%s,valor_max=%s,status=%s,observacao=%s,cliente_id=%s WHERE id=%s''', [
                 d.get('motorista','Todos'), d.get('valorMax', 0),
-                d.get('status','Ativo'), d.get('observacao',''), id_
+                d.get('status','Ativo'), d.get('observacao',''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1610,9 +1616,10 @@ class Handler(BaseHTTPRequestHandler):
             id_ = int(m.group(1))
             conn = get_db()
             _exec(conn, '''UPDATE volume_diario_veiculo SET
-                placa=%s,volume_max=%s,status=%s,observacao=%s WHERE id=%s''', [
+                placa=%s,volume_max=%s,status=%s,observacao=%s,cliente_id=%s WHERE id=%s''', [
                 d.get('placa','Todos'), d.get('volumeMax', 0),
-                d.get('status','Ativo'), d.get('observacao',''), id_
+                d.get('status','Ativo'), d.get('observacao',''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1622,11 +1629,12 @@ class Handler(BaseHTTPRequestHandler):
             id_ = int(m.group(1))
             conn = get_db()
             _exec(conn, '''UPDATE produto_abastecido_regras SET
-                placas=%s,combustiveis=%s,status=%s,observacao=%s WHERE id=%s''', [
+                placas=%s,combustiveis=%s,status=%s,observacao=%s,cliente_id=%s WHERE id=%s''', [
                 json.dumps(d.get('placas', ['Todos'])),
                 json.dumps(d.get('combustiveis', [])),
                 d.get('status', 'Ativo'),
-                d.get('observacao', ''), id_
+                d.get('observacao', ''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1637,12 +1645,13 @@ class Handler(BaseHTTPRequestHandler):
             conn = get_db()
             _exec(conn, '''UPDATE rotogramas SET
                 nome=%s,origem=%s,destino=%s,distancia_km=%s,rodovias=%s,estados=%s,
-                descricao=%s,status=%s,versao=%s,ultima_revisao=%s,observacao_seguranca=%s
-                WHERE id=%s''', [
+                descricao=%s,status=%s,versao=%s,ultima_revisao=%s,observacao_seguranca=%s,
+                cliente_id=%s WHERE id=%s''', [
                 d.get('nome',''), d.get('origem',''), d.get('destino',''),
                 d.get('distanciaKm', 0), d.get('rodovias',''), d.get('estados',''),
                 d.get('descricao',''), d.get('status','Ativo'), d.get('versao','1.0'),
-                d.get('ultimaRevisao',''), d.get('observacaoSeguranca',''), id_
+                d.get('ultimaRevisao',''), d.get('observacaoSeguranca',''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1690,10 +1699,12 @@ class Handler(BaseHTTPRequestHandler):
             id_ = int(m.group(1))
             conn = get_db()
             _exec(conn, '''UPDATE hodo_variacao SET
-                tipo_veiculo=%s,placa=%s,variacao_max_km=%s,status=%s,observacao=%s WHERE id=%s''', [
+                tipo_veiculo=%s,placa=%s,variacao_max_km=%s,status=%s,observacao=%s,
+                cliente_id=%s WHERE id=%s''', [
                 d.get('tipoVeiculo',''), d.get('placa','Todos'),
                 d.get('variacaoMaxKm',0), d.get('status','Ativo'),
-                d.get('observacao',''), id_
+                d.get('observacao',''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1706,7 +1717,7 @@ class Handler(BaseHTTPRequestHandler):
                 posto_id=%s,posto_nome=%s,posto_cnpj=%s,posto_cidade=%s,posto_uf=%s,
                 combustivel=%s,preco_base=%s,tipo_acordo=%s,valor_acordo=%s,preco_negociado=%s,
                 volume_estimado=%s,custo_estimado=%s,data_inicio=%s,data_fim=%s,
-                status=%s,justificativa=%s,observacoes=%s,
+                status=%s,justificativa=%s,observacoes=%s,cliente_id=%s,
                 updated_at=TO_CHAR(NOW(),'YYYY-MM-DD HH24:MI:SS') WHERE id=%s''', [
                 d.get('postoId',0), d.get('postoNome',''), d.get('postoCnpj',''),
                 d.get('postoCidade',''), d.get('postoUf',''),
@@ -1715,6 +1726,7 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('precoNegociado',0), d.get('volumeEstimado',0),
                 d.get('custoEstimado',0), d.get('dataInicio',''), d.get('dataFim',''),
                 d.get('status','pendente'), d.get('justificativa',''), d.get('observacoes',''),
+                d.get('cliente_id') or None,
                 id_
             ])
             conn.commit(); conn.close()
@@ -1765,7 +1777,7 @@ class Handler(BaseHTTPRequestHandler):
                 km_estimado=%s,status=%s,consumo_km_l=%s,preco_combustivel=%s,custo_combustivel=%s,
                 custo_pedagio=%s,num_diarias=%s,valor_refeicao=%s,valor_pernoite=%s,valor_banho=%s,
                 valor_lavagem=%s,custo_diarias=%s,custo_manutencao_km=%s,custo_manutencao=%s,
-                custo_total_estimado=%s,custo_total_real=%s,observacoes=%s WHERE id=%s''', [
+                custo_total_estimado=%s,custo_total_real=%s,observacoes=%s,cliente_id=%s WHERE id=%s''', [
                 d.get('nome',''), d.get('placa',''), d.get('motorista',''),
                 d.get('rotogramaId') or None,
                 d.get('dataSaida',''), d.get('dataRetornoPrevista',''),
@@ -1776,7 +1788,8 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('valorBanho',0), d.get('valorLavagem',0), d.get('custoDiarias',0),
                 d.get('custoManutencaoKm',0), d.get('custoManutencao',0),
                 d.get('custoTotalEstimado',0), d.get('custoTotalReal',0),
-                d.get('observacoes',''), id_
+                d.get('observacoes',''),
+                d.get('cliente_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
