@@ -5683,6 +5683,7 @@ async function saveHodoVariacao() {
     variacaoMaxKm: variacaoMaxKm,
     status:        document.getElementById('hodo-f-status').value,
     observacao:    document.getElementById('hodo-f-obs').value.trim(),
+    cliente_id:    _getModalClienteId(),
   };
 
   if (editId) {
@@ -6560,7 +6561,7 @@ async function saveRecord() {
 
   const combustivelTotal = parseFloat((volume * preco).toFixed(2));
   const valorTotal = parseFloat((combustivelTotal + arla32Total + svcTotal).toFixed(2));
-  const rec = { data, hora, placa, cpfMotorista, motorista, posto, cnpjPosto, cidadePosto, ufPosto, combustivel, hodometro, volume, precoUnitario: preco, valorTotal, arla32Volume, arla32Preco, arla32Total, servicosAbast };
+  const rec = { data, hora, placa, cpfMotorista, motorista, posto, cnpjPosto, cidadePosto, ufPosto, combustivel, hodometro, volume, precoUnitario: preco, valorTotal, arla32Volume, arla32Preco, arla32Total, servicosAbast, cliente_id: _getModalClienteId() };
 
   // ── Aplica localmente primeiro ──
   if (editId) {
@@ -9306,6 +9307,7 @@ async function salvarNegociacao() {
     status:         document.getElementById('neg-status')?.value      || 'pendente',
     justificativa:  (document.getElementById('neg-justificativa')?.value || '').trim(),
     observacoes:    (document.getElementById('neg-observacoes')?.value  || '').trim(),
+    cliente_id:     _getModalClienteId(),
   };
 
   // Objeto no formato do cache local (snake_case)
@@ -9318,6 +9320,7 @@ async function salvarNegociacao() {
     custo_estimado: payload.custoEstimado, data_inicio: payload.dataInicio,
     data_fim: payload.dataFim, status: payload.status,
     justificativa: payload.justificativa, observacoes: payload.observacoes,
+    cliente_id: payload.cliente_id,
   };
 
   // ── 1. Aplica localmente IMEDIATAMENTE ──────────────────────────
@@ -9597,7 +9600,8 @@ async function saveVeiculo() {
     capacidadeTanque: parseFloat(document.getElementById('v-tanque').value)    || 0,
     hodometro:        parseFloat(document.getElementById('v-hodometro').value) || 0,
     renavam:              document.getElementById('v-renavam').value.trim(),
-    combustivelEspecificado: document.getElementById('v-combustivel-esp').value
+    combustivelEspecificado: document.getElementById('v-combustivel-esp').value,
+    cliente_id: _getModalClienteId()
   };
 
   // ── Aplica localmente primeiro ──
@@ -9836,7 +9840,8 @@ async function saveMotorista() {
     celular:       document.getElementById('m-celular').value.trim(),
     email:         document.getElementById('m-email').value.trim(),
     numCnh:        document.getElementById('m-num-cnh').value.trim(),
-    vencimentoCnh: document.getElementById('m-venc-cnh').value
+    vencimentoCnh: document.getElementById('m-venc-cnh').value,
+    cliente_id:    _getModalClienteId()
   };
 
   // ── Aplica localmente primeiro ──
@@ -10945,7 +10950,7 @@ async function saveIntervalo() {
   if (!referencia)                  { showToast('Selecione a referência (ou escolha "Todos").', 'error'); return; }
   if (!intervaloMinimo || intervaloMinimo <= 0) { showToast('Informe um intervalo mínimo maior que zero.', 'error'); return; }
 
-  const rec = { tipo, referencia, intervaloMinimo, unidade, status, observacao };
+  const rec = { tipo, referencia, intervaloMinimo, unidade, status, observacao, cliente_id: _getModalClienteId() };
 
   if (editId) {
     const idx = intervalos.findIndex(r => String(r.id) === String(editId));
@@ -11100,7 +11105,7 @@ async function saveValorDiario() {
   if (!motorista)                   { showToast('Selecione o motorista.', 'error'); return; }
   if (!valorMax || valorMax <= 0)   { showToast('Informe um valor máximo maior que zero.', 'error'); return; }
 
-  const rec = { motorista, valorMax, status, observacao };
+  const rec = { motorista, valorMax, status, observacao, cliente_id: _getModalClienteId() };
   if (editId) {
     const idx = valoresDiarios.findIndex(r => String(r.id) === String(editId));
     if (idx > -1) valoresDiarios[idx] = { ...valoresDiarios[idx], ...rec };
@@ -11289,7 +11294,7 @@ async function saveVolumeDiario() {
 
   // Normaliza: 'Todos' permanece 'Todos'; placas reais em maiúsculas
   const placaNorm = placa.toUpperCase() === 'TODOS' ? 'Todos' : placa.toUpperCase();
-  const rec = { placa: placaNorm, volumeMax, status, observacao };
+  const rec = { placa: placaNorm, volumeMax, status, observacao, cliente_id: _getModalClienteId() };
   if (editId) {
     const idx = volumesDiarios.findIndex(r => String(r.id) === String(editId));
     if (idx > -1) volumesDiarios[idx] = { ...volumesDiarios[idx], ...rec };
@@ -11584,7 +11589,7 @@ async function saveProdutoAbastecido() {
   const observacao = document.getElementById('pa-observacao').value.trim();
   const editId     = document.getElementById('pa-edit-id').value;
 
-  const rec = { placas, combustiveis, status, observacao };
+  const rec = { placas, combustiveis, status, observacao, cliente_id: _getModalClienteId() };
 
   if (editId) {
     const idx = produtosAbastecidos.findIndex(r => String(r.id) === String(editId));
@@ -13138,6 +13143,7 @@ async function saveRotograma() {
     descricao: document.getElementById('roto-f-descricao').value.trim(),
     observacaoSeguranca: document.getElementById('roto-f-seguranca').value.trim(),
     status: document.getElementById('roto-f-status').value,
+    cliente_id: _getModalClienteId(),
   };
 
   try {
@@ -13729,6 +13735,7 @@ async function savePlanoViagem() {
     custoTotalEstimado: g('pv-f-total-est'),
     custoTotalReal:     g('pv-f-total-real'),
     observacoes:        t('pv-f-obs'),
+    cliente_id:         _getModalClienteId(),
   };
 
   try {
