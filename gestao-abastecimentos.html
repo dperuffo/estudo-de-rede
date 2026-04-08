@@ -5603,6 +5603,18 @@ async function salvarCliente() {
       el.focus();
       return;
     }
+    // Unicidade: não pode haver outro cliente com o mesmo CNPJ
+    const cnpjNormCli = cnpjVal.replace(/\D/g,'');
+    const dupCli = (_clientes || []).find(c =>
+      (c.cnpj||'').replace(/\D/g,'') === cnpjNormCli && String(c.id) !== String(_editClienteId)
+    );
+    if (dupCli) {
+      showToast(`CNPJ já cadastrado para o cliente "${dupCli.razao_social}". Verifique antes de prosseguir.`, 'error');
+      const el = document.getElementById('cli-cnpj');
+      el.classList.add('field-invalid'); el.classList.remove('field-valid');
+      el.focus();
+      return;
+    }
   }
 
   const payload = {
@@ -8831,6 +8843,15 @@ async function savePosto() {
   }
   if (!validarCNPJ(cnpj)) { showToast('CNPJ inválido. Verifique os dígitos informados.', 'error'); document.getElementById('p-cnpj').classList.add('field-invalid'); return; }
 
+  const editId = document.getElementById('p-edit-id').value;
+  const cnpjNorm = cnpj.replace(/\D/g, '');
+  const dupCnpj = postos.find(p => (p.cnpj||'').replace(/\D/g,'') === cnpjNorm && String(p.id) !== String(editId));
+  if (dupCnpj) {
+    showToast(`CNPJ já cadastrado para o posto "${dupCnpj.razao}". Verifique antes de prosseguir.`, 'error');
+    document.getElementById('p-cnpj').classList.add('field-invalid');
+    return;
+  }
+
   const servicos = [];
   document.querySelectorAll('#servicosGrid .servico-check input:checked').forEach(cb => servicos.push(cb.value));
 
@@ -8874,8 +8895,6 @@ async function savePosto() {
     combustiveis,
     fotos: [...postoFotos]
   };
-
-  const editId = document.getElementById('p-edit-id').value;
 
   // ── Aplica localmente primeiro ──
   if (editId) {
@@ -9869,7 +9888,18 @@ async function saveVeiculo() {
 
   // Verifica duplicata de placa (exceto o próprio em edição)
   const dup = veiculos.find(v => v.placa === placa && String(v.id) !== String(editId));
-  if (dup) { showToast('Já existe um veículo com essa placa!', 'error'); return; }
+  if (dup) { showToast('Já existe um veículo cadastrado com essa placa!', 'error'); return; }
+
+  // Verifica duplicata de chassi (se preenchido)
+  const chassi = document.getElementById('v-chassi').value.trim().toUpperCase();
+  if (chassi) {
+    const dupChassi = veiculos.find(v => (v.chassi||'').toUpperCase() === chassi && String(v.id) !== String(editId));
+    if (dupChassi) {
+      showToast(`Chassi já cadastrado para o veículo "${dupChassi.placa}". Verifique antes de prosseguir.`, 'error');
+      document.getElementById('v-chassi').classList.add('field-invalid');
+      return;
+    }
+  }
 
   const rec = {
     placa,
