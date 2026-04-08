@@ -5261,7 +5261,8 @@ function _clienteRowHtml(selectedId) {
   return `<div id="_modal-cli-row" style="display:flex;align-items:center;gap:8px;background:${bg};border:1.5px solid ${border};border-radius:8px;padding:7px 12px;margin-bottom:12px;flex-wrap:wrap;">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
     <label style="font-size:0.78rem;font-weight:700;color:${color};white-space:nowrap;">Cliente *</label>
-    <select id="_modal-cli-sel" style="flex:1;min-width:160px;padding:4px 8px;border:1.5px solid ${border};border-radius:6px;font-size:0.82rem;background:#fff;">
+    <select id="_modal-cli-sel" style="flex:1;min-width:160px;padding:4px 8px;border:1.5px solid ${border};border-radius:6px;font-size:0.82rem;background:#fff;"
+      onchange="_onModalClienteChange()">
       <option value="">— Selecionar Cliente —</option>
       ${opts}
     </select>
@@ -5283,6 +5284,15 @@ function _getModalClienteId() {
   const sel = document.getElementById('_modal-cli-sel');
   if (sel) return sel.value ? parseInt(sel.value) : null;
   return _clienteAtualId;
+}
+
+// Chamado quando o cliente é alterado no selector do modal de abastecimento.
+// Reconstrói o dropdown de combustíveis do posto selecionado para aplicar
+// as negociações corretas do novo cliente.
+function _onModalClienteChange() {
+  if (typeof _selectedPosto !== 'undefined' && _selectedPosto) {
+    _atualizarCombustiveisPosto(_selectedPosto);
+  }
 }
 
 // Valida se há cliente selecionado no modal corrente; exibe toast se não
@@ -6558,7 +6568,7 @@ async function saveRecord() {
   }
   // ── Validação de negociação vigente ─────────────────────────────────────
   if (!editId) {
-    const negVig = _negAtiva(postoCad.id, combustivel, postoCad.cnpj);
+    const negVig = _negAtiva(postoCad.id, combustivel, postoCad.cnpj, _getModalClienteId());
     if (negVig) {
       const precoNeg = parseFloat(negVig.preco_negociado);
       const precoInf = parseFloat(preco);
@@ -9012,15 +9022,18 @@ const NEG_TIPO_LABEL = {
 
 // ── Retorna a negociação vigente para um posto + combustível ────
 // postoCnpj é opcional: usado como fallback quando o ID não coincide (ex.: reload pós-bulk-import)
-function _negAtiva(postoId, combustivel, postoCnpj) {
+function _negAtiva(postoId, combustivel, postoCnpj, clienteId) {
   if (!combustivel) return null;
   const today    = new Date().toISOString().split('T')[0];
   const cnpjNorm = postoCnpj ? String(postoCnpj).replace(/\D/g, '') : '';
+  const cliId    = clienteId != null ? String(clienteId) : null;
   return negociacoes.find(n => {
     // Correspondência por ID ou por CNPJ (garante robustez mesmo com IDs locais)
     const idOk   = postoId && Number(n.posto_id) === Number(postoId);
     const cnpjOk = cnpjNorm && n.posto_cnpj && String(n.posto_cnpj).replace(/\D/g,'') === cnpjNorm;
     if (!idOk && !cnpjOk) return false;
+    // Filtra pelo cliente quando informado
+    if (cliId && n.cliente_id != null && String(n.cliente_id) !== cliId) return false;
     return (
       n.combustivel === combustivel &&
       _negCalcStatusDyn(n, today) === 'ativa'
@@ -10375,16 +10388,19 @@ function _atualizarCombustiveisPosto(posto) {
   const preco = document.getElementById('f-new-preco');
   if (!sel) return;
 
+  // Usa o cliente atualmente selecionado no modal para filtrar negociações
+  const cliId = _getModalClienteId();
+
   const combs   = posto ? (posto.combustiveis || {}) : {};
   const entries = Object.entries(combs).filter(([, v]) => v != null && v !== '');
 
   if (entries.length > 0) {
     // Posto tem combustíveis com preços → monta opções enriquecidas
-    // Para cada combustível, verifica se há negociação ativa vigente
+    // Para cada combustível, verifica se há negociação ativa vigente para este cliente
     sel.innerHTML = '<option value="">Selecione...</option>' +
       entries.map(([nome, val]) => {
         const precoBase = _combPrecoNum(val);
-        const neg       = posto ? _negAtiva(posto.id, nome, posto.cnpj) : null;
+        const neg       = posto ? _negAtiva(posto.id, nome, posto.cnpj, cliId) : null;
         const precoFinal= (neg && neg.preco_negociado != null) ? neg.preco_negociado : precoBase;
         const negTag    = neg ? ' 🤝' : '';
         const fmtLP     = v => v != null ? `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}/L` : '';
@@ -10393,14 +10409,14 @@ function _atualizarCombustiveisPosto(posto) {
           : nome;
         return `<option value="${nome}" data-preco="${precoFinal ?? ''}" data-preco-base="${precoBase ?? ''}" data-neg-id="${neg ? neg.id : ''}">${label}</option>`;
       }).join('');
-    // Conta quantas negociações ativas há neste posto
-    const negCount = posto ? entries.filter(([nome]) => _negAtiva(posto.id, nome, posto.cnpj)).length : 0;
+    // Conta quantas negociações ativas há neste posto para este cliente
+    const negCount = posto ? entries.filter(([nome]) => _negAtiva(posto.id, nome, posto.cnpj, cliId)).length : 0;
     if (hint) hint.textContent = `⛽ ${entries.length} tipo(s) cadastrado(s) neste posto` +
       (negCount ? ` · 🤝 ${negCount} com negociação ativa` : '');
     // Auto-seleciona se for o único tipo
     if (entries.length === 1) {
       sel.value   = entries[0][0];
-      const neg1  = posto ? _negAtiva(posto.id, entries[0][0], posto.cnpj) : null;
+      const neg1  = posto ? _negAtiva(posto.id, entries[0][0], posto.cnpj, cliId) : null;
       preco.value = (neg1 ? neg1.preco_negociado : _combPrecoNum(entries[0][1])) ?? '';
       _negAplicarNotice(sel.options[sel.selectedIndex]);
       calcTotal();
