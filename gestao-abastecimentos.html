@@ -1527,6 +1527,50 @@
       </div>
     </div>
 
+    <!-- Maiores Gastos por Motoristas -->
+    <p class="ind-section-title">Maiores Gastos por Motoristas no Período</p>
+    <div class="panel" style="margin-bottom:24px;">
+      <div style="overflow-x:auto;">
+        <table class="top-veic-table">
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>Motorista</th>
+              <th class="td-right">Abastecimentos</th>
+              <th class="td-right">Volume (L)</th>
+              <th class="td-right">Gasto Total (R$)</th>
+              <th class="td-right">Ticket Médio (R$)</th>
+            </tr>
+          </thead>
+          <tbody id="ind-gastos-motoristas-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">Selecione o período para visualizar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Melhores Médias de Consumo (km/L) -->
+    <p class="ind-section-title">Melhores Médias de Consumo por Veículo (km/L) no Período</p>
+    <div class="panel" style="margin-bottom:24px;">
+      <div style="overflow-x:auto;">
+        <table class="top-veic-table">
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>Placa</th>
+              <th class="td-right">Abastecimentos c/ Consumo</th>
+              <th class="td-right">Média km/L</th>
+              <th class="td-right">Melhor km/L</th>
+              <th class="td-right">Pior km/L</th>
+            </tr>
+          </thead>
+          <tbody id="ind-consumo-medio-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">Selecione o período para visualizar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div><!-- /view-indicadores -->
 
   <!-- ── VIEW POSTOS ── -->
@@ -2985,9 +3029,10 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Excel
           </button>
-          <button class="btn btn-sm" style="background:#fef9c3;color:#854d0e;border:1.5px solid #fde047;" onclick="salvarRoteizRota()">
+          <span id="roteiz-edicao-badge" style="display:none;font-size:0.74rem;font-weight:700;background:#fef9c3;color:#854d0e;border:1.5px solid #fde047;border-radius:8px;padding:3px 9px;white-space:nowrap;"></span>
+          <button id="roteiz-salvar-btn" class="btn btn-sm" style="background:#fef9c3;color:#854d0e;border:1.5px solid #fde047;" onclick="salvarRoteizRota()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            Salvar
+            <span id="roteiz-salvar-label">Salvar</span>
           </button>
           <button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="fecharDetailSheet()">✕</button>
         </div>
@@ -4566,7 +4611,8 @@
           </div>
           <div class="form-group">
             <label>Volume (litros) *</label>
-            <input type="number" id="f-new-volume" placeholder="Ex: 80.50" step="0.01" min="0" oninput="calcTotal()" />
+            <input type="number" id="f-new-volume" placeholder="Ex: 80.50" step="0.01" min="0" oninput="calcTotal();_checkVolumeTanque()" />
+            <span class="ac-hint" id="f-volume-hint"></span>
           </div>
           <div class="form-group">
             <label>Preço por Litro (R$) *</label>
@@ -6243,6 +6289,37 @@ function closeModalOutside(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
 }
 
+// Verifica se o volume digitado respeita a capacidade do tanque do veículo
+function _checkVolumeTanque() {
+  const placa = (document.getElementById('f-new-placa')?.value || '').trim().toUpperCase();
+  const volEl = document.getElementById('f-new-volume');
+  const hint  = document.getElementById('f-volume-hint');
+  if (!volEl || !hint) return;
+
+  const veiculo = placa ? veiculos.find(v => v.placa === placa) : null;
+  const cap = veiculo?.capacidadeTanque || 0;
+  const vol = parseFloat(volEl.value) || 0;
+
+  if (cap <= 0) {
+    // Veículo sem capacidade cadastrada: sem validação, sem hint
+    hint.textContent = '';
+    volEl.classList.remove('field-invalid');
+    return;
+  }
+
+  if (vol > 0 && vol > cap) {
+    hint.innerHTML = `<span style="color:#dc2626;">⛔ Volume excede a capacidade do tanque (${cap.toLocaleString('pt-BR',{maximumFractionDigits:0})} L)</span>`;
+    volEl.classList.add('field-invalid');
+  } else if (vol > 0) {
+    const pct = ((vol / cap) * 100).toFixed(0);
+    hint.innerHTML = `<span style="color:#16a34a;">✔ ${pct}% do tanque (cap.: ${cap.toLocaleString('pt-BR',{maximumFractionDigits:0})} L)</span>`;
+    volEl.classList.remove('field-invalid');
+  } else {
+    hint.innerHTML = `<span style="color:var(--text-muted)">Capacidade do tanque: ${cap.toLocaleString('pt-BR',{maximumFractionDigits:0})} L</span>`;
+    volEl.classList.remove('field-invalid');
+  }
+}
+
 function calcTotal() {
   const v = parseFloat(document.getElementById('f-new-volume').value) || 0;
   const p = parseFloat(document.getElementById('f-new-preco').value) || 0;
@@ -6436,6 +6513,19 @@ async function saveRecord() {
     const el = document.getElementById('f-new-placa');
     el.classList.add('field-invalid');
     showToast(`Veículo "${placa}" está INATIVO. Reative-o na aba Veículos para registrar abastecimentos.`, 'error');
+    return;
+  }
+  // ── Validação de capacidade do tanque ────────────────────────────────────
+  if (veiculoCad.capacidadeTanque > 0 && volume > veiculoCad.capacidadeTanque) {
+    const el = document.getElementById('f-new-volume');
+    el.classList.add('field-invalid');
+    showToast(
+      `Volume informado (${volume.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} L) ` +
+      `excede a capacidade do tanque do veículo ${placa} ` +
+      `(${veiculoCad.capacidadeTanque.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})} L). ` +
+      `Verifique o volume abastecido.`,
+      'error'
+    );
     return;
   }
 
@@ -7556,6 +7646,12 @@ function renderIndicadores() {
 
   // ── Arla 32 — Consumo ─────────────────────────────────────────
   _renderArlaIndicador(curr, prevRecs);
+
+  // ── Maiores Gastos por Motoristas ─────────────────────────────
+  _renderGastosMotoristas(curr);
+
+  // ── Melhores Médias de Consumo (km/L) ────────────────────────
+  _renderConsumoMedio(curr);
 }
 
 function _renderMonthlyChart() {
@@ -8349,6 +8445,98 @@ function _renderArlaRanking(arlaRecs, allRecs) {
       <td class="td-right">${relHtml}</td>
       <td class="td-right"><span class="price-total">${fmtBRL(d.gastoArla)}</span></td>
       <td class="td-right" style="color:var(--text-muted);font-size:0.82rem">${d.precoMed > 0 ? 'R$\u00a0' + d.precoMed.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Indicador: Maiores Gastos por Motoristas
+// ─────────────────────────────────────────────────────────────
+function _renderGastosMotoristas(curr) {
+  const tbody = document.getElementById('ind-gastos-motoristas-body');
+  if (!tbody) return;
+
+  // Filtra registros que possuem motorista preenchido
+  const comMotorista = curr.filter(r => r.motorista && r.motorista.trim() !== '');
+
+  if (!comMotorista.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);font-style:italic;">Nenhum abastecimento com motorista vinculado no período selecionado.</td></tr>`;
+    return;
+  }
+
+  // Agrupa por motorista
+  const byMotorista = {};
+  comMotorista.forEach(r => {
+    const key = r.motorista.trim();
+    if (!byMotorista[key]) byMotorista[key] = { motorista: key, recs: [] };
+    byMotorista[key].recs.push(r);
+  });
+
+  const rows = Object.values(byMotorista).map(({ motorista, recs }) => {
+    const gasto   = recs.reduce((s, r) => s + r.valorTotal, 0);
+    const volume  = recs.reduce((s, r) => s + r.volume, 0);
+    const ticket  = recs.length > 0 ? gasto / recs.length : 0;
+    return { motorista, abast: recs.length, volume, gasto, ticket };
+  }).sort((a, b) => b.gasto - a.gasto).slice(0, 15);
+
+  tbody.innerHTML = rows.map((d, i) => {
+    const rank    = i + 1;
+    const rankCls = rank <= 3 ? `rank-${rank}` : '';
+    return `<tr>
+      <td><span class="rank-badge ${rankCls}">${rank}</span></td>
+      <td style="font-weight:600">${d.motorista}</td>
+      <td class="td-right">${d.abast}</td>
+      <td class="td-right" style="color:var(--text-muted)">${d.volume.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} L</td>
+      <td class="td-right"><span class="price-total">${fmtBRL(d.gasto)}</span></td>
+      <td class="td-right" style="color:var(--text-muted);font-size:0.82rem">${fmtBRL(d.ticket)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Indicador: Melhores Médias de Consumo (km/L)
+// ─────────────────────────────────────────────────────────────
+function _renderConsumoMedio(curr) {
+  const tbody = document.getElementById('ind-consumo-medio-body');
+  if (!tbody) return;
+
+  // Apenas registros não-Arla que tenham consumo calculado
+  const comConsumo = curr.filter(r => r.combustivel !== _ARLA && consumoMap[r.id] !== null && consumoMap[r.id] > 0);
+
+  if (!comConsumo.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);font-style:italic;">Sem dados de consumo (km/L) disponíveis no período selecionado.</td></tr>`;
+    return;
+  }
+
+  // Agrupa por placa
+  const byPlaca = {};
+  comConsumo.forEach(r => {
+    const key = r.placa;
+    if (!byPlaca[key]) byPlaca[key] = { placa: key, valores: [] };
+    byPlaca[key].valores.push(consumoMap[r.id]);
+  });
+
+  const rows = Object.values(byPlaca).map(({ placa, valores }) => {
+    const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+    const melhor = Math.max(...valores);
+    const pior   = Math.min(...valores);
+    return { placa, qtd: valores.length, media, melhor, pior };
+  }).sort((a, b) => b.media - a.media).slice(0, 15);
+
+  const fmtKmL = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' km/L';
+
+  tbody.innerHTML = rows.map((d, i) => {
+    const rank    = i + 1;
+    const rankCls = rank <= 3 ? `rank-${rank}` : '';
+    // Color scale: green for top, amber for mid, red for bottom
+    const mediaColor = rank <= 3 ? '#16a34a' : rank <= 7 ? '#d97706' : '#dc2626';
+    return `<tr>
+      <td><span class="rank-badge ${rankCls}">${rank}</span></td>
+      <td><span class="plate">${d.placa}</span></td>
+      <td class="td-right">${d.qtd}</td>
+      <td class="td-right" style="font-weight:700;color:${mediaColor}">${fmtKmL(d.media)}</td>
+      <td class="td-right" style="color:#16a34a;font-size:0.84rem">${fmtKmL(d.melhor)}</td>
+      <td class="td-right" style="color:#dc2626;font-size:0.84rem">${fmtKmL(d.pior)}</td>
     </tr>`;
   }).join('');
 }
@@ -10416,6 +10604,9 @@ function _onSelectPlaca(item) {
       cliSel.value = String(v.cliente_id);
     }
   }
+
+  // Atualiza hint de capacidade do tanque
+  _checkVolumeTanque();
 
   // Vínculo Motorista ↔ Veículo: preenche motorista automaticamente se houver vínculo ativo
   const dataAtual = document.getElementById('f-new-data').value || new Date().toISOString().slice(0,10);
@@ -13915,6 +14106,7 @@ let _roteizCluster    = null;   // MarkerClusterGroup dos postos
 let _roteizRouteLayer = null;   // polyline da rota
 let _roteizMarkersOD  = [];     // markers origem/destino/paradas
 let _roteizRotas      = [];     // rotas salvas
+let _roteizRotaId     = null;  // id da rota carregada (edição)
 let _roteizTipoRota   = 'Monte Sua Rota';
 let _roteizOrigemCoords  = null;  // {lat,lon,label}
 let _roteizDestinoCoords = null;
@@ -15192,6 +15384,8 @@ function limparRoteiz() {
   _roteizDestinoCoords = null;
   _roteizParadas = [];
   _roteizRotaAtual = null;
+  _roteizRotaId    = null;
+  _roteizAtualizarBadgeEdicao(null);
   _roteizCombSel = [];
   _roteizServSel = [];
 
@@ -15231,6 +15425,20 @@ function limparRoteiz() {
 }
 
 // ── Salvar / Exportar ──────────────────────────────────────────
+function _roteizAtualizarBadgeEdicao(nome) {
+  const badge = document.getElementById('roteiz-edicao-badge');
+  const label = document.getElementById('roteiz-salvar-label');
+  if (!badge) return;
+  if (nome) {
+    badge.textContent = `✎ Editando: ${nome}`;
+    badge.style.display = '';
+    if (label) label.textContent = 'Atualizar';
+  } else {
+    badge.style.display = 'none';
+    if (label) label.textContent = 'Salvar';
+  }
+}
+
 async function salvarRoteizRota() {
   if (!_roteizRotaAtual) { showToast('Calcule uma rota antes de salvar.', 'error'); return; }
 
@@ -15247,8 +15455,10 @@ async function salvarRoteizRota() {
   const custoTotal = _roteizRotaAtual.postosNaRota.reduce((s,p) => s + (p._custoParada || 0), 0);
   if (custoTotal > 0) _roteizRotaAtual.custoEstimado = custoTotal;
 
-  const nome = prompt('Nome para salvar a rota:',
-    `Monte Sua Rota — ${_roteizRotaAtual.origem.label.split(',')[0]} → ${_roteizRotaAtual.destino.label.split(',')[0]}`);
+  const nomeDefault = _roteizRotaId
+    ? (_roteizRotas.find(x => x.id === _roteizRotaId)?.nome || 'Rota')
+    : `Monte Sua Rota — ${_roteizRotaAtual.origem.label.split(',')[0]} → ${_roteizRotaAtual.destino.label.split(',')[0]}`;
+  const nome = prompt(_roteizRotaId ? 'Editar nome da rota:' : 'Nome para salvar a rota:', nomeDefault);
   if (!nome) return;
   if (!_clienteAtualId) { showToast('Selecione um cliente no topo da página antes de salvar a rota.', 'error'); return; }
 
@@ -15272,9 +15482,19 @@ async function salvarRoteizRota() {
     status: 'Concluída', observacao: ''
   };
   try {
-    const res = await apiCall('POST', '/api/roteirizador-rotas', body);
-    if (!res || !res.id) throw new Error('Erro ao salvar');
-    showToast('Rota salva com sucesso!', 'success');
+    if (_roteizRotaId) {
+      // Atualiza rota existente
+      await apiCall('PUT', `/api/roteirizador-rotas/${_roteizRotaId}`, body);
+      showToast('Rota atualizada com sucesso!', 'success');
+      _roteizAtualizarBadgeEdicao(nome);
+    } else {
+      // Nova rota
+      const res = await apiCall('POST', '/api/roteirizador-rotas', body);
+      if (!res || !res.id) throw new Error('Erro ao salvar');
+      _roteizRotaId = res.id;
+      _roteizAtualizarBadgeEdicao(nome);
+      showToast('Rota salva com sucesso!', 'success');
+    }
     loadRoteirizadorRotas();
   } catch(e) {
     showToast('Erro ao salvar rota: ' + e.message, 'error');
@@ -15397,8 +15617,12 @@ function carregarRotaSalva(id) {
     if (combEl && _roteizCombSel[0]) combEl.value = _roteizCombSel[0];
   }
 
+  _roteizRotaId = r.id;  // marca que estamos editando uma rota existente
   _renderDetailSheet(_roteizRotaAtual);
-  showToast(`Rota "${r.nome}" carregada.`, 'success');
+
+  // Indicador visual de edição
+  _roteizAtualizarBadgeEdicao(r.nome);
+  showToast(`Rota "${r.nome}" carregada para edição.`, 'success');
 }
 
 // ── Helper: lê litragem atual dos inputs (valores editados pelo usuário) ──
