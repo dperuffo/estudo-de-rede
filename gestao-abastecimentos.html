@@ -2091,7 +2091,10 @@
         </div>
         <div>
           <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">CNPJ</label>
-          <input id="cli-cnpj" placeholder="00.000.000/0001-00" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+          <input id="cli-cnpj" placeholder="00.000.000/0001-00" maxlength="18"
+            oninput="maskCNPJ(this);checkCNPJ(this,'cli-cnpj-msg')"
+            style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+          <span class="field-doc-msg" id="cli-cnpj-msg"></span>
         </div>
         <div>
           <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Status</label>
@@ -2106,7 +2109,9 @@
         </div>
         <div>
           <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Telefone</label>
-          <input id="cli-telefone" placeholder="(00) 90000-0000" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
+          <input id="cli-telefone" placeholder="(00) 90000-0000" maxlength="15"
+            oninput="maskTelefone(this)"
+            style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.87rem;box-sizing:border-box;">
         </div>
         <div>
           <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">E-mail</label>
@@ -5479,6 +5484,14 @@ function openClienteModal(cliente = null) {
   document.getElementById('cli-modal-title').textContent = cliente ? 'Editar Cliente' : 'Novo Cliente';
   document.getElementById('cli-razao').value       = cliente?.razao_social      || '';
   document.getElementById('cli-cnpj').value        = cliente?.cnpj               || '';
+  // limpa msg de validação ao abrir
+  const _cliCnpjMsg = document.getElementById('cli-cnpj-msg');
+  if (_cliCnpjMsg) { _cliCnpjMsg.textContent = ''; _cliCnpjMsg.className = 'field-doc-msg'; }
+  const _cliCnpjEl = document.getElementById('cli-cnpj');
+  _cliCnpjEl.classList.remove('field-invalid','field-valid');
+  if (cliente?.cnpj) { maskCNPJ(_cliCnpjEl); checkCNPJ(_cliCnpjEl,'cli-cnpj-msg'); }
+  const _cliTelEl = document.getElementById('cli-telefone');
+  if (cliente?.telefone) maskTelefone(_cliTelEl);
   document.getElementById('cli-status-f').value    = cliente?.status             || 'Ativo';
   document.getElementById('cli-contato').value     = cliente?.contato             || '';
   document.getElementById('cli-telefone').value    = cliente?.telefone            || '';
@@ -5503,6 +5516,19 @@ function closeClienteModal() {
 async function salvarCliente() {
   const razao = document.getElementById('cli-razao').value.trim();
   if (!razao) { showToast('Razão Social é obrigatória', 'error'); return; }
+
+  // Valida CNPJ se preenchido
+  const cnpjVal = document.getElementById('cli-cnpj').value.trim();
+  if (cnpjVal) {
+    if (!validarCNPJ(cnpjVal)) {
+      showToast('CNPJ inválido. Verifique o número informado.', 'error');
+      const el = document.getElementById('cli-cnpj');
+      el.classList.add('field-invalid'); el.classList.remove('field-valid');
+      el.focus();
+      return;
+    }
+  }
+
   const payload = {
     razaoSocial:          razao,
     cnpj:                 document.getElementById('cli-cnpj').value.trim(),
