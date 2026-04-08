@@ -8605,31 +8605,35 @@ function switchTab(tab) {
     }
   }
   closeSidebar(); // fecha menu em mobile ao navegar
-  // Carrega dados conforme a aba
+  // Carrega/atualiza dados da aba ao navegar (refresh completo a cada clique)
   if (tab === 'abastecimentos') {
     loadAbastecimentos();
     loadVeiculos();
     loadMotoristas();
     loadPostos();
+    loadNegociacoes();
   }
   if (tab === 'indicadores') {
-    // Inicializa período se ainda não foi definido
-    if (!_indPeriod.start) setPeriod('mes');
-    else renderIndicadores();
+    // Recarrega abastecimentos do servidor e depois re-renderiza indicadores
+    if (!_indPeriod.start) {
+      loadAbastecimentos().then(() => setPeriod('mes'));
+    } else {
+      loadAbastecimentos().then(() => renderIndicadores());
+    }
   }
   if (tab === 'postos')        loadPostos();
-  if (tab === 'negociacoes')   loadNegociacoes();
+  if (tab === 'negociacoes')   { loadNegociacoes(); loadPostos(); }
   if (tab === 'veiculos')      loadVeiculos();
   if (tab === 'motoristas')    loadMotoristas();
   if (tab === 'parametros')    { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); loadValoresDiarios(); loadVolumesDiarios(); loadProdutosAbastecidos(); loadHodoVariacao(); }
-  if (tab === 'seguranca')     { loadSeguranca(); }
+  if (tab === 'seguranca')     { loadSeguranca(); loadMotoristas(); }
   if (tab === 'precos')        { _loadPrecosIframe(); }
-  if (tab === 'varprecos')     { _renderVarPrecos(); }
-  if (tab === 'mapabandeira')  { _renderMapaBandeira(); }
-  if (tab === 'volprojetado')  { _renderVolProjetado(); }
-  if (tab === 'roteirizador')  { if (postos.length === 0) loadPostos().then(() => initRoteirizador()); else initRoteirizador(); }
+  if (tab === 'varprecos')     { loadAbastecimentos().then(() => _renderVarPrecos()); }
+  if (tab === 'mapabandeira')  { loadPostos().then(() => _renderMapaBandeira()); }
+  if (tab === 'volprojetado')  { loadAbastecimentos().then(() => _renderVolProjetado()); }
+  if (tab === 'roteirizador')  { loadPostos().then(() => initRoteirizador()); }
   if (tab === 'rotograma')     { loadRotogramas(); }
-  if (tab === 'plano-viagem')  { loadPlanosViagem(); }
+  if (tab === 'plano-viagem')  { loadPlanosViagem(); loadVeiculos(); loadMotoristas(); loadRotogramas(); }
   if (tab === 'clientes')      { loadClientes(); }
 }
 
