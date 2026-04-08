@@ -1653,6 +1653,7 @@
       <select id="neg-f-cliente" onchange="renderNegociacoes()" style="min-width:170px;">
         <option value="">Todos os clientes</option>
       </select>
+      <button class="btn btn-outline btn-sm" onclick="negLimparFiltros()" style="white-space:nowrap;">✕ Limpar</button>
     </div>
 
     <!-- Tabela -->
@@ -1850,6 +1851,7 @@
           <select id="v-f-cliente" onchange="renderVeiculos()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--bg);color:var(--text);min-width:180px;">
             <option value="">Todos os clientes</option>
           </select>
+          <button class="btn btn-outline btn-sm" onclick="vLimparFiltros()" style="white-space:nowrap;">✕ Limpar</button>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <a href="template_veiculos.xlsx" download class="btn btn-outline btn-sm" title="Baixar template Excel para importação">
@@ -1930,6 +1932,7 @@
           <select id="m-f-cliente" onchange="renderMotoristas()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--bg);color:var(--text);min-width:180px;">
             <option value="">Todos os clientes</option>
           </select>
+          <button class="btn btn-outline btn-sm" onclick="mLimparFiltros()" style="white-space:nowrap;">✕ Limpar</button>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <a href="template_motoristas.xlsx" download class="btn btn-outline btn-sm" title="Baixar template Excel para importação">
@@ -3046,6 +3049,7 @@
         style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.88rem;background:var(--bg);color:var(--text);min-width:170px;">
         <option value="">Todos os clientes</option>
       </select>
+      <button class="btn btn-outline btn-sm" onclick="rotoLimparFiltros()" style="white-space:nowrap;">✕ Limpar</button>
     </div>
 
     <!-- Rotograma list panel -->
@@ -3312,6 +3316,7 @@
         <select id="pv-f-cliente" class="form-control" style="width:180px;" onchange="renderPlanosViagem()">
           <option value="">Todos os clientes</option>
         </select>
+        <button class="btn btn-outline btn-sm" onclick="pvLimparFiltros()" style="white-space:nowrap;">✕ Limpar</button>
         <button class="btn btn-primary" onclick="openPlanoModal()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Novo Plano
@@ -8863,6 +8868,14 @@ function _negAtualizarFiltroCombs() {
     combs.map(c => `<option value="${c}"${c===prev?' selected':''}>${c}</option>`).join('');
 }
 
+function negLimparFiltros() {
+  ['neg-f-busca','neg-f-status','neg-f-tipo','neg-f-comb','neg-f-cliente'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  renderNegociacoes();
+}
+
 // ── Render tabela ──────────────────────────────────────────────
 function renderNegociacoes() {
   const tbody = document.getElementById('neg-tbody');
@@ -9668,6 +9681,14 @@ async function deleteVeiculo(id) {
   }
 }
 
+function vLimparFiltros() {
+  const busca = document.getElementById('veiculo-busca');
+  if (busca) busca.value = '';
+  const cli = document.getElementById('v-f-cliente');
+  if (cli) cli.value = '';
+  renderVeiculos();
+}
+
 // ─── RENDER ───
 function renderVeiculos() {
   const busca   = (document.getElementById('veiculo-busca')?.value || '').toLowerCase();
@@ -9906,6 +9927,14 @@ async function deleteMotorista(id) {
     try { await apiCall('DELETE', `/api/motoristas/${id}`); }
     catch(e) { serverOnline = false; setServerStatus('offline'); document.getElementById('offline-banner').style.display = 'flex'; }
   }
+}
+
+function mLimparFiltros() {
+  const busca = document.getElementById('motorista-busca');
+  if (busca) busca.value = '';
+  const cli = document.getElementById('m-f-cliente');
+  if (cli) cli.value = '';
+  renderMotoristas();
 }
 
 // ─── RENDER ───
@@ -12396,6 +12425,14 @@ async function loadRotogramas() {
   } catch (e) { console.error('loadRotogramas', e); }
 }
 
+function rotoLimparFiltros() {
+  ['roto-search','roto-filter-status','roto-f-cliente'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  renderRotogramaList();
+}
+
 // ── Renderiza lista ─────────────────────────────────────────────
 function renderRotogramaList() {
   const search  = (document.getElementById('roto-search')?.value || '').toLowerCase();
@@ -13469,6 +13506,14 @@ function _renderPvKpis(kpis) {
       <div class="kpi-label">${c.icon} ${c.label}</div>
       <div class="kpi-value" style="color:${c.color};font-size:1.35rem;">${c.fmt(c.val)}</div>
     </div>`).join('');
+}
+
+function pvLimparFiltros() {
+  ['pv-filter-status','pv-filter-placa','pv-f-cliente'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  renderPlanosViagem();
 }
 
 // ── Render lista ─────────────────────────────────────────────────
