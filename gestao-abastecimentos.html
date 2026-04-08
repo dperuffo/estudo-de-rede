@@ -5647,9 +5647,11 @@ function openHodoVariacaoModal(tipo, id = null) {
   document.getElementById('hodoVariacaoModalTitle').textContent =
     (id ? 'Editar' : 'Nova') + ` Regra — Hodômetro (${tipo}s)`;
 
-  // Popula select de placas filtrado pelo tipo do veículo
+  // Popula select de placas filtrado pelo tipo do veículo e cliente
   const vSel = document.getElementById('hodo-f-placa');
-  const placasTipo = veiculos.filter(v => v.tipo === tipo && v.status === 'Ativo').map(v => v.placa).sort();
+  const _hodoCliId = id ? hodoVariacoes.find(x => x.id === id)?.cliente_id : (_clienteAtualId || null);
+  const placasTipo = veiculos.filter(v => v.tipo === tipo && v.status === 'Ativo' &&
+    (!_hodoCliId || String(v.cliente_id) === String(_hodoCliId))).map(v => v.placa).sort();
   vSel.innerHTML = `<option value="Todos">Todos os ${tipo}s</option>` +
     placasTipo.map(p => `<option value="${p}">${p}</option>`).join('');
 
@@ -10346,6 +10348,16 @@ function acHide(id) {
 }
 
 // ─── COMBO: ABRIR LISTA COMPLETA ─────────────────────────────────────────────
+// ── Helpers: retornam veículos/motoristas filtrados pelo cliente do modal ──
+function _veiculosByCliente(cid) {
+  if (!cid) return veiculos;
+  return veiculos.filter(v => String(v.cliente_id) === String(cid));
+}
+function _motoristasByCliente(cid) {
+  if (!cid) return motoristas;
+  return motoristas.filter(m => String(m.cliente_id) === String(cid));
+}
+
 function _comboItemPlaca(v) {
   const inativo = (v.status||'').toLowerCase() === 'inativo';
   const badge   = inativo ? ' <span style="background:#fee2e2;color:#dc2626;font-size:0.7rem;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">INATIVO</span>' : '';
@@ -10370,6 +10382,14 @@ function _onSelectPlaca(item) {
   el.classList.remove('field-invalid'); el.classList.add('field-valid');
   info.style.color = '';
   info.textContent = `✔ ${[v.marca,v.modelo,v.ano_fabricacao].filter(Boolean).join(' ')} — ${v.classificacao||''} ${v.tipo||''}`.trim();
+
+  // Auto-seleciona o cliente do veículo no seletor do modal
+  if (v.cliente_id) {
+    const cliSel = document.getElementById('_modal-cli-sel');
+    if (cliSel && cliSel.value !== String(v.cliente_id)) {
+      cliSel.value = String(v.cliente_id);
+    }
+  }
 
   // Vínculo Motorista ↔ Veículo: preenche motorista automaticamente se houver vínculo ativo
   const dataAtual = document.getElementById('f-new-data').value || new Date().toISOString().slice(0,10);
@@ -10414,9 +10434,9 @@ function _onSelectPlaca(item) {
   }
 }
 function comboAbrirPlaca() {
-  if (!veiculos.length) { showToast('Nenhum veículo cadastrado.', ''); return; }
-  const items = veiculos.map(_comboItemPlaca);
-  acShow('ac-placa', items, _onSelectPlaca, true);
+  const lista = _veiculosByCliente(_getModalClienteId());
+  if (!lista.length) { showToast('Nenhum veículo cadastrado para este cliente.', ''); return; }
+  acShow('ac-placa', lista.map(_comboItemPlaca), _onSelectPlaca, true);
 }
 
 function _comboItemMotorista(m) {
@@ -10444,11 +10464,19 @@ function _onSelectMotorista(item) {
   info.style.color = '';
   document.getElementById('f-new-cpf').value = m.cpf || '';
   info.textContent = `✔ ${m.nome}${m.matricula?' · Mat: '+m.matricula:''}`;
+
+  // Auto-seleciona o cliente do motorista no seletor do modal
+  if (m.cliente_id) {
+    const cliSel = document.getElementById('_modal-cli-sel');
+    if (cliSel && cliSel.value !== String(m.cliente_id)) {
+      cliSel.value = String(m.cliente_id);
+    }
+  }
 }
 function comboAbrirMotorista() {
-  if (!motoristas.length) { showToast('Nenhum motorista cadastrado.', ''); return; }
-  const items = motoristas.map(_comboItemMotorista);
-  acShow('ac-motorista', items, _onSelectMotorista, true);
+  const lista = _motoristasByCliente(_getModalClienteId());
+  if (!lista.length) { showToast('Nenhum motorista cadastrado para este cliente.', ''); return; }
+  acShow('ac-motorista', lista.map(_comboItemMotorista), _onSelectMotorista, true);
 }
 
 function _comboItemPosto(p) {
@@ -10490,16 +10518,16 @@ function acBuscarPlaca() {
   const input = document.getElementById('f-new-placa');
   const q = input.value.trim().toUpperCase();
   document.getElementById('ac-placa-info').textContent = '';
-  if (!veiculos.length) {
-    document.getElementById('ac-placa-info').textContent = '⚠ Nenhum veículo cadastrado';
+  const lista = _veiculosByCliente(_getModalClienteId());
+  if (!lista.length) {
+    document.getElementById('ac-placa-info').textContent = '⚠ Nenhum veículo cadastrado para este cliente';
     acHide('ac-placa'); return;
   }
   if (!q) {
-    // Campo vazio → mostra todos (modo combo)
-    acShow('ac-placa', veiculos.map(_comboItemPlaca), _onSelectPlaca, true);
+    acShow('ac-placa', lista.map(_comboItemPlaca), _onSelectPlaca, true);
     return;
   }
-  const matches = veiculos.filter(v =>
+  const matches = lista.filter(v =>
     (v.placa||'').toUpperCase().includes(q) ||
     (v.modelo||'').toUpperCase().includes(q) ||
     (v.marca||'').toUpperCase().includes(q)
@@ -10513,16 +10541,16 @@ function acBuscarMotorista() {
   const input = document.getElementById('f-new-motorista');
   const q = input.value.trim().toLowerCase();
   document.getElementById('ac-motorista-info').textContent = '';
-  if (!motoristas.length) {
-    document.getElementById('ac-motorista-info').textContent = '⚠ Nenhum motorista cadastrado';
+  const lista = _motoristasByCliente(_getModalClienteId());
+  if (!lista.length) {
+    document.getElementById('ac-motorista-info').textContent = '⚠ Nenhum motorista cadastrado para este cliente';
     acHide('ac-motorista'); return;
   }
   if (!q) {
-    // Campo vazio → mostra todos (modo combo)
-    acShow('ac-motorista', motoristas.map(_comboItemMotorista), _onSelectMotorista, true);
+    acShow('ac-motorista', lista.map(_comboItemMotorista), _onSelectMotorista, true);
     return;
   }
-  const matches = motoristas.filter(m =>
+  const matches = lista.filter(m =>
     (m.nome||'').toLowerCase().includes(q) ||
     (m.apelido||'').toLowerCase().includes(q) ||
     (m.matricula||'').toLowerCase().includes(q) ||
@@ -10678,13 +10706,16 @@ function openVinculoModal(id) {
   document.getElementById('vinculoModalTitle').textContent = isEdit ? 'Editar Vínculo' : 'Novo Vínculo';
   document.getElementById('vl-edit-id').value = id || '';
 
-  // Popula selects de veículo e motorista no modal
+  // Popula selects de veículo e motorista filtrados pelo cliente atual
   const selPlaca = document.getElementById('vl-placa');
   const selMot   = document.getElementById('vl-motorista');
+  const _vlCid   = _clienteAtualId;
+  const _vlVeics = _veiculosByCliente(_vlCid);
+  const _vlMots  = _motoristasByCliente(_vlCid);
   selPlaca.innerHTML = '<option value="">Selecione o veículo...</option>' +
-    veiculos.map(v => `<option value="${v.placa}">${v.placa}${v.marca?' — '+v.marca+' '+v.modelo:''}</option>`).join('');
+    _vlVeics.map(v => `<option value="${v.placa}">${v.placa}${v.marca?' — '+v.marca+' '+v.modelo:''}</option>`).join('');
   selMot.innerHTML = '<option value="">Selecione o motorista...</option>' +
-    motoristas.map(m => `<option value="${m.nome}|${m.cpf||''}">${m.nome}${m.cpf?' — '+m.cpf:''}</option>`).join('');
+    _vlMots.map(m => `<option value="${m.nome}|${m.cpf||''}">${m.nome}${m.cpf?' — '+m.cpf:''}</option>`).join('');
 
   if (isEdit) {
     const v = vinculos.find(x => x.id === id);
@@ -10930,17 +10961,18 @@ function ivTipoChanged() {
     return;
   }
 
+  const _ivCid = _getModalClienteId();
   if (tipo === 'Veículo') {
     lblRef.textContent = 'Veículo (Placa)';
     hint.textContent   = '"Todos" aplica a regra a qualquer veículo sem regra específica.';
-    const opcoes = veiculos.map(v =>
+    const opcoes = _veiculosByCliente(_ivCid).map(v =>
       `<option value="${v.placa}">${v.placa}${v.marca ? ' — ' + v.marca + ' ' + (v.modelo||'') : ''}</option>`
     );
     selRef.innerHTML = '<option value="Todos">Todos os veículos (regra geral)</option>' + opcoes.join('');
   } else {
     lblRef.textContent = 'Motorista';
     hint.textContent   = '"Todos" aplica a regra a qualquer motorista sem regra específica.';
-    const opcoes = motoristas.map(m =>
+    const opcoes = _motoristasByCliente(_ivCid).map(m =>
       `<option value="${m.nome}">${m.nome}${m.cpf ? ' — CPF: ' + m.cpf : ''}${m.matricula ? ' · Mat: ' + m.matricula : ''}</option>`
     );
     selRef.innerHTML = '<option value="Todos">Todos os motoristas (regra geral)</option>' + opcoes.join('');
@@ -11118,7 +11150,7 @@ async function openValorDiarioModal(id) {
     try { const rows = await apiCall('GET', '/api/motoristas'); motoristas = rows.map(mapMotorista); } catch(e) {}
   }
   const sel = document.getElementById('vd-motorista');
-  const opcoes = motoristas.map(m =>
+  const opcoes = _motoristasByCliente(_clienteAtualId).map(m =>
     `<option value="${m.nome}">${m.nome}${m.cpf ? ' — CPF: ' + m.cpf : ''}</option>`
   );
   sel.innerHTML = '<option value="Todos">Todos os motoristas (regra geral)</option>' + opcoes.join('');
@@ -11305,7 +11337,7 @@ async function openVolumeDiarioModal(id) {
     try { const rows = await apiCall('GET', '/api/veiculos'); veiculos = rows.map(mapVeiculo); } catch(e) {}
   }
   const sel = document.getElementById('vol-placa');
-  const opcoes = veiculos.map(v =>
+  const opcoes = _veiculosByCliente(_clienteAtualId).map(v =>
     `<option value="${v.placa}">${v.placa}${v.marca ? ' — ' + v.marca + ' ' + (v.modelo||'') : ''}</option>`
   );
   sel.innerHTML = '<option value="Todos">Todos os veículos (regra geral)</option>' + opcoes.join('');
@@ -11498,10 +11530,10 @@ async function openProdutoAbastecidoModal(id) {
     try { const rows = await apiCall('GET', '/api/veiculos'); veiculos = rows.map(mapVeiculo); } catch(e) {}
   }
 
-  // Popula lista de veículos individuais no modal
+  // Popula lista de veículos individuais no modal, filtrados pelo cliente
   const list = document.getElementById('pa-placas-list');
   if (list) {
-    list.innerHTML = veiculos
+    list.innerHTML = _veiculosByCliente(_clienteAtualId)
       .filter(v => v.status === 'Ativo')
       .sort((a,b) => a.placa.localeCompare(b.placa))
       .map(v => `<label style="display:flex;align-items:center;gap:8px;padding:3px 4px;cursor:pointer;font-size:0.85rem;border-radius:4px;" class="pa-veiculo-row">
@@ -13654,27 +13686,30 @@ async function openPlanoModal(id) {
 function closePlanoModal() { document.getElementById('planoViagemModalOverlay').classList.remove('open'); }
 
 async function _pvPopulateSelects() {
-  const [veiculos, motoristas, rotogramas] = await Promise.all([
-    fetch('/api/veiculos').then(r => r.json()),
-    fetch('/api/motoristas').then(r => r.json()),
-    fetch('/api/rotogramas').then(r => r.json()),
-  ]);
+  // Garante arrays locais populados
+  if (!veiculos.length)   { try { const r = await apiCall('GET','/api/veiculos');   veiculos   = r.map(mapVeiculo);   } catch(e){} }
+  if (!motoristas.length) { try { const r = await apiCall('GET','/api/motoristas'); motoristas = r.map(mapMotorista); } catch(e){} }
+  const rotoRows = await fetch('/api/rotogramas').then(r => r.json()).catch(() => rotogramas||[]);
+
+  const cid = _getModalClienteId();
   const pSel = document.getElementById('pv-f-placa');
   const cur = pSel.value;
   pSel.innerHTML = `<option value="">— Selecione —</option>` +
-    veiculos.filter(v => v.status === 'Ativo').map(v => `<option value="${escHtml(v.placa)}">${escHtml(v.placa)} — ${escHtml(v.modelo||v.marca||'')}</option>`).join('');
+    _veiculosByCliente(cid).filter(v => v.status === 'Ativo')
+      .map(v => `<option value="${escHtml(v.placa)}">${escHtml(v.placa)} — ${escHtml(v.modelo||v.marca||'')}</option>`).join('');
   pSel.value = cur;
 
   const mSel = document.getElementById('pv-f-motorista');
   const curM = mSel.value;
   mSel.innerHTML = `<option value="">— Selecione —</option>` +
-    motoristas.filter(m => m.status === 'Ativo').map(m => `<option value="${escHtml(m.nome)}">${escHtml(m.nome)}</option>`).join('');
+    _motoristasByCliente(cid).filter(m => m.status === 'Ativo')
+      .map(m => `<option value="${escHtml(m.nome)}">${escHtml(m.nome)}</option>`).join('');
   mSel.value = curM;
 
   const rSel = document.getElementById('pv-f-rotograma');
   const curR = rSel.value;
   rSel.innerHTML = `<option value="">— Nenhum —</option>` +
-    rotogramas.map(r => `<option value="${r.id}">${escHtml(r.nome)}</option>`).join('');
+    rotoRows.map(r => `<option value="${r.id}">${escHtml(r.nome)}</option>`).join('');
   rSel.value = curR;
 }
 
