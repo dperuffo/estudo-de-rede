@@ -8056,10 +8056,31 @@ let _indArlaCurrRecs = []; // cache do período atual (Arla)
 let _indArlaPrevRecs = []; // cache do período anterior (Arla)
 let _indArlaCurrAll  = []; // cache do período atual (todos os combustíveis — para relação com diesel por placa)
 
+// Monta registros sintéticos de Arla a partir de campos arla32* embutidos em abastecimentos de outro combustível
+function _arlaEmbedded(recs) {
+  return recs
+    .filter(r => r.combustivel !== _ARLA && (r.arla32Volume || 0) > 0)
+    .map(r => ({
+      ...r,
+      volume:        r.arla32Volume || 0,
+      precoUnitario: r.arla32Preco  || 0,
+      valorTotal:    r.arla32Total  || 0,
+      combustivel:   _ARLA,
+      _embeddedArla: true,
+    }));
+}
+
 function _renderArlaIndicador(curr, prevRecs) {
   // Armazena caches para uso pelo filtro de placa
-  _indArlaCurrRecs = curr.filter(r => r.combustivel === _ARLA);
-  _indArlaPrevRecs = prevRecs.filter(r => r.combustivel === _ARLA);
+  // Inclui tanto registros standalone de Arla quanto Arla embutido em abastecimentos
+  _indArlaCurrRecs = [
+    ...curr.filter(r => r.combustivel === _ARLA),
+    ..._arlaEmbedded(curr),
+  ];
+  _indArlaPrevRecs = [
+    ...prevRecs.filter(r => r.combustivel === _ARLA),
+    ..._arlaEmbedded(prevRecs),
+  ];
   _indArlaCurrAll  = curr; // todos os combustíveis (para cálculo de diesel por placa)
 
   // Povoa o seletor de placa (preserva seleção anterior)
