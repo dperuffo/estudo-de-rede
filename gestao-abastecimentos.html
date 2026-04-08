@@ -14913,10 +14913,15 @@ async function _selecionarPostosNaRota(geometry, distKm) {
   const combRef = document.getElementById('roteiz-smart-comb')?.value
                 || _roteizCombSel[0]
                 || 'Diesel';
-  const RAIO_KM = 15;
+  const RAIO_KM = 20; // raio aumentado para 20 km para capturar mais postos
 
-  // Para cada posto com geo válido, mapeia o ponto mais próximo na rota e o progresso (km)
-  const postosComGeo = postos.filter(p => p.lat && p.lon && !isNaN(parseFloat(p.lat)));
+  // Apenas postos com coordenadas geográficas válidas
+  const postosComGeo = postos.filter(p => {
+    const lat = parseFloat(p.lat), lon = parseFloat(p.lon);
+    return isFinite(lat) && isFinite(lon) && lat !== 0 && lon !== 0;
+  });
+
+  if (postosComGeo.length === 0) return [];
 
   // Pré-calcula distâncias acumuladas na polilinha da rota
   const cumDists = [0];
@@ -14926,11 +14931,10 @@ async function _selecionarPostosNaRota(geometry, distKm) {
   const distTotalRota = cumDists[cumDists.length - 1];
 
   // Para cada posto, encontra o vértice mais próximo da rota
+  const step = Math.max(1, Math.floor(coords.length / 500));
   const postosComProgresso = postosComGeo.map(p => {
     const pLat = parseFloat(p.lat), pLon = parseFloat(p.lon);
     let minDist = Infinity, progKm = 0;
-    // Amostra a cada N vértices para performance (max 500 pontos)
-    const step = Math.max(1, Math.floor(coords.length / 500));
     for (let i = 0; i < coords.length; i += step) {
       const d = _haversineKm(pLat, pLon, coords[i][1], coords[i][0]);
       if (d < minDist) { minDist = d; progKm = cumDists[i]; }
@@ -14940,21 +14944,31 @@ async function _selecionarPostosNaRota(geometry, distKm) {
 
   if (postosComProgresso.length === 0) return [];
 
-  // Filtra por combustível (postos que têm preço cadastrado para o combustível escolhido)
-  // Se não há combustível preferido, aceita todos que tenham pelo menos um preço cadastrado
-  const postosFiltr = postosComProgresso.filter(x => {
+  // Filtra por combustível + preço; fallback para postos sem preço do combustível selecionado
+  let postosFiltr = postosComProgresso.filter(x => {
     const combs = _parseJSON(x.posto.combustiveis, {});
     if (Object.keys(combs).length === 0) return false;
     const preco = _getPreco(x.posto, combRef);
     return preco !== null && preco > 0;
   });
 
+  // Se nenhum posto tem preço do combustível selecionado, usa todos que têm qualquer preço
+  if (postosFiltr.length === 0) {
+    postosFiltr = postosComProgresso.filter(x => {
+      const combs = _parseJSON(x.posto.combustiveis, {});
+      return Object.keys(combs).length > 0;
+    });
+  }
+
+  // Último recurso: todos os postos próximos da rota
+  if (postosFiltr.length === 0) postosFiltr = postosComProgresso;
+
   if (postosFiltr.length === 0) return [];
 
-  // Normaliza preços para scoring
-  const precos = postosFiltr.map(x => _getPreco(x.posto, combRef));
-  const precoMin = Math.min(...precos);
-  const precoMax = Math.max(...precos);
+  // Normaliza preços para scoring (pode ser null se o posto não tem o combustível)
+  const precos = postosFiltr.map(x => _getPreco(x.posto, combRef)).filter(v => v !== null && v > 0);
+  const precoMin = precos.length ? Math.min(...precos) : 0;
+  const precoMax = precos.length ? Math.max(...precos) : 0;
 
   // Pontua cada posto
   const postosScored = postosFiltr.map(x => {
@@ -14967,11 +14981,71 @@ async function _selecionarPostosNaRota(geometry, distKm) {
   // Ordena por progresso na rota (ordem geográfica)
   postosScored.sort((a, b) => a.progKm - b.progKm);
 
-  // Distribui por zonas de autonomia com melhor score
-  const cap = parseFloat(document.getElementById('roteiz-cap-tanque')?.value || 200);
-  const lit = parseFloat(document.getElementById('roteiz-litros-tanque')?.value || cap * 0.5);
-  const con = parseFloat(document.getElementById('roteiz-consumo')?.value || 8);
-  return _distribuirParadasInteligentes(postosScored, cap, lit, con, distTotalRota, combRef);
+  // Verifica se o usuário preencheu dados do veículo
+  const capInput = parseFloat(document.getElementById('roteiz-cap-tanque')?.value || 0);
+  const litInput = parseFloat(document.getElementById('roteiz-litros-tanque')?.value || 0);
+  const conInput = parseFloat(document.getElementById('roteiz-consumo')?.value || 0);
+  const temDadosVeiculo = capInput > 0 && conInput > 0;
+
+  if (temDadosVeiculo) {
+    // Distribuição inteligente baseada na autonomia real do veículo
+    const paradas = _distribuirParadasInteligentes(postosScored, capInput, litInput, conInput, distTotalRota, combRef);
+    // Se a autonomia é suficiente para a rota inteira mas há postos na rota, mostra os melhores mesmo assim
+    if (paradas.length === 0 && postosScored.length > 0) {
+      return _distribuirUniforme(postosScored, distTotalRota);
+    }
+    return paradas;
+  } else {
+    // Sem dados do veículo: distribui postos uniformemente ao longo da rota
+    return _distribuirUniforme(postosScored, distTotalRota);
+  }
+}
+
+// Distribui postos em intervalos geográficos uniformes ao longo da rota.
+// Ideal quando o usuário não informou dados do veículo ou quando a autonomia
+// já cobre a rota toda mas ainda é útil ver os postos disponíveis.
+function _distribuirUniforme(postosScored, distTotalRota) {
+  if (postosScored.length === 0) return [];
+
+  // Determina número de postos (1 a cada ~150 km, mínimo 1, máximo 8)
+  const intervaloKm = 150;
+  const maxPostos   = Math.max(1, Math.min(8, Math.ceil(distTotalRota / intervaloKm)));
+
+  if (postosScored.length <= maxPostos) {
+    // Menos postos do que o máximo: retorna todos em ordem geográfica
+    return postosScored.map(x => ({
+      ...x.posto,
+      _score:      x.score,
+      _detalhes:   x.detalhes,
+      _distRota:   x.distRota,
+      _progKm:     x.progKm,
+      _preco:      x.preco,
+      _litSuger:   0,
+      _custoParada: 0,
+    }));
+  }
+
+  // Divide a rota em N zonas e pega o melhor posto de cada zona
+  const zoneSize = distTotalRota / maxPostos;
+  const selecionados = [];
+  for (let z = 0; z < maxPostos; z++) {
+    const zInicio = z * zoneSize;
+    const zFim    = (z + 1) * zoneSize;
+    const candidatos = postosScored.filter(x => x.progKm >= zInicio && x.progKm < zFim);
+    if (candidatos.length === 0) continue;
+    const melhor = candidatos.sort((a, b) => b.score - a.score)[0];
+    selecionados.push({
+      ...melhor.posto,
+      _score:      melhor.score,
+      _detalhes:   melhor.detalhes,
+      _distRota:   melhor.distRota,
+      _progKm:     melhor.progKm,
+      _preco:      melhor.preco,
+      _litSuger:   0,
+      _custoParada: 0,
+    });
+  }
+  return selecionados;
 }
 
 function _distribuirParadasInteligentes(postosScored, cap, litAtual, consumo, distTotalKm, combRef) {
