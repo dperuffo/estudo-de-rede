@@ -1115,6 +1115,12 @@
         <label>Posto</label>
         <input type="text" id="f-posto" placeholder="Nome do posto..." oninput="applyFilters()" />
       </div>
+      <div class="filter-group">
+        <label>Cliente</label>
+        <select id="f-cliente" onchange="applyFilters()">
+          <option value="">Todos os clientes</option>
+        </select>
+      </div>
       <button class="btn btn-outline btn-sm filter-clear" onclick="clearFilters()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         Limpar
@@ -1178,6 +1184,7 @@
             <th onclick="sortBy('precoUnitario')" class="td-right">R$/L <span class="sort-arrow">↕</span></th>
             <th onclick="sortBy('valorTotal')" class="td-right">Valor Total <span class="sort-arrow">↕</span></th>
             <th onclick="sortBy('consumo')" class="td-right">Consumo (km/L) <span class="sort-arrow">↕</span></th>
+            <th>Cliente</th>
             <th class="td-center">Ações</th>
           </tr>
         </thead>
@@ -1643,6 +1650,9 @@
       <select id="neg-f-comb" onchange="renderNegociacoes()">
         <option value="">Todos os combustíveis</option>
       </select>
+      <select id="neg-f-cliente" onchange="renderNegociacoes()" style="min-width:170px;">
+        <option value="">Todos os clientes</option>
+      </select>
     </div>
 
     <!-- Tabela -->
@@ -1660,6 +1670,7 @@
               <th class="td-right">Vol. Est. (L)</th>
               <th>Vigência</th>
               <th>Status</th>
+              <th>Cliente</th>
               <th style="text-align:center;">Ações</th>
             </tr>
           </thead>
@@ -1835,7 +1846,10 @@
           Veículos da Frota
         </div>
         <div class="veiculo-search-bar">
-          <input type="text" id="veiculo-busca" placeholder="Buscar por placa, marca, modelo…" oninput="renderVeiculos()">
+          <input type="text" id="veiculo-busca" placeholder="Buscar por placa, marca, modelo…" oninput="renderVeiculos()" style="flex:1;min-width:180px;">
+          <select id="v-f-cliente" onchange="renderVeiculos()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--bg);color:var(--text);min-width:180px;">
+            <option value="">Todos os clientes</option>
+          </select>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <a href="template_veiculos.xlsx" download class="btn btn-outline btn-sm" title="Baixar template Excel para importação">
@@ -1879,6 +1893,7 @@
               <th>Hodômetro</th>
               <th>Tanque (L)</th>
               <th>Eixos</th>
+              <th>Cliente</th>
               <th style="text-align:right">Ações</th>
             </tr>
           </thead>
@@ -1911,7 +1926,10 @@
           Motoristas Cadastrados
         </div>
         <div class="motorista-search-bar">
-          <input type="text" id="motorista-busca" placeholder="Buscar por nome, CPF, matrícula…" oninput="renderMotoristas()">
+          <input type="text" id="motorista-busca" placeholder="Buscar por nome, CPF, matrícula…" oninput="renderMotoristas()" style="flex:1;min-width:180px;">
+          <select id="m-f-cliente" onchange="renderMotoristas()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--bg);color:var(--text);min-width:180px;">
+            <option value="">Todos os clientes</option>
+          </select>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <a href="template_motoristas.xlsx" download class="btn btn-outline btn-sm" title="Baixar template Excel para importação">
@@ -1954,6 +1972,7 @@
               <th>Nº CNH</th>
               <th>Venc. CNH</th>
               <th>Status</th>
+              <th>Cliente</th>
               <th style="text-align:right">Ações</th>
             </tr>
           </thead>
@@ -2279,6 +2298,12 @@
                   <option value="Inativo">Inativo</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Cliente</label>
+                <select id="iv-f-cliente" onchange="renderIntervalos()">
+                  <option value="">Todos os clientes</option>
+                </select>
+              </div>
               <div style="display:flex;gap:8px;align-items:flex-end">
                 <button onclick="ivLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">
                   Limpar
@@ -2300,6 +2325,7 @@
                     <th>Intervalo Mínimo</th>
                     <th>Status</th>
                     <th>Observação</th>
+                    <th>Cliente</th>
                     <th style="text-align:right">Ações</th>
                   </tr>
                 </thead>
@@ -2341,6 +2367,12 @@
                   <option value="Inativo">Inativo</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Cliente</label>
+                <select id="vd-f-cliente2" onchange="renderValoresDiarios()">
+                  <option value="">Todos os clientes</option>
+                </select>
+              </div>
               <div style="display:flex;gap:8px;align-items:flex-end">
                 <button onclick="vdLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
               </div>
@@ -2357,6 +2389,7 @@
                     <th class="td-right">Valor Máximo Diário</th>
                     <th>Status</th>
                     <th>Observação</th>
+                    <th>Cliente</th>
                     <th style="text-align:right">Ações</th>
                   </tr>
                 </thead>
@@ -2398,6 +2431,12 @@
                   <option value="Inativo">Inativo</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Cliente</label>
+                <select id="vol-f-cliente" onchange="renderVolumesDiarios()">
+                  <option value="">Todos os clientes</option>
+                </select>
+              </div>
               <div style="display:flex;gap:8px;align-items:flex-end">
                 <button onclick="volLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
               </div>
@@ -2414,6 +2453,7 @@
                     <th class="td-right">Volume Máximo Diário</th>
                     <th>Status</th>
                     <th>Observação</th>
+                    <th>Cliente</th>
                     <th style="text-align:right">Ações</th>
                   </tr>
                 </thead>
@@ -2457,6 +2497,12 @@
                   <option value="Inativo">Inativo</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Cliente</label>
+                <select id="pa-f-cliente" onchange="renderProdutosAbastecidos()">
+                  <option value="">Todos os clientes</option>
+                </select>
+              </div>
               <div style="display:flex;gap:8px;align-items:flex-end">
                 <button onclick="paLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
               </div>
@@ -2475,6 +2521,7 @@
                     <th>Combustíveis Permitidos</th>
                     <th>Status</th>
                     <th>Observação</th>
+                    <th>Cliente</th>
                     <th style="text-align:right">Ações</th>
                   </tr>
                 </thead>
@@ -2516,6 +2563,12 @@
                   <option value="Inativo">Inativo</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Cliente</label>
+                <select id="hodo-leve-f-cliente" onchange="renderHodoVariacao('Leve')">
+                  <option value="">Todos os clientes</option>
+                </select>
+              </div>
               <div style="display:flex;gap:8px;align-items:flex-end">
                 <button onclick="hodoLimparFiltros('Leve')" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
               </div>
@@ -2531,6 +2584,7 @@
                   <th class="td-right">Variação Máx. (km)</th>
                   <th>Status</th>
                   <th>Observação</th>
+                  <th>Cliente</th>
                   <th style="text-align:right">Ações</th>
                 </tr></thead>
                 <tbody id="hodoLeveTbody"></tbody>
@@ -2571,6 +2625,12 @@
                   <option value="Inativo">Inativo</option>
                 </select>
               </div>
+              <div class="form-group">
+                <label>Cliente</label>
+                <select id="hodo-pesado-f-cliente" onchange="renderHodoVariacao('Pesado')">
+                  <option value="">Todos os clientes</option>
+                </select>
+              </div>
               <div style="display:flex;gap:8px;align-items:flex-end">
                 <button onclick="hodoLimparFiltros('Pesado')" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
               </div>
@@ -2586,6 +2646,7 @@
                   <th class="td-right">Variação Máx. (km)</th>
                   <th>Status</th>
                   <th>Observação</th>
+                  <th>Cliente</th>
                   <th style="text-align:right">Ações</th>
                 </tr></thead>
                 <tbody id="hodoPesadoTbody"></tbody>
@@ -2981,6 +3042,10 @@
         <option value="Inativo">Inativo</option>
         <option value="Em Revisão">Em Revisão</option>
       </select>
+      <select id="roto-f-cliente" onchange="renderRotogramaList()"
+        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.88rem;background:var(--bg);color:var(--text);min-width:170px;">
+        <option value="">Todos os clientes</option>
+      </select>
     </div>
 
     <!-- Rotograma list panel -->
@@ -3244,6 +3309,9 @@
           <option value="Cancelado">Cancelado</option>
         </select>
         <input id="pv-filter-placa" class="form-control" style="width:140px;" placeholder="Filtrar placa..." oninput="renderPlanosViagem()">
+        <select id="pv-f-cliente" class="form-control" style="width:180px;" onchange="renderPlanosViagem()">
+          <option value="">Todos os clientes</option>
+        </select>
         <button class="btn btn-primary" onclick="openPlanoModal()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Novo Plano
@@ -3256,14 +3324,15 @@
       <div class="panel-body" style="padding:0;overflow-x:auto;">
         <table class="data-table" style="table-layout:fixed;min-width:820px;">
           <thead><tr>
-            <th style="width:200px">Nome / Rota</th>
-            <th style="width:108px">Veículo</th>
-            <th style="width:120px">Motorista</th>
-            <th style="width:100px">Data Saída</th>
-            <th style="width:88px;text-align:right">KM Est.</th>
-            <th style="width:130px;text-align:right">Custo Total Est.</th>
-            <th style="width:100px;text-align:center">Status</th>
-            <th style="width:80px;text-align:center">Ações</th>
+            <th style="width:180px">Nome / Rota</th>
+            <th style="width:100px">Veículo</th>
+            <th style="width:110px">Motorista</th>
+            <th style="width:90px">Data Saída</th>
+            <th style="width:80px;text-align:right">KM Est.</th>
+            <th style="width:120px;text-align:right">Custo Total Est.</th>
+            <th style="width:90px;text-align:center">Status</th>
+            <th style="min-width:130px">Cliente</th>
+            <th style="width:72px;text-align:center">Ações</th>
           </tr></thead>
           <tbody id="pv-tbody">
             <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);font-style:italic;">Carregando...</td></tr>
@@ -5095,7 +5164,31 @@ async function populateClienteSelector() {
       const badge = document.getElementById('cliente-badge');
       if (badge) { badge.style.display = ''; badge.textContent = _clienteAtualNome.substring(0,22); }
     }
+    _refreshClienteSelects();
   } catch(e) { /* offline: ignora */ }
+}
+
+// ── Helpers de exibição de cliente ────────────────────────────
+function _clienteNome(id) {
+  if (!id) return '<span style="color:var(--text-muted);font-size:0.8rem;">—</span>';
+  const c = (_clientes || []).find(x => x.id === id);
+  if (!c) return '<span style="color:var(--text-muted);font-size:0.8rem;">—</span>';
+  return `<span style="font-weight:600;font-size:0.81rem;">${c.razao_social}</span>` +
+         (c.cnpj ? `<br><small style="font-family:monospace;color:var(--text-muted);font-size:0.7rem;">${c.cnpj}</small>` : '');
+}
+
+// Popula todos os <select> de filtro de cliente na página
+function _refreshClienteSelects() {
+  const opts = '<option value="">Todos os clientes</option>' +
+    (_clientes || []).filter(c => c.status === 'Ativo').map(c =>
+      `<option value="${c.id}">${c.razao_social}</option>`).join('');
+  ['f-cliente','v-f-cliente','m-f-cliente','neg-f-cliente',
+   'iv-f-cliente','vd-f-cliente2','vol-f-cliente','pa-f-cliente',
+   'hodo-leve-f-cliente','hodo-pesado-f-cliente',
+   'roto-f-cliente','pv-f-cliente'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) { const v = sel.value; sel.innerHTML = opts; sel.value = v; }
+  });
 }
 
 // ── Shared client row for all modals ──────────────────────────
@@ -5498,8 +5591,9 @@ function _populateHodoFiltroPlacas() {
 
 function renderHodoVariacao(tipo) {
   const tipoLower = tipo.toLowerCase();
-  const filtPlaca  = document.getElementById(`hodo-${tipoLower}-f-placa`)?.value  || '';
-  const filtStatus = document.getElementById(`hodo-${tipoLower}-f-status`)?.value || '';
+  const filtPlaca  = document.getElementById(`hodo-${tipoLower}-f-placa`)?.value   || '';
+  const filtStatus = document.getElementById(`hodo-${tipoLower}-f-status`)?.value  || '';
+  const filtCli    = document.getElementById(`hodo-${tipoLower}-f-cliente`)?.value || '';
   const tbody  = document.getElementById(`hodo${tipo}Tbody`);
   const empty  = document.getElementById(`hodo${tipo}-empty`);
   const wrap   = document.getElementById(`hodo${tipo}TableWrap`);
@@ -5508,6 +5602,7 @@ function renderHodoVariacao(tipo) {
   let lista = hodoVariacoes.filter(r => r.tipo_veiculo === tipo);
   if (filtPlaca)  lista = lista.filter(r => r.placa === filtPlaca);
   if (filtStatus) lista = lista.filter(r => r.status === filtStatus);
+  if (filtCli)    lista = lista.filter(r => String(r.cliente_id) === String(filtCli));
 
   if (!lista.length) {
     if (empty) empty.style.display = '';
@@ -5522,6 +5617,7 @@ function renderHodoVariacao(tipo) {
     <td class="td-right"><strong>${Number(r.variacao_max_km).toLocaleString('pt-BR')} km</strong></td>
     <td><span style="background:${r.status==='Ativo'?'#dcfce7':'#f1f5f9'};color:${r.status==='Ativo'?'#15803d':'#64748b'};padding:2px 8px;border-radius:10px;font-size:0.76rem;font-weight:700">${r.status}</span></td>
     <td style="color:var(--text-muted);font-size:0.83rem;">${escHtml(r.observacao)||'—'}</td>
+    <td style="min-width:110px;">${_clienteNome(r.cliente_id)}</td>
     <td style="text-align:right;white-space:nowrap">
       <div style="display:inline-flex;gap:4px">
         <button class="btn btn-sm btn-outline" onclick="openHodoVariacaoModal('${tipo}',${r.id})">✎ Editar</button>
@@ -5533,10 +5629,10 @@ function renderHodoVariacao(tipo) {
 
 function hodoLimparFiltros(tipo) {
   const tipoLower = tipo.toLowerCase();
-  const sel = document.getElementById(`hodo-${tipoLower}-f-placa`);
-  const st  = document.getElementById(`hodo-${tipoLower}-f-status`);
-  if (sel) sel.value = '';
-  if (st)  st.value  = '';
+  ['placa','status','cliente'].forEach(f => {
+    const el = document.getElementById(`hodo-${tipoLower}-f-${f}`);
+    if (el) el.value = '';
+  });
   renderHodoVariacao(tipo);
 }
 
@@ -5802,6 +5898,7 @@ function applyFilters() {
   const motorista= document.getElementById('f-motorista').value.trim().toLowerCase();
   const comb     = document.getElementById('f-combustivel').value;
   const posto    = document.getElementById('f-posto').value.trim().toLowerCase();
+  const cliente  = document.getElementById('f-cliente')?.value;
 
   filteredRecords = records.filter(r => {
     if (dataIni && r.data < dataIni) return false;
@@ -5810,6 +5907,7 @@ function applyFilters() {
     if (motorista && !r.motorista.toLowerCase().includes(motorista)) return false;
     if (comb && r.combustivel !== comb) return false;
     if (posto && !r.posto.toLowerCase().includes(posto)) return false;
+    if (cliente && String(r.cliente_id) !== String(cliente)) return false;
     return true;
   });
   currentPage = 1;
@@ -5817,9 +5915,9 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  ['f-data-ini','f-data-fim','f-placa','f-motorista','f-combustivel','f-posto'].forEach(id => {
+  ['f-data-ini','f-data-fim','f-placa','f-motorista','f-combustivel','f-posto','f-cliente'].forEach(id => {
     const el = document.getElementById(id);
-    el.value = '';
+    if (el) el.value = '';
   });
   filteredRecords = [...records];
   currentPage = 1;
@@ -5950,6 +6048,7 @@ function renderTable() {
       <td class="td-right"><span class="price-unit">${fmtBRLp(r.precoUnitario)}</span></td>
       <td class="td-right"><span class="price-total">${fmtBRL(r.valorTotal)}</span></td>
       <td class="td-right">${consHtml}</td>
+      <td style="min-width:140px;">${_clienteNome(r.cliente_id)}</td>
       <td class="td-center">
         <div class="row-actions">
           <button class="btn btn-outline btn-sm btn-icon" title="Editar" onclick="editRecord(${r.id})">
@@ -8752,6 +8851,7 @@ function renderNegociacoes() {
   const fStatus = document.getElementById('neg-f-status')?.value || '';
   const fTipo   = document.getElementById('neg-f-tipo')?.value   || '';
   const fComb   = document.getElementById('neg-f-comb')?.value   || '';
+  const fCli    = document.getElementById('neg-f-cliente')?.value || '';
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -8769,6 +8869,7 @@ function renderNegociacoes() {
     if (fStatus && n._statusCalc !== fStatus) return false;
     if (fTipo   && n.tipo_acordo !== fTipo)  return false;
     if (fComb   && n.combustivel !== fComb)  return false;
+    if (fCli    && String(n.cliente_id) !== String(fCli)) return false;
     return true;
   });
 
@@ -8786,7 +8887,7 @@ function renderNegociacoes() {
   _s('neg-kpi-volume',   volTotal.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})+' L');
 
   if (lista.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted);">
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">
       ${negociacoes.length===0 ? 'Nenhuma negociação cadastrada. Clique em <strong>Nova Negociação</strong> para começar.' : 'Nenhum registro encontrado para os filtros selecionados.'}
     </td></tr>`;
     return;
@@ -8825,6 +8926,7 @@ function renderNegociacoes() {
       <td class="td-right">${fmtVol(volEst)}</td>
       <td>${vigencia}</td>
       <td><span class="neg-status ${statusCls}">${statusDot} ${n._statusCalc.charAt(0).toUpperCase()+n._statusCalc.slice(1)}</span></td>
+      <td style="min-width:130px;">${_clienteNome(n.cliente_id)}</td>
       <td>
         <div style="display:flex;gap:5px;justify-content:center;">
           <button class="btn btn-outline btn-sm" title="Editar" onclick="editNegociacao(${n.id})">
@@ -9544,6 +9646,7 @@ async function deleteVeiculo(id) {
 // ─── RENDER ───
 function renderVeiculos() {
   const busca   = (document.getElementById('veiculo-busca')?.value || '').toLowerCase();
+  const fCli    = document.getElementById('v-f-cliente')?.value || '';
   const empty   = document.getElementById('veiculos-empty');
   const wrap    = document.getElementById('veiculoTableWrap');
   const tbody   = document.getElementById('veiculoTbody');
@@ -9556,9 +9659,10 @@ function renderVeiculos() {
   document.getElementById('vkpi-agregados').textContent= veiculos.filter(v => v.classificacao === 'Agregado').length;
 
   const filtrados = veiculos.filter(v => {
-    if (!busca) return true;
-    return [v.placa, v.marca, v.modelo, v.tipo, v.subtipo, v.chassi, v.motor]
-      .some(s => (s || '').toLowerCase().includes(busca));
+    if (busca && ![v.placa, v.marca, v.modelo, v.tipo, v.subtipo, v.chassi, v.motor]
+      .some(s => (s || '').toLowerCase().includes(busca))) return false;
+    if (fCli && String(v.cliente_id) !== String(fCli)) return false;
+    return true;
   });
 
   if (filtrados.length === 0) {
@@ -9593,6 +9697,7 @@ function renderVeiculos() {
       <td style="color:var(--text-muted)">${hodo}</td>
       <td style="color:var(--text-muted)">${tanque}</td>
       <td style="text-align:center;color:var(--text-muted)">${v.numEixos || '—'}</td>
+      <td style="min-width:130px;">${_clienteNome(v.cliente_id)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm btn-outline" style="margin-right:4px" onclick="openVeiculoModal(${v.id})">✎ Editar</button>
         <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="deleteVeiculo(${v.id})">✕</button>
@@ -9780,6 +9885,7 @@ async function deleteMotorista(id) {
 // ─── RENDER ───
 function renderMotoristas() {
   const busca   = (document.getElementById('motorista-busca')?.value || '').toLowerCase();
+  const fCli    = document.getElementById('m-f-cliente')?.value || '';
   const empty   = document.getElementById('motoristas-empty');
   const wrap    = document.getElementById('motoristaTableWrap');
   const tbody   = document.getElementById('motoristaTbody');
@@ -9803,9 +9909,10 @@ function renderMotoristas() {
   document.getElementById('mkpi-cnh-prx').textContent  = nPrx;
 
   const filtrados = motoristas.filter(m => {
-    if (!busca) return true;
-    return [m.nome, m.cpf, m.apelido, m.matricula, m.email, m.numCnh]
-      .some(s => (s || '').toLowerCase().includes(busca));
+    if (busca && ![m.nome, m.cpf, m.apelido, m.matricula, m.email, m.numCnh]
+      .some(s => (s || '').toLowerCase().includes(busca))) return false;
+    if (fCli && String(m.cliente_id) !== String(fCli)) return false;
+    return true;
   });
 
   if (filtrados.length === 0) {
@@ -9830,6 +9937,7 @@ function renderMotoristas() {
       <td style="font-family:monospace;color:var(--text-muted)">${m.numCnh || '—'}</td>
       <td>${m.vencimentoCnh ? `<span class="badge ${cnh.cls}">${cnh.label}</span>` : '—'}</td>
       <td><span class="badge ${sBadge}">${m.status}</span></td>
+      <td style="min-width:130px;">${_clienteNome(m.cliente_id)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm btn-outline" style="margin-right:4px" onclick="openMotoristaModal(${m.id})">✎ Editar</button>
         <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="deleteMotorista(${m.id})">✕</button>
@@ -10704,10 +10812,12 @@ function _validarIntervalo(tipo, referencia, data, hora) {
 function renderIntervalos() {
   const filTipo   = (document.getElementById('iv-f-tipo')?.value   || '');
   const filStatus = (document.getElementById('iv-f-status')?.value || '');
+  const filCli    = document.getElementById('iv-f-cliente')?.value  || '';
 
   const filtered = intervalos.filter(r => {
     if (filTipo   && r.tipo   !== filTipo)   return false;
     if (filStatus && r.status !== filStatus) return false;
+    if (filCli    && String(r.cliente_id) !== String(filCli)) return false;
     return true;
   });
 
@@ -10735,6 +10845,7 @@ function renderIntervalos() {
       <td><strong>${r.intervaloMinimo}</strong> ${r.unidade.toLowerCase()}</td>
       <td><span class="vl-badge ${badgeCls}">${r.status}</span></td>
       <td style="font-size:0.82rem;color:var(--text-muted)">${r.observacao||'—'}</td>
+      <td style="min-width:120px;">${_clienteNome(r.cliente_id)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button onclick="openIntervaloModal(${r.id})" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:0.78rem;cursor:pointer;margin-right:4px;">Editar</button>
         <button onclick="deleteIntervalo(${r.id})" style="padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:0.78rem;cursor:pointer;">Excluir</button>
@@ -10744,7 +10855,7 @@ function renderIntervalos() {
 }
 
 function ivLimparFiltros() {
-  ['iv-f-tipo','iv-f-status'].forEach(id => {
+  ['iv-f-tipo','iv-f-status','iv-f-cliente'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   renderIntervalos();
@@ -10907,11 +11018,13 @@ function _populateVdFilterSelect() {
 
 function renderValoresDiarios() {
   _populateVdFilterSelect();
-  const filMot    = document.getElementById('vd-f-motorista')?.value || '';
-  const filStatus = document.getElementById('vd-f-status')?.value    || '';
+  const filMot    = document.getElementById('vd-f-motorista')?.value  || '';
+  const filStatus = document.getElementById('vd-f-status')?.value     || '';
+  const filCli    = document.getElementById('vd-f-cliente2')?.value   || '';
   const filtered  = valoresDiarios.filter(r => {
     if (filMot    && r.motorista !== filMot)    return false;
     if (filStatus && r.status   !== filStatus)  return false;
+    if (filCli    && String(r.cliente_id) !== String(filCli)) return false;
     return true;
   });
   const empty = document.getElementById('valoresDiarios-empty');
@@ -10930,6 +11043,7 @@ function renderValoresDiarios() {
       <td class="td-right"><strong>R$ ${r.valorMax.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></td>
       <td><span class="vl-badge ${bc}">${r.status}</span></td>
       <td style="font-size:0.82rem;color:var(--text-muted)">${r.observacao||'—'}</td>
+      <td style="min-width:120px;">${_clienteNome(r.cliente_id)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button onclick="openValorDiarioModal(${r.id})" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:0.78rem;cursor:pointer;margin-right:4px;">Editar</button>
         <button onclick="deleteValorDiario(${r.id})" style="padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:0.78rem;cursor:pointer;">Excluir</button>
@@ -10939,7 +11053,7 @@ function renderValoresDiarios() {
 }
 
 function vdLimparFiltros() {
-  ['vd-f-motorista','vd-f-status'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['vd-f-motorista','vd-f-status','vd-f-cliente2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderValoresDiarios();
 }
 
@@ -11093,9 +11207,11 @@ function renderVolumesDiarios() {
   _populateVolFilterSelect();
   const filPlaca  = document.getElementById('vol-f-placa')?.value   || '';
   const filStatus = document.getElementById('vol-f-status')?.value  || '';
+  const filCli    = document.getElementById('vol-f-cliente')?.value || '';
   const filtered  = volumesDiarios.filter(r => {
     if (filPlaca  && r.placa   !== filPlaca)   return false;
     if (filStatus && r.status  !== filStatus)  return false;
+    if (filCli    && String(r.cliente_id) !== String(filCli)) return false;
     return true;
   });
   const empty = document.getElementById('volumesDiarios-empty');
@@ -11114,6 +11230,7 @@ function renderVolumesDiarios() {
       <td class="td-right"><strong>${r.volumeMax.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} L</strong></td>
       <td><span class="vl-badge ${bc}">${r.status}</span></td>
       <td style="font-size:0.82rem;color:var(--text-muted)">${r.observacao||'—'}</td>
+      <td style="min-width:120px;">${_clienteNome(r.cliente_id)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button onclick="openVolumeDiarioModal(${r.id})" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:0.78rem;cursor:pointer;margin-right:4px;">Editar</button>
         <button onclick="deleteVolumeDiario(${r.id})" style="padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:0.78rem;cursor:pointer;">Excluir</button>
@@ -11123,7 +11240,7 @@ function renderVolumesDiarios() {
 }
 
 function volLimparFiltros() {
-  ['vol-f-placa','vol-f-status'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['vol-f-placa','vol-f-status','vol-f-cliente'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderVolumesDiarios();
 }
 
@@ -11261,13 +11378,14 @@ function renderProdutosAbastecidos() {
   _populatePaFilterSelect();
   const filPlaca  = document.getElementById('pa-f-placa')?.value  || '';
   const filStatus = document.getElementById('pa-f-status')?.value || '';
+  const filCli    = document.getElementById('pa-f-cliente')?.value || '';
 
   const filtered = produtosAbastecidos.filter(r => {
     if (filStatus && r.status !== filStatus) return false;
     if (filPlaca) {
-      // Mostra se a regra inclui a placa filtrada ou se é 'Todos'
       if (!r.placas.includes('Todos') && !r.placas.includes(filPlaca)) return false;
     }
+    if (filCli && String(r.cliente_id) !== String(filCli)) return false;
     return true;
   });
 
@@ -11304,6 +11422,7 @@ function renderProdutosAbastecidos() {
       <td style="max-width:260px;white-space:normal;line-height:1.6">${combHtml}</td>
       <td><span class="vl-badge ${bc}">${r.status}</span></td>
       <td style="font-size:0.82rem;color:var(--text-muted)">${r.observacao || '—'}</td>
+      <td style="min-width:120px;">${_clienteNome(r.cliente_id)}</td>
       <td style="text-align:right;white-space:nowrap">
         <button onclick="openProdutoAbastecidoModal(${r.id})" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:0.78rem;cursor:pointer;margin-right:4px;">Editar</button>
         <button onclick="deleteProdutoAbastecido(${r.id})" style="padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:0.78rem;cursor:pointer;">Excluir</button>
@@ -11313,7 +11432,7 @@ function renderProdutosAbastecidos() {
 }
 
 function paLimparFiltros() {
-  ['pa-f-placa','pa-f-status'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['pa-f-placa','pa-f-status','pa-f-cliente'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   renderProdutosAbastecidos();
 }
 
@@ -12253,15 +12372,17 @@ async function loadRotogramas() {
 
 // ── Renderiza lista ─────────────────────────────────────────────
 function renderRotogramaList() {
-  const search = (document.getElementById('roto-search')?.value || '').toLowerCase();
+  const search  = (document.getElementById('roto-search')?.value || '').toLowerCase();
   const fStatus = document.getElementById('roto-filter-status')?.value || '';
+  const fCli    = document.getElementById('roto-f-cliente')?.value     || '';
   let list = rotogramas;
-  if (search) list = list.filter(r =>
+  if (search)  list = list.filter(r =>
     r.nome.toLowerCase().includes(search) ||
     r.origem.toLowerCase().includes(search) ||
     r.destino.toLowerCase().includes(search)
   );
   if (fStatus) list = list.filter(r => r.status === fStatus);
+  if (fCli)    list = list.filter(r => String(r.cliente_id) === String(fCli));
 
   const badge = document.getElementById('roto-count-badge');
   if (badge) badge.textContent = `${list.length} rotograma${list.length !== 1 ? 's' : ''}`;
@@ -12287,6 +12408,7 @@ function renderRotogramaList() {
           <span class="${stCls}">${r.status}</span>
           ${r.rodovias ? `<span style="font-size:0.75rem;color:var(--text-muted);">${escHtml(r.rodovias)}</span>` : ''}
           ${r.versao ? `<span style="font-size:0.72rem;color:var(--text-muted);">v${escHtml(r.versao)}</span>` : ''}
+          ${r.cliente_id ? `<span style="font-size:0.74rem;color:#1d4ed8;font-weight:600;background:#eff6ff;padding:1px 7px;border-radius:8px;">${((_clientes||[]).find(c=>c.id===r.cliente_id)?.razao_social)||'—'}</span>` : ''}
         </div>
       </div>
       <div class="roto-card-actions" onclick="event.stopPropagation()">
@@ -13326,17 +13448,19 @@ function _renderPvKpis(kpis) {
 function renderPlanosViagem() {
   const statusFilter = document.getElementById('pv-filter-status')?.value || '';
   const placaFilter  = (document.getElementById('pv-filter-placa')?.value || '').toUpperCase();
+  const cliFilter    = document.getElementById('pv-f-cliente')?.value     || '';
   const tbody = document.getElementById('pv-tbody');
   if (!tbody) return;
 
   let data = _planosViagem.filter(p => {
     if (statusFilter && p.status !== statusFilter) return false;
     if (placaFilter  && !p.placa.toUpperCase().includes(placaFilter)) return false;
+    if (cliFilter    && String(p.cliente_id) !== String(cliFilter)) return false;
     return true;
   });
 
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);font-style:italic;">Nenhum plano encontrado.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted);font-style:italic;">Nenhum plano encontrado.</td></tr>`;
     return;
   }
 
@@ -13372,6 +13496,7 @@ function renderPlanosViagem() {
       <td style="text-align:right;color:var(--text-muted);">${p.km_estimado > 0 ? p.km_estimado.toLocaleString('pt-BR') + ' km' : '—'}</td>
       <td style="text-align:right;font-weight:700;color:#059669;">${p.custo_total_estimado > 0 ? fmtBRL(p.custo_total_estimado) : '—'}</td>
       <td style="text-align:center;">${statusBadge(p.status)}</td>
+      <td style="min-width:130px;">${_clienteNome(p.cliente_id)}</td>
       <td style="text-align:center;white-space:nowrap;"><div style="display:inline-flex;gap:4px;">${btnEdit(p.id)}${btnDel(p.id)}</div></td>
     </tr>`;
   }).join('');
