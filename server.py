@@ -21,6 +21,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import psycopg2
 import psycopg2.extras
 import json, os, re, sys, threading
+from datetime import date as _date
 from urllib.parse import urlparse, parse_qs
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
@@ -60,6 +61,9 @@ def _fetchone(conn, sql, params=None):
     cur = _exec(conn, sql, params)
     row = cur.fetchone()
     return dict(row) if row else None
+
+def _hoje():
+    return _date.today().isoformat()
 
 # ═══════════════════════════════════════════════════════════════
 #  SCHEMA – CREATE TABLES
@@ -424,6 +428,42 @@ def init_db():
         updated_at            TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
     )''')
 
+    # ── Controle de Custos ───────────────────────────────────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS centros_custo (
+        id            SERIAL PRIMARY KEY,
+        codigo        TEXT    DEFAULT '',
+        nome          TEXT    NOT NULL,
+        descricao     TEXT    DEFAULT '',
+        responsavel   TEXT    DEFAULT '',
+        cliente_id    INTEGER DEFAULT NULL,
+        status        TEXT    DEFAULT 'Ativo',
+        criado_em     TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+    )''')
+
+    cur.execute('''CREATE TABLE IF NOT EXISTS orcamentos_cc (
+        id                SERIAL PRIMARY KEY,
+        centro_custo_id   INTEGER NOT NULL,
+        ano               INTEGER NOT NULL,
+        mes               INTEGER NOT NULL,
+        categoria         TEXT    NOT NULL,
+        valor_orcado      REAL    DEFAULT 0,
+        observacoes       TEXT    DEFAULT ''
+    )''')
+
+    cur.execute('''CREATE TABLE IF NOT EXISTS lancamentos_cc (
+        id                SERIAL PRIMARY KEY,
+        centro_custo_id   INTEGER NOT NULL,
+        data              TEXT    NOT NULL,
+        categoria         TEXT    NOT NULL,
+        descricao         TEXT    DEFAULT '',
+        valor             REAL    NOT NULL DEFAULT 0,
+        tipo              TEXT    DEFAULT 'Despesa',
+        referencia_tipo   TEXT    DEFAULT 'Manual',
+        referencia_id     INTEGER DEFAULT NULL,
+        cliente_id        INTEGER DEFAULT NULL,
+        criado_em         TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+    )''')
+
     # ── Adiciona cliente_id nas tabelas existentes (idempotente) ──
     _TABLES_WITH_CLIENT = [
         'abastecimentos', 'motoristas', 'veiculos', 'vinculos',
@@ -460,6 +500,14 @@ def init_db():
           END IF;
         END $$
     ''')
+
+    # centro_custo_id in veiculos, motoristas and planos_viagem
+    cur.execute('''ALTER TABLE veiculos
+        ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
+    cur.execute('''ALTER TABLE motoristas
+        ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
+    cur.execute('''ALTER TABLE planos_viagem
+        ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
 
     conn.commit()
     conn.close()
@@ -983,6 +1031,57 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json(kpis)
 
+        elif path == '/api/centros-custo':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
+            conn = get_db()
+            if cid:
+                rows = _fetchall(conn, 'SELECT * FROM centros_custo WHERE cliente_id=%s ORDER BY nome', [int(cid)])
+            else:
+                rows = _fetchall(conn, 'SELECT * FROM centros_custo ORDER BY nome')
+            conn.close()
+            self.send_json(rows)
+
+        elif path == '/api/orcamentos-cc':
+            qs  = parse_qs(urlparse(self.path).query)
+            cc  = qs.get('centro_custo_id', [None])[0]
+            ano = qs.get('ano', [None])[0]
+            mes = qs.get('mes', [None])[0]
+            where, params = [], []
+            if cc:  where.append('centro_custo_id=%s'); params.append(int(cc))
+            if ano: where.append('ano=%s');             params.append(int(ano))
+            if mes: where.append('mes=%s');             params.append(int(mes))
+            sql = 'SELECT * FROM orcamentos_cc'
+            if where: sql += ' WHERE ' + ' AND '.join(where)
+            sql += ' ORDER BY ano DESC, mes DESC, categoria'
+            conn = get_db()
+            rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
+
+        elif path == '/api/lancamentos-cc':
+            qs    = parse_qs(urlparse(self.path).query)
+            cc    = qs.get('centro_custo_id', [None])[0]
+            ano   = qs.get('ano',   [None])[0]
+            mes   = qs.get('mes',   [None])[0]
+            categ = qs.get('categoria', [None])[0]
+            tipo  = qs.get('tipo',  [None])[0]
+            cid   = qs.get('cliente_id', [None])[0]
+            where, params = [], []
+            if cc:    where.append('centro_custo_id=%s'); params.append(int(cc))
+            if cid:   where.append('cliente_id=%s');      params.append(int(cid))
+            if ano:   where.append("EXTRACT(YEAR FROM data::date)=%s");  params.append(int(ano))
+            if mes:   where.append("EXTRACT(MONTH FROM data::date)=%s"); params.append(int(mes))
+            if categ: where.append('categoria=%s');       params.append(categ)
+            if tipo:  where.append('tipo=%s');            params.append(tipo)
+            sql = 'SELECT * FROM lancamentos_cc'
+            if where: sql += ' WHERE ' + ' AND '.join(where)
+            sql += ' ORDER BY data DESC, id DESC'
+            conn = get_db()
+            rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
+
         elif path == '/api/status':
             self.send_json({'ok': True, 'db': f'postgresql://{DB_HOST}:{DB_PORT}/{DB_NAME}'})
 
@@ -1141,13 +1240,14 @@ class Handler(BaseHTTPRequestHandler):
             conn = get_db()
             try:
                 cur = _exec(conn, '''INSERT INTO motoristas
-                    (cpf,nome,status,classificacao,apelido,matricula,celular,email,num_cnh,vencimento_cnh,cliente_id)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                    (cpf,nome,status,classificacao,apelido,matricula,celular,email,num_cnh,vencimento_cnh,cliente_id,centro_custo_id)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                     d.get('cpf',''), d.get('nome',''),
                     d.get('status','Ativo'), d.get('classificacao','Próprio'),
                     d.get('apelido',''), d.get('matricula',''), d.get('celular',''),
                     d.get('email',''), d.get('numCnh',''), d.get('vencimentoCnh',''),
                     d.get('cliente_id') or None,
+                    d.get('centro_custo_id') or None,
                 ])
                 conn.commit()
                 new_id = cur.fetchone()['id']
@@ -1164,8 +1264,8 @@ class Handler(BaseHTTPRequestHandler):
                 cur = _exec(conn, '''INSERT INTO veiculos
                     (placa,chassi,status,classificacao,tipo,subtipo,num_eixos,
                      marca,modelo,motor,ano_fabricacao,ano_modelo,
-                     capacidade_tanque,hodometro,renavam,combustivel_especificado,cliente_id)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                     capacidade_tanque,hodometro,renavam,combustivel_especificado,cliente_id,centro_custo_id)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                     d.get('placa','').upper(), d.get('chassi',''),
                     d.get('status','Ativo'), d.get('classificacao','Próprio'),
                     d.get('tipo','Leve'), d.get('subtipo','Passeio'),
@@ -1175,6 +1275,7 @@ class Handler(BaseHTTPRequestHandler):
                     d.get('capacidadeTanque',0), d.get('hodometro',0),
                     d.get('renavam',''), d.get('combustivelEspecificado',''),
                     d.get('cliente_id') or None,
+                    d.get('centro_custo_id') or None,
                 ])
                 conn.commit()
                 new_id = cur.fetchone()['id']
@@ -1359,13 +1460,14 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == '/api/planos-viagem':
             conn = get_db()
+            cc_id = d.get('centro_custo_id') or None
             cur  = _exec(conn, '''INSERT INTO planos_viagem
                 (nome,placa,motorista,rotograma_id,data_saida,data_retorno_prevista,
                  km_estimado,status,consumo_km_l,preco_combustivel,custo_combustivel,
                  custo_pedagio,num_diarias,valor_refeicao,valor_pernoite,valor_banho,
                  valor_lavagem,custo_diarias,custo_manutencao_km,custo_manutencao,
-                 custo_total_estimado,custo_total_real,observacoes,cliente_id)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                 custo_total_estimado,custo_total_real,observacoes,cliente_id,centro_custo_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id''', [
                 d.get('nome',''), d.get('placa',''), d.get('motorista',''),
                 d.get('rotogramaId') or None,
@@ -1377,10 +1479,25 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('valorBanho',0), d.get('valorLavagem',0), d.get('custoDiarias',0),
                 d.get('custoManutencaoKm',0), d.get('custoManutencao',0),
                 d.get('custoTotalEstimado',0), d.get('custoTotalReal',0),
-                d.get('observacoes',''), d.get('cliente_id') or None,
+                d.get('observacoes',''), d.get('cliente_id') or None, cc_id,
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
+            # Auto-create lancamento_cc if centro_custo_id set and cost > 0
+            custo = d.get('custoTotalEstimado', 0) or 0
+            if cc_id and custo > 0:
+                _exec(conn, '''INSERT INTO lancamentos_cc
+                    (centro_custo_id,data,categoria,descricao,valor,tipo,
+                     referencia_tipo,referencia_id,cliente_id)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
+                    cc_id,
+                    d.get('dataSaida','')[:10] or _hoje(),
+                    'Plano de Viagem',
+                    f"Plano: {d.get('nome','')} | Placa: {d.get('placa','')}",
+                    custo, 'Despesa', 'PlanoViagem', new_id,
+                    d.get('cliente_id') or None,
+                ])
+                conn.commit()
             conn.close()
             self.send_json({'id': new_id}, 201)
 
@@ -1465,6 +1582,44 @@ class Handler(BaseHTTPRequestHandler):
                 t.start()
                 self.send_json({'ok': True, 'message': 'Sincronização iniciada em segundo plano.'})
 
+        elif path == '/api/centros-custo':
+            conn = get_db()
+            cur  = _exec(conn, '''INSERT INTO centros_custo
+                (codigo,nome,descricao,responsavel,cliente_id,status)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                d.get('codigo',''), d.get('nome',''), d.get('descricao',''),
+                d.get('responsavel',''), d.get('clienteId') or None, d.get('status','Ativo')
+            ])
+            new_id = cur.fetchone()[0]
+            conn.commit(); conn.close()
+            self.send_json({'id': new_id})
+
+        elif path == '/api/orcamentos-cc':
+            conn = get_db()
+            cur  = _exec(conn, '''INSERT INTO orcamentos_cc
+                (centro_custo_id,ano,mes,categoria,valor_orcado,observacoes)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                d.get('centroCustoId'), d.get('ano'), d.get('mes'),
+                d.get('categoria',''), d.get('valorOrcado',0), d.get('observacoes','')
+            ])
+            new_id = cur.fetchone()[0]
+            conn.commit(); conn.close()
+            self.send_json({'id': new_id})
+
+        elif path == '/api/lancamentos-cc':
+            conn = get_db()
+            cur  = _exec(conn, '''INSERT INTO lancamentos_cc
+                (centro_custo_id,data,categoria,descricao,valor,tipo,referencia_tipo,referencia_id,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                d.get('centroCustoId'), d.get('data'), d.get('categoria',''),
+                d.get('descricao',''), d.get('valor',0), d.get('tipo','Despesa'),
+                d.get('referenciaTipo','Manual'), d.get('referenciaId') or None,
+                d.get('clienteId') or None
+            ])
+            new_id = cur.fetchone()[0]
+            conn.commit(); conn.close()
+            self.send_json({'id': new_id})
+
         else:
             self.send_json({'error': 'Not found'}, 404)
 
@@ -1539,12 +1694,12 @@ class Handler(BaseHTTPRequestHandler):
             conn = get_db()
             _exec(conn, '''UPDATE motoristas SET
                 cpf=%s,nome=%s,status=%s,classificacao=%s,apelido=%s,matricula=%s,celular=%s,
-                email=%s,num_cnh=%s,vencimento_cnh=%s,cliente_id=%s WHERE id=%s''', [
+                email=%s,num_cnh=%s,vencimento_cnh=%s,cliente_id=%s,centro_custo_id=%s WHERE id=%s''', [
                 d.get('cpf',''), d.get('nome',''),
                 d.get('status','Ativo'), d.get('classificacao','Próprio'),
                 d.get('apelido',''), d.get('matricula',''), d.get('celular',''),
                 d.get('email',''), d.get('numCnh',''), d.get('vencimentoCnh',''),
-                d.get('cliente_id') or None, id_
+                d.get('cliente_id') or None, d.get('centro_custo_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1557,7 +1712,7 @@ class Handler(BaseHTTPRequestHandler):
                 placa=%s,chassi=%s,status=%s,classificacao=%s,tipo=%s,subtipo=%s,num_eixos=%s,
                 marca=%s,modelo=%s,motor=%s,ano_fabricacao=%s,ano_modelo=%s,
                 capacidade_tanque=%s,hodometro=%s,renavam=%s,combustivel_especificado=%s,
-                cliente_id=%s WHERE id=%s''', [
+                cliente_id=%s,centro_custo_id=%s WHERE id=%s''', [
                 d.get('placa','').upper(), d.get('chassi',''),
                 d.get('status','Ativo'), d.get('classificacao','Próprio'),
                 d.get('tipo','Leve'), d.get('subtipo','Passeio'),
@@ -1566,7 +1721,7 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('anoFabricacao') or None, d.get('anoModelo') or None,
                 d.get('capacidadeTanque',0), d.get('hodometro',0),
                 d.get('renavam',''), d.get('combustivelEspecificado',''),
-                d.get('cliente_id') or None, id_
+                d.get('cliente_id') or None, d.get('centro_custo_id') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1774,13 +1929,15 @@ class Handler(BaseHTTPRequestHandler):
         m = re.match(r'^/api/planos-viagem/(\d+)$', path)
         if m:
             id_ = int(m.group(1))
+            cc_id = d.get('centro_custo_id') or None
             conn = get_db()
             _exec(conn, '''UPDATE planos_viagem SET
                 nome=%s,placa=%s,motorista=%s,rotograma_id=%s,data_saida=%s,data_retorno_prevista=%s,
                 km_estimado=%s,status=%s,consumo_km_l=%s,preco_combustivel=%s,custo_combustivel=%s,
                 custo_pedagio=%s,num_diarias=%s,valor_refeicao=%s,valor_pernoite=%s,valor_banho=%s,
                 valor_lavagem=%s,custo_diarias=%s,custo_manutencao_km=%s,custo_manutencao=%s,
-                custo_total_estimado=%s,custo_total_real=%s,observacoes=%s,cliente_id=%s WHERE id=%s''', [
+                custo_total_estimado=%s,custo_total_real=%s,observacoes=%s,
+                cliente_id=%s,centro_custo_id=%s WHERE id=%s''', [
                 d.get('nome',''), d.get('placa',''), d.get('motorista',''),
                 d.get('rotogramaId') or None,
                 d.get('dataSaida',''), d.get('dataRetornoPrevista',''),
@@ -1792,8 +1949,34 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('custoManutencaoKm',0), d.get('custoManutencao',0),
                 d.get('custoTotalEstimado',0), d.get('custoTotalReal',0),
                 d.get('observacoes',''),
-                d.get('cliente_id') or None, id_
+                d.get('cliente_id') or None, cc_id, id_
             ])
+            # Sync lancamento_cc for this plano (upsert by referencia)
+            if cc_id:
+                custo = d.get('custoTotalEstimado', 0) or 0
+                existing = _fetchone(conn,
+                    "SELECT id FROM lancamentos_cc WHERE referencia_tipo='PlanoViagem' AND referencia_id=%s",
+                    [id_])
+                if existing:
+                    _exec(conn, '''UPDATE lancamentos_cc SET
+                        centro_custo_id=%s,data=%s,descricao=%s,valor=%s,cliente_id=%s WHERE id=%s''', [
+                        cc_id,
+                        d.get('dataSaida','')[:10] or _hoje(),
+                        f"Plano: {d.get('nome','')} | Placa: {d.get('placa','')}",
+                        custo, d.get('cliente_id') or None, existing['id']
+                    ])
+                else:
+                    _exec(conn, '''INSERT INTO lancamentos_cc
+                        (centro_custo_id,data,categoria,descricao,valor,tipo,
+                         referencia_tipo,referencia_id,cliente_id)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
+                        cc_id,
+                        d.get('dataSaida','')[:10] or _hoje(),
+                        'Plano de Viagem',
+                        f"Plano: {d.get('nome','')} | Placa: {d.get('placa','')}",
+                        custo, 'Despesa', 'PlanoViagem', id_,
+                        d.get('cliente_id') or None,
+                    ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
@@ -1828,6 +2011,49 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('segmentoAtuacao',''),d.get('volumeDiesel',0),
                 d.get('volumeGasolinaAlcool',0), d.get('pagamento','Pós-Pago'),
                 d.get('observacoes',''),    id_
+            ])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/centros-custo/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            _exec(conn, '''UPDATE centros_custo SET
+                codigo=%s,nome=%s,descricao=%s,responsavel=%s,cliente_id=%s,status=%s
+                WHERE id=%s''', [
+                d.get('codigo',''), d.get('nome',''), d.get('descricao',''),
+                d.get('responsavel',''), d.get('clienteId') or None,
+                d.get('status','Ativo'), id_
+            ])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/orcamentos-cc/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            _exec(conn, '''UPDATE orcamentos_cc SET
+                centro_custo_id=%s,ano=%s,mes=%s,categoria=%s,valor_orcado=%s,observacoes=%s
+                WHERE id=%s''', [
+                d.get('centroCustoId'), d.get('ano'), d.get('mes'),
+                d.get('categoria',''), d.get('valorOrcado',0), d.get('observacoes',''), id_
+            ])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/lancamentos-cc/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            _exec(conn, '''UPDATE lancamentos_cc SET
+                centro_custo_id=%s,data=%s,categoria=%s,descricao=%s,
+                valor=%s,tipo=%s,referencia_tipo=%s,referencia_id=%s,cliente_id=%s
+                WHERE id=%s''', [
+                d.get('centroCustoId'), d.get('data'), d.get('categoria',''),
+                d.get('descricao',''), d.get('valor',0), d.get('tipo','Despesa'),
+                d.get('referenciaTipo','Manual'), d.get('referenciaId') or None,
+                d.get('clienteId') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -1998,6 +2224,27 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM clientes WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/centros-custo/(\d+)$', path)
+        if m:
+            conn = get_db()
+            _exec(conn, 'DELETE FROM centros_custo WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/orcamentos-cc/(\d+)$', path)
+        if m:
+            conn = get_db()
+            _exec(conn, 'DELETE FROM orcamentos_cc WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/lancamentos-cc/(\d+)$', path)
+        if m:
+            conn = get_db()
+            _exec(conn, 'DELETE FROM lancamentos_cc WHERE id=%s', [int(m.group(1))])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 

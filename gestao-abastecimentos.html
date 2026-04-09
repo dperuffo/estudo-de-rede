@@ -996,6 +996,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M3.6 9h16.8M3.6 15h16.8"/><path d="M11.5 3a17 17 0 0 0 0 18M12.5 3a17 17 0 0 1 0 18"/></svg>
         Plano de Viagem
       </button>
+      <button class="sidebar-item sidebar-subitem" id="side-btn-custos" onclick="switchTab('custos')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Controle de Custos
+      </button>
     </div>
   </div>
 
@@ -3443,6 +3447,205 @@
     </div>
   </div>
 
+  <!-- ░░ CONTROLE DE CUSTOS ░░ -->
+  <div id="view-custos" style="display:none; padding:20px 24px;">
+
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:20px;">
+      <button id="cc-sub-dashboard" class="cc-subtab active" onclick="ccSwitchSub('dashboard')" style="padding:8px 20px;background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;font-weight:600;color:var(--text-muted);font-size:0.9rem;margin-bottom:-2px;">
+        📊 Dashboard
+      </button>
+      <button id="cc-sub-centros" class="cc-subtab" onclick="ccSwitchSub('centros')" style="padding:8px 20px;background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;font-weight:600;color:var(--text-muted);font-size:0.9rem;margin-bottom:-2px;">
+        🏢 Centros de Custo
+      </button>
+      <button id="cc-sub-orcamento" class="cc-subtab" onclick="ccSwitchSub('orcamento')" style="padding:8px 20px;background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;font-weight:600;color:var(--text-muted);font-size:0.9rem;margin-bottom:-2px;">
+        📋 Orçamento
+      </button>
+      <button id="cc-sub-lancamentos" class="cc-subtab" onclick="ccSwitchSub('lancamentos')" style="padding:8px 20px;background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;font-weight:600;color:var(--text-muted);font-size:0.9rem;margin-bottom:-2px;">
+        💰 Lançamentos
+      </button>
+    </div>
+
+    <!-- ── DASHBOARD ── -->
+    <div id="cc-panel-dashboard">
+      <div id="cc-kpi-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px;"></div>
+
+      <!-- Filtros Dashboard -->
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+        <select id="cc-dash-ano" class="form-control" style="width:110px;" onchange="renderDashboardCC()">
+        </select>
+        <select id="cc-dash-mes" class="form-control" style="width:150px;" onchange="renderDashboardCC()">
+          <option value="">Todos os meses</option>
+          <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+          <option value="3">Março</option><option value="4">Abril</option>
+          <option value="5">Maio</option><option value="6">Junho</option>
+          <option value="7">Julho</option><option value="8">Agosto</option>
+          <option value="9">Setembro</option><option value="10">Outubro</option>
+          <option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <select id="cc-dash-cliente" class="form-control" style="width:180px;" onchange="renderDashboardCC()">
+          <option value="">Todos os clientes</option>
+        </select>
+      </div>
+
+      <!-- Tabela realizado vs orçado por centro -->
+      <div class="panel">
+        <div class="panel-header" style="display:flex;align-items:center;gap:8px;">
+          <strong>Realizado vs Orçado por Centro de Custo</strong>
+        </div>
+        <div class="panel-body" style="padding:0;overflow-x:auto;">
+          <table class="data-table" style="min-width:700px;">
+            <thead><tr>
+              <th>Centro de Custo</th>
+              <th>Cliente</th>
+              <th style="text-align:right">Orçado (R$)</th>
+              <th style="text-align:right">Realizado (R$)</th>
+              <th style="text-align:right">Variação</th>
+              <th style="text-align:right">% Consumido</th>
+            </tr></thead>
+            <tbody id="cc-dash-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Selecione um período para visualizar.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Top categorias -->
+      <div style="margin-top:18px;">
+        <strong style="font-size:0.95rem;">Top Categorias de Despesa</strong>
+        <div id="cc-dash-categorias" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+    </div>
+
+    <!-- ── CENTROS DE CUSTO ── -->
+    <div id="cc-panel-centros" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h2 style="font-size:1.1rem;font-weight:800;color:var(--text);">Centros de Custo</h2>
+          <p style="font-size:0.82rem;color:var(--text-muted);">Departamentos, áreas ou projetos para rateio de despesas</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="cc-f-cliente" class="form-control" style="width:180px;" onchange="renderCentrosCusto()">
+            <option value="">Todos os clientes</option>
+          </select>
+          <select id="cc-f-status" class="form-control" style="width:130px;" onchange="renderCentrosCusto()">
+            <option value="">Todos os status</option>
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+          <button class="btn btn-primary" onclick="openCentroModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Centro
+          </button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-body" style="padding:0;overflow-x:auto;">
+          <table class="data-table" style="min-width:700px;">
+            <thead><tr>
+              <th style="width:90px">Código</th>
+              <th>Nome</th>
+              <th>Responsável</th>
+              <th>Cliente</th>
+              <th style="width:90px;text-align:center">Status</th>
+              <th style="width:80px;text-align:center">Ações</th>
+            </tr></thead>
+            <tbody id="cc-centros-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ORÇAMENTO ── -->
+    <div id="cc-panel-orcamento" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h2 style="font-size:1.1rem;font-weight:800;color:var(--text);">Orçamento por Centro de Custo</h2>
+          <p style="font-size:0.82rem;color:var(--text-muted);">Valores planejados por centro, mês e categoria</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="orc-f-centro" class="form-control" style="width:200px;" onchange="renderOrcamentosCC()">
+            <option value="">Todos os centros</option>
+          </select>
+          <select id="orc-f-ano" class="form-control" style="width:100px;" onchange="renderOrcamentosCC()">
+          </select>
+          <button class="btn btn-primary" onclick="openOrcamentoModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Orçamento
+          </button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-body" style="padding:0;overflow-x:auto;">
+          <table class="data-table" style="min-width:750px;">
+            <thead><tr>
+              <th>Centro de Custo</th>
+              <th style="width:70px;text-align:center">Ano</th>
+              <th style="width:100px;text-align:center">Mês</th>
+              <th>Categoria</th>
+              <th style="width:140px;text-align:right">Valor Orçado (R$)</th>
+              <th>Observações</th>
+              <th style="width:80px;text-align:center">Ações</th>
+            </tr></thead>
+            <tbody id="cc-orc-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LANÇAMENTOS ── -->
+    <div id="cc-panel-lancamentos" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h2 style="font-size:1.1rem;font-weight:800;color:var(--text);">Lançamentos</h2>
+          <p style="font-size:0.82rem;color:var(--text-muted);">Receitas e despesas realizadas por centro de custo</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select id="lanc-f-centro" class="form-control" style="width:200px;" onchange="renderLancamentosCC()">
+            <option value="">Todos os centros</option>
+          </select>
+          <select id="lanc-f-tipo" class="form-control" style="width:130px;" onchange="renderLancamentosCC()">
+            <option value="">Todos os tipos</option>
+            <option value="Despesa">Despesa</option>
+            <option value="Receita">Receita</option>
+          </select>
+          <select id="lanc-f-cliente" class="form-control" style="width:180px;" onchange="renderLancamentosCC()">
+            <option value="">Todos os clientes</option>
+          </select>
+          <input id="lanc-f-busca" class="form-control" style="width:160px;" placeholder="Buscar descrição..." oninput="renderLancamentosCC()">
+          <button class="btn btn-primary" onclick="openLancamentoModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Lançamento
+          </button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-body" style="padding:0;overflow-x:auto;">
+          <table class="data-table" style="min-width:850px;">
+            <thead><tr>
+              <th style="width:90px">Data</th>
+              <th>Centro de Custo</th>
+              <th>Categoria</th>
+              <th>Descrição</th>
+              <th style="width:80px;text-align:center">Tipo</th>
+              <th style="width:130px;text-align:right">Valor (R$)</th>
+              <th>Origem</th>
+              <th style="width:80px;text-align:center">Ações</th>
+            </tr></thead>
+            <tbody id="cc-lanc-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /view-custos -->
+
 </div><!-- /content-area -->
 </div><!-- /app-wrapper -->
 
@@ -3974,6 +4177,14 @@
         </div>
       </div>
 
+      <!-- CENTRO DE CUSTO -->
+      <div class="form-group">
+        <label>Centro de Custo</label>
+        <select id="pv-f-centro-custo" class="form-control">
+          <option value="">— Nenhum (sem lançamento automático) —</option>
+        </select>
+      </div>
+
       <!-- OBSERVAÇÕES -->
       <div class="form-group">
         <label>Observações</label>
@@ -4356,6 +4567,16 @@
         </div>
       </div>
 
+      <!-- Linha 5: Centro de Custo -->
+      <div class="form-grid" style="grid-template-columns:1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Centro de Custo</label>
+          <select class="form-input" id="m-centro-custo">
+            <option value="">— Nenhum —</option>
+          </select>
+        </div>
+      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeMotoristaModal()">Cancelar</button>
@@ -4487,6 +4708,16 @@
         <div class="form-group">
           <label class="form-label">Hodômetro (km)</label>
           <input class="form-input" id="v-hodometro" type="number" step="1" min="0" placeholder="0">
+        </div>
+      </div>
+
+      <!-- Linha 5: Centro de Custo -->
+      <div class="form-grid" style="grid-template-columns:1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Centro de Custo</label>
+          <select class="form-input" id="v-centro-custo">
+            <option value="">— Nenhum —</option>
+          </select>
         </div>
       </div>
 
@@ -5157,6 +5388,209 @@
       <button class="btn btn-success" onclick="savePosto()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         Salvar Posto
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL CENTRO DE CUSTO ░░ -->
+<div class="modal-overlay" id="centroModalOverlay" onclick="if(event.target===this)closeCentroModal()">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="centroModalTitle">Novo Centro de Custo</h2>
+      <button class="modal-close" onclick="closeCentroModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cc-edit-id">
+      <div class="form-grid" style="grid-template-columns:1fr 2fr">
+        <div class="form-group">
+          <label class="form-label">Código</label>
+          <input class="form-input" id="cc-codigo" placeholder="CC-001" maxlength="20">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome *</label>
+          <input class="form-input" id="cc-nome" placeholder="Ex.: RH, TI, Operações...">
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Responsável</label>
+          <input class="form-input" id="cc-responsavel" placeholder="Nome do responsável">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cliente</label>
+          <select class="form-input" id="cc-cliente-id">
+            <option value="">— Geral (todos) —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <input class="form-input" id="cc-descricao" placeholder="Descrição do centro de custo">
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 2fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-input" id="cc-status">
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCentroModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="saveCentro()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar Centro
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL ORÇAMENTO CC ░░ -->
+<div class="modal-overlay" id="orcModalOverlay" onclick="if(event.target===this)closeOrcamentoModal()">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="orcModalTitle">Novo Orçamento</h2>
+      <button class="modal-close" onclick="closeOrcamentoModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="orc-edit-id">
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="form-group">
+          <label class="form-label">Centro de Custo *</label>
+          <select class="form-input" id="orc-centro-id">
+            <option value="">— Selecione —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Ano *</label>
+          <input class="form-input" id="orc-ano" type="number" min="2020" max="2035" placeholder="2026">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mês *</label>
+          <select class="form-input" id="orc-mes">
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option>
+            <option value="9">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor Orçado (R$) *</label>
+          <input class="form-input" id="orc-valor" type="number" step="0.01" min="0" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Categoria *</label>
+          <select class="form-input" id="orc-categoria">
+            <option value="Combustível">Combustível</option>
+            <option value="Manutenção">Manutenção</option>
+            <option value="Pedágio">Pedágio</option>
+            <option value="Diárias">Diárias</option>
+            <option value="Plano de Viagem">Plano de Viagem</option>
+            <option value="Pessoal">Pessoal</option>
+            <option value="Administrativo">Administrativo</option>
+            <option value="Operacional">Operacional</option>
+            <option value="Outros">Outros</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <input class="form-input" id="orc-obs" placeholder="Observações opcionais">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeOrcamentoModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="saveOrcamento()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar Orçamento
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL LANÇAMENTO CC ░░ -->
+<div class="modal-overlay" id="lancModalOverlay" onclick="if(event.target===this)closeLancamentoModal()">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="lancModalTitle">Novo Lançamento</h2>
+      <button class="modal-close" onclick="closeLancamentoModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="lanc-edit-id">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Data *</label>
+          <input class="form-input" id="lanc-data" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo *</label>
+          <select class="form-input" id="lanc-tipo">
+            <option value="Despesa">Despesa</option>
+            <option value="Receita">Receita</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Centro de Custo *</label>
+          <select class="form-input" id="lanc-centro-id">
+            <option value="">— Selecione —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Categoria *</label>
+          <select class="form-input" id="lanc-categoria">
+            <option value="Combustível">Combustível</option>
+            <option value="Manutenção">Manutenção</option>
+            <option value="Pedágio">Pedágio</option>
+            <option value="Diárias">Diárias</option>
+            <option value="Plano de Viagem">Plano de Viagem</option>
+            <option value="Pessoal">Pessoal</option>
+            <option value="Administrativo">Administrativo</option>
+            <option value="Operacional">Operacional</option>
+            <option value="Outros">Outros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor (R$) *</label>
+          <input class="form-input" id="lanc-valor" type="number" step="0.01" min="0" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Descrição *</label>
+          <input class="form-input" id="lanc-descricao" placeholder="Descreva o lançamento...">
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr;margin-top:0">
+        <div class="form-group">
+          <label class="form-label">Cliente</label>
+          <select class="form-input" id="lanc-cliente-id">
+            <option value="">— Geral (todos) —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeLancamentoModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="saveLancamento()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar Lançamento
       </button>
     </div>
   </div>
@@ -5985,6 +6419,7 @@ async function initApp() {
     loadProdutosAbastecidos(),
     loadHodoVariacao(),
     populateClienteSelector(),
+    loadCentrosCusto(),
   ]);
   // Abre a aba "Comece seu dia!" por padrão ao iniciar
   switchTab('indicadores');
@@ -8928,12 +9363,12 @@ function _renderConsumoMedio(curr) {
 // Mapeamento sub-item → grupo pai (para manter o header do grupo ativo)
 const _subItemGroup = {
   precos:'paineldinamico', varprecos:'paineldinamico', mapabandeira:'paineldinamico', volprojetado:'paineldinamico',
-  'plano-viagem':'orcamento',
+  'plano-viagem':'orcamento', 'custos':'orcamento',
   veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros'
 };
 
 function switchTab(tab) {
-  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem'].forEach(t => {
+  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos'].forEach(t => {
     const view = document.getElementById('view-' + t);
     if (view) view.style.display = tab === t ? '' : 'none';
     const tabBtn  = document.getElementById('tab-btn-' + t);
@@ -8994,6 +9429,7 @@ function switchTab(tab) {
   if (tab === 'rotograma')     { loadRotogramas(); }
   if (tab === 'plano-viagem')  { loadPlanosViagem(); loadVeiculos(); loadMotoristas(); loadRotogramas(); }
   if (tab === 'clientes')      { loadClientes(); }
+  if (tab === 'custos')        { loadCentrosCusto().then(() => { loadOrcamentosCC(); loadLancamentosCC(); renderDashboardCC(); }); }
 }
 
 // Abre/fecha grupo colapsável na sidebar
@@ -10144,7 +10580,8 @@ function mapVeiculo(r) {
     capacidadeTanque: r.capacidade_tanque || 0,
     hodometro: r.hodometro || 0, renavam: r.renavam || '',
     combustivelEspecificado: r.combustivel_especificado || '',
-    cliente_id: r.cliente_id || null
+    cliente_id: r.cliente_id || null,
+    centro_custo_id: r.centro_custo_id || null
   };
 }
 
@@ -10214,6 +10651,19 @@ function openVeiculoModal(id = null) {
   }
 
   _injectClienteRow(document.querySelector('#veiculoModalOverlay .modal-body'), id ? veiculos.find(x => x.id === id)?.cliente_id : null);
+  // Populate and set centro de custo
+  if (typeof loadCentrosCusto === 'function' && _centrosCusto.length) {
+    const vCCSel = document.getElementById('v-centro-custo');
+    if (vCCSel) {
+      vCCSel.innerHTML = '<option value="">— Nenhum —</option>';
+      _centrosCusto.filter(c => c.status==='Ativo').forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id; o.textContent = (c.codigo?c.codigo+' – ':'')+c.nome;
+        vCCSel.appendChild(o);
+      });
+      if (id) { const v=veiculos.find(x=>x.id===id); if (v) vCCSel.value=v.centro_custo_id||''; }
+    }
+  }
   document.getElementById('veiculoModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('v-placa').focus(), 80);
 }
@@ -10265,7 +10715,8 @@ async function saveVeiculo() {
     hodometro:        parseFloat(document.getElementById('v-hodometro').value) || 0,
     renavam:              document.getElementById('v-renavam').value.trim(),
     combustivelEspecificado: document.getElementById('v-combustivel-esp').value,
-    cliente_id: _getModalClienteId()
+    cliente_id: _getModalClienteId(),
+    centro_custo_id: parseInt(document.getElementById('v-centro-custo')?.value) || null
   };
 
   // ── Aplica localmente primeiro ──
@@ -10395,7 +10846,8 @@ function mapMotorista(r) {
     apelido: r.apelido || '', matricula: r.matricula || '',
     celular: r.celular || '', email: r.email || '',
     numCnh: r.num_cnh || '', vencimentoCnh: r.vencimento_cnh || '',
-    cliente_id: r.cliente_id || null
+    cliente_id: r.cliente_id || null,
+    centro_custo_id: r.centro_custo_id || null
   };
 }
 
@@ -10469,6 +10921,19 @@ function openMotoristaModal(id = null) {
   }
 
   _injectClienteRow(document.querySelector('#motoristaModalOverlay .modal-body'), id ? motoristas.find(x => x.id === id)?.cliente_id : null);
+  // Populate and set centro de custo
+  if (typeof _centrosCusto !== 'undefined' && _centrosCusto.length) {
+    const mCCSel = document.getElementById('m-centro-custo');
+    if (mCCSel) {
+      mCCSel.innerHTML = '<option value="">— Nenhum —</option>';
+      _centrosCusto.filter(c => c.status==='Ativo').forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id; o.textContent = (c.codigo?c.codigo+' – ':'')+c.nome;
+        mCCSel.appendChild(o);
+      });
+      if (id) { const m=motoristas.find(x=>x.id===id); if (m) mCCSel.value=m.centro_custo_id||''; }
+    }
+  }
   document.getElementById('motoristaModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('m-nome').focus(), 80);
 }
@@ -10513,7 +10978,8 @@ async function saveMotorista() {
     email:         document.getElementById('m-email').value.trim(),
     numCnh:        document.getElementById('m-num-cnh').value.trim(),
     vencimentoCnh: document.getElementById('m-venc-cnh').value,
-    cliente_id:    _getModalClienteId()
+    cliente_id:    _getModalClienteId(),
+    centro_custo_id: parseInt(document.getElementById('m-centro-custo')?.value) || null
   };
 
   // ── Aplica localmente primeiro ──
@@ -14377,6 +14843,9 @@ async function openPlanoModal(id) {
     document.getElementById('pv-f-manut-km').value      = p.custo_manutencao_km || '';
     document.getElementById('pv-f-total-real').value    = p.custo_total_real || '';
     document.getElementById('pv-f-obs').value           = p.observacoes || '';
+    // Set centro de custo when editing
+    const pvCCSel2 = document.getElementById('pv-f-centro-custo');
+    if (pvCCSel2 && p.centro_custo_id) pvCCSel2.value = p.centro_custo_id;
     _pvPedagiosSalvos = pedagios;
     _pvPedagios = pedagios.map(pg => ({ ...pg, _saved: true }));
     _pvExistingClienteId = p.cliente_id || null;
@@ -14386,6 +14855,18 @@ async function openPlanoModal(id) {
     _pvCalcTotais();
   }
   _injectClienteRow(document.querySelector('#planoViagemModalOverlay .modal-body'), _pvExistingClienteId);
+  // Populate and set centro de custo in plano modal
+  const pvCCSel = document.getElementById('pv-f-centro-custo');
+  if (pvCCSel) {
+    pvCCSel.innerHTML = '<option value="">— Nenhum (sem lançamento automático) —</option>';
+    if (typeof _centrosCusto !== 'undefined') {
+      _centrosCusto.filter(c => c.status==='Ativo').forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id; o.textContent = (c.codigo?c.codigo+' – ':'')+c.nome;
+        pvCCSel.appendChild(o);
+      });
+    }
+  }
   document.getElementById('planoViagemModalOverlay').classList.add('open');
 }
 function closePlanoModal() { document.getElementById('planoViagemModalOverlay').classList.remove('open'); }
@@ -14542,6 +15023,7 @@ async function savePlanoViagem() {
     custoTotalReal:     g('pv-f-total-real'),
     observacoes:        t('pv-f-obs'),
     cliente_id:         _getModalClienteId(),
+    centro_custo_id:    parseInt(document.getElementById('pv-f-centro-custo')?.value) || null,
   };
 
   try {
@@ -16533,6 +17015,474 @@ document.addEventListener('click', function(e) {
     if (popup && popup.style.display !== 'none') popup.style.display = 'none';
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  CONTROLE DE CUSTOS
+// ═══════════════════════════════════════════════════════════════
+let _centrosCusto = [];
+let _orcamentosCC = [];
+let _lancamentosCC = [];
+const _CC_MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// ── Sub-tabs ──
+function ccSwitchSub(sub) {
+  ['dashboard','centros','orcamento','lancamentos'].forEach(s => {
+    document.getElementById('cc-panel-' + s).style.display = s === sub ? '' : 'none';
+    const btn = document.getElementById('cc-sub-' + s);
+    if (btn) {
+      btn.style.color = s === sub ? 'var(--primary)' : 'var(--text-muted)';
+      btn.style.borderBottomColor = s === sub ? 'var(--primary)' : 'transparent';
+    }
+  });
+}
+
+// ── Helpers ──
+function _ccNomeCentro(id) {
+  const c = _centrosCusto.find(x => x.id === id);
+  return c ? `${c.codigo ? c.codigo + ' – ' : ''}${c.nome}` : '—';
+}
+function _ccNomeCliente(id) {
+  const c = (_clientes||[]).find(x => x.id === id);
+  return c ? c.nome : '—';
+}
+function _ccPopulateAno(selId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const cur = new Date().getFullYear();
+  const val = sel.value || String(cur);
+  sel.innerHTML = '';
+  for (let y = cur - 3; y <= cur + 2; y++) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    if (String(y) === val) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+function _ccPopulateCentros(selId, includeAll) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = includeAll ? '<option value="">Todos os centros</option>' : '<option value="">— Selecione —</option>';
+  (_centrosCusto||[]).filter(c => c.status === 'Ativo').forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = (c.codigo ? c.codigo + ' – ' : '') + c.nome;
+    if (String(c.id) === String(cur)) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+function _ccPopulateClientes(selId, includeAll) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = includeAll ? '<option value="">Todos os clientes</option>' : '<option value="">— Geral (todos) —</option>';
+  (_clientes||[]).filter(c => c.status === 'Ativo').forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.nome;
+    if (String(c.id) === String(cur)) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+// ── Loaders ──
+async function loadCentrosCusto() {
+  try {
+    _centrosCusto = await apiCall('GET', '/api/centros-custo');
+  } catch(e) { _centrosCusto = []; }
+  // Populate selects
+  _ccPopulateClientes('cc-f-cliente', true);
+  _ccPopulateClientes('cc-dash-cliente', true);
+  _ccPopulateCentros('orc-f-centro', true);
+  _ccPopulateCentros('lanc-f-centro', true);
+  // Populate centro_custo in veiculos/motoristas modals
+  ['v-centro-custo','m-centro-custo'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Nenhum —</option>';
+    (_centrosCusto||[]).filter(c => c.status === 'Ativo').forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = (c.codigo ? c.codigo + ' – ' : '') + c.nome;
+      if (String(c.id) === String(cur)) o.selected = true;
+      sel.appendChild(o);
+    });
+  });
+  renderCentrosCusto();
+}
+async function loadOrcamentosCC() {
+  try {
+    _orcamentosCC = await apiCall('GET', '/api/orcamentos-cc');
+  } catch(e) { _orcamentosCC = []; }
+  renderOrcamentosCC();
+}
+async function loadLancamentosCC() {
+  try {
+    _lancamentosCC = await apiCall('GET', '/api/lancamentos-cc');
+  } catch(e) { _lancamentosCC = []; }
+  renderLancamentosCC();
+}
+
+// ── Render Centros ──
+function renderCentrosCusto() {
+  const fCli    = document.getElementById('cc-f-cliente')?.value || '';
+  const fStatus = document.getElementById('cc-f-status')?.value || '';
+  let rows = (_centrosCusto||[]).filter(c =>
+    (!fCli    || String(c.cliente_id) === fCli) &&
+    (!fStatus || c.status === fStatus)
+  );
+  const tbody = document.getElementById('cc-centros-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">Nenhum centro de custo cadastrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(c => `<tr>
+    <td style="font-family:monospace;font-weight:600;">${c.codigo||'—'}</td>
+    <td><strong>${c.nome}</strong>${c.descricao ? '<br><small style="color:var(--text-muted)">' + c.descricao + '</small>' : ''}</td>
+    <td>${c.responsavel||'—'}</td>
+    <td>${c.cliente_id ? _ccNomeCliente(c.cliente_id) : '<span style="color:var(--text-muted)">Geral</span>'}</td>
+    <td style="text-align:center"><span class="badge badge-${c.status==='Ativo'?'success':'secondary'}">${c.status}</span></td>
+    <td style="text-align:center">
+      <button class="btn-icon" title="Editar" onclick="openCentroModal(${c.id})">✏️</button>
+      <button class="btn-icon" title="Excluir" onclick="deleteCentro(${c.id},'${c.nome.replace(/'/g,"\'")}')" style="color:#ef4444">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ── Render Orçamentos ──
+function renderOrcamentosCC() {
+  const fCentro = document.getElementById('orc-f-centro')?.value || '';
+  const fAno    = document.getElementById('orc-f-ano')?.value || '';
+  let rows = (_orcamentosCC||[]).filter(r =>
+    (!fCentro || String(r.centro_custo_id) === fCentro) &&
+    (!fAno    || String(r.ano) === fAno)
+  );
+  rows.sort((a,b) => b.ano - a.ano || b.mes - a.mes);
+  const tbody = document.getElementById('cc-orc-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">Nenhum orçamento cadastrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td>${_ccNomeCentro(r.centro_custo_id)}</td>
+    <td style="text-align:center">${r.ano}</td>
+    <td style="text-align:center">${_CC_MESES[r.mes]||r.mes}</td>
+    <td>${r.categoria}</td>
+    <td style="text-align:right;font-weight:600">${fmtBRL(r.valor_orcado)}</td>
+    <td style="color:var(--text-muted)">${r.observacoes||''}</td>
+    <td style="text-align:center">
+      <button class="btn-icon" title="Editar" onclick="openOrcamentoModal(${r.id})">✏️</button>
+      <button class="btn-icon" title="Excluir" onclick="deleteOrcamento(${r.id})" style="color:#ef4444">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ── Render Lançamentos ──
+function renderLancamentosCC() {
+  const fCentro = document.getElementById('lanc-f-centro')?.value || '';
+  const fTipo   = document.getElementById('lanc-f-tipo')?.value || '';
+  const fCli    = document.getElementById('lanc-f-cliente')?.value || '';
+  const fBusca  = (document.getElementById('lanc-f-busca')?.value || '').toLowerCase();
+  let rows = (_lancamentosCC||[]).filter(r =>
+    (!fCentro || String(r.centro_custo_id) === fCentro) &&
+    (!fTipo   || r.tipo === fTipo) &&
+    (!fCli    || String(r.cliente_id) === fCli) &&
+    (!fBusca  || (r.descricao||'').toLowerCase().includes(fBusca))
+  );
+  rows.sort((a,b) => b.data.localeCompare(a.data));
+  const tbody = document.getElementById('cc-lanc-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">Nenhum lançamento encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td>${r.data||'—'}</td>
+    <td>${_ccNomeCentro(r.centro_custo_id)}</td>
+    <td>${r.categoria||'—'}</td>
+    <td>${r.descricao||'—'}</td>
+    <td style="text-align:center">
+      <span style="padding:2px 8px;border-radius:12px;font-size:0.78rem;font-weight:600;background:${r.tipo==='Receita'?'#d1fae5':'#fee2e2'};color:${r.tipo==='Receita'?'#065f46':'#991b1b'}">${r.tipo}</span>
+    </td>
+    <td style="text-align:right;font-weight:700;color:${r.tipo==='Receita'?'#059669':'#dc2626'}">${r.tipo==='Receita'?'+':'−'}${fmtBRL(r.valor)}</td>
+    <td style="font-size:0.8rem;color:var(--text-muted)">${r.referencia_tipo && r.referencia_tipo !== 'Manual' ? r.referencia_tipo + ' #' + r.referencia_id : 'Manual'}</td>
+    <td style="text-align:center">
+      ${r.referencia_tipo==='Manual'||!r.referencia_tipo ? `<button class="btn-icon" title="Editar" onclick="openLancamentoModal(${r.id})">✏️</button>` : ''}
+      <button class="btn-icon" title="Excluir" onclick="deleteLancamento(${r.id})" style="color:#ef4444">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ── Dashboard ──
+function renderDashboardCC() {
+  _ccPopulateAno('cc-dash-ano');
+  const ano    = parseInt(document.getElementById('cc-dash-ano')?.value) || new Date().getFullYear();
+  const mes    = parseInt(document.getElementById('cc-dash-mes')?.value) || 0;
+  const fCli   = document.getElementById('cc-dash-cliente')?.value || '';
+
+  // Filtra orçamentos e lançamentos
+  const orcs = (_orcamentosCC||[]).filter(r =>
+    r.ano === ano && (!mes || r.mes === mes) &&
+    (!fCli || String(r.cliente_id) === fCli || !r.cliente_id)
+  );
+  const lancs = (_lancamentosCC||[]).filter(r => {
+    const d = r.data || '';
+    const rAno = parseInt(d.slice(0,4));
+    const rMes = parseInt(d.slice(5,7));
+    return rAno === ano && (!mes || rMes === mes) &&
+      (!fCli || String(r.cliente_id) === fCli || !r.cliente_id);
+  });
+
+  // Totais globais
+  const totalOrc  = orcs.reduce((s,r) => s + (r.valor_orcado||0), 0);
+  const totalLanc = lancs.filter(r => r.tipo === 'Despesa').reduce((s,r) => s + (r.valor||0), 0);
+  const totalRec  = lancs.filter(r => r.tipo === 'Receita').reduce((s,r) => s + (r.valor||0), 0);
+  const variacao  = totalLanc - totalOrc;
+
+  // KPI bar
+  const kpiBar = document.getElementById('cc-kpi-bar');
+  if (kpiBar) {
+    kpiBar.innerHTML = [
+      {label:'Total Orçado',   val:fmtBRL(totalOrc),  color:'#2563eb'},
+      {label:'Realizado',      val:fmtBRL(totalLanc), color:'#dc2626'},
+      {label:'Receitas',       val:fmtBRL(totalRec),  color:'#059669'},
+      {label:'Variação',       val:(variacao>=0?'+':'')+fmtBRL(variacao), color: variacao<=0?'#059669':'#dc2626'},
+    ].map(k => `<div class="kpi-card" style="border-left:4px solid ${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="color:${k.color}">${k.val}</div>
+    </div>`).join('');
+  }
+
+  // Tabela por centro
+  const centros = _centrosCusto.filter(c =>
+    !fCli || String(c.cliente_id) === fCli || !c.cliente_id
+  );
+  const tbody = document.getElementById('cc-dash-tbody');
+  if (tbody) {
+    if (!centros.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Nenhum centro de custo encontrado.</td></tr>';
+    } else {
+      tbody.innerHTML = centros.map(c => {
+        const orc = orcs.filter(r => r.centro_custo_id === c.id).reduce((s,r) => s + (r.valor_orcado||0), 0);
+        const real = lancs.filter(r => r.centro_custo_id === c.id && r.tipo === 'Despesa').reduce((s,r) => s + (r.valor||0), 0);
+        const vari = real - orc;
+        const pct  = orc > 0 ? Math.round(real/orc*100) : null;
+        const pctClr = pct === null ? '#6b7280' : pct > 100 ? '#dc2626' : pct > 85 ? '#f59e0b' : '#059669';
+        return `<tr>
+          <td><strong>${(c.codigo?c.codigo+' – ':'')}${c.nome}</strong></td>
+          <td>${c.cliente_id ? _ccNomeCliente(c.cliente_id) : '<span style="color:var(--text-muted)">Geral</span>'}</td>
+          <td style="text-align:right">${fmtBRL(orc)}</td>
+          <td style="text-align:right;font-weight:600">${fmtBRL(real)}</td>
+          <td style="text-align:right;color:${vari<=0?'#059669':'#dc2626'};font-weight:600">${(vari>=0?'+':'')}${fmtBRL(vari)}</td>
+          <td style="text-align:right;color:${pctClr};font-weight:700">${pct !== null ? pct+'%' : '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  // Top categorias
+  const catMap = {};
+  lancs.filter(r => r.tipo === 'Despesa').forEach(r => {
+    catMap[r.categoria||'Outros'] = (catMap[r.categoria||'Outros']||0) + (r.valor||0);
+  });
+  const catDiv = document.getElementById('cc-dash-categorias');
+  if (catDiv) {
+    const cats = Object.entries(catMap).sort((a,b) => b[1]-a[1]).slice(0,8);
+    catDiv.innerHTML = cats.length ? cats.map(([cat,val]) =>
+      `<div style="background:#f1f5f9;border-radius:10px;padding:10px 16px;min-width:140px;">
+        <div style="font-size:0.78rem;color:var(--text-muted);font-weight:600;">${cat}</div>
+        <div style="font-size:1.1rem;font-weight:800;color:#dc2626;">${fmtBRL(val)}</div>
+      </div>`
+    ).join('') : '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma despesa registrada.</p>';
+  }
+}
+
+// ── Modal Centro ──
+function openCentroModal(id) {
+  document.getElementById('centroModalTitle').textContent = id ? 'Editar Centro de Custo' : 'Novo Centro de Custo';
+  document.getElementById('cc-edit-id').value = id || '';
+  // populate cliente select
+  const cliSel = document.getElementById('cc-cliente-id');
+  if (cliSel) {
+    cliSel.innerHTML = '<option value="">— Geral (todos) —</option>';
+    (_clientes||[]).filter(c => c.status==='Ativo').forEach(c => {
+      const o = document.createElement('option'); o.value=c.id; o.textContent=c.nome;
+      cliSel.appendChild(o);
+    });
+  }
+  if (id) {
+    const c = _centrosCusto.find(x => x.id === id);
+    if (c) {
+      document.getElementById('cc-codigo').value       = c.codigo||'';
+      document.getElementById('cc-nome').value         = c.nome||'';
+      document.getElementById('cc-responsavel').value  = c.responsavel||'';
+      document.getElementById('cc-descricao').value    = c.descricao||'';
+      document.getElementById('cc-status').value       = c.status||'Ativo';
+      if (cliSel) cliSel.value = c.cliente_id||'';
+    }
+  } else {
+    document.getElementById('cc-codigo').value=''; document.getElementById('cc-nome').value='';
+    document.getElementById('cc-responsavel').value=''; document.getElementById('cc-descricao').value='';
+    document.getElementById('cc-status').value='Ativo';
+  }
+  document.getElementById('centroModalOverlay').style.display='flex';
+}
+function closeCentroModal() { document.getElementById('centroModalOverlay').style.display='none'; }
+async function saveCentro() {
+  const nome = document.getElementById('cc-nome').value.trim();
+  if (!nome) { showToast('Informe o nome do centro de custo.','error'); return; }
+  const id   = document.getElementById('cc-edit-id').value;
+  const body = {
+    codigo: document.getElementById('cc-codigo').value.trim(),
+    nome,
+    responsavel: document.getElementById('cc-responsavel').value.trim(),
+    descricao:   document.getElementById('cc-descricao').value.trim(),
+    status:      document.getElementById('cc-status').value,
+    cliente_id:  document.getElementById('cc-cliente-id')?.value || null,
+  };
+  try {
+    if (id) await apiCall('PUT', `/api/centros-custo/${id}`, body);
+    else    await apiCall('POST', '/api/centros-custo', body);
+    closeCentroModal();
+    await loadCentrosCusto();
+    showToast(id ? 'Centro atualizado.' : 'Centro criado.', 'success');
+  } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+}
+async function deleteCentro(id, nome) {
+  if (!confirm(`Excluir centro "${nome}"? Lançamentos vinculados serão mantidos.`)) return;
+  await apiCall('DELETE', `/api/centros-custo/${id}`);
+  await loadCentrosCusto();
+  showToast('Centro excluído.', 'success');
+}
+
+// ── Modal Orçamento ──
+function openOrcamentoModal(id) {
+  document.getElementById('orcModalTitle').textContent = id ? 'Editar Orçamento' : 'Novo Orçamento';
+  document.getElementById('orc-edit-id').value = id || '';
+  _ccPopulateAno('orc-ano');
+  _ccPopulateCentros('orc-centro-id', false);
+  if (id) {
+    const r = _orcamentosCC.find(x => x.id === id);
+    if (r) {
+      document.getElementById('orc-centro-id').value = r.centro_custo_id||'';
+      document.getElementById('orc-ano').value        = r.ano||new Date().getFullYear();
+      document.getElementById('orc-mes').value        = r.mes||1;
+      document.getElementById('orc-categoria').value  = r.categoria||'Outros';
+      document.getElementById('orc-valor').value      = r.valor_orcado||0;
+      document.getElementById('orc-obs').value        = r.observacoes||'';
+    }
+  } else {
+    const now = new Date();
+    document.getElementById('orc-centro-id').value = '';
+    document.getElementById('orc-ano').value        = now.getFullYear();
+    document.getElementById('orc-mes').value        = now.getMonth()+1;
+    document.getElementById('orc-categoria').value  = 'Combustível';
+    document.getElementById('orc-valor').value      = '';
+    document.getElementById('orc-obs').value        = '';
+  }
+  document.getElementById('orcModalOverlay').style.display='flex';
+}
+function closeOrcamentoModal() { document.getElementById('orcModalOverlay').style.display='none'; }
+async function saveOrcamento() {
+  const ccId = document.getElementById('orc-centro-id').value;
+  const val  = parseFloat(document.getElementById('orc-valor').value);
+  if (!ccId)     { showToast('Selecione o centro de custo.','error'); return; }
+  if (isNaN(val) || val < 0) { showToast('Informe um valor válido.','error'); return; }
+  const id   = document.getElementById('orc-edit-id').value;
+  const body = {
+    centro_custo_id: parseInt(ccId),
+    ano:      parseInt(document.getElementById('orc-ano').value),
+    mes:      parseInt(document.getElementById('orc-mes').value),
+    categoria: document.getElementById('orc-categoria').value,
+    valor_orcado: val,
+    observacoes: document.getElementById('orc-obs').value.trim(),
+  };
+  try {
+    if (id) await apiCall('PUT', `/api/orcamentos-cc/${id}`, body);
+    else    await apiCall('POST', '/api/orcamentos-cc', body);
+    closeOrcamentoModal();
+    await loadOrcamentosCC();
+    renderDashboardCC();
+    showToast(id ? 'Orçamento atualizado.' : 'Orçamento criado.', 'success');
+  } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+}
+async function deleteOrcamento(id) {
+  if (!confirm('Excluir este orçamento?')) return;
+  await apiCall('DELETE', `/api/orcamentos-cc/${id}`);
+  await loadOrcamentosCC();
+  renderDashboardCC();
+  showToast('Orçamento excluído.', 'success');
+}
+
+// ── Modal Lançamento ──
+function openLancamentoModal(id) {
+  document.getElementById('lancModalTitle').textContent = id ? 'Editar Lançamento' : 'Novo Lançamento';
+  document.getElementById('lanc-edit-id').value = id || '';
+  _ccPopulateCentros('lanc-centro-id', false);
+  _ccPopulateClientes('lanc-cliente-id', false);
+  if (id) {
+    const r = _lancamentosCC.find(x => x.id === id);
+    if (r) {
+      document.getElementById('lanc-data').value      = r.data||'';
+      document.getElementById('lanc-tipo').value      = r.tipo||'Despesa';
+      document.getElementById('lanc-centro-id').value = r.centro_custo_id||'';
+      document.getElementById('lanc-categoria').value = r.categoria||'Outros';
+      document.getElementById('lanc-valor').value     = r.valor||0;
+      document.getElementById('lanc-descricao').value = r.descricao||'';
+      document.getElementById('lanc-cliente-id').value= r.cliente_id||'';
+    }
+  } else {
+    const hoje = new Date().toISOString().slice(0,10);
+    document.getElementById('lanc-data').value      = hoje;
+    document.getElementById('lanc-tipo').value      = 'Despesa';
+    document.getElementById('lanc-centro-id').value = '';
+    document.getElementById('lanc-categoria').value = 'Combustível';
+    document.getElementById('lanc-valor').value     = '';
+    document.getElementById('lanc-descricao').value = '';
+    document.getElementById('lanc-cliente-id').value= '';
+  }
+  document.getElementById('lancModalOverlay').style.display='flex';
+}
+function closeLancamentoModal() { document.getElementById('lancModalOverlay').style.display='none'; }
+async function saveLancamento() {
+  const ccId = document.getElementById('lanc-centro-id').value;
+  const val  = parseFloat(document.getElementById('lanc-valor').value);
+  const desc = document.getElementById('lanc-descricao').value.trim();
+  const data = document.getElementById('lanc-data').value;
+  if (!ccId) { showToast('Selecione o centro de custo.','error'); return; }
+  if (!desc) { showToast('Informe a descrição.','error'); return; }
+  if (isNaN(val) || val <= 0) { showToast('Informe um valor válido.','error'); return; }
+  if (!data) { showToast('Informe a data.','error'); return; }
+  const id   = document.getElementById('lanc-edit-id').value;
+  const body = {
+    centro_custo_id: parseInt(ccId),
+    data,
+    categoria:   document.getElementById('lanc-categoria').value,
+    descricao:   desc,
+    valor:       val,
+    tipo:        document.getElementById('lanc-tipo').value,
+    referencia_tipo: 'Manual',
+    cliente_id:  document.getElementById('lanc-cliente-id').value || null,
+  };
+  try {
+    if (id) await apiCall('PUT', `/api/lancamentos-cc/${id}`, body);
+    else    await apiCall('POST', '/api/lancamentos-cc', body);
+    closeLancamentoModal();
+    await loadLancamentosCC();
+    renderDashboardCC();
+    showToast(id ? 'Lançamento atualizado.' : 'Lançamento criado.', 'success');
+  } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+}
+async function deleteLancamento(id) {
+  if (!confirm('Excluir este lançamento?')) return;
+  await apiCall('DELETE', `/api/lancamentos-cc/${id}`);
+  await loadLancamentosCC();
+  renderDashboardCC();
+  showToast('Lançamento excluído.', 'success');
+}
 
 // Inicia aplicação (conecta ao servidor e carrega dados)
 initApp();
