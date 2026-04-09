@@ -5275,38 +5275,65 @@ function _getModalClienteId() {
 // Reconstrói dropdowns que dependem do cliente selecionado.
 function _onModalClienteChange() {
   const cliId = _getModalClienteId();
+  const veicsCliente = _veiculosByCliente(cliId);
+  const motsCliente  = _motoristasByCliente(cliId);
 
-  // Modal de abastecimento: recalcula preços negociados do posto
+  // ── Modal de abastecimento: limpa placa/motorista se não pertencerem ao cliente ──
+  const placaEl = document.getElementById('f-new-placa');
+  if (placaEl && placaEl.value) {
+    const placa = placaEl.value.trim().toUpperCase();
+    if (cliId && !veicsCliente.some(v => v.placa === placa)) {
+      placaEl.value = '';
+      placaEl.classList.remove('field-valid','field-invalid');
+      const info = document.getElementById('ac-placa-info');
+      if (info) info.textContent = '';
+      acHide('ac-placa');
+    }
+  }
+  const motorEl = document.getElementById('f-new-motorista');
+  if (motorEl && motorEl.value) {
+    const nome = motorEl.value.trim();
+    if (cliId && !motsCliente.some(m => m.nome === nome)) {
+      motorEl.value = '';
+      motorEl.classList.remove('field-valid','field-invalid');
+      const info = document.getElementById('ac-motorista-info');
+      if (info) info.textContent = '';
+      acHide('ac-motorista');
+      document.getElementById('f-new-cpf') && (document.getElementById('f-new-cpf').value = '');
+    }
+  }
+
+  // ── Modal de abastecimento: recalcula preços negociados do posto ──
   if (typeof _selectedPosto !== 'undefined' && _selectedPosto) {
     _atualizarCombustiveisPosto(_selectedPosto);
   }
 
-  // Modal Valor Diário: atualiza lista de motoristas
+  // ── Modal Valor Diário: atualiza lista de motoristas ──
   const vdSel = document.getElementById('vd-motorista');
   if (vdSel) {
     const prev = vdSel.value;
     vdSel.innerHTML = '<option value="Todos">Todos os motoristas (regra geral)</option>' +
-      _motoristasByCliente(cliId).map(m =>
+      motsCliente.map(m =>
         `<option value="${m.nome}">${m.nome}${m.cpf ? ' — CPF: ' + m.cpf : ''}</option>`
       ).join('');
-    vdSel.value = prev;
+    if (motsCliente.some(m => m.nome === prev)) vdSel.value = prev;
   }
 
-  // Modal Volume Diário: atualiza lista de veículos
+  // ── Modal Volume Diário: atualiza lista de veículos ──
   const volSel = document.getElementById('vol-placa');
   if (volSel) {
     const prev = volSel.value;
     volSel.innerHTML = '<option value="Todos">Todos os veículos (regra geral)</option>' +
-      _veiculosByCliente(cliId).map(v =>
+      veicsCliente.map(v =>
         `<option value="${v.placa}">${v.placa}${v.marca ? ' — ' + v.marca + ' ' + (v.modelo||'') : ''}</option>`
       ).join('');
-    volSel.value = prev;
+    if (veicsCliente.some(v => v.placa === prev)) volSel.value = prev;
   }
 
-  // Modal Produto Abastecido: atualiza checkboxes de veículos
+  // ── Modal Produto Abastecido: atualiza checkboxes de veículos ──
   const paList = document.getElementById('pa-placas-list');
   if (paList) {
-    paList.innerHTML = _veiculosByCliente(cliId)
+    paList.innerHTML = veicsCliente
       .filter(v => v.status === 'Ativo')
       .sort((a,b) => a.placa.localeCompare(b.placa))
       .map(v => `<label style="display:flex;align-items:center;gap:8px;padding:3px 4px;cursor:pointer;font-size:0.85rem;border-radius:4px;" class="pa-veiculo-row">
@@ -5316,24 +5343,55 @@ function _onModalClienteChange() {
         </label>`).join('');
   }
 
-  // Modal Vínculo: atualiza listas de veículos e motoristas
+  // ── Modal Vínculo: atualiza listas de veículos e motoristas ──
   const vlPlaca = document.getElementById('vl-placa');
   const vlMot   = document.getElementById('vl-motorista');
   if (vlPlaca) {
     const prev = vlPlaca.value;
     vlPlaca.innerHTML = '<option value="">Selecione o veículo...</option>' +
-      _veiculosByCliente(cliId).map(v =>
+      veicsCliente.map(v =>
         `<option value="${v.placa}">${v.placa}${v.marca?' — '+v.marca+' '+(v.modelo||''):''}</option>`
       ).join('');
-    vlPlaca.value = prev;
+    if (veicsCliente.some(v => v.placa === prev)) vlPlaca.value = prev;
   }
   if (vlMot) {
     const prev = vlMot.value;
     vlMot.innerHTML = '<option value="">Selecione o motorista...</option>' +
-      _motoristasByCliente(cliId).map(m =>
+      motsCliente.map(m =>
         `<option value="${m.nome}|${m.cpf||''}">${m.nome}${m.cpf?' — '+m.cpf:''}</option>`
       ).join('');
-    vlMot.value = prev;
+    if (motsCliente.some(m => `${m.nome}|${m.cpf||''}` === prev)) vlMot.value = prev;
+  }
+
+  // ── Modal Intervalo: atualiza referência (veículo ou motorista) ──
+  const ivRef = document.getElementById('iv-referencia');
+  if (ivRef) ivTipoChanged();
+
+  // ── Modal Hodômetro: atualiza placa ──
+  const hodoPlaca = document.getElementById('hodo-f-placa');
+  if (hodoPlaca) {
+    const prev = hodoPlaca.value;
+    hodoPlaca.innerHTML = '<option value="">Todos os veículos</option>' +
+      veicsCliente.map(v => `<option value="${v.placa}">${v.placa}</option>`).join('');
+    if (veicsCliente.some(v => v.placa === prev)) hodoPlaca.value = prev;
+  }
+
+  // ── Modal Plano de Viagem: atualiza placa e motorista ──
+  const pvPlaca = document.getElementById('pv-f-placa');
+  const pvMot   = document.getElementById('pv-f-motorista');
+  if (pvPlaca) {
+    const prev = pvPlaca.value;
+    pvPlaca.innerHTML = '<option value="">— Selecione —</option>' +
+      veicsCliente.filter(v => v.status === 'Ativo')
+        .map(v => `<option value="${v.placa}">${v.placa} — ${v.modelo||v.marca||''}</option>`).join('');
+    if (veicsCliente.some(v => v.placa === prev)) pvPlaca.value = prev;
+  }
+  if (pvMot) {
+    const prev = pvMot.value;
+    pvMot.innerHTML = '<option value="">— Selecione —</option>' +
+      motsCliente.filter(m => m.status === 'Ativo')
+        .map(m => `<option value="${m.nome}">${m.nome}</option>`).join('');
+    if (motsCliente.some(m => m.nome === prev)) pvMot.value = prev;
   }
 }
 
