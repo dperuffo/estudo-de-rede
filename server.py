@@ -797,10 +797,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(rows)
 
         elif path == '/api/seguranca-regras':
-            qs  = parse_qs(urlparse(self.path).query)
-            cid = qs.get('cliente_id', [None])[0]
+            qs   = parse_qs(urlparse(self.path).query)
+            cid  = qs.get('cliente_id', [None])[0]
+            todos = qs.get('todos', [None])[0]
             conn = get_db()
-            if cid:
+            if todos:
+                rows = _fetchall(conn, 'SELECT * FROM seguranca_regras ORDER BY cliente_id NULLS FIRST, tipo')
+            elif cid:
                 rows = _fetchall(conn, 'SELECT * FROM seguranca_regras WHERE cliente_id=%s', [int(cid)])
             else:
                 rows = _fetchall(conn, 'SELECT * FROM seguranca_regras WHERE cliente_id IS NULL')
