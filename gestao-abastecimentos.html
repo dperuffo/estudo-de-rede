@@ -4571,7 +4571,7 @@
           <div class="form-group">
             <label>Hodômetro (km)</label>
             <input type="number" id="f-new-hodometro" placeholder="Ex: 152340" min="0"
-                   oninput="checkHodometro()" />
+                   oninput="checkHodometro(); _verificarAutonomiaGeo();" />
             <span class="ac-hint" id="f-hodometro-hint"></span>
           </div>
         </div>
@@ -4615,6 +4615,25 @@
               <option>SP</option><option>SE</option><option>TO</option>
             </select>
           </div>
+        </div>
+      </div>
+
+      <!-- ── PAINEL DE INTELIGÊNCIA GEOGRÁFICA ── -->
+      <div id="f-geo-check" style="display:none;margin:0 0 4px;border-radius:10px;overflow:hidden;border:1.5px solid #e5e7eb;">
+        <!-- cabeçalho -->
+        <div id="f-geo-header" style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:0.78rem;font-weight:700;letter-spacing:.3px;">
+          <span id="f-geo-icon" style="font-size:1rem;"></span>
+          <span id="f-geo-title"></span>
+        </div>
+        <!-- corpo -->
+        <div id="f-geo-body" style="padding:8px 14px 10px;display:flex;flex-direction:column;gap:4px;border-top:1px solid #e5e7eb;">
+          <div id="f-geo-rota" style="font-size:0.82rem;color:#374151;font-weight:600;"></div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px;">
+            <span id="f-geo-dist"   style="font-size:0.8rem;"></span>
+            <span id="f-geo-auto"   style="font-size:0.8rem;"></span>
+            <span id="f-geo-hodo"   style="font-size:0.8rem;"></span>
+          </div>
+          <div id="f-geo-detail" style="font-size:0.76rem;margin-top:2px;color:#6b7280;line-height:1.5;"></div>
         </div>
       </div>
 
@@ -6406,6 +6425,7 @@ async function openModal(id = null) {
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
+  _limparGeoCheck();
 }
 function closeModalOutside(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
@@ -6440,6 +6460,196 @@ function _checkVolumeTanque() {
     hint.innerHTML = `<span style="color:var(--text-muted)">Capacidade do tanque: ${cap.toLocaleString('pt-BR',{maximumFractionDigits:0})} L</span>`;
     volEl.classList.remove('field-invalid');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INTELIGÊNCIA GEOGRÁFICA — AUTONOMIA ENTRE ABASTECIMENTOS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Calcula o consumo médio real do veículo a partir do histórico de records.
+ * Exclui Arla 32. Usa apenas registros com hodômetro válido e consecutivos.
+ * Se insuficientes, cai em defaults por tipo de veículo.
+ */
+function _consumoMedioReal(placa) {
+  const _ARLA = 'Arla 32';
+  const hist = records
+    .filter(r => r.placa === placa && r.combustivel !== _ARLA && r.hodometro > 0 && r.volume > 0)
+    .sort((a, b) => (a.data + a.hora) < (b.data + b.hora) ? -1 : 1);
+
+  const amostras = [];
+  for (let i = 1; i < hist.length; i++) {
+    const delta = hist[i].hodometro - hist[i-1].hodometro;
+    if (delta > 0 && delta < 2000) { // descarta outliers absurdos
+      amostras.push(delta / hist[i-1].volume);
+    }
+  }
+  if (amostras.length >= 2) {
+    const media = amostras.reduce((s, v) => s + v, 0) / amostras.length;
+    return Math.round(media * 10) / 10; // arredonda p/ 1 decimal
+  }
+
+  // Fallback por tipo de veículo
+  const v = veiculos.find(x => x.placa === placa);
+  if (v) {
+    const tipo = (v.tipo || '').toLowerCase();
+    if (tipo.includes('pesado') || tipo.includes('caminhão') || tipo.includes('onibus') || tipo.includes('ônibus')) return 4;
+    if (tipo.includes('médio') || tipo.includes('medio') || tipo.includes('van'))  return 7;
+    if (tipo.includes('moto'))  return 20;
+  }
+  return 10; // leve genérico
+}
+
+/**
+ * Encontra o último abastecimento registrado para a placa (excluindo Arla e o registro
+ * atual em edição).
+ */
+function _ultimoAbastPlaca(placa, editId) {
+  const _ARLA = 'Arla 32';
+  return records
+    .filter(r => r.placa === placa && r.combustivel !== _ARLA && (!editId || String(r.id) !== String(editId)))
+    .sort((a, b) => (a.data + a.hora) > (b.data + b.hora) ? -1 : 1)[0] || null;
+}
+
+/**
+ * Renderiza o painel de inteligência geográfica no formulário de abastecimento.
+ * Chamado após selecionar posto ou placa, e ao sair do campo hodômetro.
+ */
+function _verificarAutonomiaGeo() {
+  const panel   = document.getElementById('f-geo-check');
+  const header  = document.getElementById('f-geo-header');
+  const icon    = document.getElementById('f-geo-icon');
+  const title   = document.getElementById('f-geo-title');
+  const rota    = document.getElementById('f-geo-rota');
+  const distEl  = document.getElementById('f-geo-dist');
+  const autoEl  = document.getElementById('f-geo-auto');
+  const hodoEl  = document.getElementById('f-geo-hodo');
+  const detail  = document.getElementById('f-geo-detail');
+  if (!panel) return;
+
+  const placa    = (document.getElementById('f-new-placa')?.value || '').trim().toUpperCase();
+  const postoNm  = (document.getElementById('f-new-posto')?.value || '').trim();
+  const hodoAtual= parseInt(document.getElementById('f-new-hodometro')?.value) || 0;
+  const editId   = document.getElementById('editId')?.value;
+
+  // Precisa de placa e posto selecionados para a análise
+  if (!placa || !postoNm) { panel.style.display = 'none'; return; }
+
+  const ultimoReg = _ultimoAbastPlaca(placa, editId);
+  if (!ultimoReg) { panel.style.display = 'none'; return; } // sem histórico, sem análise
+
+  // Resolve dados do posto anterior
+  const postoAntObj = postos.find(p =>
+    p.razao === ultimoReg.posto || (ultimoReg.cnpjPosto && p.cnpj && p.cnpj.replace(/\D/g,'') === ultimoReg.cnpjPosto.replace(/\D/g,''))
+  );
+  // Resolve dados do posto atual
+  const postoAtObj = postos.find(p => p.razao === postoNm);
+
+  const temCoordsAnt  = postoAntObj && postoAntObj.lat && postoAntObj.lon;
+  const temCoordsAtual= postoAtObj  && postoAtObj.lat  && postoAtObj.lon;
+
+  // ── Constrói rótulos ──────────────────────────────────────────
+  const cidadeAnt  = ultimoReg.cidadePosto  || postoAntObj?.cidade  || ultimoReg.posto;
+  const ufAnt      = ultimoReg.ufPosto      || postoAntObj?.uf      || '';
+  const cidadeAtual= postoAtObj?.cidade  || '?';
+  const ufAtual    = postoAtObj?.uf      || '';
+
+  const labelAnt  = `${ultimoReg.posto}${cidadeAnt ? ' — ' + cidadeAnt : ''}${ufAnt ? '/' + ufAnt : ''}`;
+  const labelAtual= `${postoNm}${cidadeAtual !== '?' ? ' — ' + cidadeAtual : ''}${ufAtual ? '/' + ufAtual : ''}`;
+
+  // ── Autonomia máxima ─────────────────────────────────────────
+  const volAnterior = ultimoReg.volume; // litros abastecidos no último registro
+  const consumo     = _consumoMedioReal(placa);
+  const autonomia   = Math.round(volAnterior * consumo); // km máximos possíveis
+
+  // ── Distância entre postos (haversine) ───────────────────────
+  let distPostos = null;
+  if (temCoordsAnt && temCoordsAtual) {
+    distPostos = Math.round(_haversineKm(postoAntObj.lat, postoAntObj.lon, postoAtObj.lat, postoAtObj.lon));
+  }
+
+  // ── Distância por hodômetro ──────────────────────────────────
+  let distHodo = null;
+  if (hodoAtual > 0 && ultimoReg.hodometro > 0 && hodoAtual > ultimoReg.hodometro) {
+    distHodo = hodoAtual - ultimoReg.hodometro;
+  }
+
+  // ── Análise ──────────────────────────────────────────────────
+  // Classificação: ok | aviso | critico
+  let nivel = 'ok';
+  const problemas = [];
+  const detalhes  = [];
+
+  // Problema 1: distância entre postos maior que autonomia
+  if (distPostos !== null) {
+    if (distPostos > autonomia * 1.2) {
+      nivel = 'critico';
+      problemas.push(`distância entre postos (${distPostos.toLocaleString('pt-BR')} km) excede a autonomia máxima (${autonomia.toLocaleString('pt-BR')} km)`);
+    } else if (distPostos > autonomia * 0.9) {
+      if (nivel !== 'critico') nivel = 'aviso';
+      problemas.push(`distância entre postos (${distPostos.toLocaleString('pt-BR')} km) próxima do limite de autonomia (${autonomia.toLocaleString('pt-BR')} km)`);
+    }
+  } else if (!temCoordsAnt || !temCoordsAtual) {
+    detalhes.push('⚠ Coordenadas GPS não cadastradas ' + (!temCoordsAnt ? 'no posto anterior' : 'neste posto') + ' — análise geográfica parcial.');
+  }
+
+  // Problema 2: distância por hodômetro maior que autonomia
+  if (distHodo !== null && distHodo > autonomia * 1.15) {
+    nivel = 'critico';
+    problemas.push(`hodômetro indica ${distHodo.toLocaleString('pt-BR')} km percorridos, acima da autonomia de ${autonomia.toLocaleString('pt-BR')} km`);
+  }
+
+  // ── Detalhe de consumo utilizado ─────────────────────────────
+  const _ARLA = 'Arla 32';
+  const histConsumoCont = records.filter(r => r.placa === placa && r.combustivel !== _ARLA && r.hodometro > 0 && r.volume > 0).length;
+  const consumoFonte = histConsumoCont >= 3
+    ? `média calculada de ${histConsumoCont} registros`
+    : 'estimativa por tipo de veículo';
+  detalhes.push(`Consumo: ${consumo} km/L (${consumoFonte}) · Volume anterior: ${volAnterior.toLocaleString('pt-BR',{maximumFractionDigits:1})} L · Autonomia: ${autonomia.toLocaleString('pt-BR')} km`);
+  detalhes.push(`Abastecimento anterior: ${ultimoReg.data} em ${labelAnt}`);
+
+  // ── Renderização ─────────────────────────────────────────────
+  panel.style.display = '';
+
+  const cfg = {
+    ok:      { bg: '#f0fdf4', border: '#86efac', hbg: '#dcfce7', color: '#15803d', icon: '✅', text: 'Autonomia compatível com o trajeto' },
+    aviso:   { bg: '#fefce8', border: '#fde047', hbg: '#fef9c3', color: '#854d0e', icon: '⚠️', text: 'Atenção: autonomia próxima do limite' },
+    critico: { bg: '#fef2f2', border: '#fca5a5', hbg: '#fee2e2', color: '#b91c1c', icon: '🚨', text: 'Inconsistência geográfica detectada' },
+  }[nivel];
+
+  panel.style.border      = `1.5px solid ${cfg.border}`;
+  panel.style.background  = cfg.bg;
+  header.style.background = cfg.hbg;
+  header.style.color      = cfg.color;
+  icon.textContent        = cfg.icon;
+  title.textContent       = cfg.text;
+
+  rota.innerHTML = `<strong>${escHtml(labelAnt)}</strong>` +
+    ` <span style="color:#6b7280;font-size:0.8rem;">→</span> ` +
+    `<strong>${escHtml(labelAtual)}</strong>`;
+
+  distEl.innerHTML = distPostos !== null
+    ? `📍 Distância entre postos: <strong>${distPostos.toLocaleString('pt-BR')} km</strong>`
+    : '📍 Distância GPS: <em style="color:#9ca3af">sem coordenadas</em>';
+
+  autoEl.innerHTML = `⛽ Autonomia máxima: <strong>${autonomia.toLocaleString('pt-BR')} km</strong>`;
+
+  hodoEl.innerHTML = distHodo !== null
+    ? `🛣️ Distância pelo hodômetro: <strong>${distHodo.toLocaleString('pt-BR')} km</strong>`
+    : `🛣️ Hodômetro: <em style="color:#9ca3af">não informado</em>`;
+
+  const problemasHtml = problemas.length
+    ? `<div style="margin-top:4px;padding:5px 9px;background:${cfg.hbg};border-radius:6px;color:${cfg.color};font-size:0.76rem;font-weight:600;">`
+      + problemas.map(p => `⚡ ${p}`).join('<br>') + '</div>'
+    : '';
+
+  detail.innerHTML = detalhes.map(d => `<span>${d}</span>`).join('<br>') + problemasHtml;
+}
+
+// Apaga o painel quando a placa ou posto forem limpos
+function _limparGeoCheck() {
+  const panel = document.getElementById('f-geo-check');
+  if (panel) panel.style.display = 'none';
 }
 
 function calcTotal() {
@@ -6587,6 +6797,55 @@ function checkCNPJ(input, msgId) {
 
 async function saveRecord() {
   if (!_validarClienteModal()) return;
+
+  // ── Verificação geográfica / autonomia (antes das validações pesadas) ──────
+  const _geoPlaca  = (document.getElementById('f-new-placa')?.value || '').trim().toUpperCase();
+  const _geoPosto  = (document.getElementById('f-new-posto')?.value || '').trim();
+  const _geoHodo   = parseInt(document.getElementById('f-new-hodometro')?.value) || 0;
+  const _geoEditId = document.getElementById('editId')?.value;
+  if (_geoPlaca && _geoPosto) {
+    const _geoUltimoReg = _ultimoAbastPlaca(_geoPlaca, _geoEditId);
+    if (_geoUltimoReg) {
+      const postoAntObj = postos.find(p => p.razao === _geoUltimoReg.posto ||
+        (p.cnpj && _geoUltimoReg.cnpjPosto && p.cnpj.replace(/\D/g,'') === _geoUltimoReg.cnpjPosto.replace(/\D/g,'')));
+      const postoAtObj  = postos.find(p => p.razao === _geoPosto);
+      const autonomia   = Math.round(_geoUltimoReg.volume * _consumoMedioReal(_geoPlaca));
+      // Problema por hodômetro
+      if (_geoHodo > 0 && _geoUltimoReg.hodometro > 0) {
+        const distH = _geoHodo - _geoUltimoReg.hodometro;
+        if (distH > autonomia * 1.15) {
+          const ok = confirm(
+            `⚠ ALERTA DE CONSISTÊNCIA\n\n` +
+            `O hodômetro indica ${distH.toLocaleString('pt-BR')} km percorridos desde o último abastecimento ` +
+            `(${_geoUltimoReg.data} em ${_geoUltimoReg.posto}).\n\n` +
+            `Com ${_geoUltimoReg.volume.toLocaleString('pt-BR',{maximumFractionDigits:1})} L abastecidos e consumo de ` +
+            `${_consumoMedioReal(_geoPlaca)} km/L, a autonomia máxima é de ${autonomia.toLocaleString('pt-BR')} km.\n\n` +
+            `Deseja salvar mesmo assim?`
+          );
+          if (!ok) return;
+        }
+      }
+      // Problema por distância geográfica entre postos
+      if (postoAntObj?.lat && postoAntObj?.lon && postoAtObj?.lat && postoAtObj?.lon) {
+        const distP = Math.round(_haversineKm(postoAntObj.lat, postoAntObj.lon, postoAtObj.lat, postoAtObj.lon));
+        if (distP > autonomia * 1.2) {
+          const cidAnt  = postoAntObj.cidade || _geoUltimoReg.posto;
+          const cidAtual= postoAtObj.cidade  || _geoPosto;
+          const ok = confirm(
+            `🚨 INCONSISTÊNCIA GEOGRÁFICA\n\n` +
+            `A distância direta entre "${cidAnt}" e "${cidAtual}" é de ≈ ${distP.toLocaleString('pt-BR')} km.\n\n` +
+            `Com ${_geoUltimoReg.volume.toLocaleString('pt-BR',{maximumFractionDigits:1})} L abastecidos ` +
+            `(${_geoUltimoReg.data}) e consumo de ${_consumoMedioReal(_geoPlaca)} km/L, ` +
+            `a autonomia máxima do veículo é de ${autonomia.toLocaleString('pt-BR')} km — ` +
+            `insuficiente para chegar até "${cidAtual}".\n\n` +
+            `Deseja salvar mesmo assim?`
+          );
+          if (!ok) return;
+        }
+      }
+    }
+  }
+
   const data        = document.getElementById('f-new-data').value;
   const hora        = document.getElementById('f-new-hora').value;
   const placa       = document.getElementById('f-new-placa').value.trim().toUpperCase();
@@ -10807,6 +11066,8 @@ function _onSelectPlaca(item) {
     hodHint && (hodHint.style.color = '');
     _atualizarHintHodometro(v.placa);
   }
+  // Atualiza painel de inteligência geográfica para a nova placa
+  _verificarAutonomiaGeo();
 }
 function comboAbrirPlaca() {
   const lista = _veiculosByCliente(_getModalClienteId());
@@ -10877,6 +11138,8 @@ function _onSelectPosto(item) {
   // Limpa badge (será reaposto quando o combustível for (auto-)selecionado)
   const notice = document.getElementById('f-neg-notice');
   if (notice) notice.style.display = 'none';
+  // Verifica consistência geográfica / autonomia
+  _verificarAutonomiaGeo();
 }
 function _postoComPreco(p) {
   return p.combustiveis && Object.values(p.combustiveis).some(v => v != null && v !== '');
