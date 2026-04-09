@@ -17328,9 +17328,9 @@ function openCentroModal(id) {
     document.getElementById('cc-responsavel').value=''; document.getElementById('cc-descricao').value='';
     document.getElementById('cc-status').value='Ativo';
   }
-  document.getElementById('centroModalOverlay').style.display='flex';
+  document.getElementById('centroModalOverlay').classList.add('open');
 }
-function closeCentroModal() { document.getElementById('centroModalOverlay').style.display='none'; }
+function closeCentroModal() { document.getElementById('centroModalOverlay').classList.remove('open'); }
 async function saveCentro() {
   const nome = document.getElementById('cc-nome').value.trim();
   if (!nome) { showToast('Informe o nome do centro de custo.','error'); return; }
@@ -17383,9 +17383,9 @@ function openOrcamentoModal(id) {
     document.getElementById('orc-valor').value      = '';
     document.getElementById('orc-obs').value        = '';
   }
-  document.getElementById('orcModalOverlay').style.display='flex';
+  document.getElementById('orcModalOverlay').classList.add('open');
 }
-function closeOrcamentoModal() { document.getElementById('orcModalOverlay').style.display='none'; }
+function closeOrcamentoModal() { document.getElementById('orcModalOverlay').classList.remove('open'); }
 async function saveOrcamento() {
   const ccId = document.getElementById('orc-centro-id').value;
   const val  = parseFloat(document.getElementById('orc-valor').value);
@@ -17444,9 +17444,9 @@ function openLancamentoModal(id) {
     document.getElementById('lanc-descricao').value = '';
     document.getElementById('lanc-cliente-id').value= '';
   }
-  document.getElementById('lancModalOverlay').style.display='flex';
+  document.getElementById('lancModalOverlay').classList.add('open');
 }
-function closeLancamentoModal() { document.getElementById('lancModalOverlay').style.display='none'; }
+function closeLancamentoModal() { document.getElementById('lancModalOverlay').classList.remove('open'); }
 async function saveLancamento() {
   const ccId = document.getElementById('lanc-centro-id').value;
   const val  = parseFloat(document.getElementById('lanc-valor').value);
