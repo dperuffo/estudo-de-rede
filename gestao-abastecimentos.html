@@ -17468,10 +17468,15 @@ function renderLancamentosCC() {
   const fTipo   = document.getElementById('lanc-f-tipo')?.value || '';
   const fCli    = document.getElementById('lanc-f-cliente')?.value || '';
   const fBusca  = (document.getElementById('lanc-f-busca')?.value || '').toLowerCase();
+  const _resolveLancCli = (r) => {
+    if (r.cliente_id) return String(r.cliente_id);
+    const cc = (_centrosCusto||[]).find(c => c.id === r.centro_custo_id);
+    return cc?.cliente_id ? String(cc.cliente_id) : null;
+  };
   let rows = (_lancamentosCC||[]).filter(r =>
     (!fCentro || String(r.centro_custo_id) === fCentro) &&
     (!fTipo   || r.tipo === fTipo) &&
-    (!fCli    || String(r.cliente_id) === fCli) &&
+    (!fCli    || _resolveLancCli(r) === fCli) &&
     (!fBusca  || (r.descricao||'').toLowerCase().includes(fBusca))
   );
   rows.sort((a,b) => b.data.localeCompare(a.data));
@@ -17505,17 +17510,28 @@ function renderDashboardCC() {
   const mes    = parseInt(document.getElementById('cc-dash-mes')?.value) || 0;
   const fCli   = document.getElementById('cc-dash-cliente')?.value || '';
 
-  // Filtra orçamentos e lançamentos
-  const orcs = (_orcamentosCC||[]).filter(r =>
-    r.ano === ano && (!mes || r.mes === mes) &&
-    (!fCli || String(r.cliente_id) === fCli || !r.cliente_id)
-  );
+  // Helper: resolve cliente_id de um registro via CC quando não tem direto
+  const _ccCliId = (ccId) => {
+    const cc = (_centrosCusto||[]).find(c => c.id === ccId);
+    return cc?.cliente_id ? String(cc.cliente_id) : null;
+  };
+
+  // Filtra orçamentos e lançamentos pelo cliente selecionado
+  // Match: cliente_id direto no registro OU cliente_id do centro de custo vinculado
+  const orcs = (_orcamentosCC||[]).filter(r => {
+    if (r.ano !== ano) return false;
+    if (mes && r.mes !== mes) return false;
+    if (!fCli) return true;
+    return String(r.cliente_id) === fCli || _ccCliId(r.centro_custo_id) === fCli;
+  });
   const lancs = (_lancamentosCC||[]).filter(r => {
     const d = r.data || '';
     const rAno = parseInt(d.slice(0,4));
     const rMes = parseInt(d.slice(5,7));
-    return rAno === ano && (!mes || rMes === mes) &&
-      (!fCli || String(r.cliente_id) === fCli || !r.cliente_id);
+    if (rAno !== ano) return false;
+    if (mes && rMes !== mes) return false;
+    if (!fCli) return true;
+    return String(r.cliente_id) === fCli || _ccCliId(r.centro_custo_id) === fCli;
   });
 
   // Totais globais
@@ -17540,7 +17556,7 @@ function renderDashboardCC() {
 
   // Tabela por centro
   const centros = _centrosCusto.filter(c =>
-    !fCli || String(c.cliente_id) === fCli || !c.cliente_id
+    !fCli || String(c.cliente_id) === fCli
   );
   const tbody = document.getElementById('cc-dash-tbody');
   if (tbody) {
