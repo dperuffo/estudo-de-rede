@@ -17744,7 +17744,8 @@ function renderUsuarios() {
   };
 
   tbody.innerHTML = filtered.map(u => {
-    const cli = u.cliente_id ? _clientes.find(c => c.id === u.cliente_id) : null;
+    const cliId = u.cliente_id ? parseInt(u.cliente_id) : null;
+    const cli = cliId ? _clientes.find(c => parseInt(c.id) === cliId) : null;
     const cliNome = cli ? (cli.razao_social || cli.nome || '—') : '—';
     return `
     <tr>
@@ -17773,14 +17774,16 @@ function _uPopulateClientes(selectedId) {
   const sel = document.getElementById('u-cliente-id');
   if (!sel) return;
   sel.innerHTML = '<option value="">— Selecione o cliente —</option>';
+  const sid = selectedId ? parseInt(selectedId) : null;
   (_clientes || []).forEach(c => {
     const nome = c.razao_social || c.nome || '';
     const opt  = document.createElement('option');
     opt.value       = c.id;
     opt.textContent = nome;
-    if (selectedId && c.id === selectedId) opt.selected = true;
     sel.appendChild(opt);
   });
+  // Força a seleção após popular (mais confiável que opt.selected = true)
+  if (sid) sel.value = sid;
 }
 
 function openUsuarioModal(id) {
