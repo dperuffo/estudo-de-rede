@@ -3709,6 +3709,7 @@
               <th>CPF</th>
               <th>Telefone</th>
               <th>E-mail</th>
+              <th>Cliente</th>
               <th>Perfil</th>
               <th>Status</th>
               <th style="text-align:center">Ações</th>
@@ -5534,7 +5535,13 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="orc-edit-id">
-      <div class="form-grid" style="grid-template-columns:1fr">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0">
+        <div class="form-group">
+          <label class="form-label">Cliente</label>
+          <select class="form-input" id="orc-cliente-id" onchange="orcFiltrarCentros()">
+            <option value="">— Todos os clientes —</option>
+          </select>
+        </div>
         <div class="form-group">
           <label class="form-label">Centro de Custo *</label>
           <select class="form-input" id="orc-centro-id">
@@ -5687,13 +5694,13 @@
         </div>
         <div class="form-group" style="flex:1">
           <label class="form-label">CPF *</label>
-          <input type="text" class="form-control" id="u-cpf" placeholder="000.000.000-00" maxlength="18">
+          <input type="text" class="form-control" id="u-cpf" placeholder="000.000.000-00" maxlength="14" oninput="maskCPF(this)">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Telefone</label>
-          <input type="text" class="form-control" id="u-telefone" placeholder="(00) 00000-0000" maxlength="20">
+          <input type="text" class="form-control" id="u-telefone" placeholder="(00) 00000-0000" maxlength="15" oninput="maskTelefone(this)">
         </div>
         <div class="form-group" style="flex:2">
           <label class="form-label">E-mail</label>
@@ -5717,6 +5724,12 @@
             <option value="Inativo">Inativo</option>
           </select>
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cliente</label>
+        <select class="form-control" id="u-cliente-id">
+          <option value="">— Selecione o cliente —</option>
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label">Observações</label>
@@ -17498,29 +17511,64 @@ async function deleteCentro(id, nome) {
 }
 
 // ── Modal Orçamento ──
+// Popula o select de clientes no modal Orçamento e refiltra centros
+function _orcPopulateClientes(selectedId) {
+  const sel = document.getElementById('orc-cliente-id');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Todos os clientes —</option>';
+  (_clientes || []).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.razao_social || c.nome || '';
+    if (selectedId && c.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+// Filtra o select de Centros de Custo pelo cliente escolhido
+function orcFiltrarCentros() {
+  const cliId  = parseInt(document.getElementById('orc-cliente-id')?.value) || null;
+  const sel    = document.getElementById('orc-centro-id');
+  const prevVal = sel.value;
+  sel.innerHTML = '<option value="">— Selecione —</option>';
+  (_centrosCusto || []).filter(cc => cc.status !== 'Inativo').forEach(cc => {
+    if (cliId && cc.cliente_id && cc.cliente_id !== cliId) return;
+    const opt = document.createElement('option');
+    opt.value = cc.id;
+    opt.textContent = (cc.codigo ? `[${cc.codigo}] ` : '') + cc.nome;
+    sel.appendChild(opt);
+  });
+  if (prevVal) sel.value = prevVal;
+}
+
 function openOrcamentoModal(id) {
   document.getElementById('orcModalTitle').textContent = id ? 'Editar Orçamento' : 'Novo Orçamento';
   document.getElementById('orc-edit-id').value = id || '';
   _ccPopulateAno('orc-ano');
-  _ccPopulateCentros('orc-centro-id', false);
   if (id) {
     const r = _orcamentosCC.find(x => x.id === id);
     if (r) {
-      document.getElementById('orc-centro-id').value = r.centro_custo_id||'';
-      document.getElementById('orc-ano').value        = r.ano||new Date().getFullYear();
-      document.getElementById('orc-mes').value        = r.mes||1;
-      document.getElementById('orc-categoria').value  = r.categoria||'Outros';
-      document.getElementById('orc-valor').value      = r.valor_orcado||0;
-      document.getElementById('orc-obs').value        = r.observacoes||'';
+      _orcPopulateClientes(r.cliente_id || null);
+      orcFiltrarCentros();
+      document.getElementById('orc-cliente-id').value  = r.cliente_id || '';
+      document.getElementById('orc-centro-id').value   = r.centro_custo_id || '';
+      document.getElementById('orc-ano').value          = r.ano || new Date().getFullYear();
+      document.getElementById('orc-mes').value          = r.mes || 1;
+      document.getElementById('orc-categoria').value    = r.categoria || 'Outros';
+      document.getElementById('orc-valor').value        = r.valor_orcado || 0;
+      document.getElementById('orc-obs').value          = r.observacoes || '';
     }
   } else {
     const now = new Date();
-    document.getElementById('orc-centro-id').value = '';
-    document.getElementById('orc-ano').value        = now.getFullYear();
-    document.getElementById('orc-mes').value        = now.getMonth()+1;
-    document.getElementById('orc-categoria').value  = 'Combustível';
-    document.getElementById('orc-valor').value      = '';
-    document.getElementById('orc-obs').value        = '';
+    _orcPopulateClientes(null);
+    orcFiltrarCentros();
+    document.getElementById('orc-cliente-id').value  = '';
+    document.getElementById('orc-centro-id').value   = '';
+    document.getElementById('orc-ano').value          = now.getFullYear();
+    document.getElementById('orc-mes').value          = now.getMonth() + 1;
+    document.getElementById('orc-categoria').value    = 'Combustível';
+    document.getElementById('orc-valor').value        = '';
+    document.getElementById('orc-obs').value          = '';
   }
   document.getElementById('orcModalOverlay').classList.add('open');
 }
@@ -17528,16 +17576,18 @@ function closeOrcamentoModal() { document.getElementById('orcModalOverlay').clas
 async function saveOrcamento() {
   const ccId = document.getElementById('orc-centro-id').value;
   const val  = parseFloat(document.getElementById('orc-valor').value);
-  if (!ccId)     { showToast('Selecione o centro de custo.','error'); return; }
-  if (isNaN(val) || val < 0) { showToast('Informe um valor válido.','error'); return; }
-  const id   = document.getElementById('orc-edit-id').value;
+  if (!ccId)              { showToast('Selecione o centro de custo.', 'error'); return; }
+  if (isNaN(val) || val < 0) { showToast('Informe um valor válido.', 'error'); return; }
+  const id     = document.getElementById('orc-edit-id').value;
+  const cliRaw = document.getElementById('orc-cliente-id').value;
   const body = {
     centro_custo_id: parseInt(ccId),
-    ano:      parseInt(document.getElementById('orc-ano').value),
-    mes:      parseInt(document.getElementById('orc-mes').value),
-    categoria: document.getElementById('orc-categoria').value,
-    valor_orcado: val,
-    observacoes: document.getElementById('orc-obs').value.trim(),
+    ano:             parseInt(document.getElementById('orc-ano').value),
+    mes:             parseInt(document.getElementById('orc-mes').value),
+    categoria:       document.getElementById('orc-categoria').value,
+    valor_orcado:    val,
+    observacoes:     document.getElementById('orc-obs').value.trim(),
+    cliente_id:      cliRaw ? parseInt(cliRaw) : null,
   };
   try {
     if (id) await apiCall('PUT', `/api/orcamentos-cc/${id}`, body);
@@ -17637,6 +17687,7 @@ function mapUsuario(r) {
     email:       r.email       || '',
     perfil:      r.perfil      || 'Operador',
     status:      r.status      || 'Ativo',
+    cliente_id:  r.cliente_id  || null,
     observacoes: r.observacoes || '',
     created_at:  r.created_at  || '',
   };
@@ -17692,19 +17743,23 @@ function renderUsuarios() {
     return `<span style="background:${c}15;color:${c};padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:600;">${s}</span>`;
   };
 
-  tbody.innerHTML = filtered.map(u => `
+  tbody.innerHTML = filtered.map(u => {
+    const cli = u.cliente_id ? _clientes.find(c => c.id === u.cliente_id) : null;
+    const cliNome = cli ? (cli.razao_social || cli.nome || '—') : '—';
+    return `
     <tr>
       <td><strong>${u.nome}</strong></td>
       <td style="font-family:monospace">${u.cpf || '—'}</td>
       <td>${u.telefone || '—'}</td>
       <td>${u.email || '—'}</td>
+      <td>${cliNome}</td>
       <td>${perfilBadge(u.perfil)}</td>
       <td>${statusBadge(u.status)}</td>
       <td style="text-align:center;white-space:nowrap">
         <button class="btn-icon" title="Editar" onclick="openUsuarioModal(${u.id})">✏️</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 function uLimparFiltros() {
@@ -17714,34 +17769,53 @@ function uLimparFiltros() {
   renderUsuarios();
 }
 
+function _uPopulateClientes(selectedId) {
+  const sel = document.getElementById('u-cliente-id');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Selecione o cliente —</option>';
+  (_clientes || []).forEach(c => {
+    const nome = c.razao_social || c.nome || '';
+    const opt  = document.createElement('option');
+    opt.value       = c.id;
+    opt.textContent = nome;
+    if (selectedId && c.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 function openUsuarioModal(id) {
   const overlay = document.getElementById('usuarioModalOverlay');
   const title   = document.getElementById('usuarioModalTitle');
   const btnDel  = document.getElementById('u-btn-del');
 
   // Clear fields
-  document.getElementById('u-id').value          = '';
-  document.getElementById('u-nome').value         = '';
-  document.getElementById('u-cpf').value          = '';
-  document.getElementById('u-telefone').value     = '';
-  document.getElementById('u-email').value        = '';
-  document.getElementById('u-perfil').value       = 'Operador';
-  document.getElementById('u-status').value       = 'Ativo';
-  document.getElementById('u-observacoes').value  = '';
+  document.getElementById('u-id').value         = '';
+  document.getElementById('u-nome').value        = '';
+  document.getElementById('u-cpf').value         = '';
+  document.getElementById('u-telefone').value    = '';
+  document.getElementById('u-email').value       = '';
+  document.getElementById('u-perfil').value      = 'Operador';
+  document.getElementById('u-status').value      = 'Ativo';
+  document.getElementById('u-observacoes').value = '';
+  _uPopulateClientes(null);
 
   if (id) {
     const u = _usuarios.find(x => x.id === id);
     if (!u) return;
-    title.textContent                              = 'Editar Usuário';
-    btnDel.style.display                           = 'inline-flex';
-    document.getElementById('u-id').value          = u.id;
-    document.getElementById('u-nome').value         = u.nome;
-    document.getElementById('u-cpf').value          = u.cpf;
-    document.getElementById('u-telefone').value     = u.telefone;
-    document.getElementById('u-email').value        = u.email;
-    document.getElementById('u-perfil').value       = u.perfil;
-    document.getElementById('u-status').value       = u.status;
-    document.getElementById('u-observacoes').value  = u.observacoes;
+    title.textContent                             = 'Editar Usuário';
+    btnDel.style.display                          = 'inline-flex';
+    document.getElementById('u-id').value         = u.id;
+    document.getElementById('u-nome').value        = u.nome;
+    document.getElementById('u-cpf').value         = u.cpf;
+    document.getElementById('u-telefone').value    = u.telefone;
+    document.getElementById('u-email').value       = u.email;
+    document.getElementById('u-perfil').value      = u.perfil;
+    document.getElementById('u-status').value      = u.status;
+    document.getElementById('u-observacoes').value = u.observacoes;
+    _uPopulateClientes(u.cliente_id);
+    // Apply masks to pre-filled values
+    maskCPF(document.getElementById('u-cpf'));
+    maskTelefone(document.getElementById('u-telefone'));
   } else {
     title.textContent    = 'Novo Usuário';
     btnDel.style.display = 'none';
@@ -17761,6 +17835,7 @@ async function saveUsuario() {
   if (!cpf)  { showToast('Informe o CPF do usuário.', 'error'); return; }
 
   const id  = document.getElementById('u-id').value;
+  const cliRaw = document.getElementById('u-cliente-id').value;
   const body = {
     nome,
     cpf,
@@ -17768,6 +17843,7 @@ async function saveUsuario() {
     email:       document.getElementById('u-email').value.trim(),
     perfil:      document.getElementById('u-perfil').value,
     status:      document.getElementById('u-status').value,
+    cliente_id:  cliRaw ? parseInt(cliRaw) : null,
     observacoes: document.getElementById('u-observacoes').value.trim(),
   };
 

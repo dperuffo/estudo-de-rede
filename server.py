@@ -496,9 +496,11 @@ def init_db():
         email       TEXT    DEFAULT '',
         perfil      TEXT    DEFAULT 'Operador',
         status      TEXT    DEFAULT 'Ativo',
+        cliente_id  INTEGER DEFAULT NULL,
         observacoes TEXT    DEFAULT '',
         created_at  TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
     )''')
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
 
     # ── Controle de Custos ───────────────────────────────────────
     cur.execute('''CREATE TABLE IF NOT EXISTS centros_custo (
@@ -519,8 +521,10 @@ def init_db():
         mes               INTEGER NOT NULL,
         categoria         TEXT    NOT NULL,
         valor_orcado      REAL    DEFAULT 0,
-        observacoes       TEXT    DEFAULT ''
+        observacoes       TEXT    DEFAULT '',
+        cliente_id        INTEGER DEFAULT NULL
     )''')
+    cur.execute("ALTER TABLE orcamentos_cc ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
 
     cur.execute('''CREATE TABLE IF NOT EXISTS lancamentos_cc (
         id                SERIAL PRIMARY KEY,
@@ -1211,13 +1215,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/usuarios':
             conn = get_db()
             try:
+                cli_id = d.get('cliente_id') or None
+                if cli_id: cli_id = int(cli_id)
                 cur = _exec(conn, '''INSERT INTO usuarios
-                    (nome,cpf,telefone,email,perfil,status,observacoes)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                    (nome,cpf,telefone,email,perfil,status,cliente_id,observacoes)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                     d.get('nome',''), d.get('cpf',''),
                     d.get('telefone',''), d.get('email',''),
                     d.get('perfil','Operador'), d.get('status','Ativo'),
-                    d.get('observacoes',''),
+                    cli_id, d.get('observacoes',''),
                 ])
                 conn.commit()
                 new_id = cur.fetchone()['id']
@@ -1721,14 +1727,16 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == '/api/orcamentos-cc':
             conn = get_db()
+            orc_cli = d.get('cliente_id') or None
+            if orc_cli: orc_cli = int(orc_cli)
             cur  = _exec(conn, '''INSERT INTO orcamentos_cc
-                (centro_custo_id,ano,mes,categoria,valor_orcado,observacoes)
-                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                (centro_custo_id,ano,mes,categoria,valor_orcado,observacoes,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('centro_custo_id') or d.get('centroCustoId'),
                 d.get('ano'), d.get('mes'),
                 d.get('categoria',''),
                 d.get('valor_orcado') or d.get('valorOrcado',0),
-                d.get('observacoes','')
+                d.get('observacoes',''), orc_cli
             ])
             new_id = cur.fetchone()['id']
             conn.commit(); conn.close()
@@ -2163,13 +2171,15 @@ class Handler(BaseHTTPRequestHandler):
             id_ = int(m.group(1))
             conn = get_db()
             try:
+                cli_id = d.get('cliente_id') or None
+                if cli_id: cli_id = int(cli_id)
                 _exec(conn, '''UPDATE usuarios SET
-                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,status=%s,observacoes=%s
+                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,status=%s,cliente_id=%s,observacoes=%s
                     WHERE id=%s''', [
                     d.get('nome',''), d.get('cpf',''),
                     d.get('telefone',''), d.get('email',''),
                     d.get('perfil','Operador'), d.get('status','Ativo'),
-                    d.get('observacoes',''), id_
+                    cli_id, d.get('observacoes',''), id_
                 ])
                 conn.commit(); conn.close()
                 self.send_json({'ok': True}); return
@@ -2196,14 +2206,16 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             id_ = int(m.group(1))
             conn = get_db()
+            orc_cli = d.get('cliente_id') or None
+            if orc_cli: orc_cli = int(orc_cli)
             _exec(conn, '''UPDATE orcamentos_cc SET
-                centro_custo_id=%s,ano=%s,mes=%s,categoria=%s,valor_orcado=%s,observacoes=%s
+                centro_custo_id=%s,ano=%s,mes=%s,categoria=%s,valor_orcado=%s,observacoes=%s,cliente_id=%s
                 WHERE id=%s''', [
                 d.get('centro_custo_id') or d.get('centroCustoId'),
                 d.get('ano'), d.get('mes'),
                 d.get('categoria',''),
                 d.get('valor_orcado') or d.get('valorOrcado',0),
-                d.get('observacoes',''), id_
+                d.get('observacoes',''), orc_cli, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
