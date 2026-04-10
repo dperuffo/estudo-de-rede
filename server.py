@@ -1588,9 +1588,11 @@ class Handler(BaseHTTPRequestHandler):
                 (codigo,nome,descricao,responsavel,cliente_id,status)
                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('codigo',''), d.get('nome',''), d.get('descricao',''),
-                d.get('responsavel',''), d.get('clienteId') or None, d.get('status','Ativo')
+                d.get('responsavel',''),
+                d.get('cliente_id') or d.get('clienteId') or None,
+                d.get('status','Ativo')
             ])
-            new_id = cur.fetchone()[0]
+            new_id = cur.fetchone()['id']
             conn.commit(); conn.close()
             self.send_json({'id': new_id})
 
@@ -1599,10 +1601,13 @@ class Handler(BaseHTTPRequestHandler):
             cur  = _exec(conn, '''INSERT INTO orcamentos_cc
                 (centro_custo_id,ano,mes,categoria,valor_orcado,observacoes)
                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''', [
-                d.get('centroCustoId'), d.get('ano'), d.get('mes'),
-                d.get('categoria',''), d.get('valorOrcado',0), d.get('observacoes','')
+                d.get('centro_custo_id') or d.get('centroCustoId'),
+                d.get('ano'), d.get('mes'),
+                d.get('categoria',''),
+                d.get('valor_orcado') or d.get('valorOrcado',0),
+                d.get('observacoes','')
             ])
-            new_id = cur.fetchone()[0]
+            new_id = cur.fetchone()['id']
             conn.commit(); conn.close()
             self.send_json({'id': new_id})
 
@@ -1611,12 +1616,14 @@ class Handler(BaseHTTPRequestHandler):
             cur  = _exec(conn, '''INSERT INTO lancamentos_cc
                 (centro_custo_id,data,categoria,descricao,valor,tipo,referencia_tipo,referencia_id,cliente_id)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
-                d.get('centroCustoId'), d.get('data'), d.get('categoria',''),
+                d.get('centro_custo_id') or d.get('centroCustoId'),
+                d.get('data'), d.get('categoria',''),
                 d.get('descricao',''), d.get('valor',0), d.get('tipo','Despesa'),
-                d.get('referenciaTipo','Manual'), d.get('referenciaId') or None,
-                d.get('clienteId') or None
+                d.get('referencia_tipo') or d.get('referenciaTipo','Manual'),
+                d.get('referencia_id') or d.get('referenciaId') or None,
+                d.get('cliente_id') or d.get('clienteId') or None
             ])
-            new_id = cur.fetchone()[0]
+            new_id = cur.fetchone()['id']
             conn.commit(); conn.close()
             self.send_json({'id': new_id})
 
@@ -2023,7 +2030,8 @@ class Handler(BaseHTTPRequestHandler):
                 codigo=%s,nome=%s,descricao=%s,responsavel=%s,cliente_id=%s,status=%s
                 WHERE id=%s''', [
                 d.get('codigo',''), d.get('nome',''), d.get('descricao',''),
-                d.get('responsavel',''), d.get('clienteId') or None,
+                d.get('responsavel',''),
+                d.get('cliente_id') or d.get('clienteId') or None,
                 d.get('status','Ativo'), id_
             ])
             conn.commit(); conn.close()
@@ -2036,8 +2044,11 @@ class Handler(BaseHTTPRequestHandler):
             _exec(conn, '''UPDATE orcamentos_cc SET
                 centro_custo_id=%s,ano=%s,mes=%s,categoria=%s,valor_orcado=%s,observacoes=%s
                 WHERE id=%s''', [
-                d.get('centroCustoId'), d.get('ano'), d.get('mes'),
-                d.get('categoria',''), d.get('valorOrcado',0), d.get('observacoes',''), id_
+                d.get('centro_custo_id') or d.get('centroCustoId'),
+                d.get('ano'), d.get('mes'),
+                d.get('categoria',''),
+                d.get('valor_orcado') or d.get('valorOrcado',0),
+                d.get('observacoes',''), id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -2050,10 +2061,12 @@ class Handler(BaseHTTPRequestHandler):
                 centro_custo_id=%s,data=%s,categoria=%s,descricao=%s,
                 valor=%s,tipo=%s,referencia_tipo=%s,referencia_id=%s,cliente_id=%s
                 WHERE id=%s''', [
-                d.get('centroCustoId'), d.get('data'), d.get('categoria',''),
+                d.get('centro_custo_id') or d.get('centroCustoId'),
+                d.get('data'), d.get('categoria',''),
                 d.get('descricao',''), d.get('valor',0), d.get('tipo','Despesa'),
-                d.get('referenciaTipo','Manual'), d.get('referenciaId') or None,
-                d.get('clienteId') or None, id_
+                d.get('referencia_tipo') or d.get('referenciaTipo','Manual'),
+                d.get('referencia_id') or d.get('referenciaId') or None,
+                d.get('cliente_id') or d.get('clienteId') or None, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
