@@ -66,10 +66,12 @@ def _hoje():
     return _date.today().isoformat()
 
 def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
-                             combustivel, valor_total, arla32_total,
-                             servicos_abast, cliente_id):
+                             combustivel, volume, preco_unitario,
+                             arla32_total, servicos_abast, cliente_id):
     """Cria/atualiza lançamentos em lancamentos_cc para um abastecimento,
-    usando o centro_custo_id do veículo (se configurado)."""
+    usando o centro_custo_id do veículo (se configurado).
+    O valor do combustível é calculado como volume × preco_unitario,
+    separando-o do Arla 32 e dos serviços avulsos."""
     veiculo = _fetchone(conn,
         'SELECT centro_custo_id FROM veiculos WHERE placa=%s', [placa])
     cc_id = veiculo.get('centro_custo_id') if veiculo else None
@@ -81,17 +83,19 @@ def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
         "DELETE FROM lancamentos_cc WHERE referencia_tipo='Abastecimento' AND referencia_id=%s",
         [abast_id])
 
-    data_lanc = (data or _hoje())[:10]
-    desc_base = f"Abast. {combustivel or ''} — {placa} em {posto or ''}"
+    data_lanc  = (data or _hoje())[:10]
+    desc_base  = f"Abast. {combustivel or ''} — {placa} em {posto or ''}"
+    # Valor apenas do combustível (sem Arla 32 e sem serviços)
+    comb_valor = round(float(volume or 0) * float(preco_unitario or 0), 2)
 
     # Combustível principal
-    if valor_total and float(valor_total) > 0:
+    if comb_valor > 0:
         _exec(conn, '''INSERT INTO lancamentos_cc
             (centro_custo_id,data,categoria,descricao,valor,tipo,
              referencia_tipo,referencia_id,cliente_id)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
             cc_id, data_lanc, 'Combustível', desc_base,
-            float(valor_total), 'Despesa', 'Abastecimento', abast_id,
+            comb_valor, 'Despesa', 'Abastecimento', abast_id,
             cliente_id or None,
         ])
 
@@ -610,6 +614,18 @@ def init_db():
         ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
     cur.execute('''ALTER TABLE planos_viagem
         ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
+
+    # ── Migração: corrige lançamentos de combustível que usavam valor_total
+    #    (combustível + Arla 32 + serviços) em vez de volume × preco_unitario ──
+    cur.execute('''
+        UPDATE lancamentos_cc lc
+        SET valor = ROUND((a.volume * a.preco_unitario)::numeric, 2)
+        FROM abastecimentos a
+        WHERE lc.referencia_tipo = 'Abastecimento'
+          AND lc.referencia_id  = a.id
+          AND lc.categoria      = 'Combustível'
+          AND lc.descricao      NOT LIKE 'Arla 32%'
+    ''')
 
     conn.commit()
     conn.close()
@@ -1334,15 +1350,16 @@ class Handler(BaseHTTPRequestHandler):
             new_id = cur.fetchone()['id']
             _sync_abast_lancamentos(
                 conn,
-                abast_id    = new_id,
-                placa       = d.get('placa',''),
-                data        = d.get('data',''),
-                posto       = d.get('posto',''),
-                combustivel = d.get('combustivel',''),
-                valor_total = d.get('valorTotal', 0),
-                arla32_total= d.get('arla32Total', 0),
+                abast_id       = new_id,
+                placa          = d.get('placa',''),
+                data           = d.get('data',''),
+                posto          = d.get('posto',''),
+                combustivel    = d.get('combustivel',''),
+                volume         = d.get('volume', 0),
+                preco_unitario = d.get('precoUnitario', 0),
+                arla32_total   = d.get('arla32Total', 0),
                 servicos_abast = d.get('servicosAbast', []),
-                cliente_id  = d.get('cliente_id') or None,
+                cliente_id     = d.get('cliente_id') or None,
             )
             conn.commit()
             conn.close()
@@ -1871,15 +1888,16 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
             _sync_abast_lancamentos(
                 conn,
-                abast_id    = id_,
-                placa       = d.get('placa',''),
-                data        = d.get('data',''),
-                posto       = d.get('posto',''),
-                combustivel = d.get('combustivel',''),
-                valor_total = d.get('valorTotal', 0),
-                arla32_total= d.get('arla32Total', 0),
+                abast_id       = id_,
+                placa          = d.get('placa',''),
+                data           = d.get('data',''),
+                posto          = d.get('posto',''),
+                combustivel    = d.get('combustivel',''),
+                volume         = d.get('volume', 0),
+                preco_unitario = d.get('precoUnitario', 0),
+                arla32_total   = d.get('arla32Total', 0),
                 servicos_abast = d.get('servicosAbast', []),
-                cliente_id  = d.get('cliente_id') or None,
+                cliente_id     = d.get('cliente_id') or None,
             )
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
