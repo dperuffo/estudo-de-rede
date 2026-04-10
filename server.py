@@ -487,6 +487,19 @@ def init_db():
         updated_at            TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
     )''')
 
+    # ── Usuários do sistema ──────────────────────────────────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS usuarios (
+        id          SERIAL PRIMARY KEY,
+        nome        TEXT    NOT NULL,
+        cpf         TEXT    NOT NULL UNIQUE,
+        telefone    TEXT    DEFAULT '',
+        email       TEXT    DEFAULT '',
+        perfil      TEXT    DEFAULT 'Operador',
+        status      TEXT    DEFAULT 'Ativo',
+        observacoes TEXT    DEFAULT '',
+        created_at  TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+    )''')
+
     # ── Controle de Custos ───────────────────────────────────────
     cur.execute('''CREATE TABLE IF NOT EXISTS centros_custo (
         id            SERIAL PRIMARY KEY,
@@ -794,6 +807,25 @@ class Handler(BaseHTTPRequestHandler):
             row  = _fetchone(conn, 'SELECT * FROM clientes WHERE id=%s', [cid])
             conn.close()
             self.send_json(row if row else {})
+
+        elif path == '/api/usuarios':
+            qs       = parse_qs(urlparse(self.path).query)
+            status_f = qs.get('status', [None])[0]
+            perfil_f = qs.get('perfil', [None])[0]
+            busca_f  = qs.get('busca',  [None])[0]
+            where, params = [], []
+            if status_f: where.append('status=%s'); params.append(status_f)
+            if perfil_f: where.append('perfil=%s'); params.append(perfil_f)
+            if busca_f:
+                where.append("(nome ILIKE %s OR cpf ILIKE %s OR email ILIKE %s)")
+                like = f'%{busca_f}%'; params += [like, like, like]
+            sql = 'SELECT * FROM usuarios'
+            if where: sql += ' WHERE ' + ' AND '.join(where)
+            sql += ' ORDER BY nome'
+            conn = get_db()
+            rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
 
         elif path == '/api/abastecimentos':
             qs  = parse_qs(urlparse(self.path).query)
@@ -1175,6 +1207,25 @@ class Handler(BaseHTTPRequestHandler):
             new_id = cur.fetchone()['id']
             conn.close()
             self.send_json({'id': new_id}); return
+
+        if path == '/api/usuarios':
+            conn = get_db()
+            try:
+                cur = _exec(conn, '''INSERT INTO usuarios
+                    (nome,cpf,telefone,email,perfil,status,observacoes)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                    d.get('nome',''), d.get('cpf',''),
+                    d.get('telefone',''), d.get('email',''),
+                    d.get('perfil','Operador'), d.get('status','Ativo'),
+                    d.get('observacoes',''),
+                ])
+                conn.commit()
+                new_id = cur.fetchone()['id']
+                conn.close()
+                self.send_json({'id': new_id}, 201); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 409); return
 
         if path == '/api/abastecimentos':
             conn = get_db()
@@ -2107,6 +2158,25 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
+        m = re.match(r'^/api/usuarios/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            try:
+                _exec(conn, '''UPDATE usuarios SET
+                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,status=%s,observacoes=%s
+                    WHERE id=%s''', [
+                    d.get('nome',''), d.get('cpf',''),
+                    d.get('telefone',''), d.get('email',''),
+                    d.get('perfil','Operador'), d.get('status','Ativo'),
+                    d.get('observacoes',''), id_
+                ])
+                conn.commit(); conn.close()
+                self.send_json({'ok': True}); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 409); return
+
         m = re.match(r'^/api/centros-custo/(\d+)$', path)
         if m:
             id_ = int(m.group(1))
@@ -2325,6 +2395,13 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM clientes WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/usuarios/(\d+)$', path)
+        if m:
+            conn = get_db()
+            _exec(conn, 'DELETE FROM usuarios WHERE id=%s', [int(m.group(1))])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 

@@ -946,6 +946,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Motoristas
       </button>
+      <button class="sidebar-item sidebar-subitem" id="side-btn-usuarios" onclick="switchTab('usuarios')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Usuários
+      </button>
     </div>
   </div>
 
@@ -3646,6 +3650,77 @@
 
   </div><!-- /view-custos -->
 
+  <!-- ░░ USUÁRIOS ░░ -->
+  <div id="view-usuarios" style="display:none">
+    <div class="panel">
+
+      <!-- KPIs -->
+      <div class="motorista-kpi-row">
+        <div class="motorista-kpi"><div class="motorista-kpi-label">Total</div><div class="motorista-kpi-value" id="ukpi-total">0</div></div>
+        <div class="motorista-kpi"><div class="motorista-kpi-label">Ativos</div><div class="motorista-kpi-value" id="ukpi-ativos" style="color:#16a34a">0</div></div>
+        <div class="motorista-kpi"><div class="motorista-kpi-label">Inativos</div><div class="motorista-kpi-value" id="ukpi-inativos" style="color:#dc2626">0</div></div>
+        <div class="motorista-kpi"><div class="motorista-kpi-label">Gestores</div><div class="motorista-kpi-value" id="ukpi-gestores" style="color:#1d4ed8">0</div></div>
+        <div class="motorista-kpi"><div class="motorista-kpi-label">Administrativos</div><div class="motorista-kpi-value" id="ukpi-admin" style="color:#7e22ce">0</div></div>
+        <div class="motorista-kpi"><div class="motorista-kpi-label">Operadores</div><div class="motorista-kpi-value" id="ukpi-operadores" style="color:#0891b2">0</div></div>
+      </div>
+
+      <!-- Header / filtros -->
+      <div class="motorista-panel-header">
+        <div class="panel-title">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Usuários do Sistema
+        </div>
+        <div class="motorista-search-bar">
+          <input type="text" id="usuario-busca" placeholder="Buscar por nome, CPF, e-mail…" oninput="renderUsuarios()" style="flex:1;min-width:180px;">
+          <select id="u-f-status" onchange="renderUsuarios()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--bg);color:var(--text);">
+            <option value="">Todos os status</option>
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+          <select id="u-f-perfil" onchange="renderUsuarios()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--bg);color:var(--text);">
+            <option value="">Todos os perfis</option>
+            <option value="Gestor">Gestor</option>
+            <option value="Administrativo">Administrativo</option>
+            <option value="Operador">Operador</option>
+            <option value="Outro">Outro</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="uLimparFiltros()" style="white-space:nowrap;">✕ Limpar</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-primary btn-sm" onclick="openUsuarioModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Usuário
+          </button>
+        </div>
+      </div>
+
+      <!-- Estado vazio -->
+      <div id="usuarios-empty" style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <p style="margin-top:12px;">Nenhum usuário cadastrado. Clique em <strong>Novo Usuário</strong> para começar.</p>
+      </div>
+
+      <!-- Tabela -->
+      <div class="motorista-table-wrap" id="usuarioTableWrap" style="display:none">
+        <table class="motorista-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>CPF</th>
+              <th>Telefone</th>
+              <th>E-mail</th>
+              <th>Perfil</th>
+              <th>Status</th>
+              <th style="text-align:center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="usuarios-tbody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div><!-- /view-usuarios -->
+
 </div><!-- /content-area -->
 </div><!-- /app-wrapper -->
 
@@ -5592,6 +5667,69 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         Salvar Lançamento
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL USUÁRIO ░░ -->
+<div class="modal-overlay" id="usuarioModalOverlay" onclick="if(event.target===this)closeUsuarioModal()">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="usuarioModalTitle">Novo Usuário</h2>
+      <button class="modal-close" onclick="closeUsuarioModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="u-id">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label class="form-label">Nome *</label>
+          <input type="text" class="form-control" id="u-nome" placeholder="Nome completo" maxlength="120">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">CPF *</label>
+          <input type="text" class="form-control" id="u-cpf" placeholder="000.000.000-00" maxlength="18">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input type="text" class="form-control" id="u-telefone" placeholder="(00) 00000-0000" maxlength="20">
+        </div>
+        <div class="form-group" style="flex:2">
+          <label class="form-label">E-mail</label>
+          <input type="email" class="form-control" id="u-email" placeholder="usuario@email.com" maxlength="120">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Perfil</label>
+          <select class="form-control" id="u-perfil">
+            <option value="Gestor">Gestor</option>
+            <option value="Administrativo">Administrativo</option>
+            <option value="Operador" selected>Operador</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="u-status">
+            <option value="Ativo" selected>Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea class="form-control" id="u-observacoes" rows="3" placeholder="Observações adicionais…" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeUsuarioModal()">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="u-btn-del" onclick="deleteUsuario()" style="display:none;margin-right:auto;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        Excluir
+      </button>
+      <button class="btn btn-primary" onclick="saveUsuario()">Salvar Usuário</button>
     </div>
   </div>
 </div>
@@ -9364,11 +9502,11 @@ function _renderConsumoMedio(curr) {
 const _subItemGroup = {
   precos:'paineldinamico', varprecos:'paineldinamico', mapabandeira:'paineldinamico', volprojetado:'paineldinamico',
   'plano-viagem':'orcamento', 'custos':'orcamento',
-  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros'
+  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros'
 };
 
 function switchTab(tab) {
-  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos'].forEach(t => {
+  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos'].forEach(t => {
     const view = document.getElementById('view-' + t);
     if (view) view.style.display = tab === t ? '' : 'none';
     const tabBtn  = document.getElementById('tab-btn-' + t);
@@ -9429,6 +9567,7 @@ function switchTab(tab) {
   if (tab === 'rotograma')     { loadRotogramas(); }
   if (tab === 'plano-viagem')  { loadPlanosViagem(); loadVeiculos(); loadMotoristas(); loadRotogramas(); }
   if (tab === 'clientes')      { loadClientes(); }
+  if (tab === 'usuarios')      { loadUsuarios(); }
   if (tab === 'custos')        { loadCentrosCusto().then(() => { loadOrcamentosCC(); loadLancamentosCC(); renderDashboardCC(); }); }
 }
 
@@ -17482,6 +17621,184 @@ async function deleteLancamento(id) {
   await loadLancamentosCC();
   renderDashboardCC();
   showToast('Lançamento excluído.', 'success');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  USUÁRIOS
+// ═══════════════════════════════════════════════════════════════
+let _usuarios = [];
+
+function mapUsuario(r) {
+  return {
+    id:          r.id,
+    nome:        r.nome        || '',
+    cpf:         r.cpf         || '',
+    telefone:    r.telefone    || '',
+    email:       r.email       || '',
+    perfil:      r.perfil      || 'Operador',
+    status:      r.status      || 'Ativo',
+    observacoes: r.observacoes || '',
+    created_at:  r.created_at  || '',
+  };
+}
+
+async function loadUsuarios() {
+  try {
+    const data = await apiCall('GET', '/api/usuarios');
+    _usuarios = (data || []).map(mapUsuario);
+    renderUsuarios();
+  } catch(e) { console.error('loadUsuarios', e); }
+}
+
+function renderUsuarios() {
+  const busca   = (document.getElementById('usuario-busca')?.value || '').toLowerCase();
+  const status  = document.getElementById('u-f-status')?.value  || '';
+  const perfil  = document.getElementById('u-f-perfil')?.value  || '';
+
+  const filtered = _usuarios.filter(u => {
+    const matchBusca  = !busca  || u.nome.toLowerCase().includes(busca) || u.cpf.includes(busca) || u.email.toLowerCase().includes(busca);
+    const matchStatus = !status || u.status === status;
+    const matchPerfil = !perfil || u.perfil === perfil;
+    return matchBusca && matchStatus && matchPerfil;
+  });
+
+  // KPIs
+  document.getElementById('ukpi-total').textContent     = _usuarios.length;
+  document.getElementById('ukpi-ativos').textContent    = _usuarios.filter(u => u.status === 'Ativo').length;
+  document.getElementById('ukpi-inativos').textContent  = _usuarios.filter(u => u.status === 'Inativo').length;
+  document.getElementById('ukpi-gestores').textContent  = _usuarios.filter(u => u.perfil === 'Gestor').length;
+  document.getElementById('ukpi-admin').textContent     = _usuarios.filter(u => u.perfil === 'Administrativo').length;
+  document.getElementById('ukpi-operadores').textContent= _usuarios.filter(u => u.perfil === 'Operador').length;
+
+  const empty = document.getElementById('usuarios-empty');
+  const wrap  = document.getElementById('usuarioTableWrap');
+  const tbody = document.getElementById('usuarios-tbody');
+
+  if (!filtered.length) {
+    empty.style.display = 'block';
+    wrap.style.display  = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  wrap.style.display  = 'block';
+
+  const perfilBadge = p => {
+    const colors = { Gestor:'#1d4ed8', Administrativo:'#7e22ce', Operador:'#0891b2' };
+    const c = colors[p] || '#6b7280';
+    return `<span style="background:${c}15;color:${c};padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:600;">${p}</span>`;
+  };
+  const statusBadge = s => {
+    const c = s === 'Ativo' ? '#16a34a' : '#dc2626';
+    return `<span style="background:${c}15;color:${c};padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:600;">${s}</span>`;
+  };
+
+  tbody.innerHTML = filtered.map(u => `
+    <tr>
+      <td><strong>${u.nome}</strong></td>
+      <td style="font-family:monospace">${u.cpf || '—'}</td>
+      <td>${u.telefone || '—'}</td>
+      <td>${u.email || '—'}</td>
+      <td>${perfilBadge(u.perfil)}</td>
+      <td>${statusBadge(u.status)}</td>
+      <td style="text-align:center;white-space:nowrap">
+        <button class="btn-icon" title="Editar" onclick="openUsuarioModal(${u.id})">✏️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function uLimparFiltros() {
+  const b = document.getElementById('usuario-busca'); if (b) b.value = '';
+  const s = document.getElementById('u-f-status');   if (s) s.value = '';
+  const p = document.getElementById('u-f-perfil');   if (p) p.value = '';
+  renderUsuarios();
+}
+
+function openUsuarioModal(id) {
+  const overlay = document.getElementById('usuarioModalOverlay');
+  const title   = document.getElementById('usuarioModalTitle');
+  const btnDel  = document.getElementById('u-btn-del');
+
+  // Clear fields
+  document.getElementById('u-id').value          = '';
+  document.getElementById('u-nome').value         = '';
+  document.getElementById('u-cpf').value          = '';
+  document.getElementById('u-telefone').value     = '';
+  document.getElementById('u-email').value        = '';
+  document.getElementById('u-perfil').value       = 'Operador';
+  document.getElementById('u-status').value       = 'Ativo';
+  document.getElementById('u-observacoes').value  = '';
+
+  if (id) {
+    const u = _usuarios.find(x => x.id === id);
+    if (!u) return;
+    title.textContent                              = 'Editar Usuário';
+    btnDel.style.display                           = 'inline-flex';
+    document.getElementById('u-id').value          = u.id;
+    document.getElementById('u-nome').value         = u.nome;
+    document.getElementById('u-cpf').value          = u.cpf;
+    document.getElementById('u-telefone').value     = u.telefone;
+    document.getElementById('u-email').value        = u.email;
+    document.getElementById('u-perfil').value       = u.perfil;
+    document.getElementById('u-status').value       = u.status;
+    document.getElementById('u-observacoes').value  = u.observacoes;
+  } else {
+    title.textContent    = 'Novo Usuário';
+    btnDel.style.display = 'none';
+  }
+
+  overlay.classList.add('open');
+}
+
+function closeUsuarioModal() {
+  document.getElementById('usuarioModalOverlay').classList.remove('open');
+}
+
+async function saveUsuario() {
+  const nome = document.getElementById('u-nome').value.trim();
+  const cpf  = document.getElementById('u-cpf').value.trim();
+  if (!nome) { showToast('Informe o nome do usuário.', 'error'); return; }
+  if (!cpf)  { showToast('Informe o CPF do usuário.', 'error'); return; }
+
+  const id  = document.getElementById('u-id').value;
+  const body = {
+    nome,
+    cpf,
+    telefone:    document.getElementById('u-telefone').value.trim(),
+    email:       document.getElementById('u-email').value.trim(),
+    perfil:      document.getElementById('u-perfil').value,
+    status:      document.getElementById('u-status').value,
+    observacoes: document.getElementById('u-observacoes').value.trim(),
+  };
+
+  try {
+    if (id) {
+      await apiCall('PUT', `/api/usuarios/${id}`, body);
+      showToast('Usuário atualizado com sucesso!', 'success');
+    } else {
+      await apiCall('POST', '/api/usuarios', body);
+      showToast('Usuário cadastrado com sucesso!', 'success');
+    }
+    closeUsuarioModal();
+    await loadUsuarios();
+  } catch(e) {
+    showToast('Erro ao salvar usuário: ' + (e.message || e), 'error');
+  }
+}
+
+async function deleteUsuario() {
+  const id = document.getElementById('u-id').value;
+  if (!id) return;
+  const u = _usuarios.find(x => x.id === parseInt(id));
+  if (!confirm(`Excluir o usuário "${u ? u.nome : id}"? Esta ação não pode ser desfeita.`)) return;
+  try {
+    await apiCall('DELETE', `/api/usuarios/${id}`);
+    showToast('Usuário excluído.', 'success');
+    closeUsuarioModal();
+    await loadUsuarios();
+  } catch(e) {
+    showToast('Erro ao excluir usuário: ' + (e.message || e), 'error');
+  }
 }
 
 // Inicia aplicação (conecta ao servidor e carrega dados)
