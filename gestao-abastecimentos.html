@@ -17044,7 +17044,7 @@ function _ccNomeCentro(id) {
 }
 function _ccNomeCliente(id) {
   const c = (_clientes||[]).find(x => x.id === id);
-  return c ? c.nome : '—';
+  return c ? (c.razao_social || c.nome || '—') : '—';
 }
 function _ccPopulateAno(selId) {
   const sel = document.getElementById(selId);
@@ -17079,7 +17079,7 @@ function _ccPopulateClientes(selId, includeAll) {
   sel.innerHTML = includeAll ? '<option value="">Todos os clientes</option>' : '<option value="">— Geral (todos) —</option>';
   (_clientes||[]).filter(c => c.status === 'Ativo').forEach(c => {
     const o = document.createElement('option');
-    o.value = c.id; o.textContent = c.nome;
+    o.value = c.id; o.textContent = c.razao_social || c.nome;
     if (String(c.id) === String(cur)) o.selected = true;
     sel.appendChild(o);
   });
@@ -17309,7 +17309,7 @@ function openCentroModal(id) {
   if (cliSel) {
     cliSel.innerHTML = '<option value="">— Geral (todos) —</option>';
     (_clientes||[]).filter(c => c.status==='Ativo').forEach(c => {
-      const o = document.createElement('option'); o.value=c.id; o.textContent=c.nome;
+      const o = document.createElement('option'); o.value=c.id; o.textContent=c.razao_social||c.nome;
       cliSel.appendChild(o);
     });
   }
