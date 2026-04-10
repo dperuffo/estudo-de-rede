@@ -65,6 +65,65 @@ def _fetchone(conn, sql, params=None):
 def _hoje():
     return _date.today().isoformat()
 
+def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
+                             combustivel, valor_total, arla32_total,
+                             servicos_abast, cliente_id):
+    """Cria/atualiza lançamentos em lancamentos_cc para um abastecimento,
+    usando o centro_custo_id do veículo (se configurado)."""
+    veiculo = _fetchone(conn,
+        'SELECT centro_custo_id FROM veiculos WHERE placa=%s', [placa])
+    cc_id = veiculo.get('centro_custo_id') if veiculo else None
+    if not cc_id:
+        return  # veículo sem centro de custo → não gera lançamento
+
+    # Remove lançamentos anteriores deste abastecimento
+    _exec(conn,
+        "DELETE FROM lancamentos_cc WHERE referencia_tipo='Abastecimento' AND referencia_id=%s",
+        [abast_id])
+
+    data_lanc = (data or _hoje())[:10]
+    desc_base = f"Abast. {combustivel or ''} — {placa} em {posto or ''}"
+
+    # Combustível principal
+    if valor_total and float(valor_total) > 0:
+        _exec(conn, '''INSERT INTO lancamentos_cc
+            (centro_custo_id,data,categoria,descricao,valor,tipo,
+             referencia_tipo,referencia_id,cliente_id)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
+            cc_id, data_lanc, 'Combustível', desc_base,
+            float(valor_total), 'Despesa', 'Abastecimento', abast_id,
+            cliente_id or None,
+        ])
+
+    # Arla 32
+    if arla32_total and float(arla32_total) > 0:
+        _exec(conn, '''INSERT INTO lancamentos_cc
+            (centro_custo_id,data,categoria,descricao,valor,tipo,
+             referencia_tipo,referencia_id,cliente_id)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
+            cc_id, data_lanc, 'Combustível',
+            f"Arla 32 — {placa} em {posto or ''}",
+            float(arla32_total), 'Despesa', 'Abastecimento', abast_id,
+            cliente_id or None,
+        ])
+
+    # Serviços avulsos
+    if isinstance(servicos_abast, str):
+        try:    servicos_abast = json.loads(servicos_abast)
+        except: servicos_abast = []
+    for svc in (servicos_abast or []):
+        v = float(svc.get('valor', 0) or 0)
+        if v > 0:
+            _exec(conn, '''INSERT INTO lancamentos_cc
+                (centro_custo_id,data,categoria,descricao,valor,tipo,
+                 referencia_tipo,referencia_id,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
+                cc_id, data_lanc, 'Manutenção',
+                f"{svc.get('nome','Serviço')} — {placa}",
+                v, 'Despesa', 'Abastecimento', abast_id,
+                cliente_id or None,
+            ])
+
 # ═══════════════════════════════════════════════════════════════
 #  SCHEMA – CREATE TABLES
 # ═══════════════════════════════════════════════════════════════
@@ -1138,6 +1197,19 @@ class Handler(BaseHTTPRequestHandler):
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
+            _sync_abast_lancamentos(
+                conn,
+                abast_id    = new_id,
+                placa       = d.get('placa',''),
+                data        = d.get('data',''),
+                posto       = d.get('posto',''),
+                combustivel = d.get('combustivel',''),
+                valor_total = d.get('valorTotal', 0),
+                arla32_total= d.get('arla32Total', 0),
+                servicos_abast = d.get('servicosAbast', []),
+                cliente_id  = d.get('cliente_id') or None,
+            )
+            conn.commit()
             conn.close()
             self.send_json({'id': new_id}, 201)
 
@@ -1659,6 +1731,19 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('cliente_id') or None,
                 id_
             ])
+            conn.commit()
+            _sync_abast_lancamentos(
+                conn,
+                abast_id    = id_,
+                placa       = d.get('placa',''),
+                data        = d.get('data',''),
+                posto       = d.get('posto',''),
+                combustivel = d.get('combustivel',''),
+                valor_total = d.get('valorTotal', 0),
+                arla32_total= d.get('arla32Total', 0),
+                servicos_abast = d.get('servicosAbast', []),
+                cliente_id  = d.get('cliente_id') or None,
+            )
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
@@ -2083,6 +2168,7 @@ class Handler(BaseHTTPRequestHandler):
             conn = get_db()
             cur  = _exec(conn, 'SELECT COUNT(*) AS n FROM abastecimentos')
             n    = cur.fetchone()['n']
+            _exec(conn, "DELETE FROM lancamentos_cc WHERE referencia_tipo='Abastecimento'")
             _exec(conn, 'DELETE FROM abastecimentos')
             _exec(conn, "SELECT SETVAL('abastecimentos_id_seq', 1, false)")
             conn.commit(); conn.close()
@@ -2090,8 +2176,10 @@ class Handler(BaseHTTPRequestHandler):
 
         m = re.match(r'^/api/abastecimentos/(\d+)$', path)
         if m:
+            aid = int(m.group(1))
             conn = get_db()
-            _exec(conn, 'DELETE FROM abastecimentos WHERE id=%s', [int(m.group(1))])
+            _exec(conn, "DELETE FROM lancamentos_cc WHERE referencia_tipo='Abastecimento' AND referencia_id=%s", [aid])
+            _exec(conn, 'DELETE FROM abastecimentos WHERE id=%s', [aid])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
