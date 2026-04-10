@@ -9656,13 +9656,28 @@ function switchTab(tab) {
     }
   }
   closeSidebar(); // fecha menu em mobile ao navegar
-  // Reseta filtros de cliente na mudança de aba (mostra todos os registros por padrão)
+  // Reseta TODOS os filtros ao mudar de aba (cliente, busca, status, etc.)
+  // Filtros de cliente
   ['f-cliente','v-f-cliente','m-f-cliente','neg-f-cliente',
    'iv-f-cliente','vd-f-cliente2','vol-f-cliente','pa-f-cliente',
    'hodo-leve-f-cliente','hodo-pesado-f-cliente',
-   'roto-f-cliente','pv-f-cliente','seg-f-cliente','roteiz-f-cliente'].forEach(id => {
+   'roto-f-cliente','pv-f-cliente','seg-f-cliente','roteiz-f-cliente',
+   'cc-f-cliente','lanc-f-cliente','cc-dash-cliente'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
+  });
+  // Filtros de busca (text inputs) e outros selects de cada aba
+  ['motorista-busca','usuario-busca','cli-busca',
+   'neg-f-busca','neg-f-status','neg-f-tipo','neg-f-comb',
+   'u-f-status','u-f-perfil',
+   'roto-search','roto-filter-status',
+   'pv-filter-status','pv-filter-placa',
+   'cc-f-status',
+   'f-data-ini','f-data-fim','f-placa','f-motorista','f-combustivel','f-posto'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT') el.value = el.options[0]?.value ?? '';
+    else el.value = '';
   });
   // Carrega/atualiza dados da aba ao navegar (refresh completo a cada clique)
   if (tab === 'abastecimentos') {
