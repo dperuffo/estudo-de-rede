@@ -950,6 +950,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Usuários
       </button>
+      <button class="sidebar-item sidebar-subitem" id="side-btn-perfil-usuario" onclick="switchTab('perfil-usuario')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+        Perfil de Usuário
+      </button>
     </div>
   </div>
 
@@ -3722,6 +3726,87 @@
     </div>
   </div><!-- /view-usuarios -->
 
+  <!-- ░░ PERFIL DE USUÁRIO ░░ -->
+  <div id="view-perfil-usuario" style="display:none">
+    <div class="panel">
+
+      <!-- Header -->
+      <div class="motorista-panel-header">
+        <div class="panel-title">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+          Perfis de Acesso
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="pf-sel-perfil" class="form-control" style="min-width:200px;" onchange="pfLoadPermissoes()">
+            <option value="">— Selecione o perfil —</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="openPerfilModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Perfil
+          </button>
+          <button class="btn btn-outline btn-sm" id="pf-btn-edit-perfil" style="display:none" onclick="openPerfilModal('edit')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Editar Perfil
+          </button>
+        </div>
+      </div>
+
+      <!-- Área de permissões -->
+      <div id="pf-empty" style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <p style="margin-top:12px;">Selecione um perfil acima para visualizar e editar as permissões.</p>
+      </div>
+
+      <div id="pf-matrix-wrap" style="display:none">
+        <!-- Barra de salvar -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;">
+          <span style="font-size:0.82rem;color:var(--text-muted);align-self:center;">Editando permissões do perfil: <strong id="pf-nome-label">—</strong></span>
+          <button class="btn btn-primary btn-sm" onclick="pfSavePermissoes()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Salvar Permissões
+          </button>
+        </div>
+
+        <!-- Tabela de permissões -->
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;" id="pf-table">
+            <thead>
+              <tr style="background:var(--bg-secondary);">
+                <th style="text-align:left;padding:10px 14px;border-bottom:2px solid var(--border);min-width:220px;">Módulo / Funcionalidade</th>
+                <th style="text-align:center;padding:10px 12px;border-bottom:2px solid var(--border);width:90px;">
+                  <div>Inclusão</div>
+                  <label style="cursor:pointer;font-size:0.7rem;color:var(--text-muted);">
+                    <input type="checkbox" id="pf-all-incl" onchange="pfToggleAll('inclusao',this.checked)" style="margin-right:2px;">todos
+                  </label>
+                </th>
+                <th style="text-align:center;padding:10px 12px;border-bottom:2px solid var(--border);width:90px;">
+                  <div>Consulta</div>
+                  <label style="cursor:pointer;font-size:0.7rem;color:var(--text-muted);">
+                    <input type="checkbox" id="pf-all-cons" onchange="pfToggleAll('consulta',this.checked)" style="margin-right:2px;">todos
+                  </label>
+                </th>
+                <th style="text-align:center;padding:10px 12px;border-bottom:2px solid var(--border);width:90px;">
+                  <div>Edição</div>
+                  <label style="cursor:pointer;font-size:0.7rem;color:var(--text-muted);">
+                    <input type="checkbox" id="pf-all-edit" onchange="pfToggleAll('edicao',this.checked)" style="margin-right:2px;">todos
+                  </label>
+                </th>
+                <th style="text-align:center;padding:10px 12px;border-bottom:2px solid var(--border);width:90px;">
+                  <div>Exclusão</div>
+                  <label style="cursor:pointer;font-size:0.7rem;color:var(--text-muted);">
+                    <input type="checkbox" id="pf-all-excl" onchange="pfToggleAll('exclusao',this.checked)" style="margin-right:2px;">todos
+                  </label>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="pf-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /view-perfil-usuario -->
+
 </div><!-- /content-area -->
 </div><!-- /app-wrapper -->
 
@@ -5743,6 +5828,35 @@
         Excluir
       </button>
       <button class="btn btn-primary" onclick="saveUsuario()">Salvar Usuário</button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL PERFIL DE ACESSO ░░ -->
+<div class="modal-overlay" id="perfilModalOverlay" onclick="if(event.target===this)closePerfilModal()">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="perfilModalTitle">Novo Perfil</h2>
+      <button class="modal-close" onclick="closePerfilModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pf-edit-id">
+      <div class="form-group">
+        <label class="form-label">Nome do Perfil *</label>
+        <input type="text" class="form-control" id="pf-nome" placeholder="Ex.: Gestor, Operador…" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-control" id="pf-descricao" rows="2" placeholder="Descrição do perfil de acesso" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePerfilModal()">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="pf-btn-del" onclick="deletePerfil()" style="display:none;margin-right:auto;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Excluir
+      </button>
+      <button class="btn btn-primary" onclick="savePerfil()">Salvar Perfil</button>
     </div>
   </div>
 </div>
@@ -9515,11 +9629,11 @@ function _renderConsumoMedio(curr) {
 const _subItemGroup = {
   precos:'paineldinamico', varprecos:'paineldinamico', mapabandeira:'paineldinamico', volprojetado:'paineldinamico',
   'plano-viagem':'orcamento', 'custos':'orcamento',
-  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros'
+  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros', 'perfil-usuario':'cadastros'
 };
 
 function switchTab(tab) {
-  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos'].forEach(t => {
+  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','perfil-usuario','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos'].forEach(t => {
     const view = document.getElementById('view-' + t);
     if (view) view.style.display = tab === t ? '' : 'none';
     const tabBtn  = document.getElementById('tab-btn-' + t);
@@ -9580,7 +9694,8 @@ function switchTab(tab) {
   if (tab === 'rotograma')     { loadRotogramas(); }
   if (tab === 'plano-viagem')  { loadPlanosViagem(); loadVeiculos(); loadMotoristas(); loadRotogramas(); }
   if (tab === 'clientes')      { loadClientes(); }
-  if (tab === 'usuarios')      { loadUsuarios(); }
+  if (tab === 'usuarios')        { loadUsuarios(); }
+  if (tab === 'perfil-usuario')  { loadPerfisAcesso(); }
   if (tab === 'custos')        { loadCentrosCusto().then(() => { loadOrcamentosCC(); loadLancamentosCC(); renderDashboardCC(); }); }
 }
 
@@ -17878,6 +17993,234 @@ async function deleteUsuario() {
   } catch(e) {
     showToast('Erro ao excluir usuário: ' + (e.message || e), 'error');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PERFIL DE USUÁRIO — controle de acesso por módulo
+// ═══════════════════════════════════════════════════════════════
+
+// Definição dos módulos disponíveis no sistema
+const _PF_MODULOS = [
+  { grupo: 'Cadastros',           modulo: 'clientes',        label: 'Clientes' },
+  { grupo: 'Cadastros',           modulo: 'veiculos',         label: 'Veículos' },
+  { grupo: 'Cadastros',           modulo: 'motoristas',       label: 'Motoristas' },
+  { grupo: 'Cadastros',           modulo: 'usuarios',         label: 'Usuários' },
+  { grupo: 'Cadastros',           modulo: 'perfil-usuario',   label: 'Perfil de Usuário' },
+  { grupo: 'Operacional',         modulo: 'abastecimentos',   label: 'Abastecimentos' },
+  { grupo: 'Operacional',         modulo: 'postos',           label: 'Postos Cadastrados' },
+  { grupo: 'Operacional',         modulo: 'negociacoes',      label: 'Negociações' },
+  { grupo: 'Operacional',         modulo: 'parametros',       label: 'Parâmetros' },
+  { grupo: 'Operacional',         modulo: 'seguranca',        label: 'Segurança' },
+  { grupo: 'Roteirização',        modulo: 'roteirizador',     label: 'Roteirizador' },
+  { grupo: 'Roteirização',        modulo: 'rotograma',        label: 'Rotograma' },
+  { grupo: 'Orçamento',           modulo: 'plano-viagem',     label: 'Plano de Viagem' },
+  { grupo: 'Orçamento',           modulo: 'custos',           label: 'Controle de Custos' },
+  { grupo: 'Painel Dinâmico',     modulo: 'precos',           label: 'Preços' },
+  { grupo: 'Painel Dinâmico',     modulo: 'varprecos',        label: 'Variação de Preços' },
+  { grupo: 'Painel Dinâmico',     modulo: 'mapabandeira',     label: 'Mapa por Bandeira' },
+  { grupo: 'Painel Dinâmico',     modulo: 'volprojetado',     label: 'Volume Projetado' },
+  { grupo: 'Indicadores',         modulo: 'indicadores',      label: 'Painel de Indicadores' },
+];
+
+let _perfisAcesso    = [];
+let _pfPermissoes    = {};  // { modulo: {inclusao, consulta, edicao, exclusao} }
+let _pfPerfilAtualId = null;
+
+async function loadPerfisAcesso() {
+  try {
+    const rows = await apiCall('GET', '/api/perfis-acesso');
+    _perfisAcesso = rows || [];
+    _pfPopulateSelect();
+  } catch(e) { console.error('loadPerfisAcesso', e); }
+}
+
+function _pfPopulateSelect() {
+  const sel = document.getElementById('pf-sel-perfil');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Selecione o perfil —</option>';
+  (_perfisAcesso || []).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = p.nome;
+    sel.appendChild(opt);
+  });
+  if (prev) sel.value = prev;
+}
+
+async function pfLoadPermissoes() {
+  const selEl   = document.getElementById('pf-sel-perfil');
+  const pid     = parseInt(selEl?.value) || null;
+  const editBtn = document.getElementById('pf-btn-edit-perfil');
+  const empty   = document.getElementById('pf-empty');
+  const matrix  = document.getElementById('pf-matrix-wrap');
+
+  _pfPerfilAtualId = pid;
+  if (editBtn) editBtn.style.display = pid ? 'inline-flex' : 'none';
+
+  if (!pid) {
+    empty.style.display  = 'block';
+    matrix.style.display = 'none';
+    return;
+  }
+
+  try {
+    const rows = await apiCall('GET', `/api/perfis-acesso/${pid}/permissoes`);
+    _pfPermissoes = {};
+    (rows || []).forEach(r => {
+      _pfPermissoes[r.modulo] = {
+        inclusao: r.inclusao, consulta: r.consulta,
+        edicao:   r.edicao,   exclusao: r.exclusao,
+      };
+    });
+    const perfil = _perfisAcesso.find(p => p.id === pid);
+    document.getElementById('pf-nome-label').textContent = perfil?.nome || '—';
+    empty.style.display  = 'none';
+    matrix.style.display = 'block';
+    pfRenderMatrix();
+  } catch(e) { showToast('Erro ao carregar permissões.', 'error'); }
+}
+
+function pfRenderMatrix() {
+  const tbody = document.getElementById('pf-tbody');
+  if (!tbody) return;
+  let html = '';
+  let lastGrupo = '';
+  _PF_MODULOS.forEach(m => {
+    if (m.grupo !== lastGrupo) {
+      html += `<tr style="background:var(--bg-secondary);">
+        <td colspan="5" style="padding:6px 14px;font-weight:700;font-size:0.78rem;
+          color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--border);">
+          ${m.grupo}
+        </td></tr>`;
+      lastGrupo = m.grupo;
+    }
+    const p = _pfPermissoes[m.modulo] || {};
+    const chk = (tipo) => `<input type="checkbox" data-modulo="${m.modulo}" data-tipo="${tipo}"
+      ${p[tipo] ? 'checked' : ''}
+      onchange="pfOnCheck(this)"
+      style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary);">`;
+    html += `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:9px 14px;">${m.label}</td>
+      <td style="text-align:center;padding:9px;">${chk('inclusao')}</td>
+      <td style="text-align:center;padding:9px;">${chk('consulta')}</td>
+      <td style="text-align:center;padding:9px;">${chk('edicao')}</td>
+      <td style="text-align:center;padding:9px;">${chk('exclusao')}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  // Atualiza "todos" checkboxes
+  ['inclusao','consulta','edicao','exclusao'].forEach(tipo => {
+    const all = _PF_MODULOS.every(m => (_pfPermissoes[m.modulo]||{})[tipo]);
+    const hdrMap = {inclusao:'pf-all-incl',consulta:'pf-all-cons',edicao:'pf-all-edit',exclusao:'pf-all-excl'};
+    const el = document.getElementById(hdrMap[tipo]);
+    if (el) el.checked = all;
+  });
+}
+
+function pfOnCheck(chk) {
+  const modulo = chk.dataset.modulo;
+  const tipo   = chk.dataset.tipo;
+  if (!_pfPermissoes[modulo]) _pfPermissoes[modulo] = {};
+  _pfPermissoes[modulo][tipo] = chk.checked;
+  // Se marca edição/inclusão/exclusão → marca consulta também
+  if (['inclusao','edicao','exclusao'].includes(tipo) && chk.checked) {
+    _pfPermissoes[modulo].consulta = true;
+    const consEl = document.querySelector(`[data-modulo="${modulo}"][data-tipo="consulta"]`);
+    if (consEl) consEl.checked = true;
+  }
+}
+
+function pfToggleAll(tipo, checked) {
+  _PF_MODULOS.forEach(m => {
+    if (!_pfPermissoes[m.modulo]) _pfPermissoes[m.modulo] = {};
+    _pfPermissoes[m.modulo][tipo] = checked;
+    if (['inclusao','edicao','exclusao'].includes(tipo) && checked) {
+      _pfPermissoes[m.modulo].consulta = true;
+    }
+  });
+  pfRenderMatrix();
+}
+
+async function pfSavePermissoes() {
+  if (!_pfPerfilAtualId) { showToast('Nenhum perfil selecionado.', 'error'); return; }
+  const permissoes = _PF_MODULOS.map(m => ({
+    modulo:   m.modulo,
+    inclusao: !!(_pfPermissoes[m.modulo]||{}).inclusao,
+    consulta: !!(_pfPermissoes[m.modulo]||{}).consulta,
+    edicao:   !!(_pfPermissoes[m.modulo]||{}).edicao,
+    exclusao: !!(_pfPermissoes[m.modulo]||{}).exclusao,
+  }));
+  try {
+    await apiCall('POST', '/api/permissoes-perfil', { perfil_id: _pfPerfilAtualId, permissoes });
+    showToast('Permissões salvas com sucesso!', 'success');
+  } catch(e) { showToast('Erro ao salvar permissões: ' + e.message, 'error'); }
+}
+
+// ── Modal Perfil ────────────────────────────────────────────────
+function openPerfilModal(mode) {
+  const overlay = document.getElementById('perfilModalOverlay');
+  const btnDel  = document.getElementById('pf-btn-del');
+  document.getElementById('pf-edit-id').value    = '';
+  document.getElementById('pf-nome').value        = '';
+  document.getElementById('pf-descricao').value   = '';
+  btnDel.style.display = 'none';
+  if (mode === 'edit' && _pfPerfilAtualId) {
+    const p = _perfisAcesso.find(x => x.id === _pfPerfilAtualId);
+    if (p) {
+      document.getElementById('perfilModalTitle').textContent = 'Editar Perfil';
+      document.getElementById('pf-edit-id').value  = p.id;
+      document.getElementById('pf-nome').value      = p.nome;
+      document.getElementById('pf-descricao').value = p.descricao || '';
+      btnDel.style.display = 'inline-flex';
+    }
+  } else {
+    document.getElementById('perfilModalTitle').textContent = 'Novo Perfil';
+  }
+  overlay.classList.add('open');
+}
+
+function closePerfilModal() {
+  document.getElementById('perfilModalOverlay').classList.remove('open');
+}
+
+async function savePerfil() {
+  const nome = document.getElementById('pf-nome').value.trim();
+  if (!nome) { showToast('Informe o nome do perfil.', 'error'); return; }
+  const id   = document.getElementById('pf-edit-id').value;
+  const body = { nome, descricao: document.getElementById('pf-descricao').value.trim() };
+  try {
+    if (id) await apiCall('PUT',  `/api/perfis-acesso/${id}`, body);
+    else    await apiCall('POST', '/api/perfis-acesso', body);
+    showToast(id ? 'Perfil atualizado.' : 'Perfil criado!', 'success');
+    closePerfilModal();
+    await loadPerfisAcesso();
+    if (!id) {
+      // Seleciona o novo perfil automaticamente
+      const novo = _perfisAcesso.find(p => p.nome === nome);
+      if (novo) {
+        document.getElementById('pf-sel-perfil').value = novo.id;
+        pfLoadPermissoes();
+      }
+    }
+  } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+}
+
+async function deletePerfil() {
+  const id = document.getElementById('pf-edit-id').value;
+  if (!id) return;
+  const p = _perfisAcesso.find(x => x.id === parseInt(id));
+  if (!confirm(`Excluir o perfil "${p?.nome}"? Todas as permissões serão removidas.`)) return;
+  try {
+    await apiCall('DELETE', `/api/perfis-acesso/${id}`);
+    showToast('Perfil excluído.', 'success');
+    closePerfilModal();
+    _pfPerfilAtualId = null;
+    document.getElementById('pf-empty').style.display  = 'block';
+    document.getElementById('pf-matrix-wrap').style.display = 'none';
+    document.getElementById('pf-btn-edit-perfil').style.display = 'none';
+    await loadPerfisAcesso();
+    document.getElementById('pf-sel-perfil').value = '';
+  } catch(e) { showToast('Erro ao excluir perfil.', 'error'); }
 }
 
 // Inicia aplicação (conecta ao servidor e carrega dados)

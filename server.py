@@ -502,6 +502,32 @@ def init_db():
     )''')
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
 
+    # ── Perfis de Acesso ─────────────────────────────────────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS perfis_acesso (
+        id          SERIAL PRIMARY KEY,
+        nome        TEXT NOT NULL UNIQUE,
+        descricao   TEXT DEFAULT '',
+        created_at  TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+    )''')
+    cur.execute('''CREATE TABLE IF NOT EXISTS permissoes_perfil (
+        id          SERIAL PRIMARY KEY,
+        perfil_id   INTEGER NOT NULL,
+        modulo      TEXT NOT NULL,
+        inclusao    BOOLEAN DEFAULT FALSE,
+        consulta    BOOLEAN DEFAULT FALSE,
+        edicao      BOOLEAN DEFAULT FALSE,
+        exclusao    BOOLEAN DEFAULT FALSE,
+        UNIQUE(perfil_id, modulo)
+    )''')
+    # Seed: perfis padrão
+    cur.execute("""
+        INSERT INTO perfis_acesso (nome, descricao) VALUES
+          ('Gestor',         'Acesso total ao sistema'),
+          ('Administrativo', 'Acesso operacional com restrições'),
+          ('Operador',       'Somente consulta e inclusão básica')
+        ON CONFLICT (nome) DO NOTHING
+    """)
+
     # ── Controle de Custos ───────────────────────────────────────
     cur.execute('''CREATE TABLE IF NOT EXISTS centros_custo (
         id            SERIAL PRIMARY KEY,
@@ -828,6 +854,19 @@ class Handler(BaseHTTPRequestHandler):
             sql += ' ORDER BY nome'
             conn = get_db()
             rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
+
+        elif path == '/api/perfis-acesso':
+            conn = get_db()
+            rows = _fetchall(conn, 'SELECT * FROM perfis_acesso ORDER BY nome', [])
+            conn.close()
+            self.send_json(rows)
+
+        elif re.match(r'^/api/perfis-acesso/(\d+)/permissoes$', path):
+            m = re.match(r'^/api/perfis-acesso/(\d+)/permissoes$', path)
+            conn = get_db()
+            rows = _fetchall(conn, 'SELECT * FROM permissoes_perfil WHERE perfil_id=%s', [int(m.group(1))])
             conn.close()
             self.send_json(rows)
 
@@ -1232,6 +1271,45 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 conn.rollback(); conn.close()
                 self.send_json({'error': str(e)}, 409); return
+
+        if path == '/api/perfis-acesso':
+            conn = get_db()
+            try:
+                cur = _exec(conn, '''INSERT INTO perfis_acesso (nome, descricao)
+                    VALUES (%s,%s) RETURNING id''', [
+                    d.get('nome',''), d.get('descricao','')
+                ])
+                conn.commit()
+                new_id = cur.fetchone()['id']
+                conn.close()
+                self.send_json({'id': new_id}, 201); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 409); return
+
+        if path == '/api/permissoes-perfil':
+            # Upsert em lote: body = {perfil_id, permissoes: [{modulo, inclusao, consulta, edicao, exclusao}]}
+            conn = get_db()
+            try:
+                pid = int(d.get('perfil_id'))
+                perms = d.get('permissoes', [])
+                for p in perms:
+                    _exec(conn, '''INSERT INTO permissoes_perfil
+                        (perfil_id, modulo, inclusao, consulta, edicao, exclusao)
+                        VALUES (%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT (perfil_id, modulo) DO UPDATE SET
+                          inclusao=%s, consulta=%s, edicao=%s, exclusao=%s''', [
+                        pid, p.get('modulo'),
+                        bool(p.get('inclusao')), bool(p.get('consulta')),
+                        bool(p.get('edicao')),   bool(p.get('exclusao')),
+                        bool(p.get('inclusao')), bool(p.get('consulta')),
+                        bool(p.get('edicao')),   bool(p.get('exclusao')),
+                    ])
+                conn.commit(); conn.close()
+                self.send_json({'ok': True}); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 500); return
 
         if path == '/api/abastecimentos':
             conn = get_db()
@@ -2187,6 +2265,19 @@ class Handler(BaseHTTPRequestHandler):
                 conn.rollback(); conn.close()
                 self.send_json({'error': str(e)}, 409); return
 
+        m = re.match(r'^/api/perfis-acesso/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            try:
+                _exec(conn, 'UPDATE perfis_acesso SET nome=%s, descricao=%s WHERE id=%s',
+                    [d.get('nome',''), d.get('descricao',''), id_])
+                conn.commit(); conn.close()
+                self.send_json({'ok': True}); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 409); return
+
         m = re.match(r'^/api/centros-custo/(\d+)$', path)
         if m:
             id_ = int(m.group(1))
@@ -2414,6 +2505,15 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM usuarios WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/perfis-acesso/(\d+)$', path)
+        if m:
+            conn = get_db()
+            id_ = int(m.group(1))
+            _exec(conn, 'DELETE FROM permissoes_perfil WHERE perfil_id=%s', [id_])
+            _exec(conn, 'DELETE FROM perfis_acesso WHERE id=%s', [id_])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
