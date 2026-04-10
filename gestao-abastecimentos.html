@@ -3637,6 +3637,7 @@
             <thead><tr>
               <th style="width:90px">Data</th>
               <th>Centro de Custo</th>
+              <th>Cliente</th>
               <th>Categoria</th>
               <th>Descrição</th>
               <th style="width:80px;text-align:center">Tipo</th>
@@ -3645,7 +3646,7 @@
               <th style="width:80px;text-align:center">Ações</th>
             </tr></thead>
             <tbody id="cc-lanc-tbody">
-              <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">Carregando...</td></tr>
+              <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted);">Carregando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -17483,12 +17484,18 @@ function renderLancamentosCC() {
   const tbody = document.getElementById('cc-lanc-tbody');
   if (!tbody) return;
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">Nenhum lançamento encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted);">Nenhum lançamento encontrado.</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(r => `<tr>
+  tbody.innerHTML = rows.map(r => {
+    // Resolve cliente: direto no lançamento ou via Centro de Custo
+    const cliId = r.cliente_id || (_centrosCusto||[]).find(c => c.id === r.centro_custo_id)?.cliente_id || null;
+    const cli   = cliId ? (_clientes||[]).find(c => parseInt(c.id) === parseInt(cliId)) : null;
+    const cliNome = cli ? (cli.razao_social || cli.nome || '—') : '<span style="color:var(--text-muted);font-size:0.8rem;">—</span>';
+    return `<tr>
     <td>${r.data||'—'}</td>
     <td>${_ccNomeCentro(r.centro_custo_id)}</td>
+    <td style="font-size:0.82rem">${cliNome}</td>
     <td>${r.categoria||'—'}</td>
     <td>${r.descricao||'—'}</td>
     <td style="text-align:center">
@@ -17500,7 +17507,8 @@ function renderLancamentosCC() {
       ${r.referencia_tipo==='Manual'||!r.referencia_tipo ? `<button class="btn-icon" title="Editar" onclick="openLancamentoModal(${r.id})">✏️</button>` : ''}
       <button class="btn-icon" title="Excluir" onclick="deleteLancamento(${r.id})" style="color:#ef4444">🗑</button>
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 // ── Dashboard ──
