@@ -15804,10 +15804,14 @@ function updatePostosMap() {
       const combs = _parseJSON(p.combustiveis, {});
       if (Object.keys(combs).length === 0) return false;
     }
-    // Filtro de combustível
+    // Filtro de combustível (fuzzy: "Diesel" bate em "Diesel Comum", "Diesel S-10", etc.)
     if (_roteizCombSel.length > 0) {
-      const combs = Object.keys(_parseJSON(p.combustiveis, {}));
-      if (!_roteizCombSel.some(c => combs.includes(c))) return false;
+      const combKeys = Object.keys(_parseJSON(p.combustiveis, {})).map(k => k.toLowerCase());
+      const match = _roteizCombSel.some(c => {
+        const cL = c.toLowerCase();
+        return combKeys.some(k => k.includes(cL) || cL.includes(k));
+      });
+      if (!match) return false;
     }
     // Filtro de serviços
     if (_roteizServSel.length > 0) {
@@ -16308,7 +16312,17 @@ function _combPrecoNum(v) {
 function _getPreco(posto, comb) {
   try {
     const combs = _parseJSON(posto.combustiveis, {});
-    const c = combs[comb];
+    // 1. Exact match
+    let c = combs[comb];
+    // 2. Fuzzy match: chave contém o tipo buscado, ou tipo buscado contém a chave
+    if (c == null && comb) {
+      const combL = comb.toLowerCase();
+      const key = Object.keys(combs).find(k => {
+        const kL = k.toLowerCase();
+        return kL.includes(combL) || combL.includes(kL);
+      });
+      if (key) c = combs[key];
+    }
     if (c == null) return null;
     // Suporta formato {preco: 6.29} (cadastro manual/edição) e 6.29 (importação legada)
     const v = (typeof c === 'object') ? parseFloat(c.preco) : parseFloat(c);
