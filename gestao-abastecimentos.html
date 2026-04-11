@@ -18042,15 +18042,20 @@ async function deleteLancamento(id) {
 let _usuarios = [];
 
 function mapUsuario(r) {
+  // Resolve nome do perfil via perfil_id → _perfisAcesso (mais confiável)
+  const perfilObj = r.perfil_id
+    ? (_perfisAcesso || []).find(p => parseInt(p.id) === parseInt(r.perfil_id))
+    : null;
+  const perfilNome = perfilObj ? perfilObj.nome : (r.perfil || 'Operador');
   return {
     id:          r.id,
     nome:        r.nome        || '',
     cpf:         r.cpf         || '',
     telefone:    r.telefone    || '',
     email:       r.email       || '',
-    perfil:      r.perfil      || 'Operador',
+    perfil:      perfilNome,
     tipo_acesso: r.tipo_acesso || 'Entrante',
-    perfil_id:   r.perfil_id   || null,
+    perfil_id:   r.perfil_id   != null ? r.perfil_id : null,
     status:      r.status      || 'Ativo',
     cliente_id:  r.cliente_id  || null,
     observacoes: r.observacoes || '',
@@ -18060,6 +18065,10 @@ function mapUsuario(r) {
 
 async function loadUsuarios() {
   try {
+    // Garante perfis carregados (necessário para mapUsuario resolver nome do perfil)
+    if (!_perfisAcesso || _perfisAcesso.length === 0) {
+      await loadPerfisAcesso();
+    }
     const data = await apiCall('GET', '/api/usuarios');
     _usuarios = (data || []).map(mapUsuario);
     renderUsuarios();
@@ -18099,13 +18108,14 @@ function renderUsuarios() {
   wrap.style.display  = 'block';
 
   const perfilBadge = (p, tipo) => {
-    const label = tipo || p;
+    // Mostra o nome do perfil de acesso; fallback para tipo_acesso ou perfil
+    const label = p || tipo || '—';
     const colors = {
       Gestor:'#1d4ed8', Administrativo:'#7e22ce', Operador:'#0891b2',
       Frota:'#166534', Revenda:'#92400e', Entrante:'#6b7280',
       'Usuário Entrante':'#6b7280',
     };
-    const c = colors[label] || colors[p] || '#6b7280';
+    const c = colors[label] || '#6b7280';
     return `<span style="background:${c}15;color:${c};padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:600;">${label}</span>`;
   };
   const statusBadge = s => {
@@ -18180,10 +18190,15 @@ function uOnTipoAcessoChange() {
   if (match) perfilSel.value = String(match.id);
 }
 
-function openUsuarioModal(id) {
+async function openUsuarioModal(id) {
   const overlay = document.getElementById('usuarioModalOverlay');
   const title   = document.getElementById('usuarioModalTitle');
   const btnDel  = document.getElementById('u-btn-del');
+
+  // Garante perfis carregados antes de abrir o modal
+  if (!_perfisAcesso || _perfisAcesso.length === 0) {
+    await loadPerfisAcesso();
+  }
 
   // Clear fields
   document.getElementById('u-id').value         = '';
@@ -18232,7 +18247,7 @@ async function saveUsuario() {
   const nome = document.getElementById('u-nome').value.trim();
   const cpf  = document.getElementById('u-cpf').value.trim();
   if (!nome) { showToast('Informe o nome do usuário.', 'error'); return; }
-  if (!cpf)  { showToast('Informe o CPF do usuário.', 'error'); return; }
+  // CPF é opcional para usuários cadastrados por e-mail
 
   const id  = document.getElementById('u-id').value;
   const cliRaw    = document.getElementById('u-cliente-id').value;
