@@ -580,6 +580,30 @@ def init_db():
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_expiry TEXT DEFAULT NULL")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS perfil_id INTEGER DEFAULT NULL")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_acesso TEXT DEFAULT 'Entrante'")
+    # Remove constraint legada de CPF único (permite usuários sem CPF via login)
+    cur.execute("""
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'usuarios_cpf_key'
+            ) THEN
+                ALTER TABLE usuarios DROP CONSTRAINT usuarios_cpf_key;
+            END IF;
+        END $$
+    """)
+    # Índice parcial único de CPF (só para CPFs não-vazios)
+    cur.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_indexes
+                WHERE indexname = 'usuarios_cpf_unique_partial'
+            ) THEN
+                CREATE UNIQUE INDEX usuarios_cpf_unique_partial
+                ON usuarios (cpf)
+                WHERE cpf IS NOT NULL AND cpf <> '';
+            END IF;
+        END $$
+    """)
     # Índice parcial único de email (só para e-mails não-vazios)
     cur.execute("""
         DO $$ BEGIN
