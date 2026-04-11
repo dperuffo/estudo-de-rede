@@ -580,13 +580,16 @@ def init_db():
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_expiry TEXT DEFAULT NULL")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS perfil_id INTEGER DEFAULT NULL")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_acesso TEXT DEFAULT 'Entrante'")
-    # Garante unicidade de email (ignora duplicatas existentes)
+    # Índice parcial único de email (só para e-mails não-vazios)
     cur.execute("""
         DO $$ BEGIN
             IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint WHERE conname = 'usuarios_email_unique'
+                SELECT 1 FROM pg_indexes
+                WHERE indexname = 'usuarios_email_unique_partial'
             ) THEN
-                ALTER TABLE usuarios ADD CONSTRAINT usuarios_email_unique UNIQUE (email);
+                CREATE UNIQUE INDEX usuarios_email_unique_partial
+                ON usuarios (LOWER(email))
+                WHERE email IS NOT NULL AND email <> '';
             END IF;
         END $$
     """)
@@ -646,6 +649,41 @@ def init_db():
                 VALUES (%s,%s,FALSE,TRUE,FALSE,FALSE)
                 ON CONFLICT (perfil_id, modulo) DO NOTHING
             """, [pid_entrante, mod])
+
+    # Seed: permissões totais para o perfil "Gestor"
+    cur.execute("SELECT id FROM perfis_acesso WHERE nome='Gestor'")
+    row_g = cur.fetchone()
+    if row_g:
+        pid_gestor = row_g['id']
+        for mod in MODULOS_ALL:
+            cur.execute("""
+                INSERT INTO permissoes_perfil (perfil_id, modulo, inclusao, consulta, edicao, exclusao)
+                VALUES (%s,%s,TRUE,TRUE,TRUE,TRUE)
+                ON CONFLICT (perfil_id, modulo) DO UPDATE SET
+                    inclusao=TRUE, consulta=TRUE, edicao=TRUE, exclusao=TRUE
+            """, [pid_gestor, mod])
+
+        # Seed: usuário administrador (senha: Prototipo@2026)
+        # Hash = pbkdf2_hmac('sha256', senha, 'gestao_frota_salt_2024', 200000)
+        _ADMIN_EMAIL = 'd.peruffo@yahoo.com'
+        _ADMIN_HASH  = '44062eeb20fd85b2d10d3a40a750bdd2fe7b8d14fe096e7c333d09951ae23eaa'
+        cur.execute("SELECT id FROM usuarios WHERE LOWER(email)=%s",
+                    [_ADMIN_EMAIL.lower()])
+        admin_row = cur.fetchone()
+        if admin_row:
+            cur.execute("""
+                UPDATE usuarios SET
+                    nome='Daniel Peruffo', senha_hash=%s,
+                    perfil='Gestor', tipo_acesso='Frota', perfil_id=%s,
+                    status='Ativo', token_reset=NULL, token_expiry=NULL
+                WHERE id=%s
+            """, [_ADMIN_HASH, pid_gestor, admin_row['id']])
+        else:
+            cur.execute("""
+                INSERT INTO usuarios
+                    (nome, email, cpf, perfil, tipo_acesso, perfil_id, status, senha_hash)
+                VALUES ('Daniel Peruffo',%s,'','Gestor','Frota',%s,'Ativo',%s)
+            """, [_ADMIN_EMAIL, pid_gestor, _ADMIN_HASH])
 
     # ── Controle de Custos ───────────────────────────────────────
     cur.execute('''CREATE TABLE IF NOT EXISTS centros_custo (
