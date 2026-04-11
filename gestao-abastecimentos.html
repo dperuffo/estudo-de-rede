@@ -899,6 +899,182 @@
 </head>
 <body>
 
+<!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
+<!-- ░░  TELA DE LOGIN / CADASTRO / DEFINIÇÃO DE SENHA        ░░ -->
+<!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
+<div id="auth-overlay" style="
+  display:flex; position:fixed; inset:0; z-index:99999;
+  background:linear-gradient(135deg,#1e3a5f 0%,#0f2040 60%,#1a3a2a 100%);
+  align-items:center; justify-content:center; font-family:inherit;">
+
+  <div style="background:#fff; border-radius:18px; box-shadow:0 24px 80px rgba(0,0,0,.45);
+              width:420px; max-width:95vw; overflow:hidden;">
+
+    <!-- Logo / Título -->
+    <div style="background:linear-gradient(135deg,#1e3a5f,#16a34a);
+                padding:32px 40px 24px; text-align:center;">
+      <div style="font-size:2.2rem;">⛽</div>
+      <h1 style="color:#fff;font-size:1.4rem;font-weight:800;margin:8px 0 4px;">
+        Gestão de Frota
+      </h1>
+      <p style="color:rgba(255,255,255,.7);font-size:.85rem;margin:0;">
+        Sistema de Gestão de Abastecimentos
+      </p>
+    </div>
+
+    <!-- ── Painel Login ── -->
+    <div id="auth-panel-login" style="padding:32px 40px 36px;">
+      <h2 style="font-size:1.05rem;font-weight:700;color:#1e3a5f;margin:0 0 20px;">
+        Acesse sua conta
+      </h2>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">
+          E-mail
+        </label>
+        <input id="auth-email" type="email" placeholder="seu@email.com"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #d1d5db;
+                 border-radius:8px;font-size:.95rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#d1d5db'"
+          onkeydown="if(event.key==='Enter')authDoLogin()">
+      </div>
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">
+          Senha
+        </label>
+        <input id="auth-senha" type="password" placeholder="••••••••"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #d1d5db;
+                 border-radius:8px;font-size:.95rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#d1d5db'"
+          onkeydown="if(event.key==='Enter')authDoLogin()">
+      </div>
+      <div id="auth-login-err" style="display:none;color:#dc2626;font-size:.82rem;
+           margin-bottom:12px;background:#fef2f2;padding:8px 12px;border-radius:7px;"></div>
+      <button onclick="authDoLogin()" id="auth-login-btn"
+        style="width:100%;padding:11px;background:linear-gradient(135deg,#1e3a5f,#16a34a);
+               color:#fff;border:none;border-radius:8px;font-size:.95rem;font-weight:700;
+               cursor:pointer;transition:opacity .2s;">
+        Entrar
+      </button>
+      <div style="text-align:center;margin-top:18px;font-size:.85rem;color:#6b7280;">
+        Não tem conta?
+        <a href="#" onclick="authShowPanel('register');return false;"
+           style="color:#1e3a5f;font-weight:700;text-decoration:none;">Cadastre-se</a>
+        &nbsp;·&nbsp;
+        <a href="#" onclick="authShowPanel('forgot');return false;"
+           style="color:#1e3a5f;font-weight:600;text-decoration:none;">Esqueci a senha</a>
+      </div>
+    </div>
+
+    <!-- ── Painel Cadastro ── -->
+    <div id="auth-panel-register" style="padding:32px 40px 36px;display:none;">
+      <h2 style="font-size:1.05rem;font-weight:700;color:#1e3a5f;margin:0 0 6px;">
+        Criar conta
+      </h2>
+      <p style="font-size:.82rem;color:#6b7280;margin:0 0 20px;">
+        Você receberá um e-mail para definir sua senha.
+        Sua conta terá acesso de <strong>consulta</strong> até que um administrador configure seu perfil.
+      </p>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Nome completo</label>
+        <input id="auth-reg-nome" type="text" placeholder="Seu nome"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #d1d5db;
+                 border-radius:8px;font-size:.95rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#d1d5db'">
+      </div>
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">E-mail</label>
+        <input id="auth-reg-email" type="email" placeholder="seu@email.com"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #d1d5db;
+                 border-radius:8px;font-size:.95rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#d1d5db'">
+      </div>
+      <div id="auth-reg-err" style="display:none;color:#dc2626;font-size:.82rem;
+           margin-bottom:12px;background:#fef2f2;padding:8px 12px;border-radius:7px;"></div>
+      <div id="auth-reg-ok" style="display:none;color:#16a34a;font-size:.84rem;
+           margin-bottom:12px;background:#f0fdf4;padding:10px 12px;border-radius:7px;"></div>
+      <button onclick="authDoRegister()" id="auth-reg-btn"
+        style="width:100%;padding:11px;background:linear-gradient(135deg,#1e3a5f,#16a34a);
+               color:#fff;border:none;border-radius:8px;font-size:.95rem;font-weight:700;
+               cursor:pointer;">
+        Solicitar cadastro
+      </button>
+      <div style="text-align:center;margin-top:16px;font-size:.85rem;">
+        <a href="#" onclick="authShowPanel('login');return false;"
+           style="color:#1e3a5f;font-weight:600;text-decoration:none;">← Voltar ao login</a>
+      </div>
+    </div>
+
+    <!-- ── Painel Esqueci a Senha ── -->
+    <div id="auth-panel-forgot" style="padding:32px 40px 36px;display:none;">
+      <h2 style="font-size:1.05rem;font-weight:700;color:#1e3a5f;margin:0 0 6px;">
+        Recuperar senha
+      </h2>
+      <p style="font-size:.82rem;color:#6b7280;margin:0 0 20px;">
+        Informe seu e-mail e enviaremos um link para redefinir a senha.
+      </p>
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">E-mail</label>
+        <input id="auth-forgot-email" type="email" placeholder="seu@email.com"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #d1d5db;
+                 border-radius:8px;font-size:.95rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#d1d5db'"
+          onkeydown="if(event.key==='Enter')authDoForgot()">
+      </div>
+      <div id="auth-forgot-err" style="display:none;color:#dc2626;font-size:.82rem;
+           margin-bottom:12px;background:#fef2f2;padding:8px 12px;border-radius:7px;"></div>
+      <div id="auth-forgot-ok" style="display:none;color:#16a34a;font-size:.84rem;
+           margin-bottom:12px;background:#f0fdf4;padding:10px 12px;border-radius:7px;"></div>
+      <button onclick="authDoForgot()"
+        style="width:100%;padding:11px;background:linear-gradient(135deg,#1e3a5f,#16a34a);
+               color:#fff;border:none;border-radius:8px;font-size:.95rem;font-weight:700;
+               cursor:pointer;">
+        Enviar link de recuperação
+      </button>
+      <div style="text-align:center;margin-top:16px;font-size:.85rem;">
+        <a href="#" onclick="authShowPanel('login');return false;"
+           style="color:#1e3a5f;font-weight:600;text-decoration:none;">← Voltar ao login</a>
+      </div>
+    </div>
+
+    <!-- ── Painel Definir Senha (via token na URL) ── -->
+    <div id="auth-panel-setpwd" style="padding:32px 40px 36px;display:none;">
+      <h2 style="font-size:1.05rem;font-weight:700;color:#1e3a5f;margin:0 0 6px;">
+        Definir sua senha
+      </h2>
+      <p style="font-size:.82rem;color:#6b7280;margin:0 0 20px;">
+        Escolha uma senha segura com pelo menos 6 caracteres.
+      </p>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Nova senha</label>
+        <input id="auth-setpwd-s1" type="password" placeholder="••••••••"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #d1d5db;
+                 border-radius:8px;font-size:.95rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#d1d5db'">
+      </div>
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Confirmar senha</label>
+        <input id="auth-setpwd-s2" type="password" placeholder="••••••••"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1.5px solid #d1d5db;
+                 border-radius:8px;font-size:.95rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='#1e3a5f'" onblur="this.style.borderColor='#d1d5db'"
+          onkeydown="if(event.key==='Enter')authDoSetPwd()">
+      </div>
+      <div id="auth-setpwd-err" style="display:none;color:#dc2626;font-size:.82rem;
+           margin-bottom:12px;background:#fef2f2;padding:8px 12px;border-radius:7px;"></div>
+      <div id="auth-setpwd-ok" style="display:none;color:#16a34a;font-size:.84rem;
+           margin-bottom:12px;background:#f0fdf4;padding:10px 12px;border-radius:7px;"></div>
+      <button onclick="authDoSetPwd()"
+        style="width:100%;padding:11px;background:linear-gradient(135deg,#1e3a5f,#16a34a);
+               color:#fff;border:none;border-radius:8px;font-size:.95rem;font-weight:700;
+               cursor:pointer;">
+        Salvar senha e entrar
+      </button>
+    </div>
+
+  </div>
+</div>
+<!-- fim auth-overlay -->
+
 <!-- ░░ HEADER ░░ -->
 <header>
   <div class="header-brand">
@@ -910,8 +1086,20 @@
   </div>
 
 
-  <div class="header-actions">
+  <div class="header-actions" style="display:flex;align-items:center;gap:10px;">
     <span id="srv-dot" style="padding:5px 12px;background:rgba(255,255,255,0.15);border-radius:20px;font-size:0.78rem;font-weight:600;color:#f59e0b;letter-spacing:0.2px;white-space:nowrap;">● Conectando...</span>
+    <!-- Usuário logado -->
+    <div id="auth-user-info" style="display:none;align-items:center;gap:8px;
+         background:rgba(255,255,255,0.12);border-radius:20px;padding:5px 14px;">
+      <span style="font-size:1rem;">👤</span>
+      <span id="auth-user-nome" style="font-size:.82rem;font-weight:600;color:#fff;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <span id="auth-user-perfil" style="font-size:.73rem;color:rgba(255,255,255,.65);"></span>
+    </div>
+    <button id="auth-logout-btn" onclick="authDoLogout()" style="display:none;
+      padding:5px 13px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,.3);
+      color:#fff;border-radius:20px;font-size:.78rem;font-weight:600;cursor:pointer;">
+      Sair
+    </button>
   </div>
 </header>
 
@@ -1603,7 +1791,7 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
             Limpar Dados
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openPostoModal()">
+          <button class="btn btn-primary btn-sm" onclick="openPostoModal()" data-perm="Postos:inclusao">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Posto
           </button>
@@ -1913,7 +2101,7 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Exportar
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openVeiculoModal()">
+          <button class="btn btn-primary btn-sm" onclick="openVeiculoModal()" data-perm="Veículos:inclusao">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Veículo
           </button>
@@ -1994,7 +2182,7 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Exportar
           </button>
-          <button class="btn btn-primary btn-sm" onclick="openMotoristaModal()">
+          <button class="btn btn-primary btn-sm" onclick="openMotoristaModal()" data-perm="Motoristas:inclusao">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Motorista
           </button>
@@ -2041,7 +2229,7 @@
           Clientes
         </h2>
         <div class="panel-actions">
-          <button class="btn btn-primary btn-sm" onclick="openClienteModal()">
+          <button class="btn btn-primary btn-sm" onclick="openClienteModal()" data-perm="Clientes:inclusao">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Cliente
           </button>
@@ -3541,7 +3729,7 @@
             <option value="Ativo">Ativo</option>
             <option value="Inativo">Inativo</option>
           </select>
-          <button class="btn btn-primary" onclick="openCentroModal()">
+          <button class="btn btn-primary" onclick="openCentroModal()" data-perm="Centros de Custo:inclusao">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Centro
           </button>
@@ -3579,7 +3767,7 @@
           </select>
           <select id="orc-f-ano" class="form-control" style="width:100px;" onchange="renderOrcamentosCC()">
           </select>
-          <button class="btn btn-primary" onclick="openOrcamentoModal()">
+          <button class="btn btn-primary" onclick="openOrcamentoModal()" data-perm="Orçamento CC:inclusao">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Orçamento
           </button>
@@ -3625,7 +3813,7 @@
             <option value="">Todos os clientes</option>
           </select>
           <input id="lanc-f-busca" class="form-control" style="width:160px;" placeholder="Buscar descrição..." oninput="renderLancamentosCC()">
-          <button class="btn btn-primary" onclick="openLancamentoModal()">
+          <button class="btn btn-primary" onclick="openLancamentoModal()" data-perm="Lançamentos CC:inclusao">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Lançamento
           </button>
@@ -3692,7 +3880,7 @@
           <button class="btn btn-outline btn-sm" onclick="uLimparFiltros()" style="white-space:nowrap;">✕ Limpar</button>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
-          <button class="btn btn-primary btn-sm" onclick="openUsuarioModal()">
+          <button class="btn btn-primary btn-sm" onclick="openUsuarioModal()" data-perm="Usuários:inclusao">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Usuário
           </button>
@@ -5795,12 +5983,17 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Perfil</label>
-          <select class="form-control" id="u-perfil">
-            <option value="Gestor">Gestor</option>
-            <option value="Administrativo">Administrativo</option>
-            <option value="Operador" selected>Operador</option>
-            <option value="Outro">Outro</option>
+          <label class="form-label">Tipo de Acesso</label>
+          <select class="form-control" id="u-tipo-acesso" onchange="uOnTipoAcessoChange()">
+            <option value="Entrante">Usuário Entrante</option>
+            <option value="Frota">Frota</option>
+            <option value="Revenda">Revenda</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Perfil de Acesso</label>
+          <select class="form-control" id="u-perfil-id">
+            <option value="">— Selecione —</option>
           </select>
         </div>
         <div class="form-group">
@@ -6148,7 +6341,9 @@ async function apiCall(method, path, body = null, timeoutMs = 5000) {
   }
 
   try {
-    const opts = { method, headers: { 'Content-Type': 'application/json' }, signal: controller.signal };
+    const headers = { 'Content-Type': 'application/json' };
+    if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
+    const opts = { method, headers, signal: controller.signal };
     if (finalBody !== null) opts.body = JSON.stringify(finalBody);
     const r = await fetch(`${API_BASE}${finalPath}`, opts);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -6686,6 +6881,7 @@ async function initApp() {
     loadHodoVariacao(),
     populateClienteSelector(),
     loadCentrosCusto(),
+    loadPerfisAcesso(),
   ]);
   // Abre a aba "Comece seu dia!" por padrão ao iniciar
   switchTab('indicadores');
@@ -10099,14 +10295,12 @@ function renderPostos() {
       ${combChips ? `<div class="comb-chips">${combChips}</div>` : ''}
       ${chips ? `<div class="servicos-chips">${chips}</div>` : ''}
       <div class="posto-card-actions">
-        <button class="btn btn-outline btn-sm" onclick="editPosto(${p.id})">
+        ${_canDo('Postos','edicao') ? `<button class="btn btn-outline btn-sm" onclick="editPosto(${p.id})">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Editar
-        </button>
-        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="deletePosto(${p.id})">
+          Editar</button>` : ''}
+        ${_canDo('Postos','exclusao') ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="deletePosto(${p.id})">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-          Excluir
-        </button>
+          Excluir</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -11109,8 +11303,8 @@ function renderVeiculos() {
       <td style="text-align:center;color:var(--text-muted)">${v.numEixos || '—'}</td>
       <td style="min-width:130px;">${_clienteNome(v.cliente_id)}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-sm btn-outline" style="margin-right:4px" onclick="openVeiculoModal(${v.id})">✎ Editar</button>
-        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="deleteVeiculo(${v.id})">✕</button>
+        ${_canDo('Veículos','edicao')  ? `<button class="btn btn-sm btn-outline" style="margin-right:4px" onclick="openVeiculoModal(${v.id})">✎ Editar</button>` : ''}
+        ${_canDo('Veículos','exclusao') ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="deleteVeiculo(${v.id})">✕</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -11373,8 +11567,8 @@ function renderMotoristas() {
       <td><span class="badge ${sBadge}">${m.status}</span></td>
       <td style="min-width:130px;">${_clienteNome(m.cliente_id)}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn btn-sm btn-outline" style="margin-right:4px" onclick="openMotoristaModal(${m.id})">✎ Editar</button>
-        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="deleteMotorista(${m.id})">✕</button>
+        ${_canDo('Motoristas','edicao')  ? `<button class="btn btn-sm btn-outline" style="margin-right:4px" onclick="openMotoristaModal(${m.id})">✎ Editar</button>` : ''}
+        ${_canDo('Motoristas','exclusao') ? `<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="deleteMotorista(${m.id})">✕</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -17443,8 +17637,8 @@ function renderCentrosCusto() {
     <td>${c.cliente_id ? _ccNomeCliente(c.cliente_id) : '<span style="color:var(--text-muted)">Geral</span>'}</td>
     <td style="text-align:center"><span class="badge badge-${c.status==='Ativo'?'success':'secondary'}">${c.status}</span></td>
     <td style="text-align:center">
-      <button class="btn-icon" title="Editar" onclick="openCentroModal(${c.id})">✏️</button>
-      <button class="btn-icon" title="Excluir" onclick="deleteCentro(${c.id},'${c.nome.replace(/'/g,"\'")}')" style="color:#ef4444">🗑</button>
+      ${_canDo('Centros de Custo','edicao')  ? `<button class="btn-icon" title="Editar" onclick="openCentroModal(${c.id})">✏️</button>` : ''}
+      ${_canDo('Centros de Custo','exclusao') ? `<button class="btn-icon" title="Excluir" onclick="deleteCentro(${c.id},'${c.nome.replace(/'/g,"\'")}')" style="color:#ef4444">🗑</button>` : ''}
     </td>
   </tr>`).join('');
 }
@@ -17472,8 +17666,8 @@ function renderOrcamentosCC() {
     <td style="text-align:right;font-weight:600">${fmtBRL(r.valor_orcado)}</td>
     <td style="color:var(--text-muted)">${r.observacoes||''}</td>
     <td style="text-align:center">
-      <button class="btn-icon" title="Editar" onclick="openOrcamentoModal(${r.id})">✏️</button>
-      <button class="btn-icon" title="Excluir" onclick="deleteOrcamento(${r.id})" style="color:#ef4444">🗑</button>
+      ${_canDo('Orçamento CC','edicao')  ? `<button class="btn-icon" title="Editar" onclick="openOrcamentoModal(${r.id})">✏️</button>` : ''}
+      ${_canDo('Orçamento CC','exclusao') ? `<button class="btn-icon" title="Excluir" onclick="deleteOrcamento(${r.id})" style="color:#ef4444">🗑</button>` : ''}
     </td>
   </tr>`).join('');
 }
@@ -17519,8 +17713,8 @@ function renderLancamentosCC() {
     <td style="text-align:right;font-weight:700;color:${r.tipo==='Receita'?'#059669':'#dc2626'}">${r.tipo==='Receita'?'+':'−'}${fmtBRL(r.valor)}</td>
     <td style="font-size:0.8rem;color:var(--text-muted)">${r.referencia_tipo && r.referencia_tipo !== 'Manual' ? r.referencia_tipo + ' #' + r.referencia_id : 'Manual'}</td>
     <td style="text-align:center">
-      ${r.referencia_tipo==='Manual'||!r.referencia_tipo ? `<button class="btn-icon" title="Editar" onclick="openLancamentoModal(${r.id})">✏️</button>` : ''}
-      <button class="btn-icon" title="Excluir" onclick="deleteLancamento(${r.id})" style="color:#ef4444">🗑</button>
+      ${(_canDo('Lançamentos CC','edicao') && (r.referencia_tipo==='Manual'||!r.referencia_tipo)) ? `<button class="btn-icon" title="Editar" onclick="openLancamentoModal(${r.id})">✏️</button>` : ''}
+      ${_canDo('Lançamentos CC','exclusao') ? `<button class="btn-icon" title="Excluir" onclick="deleteLancamento(${r.id})" style="color:#ef4444">🗑</button>` : ''}
     </td>
   </tr>`;
   }).join('');
@@ -17855,6 +18049,8 @@ function mapUsuario(r) {
     telefone:    r.telefone    || '',
     email:       r.email       || '',
     perfil:      r.perfil      || 'Operador',
+    tipo_acesso: r.tipo_acesso || 'Entrante',
+    perfil_id:   r.perfil_id   || null,
     status:      r.status      || 'Ativo',
     cliente_id:  r.cliente_id  || null,
     observacoes: r.observacoes || '',
@@ -17902,10 +18098,15 @@ function renderUsuarios() {
   empty.style.display = 'none';
   wrap.style.display  = 'block';
 
-  const perfilBadge = p => {
-    const colors = { Gestor:'#1d4ed8', Administrativo:'#7e22ce', Operador:'#0891b2' };
-    const c = colors[p] || '#6b7280';
-    return `<span style="background:${c}15;color:${c};padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:600;">${p}</span>`;
+  const perfilBadge = (p, tipo) => {
+    const label = tipo || p;
+    const colors = {
+      Gestor:'#1d4ed8', Administrativo:'#7e22ce', Operador:'#0891b2',
+      Frota:'#166534', Revenda:'#92400e', Entrante:'#6b7280',
+      'Usuário Entrante':'#6b7280',
+    };
+    const c = colors[label] || colors[p] || '#6b7280';
+    return `<span style="background:${c}15;color:${c};padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:600;">${label}</span>`;
   };
   const statusBadge = s => {
     const c = s === 'Ativo' ? '#16a34a' : '#dc2626';
@@ -17923,10 +18124,10 @@ function renderUsuarios() {
       <td>${u.telefone || '—'}</td>
       <td>${u.email || '—'}</td>
       <td>${cliNome}</td>
-      <td>${perfilBadge(u.perfil)}</td>
+      <td>${perfilBadge(u.perfil, u.tipo_acesso)}</td>
       <td>${statusBadge(u.status)}</td>
       <td style="text-align:center;white-space:nowrap">
-        <button class="btn-icon" title="Editar" onclick="openUsuarioModal(${u.id})">✏️</button>
+        ${_canDo('Usuários','edicao') ? `<button class="btn-icon" title="Editar" onclick="openUsuarioModal(${u.id})">✏️</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -17955,6 +18156,30 @@ function _uPopulateClientes(selectedId) {
   if (sid) sel.value = sid;
 }
 
+// Popula o select de perfil_id com os perfis disponíveis
+function _uPopulatePerfis(selectedId) {
+  const sel = document.getElementById('u-perfil-id');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Selecione —</option>';
+  (_perfisAcesso || []).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.nome;
+    sel.appendChild(opt);
+  });
+  if (selectedId) sel.value = String(selectedId);
+}
+
+// Ao trocar Tipo de Acesso, filtra/pré-seleciona o perfil correspondente
+function uOnTipoAcessoChange() {
+  const tipo = document.getElementById('u-tipo-acesso')?.value || '';
+  const perfilSel = document.getElementById('u-perfil-id');
+  if (!perfilSel) return;
+  // Tenta pré-selecionar perfil com mesmo nome do tipo
+  const match = (_perfisAcesso || []).find(p => p.nome === tipo || p.nome === 'Usuário Entrante' && tipo === 'Entrante');
+  if (match) perfilSel.value = String(match.id);
+}
+
 function openUsuarioModal(id) {
   const overlay = document.getElementById('usuarioModalOverlay');
   const title   = document.getElementById('usuarioModalTitle');
@@ -17966,10 +18191,12 @@ function openUsuarioModal(id) {
   document.getElementById('u-cpf').value         = '';
   document.getElementById('u-telefone').value    = '';
   document.getElementById('u-email').value       = '';
-  document.getElementById('u-perfil').value      = 'Operador';
+  const tipoAcessoEl = document.getElementById('u-tipo-acesso');
+  if (tipoAcessoEl) tipoAcessoEl.value = 'Entrante';
   document.getElementById('u-status').value      = 'Ativo';
   document.getElementById('u-observacoes').value = '';
   _uPopulateClientes(null);
+  _uPopulatePerfis(null);
 
   if (id) {
     const u = _usuarios.find(x => x.id === id);
@@ -17981,10 +18208,11 @@ function openUsuarioModal(id) {
     document.getElementById('u-cpf').value         = u.cpf;
     document.getElementById('u-telefone').value    = u.telefone;
     document.getElementById('u-email').value       = u.email;
-    document.getElementById('u-perfil').value      = u.perfil;
+    if (tipoAcessoEl) tipoAcessoEl.value          = u.tipo_acesso || 'Entrante';
     document.getElementById('u-status').value      = u.status;
     document.getElementById('u-observacoes').value = u.observacoes;
     _uPopulateClientes(u.cliente_id);
+    _uPopulatePerfis(u.perfil_id);
     // Apply masks to pre-filled values
     maskCPF(document.getElementById('u-cpf'));
     maskTelefone(document.getElementById('u-telefone'));
@@ -18007,13 +18235,17 @@ async function saveUsuario() {
   if (!cpf)  { showToast('Informe o CPF do usuário.', 'error'); return; }
 
   const id  = document.getElementById('u-id').value;
-  const cliRaw = document.getElementById('u-cliente-id').value;
+  const cliRaw    = document.getElementById('u-cliente-id').value;
+  const perfilRaw = document.getElementById('u-perfil-id')?.value || '';
+  const tipoAcesso = document.getElementById('u-tipo-acesso')?.value || 'Entrante';
   const body = {
     nome,
     cpf,
     telefone:    document.getElementById('u-telefone').value.trim(),
     email:       document.getElementById('u-email').value.trim(),
-    perfil:      document.getElementById('u-perfil').value,
+    perfil:      tipoAcesso,
+    tipo_acesso: tipoAcesso,
+    perfil_id:   perfilRaw ? parseInt(perfilRaw) : null,
     status:      document.getElementById('u-status').value,
     cliente_id:  cliRaw ? parseInt(cliRaw) : null,
     observacoes: document.getElementById('u-observacoes').value.trim(),
@@ -18277,8 +18509,252 @@ async function deletePerfil() {
   } catch(e) { showToast('Erro ao excluir perfil.', 'error'); }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  SISTEMA DE AUTENTICAÇÃO
+// ═══════════════════════════════════════════════════════════════
+let _authToken       = null;   // token de sessão
+let _currentUser     = null;   // { id, nome, email, tipo_acesso, perfil_nome, cliente_id }
+let _userPermissoes  = {};     // { 'Módulo': {consulta,inclusao,edicao,exclusao} }
+let _authResetToken  = null;   // token da URL (?reset_token=...)
+
+// Verifica token na URL (link de e-mail para definir senha)
+(function _authCheckUrlToken() {
+  const p = new URLSearchParams(window.location.search);
+  const t = p.get('reset_token');
+  if (t) {
+    _authResetToken = t;
+    // Remove o token da barra de endereço sem recarregar
+    history.replaceState(null, '', window.location.pathname);
+  }
+})();
+
+function authShowPanel(panel) {
+  ['login','register','forgot','setpwd'].forEach(p => {
+    const el = document.getElementById('auth-panel-' + p);
+    if (el) el.style.display = (p === panel) ? '' : 'none';
+  });
+  // Limpa erros ao trocar de painel
+  ['auth-login-err','auth-reg-err','auth-reg-ok',
+   'auth-forgot-err','auth-forgot-ok','auth-setpwd-err','auth-setpwd-ok'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+function _authShowErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function _authShowOk(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// Monta mapa de permissões { modulo: { consulta, inclusao, edicao, exclusao } }
+function _buildPermMap(perms) {
+  const map = {};
+  (perms || []).forEach(p => {
+    map[p.modulo] = {
+      consulta: !!p.consulta,
+      inclusao: !!p.inclusao,
+      edicao:   !!p.edicao,
+      exclusao: !!p.exclusao,
+    };
+  });
+  return map;
+}
+
+// Verifica se usuário tem permissão para ação em módulo
+function _canDo(modulo, acao) {
+  if (!_currentUser) return false;
+  // Usuário Gestor tem acesso total (fallback quando sem permissão configurada)
+  const p = _userPermissoes[modulo];
+  if (!p) return _currentUser.tipo_acesso !== 'Entrante'; // sem registro = permite exceto Entrante
+  return !!p[acao];
+}
+
+// Aplica visibilidade de elementos baseada em permissões
+// Elementos com data-perm="Módulo:acao" ficam ocultos se sem permissão
+function _applyPermissions() {
+  document.querySelectorAll('[data-perm]').forEach(el => {
+    const [mod, acao] = (el.getAttribute('data-perm') || '').split(':');
+    el.style.display = _canDo(mod, acao) ? '' : 'none';
+  });
+}
+
+// Login com e-mail + senha
+async function authDoLogin() {
+  const email = (document.getElementById('auth-email')?.value || '').trim();
+  const senha = document.getElementById('auth-senha')?.value || '';
+  const errEl = document.getElementById('auth-login-err');
+  if (errEl) errEl.style.display = 'none';
+  if (!email || !senha) { _authShowErr('auth-login-err', 'Preencha e-mail e senha.'); return; }
+
+  const btn = document.getElementById('auth-login-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Entrando...'; }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      _authShowErr('auth-login-err', data.error || 'Erro ao entrar.');
+      return;
+    }
+    _authToken      = data.token;
+    _currentUser    = data.usuario;
+    _userPermissoes = _buildPermMap(data.permissoes);
+    _authSuccessUI();
+  } catch(e) {
+    _authShowErr('auth-login-err', 'Servidor indisponível. Tente novamente.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
+  }
+}
+
+// Cadastro (auto-registro)
+async function authDoRegister() {
+  const nome  = (document.getElementById('auth-reg-nome')?.value  || '').trim();
+  const email = (document.getElementById('auth-reg-email')?.value || '').trim().toLowerCase();
+  document.getElementById('auth-reg-err').style.display = 'none';
+  document.getElementById('auth-reg-ok').style.display  = 'none';
+  if (!nome || !email) { _authShowErr('auth-reg-err', 'Preencha nome e e-mail.'); return; }
+
+  const btn = document.getElementById('auth-reg-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, email }),
+    });
+    const data = await res.json();
+    if (!res.ok) { _authShowErr('auth-reg-err', data.error || 'Erro ao cadastrar.'); return; }
+    _authShowOk('auth-reg-ok',
+      '✅ Cadastro realizado! Verifique seu e-mail para definir a senha.');
+    document.getElementById('auth-reg-nome').value  = '';
+    document.getElementById('auth-reg-email').value = '';
+  } catch(e) {
+    _authShowErr('auth-reg-err', 'Servidor indisponível. Tente novamente.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Solicitar cadastro'; }
+  }
+}
+
+// Recuperação de senha
+async function authDoForgot() {
+  const email = (document.getElementById('auth-forgot-email')?.value || '').trim().toLowerCase();
+  document.getElementById('auth-forgot-err').style.display = 'none';
+  document.getElementById('auth-forgot-ok').style.display  = 'none';
+  if (!email) { _authShowErr('auth-forgot-err', 'Informe seu e-mail.'); return; }
+
+  try {
+    await fetch(`${API_BASE}/api/auth/resend-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    _authShowOk('auth-forgot-ok',
+      '✅ Se o e-mail estiver cadastrado, você receberá o link em breve.');
+  } catch(e) {
+    _authShowErr('auth-forgot-err', 'Servidor indisponível. Tente novamente.');
+  }
+}
+
+// Definir senha (via token da URL)
+async function authDoSetPwd() {
+  const s1 = document.getElementById('auth-setpwd-s1')?.value || '';
+  const s2 = document.getElementById('auth-setpwd-s2')?.value || '';
+  document.getElementById('auth-setpwd-err').style.display = 'none';
+  document.getElementById('auth-setpwd-ok').style.display  = 'none';
+  if (s1.length < 6) { _authShowErr('auth-setpwd-err', 'Senha mínima: 6 caracteres.'); return; }
+  if (s1 !== s2)     { _authShowErr('auth-setpwd-err', 'As senhas não coincidem.'); return; }
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/auth/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: _authResetToken, senha: s1 }),
+    });
+    const data = await res.json();
+    if (!res.ok) { _authShowErr('auth-setpwd-err', data.error || 'Erro ao salvar senha.'); return; }
+    _authShowOk('auth-setpwd-ok', '✅ Senha definida com sucesso! Faça login.');
+    _authResetToken = null;
+    setTimeout(() => authShowPanel('login'), 2000);
+  } catch(e) {
+    _authShowErr('auth-setpwd-err', 'Servidor indisponível. Tente novamente.');
+  }
+}
+
+// Logout
+async function authDoLogout() {
+  try {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${_authToken}` },
+    });
+  } catch(e) {}
+  _authToken      = null;
+  _currentUser    = null;
+  _userPermissoes = {};
+  document.getElementById('auth-user-info').style.display  = 'none';
+  document.getElementById('auth-logout-btn').style.display = 'none';
+  document.getElementById('auth-overlay').style.display    = 'flex';
+  authShowPanel('login');
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-senha').value = '';
+}
+
+// Após login bem-sucedido
+function _authSuccessUI() {
+  // Esconde overlay
+  document.getElementById('auth-overlay').style.display = 'none';
+  // Mostra info do usuário no header
+  const infoEl = document.getElementById('auth-user-info');
+  if (infoEl) infoEl.style.display = 'flex';
+  const nomeEl = document.getElementById('auth-user-nome');
+  if (nomeEl) nomeEl.textContent = _currentUser.nome || '';
+  const perfilEl = document.getElementById('auth-user-perfil');
+  if (perfilEl) perfilEl.textContent = _currentUser.perfil_nome
+    ? `| ${_currentUser.perfil_nome}`
+    : `| ${_currentUser.tipo_acesso || ''}`;
+  const logoutEl = document.getElementById('auth-logout-btn');
+  if (logoutEl) logoutEl.style.display = '';
+  // Aplica permissões na UI
+  _applyPermissions();
+  // Inicia o app se ainda não carregou
+  if (!_appLoaded) {
+    _appLoaded = true;
+    initApp();
+  }
+}
+
+// Controla se o app já foi carregado
+let _appLoaded = false;
+
+// Ponto de entrada: decide entre definir senha (token URL) ou mostrar login
+function authStart() {
+  if (_authResetToken) {
+    authShowPanel('setpwd');
+  } else {
+    authShowPanel('login');
+  }
+}
+
+// Inicia a tela de auth ao carregar
+authStart();
+
 // Inicia aplicação (conecta ao servidor e carrega dados)
-initApp();
+// initApp() agora é chamado APENAS após login bem-sucedido
+// initApp();
 </script>
 </body>
 </html>

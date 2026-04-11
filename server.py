@@ -20,9 +20,11 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import psycopg2
 import psycopg2.extras
-import json, os, re, sys, threading
-from datetime import date as _date
+import json, os, re, sys, threading, hashlib, secrets, smtplib
+from datetime import date as _date, datetime, timedelta
 from urllib.parse import urlparse, parse_qs
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE = os.path.join(BASE_DIR, 'gestao-abastecimentos.html')
@@ -36,6 +38,14 @@ DB_PORT   = int(os.environ.get('PG_PORT', '5432'))
 DB_NAME   = os.environ.get('PG_DBNAME',  'gestao_frota')
 DB_USER   = os.environ.get('PG_USER',    'gestao_frota')
 DB_PASS   = os.environ.get('PG_PASSWORD','gestao_frota')
+
+# ── Configuração SMTP (e-mail) ────────────────────────────────
+SMTP_HOST   = os.environ.get('SMTP_HOST',  '')
+SMTP_PORT   = int(os.environ.get('SMTP_PORT','587'))
+SMTP_USER   = os.environ.get('SMTP_USER',  '')
+SMTP_PASS   = os.environ.get('SMTP_PASS',  '')
+SMTP_FROM   = os.environ.get('SMTP_FROM',  'noreply@gestaofrota.com')
+APP_URL     = os.environ.get('APP_URL',    'http://localhost:8080')
 
 def get_db():
     conn = psycopg2.connect(
@@ -64,6 +74,61 @@ def _fetchone(conn, sql, params=None):
 
 def _hoje():
     return _date.today().isoformat()
+
+# ═══════════════════════════════════════════════════════════════
+#  AUTENTICAÇÃO
+# ═══════════════════════════════════════════════════════════════
+_SALT = os.environ.get('AUTH_SALT', 'gestao_frota_salt_2024')
+
+def _hash_senha(senha: str) -> str:
+    dk = hashlib.pbkdf2_hmac('sha256', senha.encode(), _SALT.encode(), 200_000)
+    return dk.hex()
+
+def _gen_token() -> str:
+    return secrets.token_urlsafe(48)
+
+def _auth_get_user(conn, token: str):
+    """Valida token de sessão e retorna usuário + permissões, ou None."""
+    if not token:
+        return None
+    sess = _fetchone(conn,
+        "SELECT * FROM sessoes WHERE token=%s AND expiry > NOW()", [token])
+    if not sess:
+        return None
+    usr = _fetchone(conn,
+        "SELECT u.*, pa.nome AS perfil_nome FROM usuarios u "
+        "LEFT JOIN perfis_acesso pa ON pa.id = u.perfil_id "
+        "WHERE u.id=%s AND u.status='Ativo'", [sess['usuario_id']])
+    if not usr:
+        return None
+    perms = _fetchall(conn,
+        "SELECT * FROM permissoes_perfil WHERE perfil_id=%s", [usr.get('perfil_id')])
+    usr['permissoes'] = perms
+    return usr
+
+def _token_from_request(handler) -> str:
+    auth = handler.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        return auth[7:].strip()
+    return ''
+
+def _send_email(to: str, subject: str, html_body: str):
+    """Envia e-mail via SMTP. Se não configurado, imprime no console."""
+    if not SMTP_HOST or not SMTP_USER:
+        print(f'\n[EMAIL → {to}]\nAssunto: {subject}\n{html_body}\n')
+        return
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From']    = SMTP_FROM
+        msg['To']      = to
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.sendmail(SMTP_FROM, [to], msg.as_string())
+    except Exception as e:
+        print(f'[EMAIL ERROR] {e}')
 
 def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
                              combustivel, volume, preco_unitario,
@@ -495,16 +560,45 @@ def init_db():
     cur.execute('''CREATE TABLE IF NOT EXISTS usuarios (
         id          SERIAL PRIMARY KEY,
         nome        TEXT    NOT NULL,
-        cpf         TEXT    NOT NULL UNIQUE,
+        cpf         TEXT    NOT NULL DEFAULT '',
         telefone    TEXT    DEFAULT '',
         email       TEXT    DEFAULT '',
         perfil      TEXT    DEFAULT 'Operador',
         status      TEXT    DEFAULT 'Ativo',
         cliente_id  INTEGER DEFAULT NULL,
         observacoes TEXT    DEFAULT '',
-        created_at  TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+        created_at  TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
+        senha_hash  TEXT    DEFAULT '',
+        token_reset TEXT    DEFAULT NULL,
+        token_expiry TEXT   DEFAULT NULL,
+        perfil_id   INTEGER DEFAULT NULL,
+        tipo_acesso TEXT    DEFAULT 'Entrante'
     )''')
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha_hash TEXT DEFAULT ''")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_reset TEXT DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_expiry TEXT DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS perfil_id INTEGER DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_acesso TEXT DEFAULT 'Entrante'")
+    # Garante unicidade de email (ignora duplicatas existentes)
+    cur.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'usuarios_email_unique'
+            ) THEN
+                ALTER TABLE usuarios ADD CONSTRAINT usuarios_email_unique UNIQUE (email);
+            END IF;
+        END $$
+    """)
+
+    # ── Sessões de autenticação ────────────────────────────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS sessoes (
+        id          SERIAL PRIMARY KEY,
+        usuario_id  INTEGER NOT NULL,
+        token       TEXT    NOT NULL UNIQUE,
+        expiry      TIMESTAMP NOT NULL,
+        created_at  TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+    )''')
 
     # ── Perfis de Acesso ─────────────────────────────────────────
     cur.execute('''CREATE TABLE IF NOT EXISTS perfis_acesso (
@@ -526,11 +620,32 @@ def init_db():
     # Seed: perfis padrão
     cur.execute("""
         INSERT INTO perfis_acesso (nome, descricao) VALUES
-          ('Gestor',         'Acesso total ao sistema'),
-          ('Administrativo', 'Acesso operacional com restrições'),
-          ('Operador',       'Somente consulta e inclusão básica')
+          ('Gestor',           'Acesso total ao sistema'),
+          ('Administrativo',   'Acesso operacional com restrições'),
+          ('Operador',         'Somente consulta e inclusão básica'),
+          ('Frota',            'Perfil para clientes do segmento de gestão de frota'),
+          ('Revenda',          'Perfil para clientes do segmento de revenda de combustíveis'),
+          ('Usuário Entrante', 'Acesso somente leitura para novos usuários auto-cadastrados')
         ON CONFLICT (nome) DO NOTHING
     """)
+    # Seed: permissões do perfil "Usuário Entrante" = somente consulta
+    MODULOS_ALL = [
+        'Clientes','Postos','Veículos','Motoristas','Negociações',
+        'Inventário','Volumes','Hodômetro','Segurança','Roteirizador',
+        'Planos de Viagem','Abastecimentos','Centros de Custo',
+        'Orçamento CC','Lançamentos CC','Dashboard CC',
+        'Usuários','Perfis de Acesso','Configurações',
+    ]
+    cur.execute("SELECT id FROM perfis_acesso WHERE nome='Usuário Entrante'")
+    row = cur.fetchone()
+    if row:
+        pid_entrante = row['id']
+        for mod in MODULOS_ALL:
+            cur.execute("""
+                INSERT INTO permissoes_perfil (perfil_id, modulo, inclusao, consulta, edicao, exclusao)
+                VALUES (%s,%s,FALSE,TRUE,FALSE,FALSE)
+                ON CONFLICT (perfil_id, modulo) DO NOTHING
+            """, [pid_entrante, mod])
 
     # ── Controle de Custos ───────────────────────────────────────
     cur.execute('''CREATE TABLE IF NOT EXISTS centros_custo (
@@ -770,7 +885,7 @@ class Handler(BaseHTTPRequestHandler):
     def cors(self):
         self.send_header('Access-Control-Allow-Origin',  '*')
         self.send_header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type,Authorization')
 
     def send_json(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False, default=str).encode('utf-8')
@@ -807,6 +922,15 @@ class Handler(BaseHTTPRequestHandler):
     # ──────────────────────────────────────────────────────────
     def do_GET(self):
         path = urlparse(self.path).path
+
+        # ── Auth: dados do usuário logado ──────────────────────
+        if path == '/api/auth/me':
+            conn = get_db()
+            usr = _auth_get_user(conn, _token_from_request(self))
+            conn.close()
+            if not usr:
+                self.send_json({'error': 'Não autenticado'}, 401); return
+            self.send_json(usr); return
 
         if path in ('/', '/index.html'):
             self.send_html()
@@ -1245,6 +1369,136 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         d    = self.read_body()
 
+        # ══════════════════════════════════════════════════════
+        #  AUTENTICAÇÃO
+        # ══════════════════════════════════════════════════════
+
+        # ── Login ─────────────────────────────────────────────
+        if path == '/api/auth/login':
+            email = (d.get('email') or '').strip().lower()
+            senha = d.get('senha') or ''
+            if not email or not senha:
+                self.send_json({'error': 'E-mail e senha obrigatórios'}, 400); return
+            conn = get_db()
+            usr = _fetchone(conn,
+                "SELECT * FROM usuarios WHERE LOWER(email)=%s AND status='Ativo'", [email])
+            if not usr or usr.get('senha_hash','') != _hash_senha(senha):
+                conn.close()
+                self.send_json({'error': 'E-mail ou senha inválidos'}, 401); return
+            # Cria sessão (24h)
+            token  = _gen_token()
+            expiry = datetime.utcnow() + timedelta(hours=24)
+            _exec(conn, "INSERT INTO sessoes (usuario_id,token,expiry) VALUES (%s,%s,%s)",
+                  [usr['id'], token, expiry])
+            conn.commit()
+            # Carrega permissões
+            perms = _fetchall(conn, "SELECT * FROM permissoes_perfil WHERE perfil_id=%s",
+                              [usr.get('perfil_id')]) if usr.get('perfil_id') else []
+            perfil = _fetchone(conn, "SELECT nome FROM perfis_acesso WHERE id=%s",
+                               [usr.get('perfil_id')]) if usr.get('perfil_id') else None
+            conn.close()
+            self.send_json({
+                'token': token,
+                'usuario': {
+                    'id': usr['id'], 'nome': usr['nome'], 'email': usr['email'],
+                    'tipo_acesso': usr.get('tipo_acesso','Entrante'),
+                    'perfil_id':   usr.get('perfil_id'),
+                    'perfil_nome': perfil['nome'] if perfil else usr.get('perfil',''),
+                    'cliente_id':  usr.get('cliente_id'),
+                },
+                'permissoes': perms,
+            }); return
+
+        # ── Logout ────────────────────────────────────────────
+        if path == '/api/auth/logout':
+            token = _token_from_request(self)
+            if token:
+                conn = get_db()
+                _exec(conn, "DELETE FROM sessoes WHERE token=%s", [token])
+                conn.commit()
+                conn.close()
+            self.send_json({'ok': True}); return
+
+        # ── Cadastro (auto-registro) ───────────────────────────
+        if path == '/api/auth/register':
+            nome  = (d.get('nome')  or '').strip()
+            email = (d.get('email') or '').strip().lower()
+            if not nome or not email:
+                self.send_json({'error': 'Nome e e-mail obrigatórios'}, 400); return
+            conn = get_db()
+            # Verifica se e-mail já existe
+            existing = _fetchone(conn, "SELECT id FROM usuarios WHERE LOWER(email)=%s", [email])
+            if existing:
+                conn.close()
+                self.send_json({'error': 'E-mail já cadastrado'}, 409); return
+            # Busca perfil "Usuário Entrante"
+            perfil_e = _fetchone(conn, "SELECT id FROM perfis_acesso WHERE nome='Usuário Entrante'")
+            pid = perfil_e['id'] if perfil_e else None
+            # Gera token de definição de senha (24h)
+            tok  = _gen_token()
+            exp  = (datetime.utcnow() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+            cur = _exec(conn, """
+                INSERT INTO usuarios (nome, email, cpf, perfil, tipo_acesso, perfil_id, status,
+                                      token_reset, token_expiry)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+            """, [nome, email, '', 'Usuário Entrante', 'Entrante', pid, 'Ativo', tok, exp])
+            conn.commit()
+            new_id = cur.fetchone()['id']
+            conn.close()
+            link = f"{APP_URL}/?reset_token={tok}"
+            _send_email(email, 'Bem-vindo! Defina sua senha de acesso',
+                f"""<h2>Olá, {nome}!</h2>
+                <p>Seu cadastro foi criado. Clique no link abaixo para definir sua senha:</p>
+                <p><a href="{link}">{link}</a></p>
+                <p>Este link expira em 24 horas.</p>""")
+            self.send_json({'ok': True, 'id': new_id}); return
+
+        # ── Definir / Redefinir senha (via token) ─────────────
+        if path == '/api/auth/set-password':
+            tok   = (d.get('token') or '').strip()
+            senha = d.get('senha') or ''
+            if not tok or len(senha) < 6:
+                self.send_json({'error': 'Token inválido ou senha muito curta (mín. 6 chars)'}, 400); return
+            conn = get_db()
+            usr = _fetchone(conn,
+                "SELECT * FROM usuarios WHERE token_reset=%s AND token_expiry > NOW()", [tok])
+            if not usr:
+                conn.close()
+                self.send_json({'error': 'Token inválido ou expirado'}, 401); return
+            _exec(conn, """
+                UPDATE usuarios SET senha_hash=%s, token_reset=NULL, token_expiry=NULL
+                WHERE id=%s
+            """, [_hash_senha(senha), usr['id']])
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True}); return
+
+        # ── Reenviar link de definição de senha ───────────────
+        if path == '/api/auth/resend-token':
+            email = (d.get('email') or '').strip().lower()
+            if not email:
+                self.send_json({'error': 'E-mail obrigatório'}, 400); return
+            conn = get_db()
+            usr = _fetchone(conn, "SELECT * FROM usuarios WHERE LOWER(email)=%s AND status='Ativo'", [email])
+            if not usr:
+                conn.close()
+                self.send_json({'ok': True}); return  # silencia: não revela existência
+            tok = _gen_token()
+            exp = (datetime.utcnow() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+            _exec(conn, "UPDATE usuarios SET token_reset=%s, token_expiry=%s WHERE id=%s",
+                  [tok, exp, usr['id']])
+            conn.commit()
+            conn.close()
+            link = f"{APP_URL}/?reset_token={tok}"
+            _send_email(email, 'Redefinição de senha – Gestão de Frota',
+                f"""<h2>Olá, {usr['nome']}!</h2>
+                <p>Solicitamos a redefinição da sua senha. Acesse o link:</p>
+                <p><a href="{link}">{link}</a></p>
+                <p>Este link expira em 24 horas. Se não foi você, ignore este e-mail.</p>""")
+            self.send_json({'ok': True}); return
+
+        # ══════════════════════════════════════════════════════
+
         if path == '/api/clientes':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO clientes
@@ -1270,14 +1524,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/usuarios':
             conn = get_db()
             try:
-                cli_id = d.get('cliente_id') or None
+                cli_id    = d.get('cliente_id') or None
                 if cli_id: cli_id = int(cli_id)
+                perfil_id = d.get('perfil_id') or None
+                if perfil_id: perfil_id = int(perfil_id)
                 cur = _exec(conn, '''INSERT INTO usuarios
-                    (nome,cpf,telefone,email,perfil,status,cliente_id,observacoes)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                    (nome,cpf,telefone,email,perfil,tipo_acesso,perfil_id,status,cliente_id,observacoes)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                     d.get('nome',''), d.get('cpf',''),
                     d.get('telefone',''), d.get('email',''),
-                    d.get('perfil','Operador'), d.get('status','Ativo'),
+                    d.get('perfil','Operador'),
+                    d.get('tipo_acesso','Entrante'),
+                    perfil_id,
+                    d.get('status','Ativo'),
                     cli_id, d.get('observacoes',''),
                 ])
                 conn.commit()
@@ -2267,14 +2526,20 @@ class Handler(BaseHTTPRequestHandler):
             id_ = int(m.group(1))
             conn = get_db()
             try:
-                cli_id = d.get('cliente_id') or None
+                cli_id    = d.get('cliente_id') or None
                 if cli_id: cli_id = int(cli_id)
+                perfil_id = d.get('perfil_id') or None
+                if perfil_id: perfil_id = int(perfil_id)
                 _exec(conn, '''UPDATE usuarios SET
-                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,status=%s,cliente_id=%s,observacoes=%s
+                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,tipo_acesso=%s,
+                    perfil_id=%s,status=%s,cliente_id=%s,observacoes=%s
                     WHERE id=%s''', [
                     d.get('nome',''), d.get('cpf',''),
                     d.get('telefone',''), d.get('email',''),
-                    d.get('perfil','Operador'), d.get('status','Ativo'),
+                    d.get('perfil','Operador'),
+                    d.get('tipo_acesso','Entrante'),
+                    perfil_id,
+                    d.get('status','Ativo'),
                     cli_id, d.get('observacoes',''), id_
                 ])
                 conn.commit(); conn.close()
