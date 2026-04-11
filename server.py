@@ -644,16 +644,29 @@ def init_db():
         exclusao    BOOLEAN DEFAULT FALSE,
         UNIQUE(perfil_id, modulo)
     )''')
-    # Seed: perfis padrão
+    # Seed: perfis de acesso (níveis de permissão — independentes do segmento)
     cur.execute("""
         INSERT INTO perfis_acesso (nome, descricao) VALUES
           ('Gestor',           'Acesso total ao sistema'),
           ('Administrativo',   'Acesso operacional com restrições'),
           ('Operador',         'Somente consulta e inclusão básica'),
-          ('Frota',            'Perfil para clientes do segmento de gestão de frota'),
-          ('Revenda',          'Perfil para clientes do segmento de revenda de combustíveis'),
           ('Usuário Entrante', 'Acesso somente leitura para novos usuários auto-cadastrados')
         ON CONFLICT (nome) DO NOTHING
+    """)
+    # Remove perfis "Frota" e "Revenda" que foram criados erroneamente como perfis
+    # (são segmentos de negócio, não níveis de acesso)
+    cur.execute("""
+        DELETE FROM permissoes_perfil WHERE perfil_id IN (
+            SELECT id FROM perfis_acesso WHERE nome IN ('Frota','Revenda')
+        )
+    """)
+    cur.execute("DELETE FROM perfis_acesso WHERE nome IN ('Frota','Revenda')")
+    # Migração: adiciona coluna segmento em usuarios (Frota / Revenda / Entrante)
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS segmento TEXT DEFAULT 'Frota'")
+    # Popula segmento a partir de tipo_acesso para registros existentes
+    cur.execute("""
+        UPDATE usuarios SET segmento = tipo_acesso
+        WHERE segmento IS NULL OR segmento = ''
     """)
     # Seed: permissões do perfil "Usuário Entrante" = somente consulta
     MODULOS_ALL = [
@@ -698,15 +711,15 @@ def init_db():
             cur.execute("""
                 UPDATE usuarios SET
                     nome='Daniel Peruffo', senha_hash=%s,
-                    perfil='Gestor', tipo_acesso='Frota', perfil_id=%s,
+                    perfil='Gestor', segmento='Frota', tipo_acesso='Frota', perfil_id=%s,
                     status='Ativo', token_reset=NULL, token_expiry=NULL
                 WHERE id=%s
             """, [_ADMIN_HASH, pid_gestor, admin_row['id']])
         else:
             cur.execute("""
                 INSERT INTO usuarios
-                    (nome, email, cpf, perfil, tipo_acesso, perfil_id, status, senha_hash)
-                VALUES ('Daniel Peruffo',%s,'','Gestor','Frota',%s,'Ativo',%s)
+                    (nome, email, cpf, perfil, segmento, tipo_acesso, perfil_id, status, senha_hash)
+                VALUES ('Daniel Peruffo',%s,'','Gestor','Frota','Frota',%s,'Ativo',%s)
             """, [_ADMIN_EMAIL, pid_gestor, _ADMIN_HASH])
 
     # ── Controle de Custos ───────────────────────────────────────
@@ -1500,10 +1513,10 @@ class Handler(BaseHTTPRequestHandler):
             tok  = _gen_token()
             exp  = (datetime.utcnow() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
             cur = _exec(conn, """
-                INSERT INTO usuarios (nome, email, cpf, perfil, tipo_acesso, perfil_id, status,
+                INSERT INTO usuarios (nome, email, cpf, perfil, segmento, tipo_acesso, perfil_id, status,
                                       token_reset, token_expiry)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
-            """, [nome, email, '', 'Usuário Entrante', 'Entrante', pid, 'Ativo', tok, exp])
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+            """, [nome, email, '', 'Usuário Entrante', 'Entrante', 'Entrante', pid, 'Ativo', tok, exp])
             conn.commit()
             new_id = cur.fetchone()['id']
             conn.close()
@@ -1590,13 +1603,14 @@ class Handler(BaseHTTPRequestHandler):
                 if cli_id: cli_id = int(cli_id)
                 perfil_id = d.get('perfil_id') or None
                 if perfil_id: perfil_id = int(perfil_id)
+                seg = d.get('segmento','Frota')
                 cur = _exec(conn, '''INSERT INTO usuarios
-                    (nome,cpf,telefone,email,perfil,tipo_acesso,perfil_id,status,cliente_id,observacoes)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                    (nome,cpf,telefone,email,perfil,segmento,tipo_acesso,perfil_id,status,cliente_id,observacoes)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                     d.get('nome',''), d.get('cpf',''),
                     d.get('telefone',''), d.get('email',''),
                     d.get('perfil','Operador'),
-                    d.get('tipo_acesso','Entrante'),
+                    seg, seg,          # segmento e tipo_acesso em sincronia
                     perfil_id,
                     d.get('status','Ativo'),
                     cli_id, d.get('observacoes',''),
@@ -2592,14 +2606,15 @@ class Handler(BaseHTTPRequestHandler):
                 if cli_id: cli_id = int(cli_id)
                 perfil_id = d.get('perfil_id') or None
                 if perfil_id: perfil_id = int(perfil_id)
+                seg = d.get('segmento','Frota')
                 _exec(conn, '''UPDATE usuarios SET
-                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,tipo_acesso=%s,
+                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,segmento=%s,tipo_acesso=%s,
                     perfil_id=%s,status=%s,cliente_id=%s,observacoes=%s
                     WHERE id=%s''', [
                     d.get('nome',''), d.get('cpf',''),
                     d.get('telefone',''), d.get('email',''),
                     d.get('perfil','Operador'),
-                    d.get('tipo_acesso','Entrante'),
+                    seg, seg,          # segmento e tipo_acesso em sincronia
                     perfil_id,
                     d.get('status','Ativo'),
                     cli_id, d.get('observacoes',''), id_
