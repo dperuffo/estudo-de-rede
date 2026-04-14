@@ -20,9 +20,11 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import psycopg2
 import psycopg2.extras
-import json, os, re, sys, threading
-from datetime import date as _date
+import json, os, re, sys, threading, hashlib, secrets, smtplib
+from datetime import date as _date, datetime, timedelta
 from urllib.parse import urlparse, parse_qs
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE = os.path.join(BASE_DIR, 'gestao-abastecimentos.html')
@@ -36,6 +38,14 @@ DB_PORT   = int(os.environ.get('PG_PORT', '5432'))
 DB_NAME   = os.environ.get('PG_DBNAME',  'gestao_frota')
 DB_USER   = os.environ.get('PG_USER',    'gestao_frota')
 DB_PASS   = os.environ.get('PG_PASSWORD','gestao_frota')
+
+# ── Configuração SMTP (e-mail) ────────────────────────────────
+SMTP_HOST   = os.environ.get('SMTP_HOST',  '')
+SMTP_PORT   = int(os.environ.get('SMTP_PORT','587'))
+SMTP_USER   = os.environ.get('SMTP_USER',  '')
+SMTP_PASS   = os.environ.get('SMTP_PASS',  '')
+SMTP_FROM   = os.environ.get('SMTP_FROM',  'noreply@gestaofrota.com')
+APP_URL     = os.environ.get('APP_URL',    'http://localhost:8080')
 
 def get_db():
     conn = psycopg2.connect(
@@ -65,11 +75,68 @@ def _fetchone(conn, sql, params=None):
 def _hoje():
     return _date.today().isoformat()
 
+# ═══════════════════════════════════════════════════════════════
+#  AUTENTICAÇÃO
+# ═══════════════════════════════════════════════════════════════
+_SALT = os.environ.get('AUTH_SALT', 'gestao_frota_salt_2024')
+
+def _hash_senha(senha: str) -> str:
+    dk = hashlib.pbkdf2_hmac('sha256', senha.encode(), _SALT.encode(), 200_000)
+    return dk.hex()
+
+def _gen_token() -> str:
+    return secrets.token_urlsafe(48)
+
+def _auth_get_user(conn, token: str):
+    """Valida token de sessão e retorna usuário + permissões, ou None."""
+    if not token:
+        return None
+    sess = _fetchone(conn,
+        "SELECT * FROM sessoes WHERE token=%s AND expiry > NOW()", [token])
+    if not sess:
+        return None
+    usr = _fetchone(conn,
+        "SELECT u.*, pa.nome AS perfil_nome FROM usuarios u "
+        "LEFT JOIN perfis_acesso pa ON pa.id = u.perfil_id "
+        "WHERE u.id=%s AND u.status='Ativo'", [sess['usuario_id']])
+    if not usr:
+        return None
+    perms = _fetchall(conn,
+        "SELECT * FROM permissoes_perfil WHERE perfil_id=%s", [usr.get('perfil_id')])
+    usr['permissoes'] = perms
+    return usr
+
+def _token_from_request(handler) -> str:
+    auth = handler.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        return auth[7:].strip()
+    return ''
+
+def _send_email(to: str, subject: str, html_body: str):
+    """Envia e-mail via SMTP. Se não configurado, imprime no console."""
+    if not SMTP_HOST or not SMTP_USER:
+        print(f'\n[EMAIL → {to}]\nAssunto: {subject}\n{html_body}\n')
+        return
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From']    = SMTP_FROM
+        msg['To']      = to
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.sendmail(SMTP_FROM, [to], msg.as_string())
+    except Exception as e:
+        print(f'[EMAIL ERROR] {e}')
+
 def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
-                             combustivel, valor_total, arla32_total,
-                             servicos_abast, cliente_id):
+                             combustivel, volume, preco_unitario,
+                             arla32_total, servicos_abast, cliente_id):
     """Cria/atualiza lançamentos em lancamentos_cc para um abastecimento,
-    usando o centro_custo_id do veículo (se configurado)."""
+    usando o centro_custo_id do veículo (se configurado).
+    O valor do combustível é calculado como volume × preco_unitario,
+    separando-o do Arla 32 e dos serviços avulsos."""
     veiculo = _fetchone(conn,
         'SELECT centro_custo_id FROM veiculos WHERE placa=%s', [placa])
     cc_id = veiculo.get('centro_custo_id') if veiculo else None
@@ -81,17 +148,19 @@ def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
         "DELETE FROM lancamentos_cc WHERE referencia_tipo='Abastecimento' AND referencia_id=%s",
         [abast_id])
 
-    data_lanc = (data or _hoje())[:10]
-    desc_base = f"Abast. {combustivel or ''} — {placa} em {posto or ''}"
+    data_lanc  = (data or _hoje())[:10]
+    desc_base  = f"Abast. {combustivel or ''} — {placa} em {posto or ''}"
+    # Valor apenas do combustível (sem Arla 32 e sem serviços)
+    comb_valor = round(float(volume or 0) * float(preco_unitario or 0), 2)
 
     # Combustível principal
-    if valor_total and float(valor_total) > 0:
+    if comb_valor > 0:
         _exec(conn, '''INSERT INTO lancamentos_cc
             (centro_custo_id,data,categoria,descricao,valor,tipo,
              referencia_tipo,referencia_id,cliente_id)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
             cc_id, data_lanc, 'Combustível', desc_base,
-            float(valor_total), 'Despesa', 'Abastecimento', abast_id,
+            comb_valor, 'Despesa', 'Abastecimento', abast_id,
             cliente_id or None,
         ])
 
@@ -491,14 +560,248 @@ def init_db():
     cur.execute('''CREATE TABLE IF NOT EXISTS usuarios (
         id          SERIAL PRIMARY KEY,
         nome        TEXT    NOT NULL,
-        cpf         TEXT    NOT NULL UNIQUE,
+        cpf         TEXT    NOT NULL DEFAULT '',
         telefone    TEXT    DEFAULT '',
         email       TEXT    DEFAULT '',
         perfil      TEXT    DEFAULT 'Operador',
         status      TEXT    DEFAULT 'Ativo',
+        cliente_id  INTEGER DEFAULT NULL,
         observacoes TEXT    DEFAULT '',
+        created_at  TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'),
+        senha_hash  TEXT    DEFAULT '',
+        token_reset TEXT    DEFAULT NULL,
+        token_expiry TEXT   DEFAULT NULL,
+        perfil_id   INTEGER DEFAULT NULL,
+        tipo_acesso TEXT    DEFAULT 'Entrante'
+    )''')
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha_hash TEXT DEFAULT ''")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_reset TEXT DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_expiry TEXT DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS perfil_id INTEGER DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_acesso TEXT DEFAULT 'Entrante'")
+    # Remove constraint legada de CPF único (permite usuários sem CPF via login)
+    cur.execute("""
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'usuarios_cpf_key'
+            ) THEN
+                ALTER TABLE usuarios DROP CONSTRAINT usuarios_cpf_key;
+            END IF;
+        END $$
+    """)
+    # Índice parcial único de CPF (só para CPFs não-vazios)
+    cur.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_indexes
+                WHERE indexname = 'usuarios_cpf_unique_partial'
+            ) THEN
+                CREATE UNIQUE INDEX usuarios_cpf_unique_partial
+                ON usuarios (cpf)
+                WHERE cpf IS NOT NULL AND cpf <> '';
+            END IF;
+        END $$
+    """)
+    # Índice parcial único de email (só para e-mails não-vazios)
+    cur.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_indexes
+                WHERE indexname = 'usuarios_email_unique_partial'
+            ) THEN
+                CREATE UNIQUE INDEX usuarios_email_unique_partial
+                ON usuarios (LOWER(email))
+                WHERE email IS NOT NULL AND email <> '';
+            END IF;
+        END $$
+    """)
+
+    # ── Sessões de autenticação ────────────────────────────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS sessoes (
+        id          SERIAL PRIMARY KEY,
+        usuario_id  INTEGER NOT NULL,
+        token       TEXT    NOT NULL UNIQUE,
+        expiry      TIMESTAMP NOT NULL,
         created_at  TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
     )''')
+
+    # ── Perfis de Acesso ─────────────────────────────────────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS perfis_acesso (
+        id          SERIAL PRIMARY KEY,
+        nome        TEXT NOT NULL UNIQUE,
+        descricao   TEXT DEFAULT '',
+        created_at  TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+    )''')
+    cur.execute('''CREATE TABLE IF NOT EXISTS permissoes_perfil (
+        id          SERIAL PRIMARY KEY,
+        perfil_id   INTEGER NOT NULL,
+        modulo      TEXT NOT NULL,
+        inclusao    BOOLEAN DEFAULT FALSE,
+        consulta    BOOLEAN DEFAULT FALSE,
+        edicao      BOOLEAN DEFAULT FALSE,
+        exclusao    BOOLEAN DEFAULT FALSE,
+        UNIQUE(perfil_id, modulo)
+    )''')
+    # Seed: perfis de acesso (níveis de permissão — independentes do segmento)
+    cur.execute("""
+        INSERT INTO perfis_acesso (nome, descricao) VALUES
+          ('Gestor',           'Acesso total ao sistema'),
+          ('Administrativo',   'Acesso operacional com restrições'),
+          ('Operador',         'Somente consulta e inclusão básica'),
+          ('Usuário Entrante', 'Acesso somente leitura para novos usuários auto-cadastrados')
+        ON CONFLICT (nome) DO NOTHING
+    """)
+    # Remove perfis "Frota" e "Revenda" que foram criados erroneamente como perfis
+    # (são segmentos de negócio, não níveis de acesso)
+    cur.execute("""
+        DELETE FROM permissoes_perfil WHERE perfil_id IN (
+            SELECT id FROM perfis_acesso WHERE nome IN ('Frota','Revenda')
+        )
+    """)
+    cur.execute("DELETE FROM perfis_acesso WHERE nome IN ('Frota','Revenda')")
+    # Migração: adiciona coluna segmento em usuarios (Frota / Revenda / Entrante)
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS segmento TEXT DEFAULT 'Frota'")
+    # Popula segmento a partir de tipo_acesso para registros existentes
+    cur.execute("""
+        UPDATE usuarios SET segmento = tipo_acesso
+        WHERE segmento IS NULL OR segmento = ''
+    """)
+    # ── Permissões padrão por perfil (IDs alinhados com frontend _PF_MODULOS) ───
+    # Formato por módulo: (inclusao, consulta, edicao, exclusao)
+    T, F = True, False
+    MODULOS_FRONTEND = [
+        'indicadores','clientes','veiculos','motoristas','usuarios','perfil-usuario',
+        'abastecimentos','postos','negociacoes','parametros','seguranca',
+        'roteirizador','rotograma','plano-viagem','custos',
+        'precos','varprecos','mapabandeira','volprojetado',
+    ]
+    # Gestor: acesso total
+    PERMS_GESTOR = {m: (T,T,T,T) for m in MODULOS_FRONTEND}
+    # Administrativo: CRUD na maioria, sem gestão de usuários/perfis/segurança
+    PERMS_ADMIN = {
+        'indicadores':    (F,T,F,F),
+        'clientes':       (T,T,T,T),
+        'veiculos':       (T,T,T,T),
+        'motoristas':     (T,T,T,T),
+        'usuarios':       (F,T,F,F),
+        'perfil-usuario': (F,F,F,F),
+        'abastecimentos': (T,T,T,F),
+        'postos':         (T,T,T,F),
+        'negociacoes':    (F,T,F,F),
+        'parametros':     (T,T,T,F),
+        'seguranca':      (F,T,F,F),
+        'roteirizador':   (F,T,F,F),
+        'rotograma':      (F,T,F,F),
+        'plano-viagem':   (T,T,T,F),
+        'custos':         (T,T,T,F),
+        'precos':         (F,T,F,F),
+        'varprecos':      (F,T,F,F),
+        'mapabandeira':   (F,T,F,F),
+        'volprojetado':   (F,T,F,F),
+    }
+    # Operador: inclusão em abastecimentos, consulta nos demais, sem acesso a admin
+    PERMS_OPERADOR = {
+        'indicadores':    (F,T,F,F),
+        'clientes':       (F,T,F,F),
+        'veiculos':       (F,T,F,F),
+        'motoristas':     (F,T,F,F),
+        'usuarios':       (F,F,F,F),
+        'perfil-usuario': (F,F,F,F),
+        'abastecimentos': (T,T,F,F),
+        'postos':         (F,T,F,F),
+        'negociacoes':    (F,F,F,F),
+        'parametros':     (F,T,F,F),
+        'seguranca':      (F,F,F,F),
+        'roteirizador':   (F,T,F,F),
+        'rotograma':      (F,T,F,F),
+        'plano-viagem':   (F,T,F,F),
+        'custos':         (F,T,F,F),
+        'precos':         (F,T,F,F),
+        'varprecos':      (F,T,F,F),
+        'mapabandeira':   (F,T,F,F),
+        'volprojetado':   (F,T,F,F),
+    }
+    # Usuário Entrante: consulta limitada, sem gestão
+    PERMS_ENTRANTE = {
+        'indicadores':    (F,T,F,F),
+        'clientes':       (F,F,F,F),
+        'veiculos':       (F,T,F,F),
+        'motoristas':     (F,T,F,F),
+        'usuarios':       (F,F,F,F),
+        'perfil-usuario': (F,F,F,F),
+        'abastecimentos': (F,T,F,F),
+        'postos':         (F,T,F,F),
+        'negociacoes':    (F,F,F,F),
+        'parametros':     (F,F,F,F),
+        'seguranca':      (F,F,F,F),
+        'roteirizador':   (F,T,F,F),
+        'rotograma':      (F,T,F,F),
+        'plano-viagem':   (F,F,F,F),
+        'custos':         (F,F,F,F),
+        'precos':         (F,T,F,F),
+        'varprecos':      (F,T,F,F),
+        'mapabandeira':   (F,T,F,F),
+        'volprojetado':   (F,T,F,F),
+    }
+    PERFIL_SEED_MAP = [
+        ('Gestor',           PERMS_GESTOR,   True),   # True = UPSERT (sempre sobrescreve)
+        ('Administrativo',   PERMS_ADMIN,    False),  # False = INSERT ONLY (respeita personalizações)
+        ('Operador',         PERMS_OPERADOR, False),
+        ('Usuário Entrante', PERMS_ENTRANTE, False),
+    ]
+    pid_gestor = None
+    for perfil_nome, perms_map, force_update in PERFIL_SEED_MAP:
+        cur.execute("SELECT id FROM perfis_acesso WHERE nome=%s", [perfil_nome])
+        row_p = cur.fetchone()
+        if not row_p:
+            continue
+        pid = row_p['id']
+        if perfil_nome == 'Gestor':
+            pid_gestor = pid
+        for mod, (inc, con, edi, exc) in perms_map.items():
+            if force_update:
+                cur.execute("""
+                    INSERT INTO permissoes_perfil
+                        (perfil_id, modulo, inclusao, consulta, edicao, exclusao)
+                    VALUES (%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (perfil_id, modulo) DO UPDATE SET
+                        inclusao=%s, consulta=%s, edicao=%s, exclusao=%s
+                """, [pid, mod, inc, con, edi, exc, inc, con, edi, exc])
+            else:
+                cur.execute("""
+                    INSERT INTO permissoes_perfil
+                        (perfil_id, modulo, inclusao, consulta, edicao, exclusao)
+                    VALUES (%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (perfil_id, modulo) DO NOTHING
+                """, [pid, mod, inc, con, edi, exc])
+    if pid_gestor is None:
+        cur.execute("SELECT id FROM perfis_acesso WHERE nome='Gestor'")
+        row_g = cur.fetchone()
+        if row_g: pid_gestor = row_g['id']
+
+        # Seed: usuário administrador (senha: Prototipo@2026)
+        # Hash = pbkdf2_hmac('sha256', senha, 'gestao_frota_salt_2024', 200000)
+        _ADMIN_EMAIL = 'd.peruffo@yahoo.com'
+        _ADMIN_HASH  = '44062eeb20fd85b2d10d3a40a750bdd2fe7b8d14fe096e7c333d09951ae23eaa'
+        cur.execute("SELECT id FROM usuarios WHERE LOWER(email)=%s",
+                    [_ADMIN_EMAIL.lower()])
+        admin_row = cur.fetchone()
+        if admin_row:
+            cur.execute("""
+                UPDATE usuarios SET
+                    nome='Daniel Peruffo', senha_hash=%s,
+                    perfil='Gestor', segmento='Frota', tipo_acesso='Frota', perfil_id=%s,
+                    status='Ativo', token_reset=NULL, token_expiry=NULL
+                WHERE id=%s
+            """, [_ADMIN_HASH, pid_gestor, admin_row['id']])
+        else:
+            cur.execute("""
+                INSERT INTO usuarios
+                    (nome, email, cpf, perfil, segmento, tipo_acesso, perfil_id, status, senha_hash)
+                VALUES ('Daniel Peruffo',%s,'','Gestor','Frota','Frota',%s,'Ativo',%s)
+            """, [_ADMIN_EMAIL, pid_gestor, _ADMIN_HASH])
 
     # ── Controle de Custos ───────────────────────────────────────
     cur.execute('''CREATE TABLE IF NOT EXISTS centros_custo (
@@ -519,8 +822,10 @@ def init_db():
         mes               INTEGER NOT NULL,
         categoria         TEXT    NOT NULL,
         valor_orcado      REAL    DEFAULT 0,
-        observacoes       TEXT    DEFAULT ''
+        observacoes       TEXT    DEFAULT '',
+        cliente_id        INTEGER DEFAULT NULL
     )''')
+    cur.execute("ALTER TABLE orcamentos_cc ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
 
     cur.execute('''CREATE TABLE IF NOT EXISTS lancamentos_cc (
         id                SERIAL PRIMARY KEY,
@@ -580,6 +885,18 @@ def init_db():
         ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
     cur.execute('''ALTER TABLE planos_viagem
         ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
+
+    # ── Migração: corrige lançamentos de combustível que usavam valor_total
+    #    (combustível + Arla 32 + serviços) em vez de volume × preco_unitario ──
+    cur.execute('''
+        UPDATE lancamentos_cc lc
+        SET valor = ROUND((a.volume * a.preco_unitario)::numeric, 2)
+        FROM abastecimentos a
+        WHERE lc.referencia_tipo = 'Abastecimento'
+          AND lc.referencia_id  = a.id
+          AND lc.categoria      = 'Combustível'
+          AND lc.descricao      NOT LIKE 'Arla 32%'
+    ''')
 
     conn.commit()
     conn.close()
@@ -724,7 +1041,7 @@ class Handler(BaseHTTPRequestHandler):
     def cors(self):
         self.send_header('Access-Control-Allow-Origin',  '*')
         self.send_header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type,Authorization')
 
     def send_json(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False, default=str).encode('utf-8')
@@ -761,6 +1078,19 @@ class Handler(BaseHTTPRequestHandler):
     # ──────────────────────────────────────────────────────────
     def do_GET(self):
         path = urlparse(self.path).path
+
+        # ── Auth: dados do usuário logado ──────────────────────
+        # ── Ping / health check (sem autenticação) ────────────────
+        if path == '/api/ping':
+            self.send_json({'ok': True, 'server': 'gestao-frota'}); return
+
+        if path == '/api/auth/me':
+            conn = get_db()
+            usr = _auth_get_user(conn, _token_from_request(self))
+            conn.close()
+            if not usr:
+                self.send_json({'error': 'Não autenticado'}, 401); return
+            self.send_json(usr); return
 
         if path in ('/', '/index.html'):
             self.send_html()
@@ -808,6 +1138,38 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json(row if row else {})
 
+        elif path == '/api/usuarios/stats':
+            # Dashboard de segmentos × perfis com contagem de usuários
+            conn = get_db()
+            rows = _fetchall(conn, '''
+                SELECT
+                    COALESCE(segmento, tipo_acesso, 'Frota') AS segmento,
+                    COALESCE(u.perfil, pa.nome, 'Operador')  AS perfil,
+                    COUNT(*) AS total
+                FROM usuarios u
+                LEFT JOIN perfis_acesso pa ON pa.id = u.perfil_id
+                WHERE u.status = 'Ativo'
+                GROUP BY 1, 2
+                ORDER BY 1, 2
+            ''', [])
+            # totais por segmento
+            totais = _fetchall(conn, '''
+                SELECT
+                    COALESCE(segmento, tipo_acesso, 'Frota') AS segmento,
+                    COUNT(*) AS total
+                FROM usuarios
+                WHERE status = 'Ativo'
+                GROUP BY 1
+            ''', [])
+            total_geral = _fetchone(conn,
+                "SELECT COUNT(*) AS total FROM usuarios WHERE status='Ativo'", [])
+            conn.close()
+            self.send_json({
+                'breakdown': rows,
+                'totais':    totais,
+                'total':     total_geral['total'] if total_geral else 0,
+            }); return
+
         elif path == '/api/usuarios':
             qs       = parse_qs(urlparse(self.path).query)
             status_f = qs.get('status', [None])[0]
@@ -824,6 +1186,19 @@ class Handler(BaseHTTPRequestHandler):
             sql += ' ORDER BY nome'
             conn = get_db()
             rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
+
+        elif path == '/api/perfis-acesso':
+            conn = get_db()
+            rows = _fetchall(conn, 'SELECT * FROM perfis_acesso ORDER BY nome', [])
+            conn.close()
+            self.send_json(rows)
+
+        elif re.match(r'^/api/perfis-acesso/(\d+)/permissoes$', path):
+            m = re.match(r'^/api/perfis-acesso/(\d+)/permissoes$', path)
+            conn = get_db()
+            rows = _fetchall(conn, 'SELECT * FROM permissoes_perfil WHERE perfil_id=%s', [int(m.group(1))])
             conn.close()
             self.send_json(rows)
 
@@ -1186,6 +1561,137 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         d    = self.read_body()
 
+        # ══════════════════════════════════════════════════════
+        #  AUTENTICAÇÃO
+        # ══════════════════════════════════════════════════════
+
+        # ── Login ─────────────────────────────────────────────
+        if path == '/api/auth/login':
+            email = (d.get('email') or '').strip().lower()
+            senha = d.get('senha') or ''
+            if not email or not senha:
+                self.send_json({'error': 'E-mail e senha obrigatórios'}, 400); return
+            conn = get_db()
+            usr = _fetchone(conn,
+                "SELECT * FROM usuarios WHERE LOWER(email)=%s AND status='Ativo'", [email])
+            if not usr or usr.get('senha_hash','') != _hash_senha(senha):
+                conn.close()
+                self.send_json({'error': 'E-mail ou senha inválidos'}, 401); return
+            # Cria sessão (24h)
+            token  = _gen_token()
+            expiry = datetime.utcnow() + timedelta(hours=24)
+            _exec(conn, "INSERT INTO sessoes (usuario_id,token,expiry) VALUES (%s,%s,%s)",
+                  [usr['id'], token, expiry])
+            conn.commit()
+            # Carrega permissões
+            perms = _fetchall(conn, "SELECT * FROM permissoes_perfil WHERE perfil_id=%s",
+                              [usr.get('perfil_id')]) if usr.get('perfil_id') else []
+            perfil = _fetchone(conn, "SELECT nome FROM perfis_acesso WHERE id=%s",
+                               [usr.get('perfil_id')]) if usr.get('perfil_id') else None
+            conn.close()
+            self.send_json({
+                'token': token,
+                'usuario': {
+                    'id': usr['id'], 'nome': usr['nome'], 'email': usr['email'],
+                    'tipo_acesso': usr.get('tipo_acesso','Entrante'),
+                    'segmento':    usr.get('segmento', usr.get('tipo_acesso','Frota')),
+                    'perfil_id':   usr.get('perfil_id'),
+                    'perfil_nome': perfil['nome'] if perfil else usr.get('perfil',''),
+                    'cliente_id':  usr.get('cliente_id'),
+                },
+                'permissoes': perms,
+            }); return
+
+        # ── Logout ────────────────────────────────────────────
+        if path == '/api/auth/logout':
+            token = _token_from_request(self)
+            if token:
+                conn = get_db()
+                _exec(conn, "DELETE FROM sessoes WHERE token=%s", [token])
+                conn.commit()
+                conn.close()
+            self.send_json({'ok': True}); return
+
+        # ── Cadastro (auto-registro) ───────────────────────────
+        if path == '/api/auth/register':
+            nome  = (d.get('nome')  or '').strip()
+            email = (d.get('email') or '').strip().lower()
+            if not nome or not email:
+                self.send_json({'error': 'Nome e e-mail obrigatórios'}, 400); return
+            conn = get_db()
+            # Verifica se e-mail já existe
+            existing = _fetchone(conn, "SELECT id FROM usuarios WHERE LOWER(email)=%s", [email])
+            if existing:
+                conn.close()
+                self.send_json({'error': 'E-mail já cadastrado'}, 409); return
+            # Busca perfil "Usuário Entrante"
+            perfil_e = _fetchone(conn, "SELECT id FROM perfis_acesso WHERE nome='Usuário Entrante'")
+            pid = perfil_e['id'] if perfil_e else None
+            # Gera token de definição de senha (24h)
+            tok  = _gen_token()
+            exp  = (datetime.utcnow() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+            cur = _exec(conn, """
+                INSERT INTO usuarios (nome, email, cpf, perfil, segmento, tipo_acesso, perfil_id, status,
+                                      token_reset, token_expiry)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+            """, [nome, email, '', 'Usuário Entrante', 'Entrante', 'Entrante', pid, 'Ativo', tok, exp])
+            conn.commit()
+            new_id = cur.fetchone()['id']
+            conn.close()
+            link = f"{APP_URL}/?reset_token={tok}"
+            _send_email(email, 'Bem-vindo! Defina sua senha de acesso',
+                f"""<h2>Olá, {nome}!</h2>
+                <p>Seu cadastro foi criado. Clique no link abaixo para definir sua senha:</p>
+                <p><a href="{link}">{link}</a></p>
+                <p>Este link expira em 24 horas.</p>""")
+            self.send_json({'ok': True, 'id': new_id}); return
+
+        # ── Definir / Redefinir senha (via token) ─────────────
+        if path == '/api/auth/set-password':
+            tok   = (d.get('token') or '').strip()
+            senha = d.get('senha') or ''
+            if not tok or len(senha) < 6:
+                self.send_json({'error': 'Token inválido ou senha muito curta (mín. 6 chars)'}, 400); return
+            conn = get_db()
+            usr = _fetchone(conn,
+                "SELECT * FROM usuarios WHERE token_reset=%s AND token_expiry > NOW()", [tok])
+            if not usr:
+                conn.close()
+                self.send_json({'error': 'Token inválido ou expirado'}, 401); return
+            _exec(conn, """
+                UPDATE usuarios SET senha_hash=%s, token_reset=NULL, token_expiry=NULL
+                WHERE id=%s
+            """, [_hash_senha(senha), usr['id']])
+            conn.commit()
+            conn.close()
+            self.send_json({'ok': True}); return
+
+        # ── Reenviar link de definição de senha ───────────────
+        if path == '/api/auth/resend-token':
+            email = (d.get('email') or '').strip().lower()
+            if not email:
+                self.send_json({'error': 'E-mail obrigatório'}, 400); return
+            conn = get_db()
+            usr = _fetchone(conn, "SELECT * FROM usuarios WHERE LOWER(email)=%s AND status='Ativo'", [email])
+            if not usr:
+                conn.close()
+                self.send_json({'ok': True}); return  # silencia: não revela existência
+            tok = _gen_token()
+            exp = (datetime.utcnow() + timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+            _exec(conn, "UPDATE usuarios SET token_reset=%s, token_expiry=%s WHERE id=%s",
+                  [tok, exp, usr['id']])
+            conn.commit()
+            conn.close()
+            link = f"{APP_URL}/?reset_token={tok}"
+            _send_email(email, 'Redefinição de senha – Gestão de Frota',
+                f"""<h2>Olá, {usr['nome']}!</h2>
+                <p>Solicitamos a redefinição da sua senha. Acesse o link:</p>
+                <p><a href="{link}">{link}</a></p>
+                <p>Este link expira em 24 horas. Se não foi você, ignore este e-mail.</p>""")
+            self.send_json({'ok': True}); return
+
+        # ══════════════════════════════════════════════════════
+
         if path == '/api/clientes':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO clientes
@@ -1211,13 +1717,21 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/usuarios':
             conn = get_db()
             try:
+                cli_id    = d.get('cliente_id') or None
+                if cli_id: cli_id = int(cli_id)
+                perfil_id = d.get('perfil_id') or None
+                if perfil_id: perfil_id = int(perfil_id)
+                seg = d.get('segmento','Frota')
                 cur = _exec(conn, '''INSERT INTO usuarios
-                    (nome,cpf,telefone,email,perfil,status,observacoes)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                    (nome,cpf,telefone,email,perfil,segmento,tipo_acesso,perfil_id,status,cliente_id,observacoes)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                     d.get('nome',''), d.get('cpf',''),
                     d.get('telefone',''), d.get('email',''),
-                    d.get('perfil','Operador'), d.get('status','Ativo'),
-                    d.get('observacoes',''),
+                    d.get('perfil','Operador'),
+                    seg, seg,          # segmento e tipo_acesso em sincronia
+                    perfil_id,
+                    d.get('status','Ativo'),
+                    cli_id, d.get('observacoes',''),
                 ])
                 conn.commit()
                 new_id = cur.fetchone()['id']
@@ -1226,6 +1740,45 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 conn.rollback(); conn.close()
                 self.send_json({'error': str(e)}, 409); return
+
+        if path == '/api/perfis-acesso':
+            conn = get_db()
+            try:
+                cur = _exec(conn, '''INSERT INTO perfis_acesso (nome, descricao)
+                    VALUES (%s,%s) RETURNING id''', [
+                    d.get('nome',''), d.get('descricao','')
+                ])
+                conn.commit()
+                new_id = cur.fetchone()['id']
+                conn.close()
+                self.send_json({'id': new_id}, 201); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 409); return
+
+        if path == '/api/permissoes-perfil':
+            # Upsert em lote: body = {perfil_id, permissoes: [{modulo, inclusao, consulta, edicao, exclusao}]}
+            conn = get_db()
+            try:
+                pid = int(d.get('perfil_id'))
+                perms = d.get('permissoes', [])
+                for p in perms:
+                    _exec(conn, '''INSERT INTO permissoes_perfil
+                        (perfil_id, modulo, inclusao, consulta, edicao, exclusao)
+                        VALUES (%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT (perfil_id, modulo) DO UPDATE SET
+                          inclusao=%s, consulta=%s, edicao=%s, exclusao=%s''', [
+                        pid, p.get('modulo'),
+                        bool(p.get('inclusao')), bool(p.get('consulta')),
+                        bool(p.get('edicao')),   bool(p.get('exclusao')),
+                        bool(p.get('inclusao')), bool(p.get('consulta')),
+                        bool(p.get('edicao')),   bool(p.get('exclusao')),
+                    ])
+                conn.commit(); conn.close()
+                self.send_json({'ok': True}); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 500); return
 
         if path == '/api/abastecimentos':
             conn = get_db()
@@ -1250,15 +1803,16 @@ class Handler(BaseHTTPRequestHandler):
             new_id = cur.fetchone()['id']
             _sync_abast_lancamentos(
                 conn,
-                abast_id    = new_id,
-                placa       = d.get('placa',''),
-                data        = d.get('data',''),
-                posto       = d.get('posto',''),
-                combustivel = d.get('combustivel',''),
-                valor_total = d.get('valorTotal', 0),
-                arla32_total= d.get('arla32Total', 0),
+                abast_id       = new_id,
+                placa          = d.get('placa',''),
+                data           = d.get('data',''),
+                posto          = d.get('posto',''),
+                combustivel    = d.get('combustivel',''),
+                volume         = d.get('volume', 0),
+                preco_unitario = d.get('precoUnitario', 0),
+                arla32_total   = d.get('arla32Total', 0),
                 servicos_abast = d.get('servicosAbast', []),
-                cliente_id  = d.get('cliente_id') or None,
+                cliente_id     = d.get('cliente_id') or None,
             )
             conn.commit()
             conn.close()
@@ -1721,14 +2275,16 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == '/api/orcamentos-cc':
             conn = get_db()
+            orc_cli = d.get('cliente_id') or None
+            if orc_cli: orc_cli = int(orc_cli)
             cur  = _exec(conn, '''INSERT INTO orcamentos_cc
-                (centro_custo_id,ano,mes,categoria,valor_orcado,observacoes)
-                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                (centro_custo_id,ano,mes,categoria,valor_orcado,observacoes,cliente_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('centro_custo_id') or d.get('centroCustoId'),
                 d.get('ano'), d.get('mes'),
                 d.get('categoria',''),
                 d.get('valor_orcado') or d.get('valorOrcado',0),
-                d.get('observacoes','')
+                d.get('observacoes',''), orc_cli
             ])
             new_id = cur.fetchone()['id']
             conn.commit(); conn.close()
@@ -1785,15 +2341,16 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
             _sync_abast_lancamentos(
                 conn,
-                abast_id    = id_,
-                placa       = d.get('placa',''),
-                data        = d.get('data',''),
-                posto       = d.get('posto',''),
-                combustivel = d.get('combustivel',''),
-                valor_total = d.get('valorTotal', 0),
-                arla32_total= d.get('arla32Total', 0),
+                abast_id       = id_,
+                placa          = d.get('placa',''),
+                data           = d.get('data',''),
+                posto          = d.get('posto',''),
+                combustivel    = d.get('combustivel',''),
+                volume         = d.get('volume', 0),
+                preco_unitario = d.get('precoUnitario', 0),
+                arla32_total   = d.get('arla32Total', 0),
                 servicos_abast = d.get('servicosAbast', []),
-                cliente_id  = d.get('cliente_id') or None,
+                cliente_id     = d.get('cliente_id') or None,
             )
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -2163,14 +2720,36 @@ class Handler(BaseHTTPRequestHandler):
             id_ = int(m.group(1))
             conn = get_db()
             try:
+                cli_id    = d.get('cliente_id') or None
+                if cli_id: cli_id = int(cli_id)
+                perfil_id = d.get('perfil_id') or None
+                if perfil_id: perfil_id = int(perfil_id)
+                seg = d.get('segmento','Frota')
                 _exec(conn, '''UPDATE usuarios SET
-                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,status=%s,observacoes=%s
+                    nome=%s,cpf=%s,telefone=%s,email=%s,perfil=%s,segmento=%s,tipo_acesso=%s,
+                    perfil_id=%s,status=%s,cliente_id=%s,observacoes=%s
                     WHERE id=%s''', [
                     d.get('nome',''), d.get('cpf',''),
                     d.get('telefone',''), d.get('email',''),
-                    d.get('perfil','Operador'), d.get('status','Ativo'),
-                    d.get('observacoes',''), id_
+                    d.get('perfil','Operador'),
+                    seg, seg,          # segmento e tipo_acesso em sincronia
+                    perfil_id,
+                    d.get('status','Ativo'),
+                    cli_id, d.get('observacoes',''), id_
                 ])
+                conn.commit(); conn.close()
+                self.send_json({'ok': True}); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 409); return
+
+        m = re.match(r'^/api/perfis-acesso/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            try:
+                _exec(conn, 'UPDATE perfis_acesso SET nome=%s, descricao=%s WHERE id=%s',
+                    [d.get('nome',''), d.get('descricao',''), id_])
                 conn.commit(); conn.close()
                 self.send_json({'ok': True}); return
             except Exception as e:
@@ -2196,14 +2775,16 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             id_ = int(m.group(1))
             conn = get_db()
+            orc_cli = d.get('cliente_id') or None
+            if orc_cli: orc_cli = int(orc_cli)
             _exec(conn, '''UPDATE orcamentos_cc SET
-                centro_custo_id=%s,ano=%s,mes=%s,categoria=%s,valor_orcado=%s,observacoes=%s
+                centro_custo_id=%s,ano=%s,mes=%s,categoria=%s,valor_orcado=%s,observacoes=%s,cliente_id=%s
                 WHERE id=%s''', [
                 d.get('centro_custo_id') or d.get('centroCustoId'),
                 d.get('ano'), d.get('mes'),
                 d.get('categoria',''),
                 d.get('valor_orcado') or d.get('valorOrcado',0),
-                d.get('observacoes',''), id_
+                d.get('observacoes',''), orc_cli, id_
             ])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
@@ -2402,6 +2983,15 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM usuarios WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/perfis-acesso/(\d+)$', path)
+        if m:
+            conn = get_db()
+            id_ = int(m.group(1))
+            _exec(conn, 'DELETE FROM permissoes_perfil WHERE perfil_id=%s', [id_])
+            _exec(conn, 'DELETE FROM perfis_acesso WHERE id=%s', [id_])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
