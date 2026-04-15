@@ -28,16 +28,32 @@ from email.mime.multipart import MIMEMultipart
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE = os.path.join(BASE_DIR, 'gestao-abastecimentos.html')
-PORT      = 8080
+# PORT: Railway define dinamicamente via env var PORT
+PORT      = int(os.environ.get('PORT', '8080'))
 
 # ═══════════════════════════════════════════════════════════════
 #  CONFIGURAÇÃO DO BANCO PostgreSQL
+#  Suporta DATABASE_URL (Railway/Heroku) ou variáveis individuais
 # ═══════════════════════════════════════════════════════════════
-DB_HOST   = os.environ.get('PG_HOST',     'localhost')
-DB_PORT   = int(os.environ.get('PG_PORT', '5432'))
-DB_NAME   = os.environ.get('PG_DBNAME',  'gestao_frota')
-DB_USER   = os.environ.get('PG_USER',    'gestao_frota')
-DB_PASS   = os.environ.get('PG_PASSWORD','gestao_frota')
+_DATABASE_URL = os.environ.get('DATABASE_URL', '')
+
+if _DATABASE_URL:
+    # Railway / Render / Heroku fornecem DATABASE_URL no formato:
+    # postgresql://user:pass@host:port/dbname
+    _u = urlparse(_DATABASE_URL)
+    DB_HOST  = _u.hostname
+    DB_PORT  = _u.port or 5432
+    DB_NAME  = _u.path.lstrip('/')
+    DB_USER  = _u.username
+    DB_PASS  = _u.password
+    DB_SSL   = {'sslmode': 'require'}   # Railway exige SSL
+else:
+    DB_HOST  = os.environ.get('PG_HOST',    'localhost')
+    DB_PORT  = int(os.environ.get('PG_PORT','5432'))
+    DB_NAME  = os.environ.get('PG_DBNAME', 'gestao_frota')
+    DB_USER  = os.environ.get('PG_USER',   'gestao_frota')
+    DB_PASS  = os.environ.get('PG_PASSWORD','gestao_frota')
+    DB_SSL   = {}
 
 # ── Configuração SMTP (e-mail) ────────────────────────────────
 SMTP_HOST   = os.environ.get('SMTP_HOST',  '')
@@ -50,7 +66,8 @@ APP_URL     = os.environ.get('APP_URL',    'http://localhost:8080')
 def get_db():
     conn = psycopg2.connect(
         host=DB_HOST, port=DB_PORT,
-        dbname=DB_NAME, user=DB_USER, password=DB_PASS
+        dbname=DB_NAME, user=DB_USER, password=DB_PASS,
+        **DB_SSL
     )
     return conn
 

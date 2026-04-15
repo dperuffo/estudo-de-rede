@@ -565,8 +565,8 @@
     }
     /* Header colorido do card */
     .kpi-big-header {
-      display:flex; align-items:center; gap:12px;
-      padding:14px 18px 12px;
+      display:flex; align-items:center; gap:10px;
+      padding:11px 16px 10px;
     }
     .kpi-big.kpi-blue   .kpi-big-header { background:linear-gradient(135deg,#2563eb,#2563ebcc); border:1.5px solid #bfdbfe; border-bottom:none; border-radius:14px 14px 0 0; }
     .kpi-big.kpi-green  .kpi-big-header { background:linear-gradient(135deg,#16a34a,#16a34acc); border:1.5px solid #bbf7d0; border-bottom:none; border-radius:14px 14px 0 0; }
@@ -578,7 +578,7 @@
     .kpi-big-label-hdr { font-size:.72rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.8); }
     /* Body do card */
     .kpi-big-body {
-      padding:14px 18px 16px; flex:1;
+      padding:10px 16px 14px; flex:1;
       display:flex; flex-direction:column; gap:8px;
     }
     .kpi-big.kpi-blue   .kpi-big-body { border:1.5px solid #bfdbfe; border-top:none; border-radius:0 0 14px 14px; }
@@ -588,7 +588,7 @@
     .kpi-big.kpi-teal   .kpi-big-body { border:1.5px solid #a5f3fc; border-top:none; border-radius:0 0 14px 14px; }
     .kpi-big.kpi-amber  .kpi-big-body { border:1.5px solid #fde68a; border-top:none; border-radius:0 0 14px 14px; }
     .kpi-big-label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); }
-    .kpi-big-value { font-size:1.75rem; font-weight:800; color:var(--text); line-height:1; }
+    .kpi-big-value { font-size:1.4rem; font-weight:800; color:var(--text); line-height:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .kpi-big-footer { display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-muted); flex-wrap:wrap; }
     .kpi-trend { display:inline-flex; align-items:center; gap:3px; font-weight:700; padding:2px 7px; border-radius:20px; font-size:0.75rem; }
     .kpi-trend.up   { background:#dcfce7; color:#16a34a; }
@@ -619,7 +619,7 @@
     .family-dot.diesel { background:#374151; }
     .family-dot.gasalco { background:#d97706; }
     .family-card-title { font-size:0.88rem; font-weight:700; color:var(--text); }
-    .family-main { font-size:2.2rem; font-weight:800; color:var(--text); line-height:1; margin-bottom:6px; }
+    .family-main { font-size:1.6rem; font-weight:800; color:var(--text); line-height:1; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .family-sub  { font-size:0.78rem; color:var(--text-muted); }
     .family-stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
     .family-stat-label { font-size:0.68rem; text-transform:uppercase; letter-spacing:.4px; color:var(--text-muted); font-weight:600; }
@@ -731,7 +731,7 @@
     /* Preview / resultado */
     .seg-preview-kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; margin-bottom:20px; }
     .seg-pkpi { background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:14px 16px; text-align:center; }
-    .seg-pkpi-val { font-size:1.9rem; font-weight:800; line-height:1; }
+    .seg-pkpi-val { font-size:1.5rem; font-weight:800; line-height:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .seg-pkpi-lbl { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-top:6px; }
     .seg-tbl { width:100%; border-collapse:collapse; font-size:0.82rem; }
     .seg-tbl th { background:#f8fafc; color:var(--text-muted); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:9px 12px; border-bottom:2px solid var(--border); text-align:left; }
@@ -937,7 +937,7 @@
 <!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
 <!-- ░░  TELA DE LOGIN / CADASTRO / DEFINIÇÃO DE SENHA        ░░ -->
 <!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
-<div id="auth-overlay" style="display:flex;position:fixed;inset:0;z-index:99999;font-family:inherit;">
+<div id="auth-overlay" style="display:flex;position:fixed;inset:0;z-index:99999;font-family:inherit;background:#fff;">
 
   <!-- ══ PAINEL ESQUERDO: verde + caminhão ══ -->
   <div class="auth-left-panel" style="
@@ -1368,7 +1368,7 @@
   </div>
 
   <!-- ── VIEW ABASTECIMENTOS ── -->
-  <div id="view-abastecimentos">
+  <div id="view-abastecimentos" style="display:none">
 
   <!-- Painel principal -->
   <div class="panel">
@@ -2387,7 +2387,6 @@
               <th style="text-align:right;">Veh. Pesados</th>
               <th style="text-align:right;">Veh. Leves</th>
               <th style="text-align:center;">Status</th>
-              <th style="text-align:center;">Selecionar</th>
               <th style="text-align:center;">Ações</th>
             </tr>
           </thead>
@@ -3657,7 +3656,7 @@
   <div id="view-plano-viagem" style="display:none; padding:20px 24px;">
 
     <!-- KPI Cards -->
-    <div id="pv-kpi-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px;"></div>
+    <div id="pv-kpi-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:22px;"></div>
 
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
@@ -3687,7 +3686,9 @@
     </div>
 
     <!-- Table -->
-    <div class="panel">
+    <div style="font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;
+                letter-spacing:.08em;margin-bottom:10px;">Lista de Planos</div>
+    <div class="panel" style="border:1.5px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);">
       <div class="panel-body" style="padding:0;overflow-x:auto;">
         <table class="data-table" style="table-layout:fixed;min-width:820px;">
           <thead><tr>
@@ -3710,23 +3711,9 @@
 
     <!-- KPI por veículo -->
     <div style="margin-top:24px;">
-      <h3 style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:12px;">Desempenho por Veículo</h3>
-      <div class="panel">
-        <div class="panel-body" style="padding:0;overflow-x:auto;">
-          <table class="data-table" style="table-layout:fixed;min-width:560px;">
-            <thead><tr>
-              <th style="width:120px">Placa</th>
-              <th style="width:80px;text-align:center">Planos</th>
-              <th style="width:120px;text-align:right">KM Total</th>
-              <th style="width:160px;text-align:right">Custo Total Est.</th>
-              <th style="width:140px;text-align:right">Custo Médio/KM</th>
-            </tr></thead>
-            <tbody id="pv-veiculo-tbody">
-              <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted);font-style:italic;">Nenhum dado.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <div style="font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:12px;">Desempenho por Veículo</div>
+      <div id="pv-veiculo-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;"></div>
     </div>
   </div>
 
@@ -3795,8 +3782,9 @@
 
       <!-- Top categorias -->
       <div style="margin-top:18px;">
-        <strong style="font-size:0.95rem;">Top Categorias de Despesa</strong>
-        <div id="cc-dash-categorias" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;"></div>
+        <div style="font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;
+                    letter-spacing:.08em;margin-bottom:10px;">Top Categorias de Despesa</div>
+        <div id="cc-dash-categorias" style="margin-top:0;display:flex;flex-wrap:wrap;gap:10px;"></div>
       </div>
     </div>
 
@@ -6287,10 +6275,17 @@ function _injectClienteRow(bodyEl, clienteId) {
   bodyEl.insertAdjacentHTML('afterbegin', _clienteRowHtml(finalId));
 }
 
-// Lê o cliente_id selecionado no modal corrente (ou cai no global)
+// Lê o cliente_id selecionado no modal corrente (ou cai no global).
+// Só considera o seletor do modal se o modal pai estiver ABERTO (classe .open),
+// evitando que valores de modais fechados vazem para outras chamadas de API.
 function _getModalClienteId() {
   const sel = document.getElementById('_modal-cli-sel');
-  if (sel) return sel.value ? parseInt(sel.value) : null;
+  if (sel) {
+    // Verifica se o modal pai está de fato aberto
+    const overlay = sel.closest('.modal-overlay');
+    const isOpen  = overlay ? overlay.classList.contains('open') : true;
+    if (isOpen && sel.value) return parseInt(sel.value);
+  }
   return _clienteAtualId;
 }
 
@@ -6465,12 +6460,19 @@ async function apiCall(method, path, body = null, timeoutMs = 5000) {
 }
 
 async function loadAbastecimentos() {
+  // Usa fetch direto (sem apiCall) para garantir que records contenha
+  // TODOS os abastecimentos, sem injeção de cliente_id.
+  // A filtragem por cliente na listagem é feita localmente via filteredRecords.
   try {
-    const rows = await apiCall('GET', '/api/abastecimentos');
-    records    = rows.map(mapAbast);
-    nextId     = records.length ? Math.max(...records.map(r => r.id)) + 1 : 1;
+    const _h = { 'Content-Type': 'application/json' };
+    if (_authToken) _h['Authorization'] = `Bearer ${_authToken}`;
+    const _r = await fetch(`${API_BASE}/api/abastecimentos`, { method: 'GET', headers: _h });
+    if (!_r.ok) throw new Error(`HTTP ${_r.status}`);
+    const rows = await _r.json();
+    records = rows.map(mapAbast);
+    nextId  = records.length ? Math.max(...records.map(r => r.id)) + 1 : 1;
     _setOnline();
-  } catch(e) { /* mantém dados em memória */ }
+  } catch(e) { /* mantém dados em memória se offline */ }
   filteredRecords = [...records];
   refreshConsumoMap();
   _populateCombFilter();
@@ -6657,12 +6659,6 @@ function renderClientesTabela() {
       <td style="text-align:right;">${(c.qtd_veiculos_pesados||0).toLocaleString('pt-BR')}</td>
       <td style="text-align:right;">${(c.qtd_veiculos_leves||0).toLocaleString('pt-BR')}</td>
       <td style="text-align:center;"><span style="padding:2px 10px;border-radius:10px;font-size:0.75rem;font-weight:600;background:${c.status==='Ativo'?'#dcfce7;color:#15803d':'#fee2e2;color:#b91c1c'};">${c.status}</span></td>
-      <td style="text-align:center;">
-        <button onclick="setClienteAtual('${c.id}','${c.razao_social.replace(/'/g,"\\'")}'); document.getElementById('cliente-global-select').value='${c.id}';"
-          style="padding:3px 10px;border-radius:8px;font-size:0.75rem;font-weight:700;border:1.5px solid ${isSel?'#2563eb':'#cbd5e1'};background:${isSel?'#2563eb':'#fff'};color:${isSel?'#fff':'#374151'};cursor:pointer;">
-          ${isSel ? '✔ Selecionado' : 'Selecionar'}
-        </button>
-      </td>
       <td style="text-align:center;">
         <button onclick="editarCliente(${c.id})" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;font-size:0.78rem;cursor:pointer;margin-right:4px;">Editar</button>
         <button onclick="excluirCliente(${c.id},'${c.razao_social.replace(/'/g,"\\'")}') " style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:3px 9px;font-size:0.78rem;cursor:pointer;">Excluir</button>
@@ -7232,31 +7228,38 @@ function _dashCard(cfg) {
                     padding:5px 0;border-bottom:1px solid ${border};">
           <span style="font-size:.78rem;color:#374151;">${r.label}</span>
           <span style="font-size:.82rem;font-weight:700;color:${r.color||cor};
-                       background:${r.bg||corLight};padding:1px 9px;border-radius:20px;">
+                       background:${r.bg||corLight};padding:1px 9px;border-radius:20px;
+                       white-space:nowrap;">
             ${r.value}
           </span>
         </div>`).join('')
-    : `<div style="font-size:.78rem;color:#9ca3af;padding:10px 0;text-align:center;">Sem dados</div>`;
+    : `<div style="font-size:.78rem;color:#9ca3af;padding:8px 0;text-align:center;">Sem dados</div>`;
 
   return `
     <div style="background:#fff;border:1.5px solid ${border};border-radius:14px;
                 overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);">
+      <!-- Header compacto: ícone + categoria + label -->
       <div style="background:linear-gradient(135deg,${cor},${cor}cc);
-                  padding:16px 20px 14px;display:flex;align-items:center;gap:12px;">
-        <span style="font-size:1.6rem;line-height:1;">${icon}</span>
-        <div>
-          <div style="color:#fff;font-size:.72rem;font-weight:600;letter-spacing:.08em;
-                      text-transform:uppercase;opacity:.8;">${categoria}</div>
-          <div style="color:#fff;font-size:1.1rem;font-weight:800;line-height:1.2;">${label}</div>
-        </div>
-        <div style="margin-left:auto;text-align:right;flex-shrink:0;">
-          <div style="color:rgba(255,255,255,.7);font-size:.7rem;">${totalLabel}</div>
-          <div style="color:#fff;font-size:1.8rem;font-weight:900;line-height:1;">${total}</div>
+                  padding:12px 16px 10px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1.5rem;line-height:1;flex-shrink:0;">${icon}</span>
+        <div style="min-width:0;flex:1;">
+          <div style="color:rgba(255,255,255,.75);font-size:.66rem;font-weight:600;
+                      letter-spacing:.08em;text-transform:uppercase;line-height:1;">${categoria}</div>
+          <div style="color:#fff;font-size:1rem;font-weight:800;line-height:1.25;
+                      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</div>
         </div>
       </div>
+      <!-- Corpo: total com largura total + breakdown -->
       <div style="padding:10px 16px 12px;">
-        <div style="font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;
-                    letter-spacing:.06em;margin-bottom:6px;">${detalheLabel}</div>
+        <div style="padding:5px 0 9px;border-bottom:1.5px solid ${border};margin-bottom:8px;">
+          <div style="font-size:.63rem;color:#9ca3af;font-weight:600;text-transform:uppercase;
+                      letter-spacing:.06em;margin-bottom:2px;">${totalLabel}</div>
+          <div style="font-size:1.45rem;font-weight:900;color:${cor};
+                      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+               title="${total}">${total}</div>
+        </div>
+        <div style="font-size:.66rem;font-weight:600;color:#9ca3af;text-transform:uppercase;
+                    letter-spacing:.06em;margin-bottom:5px;">${detalheLabel}</div>
         ${rows}
       </div>
     </div>`;
@@ -15495,23 +15498,72 @@ async function loadPlanosViagem() {
 
 // ── KPI bar ──────────────────────────────────────────────────────
 function _renderPvKpis(kpis) {
-  const cat = (kpis.por_categoria || [{}])[0] || {};
-  const total = kpis.total_budget || 0;
-  const pct = v => total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';
-  const cards = [
-    { label:'Total de Planos',      val: kpis.total_planos || 0,   fmt: v => v, color:'#1e40af', icon:'📋' },
-    { label:'Orçamento Total (Est.)',val: total,                     fmt: fmtBRL, color:'#059669', icon:'💰' },
-    { label:'Custo Médio por KM',   val: kpis.media_custo_km || 0, fmt: v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}), color:'#d97706', icon:'📏' },
-    { label:'% Combustível',        val: cat.combustivel || 0,      fmt: v => pct(v) + '%', color:'#dc2626', icon:'⛽' },
-    { label:'% Pedágios',           val: cat.pedagio || 0,          fmt: v => pct(v) + '%', color:'#0891b2', icon:'🛣️' },
-    { label:'% Diárias',            val: cat.diarias || 0,          fmt: v => pct(v) + '%', color:'#16a34a', icon:'🛏️' },
-    { label:'% Manutenção',         val: cat.manutencao || 0,       fmt: v => pct(v) + '%', color:'#7c3aed', icon:'🔧' },
-  ];
-  document.getElementById('pv-kpi-bar').innerHTML = cards.map(c => `
-    <div class="kpi-card" style="border-top:3px solid ${c.color};">
-      <div class="kpi-label">${c.icon} ${c.label}</div>
-      <div class="kpi-value" style="color:${c.color};font-size:1.35rem;">${c.fmt(c.val)}</div>
-    </div>`).join('');
+  const cat        = (kpis.por_categoria || [{}])[0] || {};
+  const total      = kpis.total_budget   || 0;
+  const nPlanos    = kpis.total_planos   || 0;
+  const mediaCustoKm = kpis.media_custo_km || 0;
+
+  const pct        = v => total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';
+  const fmtKm      = v => 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:3, maximumFractionDigits:3}) + '/km';
+
+  const vComb  = cat.combustivel || 0;
+  const vPed   = cat.pedagio     || 0;
+  const vDiar  = cat.diarias     || 0;
+  const vMan   = cat.manutencao  || 0;
+  const vOutros = vPed + vDiar + vMan;
+
+  const mediaOrc = nPlanos > 0 ? total / nPlanos : 0;
+
+  document.getElementById('pv-kpi-bar').innerHTML = [
+    _dashCard({
+      cor:'#1e40af', corLight:'#eff6ff', border:'#bfdbfe',
+      icon:'📋', categoria:'Viagens', label:'Planos de Viagem',
+      total: nPlanos + (nPlanos !== 1 ? ' planos' : ' plano'),
+      totalLabel:'Quantidade',
+      detalheLabel:'Orçamento',
+      breakdown:[
+        { label:'Orçamento total est.', value: fmtBRL(total),    color:'#1e40af', bg:'#eff6ff' },
+        { label:'Orçamento médio/plano',value: fmtBRL(mediaOrc), color:'#3b82f6', bg:'#eff6ff' },
+      ]
+    }),
+    _dashCard({
+      cor:'#d97706', corLight:'#fefce8', border:'#fde68a',
+      icon:'📏', categoria:'Eficiência', label:'Custo Médio por KM',
+      total: mediaCustoKm > 0 ? fmtKm(mediaCustoKm) : '—',
+      totalLabel:'R$/km',
+      detalheLabel:'Referência de Custos',
+      breakdown:[
+        { label:'Combustível (est.)', value: fmtBRL(vComb),
+          color: vComb > 0 ? '#dc2626' : '#9ca3af', bg: vComb > 0 ? '#fef2f2' : '#f9fafb' },
+        { label:'Outros (pedágios, diárias…)', value: fmtBRL(vOutros),
+          color: vOutros > 0 ? '#7c3aed' : '#9ca3af', bg: vOutros > 0 ? '#f5f3ff' : '#f9fafb' },
+      ]
+    }),
+    _dashCard({
+      cor:'#dc2626', corLight:'#fef2f2', border:'#fca5a5',
+      icon:'⛽', categoria:'Combustível', label:'Custo Estimado',
+      total: fmtBRL(vComb),
+      totalLabel:'Valor',
+      detalheLabel:'Participação no Orçamento',
+      breakdown:[
+        { label:'% do orçamento total', value: pct(vComb) + '%',
+          color: parseFloat(pct(vComb)) > 60 ? '#dc2626' : '#d97706', bg: '#fef2f2' },
+        { label:'Pedágios', value: fmtBRL(vPed), color:'#0891b2', bg:'#f0f9ff' },
+      ]
+    }),
+    _dashCard({
+      cor:'#7c3aed', corLight:'#f5f3ff', border:'#ddd6fe',
+      icon:'📦', categoria:'Outros Custos', label:'Despesas Extras',
+      total: fmtBRL(vOutros),
+      totalLabel:'Valor',
+      detalheLabel:'Composição',
+      breakdown:[
+        { label:'Diárias',    value: fmtBRL(vDiar), color:'#16a34a', bg:'#f0fdf4' },
+        { label:'Manutenção', value: fmtBRL(vMan),  color:'#7c3aed', bg:'#f5f3ff' },
+        { label:'Pedágios',   value: fmtBRL(vPed),  color:'#0891b2', bg:'#f0f9ff' },
+      ]
+    }),
+  ].join('');
 }
 
 function pvLimparFiltros() {
@@ -15582,21 +15634,31 @@ function renderPlanosViagem() {
 
 // ── KPI por veículo ──────────────────────────────────────────────
 function _renderPvVeiculoKpis(veiculos) {
-  const tbody = document.getElementById('pv-veiculo-tbody');
-  if (!tbody) return;
+  const grid = document.getElementById('pv-veiculo-grid');
+  if (!grid) return;
   if (!veiculos.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted);font-style:italic;">Nenhum dado.</td></tr>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:28px;color:var(--text-muted);font-style:italic;background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;">Nenhum dado de desempenho por veículo.</div>`;
     return;
   }
-  tbody.innerHTML = veiculos.map(v => {
+  const _paleta = ['#1e40af','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#db2777','#ea580c'];
+  grid.innerHTML = veiculos.slice(0,8).map((v, i) => {
+    const cor = _paleta[i % _paleta.length];
     const custoPorKm = v.km > 0 ? v.total / v.km : 0;
-    return `<tr>
-      <td><span class="plate" style="font-size:0.82rem;">${escHtml(v.placa)}</span></td>
-      <td style="text-align:center;">${v.qtd}</td>
-      <td style="text-align:right;color:var(--text-muted);">${v.km > 0 ? v.km.toLocaleString('pt-BR') + ' km' : '—'}</td>
-      <td style="text-align:right;font-weight:700;color:#059669;">${fmtBRL(v.total)}</td>
-      <td style="text-align:right;color:#d97706;font-weight:700;">${custoPorKm > 0 ? 'R$ ' + custoPorKm.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}) + '/km' : '—'}</td>
-    </tr>`;
+    const fmtKm2 = val => 'R$ ' + val.toLocaleString('pt-BR', {minimumFractionDigits:3, maximumFractionDigits:3}) + '/km';
+    return _dashCard({
+      cor,
+      icon: '🚛',
+      categoria: 'Veículo',
+      label: escHtml(v.placa),
+      total: fmtBRL(v.total),
+      totalLabel: 'Custo Est.',
+      detalheLabel: 'Indicadores',
+      breakdown: [
+        { label: 'Planos',       value: v.qtd + (v.qtd !== 1 ? ' planos' : ' plano'), color: cor,      bg: cor + '18' },
+        { label: 'KM Total',     value: v.km > 0 ? v.km.toLocaleString('pt-BR') + ' km' : '—',         color: '#374151', bg: '#f3f4f6' },
+        { label: 'Custo/KM',     value: custoPorKm > 0 ? fmtKm2(custoPorKm) : '—',                    color: '#d97706', bg: '#fefce8' },
+      ]
+    });
   }).join('');
 }
 
@@ -18083,20 +18145,27 @@ function renderDashboardCC() {
   const totalRec  = lancs.filter(r => r.tipo === 'Receita').reduce((s,r) => s + (r.valor||0), 0);
   const variacao  = totalLanc - totalOrc;
 
+  // Centros filtrados (definido antes dos cards para uso nos KPIs)
+  const centros = _centrosCusto.filter(c =>
+    !fCli || String(c.cliente_id) === fCli
+  );
+
   // ── KPI bar – cards padronizados ──────────────────────────────────────────
   const kpiBar = document.getElementById('cc-kpi-bar');
   if (kpiBar) {
-    const _varCor = variacao <= 0 ? '#059669' : '#dc2626';
+    const _varCor      = variacao <= 0 ? '#059669' : '#dc2626';
     const _varCorLight = variacao <= 0 ? '#f0fdf4' : '#fef2f2';
     const _varBorder   = variacao <= 0 ? '#bbf7d0' : '#fca5a5';
     const _pctConsumo  = totalOrc > 0 ? Math.round(totalLanc / totalOrc * 100) : null;
+    const _nCentros    = centros.length;
+    const _nRecLancs   = lancs.filter(r => r.tipo === 'Receita').length;
     kpiBar.innerHTML = [
       _dashCard({ cor:'#2563eb', corLight:'#eff6ff', border:'#bfdbfe', icon:'📊',
         categoria:'Orçamento', label:'Total Orçado', total:fmtBRL(totalOrc),
         totalLabel:'Valor',
         detalheLabel:'Centros de Custo',
         breakdown:[
-          { label:'Centros ativos', value:centros.length + ' centro'+(centros.length!==1?'s':''), color:'#2563eb', bg:'#eff6ff' },
+          { label:'Centros no período', value:_nCentros + ' centro'+(_nCentros!==1?'s':''), color:'#2563eb', bg:'#eff6ff' },
         ]}),
       _dashCard({ cor:'#dc2626', corLight:'#fef2f2', border:'#fca5a5', icon:'💸',
         categoria:'Despesas', label:'Realizado', total:fmtBRL(totalLanc),
@@ -18105,14 +18174,14 @@ function renderDashboardCC() {
         breakdown:[
           { label:'% Consumido', value: _pctConsumo !== null ? _pctConsumo+'%' : '—',
             color: _pctConsumo === null ? '#6b7280' : _pctConsumo > 100 ? '#dc2626' : _pctConsumo > 85 ? '#f59e0b' : '#059669',
-            bg: _pctConsumo === null ? '#f9fafb' : _pctConsumo > 100 ? '#fef2f2' : _pctConsumo > 85 ? '#fefce8' : '#f0fdf4' },
+            bg:    _pctConsumo === null ? '#f9fafb' : _pctConsumo > 100 ? '#fef2f2' : _pctConsumo > 85 ? '#fefce8' : '#f0fdf4' },
         ]}),
       _dashCard({ cor:'#059669', corLight:'#f0fdf4', border:'#bbf7d0', icon:'💰',
         categoria:'Entradas', label:'Receitas', total:fmtBRL(totalRec),
         totalLabel:'Valor',
-        detalheLabel:'Resultado',
+        detalheLabel:'Lançamentos',
         breakdown:[
-          { label:'Lançamentos', value: lancs.filter(r=>r.tipo==='Receita').length, color:'#059669', bg:'#f0fdf4' },
+          { label:'Registros', value:_nRecLancs + ' lançamento'+(_nRecLancs!==1?'s':''), color:'#059669', bg:'#f0fdf4' },
         ]}),
       _dashCard({ cor:_varCor, corLight:_varCorLight, border:_varBorder,
         icon: variacao <= 0 ? '📉' : '📈',
@@ -18125,11 +18194,6 @@ function renderDashboardCC() {
         ]}),
     ].join('');
   }
-
-  // Tabela por centro
-  const centros = _centrosCusto.filter(c =>
-    !fCli || String(c.cliente_id) === fCli
-  );
   const tbody = document.getElementById('cc-dash-tbody');
   if (tbody) {
     if (!centros.length) {
@@ -18161,12 +18225,24 @@ function renderDashboardCC() {
   const catDiv = document.getElementById('cc-dash-categorias');
   if (catDiv) {
     const cats = Object.entries(catMap).sort((a,b) => b[1]-a[1]).slice(0,8);
-    catDiv.innerHTML = cats.length ? cats.map(([cat,val]) =>
-      `<div style="background:#f1f5f9;border-radius:10px;padding:10px 16px;min-width:140px;">
-        <div style="font-size:0.78rem;color:var(--text-muted);font-weight:600;">${cat}</div>
-        <div style="font-size:1.1rem;font-weight:800;color:#dc2626;">${fmtBRL(val)}</div>
-      </div>`
-    ).join('') : '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma despesa registrada.</p>';
+    const _catColors = ['#dc2626','#f59e0b','#7c3aed','#2563eb','#059669','#db2777','#ea580c','#0891b2'];
+    catDiv.innerHTML = cats.length ? cats.map(([cat,val], i) => {
+      const cor = _catColors[i % _catColors.length];
+      return `<div style="background:#fff;border:1.5px solid ${cor}33;border-radius:12px;
+                          overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.04);min-width:150px;flex:1;">
+        <div style="background:linear-gradient(135deg,${cor},${cor}cc);padding:10px 14px 8px;
+                    display:flex;align-items:center;gap:8px;">
+          <span style="font-size:1.1rem;">💸</span>
+          <div style="color:rgba(255,255,255,.8);font-size:.7rem;font-weight:600;
+                      text-transform:uppercase;letter-spacing:.06em;line-height:1.2;">${cat}</div>
+        </div>
+        <div style="padding:8px 14px 10px;text-align:right;">
+          <div style="font-size:.68rem;color:#9ca3af;font-weight:600;text-transform:uppercase;
+                      letter-spacing:.06em;">Total Despesas</div>
+          <div style="font-size:1.15rem;font-weight:900;color:${cor};line-height:1.2;">${fmtBRL(val)}</div>
+        </div>
+      </div>`;
+    }).join('') : '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma despesa registrada.</p>';
   }
 }
 
@@ -18796,24 +18872,27 @@ function _renderPfSegCards(data) {
     return `
       <div style="background:#fff;border:1.5px solid ${cfg.border};border-radius:14px;
                   overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);">
-        <!-- card header -->
+        <!-- card header compacto -->
         <div style="background:linear-gradient(135deg,${cfg.cor},${cfg.cor}cc);
-                    padding:16px 20px 14px;display:flex;align-items:center;gap:12px;">
-          <span style="font-size:1.6rem;">${cfg.icon}</span>
-          <div>
-            <div style="color:#fff;font-size:.72rem;font-weight:600;letter-spacing:.08em;
-                        text-transform:uppercase;opacity:.8;">Segmento</div>
-            <div style="color:#fff;font-size:1.1rem;font-weight:800;">${seg}</div>
-          </div>
-          <div style="margin-left:auto;text-align:right;">
-            <div style="color:rgba(255,255,255,.7);font-size:.7rem;">Total</div>
-            <div style="color:#fff;font-size:1.8rem;font-weight:900;line-height:1;">${total}</div>
+                    padding:12px 16px 10px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.5rem;line-height:1;flex-shrink:0;">${cfg.icon}</span>
+          <div style="min-width:0;flex:1;">
+            <div style="color:rgba(255,255,255,.75);font-size:.66rem;font-weight:600;
+                        letter-spacing:.08em;text-transform:uppercase;line-height:1;">Segmento</div>
+            <div style="color:#fff;font-size:1rem;font-weight:800;line-height:1.25;
+                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${seg}</div>
           </div>
         </div>
-        <!-- perfis breakdown -->
+        <!-- total + perfis breakdown -->
         <div style="padding:10px 16px 12px;">
-          <div style="font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;
-                      letter-spacing:.06em;margin-bottom:6px;">Por Perfil</div>
+          <div style="padding:5px 0 9px;border-bottom:1.5px solid ${cfg.border};margin-bottom:8px;">
+            <div style="font-size:.63rem;color:#9ca3af;font-weight:600;text-transform:uppercase;
+                        letter-spacing:.06em;margin-bottom:2px;">Total de Usuários</div>
+            <div style="font-size:1.45rem;font-weight:900;color:${cfg.cor};
+                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${total} usuário${total!==1?'s':''}</div>
+          </div>
+          <div style="font-size:.66rem;font-weight:600;color:#9ca3af;text-transform:uppercase;
+                      letter-spacing:.06em;margin-bottom:5px;">Por Perfil</div>
           ${perfisHtml}
         </div>
       </div>`;
@@ -19107,6 +19186,9 @@ let _authResetToken  = null;   // token da URL (?reset_token=...)
 })();
 
 function authShowPanel(panel) {
+  // Garante que o overlay de autenticação está sempre visível
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) overlay.style.display = 'flex';
   ['login','register','forgot','setpwd'].forEach(p => {
     const el = document.getElementById('auth-panel-' + p);
     if (el) el.style.display = (p === panel) ? '' : 'none';
