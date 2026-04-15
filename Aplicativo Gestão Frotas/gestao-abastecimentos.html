@@ -10704,9 +10704,36 @@ function renderNegociacoes() {
   const inativas  = negociacoes.filter(n => ['expirada','cancelada'].includes(_negCalcStatusDyn(n,today)));
   const volTotal  = ativas.reduce((s,n) => s+(parseFloat(n.volume_estimado)||0), 0);
 
+  // Economia estimada (descontos ativos)
+  const econTotal = ativas.reduce((s,n) => {
+    const pb = parseFloat(n.preco_base)||0, pn = parseFloat(n.preco_negociado)||0, ve = parseFloat(n.volume_estimado)||0;
+    if (n.tipo_acordo && n.tipo_acordo.startsWith('desconto')) return s + (pb-pn)*ve;
+    if (n.tipo_acordo === 'preco_fixo' && pn < pb) return s + (pb-pn)*ve;
+    return s;
+  }, 0);
+  const acresTotal = ativas.reduce((s,n) => {
+    const pb = parseFloat(n.preco_base)||0, pn = parseFloat(n.preco_negociado)||0, ve = parseFloat(n.volume_estimado)||0;
+    if (n.tipo_acordo && n.tipo_acordo.startsWith('acrescimo')) return s + (pn-pb)*ve;
+    if (n.tipo_acordo === 'preco_fixo' && pn > pb) return s + (pn-pb)*ve;
+    return s;
+  }, 0);
+
+  // Tipos de acordo
+  const tipoCount = {};
+  negociacoes.forEach(n => { if(n.tipo_acordo) tipoCount[n.tipo_acordo] = (tipoCount[n.tipo_acordo]||0)+1; });
+  const tiposOrdem = Object.entries(tipoCount).sort((a,b)=>b[1]-a[1]);
+
+  // Combustíveis nos acordos ativos
+  const combCount = {};
+  ativas.forEach(n => { if(n.combustivel) combCount[n.combustivel] = (combCount[n.combustivel]||0)+1; });
+  const combOrdem = Object.entries(combCount).sort((a,b)=>b[1]-a[1]);
+
+  const _fmtRS = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
   // ── KPIs – cards padronizados ─────────────────────────────────────────────
   const _nKpiEl = document.getElementById('neg-kpi-row');
   if (_nKpiEl) {
+    const combColors = ['#1d4ed8','#0891b2','#7c3aed','#b45309','#0f766e'];
     _nKpiEl.innerHTML = [
       _dashCard({ cor:'#0a3d1f', corLight:'#f0fdf4', border:'#bbf7d0', icon:'🤝',
         categoria:'Acordos', label:'Negociações', total:negociacoes.length,
@@ -10718,12 +10745,32 @@ function renderNegociacoes() {
         ]}),
       _dashCard({ cor:'#1d4ed8', corLight:'#eff6ff', border:'#bfdbfe', icon:'⛽',
         categoria:'Volume Negociado', label:'Combustível',
-        total:volTotal.toLocaleString('pt-BR',{maximumFractionDigits:0})+' L',
-        totalLabel:'Estimado',
-        detalheLabel:'Origem',
+        total: volTotal.toLocaleString('pt-BR',{maximumFractionDigits:0})+' L',
+        totalLabel:'Estimado (acordos ativos)',
+        detalheLabel:'Por Combustível',
+        breakdown: combOrdem.length
+          ? combOrdem.slice(0,4).map((e,i) => ({ label:e[0], value:e[1]+' acordo'+(e[1]!==1?'s':''), color:combColors[i%combColors.length], bg:'#eff6ff' }))
+          : [{ label:'Sem acordos ativos', value:'—', color:'#94a3b8', bg:'#f8fafc' }]
+        }),
+      _dashCard({ cor:'#15803d', corLight:'#f0fdf4', border:'#bbf7d0', icon:'💰',
+        categoria:'Economia Estimada', label:'Descontos Ativos',
+        total: _fmtRS(econTotal),
+        totalLabel:'Economizado',
+        detalheLabel:'vs. Acréscimos',
         breakdown:[
-          { label:'De acordos ativos', value:ativas.length + ' acordo'+(ativas.length!==1?'s':''), color:'#1d4ed8', bg:'#eff6ff' },
+          { label:'Economia (descontos)', value:_fmtRS(econTotal),  color:'#15803d', bg:'#f0fdf4' },
+          { label:'Custo adicional',      value:_fmtRS(acresTotal), color:'#dc2626', bg:'#fef2f2' },
+          { label:'Saldo líquido',        value:_fmtRS(econTotal-acresTotal), color: econTotal>=acresTotal ? '#15803d':'#dc2626', bg: econTotal>=acresTotal ? '#f0fdf4':'#fef2f2' },
         ]}),
+      _dashCard({ cor:'#7c3aed', corLight:'#f5f3ff', border:'#ddd6fe', icon:'📋',
+        categoria:'Tipos de Acordo', label:'Modalidades',
+        total: tiposOrdem.length + ' tipo'+(tiposOrdem.length!==1?'s':''),
+        totalLabel:'Utilizados',
+        detalheLabel:'Por Modalidade',
+        breakdown: tiposOrdem.length
+          ? tiposOrdem.slice(0,4).map(e => ({ label: NEG_TIPO_LABEL[e[0]]||e[0], value:e[1], color:'#7c3aed', bg:'#f5f3ff' }))
+          : [{ label:'Nenhum cadastrado', value:'—', color:'#94a3b8', bg:'#f8fafc' }]
+        }),
     ].join('');
   }
 
@@ -19282,8 +19329,7 @@ function _applyPermissions() {
 // Independente do perfil, alguns módulos só fazem sentido para certos segmentos.
 // O Gestor pode habilitar via Perfil de Acesso se necessário.
 const _SEGMENTO_BLOCK = {
-  // Frota não vê negociações comerciais (exclusivo Revenda)
-  'Frota': ['negociacoes'],
+  // Todos os segmentos têm acesso a negociações
 };
 
 // Aplica visibilidade das abas do sidebar com base em permissões + segmento
