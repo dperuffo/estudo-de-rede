@@ -72,14 +72,15 @@ def main():
             UPDATE usuarios SET
                 nome=%s, senha_hash=%s, perfil='Gestor',
                 tipo_acesso='Frota', perfil_id=%s,
-                status='Ativo', token_reset=NULL, token_expiry=NULL
+                status='Ativo', is_admin=TRUE,
+                token_reset=NULL, token_expiry=NULL
             WHERE id=%s
         """, [ADMIN_NOME, h, perfil_id, row['id']])
         print(f'Usuário atualizado: id={row["id"]}')
     else:
         cur.execute("""
-            INSERT INTO usuarios (nome, email, cpf, perfil, tipo_acesso, perfil_id, status, senha_hash)
-            VALUES (%s,%s,'','Gestor','Frota',%s,'Ativo',%s) RETURNING id
+            INSERT INTO usuarios (nome, email, cpf, perfil, tipo_acesso, perfil_id, status, senha_hash, is_admin)
+            VALUES (%s,%s,'','Gestor','Frota',%s,'Ativo',%s,TRUE) RETURNING id
         """, [ADMIN_NOME, ADMIN_EMAIL, perfil_id, h])
         new_id = cur.fetchone()['id']
         print(f'Usuário criado: id={new_id}')

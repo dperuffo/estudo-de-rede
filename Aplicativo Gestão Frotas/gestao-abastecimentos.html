@@ -10038,7 +10038,8 @@ const _subItemGroup = {
 
 function switchTab(tab) {
   // ── Guarda de acesso: bloqueia abas não permitidas ───────────────────────
-  if (_currentUser) {
+  // Super-admin passa direto, sem verificação de segmento/permissão
+  if (_currentUser && !_currentUser.is_admin) {
     const segmento   = _currentUser.segmento || _currentUser.tipo_acesso || 'Frota';
     const bloqueados = _SEGMENTO_BLOCK[segmento] || [];
     if (bloqueados.includes(tab) || !_canDo(tab, 'consulta')) {
@@ -19307,6 +19308,8 @@ function _buildPermMap(perms) {
 // Aceita tanto IDs frontend ('postos') quanto nomes antigos ('Postos')
 function _canDo(modulo, acao) {
   if (!_currentUser) return false;
+  // Super-admin tem acesso total irrestrito
+  if (_currentUser.is_admin) return true;
   const key = _normMod(modulo);
   const p = _userPermissoes[key];
   if (!p) {
@@ -19335,6 +19338,22 @@ const _SEGMENTO_BLOCK = {
 // Aplica visibilidade das abas do sidebar com base em permissões + segmento
 function _applySidebarPermissions() {
   if (!_currentUser) return;
+
+  // Super-admin: mostra todas as abas, sem restrição de segmento ou perfil
+  if (_currentUser.is_admin) {
+    _PF_MODULOS.forEach(m => {
+      const btn = document.getElementById('side-btn-' + m.modulo);
+      if (btn) btn.style.display = '';
+    });
+    // Garante que grupos do sidebar estejam visíveis
+    ['cadastros','orcamento','paineldinamico'].forEach(grupo => {
+      const header  = document.getElementById('side-btn-' + grupo);
+      if (header) header.style.display = '';
+    });
+    _applyPermissions();
+    return;
+  }
+
   const segmento = _currentUser.segmento || _currentUser.tipo_acesso || 'Frota';
   const bloqueados = _SEGMENTO_BLOCK[segmento] || [];
 

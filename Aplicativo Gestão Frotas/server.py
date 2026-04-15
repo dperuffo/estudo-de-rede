@@ -597,6 +597,13 @@ def init_db():
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_expiry TEXT DEFAULT NULL")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS perfil_id INTEGER DEFAULT NULL")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_acesso TEXT DEFAULT 'Entrante'")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS segmento TEXT DEFAULT NULL")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE")
+    # Garante que o super-admin sempre tenha is_admin=TRUE
+    cur.execute("""
+        UPDATE usuarios SET is_admin = TRUE
+        WHERE LOWER(email) = 'd.peruffo@yahoo.com'
+    """)
     # Remove constraint legada de CPF único (permite usuários sem CPF via login)
     cur.execute("""
         DO $$ BEGIN
@@ -1609,12 +1616,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({
                 'token': token,
                 'usuario': {
-                    'id': usr['id'], 'nome': usr['nome'], 'email': usr['email'],
+                    'id':          usr['id'],
+                    'nome':        usr['nome'],
+                    'email':       usr['email'],
                     'tipo_acesso': usr.get('tipo_acesso','Entrante'),
                     'segmento':    usr.get('segmento', usr.get('tipo_acesso','Frota')),
                     'perfil_id':   usr.get('perfil_id'),
                     'perfil_nome': perfil['nome'] if perfil else usr.get('perfil',''),
                     'cliente_id':  usr.get('cliente_id'),
+                    'is_admin':    bool(usr.get('is_admin', False)),
                 },
                 'permissoes': perms,
             }); return
