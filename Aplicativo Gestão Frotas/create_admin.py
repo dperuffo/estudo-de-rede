@@ -24,7 +24,7 @@ else:
     DB_USER = os.environ.get('PG_USER',   'gestao_frota')
     DB_PASS = os.environ.get('PG_PASSWORD','gestao_frota')
     DB_SSL  = {}
-SALT    = os.environ.get('AUTH_SALT',  'gestao_frota_salt_2024')
+SALT    = os.environ.get('AUTH_SALT') or 'gestao_frota_salt_2024'
 
 ADMIN_EMAIL = 'd.peruffo@yahoo.com'
 ADMIN_SENHA = 'Prototipo@2026'
