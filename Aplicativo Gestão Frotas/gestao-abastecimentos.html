@@ -8249,15 +8249,20 @@ function exportExcel() {
   const ws_data = [
     [
       'DATA', 'HORA',
+      'RAZÃO SOCIAL CLIENTE', 'CNPJ CLIENTE',
       'PLACA', 'MOTORISTA', 'CPF MOTORISTA', 'HODÔMETRO',
       'POSTO', 'CNPJ POSTO', 'CIDADE', 'UF',
       'COMBUSTÍVEL', 'VOLUME (L)', 'R$/L', 'VALOR TOTAL', 'CONSUMO (km/L)'
     ]
   ];
   records.forEach(r => {
-    const cons = consumoMap[r.id];
+    const cons   = consumoMap[r.id];
+    const cli    = (_clientes || []).find(x => x.id === r.cliente_id);
+    const cliRS  = cli ? (cli.razao_social || '') : '';
+    const cliCNPJ= cli ? (cli.cnpj        || '') : '';
     ws_data.push([
       fmtDate(r.data), r.hora,
+      cliRS, cliCNPJ,
       r.placa, r.motorista, r.cpfMotorista || '', r.hodometro,
       r.posto, r.cnpjPosto || '', r.cidadePosto || '', r.ufPosto || '',
       r.combustivel, r.volume, r.precoUnitario, r.valorTotal,
@@ -8270,10 +8275,11 @@ function exportExcel() {
 
   // Larguras de coluna
   ws['!cols'] = [
-    {wch:6},{wch:18},{wch:12},{wch:8},
-    {wch:10},{wch:22},{wch:16},{wch:15},
-    {wch:26},{wch:20},{wch:16},{wch:6},
-    {wch:12},{wch:12},{wch:16},{wch:16},{wch:14}
+    {wch:10}, {wch:8},          // Data, Hora
+    {wch:34}, {wch:20},         // Razão Social Cliente, CNPJ Cliente
+    {wch:10}, {wch:22}, {wch:16}, {wch:12}, // Placa, Motorista, CPF, Hodômetro
+    {wch:26}, {wch:20}, {wch:14}, {wch:6},  // Posto, CNPJ Posto, Cidade, UF
+    {wch:14}, {wch:12}, {wch:10}, {wch:14}, {wch:14} // Combust., Vol., R$/L, Total, Consumo
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, 'Abastecimentos');
