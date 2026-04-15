@@ -16377,36 +16377,153 @@ function removerParada(idx) {
   _atualizarMarcadoresOD();
 }
 
+// ── Logos SVG das bandeiras de combustível ─────────────────────
+const _BANDEIRA_LOGOS = {
+  'Ipiranga': {
+    pin: '#f97316',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#f97316"/>
+      <!-- Chama Ipiranga -->
+      <path d="M16 4 C11 9 9 13 10.5 17.5 C11.5 20.5 14 22 16 22
+               C18 22 20.5 20.5 21.5 17.5 C23 13 21 9 16 4Z"
+            fill="white" opacity="0.92"/>
+      <path d="M16 10 C14.5 12.5 14 14.5 14.8 16.5 C15.2 17.5 15.6 18.2 16 18.2
+               C16.4 18.2 16.8 17.5 17.2 16.5 C18 14.5 17.5 12.5 16 10Z"
+            fill="#f97316"/>
+      <text x="16" y="28" text-anchor="middle" fill="white"
+            font-size="6" font-weight="900" font-family="Arial,sans-serif"
+            letter-spacing="0.3">IPIRANGA</text>
+    </svg>`
+  },
+  'Shell': {
+    pin: '#CC0000',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#CC0000"/>
+      <!-- Pecten Shell simplificado — 7 pétalas amarelas -->
+      <g fill="#FFC800" transform="translate(16,17)">
+        <ellipse cx="0"     cy="-9.5" rx="1.7" ry="5.5" transform="rotate(0)"/>
+        <ellipse cx="0"     cy="-9.5" rx="1.7" ry="5.5" transform="rotate(25)"/>
+        <ellipse cx="0"     cy="-9.5" rx="1.7" ry="5.5" transform="rotate(-25)"/>
+        <ellipse cx="0"     cy="-9.5" rx="1.7" ry="5.5" transform="rotate(50)"/>
+        <ellipse cx="0"     cy="-9.5" rx="1.7" ry="5.5" transform="rotate(-50)"/>
+        <ellipse cx="0"     cy="-9.5" rx="1.7" ry="5.5" transform="rotate(75)"/>
+        <ellipse cx="0"     cy="-9.5" rx="1.7" ry="5.5" transform="rotate(-75)"/>
+        <!-- Base da concha -->
+        <rect x="-7" y="-1.5" width="14" height="4" rx="2"/>
+      </g>
+    </svg>`
+  },
+  'BR Petrobras': {
+    pin: '#009639',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#009639"/>
+      <!-- Losango Petrobras estilizado -->
+      <path d="M16 5 L27 16 L16 27 L5 16 Z" fill="#FFD700" opacity="0.25"/>
+      <text x="16" y="19.5" text-anchor="middle" fill="white"
+            font-size="11" font-weight="900" font-family="Arial,sans-serif"
+            letter-spacing="-0.5">BR</text>
+    </svg>`
+  },
+  'Petrobras Distribuidora': {
+    pin: '#009639',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#009639"/>
+      <path d="M16 5 L27 16 L16 27 L5 16 Z" fill="#FFD700" opacity="0.25"/>
+      <text x="16" y="19.5" text-anchor="middle" fill="white"
+            font-size="11" font-weight="900" font-family="Arial,sans-serif"
+            letter-spacing="-0.5">BR</text>
+    </svg>`
+  },
+  'Vibra': {
+    pin: '#005BAA',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#005BAA"/>
+      <!-- V estilizado Vibra -->
+      <path d="M7 9 L13 23 L16 17 L19 23 L25 9 L22 9 L16 21 L10 9 Z"
+            fill="white" opacity="0.95"/>
+      <text x="16" y="29" text-anchor="middle" fill="white"
+            font-size="5.5" font-weight="900" font-family="Arial,sans-serif"
+            letter-spacing="0.5">VIBRA</text>
+    </svg>`
+  },
+  'Ale': {
+    pin: '#E8500A',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#E8500A"/>
+      <text x="16" y="20" text-anchor="middle" fill="white"
+            font-size="12" font-weight="900" font-family="Arial,sans-serif"
+            letter-spacing="0.5">ALE</text>
+    </svg>`
+  },
+  'Raízen': {
+    pin: '#003087',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#003087"/>
+      <!-- R estilizado Raízen -->
+      <path d="M10 8 L10 24 L13 24 L13 19 L17 19 L20 24 L23.5 24 L20 18.5
+               C22 17.5 23 15.5 22.5 13.5 C21.7 10.5 19 8 10 8Z
+               M13 11 L17 11 C19 11 19.8 12 19.8 13.5 C19.8 15 19 16 17 16
+               L13 16 Z"
+            fill="white" opacity="0.95"/>
+    </svg>`
+  },
+  'Liquigás': {
+    pin: '#0071CE',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#0071CE"/>
+      <text x="16" y="16" text-anchor="middle" fill="white"
+            font-size="7" font-weight="900" font-family="Arial,sans-serif">LIQUI</text>
+      <text x="16" y="23" text-anchor="middle" fill="white"
+            font-size="7" font-weight="900" font-family="Arial,sans-serif">GÁS</text>
+    </svg>`
+  },
+  'Outros': {
+    pin: '#64748b',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#64748b"/>
+      <text x="16" y="21" text-anchor="middle" fill="white"
+            font-size="16" font-weight="700" font-family="Arial,sans-serif">?</text>
+    </svg>`
+  }
+};
+
 // ── Ícone de pin por bandeira ──────────────────────────────────
 function _roteizBandeiraIcon(bandeira) {
   const b = (bandeira || '').trim();
-  const cfg = {
-    'Ipiranga':                { cor: '#f97316', borda: '#c2410c', abrev: 'IP' },
-    'Shell':                   { cor: '#dc2626', borda: '#991b1b', abrev: 'SH' },
-    'BR Petrobras':            { cor: '#16a34a', borda: '#14532d', abrev: 'BR' },
-    'Petrobras Distribuidora': { cor: '#15803d', borda: '#14532d', abrev: 'PB' },
-    'Vibra':                   { cor: '#2563eb', borda: '#1e3a8a', abrev: 'VB' },
-    'Ale':                     { cor: '#7c3aed', borda: '#4c1d95', abrev: 'AL' },
-    'Raízen':                  { cor: '#ea580c', borda: '#9a3412', abrev: 'RZ' },
-    'Bandeira Branca':         { cor: '#9ca3af', borda: '#6b7280', abrev: 'BB' },
-    'Outros':                  { cor: '#64748b', borda: '#334155', abrev: '?'  },
-  };
-  const { cor, borda, abrev } = cfg[b] || { cor: '#64748b', borda: '#334155', abrev: b.slice(0,2).toUpperCase() || '?' };
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
-    <path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22S28 23.33 28 14C28 6.27 21.73 0 14 0z"
-      fill="${cor}" stroke="${borda}" stroke-width="1.5"/>
-    <circle cx="14" cy="13" r="7.5" fill="rgba(255,255,255,0.2)"/>
-    <text x="14" y="17.5" text-anchor="middle" fill="#fff"
-      font-size="${abrev.length > 2 ? 7 : 9}" font-weight="800"
-      font-family="Arial,sans-serif" letter-spacing="0">${abrev}</text>
+
+  // Bandeira Branca → pin vermelho sólido (sem logo)
+  if (!b || b === 'Bandeira Branca' || b === 'Sem Bandeira') {
+    return L.divIcon({
+      html: `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="38" viewBox="0 0 30 38"
+               style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))">
+        <path d="M15 0C6.72 0 0 6.72 0 15c0 9.9 15 23 15 23S30 24.9 30 15C30 6.72 23.28 0 15 0z"
+              fill="#dc2626" stroke="#991b1b" stroke-width="1"/>
+      </svg>`,
+      className: '', iconSize: [30,38], iconAnchor: [15,38], popupAnchor: [0,-36]
+    });
+  }
+
+  const marca = _BANDEIRA_LOGOS[b];
+  const pinColor = marca ? marca.pin : '#64748b';
+  const logoSVG  = marca ? marca.svg : `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="16" cy="16" r="16" fill="${pinColor}"/>
+    <text x="16" y="21" text-anchor="middle" fill="white" font-size="11" font-weight="800"
+          font-family="Arial,sans-serif">${b.slice(0,2).toUpperCase()||'?'}</text>
   </svg>`;
-  return L.divIcon({
-    html: svg,
-    className: '',
-    iconSize:   [28, 36],
-    iconAnchor: [14, 36],
-    popupAnchor:[0, -34]
-  });
+
+  const html = `<div style="position:relative;width:38px;height:48px;cursor:pointer;
+                            filter:drop-shadow(0 2px 5px rgba(0,0,0,.4));">
+    <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;"
+         width="38" height="48" viewBox="0 0 38 48">
+      <path d="M19 0C8.51 0 0 8.51 0 19c0 12.38 19 29 19 29S38 31.38 38 19C38 8.51 29.49 0 19 0z"
+            fill="${pinColor}" stroke="rgba(0,0,0,0.18)" stroke-width="0.7"/>
+      <circle cx="19" cy="18" r="14" fill="white" opacity="0.97"/>
+    </svg>
+    <div style="position:absolute;top:4px;left:5px;width:28px;height:28px;
+                border-radius:50%;overflow:hidden;">${logoSVG}</div>
+  </div>`;
+
+  return L.divIcon({ html, className: '', iconSize: [38,48], iconAnchor: [19,48], popupAnchor: [0,-46] });
 }
 
 // ── Postos no mapa ────────────────────────────────────────────
@@ -16479,18 +16596,6 @@ function _atualizarLegendaBandeiras(postosVisiveis) {
   const legendaItems = document.getElementById('roteiz-legenda-items');
   if (!legenda || !legendaItems) return;
 
-  const cfgCores = {
-    'Ipiranga':                '#f97316',
-    'Shell':                   '#dc2626',
-    'BR Petrobras':            '#16a34a',
-    'Petrobras Distribuidora': '#15803d',
-    'Vibra':                   '#2563eb',
-    'Ale':                     '#7c3aed',
-    'Raízen':                  '#ea580c',
-    'Bandeira Branca':         '#9ca3af',
-    'Outros':                  '#64748b',
-  };
-
   // Conta postos por bandeira
   const contagem = {};
   postosVisiveis.forEach(p => {
@@ -16506,12 +16611,33 @@ function _atualizarLegendaBandeiras(postosVisiveis) {
   }
 
   legendaItems.innerHTML = bandeirasSorted.map(([b, n]) => {
-    const cor = cfgCores[b] || '#64748b';
-    return `<div style="display:flex;align-items:center;gap:6px;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 28 36">
-        <path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22S28 23.33 28 14C28 6.27 21.73 0 14 0z" fill="${cor}"/>
-      </svg>
-      <span style="font-size:0.74rem;color:#334155;flex:1;">${b}</span>
+    const isBB   = !b || b === 'Bandeira Branca' || b === 'Sem Bandeira';
+    const marca  = _BANDEIRA_LOGOS[b];
+    const pinColor = isBB ? '#dc2626' : (marca ? marca.pin : '#64748b');
+    const logoSVG  = isBB ? '' : (marca ? marca.svg : `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="${pinColor}"/>
+      <text x="16" y="21" text-anchor="middle" fill="white" font-size="11" font-weight="800"
+            font-family="Arial,sans-serif">${b.slice(0,2).toUpperCase()}</text></svg>`);
+
+    // Mini-pin para a legenda
+    const pinHtml = isBB
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 30 38">
+           <path d="M15 0C6.72 0 0 6.72 0 15c0 9.9 15 23 15 23S30 24.9 30 15C30 6.72 23.28 0 15 0z"
+                 fill="#dc2626"/></svg>`
+      : `<div style="position:relative;width:20px;height:24px;">
+           <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;"
+                width="20" height="24" viewBox="0 0 38 48">
+             <path d="M19 0C8.51 0 0 8.51 0 19c0 12.38 19 29 19 29S38 31.38 38 19C38 8.51 29.49 0 19 0z"
+                   fill="${pinColor}"/>
+             <circle cx="19" cy="18" r="14" fill="white" opacity="0.97"/>
+           </svg>
+           <div style="position:absolute;top:2px;left:2.5px;width:15px;height:15px;
+                       border-radius:50%;overflow:hidden;">${logoSVG}</div>
+         </div>`;
+
+    return `<div style="display:flex;align-items:center;gap:7px;padding:2px 0;">
+      ${pinHtml}
+      <span style="font-size:0.74rem;color:#334155;flex:1;">${b || 'Bandeira Branca'}</span>
       <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;">${n}</span>
     </div>`;
   }).join('');
