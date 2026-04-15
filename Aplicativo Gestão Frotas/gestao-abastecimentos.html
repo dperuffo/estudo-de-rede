@@ -18672,6 +18672,7 @@ function mapUsuario(r) {
     cliente_id:  r.cliente_id  || null,
     observacoes: r.observacoes || '',
     created_at:  r.created_at  || '',
+    is_admin:    !!r.is_admin,
   };
 }
 
@@ -18760,10 +18761,15 @@ function renderUsuarios() {
     return `<span style="background:${c}15;color:${c};padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:600;">${s}</span>`;
   };
 
+  const adminBadge = `<span style="background:#1e40af15;color:#1e40af;padding:2px 10px;border-radius:10px;
+      font-size:0.78rem;font-weight:700;letter-spacing:0.3px;">⭐ Admin</span>`;
+
   tbody.innerHTML = filtered.map(u => {
     const cliId = u.cliente_id ? parseInt(u.cliente_id) : null;
     const cli = cliId ? _clientes.find(c => parseInt(c.id) === cliId) : null;
     const cliNome = cli ? (cli.razao_social || cli.nome || '—') : '—';
+    const segCell = u.is_admin ? adminBadge : segmentoBadge(u.segmento);
+    const pfCell  = u.is_admin ? '—' : perfilBadge(u.perfil);
     return `
     <tr>
       <td><strong>${u.nome}</strong></td>
@@ -18771,8 +18777,8 @@ function renderUsuarios() {
       <td>${u.telefone || '—'}</td>
       <td>${u.email || '—'}</td>
       <td>${cliNome}</td>
-      <td>${segmentoBadge(u.segmento)}</td>
-      <td>${perfilBadge(u.perfil)}</td>
+      <td>${segCell}</td>
+      <td>${pfCell}</td>
       <td>${statusBadge(u.status)}</td>
       <td style="text-align:center;white-space:nowrap">
         ${_canDo('Usuários','edicao') ? `<button class="btn-icon" title="Editar" onclick="openUsuarioModal(${u.id})">✏️</button>` : ''}
@@ -19665,10 +19671,15 @@ function _authSuccessUI() {
   const nomeEl = document.getElementById('auth-user-nome');
   if (nomeEl) nomeEl.textContent = _currentUser.nome || '';
   const perfilEl = document.getElementById('auth-user-perfil');
-  const segLabel = _currentUser.segmento || _currentUser.tipo_acesso || '';
-  const pfLabel  = _currentUser.perfil_nome || '';
-  if (perfilEl) perfilEl.textContent =
-    [segLabel, pfLabel].filter(Boolean).map(s => `| ${s}`).join(' ');
+  if (perfilEl) {
+    if (_currentUser.is_admin) {
+      perfilEl.textContent = '| Usuário Admin';
+    } else {
+      const segLabel = _currentUser.segmento || _currentUser.tipo_acesso || '';
+      const pfLabel  = _currentUser.perfil_nome || '';
+      perfilEl.textContent = [segLabel, pfLabel].filter(Boolean).map(s => `| ${s}`).join(' ');
+    }
+  }
   const logoutEl = document.getElementById('auth-logout-btn');
   if (logoutEl) logoutEl.style.display = '';
 
