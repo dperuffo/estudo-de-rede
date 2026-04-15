@@ -1101,31 +1101,6 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/ping':
             self.send_json({'ok': True, 'server': 'gestao-frota'}); return
 
-        # ── Setup admin (endpoint temporário — remover após primeiro uso) ──
-        if path == '/api/setup-admin':
-            try:
-                conn = get_db()
-                cur = conn.cursor()
-                cur.execute("INSERT INTO perfis_acesso (nome, descricao) VALUES ('Gestor','Acesso total ao sistema') ON CONFLICT (nome) DO NOTHING")
-                cur.execute("SELECT id FROM perfis_acesso WHERE nome='Gestor'")
-                row = cur.fetchone()
-                pid = row[0] if row else None
-                h = _hash_senha('Prototipo@2026')
-                cur.execute("SELECT id FROM usuarios WHERE LOWER(email)='d.peruffo@yahoo.com'")
-                u = cur.fetchone()
-                if u:
-                    cur.execute("UPDATE usuarios SET nome='Daniel Peruffo', senha_hash=%s, perfil='Gestor', segmento='Frota', tipo_acesso='Frota', perfil_id=%s, status='Ativo' WHERE id=%s", [h, pid, u[0]])
-                    msg = f'Admin atualizado id={u[0]}'
-                else:
-                    cur.execute("INSERT INTO usuarios (nome,email,cpf,perfil,segmento,tipo_acesso,perfil_id,status,senha_hash) VALUES ('Daniel Peruffo','d.peruffo@yahoo.com','','Gestor','Frota','Frota',%s,'Ativo',%s) RETURNING id", [pid, h])
-                    new_id = cur.fetchone()[0]
-                    msg = f'Admin criado id={new_id}'
-                conn.commit()
-                conn.close()
-                self.send_json({'ok': True, 'msg': msg, 'salt': _SALT[:8]+'...', 'hash': h[:16]+'...'}); return
-            except Exception as e:
-                self.send_json({'error': str(e)}, 500); return
-
         if path == '/api/auth/me':
             conn = get_db()
             usr = _auth_get_user(conn, _token_from_request(self))
