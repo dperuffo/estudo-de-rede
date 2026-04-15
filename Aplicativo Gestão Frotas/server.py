@@ -95,7 +95,7 @@ def _hoje():
 # ═══════════════════════════════════════════════════════════════
 #  AUTENTICAÇÃO
 # ═══════════════════════════════════════════════════════════════
-_SALT = os.environ.get('AUTH_SALT', 'gestao_frota_salt_2024')
+_SALT = os.environ.get('AUTH_SALT') or 'gestao_frota_salt_2024'
 
 def _hash_senha(senha: str) -> str:
     dk = hashlib.pbkdf2_hmac('sha256', senha.encode(), _SALT.encode(), 200_000)
