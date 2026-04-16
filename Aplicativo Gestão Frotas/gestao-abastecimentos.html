@@ -18385,13 +18385,12 @@ async function _confirmarSalvarRota() {
   const cliSel = document.getElementById('roteiz-salvar-cliente');
   const nome = (nomeEl?.value || '').trim();
   if (!nome) { nomeEl?.focus(); showToast('Informe um nome para a rota.', 'error'); return; }
-  const _roteizCliId = cliSel?.value;
-  if (!_roteizCliId) { cliSel?.focus(); showToast('Selecione um cliente para a rota.', 'error'); return; }
+  const clienteIdRaw = cliSel?.value || '';
   _fecharSalvarRotaModal();
 
   // Persiste também no select oculto (compatibilidade)
   const hiddenSel = document.getElementById('roteiz-f-cliente');
-  if (hiddenSel) hiddenSel.value = _roteizCliId;
+  if (hiddenSel && clienteIdRaw) hiddenSel.value = clienteIdRaw;
 
   const r = _roteizRotaAtual;
   const body = {
@@ -18399,7 +18398,6 @@ async function _confirmarSalvarRota() {
     origem: r.origem.label, origemLat: r.origem.lat, origemLon: r.origem.lon,
     destino: r.destino.label, destinoLat: r.destino.lat, destinoLon: r.destino.lon,
     paradas: r.paradas,
-    // Salva objetos completos dos postos (com litragem, preço, score, etc.)
     postosRota: r.postosNaRota,
     distanciaKm: r.distanciaKm, duracaoMin: r.duracaoMin,
     combustivel: _roteizCombSel.join(','),
@@ -18411,33 +18409,71 @@ async function _confirmarSalvarRota() {
     filtros: { numPedagios: r.numPedagios || 0, combRef: r.combRef || _roteizCombSel[0] || '' },
     geometria: r.geometry,
     status: 'Concluída', observacao: '',
-    cliente_id: parseInt(_roteizCliId)
+    cliente_id: clienteIdRaw ? parseInt(clienteIdRaw) : null,
+    criadoEm: new Date().toISOString()
   };
+
+  // ── Tenta API, cai em localStorage se falhar ──────────────────
+  let salvoViaAPI = false;
   try {
     if (_roteizRotaId) {
-      // Atualiza rota existente
       await apiCall('PUT', `/api/roteirizador-rotas/${_roteizRotaId}`, body);
+      salvoViaAPI = true;
       showToast('Rota atualizada com sucesso!', 'success');
       _roteizAtualizarBadgeEdicao(nome);
     } else {
-      // Nova rota
       const res = await apiCall('POST', '/api/roteirizador-rotas', body);
-      if (!res || !res.id) throw new Error('Erro ao salvar');
-      _roteizRotaId = res.id;
-      _roteizAtualizarBadgeEdicao(nome);
-      showToast('Rota salva com sucesso!', 'success');
+      if (res && res.id) {
+        _roteizRotaId = res.id;
+        salvoViaAPI = true;
+        _roteizAtualizarBadgeEdicao(nome);
+        showToast('Rota salva com sucesso!', 'success');
+      }
     }
-    loadRoteirizadorRotas();
-  } catch(e) {
-    showToast('Erro ao salvar rota: ' + e.message, 'error');
+  } catch(e) { /* offline — usa localStorage */ }
+
+  if (!salvoViaAPI) {
+    // Fallback: salva/atualiza no localStorage
+    try {
+      let rotas = [];
+      try { rotas = JSON.parse(localStorage.getItem('_roteizRotas') || '[]'); } catch(e) { rotas = []; }
+      if (_roteizRotaId) {
+        // Atualiza registro existente
+        const idx = rotas.findIndex(x => x.id === _roteizRotaId);
+        if (idx >= 0) rotas[idx] = { ...rotas[idx], ...body, id: _roteizRotaId };
+        else rotas.push({ ...body, id: _roteizRotaId });
+        showToast('Rota atualizada (modo offline).', 'success');
+      } else {
+        // Nova rota — gera ID local
+        const newId = 'local_' + Date.now();
+        _roteizRotaId = newId;
+        rotas.push({ ...body, id: newId });
+        showToast('Rota salva localmente.', 'success');
+      }
+      localStorage.setItem('_roteizRotas', JSON.stringify(rotas));
+      _roteizRotas = rotas;
+      _roteizAtualizarBadgeEdicao(nome);
+    } catch(e) {
+      showToast('Erro ao salvar rota: ' + e.message, 'error');
+      return;
+    }
+  } else {
+    await loadRoteirizadorRotas();
   }
 }
 
 async function loadRoteirizadorRotas() {
   try {
     const data = await apiCall('GET', '/api/roteirizador-rotas');
-    _roteizRotas = Array.isArray(data) ? data : [];
-  } catch(e) { _roteizRotas = []; }
+    if (Array.isArray(data) && data.length) {
+      _roteizRotas = data;
+      // Sincroniza localStorage com dados do servidor
+      try { localStorage.setItem('_roteizRotas', JSON.stringify(_roteizRotas)); } catch(e) {}
+      return;
+    }
+  } catch(e) { /* offline — usa localStorage */ }
+  // Fallback localStorage
+  try { _roteizRotas = JSON.parse(localStorage.getItem('_roteizRotas') || '[]'); } catch(e) { _roteizRotas = []; }
 }
 
 function abrirListaRotas() {
@@ -18459,33 +18495,46 @@ function renderListaRotas() {
     return;
   }
   if (empty) empty.style.display = 'none';
-  tbody.innerHTML = _roteizRotas.map((r,i) => `
+  tbody.innerHTML = _roteizRotas.map((r,i) => {
+    // Normaliza campos: suporta snake_case (API) e camelCase (localStorage)
+    const tipo      = r.tipo_rota    || r.tipoRota    || '—';
+    const distKm    = r.distancia_km ?? r.distanciaKm ?? null;
+    const custo     = r.custo_estimado ?? r.custoEstimado ?? null;
+    const criadoRaw = r.created_at   || r.criadoEm   || '';
+    const criado    = criadoRaw ? criadoRaw.split('T')[0].split(' ')[0].split('-').reverse().join('/') : '—';
+    const isLocal   = String(r.id).startsWith('local_');
+    const idJson    = JSON.stringify(r.id);  // garante aspas em IDs string
+    return `
     <tr>
-      <td style="font-weight:600;">${r.nome || '(sem nome)'}</td>
-      <td>${r.tipo_rota}</td>
+      <td style="font-weight:600;">${r.nome || '(sem nome)'}${isLocal ? ' <span style="font-size:0.7rem;background:#fef9c3;color:#854d0e;padding:1px 5px;border-radius:4px;">local</span>' : ''}</td>
+      <td>${tipo}</td>
       <td style="font-size:0.8rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(r.origem||'').split(',').slice(0,2).join(',').trim()} → ${(r.destino||'').split(',').slice(0,2).join(',').trim()}</td>
-      <td class="td-right">${r.distancia_km ? r.distancia_km.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' km' : '—'}</td>
-      <td class="td-right">${r.custo_estimado ? fmtBRL(r.custo_estimado) : '—'}</td>
+      <td class="td-right">${distKm != null ? Number(distKm).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' km' : '—'}</td>
+      <td class="td-right">${custo != null ? fmtBRL(custo) : '—'}</td>
       <td><span class="badge" style="background:#dcfce7;color:#15803d;">${r.status||'—'}</span></td>
-      <td style="font-size:0.8rem;color:var(--text-muted);">${r.created_at ? r.created_at.split(' ')[0].split('-').reverse().join('/') : '—'}</td>
+      <td style="font-size:0.8rem;color:var(--text-muted);">${criado}</td>
       <td class="td-center">
-        <button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1.5px solid #93c5fd;margin-right:4px;" onclick="carregarRotaSalva(${r.id})">
+        <button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1.5px solid #93c5fd;margin-right:4px;" onclick="carregarRotaSalva(${idJson})">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/></svg>
           Abrir
         </button>
-        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="excluirRoteizRota(${r.id})">
+        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="excluirRoteizRota(${idJson})">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         </button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function excluirRoteizRota(id) {
   if (!confirm('Excluir esta rota salva?')) return;
-  _roteizRotas = _roteizRotas.filter(r => r.id !== id); // optimistic
+  _roteizRotas = _roteizRotas.filter(r => r.id !== id);
+  // Sempre atualiza localStorage
+  try { localStorage.setItem('_roteizRotas', JSON.stringify(_roteizRotas)); } catch(e) {}
   renderListaRotas();
-  await apiCall('DELETE', `/api/roteirizador-rotas/${id}`);
+  if (!String(id).startsWith('local_')) {
+    try { await apiCall('DELETE', `/api/roteirizador-rotas/${id}`); } catch(e) {}
+  }
   showToast('Rota excluída.', 'success');
 }
 
@@ -18494,9 +18543,30 @@ function carregarRotaSalva(id) {
   if (!r) return;
   fecharListaRotas();
 
+  // ── Normaliza campos: suporta snake_case (API) e camelCase (localStorage) ──
+  const _rn = (snake, camel) => r[snake] ?? r[camel] ?? null;
+  const rNorm = {
+    tipoRota:          _rn('tipo_rota',          'tipoRota')          || 'Monte Sua Rota',
+    origemLat:         _rn('origem_lat',          'origemLat'),
+    origemLon:         _rn('origem_lon',          'origemLon'),
+    destinoLat:        _rn('destino_lat',         'destinoLat'),
+    destinoLon:        _rn('destino_lon',         'destinoLon'),
+    distanciaKm:       _rn('distancia_km',        'distanciaKm'),
+    duracaoMin:        _rn('duracao_min',          'duracaoMin'),
+    custoEstimado:     _rn('custo_estimado',       'custoEstimado'),
+    litrosTanque:      _rn('litros_tanque',        'litrosTanque'),
+    capacidadeTanque:  _rn('capacidade_tanque',    'capacidadeTanque'),
+    mediaConsumo:      _rn('media_consumo',        'mediaConsumo'),
+    postosRotaRaw:     _rn('postos_rota',          'postosRota'),
+    geometria:         r.geometria || null,
+  };
+
   // Restaura geometria no mapa
   let geo = null;
-  try { geo = JSON.parse(r.geometria || 'null'); } catch(e){}
+  try {
+    const geoSrc = typeof rNorm.geometria === 'string' ? JSON.parse(rNorm.geometria) : rNorm.geometria;
+    geo = geoSrc;
+  } catch(e){}
   if (geo && _roteizMap) {
     if (_roteizRouteLayer) _roteizMap.removeLayer(_roteizRouteLayer);
     _roteizRouteLayer = L.geoJSON(geo, {
@@ -18508,9 +18578,8 @@ function carregarRotaSalva(id) {
   // Restaura postos completos (objetos salvos com litragem, preço, score, etc.)
   let postosNaRota = [];
   try {
-    const parsed = JSON.parse(r.postos_rota || '[]');
-    // Se salvou objetos completos (tem _litSuger ou bandeira), usa diretamente
-    // Se salvou só IDs (legado), tenta buscar no array global de postos
+    const raw = rNorm.postosRotaRaw;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
     if (Array.isArray(parsed) && parsed.length > 0) {
       if (typeof parsed[0] === 'object' && parsed[0] !== null) {
         postosNaRota = parsed; // formato novo: objetos completos
@@ -18523,25 +18592,25 @@ function carregarRotaSalva(id) {
 
   // Recria rotaAtual
   _roteizRotaAtual = {
-    tipo: r.tipo_rota || 'Monte Sua Rota',
-    origem:  { lat: r.origem_lat,  lon: r.origem_lon,  label: r.origem  },
-    destino: { lat: r.destino_lat, lon: r.destino_lon, label: r.destino },
-    paradas: (() => { try { return JSON.parse(r.paradas || '[]'); } catch(e) { return []; } })(),
+    tipo:          rNorm.tipoRota,
+    origem:  { lat: rNorm.origemLat,  lon: rNorm.origemLon,  label: r.origem  },
+    destino: { lat: rNorm.destinoLat, lon: rNorm.destinoLon, label: r.destino },
+    paradas: (() => { try { const p = r.paradas; return Array.isArray(p) ? p : JSON.parse(p || '[]'); } catch(e) { return []; } })(),
     postosNaRota,
-    distanciaKm:  r.distancia_km,
-    duracaoMin:   r.duracao_min,
-    custoEstimado: r.custo_estimado,
-    numPedagios:  (() => { try { return (JSON.parse(r.filtros||'{}')).numPedagios || 0; } catch(e) { return 0; } })(),
-    combRef:      r.combustivel || '',
-    geometry:     r.geometria
+    distanciaKm:   rNorm.distanciaKm,
+    duracaoMin:    rNorm.duracaoMin,
+    custoEstimado: rNorm.custoEstimado,
+    numPedagios:   (() => { try { const f = r.filtros; const fo = typeof f === 'string' ? JSON.parse(f) : (f||{}); return fo.numPedagios || 0; } catch(e) { return 0; } })(),
+    combRef:       r.combustivel || '',
+    geometry:      rNorm.geometria
   };
 
   // Restaura campos do veículo no formulário
-  const setVal = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
   setVal('roteiz-placa',          r.placa);
-  setVal('roteiz-litros-tanque',  r.litros_tanque);
-  setVal('roteiz-cap-tanque',     r.capacidade_tanque);
-  setVal('roteiz-consumo',        r.media_consumo);
+  setVal('roteiz-litros-tanque',  rNorm.litrosTanque);
+  setVal('roteiz-cap-tanque',     rNorm.capacidadeTanque);
+  setVal('roteiz-consumo',        rNorm.mediaConsumo);
   // Restaura combustível selecionado
   if (r.combustivel) {
     _roteizCombSel = r.combustivel.split(',').filter(Boolean);
