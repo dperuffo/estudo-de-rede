@@ -4676,64 +4676,152 @@
   </div>
 </div>
 
-<!-- ░░ MODAL DETALHE MANUTENÇÃO PREDITIVA ░░ -->
+<!-- ░░ MODAL PRONTUÁRIO DE MANUTENÇÃO PREDITIVA ░░ -->
 <div class="modal-overlay" id="predDetalheModalOverlay" onclick="if(event.target===this)_fecharPredDetalhe()">
-  <div class="modal" style="max-width:680px;width:96vw;">
-    <div class="modal-header" id="pred-detalhe-header"
-         style="background:linear-gradient(135deg,#7c2d12 0%,#ea580c 100%);border-radius:12px 12px 0 0;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="background:rgba(255,255,255,0.18);border-radius:8px;padding:7px;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+  <div class="modal" style="max-width:780px;width:97vw;display:flex;flex-direction:column;max-height:92vh;">
+
+    <!-- Header gradiente -->
+    <div style="background:linear-gradient(135deg,#7c2d12 0%,#ea580c 100%);border-radius:12px 12px 0 0;padding:14px 20px;flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <div style="background:rgba(255,255,255,0.18);border-radius:8px;padding:7px;flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <div style="min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span id="pred-det-placa" style="color:#fff;font-size:1.05rem;font-weight:800;"></span>
+              <span id="pred-det-badge" style="flex-shrink:0;"></span>
+            </div>
+            <div id="pred-det-info" style="color:rgba(255,255,255,.72);font-size:0.76rem;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+          </div>
         </div>
-        <div>
-          <div id="pred-det-placa" style="color:#fff;font-size:1.1rem;font-weight:700;"></div>
-          <div id="pred-det-info"  style="color:rgba(255,255,255,.75);font-size:0.78rem;"></div>
-        </div>
-        <div id="pred-det-badge" style="margin-left:8px;"></div>
+        <button class="modal-close" onclick="_fecharPredDetalhe()" style="color:#fff;opacity:.8;flex-shrink:0;">×</button>
       </div>
-      <button class="modal-close" onclick="_fecharPredDetalhe()" style="color:#fff;opacity:.8;">×</button>
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:4px;margin-top:12px;">
+        <button id="pred-tab-btn-analise" onclick="_predSwitchTab('analise')"
+          style="padding:6px 14px;border-radius:7px 7px 0 0;border:none;font-size:0.8rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,0.25);color:#fff;transition:background .15s;">
+          📊 Análise Preditiva
+        </button>
+        <button id="pred-tab-btn-prontuario" onclick="_predSwitchTab('prontuario')"
+          style="padding:6px 14px;border-radius:7px 7px 0 0;border:none;font-size:0.8rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,0.10);color:rgba(255,255,255,.75);transition:background .15s;">
+          📝 Registrar Manutenção
+        </button>
+        <button id="pred-tab-btn-historico" onclick="_predSwitchTab('historico')"
+          style="padding:6px 14px;border-radius:7px 7px 0 0;border:none;font-size:0.8rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,0.10);color:rgba(255,255,255,.75);transition:background .15s;">
+          🗂️ Histórico
+        </button>
+      </div>
     </div>
-    <div class="modal-body" style="padding:0;max-height:75vh;overflow-y:auto;">
 
-      <!-- Score geral -->
-      <div id="pred-det-score-section" style="padding:18px 20px 14px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#fafafa;">
-        <div style="text-align:center;flex-shrink:0;">
-          <div id="pred-det-gauge" style="width:90px;height:90px;"></div>
+    <!-- Corpo com overflow -->
+    <div style="overflow-y:auto;flex:1;min-height:0;">
+
+      <!-- ── ABA: ANÁLISE ── -->
+      <div id="pred-tab-analise" style="display:block;">
+
+        <!-- Score geral -->
+        <div id="pred-det-score-section" style="padding:16px 20px 12px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#fafafa;">
+          <div style="text-align:center;flex-shrink:0;">
+            <div id="pred-det-gauge" style="width:88px;height:88px;"></div>
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Índice de Saúde</div>
+            <div id="pred-det-score-label" style="font-size:1.7rem;font-weight:800;line-height:1;"></div>
+            <div id="pred-det-stats" style="font-size:0.79rem;color:var(--text-muted);margin-top:5px;line-height:1.65;"></div>
+          </div>
+          <div id="pred-det-consumo" style="flex:1;min-width:150px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;"></div>
         </div>
-        <div style="flex:1;min-width:180px;">
-          <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Índice de Saúde da Frota</div>
-          <div id="pred-det-score-label" style="font-size:1.8rem;font-weight:800;line-height:1;"></div>
-          <div id="pred-det-stats" style="font-size:0.82rem;color:var(--text-muted);margin-top:6px;line-height:1.7;"></div>
+
+        <!-- 8 tipos -->
+        <div style="padding:14px 20px 4px;">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Análise por Tipo de Manutenção Preditiva</div>
+          <div id="pred-det-items" style="display:flex;flex-direction:column;gap:8px;"></div>
         </div>
-        <div id="pred-det-consumo" style="flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;"></div>
+
+        <!-- Recomendações IA -->
+        <div style="padding:14px 20px 20px;border-top:1.5px solid var(--border);margin-top:10px;background:#fffbeb;">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm0-11v3m0 4v.01"/></svg>
+            <span style="font-size:0.72rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;">Recomendações da IA</span>
+          </div>
+          <div id="pred-det-recomendacoes" style="font-size:0.83rem;color:#78350f;line-height:1.75;"></div>
+        </div>
+
+      </div><!-- /tab analise -->
+
+      <!-- ── ABA: PRONTUÁRIO / REGISTRAR ── -->
+      <div id="pred-tab-prontuario" style="display:none;padding:0 0 4px;">
+
+        <!-- Dados da OS -->
+        <div style="padding:14px 20px 12px;background:#f8fafc;border-bottom:1.5px solid var(--border);">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">📋 Dados da Ordem de Serviço</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div>
+              <label style="display:block;font-size:0.74rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Data da Manutenção</label>
+              <input type="date" id="pron-data" class="form-input" style="width:100%;font-size:0.84rem;padding:7px 10px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.74rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Hodômetro (km)</label>
+              <input type="number" id="pron-hodometro" class="form-input" placeholder="Ex: 127.540" style="width:100%;font-size:0.84rem;padding:7px 10px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.74rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Técnico / Responsável</label>
+              <input type="text" id="pron-tecnico" class="form-input" placeholder="Nome do técnico" style="width:100%;font-size:0.84rem;padding:7px 10px;">
+            </div>
+            <div style="grid-column:span 2;">
+              <label style="display:block;font-size:0.74rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Oficina / Local de Serviço</label>
+              <input type="text" id="pron-oficina" class="form-input" placeholder="Nome da oficina ou local" style="width:100%;font-size:0.84rem;padding:7px 10px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.74rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Custo Total (R$)</label>
+              <input type="number" id="pron-custo" class="form-input" placeholder="0,00" step="0.01" min="0" style="width:100%;font-size:0.84rem;padding:7px 10px;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Itens de manutenção -->
+        <div style="padding:14px 20px 4px;">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Itens Verificados / Executados</div>
+          <div style="font-size:0.76rem;color:var(--text-muted);margin-bottom:12px;">Marque os itens que foram revisados e descreva o que foi realizado. Itens marcados atualizam o indicador preditivo do veículo.</div>
+          <div id="pron-itens" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+
+        <!-- Observações gerais -->
+        <div style="padding:10px 20px 16px;">
+          <label style="display:block;font-size:0.74rem;font-weight:600;color:var(--text-muted);margin-bottom:5px;">💬 Observações Gerais do Prontuário</label>
+          <textarea id="pron-obs-gerais" rows="3" class="form-input"
+            placeholder="Descreva condições gerais do veículo, peças substituídas, pendências para próxima revisão..."
+            style="width:100%;resize:vertical;font-size:0.83rem;padding:9px 12px;line-height:1.55;"></textarea>
+        </div>
+
+      </div><!-- /tab prontuario -->
+
+      <!-- ── ABA: HISTÓRICO ── -->
+      <div id="pred-tab-historico" style="display:none;padding:14px 20px 20px;">
+        <div id="pron-historico-content"></div>
       </div>
 
-      <!-- 8 tipos de manutenção preditiva -->
-      <div style="padding:16px 20px 4px;">
-        <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">
-          Análise por Tipo de Manutenção Preditiva
-        </div>
-        <div id="pred-det-items" style="display:flex;flex-direction:column;gap:10px;"></div>
-      </div>
+    </div><!-- /overflow body -->
 
-      <!-- Recomendações da IA -->
-      <div style="padding:16px 20px 20px;border-top:1.5px solid var(--border);margin-top:8px;background:#fffbeb;">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm0-11v3m0 4v.01"/></svg>
-          <span style="font-size:0.78rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.04em;">Recomendações da IA</span>
-        </div>
-        <div id="pred-det-recomendacoes" style="font-size:0.84rem;color:#78350f;line-height:1.75;"></div>
-      </div>
-
-    </div>
-    <div class="modal-footer" style="padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;">
+    <!-- Footer -->
+    <div id="pred-modal-footer" style="padding:12px 20px;border-top:1.5px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;background:#fff;border-radius:0 0 12px 12px;">
       <button class="btn btn-outline" onclick="_fecharPredDetalhe()">Fechar</button>
-      <button class="btn btn-primary" onclick="_predAgendarManutencao()"
-        style="background:#ea580c;border-color:#ea580c;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/></svg>
-        Agendar Manutenção
+      <button id="pred-footer-salvar" class="btn btn-primary"
+        style="background:#ea580c;border-color:#ea580c;display:none;"
+        onclick="_predSalvarProntuario()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Salvar Prontuário
+      </button>
+      <button id="pred-footer-registrar" class="btn btn-primary"
+        style="background:#ea580c;border-color:#ea580c;"
+        onclick="_predSwitchTab('prontuario')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Registrar Manutenção
       </button>
     </div>
+
   </div>
 </div>
 
@@ -20532,6 +20620,8 @@ const _PRED_METODO_MAP = {
 let _predAnalise      = [];        // resultado calculado por veículo
 let _predMetodoFiltro = null;       // chip de método ativo
 let _predDetalheAtual = null;       // veículo no modal
+let _predRegistros    = [];         // prontuários salvos [{id,placa,data,hodometro,tecnico,oficina,custo,itens:[],obsGerais,criadoEm}]
+let _predTabAtiva     = 'analise';  // aba ativa no modal
 
 // ── Cálculo do hodômetro atual por veículo ─────────────────────
 function _predKmAtual(placa) {
@@ -20578,31 +20668,48 @@ function _predDiasSemAbast(placa) {
   return Math.floor((Date.now() - new Date(latest)) / 86400000);
 }
 
+// ── Última manutenção real registrada para veículo+tipo ───────
+function _predUltimaManutencaoReal(placa, tipo) {
+  return _predRegistros
+    .filter(r => r.placa === placa && (r.itens || []).some(i => i.tipo === tipo && i.realizado))
+    .sort((a, b) => (b.hodometro || 0) - (a.hodometro || 0))[0] || null;
+}
+
 // ── Score de um componente de manutenção ─────────────────────
-// Retorna {score:0-100, kmSince, kmToNext, urgencia:'ok'|'alerta'|'critico'}
-function _predScoreComponente(kmAtual, tipo, isPesado, consumoDeg) {
+// Retorna {score, kmSince, kmToNext, urgencia, pct, fonte}
+function _predScoreComponente(kmAtual, tipo, isPesado, consumoDeg, placa) {
   const cfg       = _PRED_CONFIG[tipo];
   const intervalo = isPesado ? cfg.pesado : cfg.leve;
 
-  // Se não há km, assume score mediano (sem dados suficientes)
-  if (!kmAtual) return { score: 65, kmSince: 0, kmToNext: intervalo, urgencia: 'ok' };
+  if (!kmAtual) return { score: 65, kmSince: 0, kmToNext: intervalo, urgencia: 'ok', pct: 0, fonte: 'estimado' };
 
-  const fase     = kmAtual % intervalo;
-  let   pct      = fase / intervalo;  // 0 = acabou de fazer, 1 = passou do prazo
+  let fase, fonte;
 
-  // Modificadores baseados em degradação de consumo
-  if ((tipo === 'oleo' || tipo === 'motor') && consumoDeg > 0.10) pct = Math.min(1, pct + consumoDeg * 0.5);
+  // Usa registro real se disponível (mais preciso que o cálculo modular)
+  const ultimoReg = placa ? _predUltimaManutencaoReal(placa, tipo) : null;
+  if (ultimoReg && ultimoReg.hodometro > 0 && kmAtual >= ultimoReg.hodometro) {
+    fase  = kmAtual - ultimoReg.hodometro;
+    fonte = 'real'; // baseado em prontuário registrado
+  } else {
+    fase  = kmAtual % intervalo;
+    fonte = 'estimado'; // cálculo modular (sem registro real)
+  }
+
+  let pct = fase / intervalo;
+
+  // Modificadores por degradação de consumo
+  if ((tipo === 'oleo' || tipo === 'ruidos') && consumoDeg > 0.10) pct = Math.min(1, pct + consumoDeg * 0.5);
   if (tipo === 'filtros' && consumoDeg > 0.08) pct = Math.min(1, pct + consumoDeg * 0.3);
 
-  const score    = Math.round(Math.max(0, 100 - pct * 110));  // vai a 0 mesmo antes de 100%
+  const score    = Math.round(Math.max(0, 100 - pct * 110));
   const kmSince  = Math.round(fase);
-  const kmToNext = Math.round(intervalo - fase);
+  const kmToNext = Math.max(0, Math.round(intervalo - fase));
 
   let urgencia = 'ok';
   if (pct >= 0.85) urgencia = 'critico';
   else if (pct >= 0.65) urgencia = 'alerta';
 
-  return { score, kmSince, kmToNext, urgencia, pct };
+  return { score, kmSince, kmToNext, urgencia, pct, fonte };
 }
 
 // ── Análise completa de um veículo ────────────────────────────
@@ -20620,7 +20727,7 @@ function _predAnalisarVeiculo(v) {
   let   pesoTotal   = 0;
   let   scoreTotal  = 0;
   for (const [key, cfg] of Object.entries(_PRED_CONFIG)) {
-    const comp = _predScoreComponente(kmAtual, key, isPesado, consumo.degradacao || 0);
+    const comp = _predScoreComponente(kmAtual, key, isPesado, consumo.degradacao || 0, v.placa);
     // Penalidade por idade do veículo (> 8 anos: +5% desgaste adicional)
     if (idadeAnos > 8) {
       const penalidade = Math.min(0.15, (idadeAnos - 8) * 0.02);
@@ -20783,10 +20890,10 @@ function _predVehicleCard(a) {
         ${a.consumo.atual ? `· <span style="font-weight:600;color:var(--text);">${a.consumo.atual.toFixed(1)}</span> km/L` : ''}
         ${a.consumo.degradacao > 0.05 ? `<span style="color:#d97706;"> ↓${Math.round(a.consumo.degradacao*100)}%</span>` : ''}
       </div>
-      <button onclick="_abrirPredDetalhe('${a.placa}')"
-        style="background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 11px;font-size:0.76rem;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:4px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Detalhes
+      <button onclick="_abrirProntuario('${a.placa}')"
+        style="background:#ea580c;border:none;border-radius:7px;padding:5px 11px;font-size:0.76rem;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;gap:4px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        Detalhes / Manutenção
       </button>
     </div>
   </div>`;
@@ -20812,11 +20919,33 @@ function _predFiltrarMetodo(el, metodo) {
 }
 
 // ── Carrega e renderiza a view ────────────────────────────────
+// ── Carrega prontuários do servidor (com fallback localStorage) ─
+async function loadPredRegistros() {
+  try {
+    const rows = await apiCall('GET', '/api/manutencao-registros');
+    if (Array.isArray(rows)) { _predRegistros = rows; return; }
+  } catch(e) { /* offline ou endpoint não existe */ }
+  // Fallback: localStorage
+  try { _predRegistros = JSON.parse(localStorage.getItem('_predRegistros') || '[]'); } catch(e) { _predRegistros = []; }
+}
+
+async function _savePredRegistroRemote(registro) {
+  // Salva no localStorage primeiro (sempre disponível)
+  localStorage.setItem('_predRegistros', JSON.stringify(_predRegistros));
+  // Tenta salvar no servidor
+  try {
+    const res = await apiCall('POST', '/api/manutencao-registros', registro);
+    if (res && res.id) registro.id = res.id;
+  } catch(e) { /* salvo localmente */ }
+}
+
+// ── Carrega e renderiza a view ────────────────────────────────
 async function loadGestaoPreditiva() {
-  // Garante que veículos e abastecimentos estão carregados
+  // Garante que veículos, abastecimentos e prontuários estão carregados
   await Promise.all([
     veiculos.length  ? Promise.resolve() : loadVeiculos(),
     records.length   ? Promise.resolve() : loadAbastecimentos(),
+    loadPredRegistros(),
   ]);
   // Popula filtro de clientes no header
   const cliSel = document.getElementById('pred-f-cliente');
@@ -20900,8 +21029,12 @@ function renderGestaoPreditiva() {
   }
 }
 
-// ── Abrir modal de detalhe ────────────────────────────────────
-function _abrirPredDetalhe(placa) {
+// ══════════════════════════════════════════════════════════════
+//  PRONTUÁRIO DE MANUTENÇÃO — FUNÇÕES DE CONTROLE
+// ══════════════════════════════════════════════════════════════
+
+// ── Abre o modal (ponto de entrada único) ─────────────────────
+function _abrirProntuario(placa) {
   const a = _predAnalise.find(x => x.placa === placa);
   if (!a) return;
   _predDetalheAtual = a;
@@ -20912,81 +21045,342 @@ function _abrirPredDetalhe(placa) {
   document.getElementById('pred-det-info').textContent  = `${modelo || 'Veículo'} · ${v.tipo || 'Leve'} · ${a.kmAtual.toLocaleString('pt-BR')} km`;
   document.getElementById('pred-det-badge').innerHTML   = _predBadge(a.statusGeral);
 
-  // Gauge
+  document.getElementById('predDetalheModalOverlay').style.display = 'flex';
+  _predSwitchTab('analise');
+}
+
+// Mantém compatibilidade com chamadas antigas
+function _abrirPredDetalhe(placa) { _abrirProntuario(placa); }
+
+function _fecharPredDetalhe() {
+  document.getElementById('predDetalheModalOverlay').style.display = 'none';
+  _predDetalheAtual = null;
+  _predTabAtiva = 'analise';
+}
+
+// ── Controle de tabs ──────────────────────────────────────────
+function _predSwitchTab(tab) {
+  _predTabAtiva = tab;
+  ['analise','prontuario','historico'].forEach(t => {
+    document.getElementById('pred-tab-' + t).style.display     = t === tab ? '' : 'none';
+    const btn = document.getElementById('pred-tab-btn-' + t);
+    if (btn) {
+      btn.style.background = t === tab ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.10)';
+      btn.style.color      = t === tab ? '#fff' : 'rgba(255,255,255,.72)';
+    }
+  });
+  // Footer: mostrar "Salvar Prontuário" só na aba prontuário
+  const btnSalvar    = document.getElementById('pred-footer-salvar');
+  const btnRegistrar = document.getElementById('pred-footer-registrar');
+  if (btnSalvar)    btnSalvar.style.display    = tab === 'prontuario' ? '' : 'none';
+  if (btnRegistrar) btnRegistrar.style.display = tab === 'prontuario' ? 'none' : '';
+
+  if (tab === 'analise')    _predRenderAnalise();
+  if (tab === 'prontuario') _predRenderFormulario();
+  if (tab === 'historico')  _predRenderHistorico();
+}
+
+// ── Renderiza a aba de Análise Preditiva ──────────────────────
+function _predRenderAnalise() {
+  const a = _predDetalheAtual;
+  if (!a) return;
+
   document.getElementById('pred-det-gauge').innerHTML = _predGaugeSVG(a.scoreGeral);
 
-  // Score label
   const corScore = a.scoreGeral >= 70 ? '#16a34a' : a.scoreGeral >= 40 ? '#d97706' : '#dc2626';
   document.getElementById('pred-det-score-label').innerHTML =
     `<span style="color:${corScore};">${a.scoreGeral}<span style="font-size:.9rem;font-weight:600;color:var(--text-muted);">/100</span></span>`;
 
-  // Stats
   const diasTxt = a.diasSemAbast !== null ? `${a.diasSemAbast}d sem abast.` : '';
   document.getElementById('pred-det-stats').innerHTML =
     `${a.kmMes ? `<span>📍 ${a.kmMes.toLocaleString('pt-BR')} km/mês</span><br>` : ''}` +
     `${a.consumo.atual ? `<span>⛽ ${a.consumo.atual.toFixed(1)} km/L</span><br>` : ''}` +
     `${a.idadeAnos ? `<span>📅 ${a.idadeAnos} anos de uso</span>` : ''} ${diasTxt}`;
 
-  // Consumo box
   const consEl = document.getElementById('pred-det-consumo');
   if (a.consumo.atual) {
     const deg = a.consumo.degradacao;
     const corDeg = deg > 0.15 ? '#dc2626' : deg > 0.07 ? '#d97706' : '#16a34a';
     consEl.innerHTML = `
-      <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Tendência de Consumo</div>
-      <div style="display:flex;justify-content:space-between;gap:12px;">
-        <div style="text-align:center;"><div style="font-size:1rem;font-weight:800;color:#2563eb;">${a.consumo.base?.toFixed(1)}</div><div style="font-size:0.68rem;color:var(--text-muted);">Baseline km/L</div></div>
-        <div style="text-align:center;"><div style="font-size:1rem;font-weight:800;color:${corDeg};">${a.consumo.atual?.toFixed(1)}</div><div style="font-size:0.68rem;color:var(--text-muted);">Atual km/L</div></div>
-        <div style="text-align:center;"><div style="font-size:1rem;font-weight:800;color:${corDeg};">${deg > 0 ? '-' : ''}${Math.round(deg*100)}%</div><div style="font-size:0.68rem;color:var(--text-muted);">Degradação</div></div>
+      <div style="font-size:0.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:7px;">Tendência de Consumo</div>
+      <div style="display:flex;justify-content:space-between;gap:10px;">
+        <div style="text-align:center;"><div style="font-size:0.95rem;font-weight:800;color:#2563eb;">${a.consumo.base?.toFixed(1)}</div><div style="font-size:0.65rem;color:var(--text-muted);">Base km/L</div></div>
+        <div style="text-align:center;"><div style="font-size:0.95rem;font-weight:800;color:${corDeg};">${a.consumo.atual?.toFixed(1)}</div><div style="font-size:0.65rem;color:var(--text-muted);">Atual km/L</div></div>
+        <div style="text-align:center;"><div style="font-size:0.95rem;font-weight:800;color:${corDeg};">${deg > 0 ? '-' : ''}${Math.round(deg*100)}%</div><div style="font-size:0.65rem;color:var(--text-muted);">Degradação</div></div>
       </div>`;
   } else {
-    consEl.innerHTML = `<div style="font-size:0.78rem;color:var(--text-muted);text-align:center;padding:8px 0;">Dados de consumo insuficientes</div>`;
+    consEl.innerHTML = `<div style="font-size:0.76rem;color:var(--text-muted);text-align:center;padding:6px 0;">Consumo sem dados</div>`;
   }
 
-  // 8 tipos de manutenção
   const itemsEl = document.getElementById('pred-det-items');
   itemsEl.innerHTML = Object.entries(_PRED_CONFIG).map(([key, cfg]) => {
     const c   = a.componentes[key];
     const cor = c.urgencia === 'critico' ? '#dc2626' : c.urgencia === 'alerta' ? '#d97706' : '#16a34a';
     const bgBar = c.urgencia === 'critico' ? '#dc2626' : c.urgencia === 'alerta' ? '#f59e0b' : '#22c55e';
-    const isPesado = a.isPesado;
-    const intervalo = isPesado ? cfg.pesado : cfg.leve;
+    const intervalo = a.isPesado ? cfg.pesado : cfg.leve;
+    const fonteTag  = c.fonte === 'real'
+      ? `<span style="font-size:0.62rem;background:#eff6ff;color:#2563eb;border-radius:8px;padding:1px 6px;font-weight:700;margin-left:4px;">✓ Registrado</span>`
+      : '';
     return `
-      <div style="background:#fff;border:1.5px solid ${c.urgencia === 'critico' ? '#fca5a5' : c.urgencia === 'alerta' ? '#fde68a' : '#e5e7eb'};border-radius:10px;padding:10px 14px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-          <span style="font-size:1rem;">${cfg.icon}</span>
-          <span style="font-size:0.84rem;font-weight:700;flex:1;">${cfg.label}</span>
-          <span style="font-size:0.74rem;font-weight:700;color:${cor};background:${c.urgencia === 'critico' ? '#fef2f2' : c.urgencia === 'alerta' ? '#fffbeb' : '#f0fdf4'};padding:2px 8px;border-radius:12px;">
+      <div style="background:#fff;border:1.5px solid ${c.urgencia === 'critico' ? '#fca5a5' : c.urgencia === 'alerta' ? '#fde68a' : '#e5e7eb'};border-radius:10px;padding:9px 13px;">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
+          <span style="font-size:0.95rem;">${cfg.icon}</span>
+          <span style="font-size:0.82rem;font-weight:700;flex:1;">${cfg.label}${fonteTag}</span>
+          <span style="font-size:0.72rem;font-weight:700;color:${cor};background:${c.urgencia === 'critico' ? '#fef2f2' : c.urgencia === 'alerta' ? '#fffbeb' : '#f0fdf4'};padding:2px 7px;border-radius:10px;white-space:nowrap;">
             ${c.urgencia === 'critico' ? '🔴 Vencido' : c.urgencia === 'alerta' ? '🟡 Em breve' : '🟢 OK'}
           </span>
         </div>
-        <!-- Barra de progresso -->
-        <div style="height:5px;background:#f1f5f9;border-radius:3px;margin-bottom:5px;overflow:hidden;">
+        <div style="height:4px;background:#f1f5f9;border-radius:3px;margin-bottom:4px;overflow:hidden;">
           <div style="height:100%;width:${Math.min(100,Math.round(c.pct*100))}%;background:${bgBar};border-radius:3px;"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-muted);margin-bottom:5px;">
-          <span>${c.kmSince.toLocaleString('pt-BR')} km desde última manutenção</span>
+        <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-muted);">
+          <span>${c.kmSince.toLocaleString('pt-BR')} km desde a última manutenção</span>
           <span>Intervalo: ${intervalo.toLocaleString('pt-BR')} km</span>
         </div>
-        <div style="font-size:0.75rem;color:#6b7280;line-height:1.5;">${cfg.descricao}</div>
+        <div style="font-size:0.73rem;color:#6b7280;line-height:1.45;margin-top:4px;">${cfg.descricao}</div>
       </div>`;
   }).join('');
 
-  // Recomendações
-  const recEl = document.getElementById('pred-det-recomendacoes');
-  recEl.innerHTML = a.recomendacoes.map(r => `<p style="margin:0 0 8px;">${r}</p>`).join('');
-
-  document.getElementById('predDetalheModalOverlay').style.display = 'flex';
+  document.getElementById('pred-det-recomendacoes').innerHTML =
+    a.recomendacoes.map(r => `<p style="margin:0 0 8px;">${r}</p>`).join('');
 }
 
-function _fecharPredDetalhe() {
-  document.getElementById('predDetalheModalOverlay').style.display = 'none';
-  _predDetalheAtual = null;
+// ── Renderiza o formulário de prontuário ──────────────────────
+function _predRenderFormulario() {
+  const a = _predDetalheAtual;
+  if (!a) return;
+
+  // Pré-preenche data de hoje e hodômetro atual
+  const hoje = new Date().toISOString().slice(0,10);
+  document.getElementById('pron-data').value       = hoje;
+  document.getElementById('pron-hodometro').value  = a.kmAtual > 0 ? a.kmAtual : '';
+  document.getElementById('pron-tecnico').value    = '';
+  document.getElementById('pron-oficina').value    = '';
+  document.getElementById('pron-custo').value      = '';
+  document.getElementById('pron-obs-gerais').value = '';
+
+  // Ordena: críticos e alertas primeiro
+  const ordem = ['critico','alerta','ok'];
+  const tiposOrdenados = Object.entries(_PRED_CONFIG)
+    .map(([key, cfg]) => ({ key, cfg, urgencia: a.componentes[key]?.urgencia || 'ok' }))
+    .sort((x, y) => ordem.indexOf(x.urgencia) - ordem.indexOf(y.urgencia));
+
+  const itensEl = document.getElementById('pron-itens');
+  itensEl.innerHTML = tiposOrdenados.map(({ key, cfg, urgencia }) => {
+    const c = a.componentes[key];
+    const borderCor = urgencia === 'critico' ? '#fca5a5' : urgencia === 'alerta' ? '#fde68a' : '#e5e7eb';
+    const bgCab     = urgencia === 'critico' ? '#fff5f5' : urgencia === 'alerta' ? '#fffceb' : '#f9fafb';
+    const badgeHtml = urgencia === 'critico'
+      ? `<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:10px;padding:2px 8px;font-size:0.72rem;font-weight:700;">🔴 Vencido — ${c.kmSince.toLocaleString('pt-BR')} km</span>`
+      : urgencia === 'alerta'
+      ? `<span style="background:#fffbeb;color:#d97706;border:1px solid #fde68a;border-radius:10px;padding:2px 8px;font-size:0.72rem;font-weight:700;">🟡 Próximo — ${c.kmToNext.toLocaleString('pt-BR')} km</span>`
+      : `<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:10px;padding:2px 8px;font-size:0.72rem;font-weight:700;">🟢 OK — ${c.kmToNext.toLocaleString('pt-BR')} km</span>`;
+
+    return `
+    <div style="border:1.5px solid ${borderCor};border-radius:11px;overflow:hidden;">
+      <!-- Cabeçalho do item -->
+      <div style="background:${bgCab};padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;"
+           onclick="_predTogglePronItem('${key}')">
+        <span style="font-size:1rem;">${cfg.icon}</span>
+        <span style="font-size:0.84rem;font-weight:700;flex:1;">${cfg.label}</span>
+        ${badgeHtml}
+        <span id="pron-chevron-${key}" style="font-size:0.8rem;color:var(--text-muted);transition:transform .2s;">▸</span>
+      </div>
+      <!-- Corpo do item (colapsável) -->
+      <div id="pron-item-body-${key}" style="display:${urgencia !== 'ok' ? '' : 'none'};padding:12px 14px;border-top:1px solid ${borderCor};background:#fff;">
+        <!-- Toggle realizado -->
+        <label style="display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:11px;padding:8px 11px;background:#f0fdf4;border-radius:8px;border:1.5px solid #bbf7d0;">
+          <input type="checkbox" id="pron-check-${key}" onchange="_predOnCheckRealizado('${key}')"
+                 style="width:17px;height:17px;cursor:pointer;accent-color:#16a34a;">
+          <div>
+            <div style="font-size:0.82rem;font-weight:700;color:#15803d;">✔ Realizado nesta manutenção</div>
+            <div style="font-size:0.72rem;color:#16a34a;">Marque para registrar que este item foi revisado/executado</div>
+          </div>
+        </label>
+        <!-- Detalhes (mostrado quando marcado) -->
+        <div id="pron-detalhes-${key}" style="display:none;">
+          <div style="margin-bottom:10px;">
+            <label style="display:block;font-size:0.73rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">O que foi realizado / Peças substituídas</label>
+            <textarea id="pron-obs-${key}" rows="2" class="form-input"
+              placeholder="Ex: Troca de óleo 5W30 sintético + filtro de óleo Mann W712/75..."
+              style="width:100%;resize:vertical;font-size:0.82rem;padding:8px 10px;line-height:1.5;"></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="display:block;font-size:0.73rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Próxima revisão (km)</label>
+              <input type="number" id="pron-prox-km-${key}" class="form-input"
+                placeholder="Ex: ${(a.kmAtual + (a.isPesado ? cfg.pesado : cfg.leve)).toLocaleString('pt-BR').replace(/\./g,'')}"
+                style="width:100%;font-size:0.82rem;padding:7px 10px;">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.73rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Próxima revisão (data)</label>
+              <input type="date" id="pron-prox-data-${key}" class="form-input"
+                style="width:100%;font-size:0.82rem;padding:7px 10px;">
+            </div>
+          </div>
+        </div>
+        <!-- Observações (sempre visíveis para anotações) -->
+        <div id="pron-obs-simples-${key}" style="margin-top:${urgencia !== 'ok' ? '8px' : '0'};">
+          <label style="display:block;font-size:0.73rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Observações / Notas de inspeção</label>
+          <textarea id="pron-nota-${key}" rows="2" class="form-input"
+            placeholder="${cfg.descricao}"
+            style="width:100%;resize:vertical;font-size:0.8rem;padding:7px 10px;line-height:1.5;color:#6b7280;"></textarea>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Sincroniza chevrons abertos
+  tiposOrdenados.forEach(({ key, urgencia }) => {
+    const chevron = document.getElementById('pron-chevron-' + key);
+    if (chevron) chevron.style.transform = urgencia !== 'ok' ? 'rotate(90deg)' : '';
+  });
 }
 
-function _predAgendarManutencao() {
-  if (!_predDetalheAtual) return;
-  showToast(`Funcionalidade de agendamento em desenvolvimento para ${_predDetalheAtual.placa}.`, 'info');
+function _predTogglePronItem(key) {
+  const body    = document.getElementById('pron-item-body-' + key);
+  const chevron = document.getElementById('pron-chevron-' + key);
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if (chevron) chevron.style.transform = open ? 'rotate(90deg)' : '';
+}
+
+function _predOnCheckRealizado(key) {
+  const checked   = document.getElementById('pron-check-' + key)?.checked;
+  const detalhes  = document.getElementById('pron-detalhes-' + key);
+  if (detalhes) detalhes.style.display = checked ? '' : 'none';
+  if (checked) {
+    // Pré-preenche próximo km com o intervalo padrão
+    const a = _predDetalheAtual;
+    if (!a) return;
+    const cfg   = _PRED_CONFIG[key];
+    const hodo  = parseInt(document.getElementById('pron-hodometro')?.value) || a.kmAtual;
+    const inter = a.isPesado ? cfg.pesado : cfg.leve;
+    const proxKm = document.getElementById('pron-prox-km-' + key);
+    if (proxKm && !proxKm.value) proxKm.value = hodo + inter;
+  }
+}
+
+// ── Salva o prontuário ────────────────────────────────────────
+async function _predSalvarProntuario() {
+  const a = _predDetalheAtual;
+  if (!a) return;
+
+  const data     = document.getElementById('pron-data')?.value;
+  const hodStr   = document.getElementById('pron-hodometro')?.value;
+  const tecnico  = document.getElementById('pron-tecnico')?.value?.trim();
+  const oficina  = document.getElementById('pron-oficina')?.value?.trim();
+  const custo    = parseFloat(document.getElementById('pron-custo')?.value) || 0;
+  const obsGerais = document.getElementById('pron-obs-gerais')?.value?.trim();
+
+  if (!data) { showToast('Informe a data da manutenção.', 'error'); return; }
+  const hodometro = parseInt(hodStr) || a.kmAtual;
+
+  // Coleta os itens
+  const itens = Object.keys(_PRED_CONFIG).map(key => {
+    const realizado = document.getElementById('pron-check-' + key)?.checked || false;
+    const obs       = document.getElementById('pron-obs-' + key)?.value?.trim() || '';
+    const nota      = document.getElementById('pron-nota-' + key)?.value?.trim() || '';
+    const proxKm    = parseInt(document.getElementById('pron-prox-km-' + key)?.value) || null;
+    const proxData  = document.getElementById('pron-prox-data-' + key)?.value || null;
+    return { tipo: key, realizado, observacoes: obs || nota, proximoHodometro: proxKm, proximaData: proxData };
+  });
+
+  const algumRealizado = itens.some(i => i.realizado);
+
+  const registro = {
+    id:         Date.now(),
+    placa:      a.placa,
+    data,
+    hodometro,
+    tecnico:    tecnico  || '—',
+    oficina:    oficina  || '—',
+    custo,
+    obsGerais:  obsGerais || '',
+    itens,
+    criadoEm:  new Date().toISOString(),
+  };
+
+  _predRegistros.push(registro);
+  await _savePredRegistroRemote(registro);
+
+  // Re-analisa apenas este veículo (atualiza score com o novo registro real)
+  const idx = _predAnalise.findIndex(x => x.placa === a.placa);
+  const novaAnalise = _predAnalisarVeiculo(a.veiculo);
+  if (idx >= 0) _predAnalise[idx] = novaAnalise;
+  _predDetalheAtual = novaAnalise;
+
+  showToast(`Prontuário salvo para ${a.placa}!${algumRealizado ? ' Indicadores atualizados.' : ''}`, 'success');
+  renderGestaoPreditiva();      // atualiza o grid
+  _predSwitchTab('historico');  // redireciona para histórico
+}
+
+// ── Renderiza o histórico de prontuários ──────────────────────
+function _predRenderHistorico() {
+  const a = _predDetalheAtual;
+  if (!a) return;
+
+  const registros = _predRegistros
+    .filter(r => r.placa === a.placa)
+    .sort((x, y) => y.hodometro - x.hodometro);
+
+  const el = document.getElementById('pron-historico-content');
+  if (!el) return;
+
+  if (!registros.length) {
+    el.innerHTML = `
+      <div style="text-align:center;padding:48px 20px;color:var(--text-muted);">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:12px;opacity:.3;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <p style="font-weight:600;margin-bottom:4px;">Nenhum prontuário registrado</p>
+        <p style="font-size:0.83rem;">Registre a primeira manutenção para iniciar o histórico deste veículo.</p>
+        <button class="btn btn-primary" style="margin-top:14px;background:#ea580c;border-color:#ea580c;" onclick="_predSwitchTab('prontuario')">
+          + Registrar Manutenção
+        </button>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">
+      ${registros.length} registro${registros.length !== 1 ? 's' : ''} de manutenção — ${a.placa}
+    </div>
+    ${registros.map(r => {
+      const realizados = (r.itens || []).filter(i => i.realizado);
+      const dateFmt    = r.data ? new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+      return `
+      <div style="border:1.5px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:10px;">
+        <!-- Cabeçalho do registro -->
+        <div style="background:#f8fafc;padding:10px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:0.84rem;font-weight:700;color:var(--text);">📅 ${dateFmt} · ${r.hodometro.toLocaleString('pt-BR')} km</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">
+              🔧 ${r.tecnico} · 🏭 ${r.oficina}
+              ${r.custo > 0 ? ` · 💰 R$ ${r.custo.toLocaleString('pt-BR', {minimumFractionDigits:2})}` : ''}
+            </div>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;">
+            ${realizados.slice(0,4).map(i => `<span style="background:#eff6ff;color:#2563eb;border-radius:8px;padding:2px 7px;font-size:0.7rem;font-weight:600;">${_PRED_CONFIG[i.tipo]?.icon || ''} ${_PRED_CONFIG[i.tipo]?.label || i.tipo}</span>`).join('')}
+            ${realizados.length > 4 ? `<span style="background:#f1f5f9;color:var(--text-muted);border-radius:8px;padding:2px 7px;font-size:0.7rem;">+${realizados.length - 4} mais</span>` : ''}
+          </div>
+        </div>
+        <!-- Itens realizados -->
+        ${realizados.length ? `
+        <div style="padding:10px 14px 8px;">
+          ${realizados.map(i => `
+            <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9;">
+              <span style="font-size:0.85rem;flex-shrink:0;">${_PRED_CONFIG[i.tipo]?.icon || '🔧'}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:0.78rem;font-weight:700;">${_PRED_CONFIG[i.tipo]?.label || i.tipo}</div>
+                ${i.observacoes ? `<div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px;line-height:1.4;">${i.observacoes}</div>` : ''}
+                ${i.proximoHodometro ? `<div style="font-size:0.72rem;color:#2563eb;margin-top:2px;">Próx: ${i.proximoHodometro.toLocaleString('pt-BR')} km</div>` : ''}
+              </div>
+              <span style="color:#16a34a;font-size:0.7rem;font-weight:700;white-space:nowrap;">✔ Realizado</span>
+            </div>`).join('')}
+        </div>` : ''}
+        ${r.obsGerais ? `<div style="padding:8px 14px 10px;font-size:0.76rem;color:var(--text-muted);border-top:1px solid #f1f5f9;font-style:italic;">"${r.obsGerais}"</div>` : ''}
+      </div>`;
+    }).join('')}`;
 }
 
 // Pulso CSS para KPI crítico
