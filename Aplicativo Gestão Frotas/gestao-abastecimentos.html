@@ -44,14 +44,14 @@
 
     /* ─── HEADER ─── */
     header {
-      background: linear-gradient(135deg, #082b15 0%, #0f5c2e 60%, #16a34a 100%);
+      background: linear-gradient(135deg, #0c1a4b 0%, #1e3a8a 60%, #2563eb 100%);
       color: #fff;
       padding: 0 24px;
       height: 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 2px 10px rgba(8,43,21,0.45);
+      box-shadow: 0 2px 10px rgba(12,26,75,0.45);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -937,10 +937,10 @@
 <!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
 <div id="auth-overlay" style="display:flex;position:fixed;inset:0;z-index:99999;font-family:inherit;background:#fff;">
 
-  <!-- ══ PAINEL ESQUERDO: verde + caminhão ══ -->
+  <!-- ══ PAINEL ESQUERDO: azul + caminhão ══ -->
   <div class="auth-left-panel" style="
     flex:0 0 55%;position:relative;overflow:hidden;
-    background:linear-gradient(160deg,#082b15 0%,#0f5c2e 60%,#1a7a40 100%);">
+    background:linear-gradient(160deg,#0c1a4b 0%,#1e3a8a 60%,#2563eb 100%);">
 
     <!-- Imagem caminhão na rodovia -->
     <img src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=1000&auto=format&fit=crop&q=75"
@@ -948,12 +948,12 @@
          style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
                 opacity:.28;mix-blend-mode:luminosity;">
 
-    <!-- Overlay verde harmonizador -->
+    <!-- Overlay azul harmonizador -->
     <div style="position:absolute;inset:0;
                 background:linear-gradient(160deg,
-                  rgba(8,43,21,.88) 0%,
-                  rgba(15,92,46,.75) 50%,
-                  rgba(26,122,64,.65) 100%);"></div>
+                  rgba(12,26,75,.90) 0%,
+                  rgba(30,58,138,.78) 50%,
+                  rgba(37,99,235,.65) 100%);"></div>
 
     <!-- Conteúdo do painel esquerdo -->
     <div style="position:relative;z-index:1;height:100%;display:flex;
@@ -976,7 +976,7 @@
 
       <!-- Tagline no rodapé -->
       <div>
-        <div style="width:40px;height:3px;background:#4ade80;border-radius:2px;margin-bottom:20px;"></div>
+        <div style="width:40px;height:3px;background:#60a5fa;border-radius:2px;margin-bottom:20px;"></div>
         <h2 style="color:#fff;font-size:1.85rem;font-weight:800;line-height:1.3;margin:0 0 14px;">
           Controle total<br>da sua operação<br>logística
         </h2>
@@ -997,8 +997,8 @@
     <div style="text-align:center;margin-bottom:6px;">
       <div style="display:inline-flex;align-items:center;justify-content:center;
                   width:72px;height:72px;
-                  background:linear-gradient(135deg,#082b15,#16a34a);
-                  border-radius:16px;box-shadow:0 8px 24px rgba(8,43,21,.25);">
+                  background:linear-gradient(135deg,#0c1a4b,#2563eb);
+                  border-radius:16px;box-shadow:0 8px 24px rgba(12,26,75,.30);">
         <span style="color:#fff;font-size:1.9rem;font-weight:900;letter-spacing:-.04em;
                      font-family:Georgia,serif;">FX</span>
       </div>
@@ -1023,7 +1023,7 @@
           <input id="auth-email" type="email" placeholder="seu@email.com"
             style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e5e7eb;
                    border-radius:9px;font-size:.93rem;outline:none;transition:border .2s;background:#f9fafb;"
-            onfocus="this.style.borderColor='#16a34a';this.style.background='#fff'"
+            onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
             onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'"
             onkeydown="if(event.key==='Enter')authDoLogin()">
         </div>
@@ -1034,22 +1034,22 @@
           <input id="auth-senha" type="password" placeholder="••••••••"
             style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e5e7eb;
                    border-radius:9px;font-size:.93rem;outline:none;transition:border .2s;background:#f9fafb;"
-            onfocus="this.style.borderColor='#16a34a';this.style.background='#fff'"
+            onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
             onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'"
             onkeydown="if(event.key==='Enter')authDoLogin()">
         </div>
         <div id="auth-login-err" style="display:none;color:#dc2626;font-size:.82rem;
              margin-bottom:12px;background:#fef2f2;padding:8px 12px;border-radius:7px;"></div>
         <button onclick="authDoLogin()" id="auth-login-btn"
-          style="width:100%;padding:12px;background:linear-gradient(135deg,#082b15,#16a34a);
+          style="width:100%;padding:12px;background:linear-gradient(135deg,#0c1a4b,#2563eb);
                  color:#fff;border:none;border-radius:9px;font-size:.95rem;font-weight:700;
-                 cursor:pointer;transition:opacity .2s;box-shadow:0 4px 12px rgba(22,163,74,.3);">
+                 cursor:pointer;transition:opacity .2s;box-shadow:0 4px 12px rgba(37,99,235,.35);">
           Entrar
         </button>
         <div style="text-align:center;margin-top:20px;font-size:.84rem;color:#6b7280;">
           Não tem conta?
           <a href="#" onclick="authShowPanel('register');return false;"
-             style="color:#16a34a;font-weight:700;text-decoration:none;">Cadastre-se</a>
+             style="color:#2563eb;font-weight:700;text-decoration:none;">Cadastre-se</a>
           &nbsp;·&nbsp;
           <a href="#" onclick="authShowPanel('forgot');return false;"
              style="color:#6b7280;font-weight:600;text-decoration:none;">Esqueci a senha</a>
@@ -1070,7 +1070,7 @@
           <input id="auth-reg-nome" type="text" placeholder="Seu nome"
             style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e5e7eb;
                    border-radius:9px;font-size:.93rem;outline:none;transition:border .2s;background:#f9fafb;"
-            onfocus="this.style.borderColor='#16a34a';this.style.background='#fff'"
+            onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
             onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
         </div>
         <div style="margin-bottom:20px;">
@@ -1078,7 +1078,7 @@
           <input id="auth-reg-email" type="email" placeholder="seu@email.com"
             style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e5e7eb;
                    border-radius:9px;font-size:.93rem;outline:none;transition:border .2s;background:#f9fafb;"
-            onfocus="this.style.borderColor='#16a34a';this.style.background='#fff'"
+            onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
             onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
         </div>
         <div id="auth-reg-err" style="display:none;color:#dc2626;font-size:.82rem;
@@ -1086,14 +1086,14 @@
         <div id="auth-reg-ok" style="display:none;color:#16a34a;font-size:.84rem;
              margin-bottom:12px;background:#f0fdf4;padding:10px 12px;border-radius:7px;"></div>
         <button onclick="authDoRegister()" id="auth-reg-btn"
-          style="width:100%;padding:12px;background:linear-gradient(135deg,#082b15,#16a34a);
+          style="width:100%;padding:12px;background:linear-gradient(135deg,#0c1a4b,#2563eb);
                  color:#fff;border:none;border-radius:9px;font-size:.95rem;font-weight:700;
-                 cursor:pointer;box-shadow:0 4px 12px rgba(22,163,74,.3);">
+                 cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,.35);">
           Solicitar cadastro
         </button>
         <div style="text-align:center;margin-top:18px;font-size:.84rem;">
           <a href="#" onclick="authShowPanel('login');return false;"
-             style="color:#16a34a;font-weight:600;text-decoration:none;">← Voltar ao login</a>
+             style="color:#2563eb;font-weight:600;text-decoration:none;">← Voltar ao login</a>
         </div>
       </div>
 
@@ -1110,7 +1110,7 @@
           <input id="auth-forgot-email" type="email" placeholder="seu@email.com"
             style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e5e7eb;
                    border-radius:9px;font-size:.93rem;outline:none;transition:border .2s;background:#f9fafb;"
-            onfocus="this.style.borderColor='#16a34a';this.style.background='#fff'"
+            onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
             onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'"
             onkeydown="if(event.key==='Enter')authDoForgot()">
         </div>
@@ -1119,14 +1119,14 @@
         <div id="auth-forgot-ok" style="display:none;color:#16a34a;font-size:.84rem;
              margin-bottom:12px;background:#f0fdf4;padding:10px 12px;border-radius:7px;"></div>
         <button onclick="authDoForgot()"
-          style="width:100%;padding:12px;background:linear-gradient(135deg,#082b15,#16a34a);
+          style="width:100%;padding:12px;background:linear-gradient(135deg,#0c1a4b,#2563eb);
                  color:#fff;border:none;border-radius:9px;font-size:.95rem;font-weight:700;
-                 cursor:pointer;box-shadow:0 4px 12px rgba(22,163,74,.3);">
+                 cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,.35);">
           Enviar link de recuperação
         </button>
         <div style="text-align:center;margin-top:18px;font-size:.84rem;">
           <a href="#" onclick="authShowPanel('login');return false;"
-             style="color:#16a34a;font-weight:600;text-decoration:none;">← Voltar ao login</a>
+             style="color:#2563eb;font-weight:600;text-decoration:none;">← Voltar ao login</a>
         </div>
       </div>
 
@@ -1143,7 +1143,7 @@
           <input id="auth-setpwd-s1" type="password" placeholder="••••••••"
             style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e5e7eb;
                    border-radius:9px;font-size:.93rem;outline:none;transition:border .2s;background:#f9fafb;"
-            onfocus="this.style.borderColor='#16a34a';this.style.background='#fff'"
+            onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
             onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
         </div>
         <div style="margin-bottom:20px;">
@@ -1151,7 +1151,7 @@
           <input id="auth-setpwd-s2" type="password" placeholder="••••••••"
             style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e5e7eb;
                    border-radius:9px;font-size:.93rem;outline:none;transition:border .2s;background:#f9fafb;"
-            onfocus="this.style.borderColor='#16a34a';this.style.background='#fff'"
+            onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
             onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'"
             onkeydown="if(event.key==='Enter')authDoSetPwd()">
         </div>
@@ -1160,9 +1160,9 @@
         <div id="auth-setpwd-ok" style="display:none;color:#16a34a;font-size:.84rem;
              margin-bottom:12px;background:#f0fdf4;padding:10px 12px;border-radius:7px;"></div>
         <button onclick="authDoSetPwd()"
-          style="width:100%;padding:12px;background:linear-gradient(135deg,#082b15,#16a34a);
+          style="width:100%;padding:12px;background:linear-gradient(135deg,#0c1a4b,#2563eb);
                  color:#fff;border:none;border-radius:9px;font-size:.95rem;font-weight:700;
-                 cursor:pointer;box-shadow:0 4px 12px rgba(22,163,74,.3);">
+                 cursor:pointer;box-shadow:0 4px 12px rgba(37,99,235,.35);">
           Salvar senha e entrar
         </button>
       </div>
@@ -3452,7 +3452,7 @@
 
     <!-- Page header — gradiente padronizado -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
-                background:linear-gradient(135deg,var(--primary) 0%,#16a34a 100%);
+                background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);
                 border-radius:16px;padding:20px 24px;margin-bottom:18px;">
       <div style="display:flex;align-items:center;gap:14px;">
         <div style="background:rgba(255,255,255,0.18);border-radius:12px;padding:11px;line-height:1;flex-shrink:0;">
