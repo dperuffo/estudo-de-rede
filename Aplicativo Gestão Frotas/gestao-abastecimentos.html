@@ -651,14 +651,14 @@
     .roto-tab-btn:hover { color:var(--text); }
     .roto-tab-btn.active { color:var(--primary); border-bottom-color:var(--primary); }
     .roto-card-list { display:flex; flex-direction:column; gap:0; }
-    .roto-card { display:grid; grid-template-columns:1fr auto; align-items:center; padding:14px 18px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s; gap:12px; }
+    .roto-card { display:grid; grid-template-columns:1fr auto; align-items:center; padding:16px 18px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s,box-shadow .12s; gap:14px; }
     .roto-card:last-child { border-bottom:none; }
-    .roto-card:hover { background:#f8fafc; }
-    .roto-card-main { display:flex; flex-direction:column; gap:3px; }
-    .roto-card-nome { font-size:0.92rem; font-weight:700; color:var(--text); }
-    .roto-card-rota { font-size:0.8rem; color:var(--text-muted); }
-    .roto-card-meta { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .roto-card-actions { display:flex; gap:6px; align-items:center; }
+    .roto-card:hover { background:#f0fdf4; }
+    .roto-card-main { display:flex; flex-direction:column; gap:4px; }
+    .roto-card-nome { font-size:0.94rem; font-weight:800; color:var(--text); }
+    .roto-card-rota { font-size:0.8rem; color:var(--text-muted); display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+    .roto-card-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:2px; }
+    .roto-card-actions { display:flex; gap:6px; align-items:center; flex-shrink:0; }
     .roto-risco-alto   { color:#dc2626; font-weight:700; }
     .roto-risco-medio  { color:#d97706; font-weight:700; }
     .roto-risco-baixo  { color:#16a34a; font-weight:700; }
@@ -3382,35 +3382,50 @@
   ══════════════════════════════════════════════════════════ -->
   <div id="view-rotograma" style="display:none; padding:20px 24px;">
 
-    <!-- Page header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-      <div>
-        <h2 style="font-size:1.1rem;font-weight:700;color:var(--text);margin:0 0 4px;">Rotograma de Viagens</h2>
-        <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Planejamento detalhado de rotas para logística e segurança rodoviária</p>
+    <!-- Page header — gradiente padronizado -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+                background:linear-gradient(135deg,var(--primary) 0%,#16a34a 100%);
+                border-radius:16px;padding:20px 24px;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="background:rgba(255,255,255,0.18);border-radius:12px;padding:11px;line-height:1;flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+        </div>
+        <div>
+          <div style="font-size:1.15rem;font-weight:800;color:#fff;line-height:1.2;">Rotograma de Viagens</div>
+          <div style="font-size:0.78rem;color:rgba(255,255,255,0.75);margin-top:3px;">Planejamento detalhado de rotas para logística e segurança rodoviária</div>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="openRotogramaModal()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button class="btn" style="background:#fff;color:var(--primary);font-weight:700;border:none;box-shadow:0 2px 8px rgba(0,0,0,.15);white-space:nowrap;" onclick="openRotogramaModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Novo Rotograma
       </button>
     </div>
 
-    <!-- Search bar -->
-    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-      <input type="text" id="roto-search" placeholder="Buscar por nome, origem ou destino…"
+    <!-- KPI mini-bar (populada por renderRotogramaList) -->
+    <div id="roto-kpi-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;"></div>
+
+    <!-- Barra de filtros unificada -->
+    <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;
+                margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+                box-shadow:0 1px 4px rgba(0,0,0,.04);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="roto-search" placeholder="Buscar rotograma, origem ou destino…"
         oninput="renderRotogramaList()"
-        style="flex:1;min-width:220px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.88rem;background:var(--bg);color:var(--text);" />
+        style="flex:1;min-width:180px;border:none;outline:none;font-size:0.88rem;color:var(--text);background:transparent;" />
+      <div style="width:1px;height:20px;background:var(--border);flex-shrink:0;"></div>
       <select id="roto-filter-status" onchange="renderRotogramaList()"
-        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.88rem;background:var(--bg);color:var(--text);">
+        style="border:none;outline:none;font-size:0.83rem;color:var(--text);background:transparent;cursor:pointer;">
         <option value="">Todos os status</option>
         <option value="Ativo">Ativo</option>
         <option value="Inativo">Inativo</option>
         <option value="Em Revisão">Em Revisão</option>
       </select>
+      <div style="width:1px;height:20px;background:var(--border);flex-shrink:0;"></div>
       <select id="roto-f-cliente" onchange="renderRotogramaList()"
-        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.88rem;background:var(--bg);color:var(--text);min-width:170px;">
+        style="border:none;outline:none;font-size:0.83rem;color:var(--text);background:transparent;cursor:pointer;min-width:140px;">
         <option value="">Todos os clientes</option>
       </select>
-      <button class="btn btn-outline btn-sm" onclick="rotoLimparFiltros()" style="white-space:nowrap;">✕ Limpar</button>
+      <button onclick="rotoLimparFiltros()" style="background:none;border:none;border-left:1.5px solid var(--border);cursor:pointer;color:var(--text-muted);font-size:0.8rem;font-weight:600;padding:2px 8px;margin-left:2px;white-space:nowrap;">✕ Limpar</button>
     </div>
 
     <!-- Rotograma list panel -->
@@ -3452,33 +3467,53 @@
       </div>
 
       <!-- KPI strip for selected rotograma -->
-      <div class="kpi-row" style="margin-bottom:16px;">
+      <div class="kpi-strip" style="margin-bottom:16px;">
         <div class="kpi-big kpi-blue">
-          <div class="kpi-big-label">Distância Total</div>
-          <div class="kpi-big-value" id="roto-kpi-distancia">—</div>
+          <div class="kpi-big-header">
+            <span class="kpi-big-icon-hdr">📏</span>
+            <div><div class="kpi-big-label-hdr">Rota</div><div style="color:#fff;font-size:.9rem;font-weight:800;">Distância Total</div></div>
+          </div>
+          <div class="kpi-big-body">
+            <div class="kpi-big-value" id="roto-kpi-distancia">—</div>
+          </div>
         </div>
         <div class="kpi-big kpi-teal">
-          <div class="kpi-big-label">Trechos Mapeados</div>
-          <div class="kpi-big-value" id="roto-kpi-trechos">—</div>
+          <div class="kpi-big-header">
+            <span class="kpi-big-icon-hdr">🛣️</span>
+            <div><div class="kpi-big-label-hdr">Percurso</div><div style="color:#fff;font-size:.9rem;font-weight:800;">Trechos Mapeados</div></div>
+          </div>
+          <div class="kpi-big-body">
+            <div class="kpi-big-value" id="roto-kpi-trechos">—</div>
+          </div>
         </div>
         <div class="kpi-big kpi-amber">
-          <div class="kpi-big-label">Pontos Críticos</div>
-          <div class="kpi-big-value" id="roto-kpi-criticos">—</div>
+          <div class="kpi-big-header">
+            <span class="kpi-big-icon-hdr">⚠️</span>
+            <div><div class="kpi-big-label-hdr">Segurança</div><div style="color:#fff;font-size:.9rem;font-weight:800;">Pontos Críticos</div></div>
+          </div>
+          <div class="kpi-big-body">
+            <div class="kpi-big-value" id="roto-kpi-criticos">—</div>
+          </div>
         </div>
         <div class="kpi-big kpi-purple">
-          <div class="kpi-big-label">Viagens Realizadas</div>
-          <div class="kpi-big-value" id="roto-kpi-execucoes">—</div>
+          <div class="kpi-big-header">
+            <span class="kpi-big-icon-hdr">🚛</span>
+            <div><div class="kpi-big-label-hdr">Histórico</div><div style="color:#fff;font-size:.9rem;font-weight:800;">Viagens Realizadas</div></div>
+          </div>
+          <div class="kpi-big-body">
+            <div class="kpi-big-value" id="roto-kpi-execucoes">—</div>
+          </div>
         </div>
       </div>
 
       <!-- Section tabs -->
-      <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;overflow-x:auto;">
-        <button id="roto-tab-btn-definicao"   class="roto-tab-btn active" onclick="switchRotoTab('definicao')">Definição</button>
-        <button id="roto-tab-btn-trechos"     class="roto-tab-btn" onclick="switchRotoTab('trechos')">Trechos / Velocidade</button>
-        <button id="roto-tab-btn-criticos"    class="roto-tab-btn" onclick="switchRotoTab('criticos')">Pontos Críticos</button>
-        <button id="roto-tab-btn-apoio"       class="roto-tab-btn" onclick="switchRotoTab('apoio')">Pontos de Apoio</button>
-        <button id="roto-tab-btn-execucoes"   class="roto-tab-btn" onclick="switchRotoTab('execucoes')">Execuções</button>
-        <button id="roto-tab-btn-grafico"     class="roto-tab-btn" onclick="switchRotoTab('grafico')">Visualização Gráfica</button>
+      <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:0;">
+        <button id="roto-tab-btn-definicao"   class="roto-tab-btn active" onclick="switchRotoTab('definicao')">📋 Definição</button>
+        <button id="roto-tab-btn-trechos"     class="roto-tab-btn" onclick="switchRotoTab('trechos')">🛣️ Trechos</button>
+        <button id="roto-tab-btn-criticos"    class="roto-tab-btn" onclick="switchRotoTab('criticos')">⚠️ Pontos Críticos</button>
+        <button id="roto-tab-btn-apoio"       class="roto-tab-btn" onclick="switchRotoTab('apoio')">🏪 Apoio</button>
+        <button id="roto-tab-btn-execucoes"   class="roto-tab-btn" onclick="switchRotoTab('execucoes')">🚛 Execuções</button>
+        <button id="roto-tab-btn-grafico"     class="roto-tab-btn" onclick="switchRotoTab('grafico')">📊 Diagrama</button>
       </div>
 
       <!-- TAB: Definição da Rota -->
@@ -14512,6 +14547,32 @@ function renderRotogramaList() {
 
   const badge = document.getElementById('roto-count-badge');
   if (badge) badge.textContent = `${list.length} rotograma${list.length !== 1 ? 's' : ''}`;
+
+  // ── KPI mini-bar ───────────────────────────────────────────────
+  const kpiBar = document.getElementById('roto-kpi-bar');
+  if (kpiBar) {
+    const ativos  = rotogramas.filter(r => r.status === 'Ativo').length;
+    const revisao = rotogramas.filter(r => r.status === 'Em Revisão').length;
+    const kmTotal = rotogramas.reduce((s,r) => s + (parseFloat(r.distancia_km)||0), 0);
+    const fmtKm   = v => v > 0 ? v.toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' km' : '—';
+    const cards = [
+      { cor:'#0a3d1f', icon:'🗺️', cat:'Cadastros',  label:'Total de Rotogramas',    val: rotogramas.length, sub: `${list.length} exibido${list.length!==1?'s':''}` },
+      { cor:'#16a34a', icon:'✅', cat:'Status',      label:'Rotogramas Ativos',       val: ativos,            sub: revisao ? `${revisao} em revisão` : 'todos regulares' },
+      { cor:'#0891b2', icon:'📏', cat:'Cobertura',   label:'KM Total Mapeados',       val: fmtKm(kmTotal),    sub: 'soma das distâncias' },
+      { cor:'#7c3aed', icon:'🔍', cat:'Filtro',      label:'Exibindo no momento',     val: list.length,       sub: `de ${rotogramas.length} rotogramas` },
+    ];
+    kpiBar.innerHTML = cards.map(k => `
+      <div style="background:#fff;border:1.5px solid ${k.cor}28;border-left:4px solid ${k.cor};
+                  border-radius:12px;padding:14px 16px;box-shadow:0 1px 5px rgba(0,0,0,.05);">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;">
+          <span style="font-size:1.1rem;">${k.icon}</span>
+          <span style="font-size:0.66rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;">${k.cat}</span>
+        </div>
+        <div style="font-size:0.72rem;font-weight:600;color:#64748b;margin-bottom:3px;">${k.label}</div>
+        <div style="font-size:1.5rem;font-weight:900;color:${k.cor};line-height:1;">${k.val}</div>
+        <div style="font-size:0.7rem;color:#94a3b8;margin-top:3px;">${k.sub}</div>
+      </div>`).join('');
+  }
 
   const cont = document.getElementById('roto-list-content');
   if (!cont) return;
