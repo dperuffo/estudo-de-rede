@@ -3129,18 +3129,35 @@
 
   <!-- ── VIEW VOLUME POR BANDEIRA / UF ── -->
   <div id="view-mapabandeira" style="display:none; padding:20px 24px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-      <div>
-        <h2 style="font-size:1.1rem;font-weight:700;color:var(--text);margin:0 0 4px;">Volume por Bandeira / UF</h2>
-        <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Distribuição geográfica do volume abastecido por estado e bandeira</p>
+
+    <!-- Header gradiente padronizado -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+                background:linear-gradient(135deg,#065f46 0%,#059669 100%);
+                border-radius:16px;padding:20px 24px;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="background:rgba(255,255,255,0.18);border-radius:12px;padding:11px;line-height:1;flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2">
+            <circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:1.15rem;font-weight:800;color:#fff;line-height:1.2;">Volume por Bandeira / UF</div>
+          <div style="font-size:0.78rem;color:rgba(255,255,255,0.75);margin-top:3px;">Distribuição geográfica do volume abastecido por estado e bandeira</div>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <label style="font-size:0.8rem;color:var(--text-muted);font-weight:600;">Combustível:</label>
-        <select id="mapa-comb-filter" onchange="_renderMapaBandeira()" style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.82rem;background:var(--card);color:var(--text);">
-          <option value="">Todos</option>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-size:0.78rem;color:rgba(255,255,255,0.8);font-weight:600;white-space:nowrap;">Combustível:</label>
+        <select id="mapa-comb-filter" onchange="_renderMapaBandeira()"
+          style="padding:6px 12px;border:1.5px solid rgba(255,255,255,0.35);border-radius:8px;
+                 font-size:0.82rem;background:rgba(255,255,255,0.15);color:#fff;backdrop-filter:blur(4px);cursor:pointer;">
+          <option value="" style="color:#1e293b;background:#fff;">Todos</option>
         </select>
       </div>
     </div>
+
+    <!-- KPI strip resumo (populada por JS) -->
+    <div class="kpi-strip" id="mapa-kpi-strip" style="margin-bottom:20px;"></div>
+
     <div class="chart-panel">
       <div class="mapa-wrap">
         <div style="flex:0 0 auto;">
@@ -3673,13 +3690,28 @@
 
   <!-- ── VIEW VOLUME PROJETADO (MÊS) ── -->
   <div id="view-volprojetado" style="display:none; padding:20px 24px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-      <div>
-        <h2 style="font-size:1.1rem;font-weight:700;color:var(--text);margin:0 0 4px;">Volume Projetado (Mês)</h2>
-        <p id="volproj-subtitle" style="font-size:0.8rem;color:var(--text-muted);margin:0;">Projeção baseada no ritmo de consumo atual do mês</p>
+
+    <!-- Header gradiente padronizado -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+                background:linear-gradient(135deg,#4c1d95 0%,#7c3aed 100%);
+                border-radius:16px;padding:20px 24px;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="background:rgba(255,255,255,0.18);border-radius:12px;padding:11px;line-height:1;flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+            <polyline points="2 20 22 20"/>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:1.15rem;font-weight:800;color:#fff;line-height:1.2;">Volume Projetado — Mês Atual</div>
+          <div id="volproj-subtitle" style="font-size:0.78rem;color:rgba(255,255,255,0.75);margin-top:3px;">Projeção baseada no ritmo de consumo atual do mês</div>
+        </div>
       </div>
     </div>
-    <div id="volproj-kpis" class="proj-grid"></div>
+
+    <!-- KPI strip (kpi-big, substituindo proj-grid) -->
+    <div class="kpi-strip" id="volproj-kpis" style="margin-bottom:20px;"></div>
     <div class="proj-progress-wrap">
       <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:18px;">Progresso do Mês</div>
       <div id="volproj-progress-content"></div>
@@ -14380,6 +14412,64 @@ function _renderMapaBandeira() {
     }).join('') : '<p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Sem dados</p>';
   }
 
+  // ── KPI strip resumo ──────────────────────────────────────────────
+  const mapaKpi = document.getElementById('mapa-kpi-strip');
+  if (mapaKpi) {
+    const totalVol   = Object.values(bandTotals).reduce((s,v)=>s+v, 0);
+    const ufCount    = Object.keys(byUF).length;
+    const bandAtivas = sortedBands.filter(b => b !== 'Sem bandeira').length;
+    const lider      = sortedBands.find(b => b !== 'Sem bandeira') || sortedBands[0] || '—';
+    const liderVol   = lider !== '—' ? (bandTotals[lider] || 0) : 0;
+    const liderPct   = totalVol > 0 ? (liderVol / totalVol * 100).toFixed(1) : '0.0';
+    const fmtL       = v => v.toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' L';
+
+    mapaKpi.innerHTML = `
+      <div class="kpi-big kpi-blue">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">🗺️</span>
+          <div><div class="kpi-big-label-hdr">Cobertura</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Estados Cobertos</div></div>
+        </div>
+        <div class="kpi-big-body">
+          <div class="kpi-big-label">UFs com abastecimento</div>
+          <div class="kpi-big-value">${ufCount}</div>
+          <div class="kpi-big-footer">de 27 estados do Brasil</div>
+        </div>
+      </div>
+      <div class="kpi-big kpi-teal">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">🛢️</span>
+          <div><div class="kpi-big-label-hdr">Consumo</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Volume Total</div></div>
+        </div>
+        <div class="kpi-big-body">
+          <div class="kpi-big-label">Litros no período${combFilter ? ' · ' + combFilter : ''}</div>
+          <div class="kpi-big-value">${fmtL(totalVol)}</div>
+          <div class="kpi-big-footer">${recs.length} registros</div>
+        </div>
+      </div>
+      <div class="kpi-big kpi-green">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">🏆</span>
+          <div><div class="kpi-big-label-hdr">Ranking</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Bandeira Líder</div></div>
+        </div>
+        <div class="kpi-big-body">
+          <div class="kpi-big-label">Maior volume abastecido</div>
+          <div class="kpi-big-value" style="font-size:1.1rem;">${lider}</div>
+          <div class="kpi-big-footer">${fmtL(liderVol)} · ${liderPct}% do total</div>
+        </div>
+      </div>
+      <div class="kpi-big kpi-purple">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">⛽</span>
+          <div><div class="kpi-big-label-hdr">Rede</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Bandeiras Ativas</div></div>
+        </div>
+        <div class="kpi-big-body">
+          <div class="kpi-big-label">Fornecedores distintos</div>
+          <div class="kpi-big-value">${bandAtivas}</div>
+          <div class="kpi-big-footer">${sortedBands.length} bandeiras no total</div>
+        </div>
+      </div>`;
+  }
+
   // Detail table
   _mapaRenderDetail(byUF, bandColor);
 }
@@ -14470,32 +14560,57 @@ function _renderVolProjetado() {
 
   const fmtL = v => v.toLocaleString('pt-BR',{maximumFractionDigits:0}) + ' L';
 
-  // KPI cards
+  // KPI cards — padrão kpi-big
   const kpisEl = document.getElementById('volproj-kpis');
+  const varPrevHtml = varPrev !== null
+    ? (varPrev >= 0
+      ? `<span style="color:#dc2626;font-weight:700;">▲ ${Math.abs(varPrev).toFixed(1)}% acima</span> do mês ant.`
+      : `<span style="color:#16a34a;font-weight:700;">▼ ${Math.abs(varPrev).toFixed(1)}% abaixo</span> do mês ant.`)
+    : 'Sem dados comparativos';
   if (kpisEl) kpisEl.innerHTML = `
-    <div class="proj-kpi">
-      <div class="proj-kpi-label">Realizado no Mês</div>
-      <div class="proj-kpi-val">${fmtL(currVol)}</div>
-      <div class="proj-kpi-sub">${todayD} dias · ${fmtL(dailyRate)}/dia</div>
+    <div class="kpi-big kpi-teal">
+      <div class="kpi-big-header">
+        <span class="kpi-big-icon-hdr">📊</span>
+        <div><div class="kpi-big-label-hdr">Consumo Real</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Realizado no Mês</div></div>
+      </div>
+      <div class="kpi-big-body">
+        <div class="kpi-big-label">${todayD} dias decorridos</div>
+        <div class="kpi-big-value">${fmtL(currVol)}</div>
+        <div class="kpi-big-footer">${fmtL(dailyRate)}/dia · ritmo atual</div>
+      </div>
     </div>
-    <div class="proj-kpi" style="border-top:3px solid #3b82f6;">
-      <div class="proj-kpi-label">Volume Projetado</div>
-      <div class="proj-kpi-val" style="color:#3b82f6;">${fmtL(projected)}</div>
-      <div class="proj-kpi-sub">Ao final de ${mNames[currM-1]}</div>
+    <div class="kpi-big kpi-blue">
+      <div class="kpi-big-header">
+        <span class="kpi-big-icon-hdr">🔮</span>
+        <div><div class="kpi-big-label-hdr">Projeção</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Volume Projetado</div></div>
+      </div>
+      <div class="kpi-big-body">
+        <div class="kpi-big-label">Ao final de ${mNames[currM-1]}/${currY}</div>
+        <div class="kpi-big-value">${fmtL(projected)}</div>
+        <div class="kpi-big-footer">${totalDays} dias · base no ritmo atual</div>
+      </div>
     </div>
-    <div class="proj-kpi">
-      <div class="proj-kpi-label">Mês Anterior</div>
-      <div class="proj-kpi-val">${prevVol>0?fmtL(prevVol):'—'}</div>
-      <div class="proj-kpi-sub">${varPrev!==null
-        ? (varPrev>=0
-          ? '<span style="color:#dc2626;">▲ '+Math.abs(varPrev).toFixed(1)+'% acima</span>'
-          : '<span style="color:#16a34a;">▼ '+Math.abs(varPrev).toFixed(1)+'% abaixo</span>')+' do mês ant.'
-        : 'Sem dados'}</div>
+    <div class="kpi-big kpi-purple">
+      <div class="kpi-big-header">
+        <span class="kpi-big-icon-hdr">📅</span>
+        <div><div class="kpi-big-label-hdr">Comparativo</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Mês Anterior</div></div>
+      </div>
+      <div class="kpi-big-body">
+        <div class="kpi-big-label">${mNames[prevM-1]}/${prevY}</div>
+        <div class="kpi-big-value">${prevVol > 0 ? fmtL(prevVol) : '—'}</div>
+        <div class="kpi-big-footer">${varPrevHtml}</div>
+      </div>
     </div>
-    <div class="proj-kpi">
-      <div class="proj-kpi-label">Abastecimentos</div>
-      <div class="proj-kpi-val">${currRecs.length}</div>
-      <div class="proj-kpi-sub">registros no mês atual</div>
+    <div class="kpi-big kpi-amber">
+      <div class="kpi-big-header">
+        <span class="kpi-big-icon-hdr">⛽</span>
+        <div><div class="kpi-big-label-hdr">Registros</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Abastecimentos</div></div>
+      </div>
+      <div class="kpi-big-body">
+        <div class="kpi-big-label">No mês atual</div>
+        <div class="kpi-big-value">${currRecs.length}</div>
+        <div class="kpi-big-footer">${mNames[currM-1]}/${currY}</div>
+      </div>
     </div>`;
 
   // Progress bars
