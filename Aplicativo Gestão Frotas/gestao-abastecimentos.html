@@ -3348,9 +3348,14 @@
         </div>
 
         <!-- Legenda de bandeiras -->
-        <div id="roteiz-legenda" style="position:absolute;bottom:28px;right:12px;z-index:500;background:rgba(255,255,255,0.96);border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;box-shadow:0 2px 10px rgba(0,0,0,.13);min-width:130px;display:none;">
-          <div style="font-size:0.7rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Bandeiras</div>
-          <div id="roteiz-legenda-items" style="display:flex;flex-direction:column;gap:4px;"></div>
+        <div id="roteiz-legenda" style="position:absolute;bottom:28px;right:12px;z-index:500;
+             background:rgba(255,255,255,0.97);border:1px solid #e2e8f0;border-radius:12px;
+             padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:180px;max-width:220px;display:none;">
+          <div style="font-size:0.68rem;font-weight:800;color:#64748b;text-transform:uppercase;
+                      letter-spacing:.08em;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #e2e8f0;">
+            ⛽ Bandeiras
+          </div>
+          <div id="roteiz-legenda-items" style="display:flex;flex-direction:column;gap:2px;"></div>
         </div>
 
         <!-- Mapa Leaflet -->
@@ -16719,6 +16724,41 @@ function removerParada(idx) {
 }
 
 // ── Logos SVG das bandeiras de combustível ─────────────────────
+// Paleta para bandeiras sem entrada canônica — cor determinística por nome
+const _UNKNOWN_BAND_PALETTE = ['#7c3aed','#0891b2','#15803d','#c2410c','#db2777','#0d9488','#92400e','#1d4ed8','#b45309','#6d28d9'];
+function _hashBandColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xFFFFF;
+  return _UNKNOWN_BAND_PALETTE[h % _UNKNOWN_BAND_PALETTE.length];
+}
+
+// Normaliza variantes do nome de bandeira → chave canônica em _BANDEIRA_LOGOS
+const _BANDEIRA_ALIAS_MAP = {
+  'br':                       'BR Petrobras',
+  'br petrobras':              'BR Petrobras',
+  'petrobras':                 'BR Petrobras',
+  'petrobras distribuidora':   'BR Petrobras',
+  'raizen':                    'Raízen',
+  'raízen':                    'Raízen',
+  'raizen energia':            'Raízen',
+  'shell':                     'Shell',
+  'ipiranga':                  'Ipiranga',
+  'ale':                       'Ale',
+  'vibra':                     'Vibra',
+  'liquigas':                  'Liquigás',
+  'liquigás':                  'Liquigás',
+  'rodoil':                    'Rodoil',
+  'petrox':                    'Petrox',
+  'sem bandeira':              'Bandeira Branca',
+  'bandeira branca':           'Bandeira Branca',
+  'outros':                    'Outros',
+};
+function _normBandeira(raw) {
+  if (!raw) return null;
+  const t = raw.trim();
+  return _BANDEIRA_ALIAS_MAP[t.toLowerCase()] || t;
+}
+
 const _BANDEIRA_LOGOS = {
   'Ipiranga': {
     pin: '#f97316',
@@ -16818,6 +16858,26 @@ const _BANDEIRA_LOGOS = {
             font-size="7" font-weight="900" font-family="Arial,sans-serif">GÁS</text>
     </svg>`
   },
+  'Rodoil': {
+    pin: '#6B21A8',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#6B21A8"/>
+      <text x="16" y="19" text-anchor="middle" fill="white"
+            font-size="9" font-weight="900" font-family="Arial,sans-serif">ROD</text>
+      <text x="16" y="27" text-anchor="middle" fill="white"
+            font-size="8.5" font-weight="900" font-family="Arial,sans-serif">OIL</text>
+    </svg>`
+  },
+  'Petrox': {
+    pin: '#0891b2',
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#0891b2"/>
+      <text x="16" y="19" text-anchor="middle" fill="white"
+            font-size="7.5" font-weight="900" font-family="Arial,sans-serif">PETRO</text>
+      <text x="16" y="27" text-anchor="middle" fill="white"
+            font-size="9" font-weight="900" font-family="Arial,sans-serif">X</text>
+    </svg>`
+  },
   'Outros': {
     pin: '#64748b',
     svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -16844,12 +16904,14 @@ function _roteizBandeiraIcon(bandeira) {
     });
   }
 
-  const marca = _BANDEIRA_LOGOS[b];
-  const pinColor = marca ? marca.pin : '#64748b';
+  const normB   = _normBandeira(b) || b;
+  const marca   = _BANDEIRA_LOGOS[normB];
+  const pinColor = marca ? marca.pin : _hashBandColor(normB);
+  const initials = normB.replace(/\s+/g,' ').split(' ').map(w=>w[0]||'').join('').slice(0,3).toUpperCase() || normB.slice(0,2).toUpperCase() || '?';
   const logoSVG  = marca ? marca.svg : `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
     <circle cx="16" cy="16" r="16" fill="${pinColor}"/>
     <text x="16" y="21" text-anchor="middle" fill="white" font-size="11" font-weight="800"
-          font-family="Arial,sans-serif">${b.slice(0,2).toUpperCase()||'?'}</text>
+          font-family="Arial,sans-serif">${initials}</text>
   </svg>`;
 
   const html = `<div style="position:relative;width:38px;height:48px;cursor:pointer;
@@ -16937,10 +16999,10 @@ function _atualizarLegendaBandeiras(postosVisiveis) {
   const legendaItems = document.getElementById('roteiz-legenda-items');
   if (!legenda || !legendaItems) return;
 
-  // Conta postos por bandeira
+  // Conta postos por bandeira (normalizada para agrupar variantes como "Br" e "BR Petrobras")
   const contagem = {};
   postosVisiveis.forEach(p => {
-    const b = (p.bandeira || 'Outros').trim();
+    const b = _normBandeira((p.bandeira || '').trim()) || 'Bandeira Branca';
     contagem[b] = (contagem[b] || 0) + 1;
   });
 
@@ -16952,34 +17014,41 @@ function _atualizarLegendaBandeiras(postosVisiveis) {
   }
 
   legendaItems.innerHTML = bandeirasSorted.map(([b, n]) => {
-    const isBB   = !b || b === 'Bandeira Branca' || b === 'Sem Bandeira';
-    const marca  = _BANDEIRA_LOGOS[b];
-    const pinColor = isBB ? '#dc2626' : (marca ? marca.pin : '#64748b');
+    const normB   = _normBandeira(b) || b || 'Bandeira Branca';
+    const isBB    = normB === 'Bandeira Branca';
+    const marca   = _BANDEIRA_LOGOS[normB];
+    const pinColor = isBB ? '#dc2626' : (marca ? marca.pin : _hashBandColor(normB));
+    const initials = normB.replace(/\s+/g,' ').split(' ').map(w=>w[0]||'').join('').slice(0,3).toUpperCase() || normB.slice(0,2).toUpperCase();
     const logoSVG  = isBB ? '' : (marca ? marca.svg : `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
       <circle cx="16" cy="16" r="16" fill="${pinColor}"/>
       <text x="16" y="21" text-anchor="middle" fill="white" font-size="11" font-weight="800"
-            font-family="Arial,sans-serif">${b.slice(0,2).toUpperCase()}</text></svg>`);
+            font-family="Arial,sans-serif">${initials}</text></svg>`);
 
-    // Mini-pin para a legenda
+    // Mini-pin: 24×30 — mesmo estilo do pin de mapa, porém menor
     const pinHtml = isBB
-      ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 30 38">
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="22" viewBox="0 0 30 38"
+              style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));flex-shrink:0;">
            <path d="M15 0C6.72 0 0 6.72 0 15c0 9.9 15 23 15 23S30 24.9 30 15C30 6.72 23.28 0 15 0z"
-                 fill="#dc2626"/></svg>`
-      : `<div style="position:relative;width:20px;height:24px;">
+                 fill="#dc2626" stroke="#991b1b" stroke-width="1.2"/>
+         </svg>`
+      : `<div style="position:relative;width:24px;height:30px;flex-shrink:0;
+                     filter:drop-shadow(0 1px 3px rgba(0,0,0,.32));">
            <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;"
-                width="20" height="24" viewBox="0 0 38 48">
+                width="24" height="30" viewBox="0 0 38 48">
              <path d="M19 0C8.51 0 0 8.51 0 19c0 12.38 19 29 19 29S38 31.38 38 19C38 8.51 29.49 0 19 0z"
-                   fill="${pinColor}"/>
-             <circle cx="19" cy="18" r="14" fill="white" opacity="0.97"/>
+                   fill="${pinColor}" stroke="rgba(0,0,0,0.18)" stroke-width="0.6"/>
+             <circle cx="19" cy="18" r="13.5" fill="white" opacity="0.97"/>
            </svg>
-           <div style="position:absolute;top:2px;left:2.5px;width:15px;height:15px;
+           <div style="position:absolute;top:3px;left:3px;width:18px;height:18px;
                        border-radius:50%;overflow:hidden;">${logoSVG}</div>
          </div>`;
 
-    return `<div style="display:flex;align-items:center;gap:7px;padding:2px 0;">
+    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid #f1f5f9;">
       ${pinHtml}
-      <span style="font-size:0.74rem;color:#334155;flex:1;">${b || 'Bandeira Branca'}</span>
-      <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;">${n}</span>
+      <span style="font-size:0.76rem;color:#1e293b;font-weight:600;flex:1;white-space:nowrap;
+                   overflow:hidden;text-overflow:ellipsis;">${normB}</span>
+      <span style="font-size:0.7rem;font-weight:800;color:#fff;background:${pinColor};
+                   padding:1px 6px;border-radius:10px;flex-shrink:0;">${n}</span>
     </div>`;
   }).join('');
 
