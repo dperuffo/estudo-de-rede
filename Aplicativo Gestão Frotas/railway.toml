@@ -1,0 +1,9 @@
+[build]
+builder = "railpack"
+
+[deploy]
+startCommand = "python server.py"
+healthcheckPath = "/api/ping"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
