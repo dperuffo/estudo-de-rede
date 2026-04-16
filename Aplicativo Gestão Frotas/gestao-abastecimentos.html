@@ -745,17 +745,15 @@
     .seg-badge.ativo  { background:#dbeafe; color:#1d4ed8; }
 
     /* ── VARIAÇÃO DE PREÇOS ── */
-    .varpreco-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px; }
-    .varpreco-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); }
-    .varpreco-card-label { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:14px; }
-    .varpreco-bars { display:flex; flex-direction:column; gap:9px; margin-bottom:16px; }
+    .varpreco-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+    .varpreco-bars { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
     .varpreco-bar-row { display:flex; align-items:center; gap:8px; }
-    .varpreco-bar-meta { font-size:0.65rem; color:var(--text-muted); width:58px; text-align:right; flex-shrink:0; line-height:1.3; }
-    .varpreco-bar-wrap { flex:1; background:#f1f5f9; border-radius:4px; height:12px; overflow:hidden; }
-    .varpreco-bar-fill { height:100%; border-radius:4px; transition:width .4s; }
-    .varpreco-bar-val { font-size:0.75rem; font-weight:700; color:var(--text); width:56px; flex-shrink:0; }
-    .varpreco-footer { display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
-    .varpreco-badge { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; border-radius:20px; font-size:0.88rem; font-weight:800; }
+    .varpreco-bar-meta { font-size:0.67rem; color:rgba(255,255,255,.75); width:56px; text-align:right; flex-shrink:0; line-height:1.3; }
+    .varpreco-bar-wrap { flex:1; background:rgba(255,255,255,.18); border-radius:4px; height:10px; overflow:hidden; }
+    .varpreco-bar-fill { height:100%; border-radius:4px; transition:width .4s ease; }
+    .varpreco-bar-val { font-size:0.78rem; font-weight:800; color:var(--text); width:64px; flex-shrink:0; }
+    .varpreco-footer { display:flex; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px solid var(--border); }
+    .varpreco-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 12px; border-radius:20px; font-size:0.85rem; font-weight:800; }
     .varpreco-badge.vp-up   { background:#fee2e2; color:#dc2626; }
     .varpreco-badge.vp-down { background:#dcfce7; color:#16a34a; }
     .varpreco-badge.vp-flat { background:#f1f5f9; color:#64748b; }
@@ -3098,13 +3096,31 @@
 
   <!-- ── VIEW VARIAÇÃO DE PREÇOS DE COMBUSTÍVEIS ── -->
   <div id="view-varprecos" style="display:none; padding:20px 24px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-      <div>
-        <h2 style="font-size:1.1rem;font-weight:700;color:var(--text);margin:0 0 4px;">Variação de Preços de Combustíveis</h2>
-        <p id="varpreco-subtitle" style="font-size:0.8rem;color:var(--text-muted);margin:0;">Mês atual vs. mês anterior — preço médio ponderado por litro (frota)</p>
+
+    <!-- Header gradiente padronizado -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+                background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);
+                border-radius:16px;padding:20px 24px;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="background:rgba(255,255,255,0.18);border-radius:12px;padding:11px;line-height:1;flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:1.15rem;font-weight:800;color:#fff;line-height:1.2;">Variação de Preços de Combustíveis</div>
+          <div id="varpreco-subtitle" style="font-size:0.78rem;color:rgba(255,255,255,0.75);margin-top:3px;">Mês atual vs. mês anterior — preço médio ponderado por litro (frota)</div>
+        </div>
       </div>
     </div>
+
+    <!-- KPI strip resumo (populada por JS) -->
+    <div class="kpi-strip" id="varpreco-kpi-strip" style="margin-bottom:20px;"></div>
+
+    <!-- Grid de cards por combustível -->
     <div id="varpreco-grid" class="varpreco-grid"></div>
+
     <div id="varpreco-empty" style="display:none;text-align:center;padding:48px 20px;color:var(--text-muted);">
       <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <p style="margin-top:14px;font-size:0.9rem;">Sem dados suficientes para calcular variação de preços.</p>
@@ -14095,38 +14111,118 @@ function _renderVarPrecos() {
   }));
 
   const maxP = Math.max(...fuelData.map(d => Math.max(d.curr, d.prev)), 0.001);
-  const fuelColor = c => _isDiesel(c) ? '#1e40af' : _isGasoAlco(c) ? '#b45309' : '#7c3aed';
   const fmt3 = v => v > 0 ? 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}) : '—';
 
+  // kpi class + header color based on fuel type
+  const fuelKpi   = c => _isDiesel(c) ? 'kpi-blue' : _isGasoAlco(c) ? 'kpi-amber' : 'kpi-purple';
+  const fuelEmoji = c => _isDiesel(c) ? '🛢️' : _isGasoAlco(c) ? '⛽' : '🔋';
+  const fuelCat   = c => _isDiesel(c) ? 'Diesel' : _isGasoAlco(c) ? 'Gasolina / Álcool' : 'Outros';
+
+  // ── KPI strip resumo ────────────────────────────────────────────────
+  const kpiStrip = document.getElementById('varpreco-kpi-strip');
+  if (kpiStrip) {
+    const withBoth = fuelData.filter(d => d.curr > 0 && d.prev > 0);
+    const pctOf    = d => ((d.curr - d.prev) / d.prev) * 100;
+
+    // Maior alta
+    const topAlta  = withBoth.length ? withBoth.reduce((a,b) => pctOf(a) >= pctOf(b) ? a : b, withBoth[0]) : null;
+    // Maior queda
+    const topQueda = withBoth.length ? withBoth.reduce((a,b) => pctOf(a) <= pctOf(b) ? a : b, withBoth[0]) : null;
+
+    // Preço médio ponderado do mês (todos os combustíveis)
+    const svAll   = currRecs.reduce((s,r) => s+(r.volume||0), 0);
+    const pmGeral = svAll > 0 ? currRecs.reduce((s,r) => s+(r.valorTotal||0), 0) / svAll : 0;
+
+    const altaPct  = topAlta  ? pctOf(topAlta).toFixed(1)  : null;
+    const quedaPct = topQueda ? Math.abs(pctOf(topQueda)).toFixed(1) : null;
+
+    kpiStrip.innerHTML = `
+      <div class="kpi-big kpi-blue">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">📊</span>
+          <div><div class="kpi-big-label-hdr">Painel</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Combustíveis</div></div>
+        </div>
+        <div class="kpi-big-body">
+          <div class="kpi-big-label">Tipos monitorados</div>
+          <div class="kpi-big-value">${fuels.length}</div>
+          <div class="kpi-big-footer">${mNames[currM-1]}/${currY} vs ${mNames[prevM-1]}/${prevY}</div>
+        </div>
+      </div>
+      <div class="kpi-big kpi-orange">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">📈</span>
+          <div><div class="kpi-big-label-hdr">Variação</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Maior Alta</div></div>
+        </div>
+        <div class="kpi-big-body">
+          <div class="kpi-big-label">${topAlta ? topAlta.comb : '—'}</div>
+          <div class="kpi-big-value" style="color:#dc2626;">${altaPct !== null ? '▲ '+altaPct+'%' : '—'}</div>
+          <div class="kpi-big-footer">${topAlta ? fmt3(topAlta.curr)+' / L' : 'Sem comparativo'}</div>
+        </div>
+      </div>
+      <div class="kpi-big kpi-teal">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">📉</span>
+          <div><div class="kpi-big-label-hdr">Variação</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Maior Queda</div></div>
+        </div>
+        <div class="kpi-big-body">
+          <div class="kpi-big-label">${topQueda ? topQueda.comb : '—'}</div>
+          <div class="kpi-big-value" style="color:#16a34a;">${quedaPct !== null ? '▼ '+quedaPct+'%' : '—'}</div>
+          <div class="kpi-big-footer">${topQueda ? fmt3(topQueda.curr)+' / L' : 'Sem comparativo'}</div>
+        </div>
+      </div>
+      <div class="kpi-big kpi-amber">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">🏷️</span>
+          <div><div class="kpi-big-label-hdr">Preço Médio / L</div><div style="color:#fff;font-size:.95rem;font-weight:800;">Geral da Frota</div></div>
+        </div>
+        <div class="kpi-big-body">
+          <div class="kpi-big-label">Média ponderada — ${mNames[currM-1]}/${currY}</div>
+          <div class="kpi-big-value">${fmt3(pmGeral)}</div>
+          <div class="kpi-big-footer">${currRecs.length} abastecimentos no mês</div>
+        </div>
+      </div>`;
+  }
+
+  // ── Cards por combustível (kpi-big) ────────────────────────────────
   grid.innerHTML = fuelData.map(({comb, curr, prev, nCurr}) => {
     const hasCurr = curr > 0, hasPrev = prev > 0;
     let pct = 0, cls = 'vp-flat', arrow = '→';
     if (hasCurr && hasPrev) {
-      pct = ((curr - prev) / prev) * 100;
+      pct   = ((curr - prev) / prev) * 100;
       cls   = pct > 0.5 ? 'vp-up' : pct < -0.5 ? 'vp-down' : 'vp-flat';
       arrow = pct > 0.5 ? '▲' : pct < -0.5 ? '▼' : '→';
     }
-    const color = fuelColor(comb);
+    const kpiCls = fuelKpi(comb);
+    const icon   = fuelEmoji(comb);
+    const cat    = fuelCat(comb);
     const cW = maxP > 0 ? (curr/maxP*100).toFixed(1) : 0;
     const pW = maxP > 0 ? (prev/maxP*100).toFixed(1) : 0;
     return `
-      <div class="varpreco-card" style="border-top:3px solid ${color};">
-        <div class="varpreco-card-label">${comb}</div>
-        <div class="varpreco-bars">
-          <div class="varpreco-bar-row">
-            <span class="varpreco-bar-meta">${mNames[currM-1]}<br>${currY}</span>
-            <div class="varpreco-bar-wrap"><div class="varpreco-bar-fill" style="width:${cW}%;background:${color};"></div></div>
-            <span class="varpreco-bar-val">${fmt3(curr)}</span>
-          </div>
-          <div class="varpreco-bar-row">
-            <span class="varpreco-bar-meta" style="opacity:.65;">${mNames[prevM-1]}<br>${prevY}</span>
-            <div class="varpreco-bar-wrap"><div class="varpreco-bar-fill" style="width:${pW}%;background:${color};opacity:.38;"></div></div>
-            <span class="varpreco-bar-val" style="opacity:.65;">${fmt3(prev)}</span>
+      <div class="kpi-big ${kpiCls}">
+        <div class="kpi-big-header">
+          <span class="kpi-big-icon-hdr">${icon}</span>
+          <div>
+            <div class="kpi-big-label-hdr">${cat}</div>
+            <div style="color:#fff;font-size:.95rem;font-weight:800;">${comb}</div>
           </div>
         </div>
-        <div class="varpreco-footer">
-          <span style="font-size:0.73rem;color:var(--text-muted);">${hasCurr ? nCurr+' abast. este mês' : 'Sem dados no mês'}</span>
-          <span class="varpreco-badge ${cls}">${arrow} ${(hasCurr && hasPrev) ? Math.abs(pct).toFixed(1)+'%' : 'N/D'}</span>
+        <div class="kpi-big-body">
+          <div class="varpreco-bars">
+            <div class="varpreco-bar-row">
+              <span class="varpreco-bar-meta" style="color:var(--text-muted);">${mNames[currM-1]}<br>${currY}</span>
+              <div class="varpreco-bar-wrap" style="background:#e2e8f0;"><div class="varpreco-bar-fill" style="width:${cW}%;background:var(--primary);"></div></div>
+              <span class="varpreco-bar-val">${fmt3(curr)}</span>
+            </div>
+            <div class="varpreco-bar-row">
+              <span class="varpreco-bar-meta" style="color:var(--text-muted);opacity:.7;">${mNames[prevM-1]}<br>${prevY}</span>
+              <div class="varpreco-bar-wrap" style="background:#e2e8f0;"><div class="varpreco-bar-fill" style="width:${pW}%;background:#94a3b8;"></div></div>
+              <span class="varpreco-bar-val" style="opacity:.65;">${fmt3(prev)}</span>
+            </div>
+          </div>
+          <div class="varpreco-footer">
+            <span style="font-size:0.73rem;color:var(--text-muted);">${hasCurr ? nCurr+' abast. este mês' : 'Sem dados no mês'}</span>
+            <span class="varpreco-badge ${cls}">${arrow} ${(hasCurr && hasPrev) ? Math.abs(pct).toFixed(1)+'%' : 'N/D'}</span>
+          </div>
         </div>
       </div>`;
   }).join('');
