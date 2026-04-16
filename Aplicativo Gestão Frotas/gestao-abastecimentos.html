@@ -1294,6 +1294,21 @@
     Rotograma
   </button>
 
+  <!-- ── Manutenção (grupo colapsável) ── -->
+  <div class="sidebar-group">
+    <button class="sidebar-item sidebar-group-header" id="side-btn-manutencao" onclick="toggleSidebarGroup('manutencao')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Manutenção
+      <svg class="sidebar-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:auto"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="sidebar-submenu" id="sidebar-submenu-manutencao">
+      <button class="sidebar-item sidebar-subitem" id="side-btn-gestao-preditiva" onclick="switchTab('gestao-preditiva')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Gestão Preditiva
+      </button>
+    </div>
+  </div>
+
   <!-- ── Orçamento (grupo colapsável) ── -->
   <div class="sidebar-group">
     <button class="sidebar-item sidebar-group-header" id="side-btn-orcamento" onclick="toggleSidebarGroup('orcamento')">
@@ -4021,6 +4036,122 @@
 
   </div><!-- /view-custos -->
 
+  <!-- ░░ GESTÃO PREDITIVA ░░
+  ══════════════════════════════════════════════════════════ -->
+  <div id="view-gestao-preditiva" style="display:none;padding:0 0 40px;">
+
+    <!-- Header gradiente padronizado — laranja/vermelho manutenção -->
+    <div style="background:linear-gradient(135deg,#7c2d12 0%,#ea580c 100%);
+                padding:22px 28px 20px;margin-bottom:0;position:relative;overflow:hidden;">
+      <div style="position:absolute;right:-20px;top:-20px;width:160px;height:160px;
+                  background:rgba(255,255,255,0.04);border-radius:50%;"></div>
+      <div style="position:absolute;right:60px;bottom:-40px;width:100px;height:100px;
+                  background:rgba(255,255,255,0.04);border-radius:50%;"></div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;position:relative;">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;">
+            <div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:8px;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+            <h1 style="color:#fff;font-size:1.3rem;font-weight:700;margin:0;">Gestão Preditiva de Manutenção</h1>
+          </div>
+          <p style="color:rgba(255,255,255,0.75);font-size:0.84rem;margin:0;padding-left:50px;">
+            Análise inteligente de desgaste da frota com recomendações de manutenção preventiva e preditiva
+          </p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select id="pred-f-cliente" onchange="renderGestaoPreditiva()"
+            style="background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);
+                   color:#fff;border-radius:8px;padding:6px 10px;font-size:0.82rem;cursor:pointer;">
+            <option value="">Todos os clientes</option>
+          </select>
+          <select id="pred-f-tipo" onchange="renderGestaoPreditiva()"
+            style="background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);
+                   color:#fff;border-radius:8px;padding:6px 10px;font-size:0.82rem;cursor:pointer;">
+            <option value="">Todos os tipos</option>
+            <option value="Leve">Leve</option>
+            <option value="Pesado">Pesado</option>
+          </select>
+          <select id="pred-f-status" onchange="renderGestaoPreditiva()"
+            style="background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);
+                   color:#fff;border-radius:8px;padding:6px 10px;font-size:0.82rem;cursor:pointer;">
+            <option value="">Todos os status</option>
+            <option value="Crítico">🔴 Crítico</option>
+            <option value="Alerta">🟡 Alerta</option>
+            <option value="OK">🟢 OK</option>
+          </select>
+          <button onclick="loadGestaoPreditiva()" title="Atualizar análise"
+            style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.3);
+                   border-radius:8px;padding:6px 10px;cursor:pointer;color:#fff;display:flex;align-items:center;gap:5px;font-size:0.82rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Atualizar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Strip -->
+    <div style="background:#f8fafc;border-bottom:1.5px solid var(--border);padding:16px 28px;">
+      <div class="kpi-strip" id="pred-kpi-strip"></div>
+    </div>
+
+    <!-- Alertas críticos banner -->
+    <div id="pred-alertas-banner" style="display:none;margin:16px 28px 0;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div id="pred-alertas-texto" style="font-size:0.84rem;color:#dc2626;line-height:1.6;"></div>
+    </div>
+
+    <!-- Tipos de manutenção preditiva — fichas informativas -->
+    <div style="padding:20px 28px 0;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <span style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">
+          Métodos de Monitoramento Aplicados
+        </span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+        <span class="pred-method-chip" onclick="_predFiltrarMetodo(this,'ruidos')" data-metodo="ruidos" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #e5e7eb;font-size:0.77rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-muted);transition:all .15s;">🔊 Ruídos</span>
+        <span class="pred-method-chip" onclick="_predFiltrarMetodo(this,'motor')" data-metodo="motor" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #e5e7eb;font-size:0.77rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-muted);transition:all .15s;">🔩 Motor</span>
+        <span class="pred-method-chip" onclick="_predFiltrarMetodo(this,'temperatura')" data-metodo="temperatura" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #e5e7eb;font-size:0.77rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-muted);transition:all .15s;">🌡️ Temperatura</span>
+        <span class="pred-method-chip" onclick="_predFiltrarMetodo(this,'vibracao')" data-metodo="vibracao" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #e5e7eb;font-size:0.77rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-muted);transition:all .15s;">📳 Vibração</span>
+        <span class="pred-method-chip" onclick="_predFiltrarMetodo(this,'oleo')" data-metodo="oleo" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #e5e7eb;font-size:0.77rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-muted);transition:all .15s;">🛢️ Óleo</span>
+        <span class="pred-method-chip" onclick="_predFiltrarMetodo(this,'ultrassom')" data-metodo="ultrassom" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #e5e7eb;font-size:0.77rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-muted);transition:all .15s;">📡 Ultrassom</span>
+        <span class="pred-method-chip" onclick="_predFiltrarMetodo(this,'visual')" data-metodo="visual" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #e5e7eb;font-size:0.77rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-muted);transition:all .15s;">👁️ Inspeção Visual</span>
+        <span class="pred-method-chip" onclick="_predFiltrarMetodo(this,'alinhamento')" data-metodo="alinhamento" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid #e5e7eb;font-size:0.77rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-muted);transition:all .15s;">🎯 Alinhamento de Eixos</span>
+      </div>
+    </div>
+
+    <!-- Grid de veículos -->
+    <div style="padding:0 28px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:0.88rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          Análise da Frota
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span id="pred-total-badge" style="font-size:0.78rem;color:var(--text-muted);background:#f1f5f9;padding:3px 10px;border-radius:20px;border:1px solid var(--border);"></span>
+          <select id="pred-f-ordenar" onchange="renderGestaoPreditiva()"
+            style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;background:var(--bg);cursor:pointer;">
+            <option value="score">Ordenar por: Pior estado</option>
+            <option value="km">Ordenar por: Maior km</option>
+            <option value="placa">Ordenar por: Placa A→Z</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Estado vazio -->
+      <div id="pred-empty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted);">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin-bottom:14px;opacity:.35;"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <p style="font-size:1rem;font-weight:600;margin-bottom:4px;">Nenhum veículo encontrado</p>
+        <p style="font-size:0.84rem;">Cadastre veículos e registre abastecimentos para ativar a análise preditiva.</p>
+      </div>
+
+      <!-- Grid -->
+      <div id="pred-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;"></div>
+    </div>
+
+  </div><!-- /view-gestao-preditiva -->
+
   <!-- ░░ USUÁRIOS ░░ -->
   <div id="view-usuarios" style="display:none">
     <div class="panel">
@@ -4540,6 +4671,67 @@
       <button class="btn btn-primary" onclick="_confirmarSalvarRota()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL DETALHE MANUTENÇÃO PREDITIVA ░░ -->
+<div class="modal-overlay" id="predDetalheModalOverlay" onclick="if(event.target===this)_fecharPredDetalhe()">
+  <div class="modal" style="max-width:680px;width:96vw;">
+    <div class="modal-header" id="pred-detalhe-header"
+         style="background:linear-gradient(135deg,#7c2d12 0%,#ea580c 100%);border-radius:12px 12px 0 0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="background:rgba(255,255,255,0.18);border-radius:8px;padding:7px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <div>
+          <div id="pred-det-placa" style="color:#fff;font-size:1.1rem;font-weight:700;"></div>
+          <div id="pred-det-info"  style="color:rgba(255,255,255,.75);font-size:0.78rem;"></div>
+        </div>
+        <div id="pred-det-badge" style="margin-left:8px;"></div>
+      </div>
+      <button class="modal-close" onclick="_fecharPredDetalhe()" style="color:#fff;opacity:.8;">×</button>
+    </div>
+    <div class="modal-body" style="padding:0;max-height:75vh;overflow-y:auto;">
+
+      <!-- Score geral -->
+      <div id="pred-det-score-section" style="padding:18px 20px 14px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#fafafa;">
+        <div style="text-align:center;flex-shrink:0;">
+          <div id="pred-det-gauge" style="width:90px;height:90px;"></div>
+        </div>
+        <div style="flex:1;min-width:180px;">
+          <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Índice de Saúde da Frota</div>
+          <div id="pred-det-score-label" style="font-size:1.8rem;font-weight:800;line-height:1;"></div>
+          <div id="pred-det-stats" style="font-size:0.82rem;color:var(--text-muted);margin-top:6px;line-height:1.7;"></div>
+        </div>
+        <div id="pred-det-consumo" style="flex:1;min-width:160px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;"></div>
+      </div>
+
+      <!-- 8 tipos de manutenção preditiva -->
+      <div style="padding:16px 20px 4px;">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px;">
+          Análise por Tipo de Manutenção Preditiva
+        </div>
+        <div id="pred-det-items" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+
+      <!-- Recomendações da IA -->
+      <div style="padding:16px 20px 20px;border-top:1.5px solid var(--border);margin-top:8px;background:#fffbeb;">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm0-11v3m0 4v.01"/></svg>
+          <span style="font-size:0.78rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.04em;">Recomendações da IA</span>
+        </div>
+        <div id="pred-det-recomendacoes" style="font-size:0.84rem;color:#78350f;line-height:1.75;"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer" style="padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="_fecharPredDetalhe()">Fechar</button>
+      <button class="btn btn-primary" onclick="_predAgendarManutencao()"
+        style="background:#ea580c;border-color:#ea580c;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/></svg>
+        Agendar Manutenção
       </button>
     </div>
   </div>
@@ -6411,6 +6603,16 @@ function _refreshClienteSelects() {
     const v = salvarSel.value;
     salvarSel.innerHTML = optsModal;
     salvarSel.value = v;
+  }
+  // Filtro de cliente em Gestão Preditiva
+  const predCliSel = document.getElementById('pred-f-cliente');
+  if (predCliSel) {
+    const optsHtml = '<option value="">Todos os clientes</option>' +
+      (_clientes || []).filter(c => c.status === 'Ativo').map(c =>
+        `<option value="${c.id}">${c.razao_social}</option>`).join('');
+    const v = predCliSel.value;
+    predCliSel.innerHTML = optsHtml;
+    predCliSel.value = v;
   }
 }
 
@@ -10215,7 +10417,8 @@ function _renderConsumoMedio(curr) {
 const _subItemGroup = {
   precos:'paineldinamico', varprecos:'paineldinamico', mapabandeira:'paineldinamico', volprojetado:'paineldinamico',
   'plano-viagem':'orcamento', 'custos':'orcamento',
-  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros', 'perfil-usuario':'cadastros'
+  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros', 'perfil-usuario':'cadastros',
+  'gestao-preditiva':'manutencao'
 };
 
 function switchTab(tab) {
@@ -10230,7 +10433,7 @@ function switchTab(tab) {
       if (fallback !== tab) { switchTab(fallback); return; }
     }
   }
-  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','perfil-usuario','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos'].forEach(t => {
+  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','perfil-usuario','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos','gestao-preditiva'].forEach(t => {
     const view = document.getElementById('view-' + t);
     if (view) view.style.display = tab === t ? '' : 'none';
     const tabBtn  = document.getElementById('tab-btn-' + t);
@@ -10243,10 +10446,20 @@ function switchTab(tab) {
   document.getElementById('side-btn-paineldinamico')?.classList.toggle('active', groupParent === 'paineldinamico');
   document.getElementById('side-btn-orcamento')?.classList.toggle('active', groupParent === 'orcamento');
   document.getElementById('side-btn-cadastros')?.classList.toggle('active', groupParent === 'cadastros');
+  document.getElementById('side-btn-manutencao')?.classList.toggle('active', groupParent === 'manutencao');
   // Abre automaticamente o grupo Cadastros quando um sub-item é ativado
   if (groupParent === 'cadastros') {
     const submenu = document.getElementById('sidebar-submenu-cadastros');
     const header  = document.getElementById('side-btn-cadastros');
+    if (submenu && !submenu.classList.contains('open')) {
+      submenu.classList.add('open');
+      header?.classList.add('group-open');
+    }
+  }
+  // Abre automaticamente o grupo Manutenção quando um sub-item é ativado
+  if (groupParent === 'manutencao') {
+    const submenu = document.getElementById('sidebar-submenu-manutencao');
+    const header  = document.getElementById('side-btn-manutencao');
     if (submenu && !submenu.classList.contains('open')) {
       submenu.classList.add('open');
       header?.classList.add('group-open');
@@ -10350,6 +10563,7 @@ function switchTab(tab) {
   if (tab === 'usuarios')        { loadUsuarios(); }
   if (tab === 'perfil-usuario')  { loadPerfisAcesso(); loadPfDashboard(); }
   if (tab === 'custos')        { loadCentrosCusto().then(() => { loadOrcamentosCC(); loadLancamentosCC(); renderDashboardCC(); }); }
+  if (tab === 'gestao-preditiva') { loadGestaoPreditiva(); }
 }
 
 // Abre/fecha grupo colapsável na sidebar
@@ -19528,6 +19742,7 @@ const _PF_MODULOS = [
   { grupo: 'Painel Dinâmico',     modulo: 'mapabandeira',     label: 'Mapa por Bandeira' },
   { grupo: 'Painel Dinâmico',     modulo: 'volprojetado',     label: 'Volume Projetado' },
   { grupo: 'Indicadores',         modulo: 'indicadores',      label: 'Painel de Indicadores' },
+  { grupo: 'Manutenção',          modulo: 'gestao-preditiva', label: 'Gestão Preditiva' },
 ];
 
 let _perfisAcesso    = [];
@@ -20009,7 +20224,7 @@ function _applySidebarPermissions() {
       if (btn) btn.style.display = '';
     });
     // Garante que grupos do sidebar estejam visíveis
-    ['cadastros','orcamento','paineldinamico'].forEach(grupo => {
+    ['cadastros','orcamento','paineldinamico','manutencao'].forEach(grupo => {
       const header  = document.getElementById('side-btn-' + grupo);
       if (header) header.style.display = '';
     });
@@ -20030,7 +20245,7 @@ function _applySidebarPermissions() {
   });
 
   // Esconde grupos do sidebar se todos os subitens estiverem ocultos
-  ['cadastros','orcamento','paineldinamico'].forEach(grupo => {
+  ['cadastros','orcamento','paineldinamico','manutencao'].forEach(grupo => {
     const header  = document.getElementById('side-btn-' + grupo);
     const submenu = document.getElementById('sidebar-submenu-' + grupo);
     if (!header || !submenu) return;
@@ -20272,6 +20487,513 @@ if (document.readyState === 'loading') {
   }
   _ping(); // imediato
   setInterval(_ping, 30_000); // repete a cada 30s
+})();
+
+// Inicia aplicação (conecta ao servidor e carrega dados)
+// initApp() agora é chamado APENAS após login bem-sucedido
+// initApp();
+
+// ═══════════════════════════════════════════════════════════════
+//  GESTÃO PREDITIVA DE MANUTENÇÃO — ENGINE DE IA
+// ═══════════════════════════════════════════════════════════════
+
+// ── Intervalos de manutenção por tipo de veículo (km) ─────────
+const _PRED_CONFIG = {
+  oleo:          { leve: 8000,  pesado: 15000, label: 'Troca de Óleo',             icon: '🛢️',  cor: '#c2410c', peso: 1.8,
+                   descricao: 'Análise de óleo: verificar viscosidade, contaminação, acidez e nível. Motor com consumo elevado sugere desgaste acelerado.' },
+  pneus:         { leve: 12000, pesado: 25000, label: 'Rodízio / Troca de Pneus',  icon: '🛞',  cor: '#7c3aed', peso: 1.5,
+                   descricao: 'Inspeção visual e análise de vibrações: verificar desgaste irregular, pressão, trincas e profundidade da banda de rodagem.' },
+  filtros:       { leve: 15000, pesado: 20000, label: 'Filtros (Ar / Combustível)', icon: '🔧',  cor: '#0891b2', peso: 1.2,
+                   descricao: 'Verificar filtro de ar, combustível e óleo. Filtro entupido reduz potência e aumenta consumo — detectável por análise de consumo.' },
+  lubrificacao:  { leve: 20000, pesado: 20000, label: 'Lubrificação Geral',         icon: '⚙️',  cor: '#059669', peso: 1.0,
+                   descricao: 'Lubrificar todos os pontos: suspensão, cardan, quinta-roda (pesados), articulações. Monitoramento de ruídos indica ressecamento.' },
+  alinhamento:   { leve: 20000, pesado: 12000, label: 'Alinhamento de Eixos',       icon: '🎯',  cor: '#d97706', peso: 1.3,
+                   descricao: 'Alinhamento e balanceamento. Em pesados: verificar geometria dos eixos. Vibração no volante e desgaste assimétrico são indicadores.' },
+  arrefecimento: { leve: 40000, pesado: 40000, label: 'Sistema de Arrefecimento',   icon: '🌡️',  cor: '#2563eb', peso: 1.4,
+                   descricao: 'Monitoramento de temperatura: verificar radiador, termostato, bomba d\'água e nível do líquido de arrefecimento.' },
+  ruidos:        { leve: 8000,  pesado: 8000,  label: 'Monitoramento de Ruídos',    icon: '🔊',  cor: '#6d28d9', peso: 1.1,
+                   descricao: 'Verificar folgas, rolamentos, buchas de suspensão, freios e caixa de câmbio. Ultrassom detecta micro-fissuras e rolamentos desgastados.' },
+  revisao:       { leve: 30000, pesado: 30000, label: 'Revisão Geral do Veículo',   icon: '📋',  cor: '#0f172a', peso: 1.0,
+                   descricao: 'Inspeção visual completa: freios, suspensão, iluminação, sistema elétrico, vazamentos e estado geral da carroceria e chassi.' },
+};
+
+// Mapeamento dos chips de método → chaves de manutenção
+const _PRED_METODO_MAP = {
+  ruidos:      ['ruidos','lubrificacao'],
+  motor:       ['oleo','filtros'],
+  temperatura: ['arrefecimento'],
+  vibracao:    ['pneus','alinhamento'],
+  oleo:        ['oleo','filtros'],
+  ultrassom:   ['ruidos','arrefecimento'],
+  visual:      ['revisao','pneus'],
+  alinhamento: ['alinhamento'],
+};
+
+let _predAnalise      = [];        // resultado calculado por veículo
+let _predMetodoFiltro = null;       // chip de método ativo
+let _predDetalheAtual = null;       // veículo no modal
+
+// ── Cálculo do hodômetro atual por veículo ─────────────────────
+function _predKmAtual(placa) {
+  const recsList = records.filter(r => r.placa === placa && r.hodometro > 0);
+  const maxRec   = recsList.length ? Math.max(...recsList.map(r => r.hodometro)) : 0;
+  const veiculo  = veiculos.find(v => v.placa === placa);
+  return Math.max(maxRec, veiculo?.hodometro || 0);
+}
+
+// ── Consumo médio km/L ─────────────────────────────────────────
+function _predConsumo(placa) {
+  const hist = records
+    .filter(r => r.placa === placa && r.combustivel !== 'Arla 32' && r.hodometro > 0 && r.volume > 0)
+    .sort((a, b) => a.hodometro - b.hodometro);
+  if (hist.length < 2) return { atual: null, base: null, degradacao: 0 };
+  const pares = [];
+  for (let i = 1; i < hist.length; i++) {
+    const delta = hist[i].hodometro - hist[i - 1].hodometro;
+    if (delta > 50 && delta < 2000) pares.push(delta / hist[i].volume);
+  }
+  if (pares.length < 1) return { atual: null, base: null, degradacao: 0 };
+  const slice = Math.max(1, Math.floor(pares.length * 0.3));
+  const base  = pares.slice(0, slice).reduce((s, v) => s + v, 0) / slice;
+  const atual = pares.slice(-slice).reduce((s, v) => s + v, 0) / slice;
+  const degradacao = base > 0 ? Math.max(0, (base - atual) / base) : 0;
+  return { atual, base, degradacao };
+}
+
+// ── km rodados nos últimos 30 dias ─────────────────────────────
+function _predKmUltimoMes(placa) {
+  const corte = new Date(); corte.setDate(corte.getDate() - 30);
+  const hist = records
+    .filter(r => r.placa === placa && r.hodometro > 0 && new Date(r.data) >= corte)
+    .sort((a, b) => a.hodometro - b.hodometro);
+  if (hist.length < 2) return 0;
+  return hist[hist.length - 1].hodometro - hist[0].hodometro;
+}
+
+// ── Dias desde o último abastecimento ─────────────────────────
+function _predDiasSemAbast(placa) {
+  const hist = records.filter(r => r.placa === placa && r.data);
+  if (!hist.length) return null;
+  const latest = hist.reduce((m, r) => r.data > m ? r.data : m, '');
+  return Math.floor((Date.now() - new Date(latest)) / 86400000);
+}
+
+// ── Score de um componente de manutenção ─────────────────────
+// Retorna {score:0-100, kmSince, kmToNext, urgencia:'ok'|'alerta'|'critico'}
+function _predScoreComponente(kmAtual, tipo, isPesado, consumoDeg) {
+  const cfg       = _PRED_CONFIG[tipo];
+  const intervalo = isPesado ? cfg.pesado : cfg.leve;
+
+  // Se não há km, assume score mediano (sem dados suficientes)
+  if (!kmAtual) return { score: 65, kmSince: 0, kmToNext: intervalo, urgencia: 'ok' };
+
+  const fase     = kmAtual % intervalo;
+  let   pct      = fase / intervalo;  // 0 = acabou de fazer, 1 = passou do prazo
+
+  // Modificadores baseados em degradação de consumo
+  if ((tipo === 'oleo' || tipo === 'motor') && consumoDeg > 0.10) pct = Math.min(1, pct + consumoDeg * 0.5);
+  if (tipo === 'filtros' && consumoDeg > 0.08) pct = Math.min(1, pct + consumoDeg * 0.3);
+
+  const score    = Math.round(Math.max(0, 100 - pct * 110));  // vai a 0 mesmo antes de 100%
+  const kmSince  = Math.round(fase);
+  const kmToNext = Math.round(intervalo - fase);
+
+  let urgencia = 'ok';
+  if (pct >= 0.85) urgencia = 'critico';
+  else if (pct >= 0.65) urgencia = 'alerta';
+
+  return { score, kmSince, kmToNext, urgencia, pct };
+}
+
+// ── Análise completa de um veículo ────────────────────────────
+function _predAnalisarVeiculo(v) {
+  const isPesado = (v.tipo || '').toLowerCase() === 'pesado';
+  const kmAtual  = _predKmAtual(v.placa);
+  const consumo  = _predConsumo(v.placa);
+  const kmMes    = _predKmUltimoMes(v.placa);
+  const diasSemAbast = _predDiasSemAbast(v.placa);
+  const anoAtual = new Date().getFullYear();
+  const idadeAnos = v.anoFabricacao ? (anoAtual - v.anoFabricacao) : 0;
+
+  // Calcular componentes
+  const componentes = {};
+  let   pesoTotal   = 0;
+  let   scoreTotal  = 0;
+  for (const [key, cfg] of Object.entries(_PRED_CONFIG)) {
+    const comp = _predScoreComponente(kmAtual, key, isPesado, consumo.degradacao || 0);
+    // Penalidade por idade do veículo (> 8 anos: +5% desgaste adicional)
+    if (idadeAnos > 8) {
+      const penalidade = Math.min(0.15, (idadeAnos - 8) * 0.02);
+      comp.score = Math.max(0, Math.round(comp.score * (1 - penalidade)));
+      if (comp.urgencia === 'ok' && comp.pct >= 0.5) comp.urgencia = 'alerta';
+    }
+    componentes[key] = comp;
+    scoreTotal += comp.score * cfg.peso;
+    pesoTotal  += cfg.peso;
+  }
+
+  const scoreGeral = Math.round(scoreTotal / pesoTotal);
+  let statusGeral  = 'OK';
+  if (scoreGeral < 40) statusGeral = 'Crítico';
+  else if (scoreGeral < 70) statusGeral = 'Alerta';
+
+  // Top 3 alertas (piores componentes)
+  const alertas = Object.entries(componentes)
+    .filter(([, c]) => c.urgencia !== 'ok')
+    .sort((a, b) => a[1].score - b[1].score)
+    .slice(0, 3)
+    .map(([key, c]) => ({ key, ...c, ...{label: _PRED_CONFIG[key].label, icon: _PRED_CONFIG[key].icon, cor: _PRED_CONFIG[key].cor} }));
+
+  // Gerar recomendações da IA
+  const recomendacoes = _predGerarRecomendacoes(v, componentes, consumo, kmAtual, idadeAnos, kmMes);
+
+  return { placa: v.placa, veiculo: v, kmAtual, consumo, kmMes, diasSemAbast, idadeAnos, isPesado, scoreGeral, statusGeral, componentes, alertas, recomendacoes };
+}
+
+// ── Gerador de recomendações da IA ────────────────────────────
+function _predGerarRecomendacoes(v, comp, consumo, kmAtual, idadeAnos, kmMes) {
+  const recs = [];
+  const tipo = v.tipo || 'Leve';
+
+  // Urgentes (crítico)
+  const criticos = Object.entries(comp).filter(([, c]) => c.urgencia === 'critico');
+  if (criticos.length > 0) {
+    const nomes = criticos.map(([k]) => _PRED_CONFIG[k].label).join(', ');
+    recs.push(`🔴 <strong>Ação imediata necessária:</strong> ${nomes} — estes itens estão vencidos pelo hodômetro. Agendar manutenção com urgência para evitar quebra em campo.`);
+  }
+
+  // Consumo degradado
+  if (consumo.degradacao > 0.15) {
+    recs.push(`🛢️ <strong>Consumo degradado em ${Math.round(consumo.degradacao * 100)}%</strong> em relação à linha de base do veículo (base: ${consumo.base?.toFixed(1)} km/L → atual: ${consumo.atual?.toFixed(1)} km/L). Indica possível desgaste de filtros, bicos injetores ou anéis de motor. Recomendar análise de óleo e revisão de injeção.`);
+  } else if (consumo.degradacao > 0.07) {
+    recs.push(`⚠️ Leve queda de rendimento detectada (${Math.round(consumo.degradacao * 100)}%). Monitorar tendência e adiantar troca de filtros na próxima revisão.`);
+  }
+
+  // Veículo antigo
+  if (idadeAnos >= 10) {
+    recs.push(`📅 <strong>Veículo com ${idadeAnos} anos de fabricação.</strong> Intervalos de manutenção devem ser reduzidos em 20-30% em relação ao padrão. Priorizar inspeção visual, análise de ultrassom e verificação de mangueiras e correias.`);
+  }
+
+  // Alto km mensal
+  if (kmMes > (tipo === 'Pesado' ? 15000 : 5000)) {
+    recs.push(`🚛 <strong>Operação intensa:</strong> ${kmMes.toLocaleString('pt-BR')} km no último mês. Reduzir intervalo de troca de óleo para ${tipo === 'Pesado' ? '10.000' : '5.000'} km e intensificar monitoramento de ruídos e temperatura.`);
+  }
+
+  // Alertas pendentes
+  const alertas = Object.entries(comp).filter(([, c]) => c.urgencia === 'alerta');
+  if (alertas.length > 0 && criticos.length === 0) {
+    const proximos = alertas.slice(0, 2).map(([k, c]) => `${_PRED_CONFIG[k].icon} ${_PRED_CONFIG[k].label} (em ~${c.kmToNext.toLocaleString('pt-BR')} km)`).join(', ');
+    recs.push(`🟡 <strong>Próximos itens a vencer:</strong> ${proximos}. Agendar revisão preventiva para evitar evolução para estado crítico.`);
+  }
+
+  // Sem alertas
+  if (criticos.length === 0 && alertas.length === 0) {
+    recs.push(`✅ <strong>Veículo em bom estado de conservação.</strong> Manter cronograma de manutenções preventivas. Próxima revisão programada conforme intervalos padrão do fabricante.`);
+  }
+
+  // Pesados — eixos
+  if (tipo === 'Pesado' && comp.alinhamento?.urgencia !== 'ok') {
+    recs.push(`🎯 <strong>Alinhamento de eixos em atenção.</strong> Em veículos pesados, desalinhamento acelera desgaste de pneus e eleva consumo de combustível em até 3%. Verificar geometria dos eixos e ajustar 5ª roda se aplicável.`);
+  }
+
+  return recs.length ? recs : ['✅ Sem recomendações pendentes no momento. Veículo dentro dos parâmetros de operação.'];
+}
+
+// ── SVG Gauge circular ────────────────────────────────────────
+function _predGaugeSVG(score, size = 90) {
+  const r   = size * 0.38;
+  const cx  = size / 2;
+  const cy  = size / 2;
+  const circ = 2 * Math.PI * r;
+  const arc  = circ * 0.75;   // 270° do semicírculo
+  const cor  = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
+  const fill = arc * (score / 100);
+  const strokeDash = `${fill} ${arc - fill} ${circ - arc}`;
+  const rot  = 'rotate(135,' + cx + ',' + cy + ')';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="${size*0.09}" stroke-dasharray="${arc} ${circ - arc}" stroke-linecap="round" transform="${rot}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${cor}" stroke-width="${size*0.09}" stroke-dasharray="${strokeDash}" stroke-linecap="round" transform="${rot}"/>
+    <text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="${size*0.22}" font-weight="800" fill="${cor}">${score}</text>
+    <text x="${cx}" y="${cy+size*0.19}" text-anchor="middle" font-size="${size*0.12}" fill="#9ca3af">/ 100</text>
+  </svg>`;
+}
+
+// ── Badge de status ────────────────────────────────────────────
+function _predBadge(status, small = false) {
+  const map = { 'Crítico': ['#fef2f2','#dc2626','#fca5a5'], 'Alerta': ['#fffbeb','#d97706','#fde68a'], 'OK': ['#f0fdf4','#16a34a','#bbf7d0'] };
+  const [bg, cor, borda] = map[status] || map['OK'];
+  const sz = small ? '0.72rem' : '0.78rem';
+  const px = small ? '6px 10px' : '4px 10px';
+  return `<span style="background:${bg};color:${cor};border:1.5px solid ${borda};border-radius:20px;padding:${px};font-size:${sz};font-weight:700;white-space:nowrap;">${status === 'Crítico' ? '🔴' : status === 'Alerta' ? '🟡' : '🟢'} ${status}</span>`;
+}
+
+// ── Card de veículo ────────────────────────────────────────────
+function _predVehicleCard(a) {
+  const v = a.veiculo;
+  const modelo = [v.marca, v.modelo, v.anoFabricacao].filter(Boolean).join(' ');
+
+  // Barra de score
+  const barCor = a.scoreGeral >= 70 ? '#16a34a' : a.scoreGeral >= 40 ? '#d97706' : '#dc2626';
+  const barBg  = a.scoreGeral >= 70 ? '#f0fdf4' : a.scoreGeral >= 40 ? '#fffbeb' : '#fef2f2';
+
+  // Alertas no card (máx 3)
+  const alertasHtml = a.alertas.length
+    ? a.alertas.map(al => `
+        <div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:0.78rem;">
+          <span style="font-size:0.9rem;">${al.icon}</span>
+          <span style="flex:1;color:var(--text);font-weight:500;">${al.label}</span>
+          <span style="color:${al.urgencia === 'critico' ? '#dc2626' : '#d97706'};font-weight:700;font-size:0.74rem;white-space:nowrap;">
+            ${al.urgencia === 'critico' ? 'Vencido' : al.kmToNext > 0 ? `~${al.kmToNext.toLocaleString('pt-BR')} km` : 'Urgente'}
+          </span>
+        </div>`).join('')
+    : `<div style="font-size:0.78rem;color:#16a34a;padding:5px 0;">✅ Todos os itens dentro do prazo</div>`;
+
+  return `<div style="background:#fff;border:1.5px solid ${a.scoreGeral >= 70 ? '#e5e7eb' : a.scoreGeral >= 40 ? '#fde68a' : '#fca5a5'};border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);transition:transform .15s,box-shadow .15s;"
+               onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 16px rgba(0,0,0,.10)'"
+               onmouseout="this.style.transform='';this.style.boxShadow='0 1px 4px rgba(0,0,0,.06)'">
+
+    <!-- Card header -->
+    <div style="background:${barBg};padding:12px 14px 10px;border-bottom:1px solid #f1f5f9;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:1rem;font-weight:800;color:var(--text);letter-spacing:.03em;">${a.placa}</div>
+          <div style="font-size:0.76rem;color:var(--text-muted);margin-top:1px;">${modelo || 'Veículo'} · ${v.tipo || 'Leve'}</div>
+        </div>
+        ${_predBadge(a.statusGeral, true)}
+      </div>
+      <!-- Score bar -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${a.scoreGeral}%;background:${barCor};border-radius:4px;transition:width .4s;"></div>
+        </div>
+        <span style="font-size:0.8rem;font-weight:800;color:${barCor};min-width:32px;text-align:right;">${a.scoreGeral}%</span>
+      </div>
+    </div>
+
+    <!-- Alertas -->
+    <div style="padding:10px 14px 8px;">
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Itens em Atenção</div>
+      ${alertasHtml}
+    </div>
+
+    <!-- Footer com km e botão -->
+    <div style="padding:8px 14px 12px;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border-top:1px solid #f1f5f9;">
+      <div style="font-size:0.76rem;color:var(--text-muted);">
+        <span style="font-weight:700;color:var(--text);">${a.kmAtual.toLocaleString('pt-BR')}</span> km
+        ${a.consumo.atual ? `· <span style="font-weight:600;color:var(--text);">${a.consumo.atual.toFixed(1)}</span> km/L` : ''}
+        ${a.consumo.degradacao > 0.05 ? `<span style="color:#d97706;"> ↓${Math.round(a.consumo.degradacao*100)}%</span>` : ''}
+      </div>
+      <button onclick="_abrirPredDetalhe('${a.placa}')"
+        style="background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 11px;font-size:0.76rem;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:4px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Detalhes
+      </button>
+    </div>
+  </div>`;
+}
+
+// ── Filtro por método ─────────────────────────────────────────
+function _predFiltrarMetodo(el, metodo) {
+  const chips = document.querySelectorAll('.pred-method-chip');
+  if (_predMetodoFiltro === metodo) {
+    // Desselecionar
+    _predMetodoFiltro = null;
+    chips.forEach(c => { c.style.background='#fff'; c.style.color='var(--text-muted)'; c.style.borderColor='#e5e7eb'; });
+  } else {
+    _predMetodoFiltro = metodo;
+    chips.forEach(c => {
+      const ativo = c.dataset.metodo === metodo;
+      c.style.background = ativo ? '#ea580c' : '#fff';
+      c.style.color      = ativo ? '#fff'     : 'var(--text-muted)';
+      c.style.borderColor = ativo ? '#ea580c' : '#e5e7eb';
+    });
+  }
+  renderGestaoPreditiva();
+}
+
+// ── Carrega e renderiza a view ────────────────────────────────
+async function loadGestaoPreditiva() {
+  // Garante que veículos e abastecimentos estão carregados
+  await Promise.all([
+    veiculos.length  ? Promise.resolve() : loadVeiculos(),
+    records.length   ? Promise.resolve() : loadAbastecimentos(),
+  ]);
+  // Popula filtro de clientes no header
+  const cliSel = document.getElementById('pred-f-cliente');
+  if (cliSel && _clientes?.length) {
+    const optsHtml = '<option value="">Todos os clientes</option>' +
+      (_clientes || []).filter(c => c.status === 'Ativo').map(c =>
+        `<option value="${c.id}">${c.razao_social}</option>`).join('');
+    cliSel.innerHTML = optsHtml;
+  }
+  // Calcula análise preditiva para todos os veículos ativos
+  _predAnalise = veiculos
+    .filter(v => (v.status || 'Ativo') === 'Ativo')
+    .map(v => _predAnalisarVeiculo(v));
+  renderGestaoPreditiva();
+}
+
+// ── Renderiza a grid e KPIs ───────────────────────────────────
+function renderGestaoPreditiva() {
+  const fCliente   = document.getElementById('pred-f-cliente')?.value || '';
+  const fTipo      = document.getElementById('pred-f-tipo')?.value    || '';
+  const fStatus    = document.getElementById('pred-f-status')?.value  || '';
+  const fOrdenar   = document.getElementById('pred-f-ordenar')?.value || 'score';
+
+  let lista = [..._predAnalise];
+
+  // Filtros
+  if (fCliente) lista = lista.filter(a => String(a.veiculo.cliente_id) === fCliente);
+  if (fTipo)    lista = lista.filter(a => (a.veiculo.tipo || 'Leve') === fTipo);
+  if (fStatus)  lista = lista.filter(a => a.statusGeral === fStatus);
+  if (_predMetodoFiltro) {
+    const chaves = _PRED_METODO_MAP[_predMetodoFiltro] || [];
+    lista = lista.filter(a => chaves.some(k => a.componentes[k]?.urgencia !== 'ok'));
+  }
+
+  // Ordenação
+  if (fOrdenar === 'score') lista.sort((a, b) => a.scoreGeral - b.scoreGeral);
+  else if (fOrdenar === 'km') lista.sort((a, b) => b.kmAtual - a.kmAtual);
+  else lista.sort((a, b) => a.placa.localeCompare(b.placa));
+
+  // KPIs
+  const total     = _predAnalise.length;
+  const criticos  = _predAnalise.filter(a => a.statusGeral === 'Crítico').length;
+  const alertas   = _predAnalise.filter(a => a.statusGeral === 'Alerta').length;
+  const oks       = _predAnalise.filter(a => a.statusGeral === 'OK').length;
+  const scoreAvg  = total ? Math.round(_predAnalise.reduce((s, a) => s + a.scoreGeral, 0) / total) : 0;
+
+  const strip = document.getElementById('pred-kpi-strip');
+  if (strip) strip.innerHTML = `
+    <div class="kpi-big kpi-blue"><div class="kpi-big-header"><span>Veículos Monitorados</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><div class="kpi-big-body"><span class="kpi-value">${total}</span><span class="kpi-label">veículos ativos</span></div></div>
+    <div class="kpi-big kpi-orange" style="${criticos > 0 ? 'animation:pred-pulse 1.5s infinite;' : ''}"><div class="kpi-big-header"><span>Status Crítico</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="kpi-big-body"><span class="kpi-value" style="${criticos > 0 ? 'color:#dc2626;' : ''}">${criticos}</span><span class="kpi-label">requerem ação imediata</span></div></div>
+    <div class="kpi-big kpi-amber"><div class="kpi-big-header"><span>Em Alerta</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="kpi-big-body"><span class="kpi-value">${alertas}</span><span class="kpi-label">manutenção preventiva</span></div></div>
+    <div class="kpi-big kpi-green"><div class="kpi-big-header"><span>Índice de Saúde Médio</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="kpi-big-body"><span class="kpi-value">${scoreAvg}%</span><span class="kpi-label">${oks} veículos OK</span></div></div>`;
+
+  // Banner de alertas críticos
+  const banner = document.getElementById('pred-alertas-banner');
+  const bannerTxt = document.getElementById('pred-alertas-texto');
+  if (banner && bannerTxt) {
+    if (criticos > 0) {
+      const nomes = _predAnalise.filter(a => a.statusGeral === 'Crítico').slice(0, 5).map(a => a.placa).join(', ');
+      bannerTxt.innerHTML = `<strong>${criticos} veículo${criticos > 1 ? 's' : ''} com manutenção vencida:</strong> ${nomes}${criticos > 5 ? ` e mais ${criticos - 5}...` : ''}. Agende a manutenção imediatamente para evitar paradas não planejadas.`;
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  // Badge de total
+  const badge = document.getElementById('pred-total-badge');
+  if (badge) badge.textContent = `${lista.length} de ${total} veículo${total !== 1 ? 's' : ''}`;
+
+  // Grid
+  const grid  = document.getElementById('pred-grid');
+  const empty = document.getElementById('pred-empty');
+  if (!grid) return;
+  if (lista.length === 0) {
+    grid.innerHTML  = '';
+    if (empty) empty.style.display = '';
+  } else {
+    if (empty) empty.style.display = 'none';
+    grid.innerHTML = lista.map(a => _predVehicleCard(a)).join('');
+  }
+}
+
+// ── Abrir modal de detalhe ────────────────────────────────────
+function _abrirPredDetalhe(placa) {
+  const a = _predAnalise.find(x => x.placa === placa);
+  if (!a) return;
+  _predDetalheAtual = a;
+  const v = a.veiculo;
+  const modelo = [v.marca, v.modelo, v.anoFabricacao].filter(Boolean).join(' ');
+
+  document.getElementById('pred-det-placa').textContent = placa;
+  document.getElementById('pred-det-info').textContent  = `${modelo || 'Veículo'} · ${v.tipo || 'Leve'} · ${a.kmAtual.toLocaleString('pt-BR')} km`;
+  document.getElementById('pred-det-badge').innerHTML   = _predBadge(a.statusGeral);
+
+  // Gauge
+  document.getElementById('pred-det-gauge').innerHTML = _predGaugeSVG(a.scoreGeral);
+
+  // Score label
+  const corScore = a.scoreGeral >= 70 ? '#16a34a' : a.scoreGeral >= 40 ? '#d97706' : '#dc2626';
+  document.getElementById('pred-det-score-label').innerHTML =
+    `<span style="color:${corScore};">${a.scoreGeral}<span style="font-size:.9rem;font-weight:600;color:var(--text-muted);">/100</span></span>`;
+
+  // Stats
+  const diasTxt = a.diasSemAbast !== null ? `${a.diasSemAbast}d sem abast.` : '';
+  document.getElementById('pred-det-stats').innerHTML =
+    `${a.kmMes ? `<span>📍 ${a.kmMes.toLocaleString('pt-BR')} km/mês</span><br>` : ''}` +
+    `${a.consumo.atual ? `<span>⛽ ${a.consumo.atual.toFixed(1)} km/L</span><br>` : ''}` +
+    `${a.idadeAnos ? `<span>📅 ${a.idadeAnos} anos de uso</span>` : ''} ${diasTxt}`;
+
+  // Consumo box
+  const consEl = document.getElementById('pred-det-consumo');
+  if (a.consumo.atual) {
+    const deg = a.consumo.degradacao;
+    const corDeg = deg > 0.15 ? '#dc2626' : deg > 0.07 ? '#d97706' : '#16a34a';
+    consEl.innerHTML = `
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Tendência de Consumo</div>
+      <div style="display:flex;justify-content:space-between;gap:12px;">
+        <div style="text-align:center;"><div style="font-size:1rem;font-weight:800;color:#2563eb;">${a.consumo.base?.toFixed(1)}</div><div style="font-size:0.68rem;color:var(--text-muted);">Baseline km/L</div></div>
+        <div style="text-align:center;"><div style="font-size:1rem;font-weight:800;color:${corDeg};">${a.consumo.atual?.toFixed(1)}</div><div style="font-size:0.68rem;color:var(--text-muted);">Atual km/L</div></div>
+        <div style="text-align:center;"><div style="font-size:1rem;font-weight:800;color:${corDeg};">${deg > 0 ? '-' : ''}${Math.round(deg*100)}%</div><div style="font-size:0.68rem;color:var(--text-muted);">Degradação</div></div>
+      </div>`;
+  } else {
+    consEl.innerHTML = `<div style="font-size:0.78rem;color:var(--text-muted);text-align:center;padding:8px 0;">Dados de consumo insuficientes</div>`;
+  }
+
+  // 8 tipos de manutenção
+  const itemsEl = document.getElementById('pred-det-items');
+  itemsEl.innerHTML = Object.entries(_PRED_CONFIG).map(([key, cfg]) => {
+    const c   = a.componentes[key];
+    const cor = c.urgencia === 'critico' ? '#dc2626' : c.urgencia === 'alerta' ? '#d97706' : '#16a34a';
+    const bgBar = c.urgencia === 'critico' ? '#dc2626' : c.urgencia === 'alerta' ? '#f59e0b' : '#22c55e';
+    const isPesado = a.isPesado;
+    const intervalo = isPesado ? cfg.pesado : cfg.leve;
+    return `
+      <div style="background:#fff;border:1.5px solid ${c.urgencia === 'critico' ? '#fca5a5' : c.urgencia === 'alerta' ? '#fde68a' : '#e5e7eb'};border-radius:10px;padding:10px 14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:1rem;">${cfg.icon}</span>
+          <span style="font-size:0.84rem;font-weight:700;flex:1;">${cfg.label}</span>
+          <span style="font-size:0.74rem;font-weight:700;color:${cor};background:${c.urgencia === 'critico' ? '#fef2f2' : c.urgencia === 'alerta' ? '#fffbeb' : '#f0fdf4'};padding:2px 8px;border-radius:12px;">
+            ${c.urgencia === 'critico' ? '🔴 Vencido' : c.urgencia === 'alerta' ? '🟡 Em breve' : '🟢 OK'}
+          </span>
+        </div>
+        <!-- Barra de progresso -->
+        <div style="height:5px;background:#f1f5f9;border-radius:3px;margin-bottom:5px;overflow:hidden;">
+          <div style="height:100%;width:${Math.min(100,Math.round(c.pct*100))}%;background:${bgBar};border-radius:3px;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-muted);margin-bottom:5px;">
+          <span>${c.kmSince.toLocaleString('pt-BR')} km desde última manutenção</span>
+          <span>Intervalo: ${intervalo.toLocaleString('pt-BR')} km</span>
+        </div>
+        <div style="font-size:0.75rem;color:#6b7280;line-height:1.5;">${cfg.descricao}</div>
+      </div>`;
+  }).join('');
+
+  // Recomendações
+  const recEl = document.getElementById('pred-det-recomendacoes');
+  recEl.innerHTML = a.recomendacoes.map(r => `<p style="margin:0 0 8px;">${r}</p>`).join('');
+
+  document.getElementById('predDetalheModalOverlay').style.display = 'flex';
+}
+
+function _fecharPredDetalhe() {
+  document.getElementById('predDetalheModalOverlay').style.display = 'none';
+  _predDetalheAtual = null;
+}
+
+function _predAgendarManutencao() {
+  if (!_predDetalheAtual) return;
+  showToast(`Funcionalidade de agendamento em desenvolvimento para ${_predDetalheAtual.placa}.`, 'info');
+}
+
+// Pulso CSS para KPI crítico
+(function() {
+  const style = document.createElement('style');
+  style.textContent = `@keyframes pred-pulse { 0%,100%{box-shadow:0 2px 8px rgba(220,38,38,0)} 50%{box-shadow:0 2px 18px rgba(220,38,38,.4)} }`;
+  document.head.appendChild(style);
 })();
 
 // Inicia aplicação (conecta ao servidor e carrega dados)
