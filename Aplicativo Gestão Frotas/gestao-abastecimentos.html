@@ -5340,6 +5340,33 @@
       <div class="form-section">
         <div class="form-section-title">⛽ Posto de Combustível</div>
         <div class="form-grid">
+
+          <!-- ── Filtro de UF ── -->
+          <div class="form-group span2">
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 13px;
+                        background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:9px;flex-wrap:wrap;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" style="flex-shrink:0;">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <span style="font-size:0.78rem;font-weight:700;color:#1d4ed8;white-space:nowrap;">Filtrar postos por estado (UF):</span>
+              <select id="f-posto-uf-filter" onchange="_postoFiltroUFChange()"
+                style="flex:1;min-width:180px;padding:5px 10px;border:1.5px solid #93c5fd;border-radius:7px;
+                       font-size:0.82rem;background:#fff;color:#1e293b;cursor:pointer;">
+                <option value="">— Todos os estados —</option>
+                <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+                <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+                <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+                <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+                <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+                <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+                <option>SP</option><option>SE</option><option>TO</option>
+              </select>
+              <span id="f-posto-uf-count"
+                style="font-size:0.75rem;color:#2563eb;font-weight:700;white-space:nowrap;
+                       background:#dbeafe;padding:3px 9px;border-radius:20px;display:none;"></span>
+            </div>
+          </div>
+
           <div class="form-group span2">
             <label>Nome do Posto *</label>
             <div class="ac-wrapper">
@@ -7577,6 +7604,11 @@ async function openModal(id = null) {
      'f-arla-volume','f-arla-preco','f-arla-total'].forEach(fid => {
       document.getElementById(fid).value = '';
     });
+    // Reseta filtro de UF do posto e esconde badge
+    const ufFiltroEl = document.getElementById('f-posto-uf-filter');
+    if (ufFiltroEl) ufFiltroEl.value = '';
+    const ufBadge = document.getElementById('f-posto-uf-count');
+    if (ufBadge) ufBadge.style.display = 'none';
     // Reset serviços
     ['lavagem','lubrificacao','restaurante','banheiro','estacionamento','hotel','outros'].forEach(id => {
       const cb = document.getElementById(`svc-${id}-cb`);
@@ -12553,10 +12585,44 @@ function _onSelectPosto(item) {
 function _postoComPreco(p) {
   return p.combustiveis && Object.values(p.combustiveis).some(v => v != null && v !== '');
 }
+function _postoUFFiltrado() {
+  return (document.getElementById('f-posto-uf-filter')?.value || '').trim().toUpperCase();
+}
+
+function _postoListaFiltrada() {
+  const uf = _postoUFFiltrado();
+  return postos.filter(p => _postoComPreco(p) && (!uf || (p.uf || '').toUpperCase() === uf));
+}
+
+function _postoFiltroUFChange() {
+  const uf    = _postoUFFiltrado();
+  const lista = _postoListaFiltrada();
+  const badge = document.getElementById('f-posto-uf-count');
+  if (badge) {
+    if (uf) {
+      badge.textContent = lista.length + (lista.length === 1 ? ' posto' : ' postos') + ' em ' + uf;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  // Limpa o campo de nome e reexibe o autocomplete com a nova lista
+  const input = document.getElementById('f-new-posto');
+  if (input && !input.value.trim()) {
+    acBuscarPosto();
+  } else if (input && input.value.trim()) {
+    acBuscarPosto();
+  }
+}
+
 function comboAbrirPosto() {
-  const comPreco = postos.filter(_postoComPreco);
-  if (!comPreco.length) { showToast('Nenhum posto com preços de combustível cadastrados.', ''); return; }
-  const items = comPreco.map(_comboItemPosto);
+  const lista = _postoListaFiltrada();
+  if (!lista.length) {
+    const uf = _postoUFFiltrado();
+    showToast(uf ? `Nenhum posto com preços cadastrados em ${uf}.` : 'Nenhum posto com preços de combustível cadastrados.', '');
+    return;
+  }
+  const items = lista.map(_comboItemPosto);
   acShow('ac-posto', items, _onSelectPosto, true);
 }
 
@@ -12608,23 +12674,26 @@ function acBuscarMotorista() {
 }
 
 // ─── BUSCA POSTO (por razão, CNPJ, bandeira, cidade) ────────────────────────
-// Apenas postos com pelo menos um combustível com preço cadastrado são exibidos
+// Apenas postos com pelo menos um combustível com preço cadastrado são exibidos.
+// Respeita o filtro de UF selecionado em f-posto-uf-filter.
 function acBuscarPosto() {
   const input = document.getElementById('f-new-posto');
   const q = input.value.trim().toLowerCase();
   document.getElementById('ac-posto-info').textContent = '';
-  const comPreco = postos.filter(_postoComPreco);
-  if (!comPreco.length) {
-    document.getElementById('ac-posto-info').textContent = '⚠ Nenhum posto com preços cadastrados';
+  const lista = _postoListaFiltrada();
+  const uf    = _postoUFFiltrado();
+  if (!lista.length) {
+    document.getElementById('ac-posto-info').textContent =
+      uf ? `⚠ Nenhum posto com preços cadastrados em ${uf}` : '⚠ Nenhum posto com preços cadastrados';
     acHide('ac-posto'); return;
   }
   if (!q) {
     // Campo vazio → exibe os primeiros 50 para evitar travamento com listas grandes.
     // Para ver todos use o botão ☰ ao lado do campo.
-    acShow('ac-posto', comPreco.slice(0, 50).map(_comboItemPosto), _onSelectPosto, false);
+    acShow('ac-posto', lista.slice(0, 50).map(_comboItemPosto), _onSelectPosto, false);
     return;
   }
-  const matches = comPreco.filter(p =>
+  const matches = lista.filter(p =>
     (p.razao||'').toLowerCase().includes(q) ||
     (p.cnpj||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
     (p.bandeira||'').toLowerCase().includes(q) ||
