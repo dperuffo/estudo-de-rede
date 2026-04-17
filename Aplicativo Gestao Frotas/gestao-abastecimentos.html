@@ -9125,7 +9125,9 @@ async function openModal(id = null) {
     _loadAllMotoristas(),
     apiCall('GET', '/api/postos').then(rows     => { postos     = rows.map(mapPosto);     _setOnline(); }).catch(()=>{}),
     apiCall('GET', '/api/vinculos').then(rows   => { vinculos   = rows.map(mapVinculo);   _setOnline(); }).catch(()=>{}),
-    apiCall('GET', '/api/intervalos').then(rows => { intervalos = rows.map(mapIntervalo); _setOnline(); }).catch(()=>{})
+    apiCall('GET', '/api/intervalos').then(rows => { intervalos = rows.map(mapIntervalo); _setOnline(); }).catch(()=>{}),
+    // Recarrega restrições de posto para garantir dados atualizados no filtro do form
+    apiCall('GET', '/api/restricoes-posto').then(rows => { restricoesPosto = rows || []; }).catch(()=>{})
   ]);
 
   document.getElementById('editId').value = id || '';
@@ -14324,7 +14326,7 @@ function _postoListaFiltrada() {
 // ── Restrição de Postos Permitidos no formulário de abastecimento ─────────────
 /**
  * Calcula o conjunto de IDs de postos permitidos considerando as restrições
- * parametrizadas ativas para a combinação placa/motorista/cliente atual.
+ * parametrizadas ativas para a combinação placa/motorista/cliente/classificação atual.
  *
  * Retorna:
  *   null  → nenhuma restrição ativa com postos configurados (todos os postos são exibidos)
@@ -14337,41 +14339,78 @@ function _getPostosPermitidosPorRestricao() {
 
   if (!placa && !motorista) return null;  // nada selecionado → sem filtro
 
+  // Busca a classificação do veículo selecionado (para match por classificação)
+  let classificacaoVeiculo = '';
+  if (placa) {
+    const veiculo = (veiculos || []).find(v => (v.placa || '').toUpperCase() === placa);
+    classificacaoVeiculo = (veiculo?.classificacao || '').trim();
+  }
+
+  const lista = restricoesPosto || [];
+  console.log('[RestricaoPosto] total regras:', lista.length, '| placa:', placa, '| motorista:', motorista, '| cliId:', cliId, '| classif:', classificacaoVeiculo);
+
   // Coleta restrições ativas que se aplicam a esta combinação
-  const aplicaveis = (restricoesPosto || []).filter(r => {
-    if (!r.ativo) return false;
-    // Cada campo vazio na regra = "Todos" (curinga)
-    if (r.placa     && r.placa.trim().toUpperCase() !== placa)     return false;
-    if (r.motorista && r.motorista.trim() !== motorista)            return false;
-    if (r.cliente_id && cliId && String(r.cliente_id) !== cliId)   return false;
+  const aplicaveis = lista.filter(r => {
+    // ativo pode vir como boolean true ou integer 1
+    if (r.ativo === false || r.ativo === 0 || r.ativo === '0') return false;
+    if (!r.ativo && r.ativo !== undefined) return false;
+
+    // ── match de placa ──
+    // Se a regra tem placa específica, deve bater exatamente
+    const rPlaca = (r.placa || '').trim().toUpperCase();
+    if (rPlaca && rPlaca !== placa) return false;
+
+    // ── match de classificação ──
+    // Se a regra tem classificação diferente de 'Todos' e diferente de '' (curinga),
+    // e o veículo tem classificação definida, elas devem coincidir
+    const rClass = (r.classificacao || '').trim();
+    if (rClass && rClass !== 'Todos' && classificacaoVeiculo && rClass !== classificacaoVeiculo) return false;
+
+    // ── match de motorista ──
+    const rMot = (r.motorista || '').trim();
+    if (rMot && motorista && rMot !== motorista) return false;
+    // Se a regra exige motorista mas nenhum está preenchido no form, a regra não se aplica
+    if (rMot && !motorista) return false;
+
+    // ── match de cliente ──
+    // Se a regra tem cliente, e um cliente está selecionado, eles devem coincidir
+    if (r.cliente_id && cliId && String(r.cliente_id) !== cliId) return false;
+
     return true;
   });
+
+  console.log('[RestricaoPosto] aplicaveis:', aplicaveis.length, aplicaveis.map(r => ({id:r.id, placa:r.placa, motorista:r.motorista, postos_ids:r.postos_ids, ativo:r.ativo})));
 
   // Mantém apenas regras que têm postos efetivamente configurados
   const comPostos = aplicaveis.filter(r => {
     let pids = [];
     try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
+    if (!Array.isArray(pids)) pids = [];
     if (!pids.length && r.posto_id) pids = [r.posto_id];
     return pids.length > 0;
   });
 
+  console.log('[RestricaoPosto] comPostos:', comPostos.length);
+
   if (!comPostos.length) return null;  // regras existem mas sem posto configurado → sem filtro
 
   // Interseção: um posto só é permitido se estiver em TODAS as regras aplicáveis
-  // (ex: regra por placa E regra por motorista — posto deve atender às duas)
   let resultado = null;
   for (const r of comPostos) {
     let pids = [];
     try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
+    if (!Array.isArray(pids)) pids = [];
     if (!pids.length && r.posto_id) pids = [r.posto_id];
     const set = new Set(pids.map(Number));
     if (resultado === null) {
-      resultado = set;
+      resultado = new Set(set);  // cópia para não modificar o original
     } else {
-      // interseção
-      for (const id of resultado) { if (!set.has(id)) resultado.delete(id); }
+      // interseção: mantém apenas IDs que estão nos dois conjuntos
+      const novosIds = new Set([...resultado].filter(id => set.has(id)));
+      resultado = novosIds;
     }
   }
+  console.log('[RestricaoPosto] permitidos IDs:', resultado ? [...resultado] : null);
   return resultado || new Set();
 }
 
