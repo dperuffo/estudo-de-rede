@@ -7646,9 +7646,8 @@ function _rhPopulateModalMotoristas(cliId) {
   const cur = sel.value;
   let ml = motoristas.filter(m => m.status === 'Ativo');
   if (cliId) {
-    // Usa vínculos para filtrar motoristas do cliente
-    const vinculosCliente = vinculos.filter(v => String(v.cliente_id) === cliId).map(v => v.motorista);
-    if (vinculosCliente.length) ml = ml.filter(m => vinculosCliente.includes(m.nome));
+    // Filtra pelo cliente_id direto do motorista
+    ml = ml.filter(m => String(m.cliente_id) === String(cliId));
   }
   sel.innerHTML = '<option value="">Todos os motoristas</option>' +
     ml.map(m => `<option value="${m.nome}">${escHtml(m.nome)}</option>`).join('');
