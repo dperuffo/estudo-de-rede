@@ -3501,10 +3501,16 @@
           </div>
         </div>
 
-        <!-- Dados do Veículo -->
+        <!-- Cliente + Dados do Veículo -->
         <div id="roteiz-smart-fields" style="padding:12px 16px;border-bottom:1px solid var(--border);">
           <div style="font-weight:700;color:var(--text);margin-bottom:4px;font-size:0.82rem;text-transform:uppercase;letter-spacing:.04em;">Dados do Veículo</div>
           <div style="font-size:0.73rem;color:var(--text-muted);margin-bottom:8px;">Opcional — usado para calcular paradas de abastecimento ideais</div>
+          <div class="form-group" style="margin-bottom:8px;">
+            <label class="form-label">Cliente</label>
+            <select id="roteiz-cliente-sel" class="form-input" onchange="_roteizClienteChanged()">
+              <option value="">— Todos os clientes —</option>
+            </select>
+          </div>
           <div class="form-group" style="margin-bottom:8px;">
             <label class="form-label">Placa do Veículo</label>
             <select id="roteiz-placa" class="form-input" onchange="preencherDadosVeiculoRoteiz()">
@@ -7134,7 +7140,8 @@ function _refreshClienteSelects() {
    'hodo-leve-f-cliente','hodo-pesado-f-cliente',
    'roto-f-cliente','pv-f-cliente','seg-f-cliente','roteiz-f-cliente',
    'rh-f-cliente','rh-m-cliente',
-   'rp-f-cliente','rp-m-cliente'].forEach(id => {
+   'rp-f-cliente','rp-m-cliente',
+   'roteiz-cliente-sel'].forEach(id => {
     const sel = document.getElementById(id);
     if (sel) { const v = sel.value; sel.innerHTML = opts; sel.value = v; }
   });
@@ -18477,14 +18484,9 @@ function _roteizPopularFiltros() {
       combs.map(c => `<option value="${c}">${c}</option>`).join('');
   }
 
-  // Placa select (rota inteligente)
-  const placaSel = document.getElementById('roteiz-placa');
-  if (placaSel) {
-    placaSel.innerHTML = '<option value="">-- selecione --</option>' +
-      veiculos.filter(v => v.status === 'Ativo').map(v =>
-        `<option value="${v.placa}">${v.placa} — ${v.modelo || v.marca || ''}</option>`
-      ).join('');
-  }
+  // Placa select (rota inteligente) — respeita cliente já selecionado
+  const cliIdRoteiz = document.getElementById('roteiz-cliente-sel')?.value || '';
+  _roteizPopulatePlacas(cliIdRoteiz);
 
   // Contadores de postos por tipo
   _atualizarContadoresPostos();
@@ -19599,6 +19601,43 @@ function preencherDadosVeiculoRoteiz() {
   if (conEl && med > 0) conEl.value = med.toFixed(2);
 }
 
+/**
+ * Chamado quando o cliente é alterado no selector do roteirizador.
+ * Filtra a lista de placas e sincroniza o select oculto roteiz-f-cliente.
+ */
+function _roteizClienteChanged() {
+  const cliId  = document.getElementById('roteiz-cliente-sel')?.value || '';
+  // Sincroniza com o select oculto (usado em loadListaRotas / filtros)
+  const hidden = document.getElementById('roteiz-f-cliente');
+  if (hidden) hidden.value = cliId;
+  // Repopula a lista de veículos filtrada pelo cliente
+  _roteizPopulatePlacas(cliId);
+}
+
+/** Popula o select de placa do roteirizador, opcionalmente filtrado por cliente. */
+function _roteizPopulatePlacas(cliId) {
+  const placaSel = document.getElementById('roteiz-placa');
+  if (!placaSel) return;
+  const prevPlaca = placaSel.value;
+  let vl = (veiculos || []).filter(v => v.status === 'Ativo');
+  if (cliId) vl = vl.filter(v => String(v.cliente_id) === String(cliId));
+  placaSel.innerHTML = '<option value="">-- selecione --</option>' +
+    vl.map(v => `<option value="${v.placa}">${v.placa} — ${v.modelo || v.marca || ''}</option>`).join('');
+  // Mantém a seleção anterior se o veículo ainda estiver na lista filtrada
+  if (prevPlaca && vl.some(v => v.placa === prevPlaca)) {
+    placaSel.value = prevPlaca;
+  } else if (prevPlaca) {
+    // Veículo selecionado não pertence ao cliente — limpa campos
+    placaSel.value = '';
+    ['roteiz-cap-tanque','roteiz-litros-tanque','roteiz-consumo'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.getElementById('roteiz-cap-hint') && (document.getElementById('roteiz-cap-hint').textContent = '');
+    document.getElementById('roteiz-litros-hint') && (document.getElementById('roteiz-litros-hint').textContent = '');
+  }
+}
+
 function calcRoteizLitrosMin() {
   const cap = parseFloat(document.getElementById('roteiz-cap-tanque')?.value || 0);
   const hint = document.getElementById('roteiz-cap-hint');
@@ -19919,6 +19958,10 @@ function limparRoteiz() {
   // Esconde botão "Nova Rota" ao limpar
   const btnNova = document.getElementById('roteiz-nova-rota-btn');
   if (btnNova) btnNova.style.display = 'none';
+  // Reseta cliente do sidebar e repopula placas (todas)
+  const cliSelRoteiz = document.getElementById('roteiz-cliente-sel');
+  if (cliSelRoteiz) cliSelRoteiz.value = '';
+  _roteizPopulatePlacas('');
   _roteizServSel = [];
 
   // Limpa inputs
@@ -20010,11 +20053,12 @@ function _abrirSalvarRotaModal(nomeDefault) {
   if (!overlay || !nomeEl) return;
   if (titulo) titulo.textContent = _roteizRotaId ? 'Editar Rota' : 'Salvar Rota';
   nomeEl.value = nomeDefault || '';
-  // Pre-seleciona cliente anterior se existir
+  // Pre-seleciona cliente do sidebar (roteiz-cliente-sel tem prioridade sobre roteiz-f-cliente)
   const salvarSel = document.getElementById('roteiz-salvar-cliente');
   if (salvarSel) {
-    const prev = document.getElementById('roteiz-f-cliente')?.value;
-    if (prev) salvarSel.value = prev;
+    const cliSidebar = document.getElementById('roteiz-cliente-sel')?.value
+      || document.getElementById('roteiz-f-cliente')?.value || '';
+    if (cliSidebar) salvarSel.value = cliSidebar;
   }
   overlay.style.display = '';       // limpa inline display:none anterior
   overlay.classList.add('open');    // ativa opacity:1 e pointer-events
