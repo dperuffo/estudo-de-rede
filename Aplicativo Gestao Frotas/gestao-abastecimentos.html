@@ -1294,22 +1294,7 @@
     Rotograma
   </button>
 
-  <!-- ── Manutenção (grupo colapsável) ── -->
-  <div class="sidebar-group">
-    <button class="sidebar-item sidebar-group-header" id="side-btn-manutencao" onclick="toggleSidebarGroup('manutencao')">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      Manutenção
-      <svg class="sidebar-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:auto"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <div class="sidebar-submenu" id="sidebar-submenu-manutencao">
-      <button class="sidebar-item sidebar-subitem" id="side-btn-gestao-preditiva" onclick="switchTab('gestao-preditiva')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        Gestão Preditiva
-      </button>
-    </div>
-  </div>
-
-  <!-- ── Orçamento (grupo colapsável) ── -->
+  <!-- ── Orçamento (grupo colapsável) — inclui Manutenção ── -->
   <div class="sidebar-group">
     <button class="sidebar-item sidebar-group-header" id="side-btn-orcamento" onclick="toggleSidebarGroup('orcamento')">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h2m2 0h2m2 0h2M7 12h2m4 0h4"/></svg>
@@ -1324,6 +1309,12 @@
       <button class="sidebar-item sidebar-subitem" id="side-btn-custos" onclick="switchTab('custos')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Controle de Custos
+      </button>
+      <!-- Separador Manutenção -->
+      <div style="padding:6px 16px 2px;font-size:0.68rem;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;text-transform:uppercase;border-top:1px solid rgba(255,255,255,0.08);margin-top:4px;">Manutenção</div>
+      <button class="sidebar-item sidebar-subitem" id="side-btn-gestao-preditiva" onclick="switchTab('gestao-preditiva')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Gestão Preditiva
       </button>
     </div>
   </div>
@@ -1720,11 +1711,17 @@
     <!-- Evolutivo de Volume em Postos — Top 5 -->
     <p class="ind-section-title">Evolutivo de Volume em Postos — Top 5</p>
     <div class="chart-panel" style="margin-bottom:24px;">
-      <!-- barra de filtro de combustível -->
-      <div class="chart-panel-header" style="gap:14px;flex-wrap:wrap;">
-        <span class="chart-panel-title">Volume (L) por Mês · Filtrar por Combustível:</span>
+      <div class="chart-panel-header" style="gap:12px;flex-wrap:wrap;align-items:center;">
+        <span class="chart-panel-title">Volume (L) por Posto · Top 5</span>
+        <!-- Toggle Mensal / Diário -->
+        <div style="display:flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0;">
+          <button id="evol-btn-mensal" onclick="_evolSetView('mensal')"
+            style="padding:4px 14px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;background:#1d4ed8;color:#fff;transition:all .15s">Mensal</button>
+          <button id="evol-btn-diario" onclick="_evolSetView('diario')"
+            style="padding:4px 14px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;background:var(--bg);color:var(--text-muted);transition:all .15s">Diário</button>
+        </div>
         <select id="ind-evol-combustivel"
-          style="height:30px;padding:0 10px;border-radius:7px;border:1.5px solid var(--border);font-size:0.82rem;background:#fff;color:var(--text);min-width:180px;"
+          style="height:30px;padding:0 10px;border-radius:7px;border:1.5px solid var(--border);font-size:0.82rem;background:#fff;color:var(--text);min-width:160px;"
           onchange="_renderEvolPostos()">
           <option value="">Todos os Combustíveis</option>
         </select>
@@ -7489,14 +7486,14 @@ async function loadRestricoesHorario() {
 }
 
 function _rhPopulateFiltros() {
-  // Clientes
+  // Clientes — usa _clientes global para listar todos, não só os que têm restrição
   const selCli = document.getElementById('rh-f-cliente');
   if (selCli) {
     const cur = selCli.value;
-    const ids = [...new Set(restricoesHorario.filter(r => r.cliente_id).map(r => r.cliente_id))];
+    const lista = (_clientes || []).filter(c => c.status === 'Ativo');
     selCli.innerHTML = '<option value="">Todos os clientes</option>' +
-      ids.map(id => `<option value="${id}">${escHtml(_clienteNome(id))}</option>`).join('');
-    selCli.value = cur;
+      lista.map(c => `<option value="${c.id}">${escHtml(c.nome||c.razao||'')}</option>`).join('');
+    if (lista.some(c => String(c.id) === cur)) selCli.value = cur;
   }
   // Placas
   const selPl = document.getElementById('rh-f-placa');
@@ -7661,9 +7658,10 @@ function _rhPopulateModalClientes() {
   const sel = document.getElementById('rh-m-cliente');
   if (!sel) return;
   const cur = sel.value;
+  const lista = (_clientes || []).filter(c => c.status === 'Ativo');
   sel.innerHTML = '<option value="">Todos os clientes</option>' +
-    clientes.map(c => `<option value="${c.id}">${escHtml(c.nome||c.razao||'')}</option>`).join('');
-  if (clientes.some(c => String(c.id) === cur)) sel.value = cur;
+    lista.map(c => `<option value="${c.id}">${escHtml(c.nome||c.razao||'')}</option>`).join('');
+  if (lista.some(c => String(c.id) === cur)) sel.value = cur;
 }
 
 function openRestricaoModal(id = null) {
@@ -10203,10 +10201,12 @@ function _renderMonthlyChart() {
     content += `<text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="#94a3b8">${label}</text>`;
   }
 
-  // Bars
+  // Bars + tooltips
+  window._tipData = []; // reset antes de re-renderizar
   data.forEach((d, i) => {
     const x = padL + i * barGroup + (barGroup - barW) / 2;
-    const totalH = chartH * ((d.diesel + d.gas + d.outros) / maxVal);
+    const total   = d.diesel + d.gas + d.outros;
+    const totalH  = chartH * (total  / maxVal);
     const dieselH = chartH * (d.diesel / maxVal);
     const gasH    = chartH * (d.gas    / maxVal);
     const outrosH = totalH - dieselH - gasH;
@@ -10218,11 +10218,26 @@ function _renderMonthlyChart() {
     if (d.outros > 0)  content += `<rect x="${x}" y="${yOtros}"  width="${barW}" height="${outrosH}" fill="#94a3b8" rx="2"/>`;
     if (d.gas > 0)     content += `<rect x="${x}" y="${yGas}"    width="${barW}" height="${gasH}"    fill="#d97706" rx="2"/>`;
     if (d.diesel > 0)  content += `<rect x="${x}" y="${yDiesel}" width="${barW}" height="${dieselH}" fill="#1d4ed8" rx="2"/>`;
-    if (totalH === 0) content += `<rect x="${x}" y="${padT + chartH - 2}" width="${barW}" height="2" fill="#e2e8f0" rx="1"/>`;
+    if (totalH === 0)  content += `<rect x="${x}" y="${padT + chartH - 2}" width="${barW}" height="2" fill="#e2e8f0" rx="1"/>`;
 
     // Label X
     const xLabel = x + barW / 2;
     content += `<text x="${xLabel}" y="${padT + chartH + 14}" text-anchor="middle" font-size="9" fill="#94a3b8">${d.label}</text>`;
+
+    // Tooltip — rect transparente sobre toda a coluna
+    const fmt = v => 'R$\u00a0' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const tipHtml = `<div style="font-weight:700;margin-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px">${d.label}</div>`
+      + (d.diesel > 0 ? `<div><span style="display:inline-block;width:10px;height:10px;background:#1d4ed8;border-radius:2px;margin-right:5px;vertical-align:middle"></span>Diesel: <strong>${fmt(d.diesel)}</strong></div>` : '')
+      + (d.gas > 0    ? `<div><span style="display:inline-block;width:10px;height:10px;background:#d97706;border-radius:2px;margin-right:5px;vertical-align:middle"></span>Gasolina/Álc: <strong>${fmt(d.gas)}</strong></div>` : '')
+      + (d.outros > 0 ? `<div><span style="display:inline-block;width:10px;height:10px;background:#94a3b8;border-radius:2px;margin-right:5px;vertical-align:middle"></span>Outros: <strong>${fmt(d.outros)}</strong></div>` : '')
+      + `<div style="margin-top:5px;border-top:1px solid rgba(255,255,255,0.15);padding-top:4px;font-weight:700">Total: ${fmt(total)}</div>`;
+    window._tipData.push(tipHtml);
+    const tipIdx = window._tipData.length - 1;
+    const hoverX = padL + i * barGroup;
+    content += `<rect x="${hoverX}" y="${padT}" width="${barGroup}" height="${chartH}"
+      fill="transparent"
+      onmouseover="_showChartTip(event,${tipIdx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()"
+      style="cursor:default"/>`;
   });
 
   // Axis line
@@ -10345,166 +10360,229 @@ function _updateEvolCombFilter() {
     combs.map(c => `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`).join('');
 }
 
+let _evolView = 'mensal'; // 'mensal' | 'diario'
+function _evolSetView(v) {
+  _evolView = v;
+  document.getElementById('evol-btn-mensal').style.background = v === 'mensal' ? '#1d4ed8' : 'var(--bg)';
+  document.getElementById('evol-btn-mensal').style.color      = v === 'mensal' ? '#fff'    : 'var(--text-muted)';
+  document.getElementById('evol-btn-diario').style.background = v === 'diario' ? '#1d4ed8' : 'var(--bg)';
+  document.getElementById('evol-btn-diario').style.color      = v === 'diario' ? '#fff'    : 'var(--text-muted)';
+  _renderEvolPostos();
+}
+
 function _renderEvolPostos() {
   const container = document.getElementById('ind-evol-chart');
   const legend    = document.getElementById('ind-evol-legend');
   if (!container) return;
 
-  const sel = document.getElementById('ind-evol-combustivel');
-  const combFiltro = sel ? sel.value : '';
+  const combFiltro = document.getElementById('ind-evol-combustivel')?.value || '';
+  const recs = combFiltro ? _indCurrRecs.filter(r => r.combustivel === combFiltro) : _indCurrRecs;
 
-  // Aplica filtro de combustível
-  const recs = combFiltro
-    ? _indCurrRecs.filter(r => r.combustivel === combFiltro)
-    : _indCurrRecs;
-
-  const empty = (msg) => {
+  const empty = msg => {
     container.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.85rem;">${msg}</div>`;
     if (legend) legend.innerHTML = '';
   };
+  if (!recs.length) { empty('Nenhum registro no período' + (combFiltro ? ` para <strong>${combFiltro}</strong>` : '') + '.'); return; }
 
-  if (!recs.length) {
-    empty('Nenhum registro no período' + (combFiltro ? ` para <strong>${combFiltro}</strong>` : '') + '.');
-    return;
-  }
-
-  // ── Gera todos os dias do intervalo (min→max dos dados) ──────
-  const allDates = recs.map(r => r.data).sort();
-  const startD   = allDates[0];
-  const endD     = allDates[allDates.length - 1];
-
-  const dias = [];
-  const cur  = new Date(startD + 'T00:00:00');
-  const fin  = new Date(endD   + 'T00:00:00');
-  while (cur <= fin) {
-    dias.push(cur.toISOString().slice(0, 10));
-    cur.setDate(cur.getDate() + 1);
-  }
-  if (!dias.length) { empty('Sem dados para exibir.'); return; }
-
-  // ── Top 5 postos por volume total no período ─────────────────
+  // Top 5 postos por volume total
   const byPosto = {};
   recs.forEach(r => {
     const key = r.posto || '(sem nome)';
-    if (!byPosto[key]) byPosto[key] = { posto: key, total: 0, dia: {} };
-    byPosto[key].total     += r.volume;
+    if (!byPosto[key]) byPosto[key] = { posto: key, total: 0, dia: {}, mes: {} };
+    byPosto[key].total += r.volume;
     byPosto[key].dia[r.data] = (byPosto[key].dia[r.data] || 0) + r.volume;
+    const ym = r.data.slice(0,7);
+    byPosto[key].mes[ym] = (byPosto[key].mes[ym] || 0) + r.volume;
   });
-
-  const top5 = Object.values(byPosto)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
-
+  const top5 = Object.values(byPosto).sort((a,b) => b.total - a.total).slice(0,5);
   if (!top5.length) { empty('Sem postos para exibir.'); return; }
 
-  // ── Dimensões SVG ────────────────────────────────────────────
-  const wrapEl  = document.getElementById('ind-evol-chart-wrap');
-  const minPxPD = dias.length <= 30 ? 20 : dias.length <= 90 ? 10 : 6; // px mínimos por dia
-  const W  = Math.max(dias.length * minPxPD + 80, (wrapEl ? wrapEl.clientWidth : 700) - 4);
-  const H  = 260;
-  const PL = 58, PR = 16, PT = 16, PB = 48;
-  const cW = W - PL - PR;
-  const cH = H - PT - PB;
-
-  // Escala Y (máximo diário entre todos os postos)
-  const allVals = top5.flatMap(p => dias.map(d => p.dia[d] || 0));
-  const maxV    = Math.max(...allVals, 1);
-  const scY     = v  => PT + cH - (v / maxV) * cH;
-  const scX     = i  => PL + (i + 0.5) * (cW / dias.length);
-
-  let grid = '', axes = '', lines = '', dots = '', xlabels = '', ylabels = '';
-
-  // Grid horizontal (5 linhas)
-  for (let t = 0; t <= 4; t++) {
-    const val = (maxV * t) / 4;
-    const y   = scY(val);
-    const lbl = val >= 1000
-      ? (val / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k'
-      : val.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
-    grid    += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
-    ylabels += `<text x="${PL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#94a3b8">${lbl}</text>`;
+  if (_evolView === 'mensal') {
+    _renderEvolPostosMensal(top5, container, legend);
+  } else {
+    _renderEvolPostosDiario(top5, recs, container, legend);
   }
+}
 
-  // Eixos
+function _renderEvolPostosMensal(top5, container, legend) {
+  // Gera todos os meses do intervalo
+  const allYms = [...new Set(top5.flatMap(p => Object.keys(p.mes)))].sort();
+  if (!allYms.length) { container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Sem dados mensais.</div>'; return; }
+
+  const wrapEl = document.getElementById('ind-evol-chart-wrap');
+  const barGroupW = Math.max(60, Math.min(90, ((wrapEl?.clientWidth || 700) - 80) / allYms.length));
+  const barW   = barGroupW * 0.72;
+  const W      = Math.max(allYms.length * barGroupW + 80, (wrapEl?.clientWidth || 700) - 4);
+  const H      = 280;
+  const PL     = 58, PR = 16, PT = 20, PB = 52;
+  const cW     = W - PL - PR;
+  const cH     = H - PT - PB;
+
+  // Escala Y — máximo do total empilhado por mês
+  const maxV = Math.max(...allYms.map(ym => top5.reduce((s,p) => s + (p.mes[ym]||0), 0)), 1);
+  const scY  = v => PT + cH - (v / maxV) * cH;
+
+  let grid = '', axes = '', bars = '', xlabels = '', ylabels = '';
+
+  // Grid horizontal
+  for (let t = 0; t <= 4; t++) {
+    const val = maxV * t / 4;
+    const y   = scY(val);
+    const lbl = val >= 1000 ? (val/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : val.toLocaleString('pt-BR',{maximumFractionDigits:0});
+    grid    += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+    ylabels += `<text x="${PL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#94a3b8">${lbl} L</text>`;
+  }
   axes += `<line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+cH}" stroke="#cbd5e1" stroke-width="1"/>`;
   axes += `<line x1="${PL}" y1="${PT+cH}" x2="${W-PR}" y2="${PT+cH}" stroke="#cbd5e1" stroke-width="1"/>`;
 
-  // Rótulos eixo X — frequência adaptativa
-  const n = dias.length;
-  const step = n <= 7  ? 1
-             : n <= 14 ? 2
-             : n <= 31 ? 3
-             : n <= 60 ? 7
-             : n <= 180 ? 14
-             : 30;
+  allYms.forEach((ym, i) => {
+    const x = PL + i * (cW / allYms.length) + (cW / allYms.length - barW) / 2;
+    const [y, m] = ym.split('-').map(Number);
+    const lbl = String(m).padStart(2,'0') + '/' + String(y).slice(2);
+    xlabels += `<text x="${x + barW/2}" y="${PT+cH+14}" text-anchor="middle" font-size="9.5" fill="#64748b"
+      transform="rotate(-35 ${x+barW/2} ${PT+cH+14})">${lbl}</text>`;
 
-  dias.forEach((d, i) => {
-    const isLast = i === dias.length - 1;
-    if (i % step !== 0 && !isLast) return;
-    const dt   = new Date(d + 'T00:00:00');
-    const dd   = String(dt.getDate()).padStart(2, '0');
-    const mm   = String(dt.getMonth() + 1).padStart(2, '0');
-    const lbl  = n <= 31 ? `${dd}/${mm}` : `${dd}/${mm}/${String(dt.getFullYear()).slice(2)}`;
-    const x    = scX(i);
-    xlabels += `<text x="${x}" y="${PT+cH+14}" text-anchor="middle" font-size="9.5" fill="#64748b"
-      transform="rotate(-35 ${x} ${PT+cH+14})">${lbl}</text>`;
-    xlabels += `<line x1="${x}" y1="${PT+cH}" x2="${x}" y2="${PT+cH+4}" stroke="#cbd5e1" stroke-width="1"/>`;
+    // Barras empilhadas por posto (p4 no fundo → p0 no topo)
+    let yBase = PT + cH;
+    const tipLines = [`<div style="font-weight:700;margin-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px">${lbl}</div>`];
+    let total = 0;
+    [...top5].reverse().forEach((p, ri) => {
+      const pi = top5.length - 1 - ri;
+      const v = p.mes[ym] || 0;
+      if (v <= 0) return;
+      const bH = cH * (v / maxV);
+      yBase -= bH;
+      bars += `<rect x="${x}" y="${yBase.toFixed(1)}" width="${barW}" height="${bH.toFixed(1)}" fill="${_EVOL_COLORS[pi]}" rx="2"/>`;
+      total += v;
+    });
+    // tooltip
+    top5.forEach((p, pi) => {
+      const v = p.mes[ym] || 0;
+      if (v <= 0) return;
+      const vFmt = v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+      tipLines.push(`<div><span style="display:inline-block;width:9px;height:9px;background:${_EVOL_COLORS[pi]};border-radius:2px;margin-right:5px;vertical-align:middle"></span>${escHtml(p.posto.length>28?p.posto.slice(0,26)+'…':p.posto)}: <strong>${vFmt} L</strong></div>`);
+    });
+    const totFmt = total.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+    tipLines.push(`<div style="margin-top:5px;border-top:1px solid rgba(255,255,255,0.15);padding-top:4px;font-weight:700">Total: ${totFmt} L</div>`);
+    window._tipData.push(tipLines.join(''));
+    const tipIdx = window._tipData.length - 1;
+    // hover zone
+    bars += `<rect x="${x}" y="${PT}" width="${barW}" height="${cH}" fill="transparent"
+      onmouseover="_showChartTip(event,${tipIdx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()" style="cursor:default"/>`;
   });
 
-  // ── Linhas + pontos por posto ─────────────────────────────────
-  const dotR = dias.length <= 30 ? 4 : dias.length <= 90 ? 3 : 2.5;
+  container.innerHTML = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block">
+    ${grid}${axes}${ylabels}${xlabels}${bars}
+  </svg>`;
+
+  if (legend) {
+    legend.innerHTML = top5.map((p, pi) => {
+      const totFmt = p.total.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:0.79rem;color:var(--text);">
+        <span style="display:inline-block;width:12px;height:12px;background:${_EVOL_COLORS[pi]};border-radius:2px;flex-shrink:0"></span>
+        <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.posto}">${p.posto}</span>
+        <span style="color:var(--text-muted);font-size:0.74rem">(${totFmt} L)</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+function _renderEvolPostosDiario(top5, recs, container, legend) {
+  const allDates = recs.map(r => r.data).sort();
+  const startD = allDates[0], endD = allDates[allDates.length-1];
+  const dias = [];
+  const cur = new Date(startD+'T00:00:00'), fin = new Date(endD+'T00:00:00');
+  while (cur <= fin) { dias.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
+  if (!dias.length) { container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Sem dados.</div>'; return; }
+
+  const wrapEl = document.getElementById('ind-evol-chart-wrap');
+  const minPxPD = dias.length <= 30 ? 20 : dias.length <= 90 ? 10 : 6;
+  const W  = Math.max(dias.length * minPxPD + 80, (wrapEl?.clientWidth || 700) - 4);
+  const H  = 280;
+  const PL = 58, PR = 16, PT = 20, PB = 52;
+  const cW = W - PL - PR;
+  const cH = H - PT - PB;
+
+  const allVals = top5.flatMap(p => dias.map(d => p.dia[d] || 0));
+  const maxV    = Math.max(...allVals, 1);
+  const scY     = v => PT + cH - (v / maxV) * cH;
+  const scX     = i => PL + (i + 0.5) * (cW / dias.length);
+  const baseY   = PT + cH;
+
+  let grid = '', axes = '', areas = '', lines = '', dots = '', xlabels = '', ylabels = '';
+
+  for (let t = 0; t <= 4; t++) {
+    const val = maxV * t / 4;
+    const y   = scY(val);
+    const lbl = val >= 1000 ? (val/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : val.toLocaleString('pt-BR',{maximumFractionDigits:0});
+    grid    += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+    ylabels += `<text x="${PL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#94a3b8">${lbl} L</text>`;
+  }
+  axes += `<line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+cH}" stroke="#cbd5e1" stroke-width="1"/>`;
+  axes += `<line x1="${PL}" y1="${PT+cH}" x2="${W-PR}" y2="${PT+cH}" stroke="#cbd5e1" stroke-width="1"/>`;
+
+  const n = dias.length;
+  const step = n<=7?1:n<=14?2:n<=31?3:n<=60?7:n<=180?14:30;
+  dias.forEach((d,i) => {
+    if (i % step !== 0 && i !== dias.length-1) return;
+    const dt = new Date(d+'T00:00:00');
+    const dd = String(dt.getDate()).padStart(2,'0'), mm = String(dt.getMonth()+1).padStart(2,'0');
+    const lbl = n<=31 ? `${dd}/${mm}` : `${dd}/${mm}/${String(dt.getFullYear()).slice(2)}`;
+    const x = scX(i);
+    xlabels += `<text x="${x}" y="${PT+cH+14}" text-anchor="middle" font-size="9.5" fill="#64748b" transform="rotate(-35 ${x} ${PT+cH+14})">${lbl}</text>`;
+  });
+
+  const dotR = dias.length <= 30 ? 4.5 : dias.length <= 90 ? 3 : 2.5;
+  const _colHex = (hex, alpha) => hex + Math.round(alpha*255).toString(16).padStart(2,'0');
 
   top5.forEach((p, pi) => {
     const color = _EVOL_COLORS[pi];
-    const pts   = dias.map((d, i) => {
-      const v = p.dia[d];
-      return v !== undefined ? { x: scX(i), y: scY(v), v, d } : null;
-    });
+    const pts = dias.map((d,i) => { const v = p.dia[d]; return v !== undefined ? {x:scX(i),y:scY(v),v,d} : null; });
 
-    // Constrói path — levanta caneta em dias sem dados (gap real)
-    let pathD = '';
-    pts.forEach((pt, i) => {
+    // Área preenchida
+    let areaD = '', pathD = '';
+    pts.forEach((pt,i) => {
       if (!pt) return;
-      if (!pathD || pts[i - 1] === null || pts.slice(0, i).every(x => x === null)) {
-        pathD += `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `;
-      } else {
-        pathD += `L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `;
-      }
+      const isFirst = !pathD || pts.slice(0,i).every(x=>x===null);
+      if (isFirst) { areaD += `M ${pt.x.toFixed(1)} ${baseY} L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `; pathD += `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `; }
+      else { areaD += `L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `; pathD += `L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `; }
     });
-
-    if (pathD) {
-      lines += `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5"
-        stroke-linejoin="round" stroke-linecap="round"/>`;
+    // Fecha área
+    const lastPt = [...pts].reverse().find(p => p);
+    const firstPt = pts.find(p => p);
+    if (areaD && lastPt && firstPt) {
+      areaD += `L ${lastPt.x.toFixed(1)} ${baseY} Z`;
+      areas += `<path d="${areaD}" fill="${color}22" stroke="none"/>`;
     }
+    if (pathD) lines += `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
 
-    // Pontos — só se houver dados no dia
     pts.forEach(pt => {
       if (!pt) return;
-      const volFmt = pt.v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-      const dtFmt  = new Date(pt.d + 'T00:00:00').toLocaleDateString('pt-BR');
-      dots += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${dotR}"
-        fill="${color}" stroke="#fff" stroke-width="1.5">
-        <title>${p.posto}\n${dtFmt}: ${volFmt} L</title></circle>`;
+      const vFmt = pt.v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+      const dtFmt = new Date(pt.d+'T00:00:00').toLocaleDateString('pt-BR');
+      const tipHtml = `<div style="font-weight:700;margin-bottom:4px">${escHtml(p.posto)}</div>`
+        + `<div>${dtFmt}: <strong>${vFmt} L</strong></div>`;
+      window._tipData.push(tipHtml);
+      const tipIdx = window._tipData.length - 1;
+      dots += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${dotR}" fill="${color}" stroke="#fff" stroke-width="1.5"
+        onmouseover="_showChartTip(event,${tipIdx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()" style="cursor:pointer"/>`;
     });
   });
 
-  // SVG final
   container.innerHTML = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block">
-    ${grid}${axes}${ylabels}${xlabels}${lines}${dots}
+    ${grid}${axes}${ylabels}${xlabels}${areas}${lines}${dots}
   </svg>`;
 
-  // Legenda
   if (legend) {
-    legend.innerHTML = top5.map((p, pi) => {
-      const totalFmt = p.total.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    legend.innerHTML = top5.map((p,pi) => {
+      const totFmt = p.total.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
       return `<div style="display:flex;align-items:center;gap:6px;font-size:0.79rem;color:var(--text);">
         <svg width="22" height="10">
           <line x1="0" y1="5" x2="22" y2="5" stroke="${_EVOL_COLORS[pi]}" stroke-width="2.5"/>
           <circle cx="11" cy="5" r="3.5" fill="${_EVOL_COLORS[pi]}" stroke="#fff" stroke-width="1.5"/>
         </svg>
-        <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-          title="${p.posto}">${p.posto}</span>
-        <span style="color:var(--text-muted);font-size:0.74rem">(${totalFmt} L)</span>
+        <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.posto}">${p.posto}</span>
+        <span style="color:var(--text-muted);font-size:0.74rem">(${totFmt} L total)</span>
       </div>`;
     }).join('');
   }
@@ -10640,7 +10718,7 @@ function _renderPrecoMedioChart() {
     xlabels += `<line x1="${x}" y1="${PT+cH}" x2="${x}" y2="${PT+cH+4}" stroke="#cbd5e1" stroke-width="1"/>`;
   });
 
-  // Linhas e pontos por série
+  // Linhas e pontos por série (com tooltip interativo)
   const dotR = buckets.length <= 30 ? 4 : buckets.length <= 90 ? 3 : 2.5;
   seriesData.forEach(s => {
     let pathD = '';
@@ -10656,9 +10734,13 @@ function _renderPrecoMedioChart() {
     s.vals.forEach((v, i) => {
       if (v === null) return;
       const x  = scX(i).toFixed(1), y = scY(v).toFixed(1);
-      const pf = 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-      dots += `<circle cx="${x}" cy="${y}" r="${dotR}" fill="${s.color}" stroke="#fff" stroke-width="1.5">
-        <title>${s.label}\n${buckets[i].label}: ${pf}/L</title></circle>`;
+      const pf = 'R$\u00a0' + v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+      const tipHtml = `<div style="font-weight:700;margin-bottom:4px">${s.label}</div>`
+        + `<div>${buckets[i].label}: <strong>${pf}/L</strong></div>`;
+      window._tipData.push(tipHtml);
+      const tipIdx = window._tipData.length - 1;
+      dots += `<circle cx="${x}" cy="${y}" r="${dotR}" fill="${s.color}" stroke="#fff" stroke-width="1.5"
+        onmouseover="_showChartTip(event,${tipIdx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()" style="cursor:pointer"/>`;
     });
   });
 
@@ -22098,6 +22180,40 @@ function _predRenderHistorico() {
 // Inicia aplicação (conecta ao servidor e carrega dados)
 // initApp() agora é chamado APENAS após login bem-sucedido
 // initApp();
+
+// ═══════════════════════════════════════════════════════════════
+//  TOOLTIP FLUTUANTE — GRÁFICOS
+// ═══════════════════════════════════════════════════════════════
+window._tipData = []; // armazena conteúdo HTML dos tooltips por índice
+
+function _showChartTip(evt, idx) {
+  const tt = document.getElementById('chart-tooltip');
+  if (!tt) return;
+  tt.innerHTML = window._tipData[idx] || '';
+  tt.style.display = 'block';
+  _moveChartTip(evt);
+}
+function _moveChartTip(evt) {
+  const tt = document.getElementById('chart-tooltip');
+  if (!tt || tt.style.display === 'none') return;
+  const x = evt.clientX + 18;
+  const y = evt.clientY - 14;
+  tt.style.left = Math.min(x, window.innerWidth  - tt.offsetWidth  - 16) + 'px';
+  tt.style.top  = Math.max(8, Math.min(y, window.innerHeight - tt.offsetHeight - 8)) + 'px';
+}
+function _hideChartTip() {
+  const tt = document.getElementById('chart-tooltip');
+  if (tt) tt.style.display = 'none';
+}
+// Helper: registra tooltip e retorna os atributos SVG para o elemento
+function _tipAttrs(htmlContent) {
+  window._tipData.push(htmlContent);
+  const idx = window._tipData.length - 1;
+  return `onmouseover="_showChartTip(event,${idx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()" style="cursor:pointer"`;
+}
 </script>
+
+<!-- ── TOOLTIP FLUTUANTE DOS GRÁFICOS ── -->
+<div id="chart-tooltip"></div>
 </body>
 </html>
