@@ -215,6 +215,76 @@ def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
                 cliente_id or None,
             ])
 
+_DIAS_SEMANA_MAP = {'seg':0,'ter':1,'qua':2,'qui':3,'sex':4,'sab':5,'dom':6}
+
+def _validar_restricao_horario(conn, placa, motorista, cliente_id, data_str, hora_str):
+    """Verifica se o abastecimento viola alguma restrição de horário ativa.
+    Retorna None se OK, ou dict com mensagem de erro se bloqueado."""
+    if not data_str:
+        return None
+
+    # Descobre classificação do veículo
+    veiculo = _fetchone(conn, 'SELECT tipo FROM veiculos WHERE placa=%s', [placa or ''])
+    tipo_veiculo = (veiculo.get('tipo','') if veiculo else '').lower()
+    is_pesado = 'pesado' in tipo_veiculo or 'semi' in tipo_veiculo or 'caminhao' in tipo_veiculo or 'ônibus' in tipo_veiculo
+
+    # Busca restrições ativas que se aplicam a este caso
+    restricoes = _fetchall(conn, '''
+        SELECT * FROM restricoes_horario_abast
+        WHERE ativo = TRUE
+          AND (cliente_id IS NULL OR cliente_id = %s)
+          AND (placa = '' OR placa = %s)
+          AND (motorista = '' OR motorista = %s)
+          AND (classificacao = 'Todos'
+               OR (classificacao = 'Pesado' AND %s)
+               OR (classificacao = 'Leve'   AND NOT %s))
+    ''', [cliente_id or None, placa or '', motorista or '', is_pesado, is_pesado])
+
+    if not restricoes:
+        return None  # sem restrição configurada → livre
+
+    # Dia da semana do abastecimento
+    try:
+        dt = _date.fromisoformat(data_str[:10])
+        dia_idx = dt.weekday()  # 0=seg … 6=dom
+    except Exception:
+        return None
+
+    # Hora do abastecimento
+    hora_str = (hora_str or '00:00')[:5]
+
+    # Verifica se cai em alguma janela permitida
+    for r in restricoes:
+        try:
+            dias = json.loads(r.get('dias_semana') or '[]')
+        except Exception:
+            dias = []
+        if not dias:
+            continue
+        dias_idx = [_DIAS_SEMANA_MAP.get(d, -1) for d in dias]
+        if dia_idx not in dias_idx:
+            continue
+        h_ini = (r.get('hora_inicio') or '00:00')[:5]
+        h_fim = (r.get('hora_fim')    or '23:59')[:5]
+        if h_ini <= hora_str <= h_fim:
+            return None  # está dentro de uma janela permitida
+
+    # Nenhuma janela permitiu
+    dias_nomes = {'seg':'Segunda','ter':'Terça','qua':'Quarta','qui':'Quinta',
+                  'sex':'Sexta','sab':'Sábado','dom':'Domingo'}
+    restr = restricoes[0]
+    try:
+        dias = json.loads(restr.get('dias_semana') or '[]')
+        dias_str = ', '.join(dias_nomes.get(d, d) for d in dias)
+    except Exception:
+        dias_str = '—'
+    return {
+        'bloqueado': True,
+        'motivo': (f"Abastecimento fora do período permitido. "
+                   f"Dias: {dias_str}. "
+                   f"Horário: {restr.get('hora_inicio','00:00')} – {restr.get('hora_fim','23:59')}.")
+    }
+
 def _calc_combustivel_real(conn, placa, data_saida, data_fim=None):
     """Soma o valor_total dos abastecimentos do veículo no período da viagem.
     data_fim = data_retorno_prevista ou data atual se em andamento."""
@@ -988,6 +1058,22 @@ def init_db():
     cur.execute('''ALTER TABLE planos_viagem
         ADD COLUMN IF NOT EXISTS custo_combustivel_real REAL DEFAULT 0''')
 
+    # ── Restrições de Dias e Horários para Abastecimento ──────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS restricoes_horario_abast (
+        id             SERIAL PRIMARY KEY,
+        cliente_id     INTEGER DEFAULT NULL,
+        classificacao  TEXT    DEFAULT 'Todos',
+        placa          TEXT    DEFAULT '',
+        motorista      TEXT    DEFAULT '',
+        dias_semana    TEXT    DEFAULT '[]',
+        hora_inicio    TEXT    DEFAULT '00:00',
+        hora_fim       TEXT    DEFAULT '23:59',
+        ativo          BOOLEAN DEFAULT TRUE,
+        observacao     TEXT    DEFAULT '',
+        criado_em      TEXT    DEFAULT TO_CHAR(NOW(),\'YYYY-MM-DD HH24:MI:SS\')
+    )''')
+    cur.execute("ALTER TABLE restricoes_horario_abast ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
+
     # ── Migração: corrige lançamentos de combustível que usavam valor_total
     #    (combustível + Arla 32 + serviços) em vez de volume × preco_unitario ──
     cur.execute('''
@@ -1540,6 +1626,19 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json(rows)
 
+        elif path == '/api/restricoes-horario':
+            qs  = parse_qs(urlparse(self.path).query)
+            cid = qs.get('cliente_id', [None])[0]
+            conn = get_db()
+            where, params = [], []
+            if cid: where.append('cliente_id=%s'); params.append(int(cid))
+            sql = 'SELECT * FROM restricoes_horario_abast'
+            if where: sql += ' WHERE ' + ' AND '.join(where)
+            sql += ' ORDER BY id DESC'
+            rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
+
         elif path == '/api/hodo-variacao':
             qs   = parse_qs(urlparse(self.path).query)
             tipo = qs.get('tipo', [None])[0]
@@ -1900,6 +1999,19 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == '/api/abastecimentos':
             conn = get_db()
+            # ── Valida restrição de horário ───────────────────────
+            bloqueio = _validar_restricao_horario(
+                conn,
+                placa      = d.get('placa',''),
+                motorista  = d.get('motorista',''),
+                cliente_id = d.get('cliente_id') or None,
+                data_str   = d.get('data',''),
+                hora_str   = d.get('hora',''),
+            )
+            if bloqueio:
+                conn.close()
+                self.send_json({'error': bloqueio['motivo'], 'bloqueado': True}, 403)
+                return
             cur  = _exec(conn, '''INSERT INTO abastecimentos
                 (data,hora,placa,motorista,cpf_motorista,hodometro,
                  posto,cnpj_posto,cidade_posto,uf_posto,
@@ -2233,6 +2345,26 @@ class Handler(BaseHTTPRequestHandler):
                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''', [
                 d.get('rotogramaId'), d.get('placa',''), d.get('motorista',''),
                 d.get('data',''), d.get('statusExec','Concluída'), d.get('observacao','')
+            ])
+            conn.commit()
+            new_id = cur.fetchone()['id']
+            conn.close()
+            self.send_json({'id': new_id}, 201)
+
+        elif path == '/api/restricoes-horario':
+            dias = d.get('diasSemana', d.get('dias_semana', []))
+            if not isinstance(dias, str): dias = json.dumps(dias, ensure_ascii=False)
+            conn = get_db()
+            cur  = _exec(conn, '''INSERT INTO restricoes_horario_abast
+                (cliente_id,classificacao,placa,motorista,dias_semana,
+                 hora_inicio,hora_fim,ativo,observacao)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                d.get('cliente_id') or None,
+                d.get('classificacao','Todos'), d.get('placa',''),
+                d.get('motorista',''), dias,
+                d.get('horaInicio', d.get('hora_inicio','00:00')),
+                d.get('horaFim',    d.get('hora_fim','23:59')),
+                bool(d.get('ativo', True)), d.get('observacao','')
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
@@ -2728,6 +2860,27 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
+        m = re.match(r'^/api/restricoes-horario/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            dias = d.get('diasSemana', d.get('dias_semana', []))
+            if not isinstance(dias, str): dias = json.dumps(dias, ensure_ascii=False)
+            conn = get_db()
+            _exec(conn, '''UPDATE restricoes_horario_abast SET
+                cliente_id=%s,classificacao=%s,placa=%s,motorista=%s,
+                dias_semana=%s,hora_inicio=%s,hora_fim=%s,ativo=%s,observacao=%s
+                WHERE id=%s''', [
+                d.get('cliente_id') or None,
+                d.get('classificacao','Todos'), d.get('placa',''),
+                d.get('motorista',''), dias,
+                d.get('horaInicio', d.get('hora_inicio','00:00')),
+                d.get('horaFim',    d.get('hora_fim','23:59')),
+                bool(d.get('ativo', True)), d.get('observacao',''),
+                id_
+            ])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
         m = re.match(r'^/api/negociacoes/(\d+)$', path)
         if m:
             id_ = int(m.group(1))
@@ -3121,6 +3274,13 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM hodo_variacao WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/restricoes-horario/(\d+)$', path)
+        if m:
+            conn = get_db()
+            _exec(conn, 'DELETE FROM restricoes_horario_abast WHERE id=%s', [int(m.group(1))])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 

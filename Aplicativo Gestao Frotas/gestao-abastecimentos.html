@@ -2997,6 +2997,101 @@
         </div>
         <!-- fim param-card Hodômetro Pesados -->
 
+        <!-- ── PARÂMETRO: DIAS E HORÁRIOS PERMITIDOS PARA ABASTECIMENTO ── -->
+        <div class="param-card" style="grid-column:1/-1">
+          <div class="param-card-header">
+            <div class="param-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Dias e Horários Permitidos para Abastecimento
+            </div>
+            <button onclick="openRestricaoModal()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(255,255,255,0.18);color:#fff;border:1.5px solid rgba(255,255,255,0.4);border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nova Restrição
+            </button>
+          </div>
+          <div class="param-card-body">
+            <p style="font-size:0.83rem;color:var(--text-muted);margin:0 0 16px">
+              Define os dias da semana e horários em que o abastecimento é permitido para cada combinação de cliente, veículo, classificação e motorista. Abastecimentos fora dos horários definidos serão <strong>bloqueados</strong>.
+            </p>
+            <!-- Estatísticas rápidas -->
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+              <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px 16px;min-width:100px;text-align:center;">
+                <div id="rh-stat-total" style="font-size:1.4rem;font-weight:800;color:#0369a1">—</div>
+                <div style="font-size:0.73rem;color:#0369a1;font-weight:600;">Total</div>
+              </div>
+              <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:10px 16px;min-width:100px;text-align:center;">
+                <div id="rh-stat-ativos" style="font-size:1.4rem;font-weight:800;color:#15803d">—</div>
+                <div style="font-size:0.73rem;color:#15803d;font-weight:600;">Ativos</div>
+              </div>
+              <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:10px 16px;min-width:100px;text-align:center;">
+                <div id="rh-stat-inativos" style="font-size:1.4rem;font-weight:800;color:#dc2626">—</div>
+                <div style="font-size:0.73rem;color:#dc2626;font-weight:600;">Inativos</div>
+              </div>
+            </div>
+            <!-- Filtros -->
+            <div class="param-filter-row">
+              <div class="form-group">
+                <label>Cliente</label>
+                <select id="rh-f-cliente" onchange="renderRestricoesHorario()">
+                  <option value="">Todos os clientes</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Classificação</label>
+                <select id="rh-f-class" onchange="renderRestricoesHorario()">
+                  <option value="">Todos</option>
+                  <option value="Leve">Leve</option>
+                  <option value="Pesado">Pesado</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Veículo (Placa)</label>
+                <select id="rh-f-placa" onchange="renderRestricoesHorario()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Motorista</label>
+                <select id="rh-f-motorista" onchange="renderRestricoesHorario()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:0 0 130px">
+                <label>Status</label>
+                <select id="rh-f-status" onchange="renderRestricoesHorario()">
+                  <option value="">Todos</option>
+                  <option value="1">Ativo</option>
+                  <option value="0">Inativo</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <button onclick="rhLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
+              </div>
+            </div>
+            <div id="rh-empty" class="vl-empty" style="display:none">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;color:var(--text-muted)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <p>Nenhuma restrição cadastrada. Clique em <strong>Nova Restrição</strong> para definir os dias e horários permitidos.</p>
+            </div>
+            <div id="rh-table-wrap" style="display:none;overflow-x:auto">
+              <table class="vinculos-table">
+                <thead><tr>
+                  <th>Cliente</th>
+                  <th>Classificação</th>
+                  <th>Veículo</th>
+                  <th>Motorista</th>
+                  <th>Dias Permitidos</th>
+                  <th>Horário</th>
+                  <th>Status</th>
+                  <th>Observação</th>
+                  <th style="text-align:right">Ações</th>
+                </tr></thead>
+                <tbody id="rh-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- fim param-card Dias e Horários -->
+
       </div><!-- /param-section -->
 
     </div>
@@ -4604,6 +4699,112 @@
       <button class="btn btn-success" onclick="saveHodoVariacao()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         Salvar Regra
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL DIAS E HORÁRIOS PERMITIDOS PARA ABASTECIMENTO ░░ -->
+<div class="modal-overlay" id="restricaoHorarioModalOverlay" onclick="if(event.target===this)closeRestricaoModal()">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="restricaoHorarioModalTitle">Nova Restrição de Horário</h2>
+      <button class="modal-close" onclick="closeRestricaoModal()">×</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+      <input type="hidden" id="rh-edit-id">
+      <!-- Cliente -->
+      <div class="form-group">
+        <label class="form-label">Cliente</label>
+        <select id="rh-m-cliente" class="form-input" onchange="rhModalOnClienteChange()">
+          <option value="">Todos os clientes</option>
+        </select>
+      </div>
+      <!-- Classificação + Veículo -->
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 160px">
+          <label class="form-label">Classificação</label>
+          <select id="rh-m-class" class="form-input" onchange="rhModalOnClassChange()">
+            <option value="Todos">Todos</option>
+            <option value="Leve">Leve</option>
+            <option value="Pesado">Pesado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Veículo (Placa)</label>
+          <select id="rh-m-placa" class="form-input">
+            <option value="">Todos os veículos</option>
+          </select>
+        </div>
+      </div>
+      <!-- Motorista -->
+      <div class="form-group">
+        <label class="form-label">Motorista</label>
+        <select id="rh-m-motorista" class="form-input">
+          <option value="">Todos os motoristas</option>
+        </select>
+      </div>
+      <!-- Dias da semana -->
+      <div class="form-group">
+        <label class="form-label">Dias Permitidos <span style="color:#dc2626">*</span></label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;" id="rh-m-dias-container">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-seg">
+            <input type="checkbox" value="seg" onchange="rhDayToggle(this)"> Seg
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-ter">
+            <input type="checkbox" value="ter" onchange="rhDayToggle(this)"> Ter
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-qua">
+            <input type="checkbox" value="qua" onchange="rhDayToggle(this)"> Qua
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-qui">
+            <input type="checkbox" value="qui" onchange="rhDayToggle(this)"> Qui
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-sex">
+            <input type="checkbox" value="sex" onchange="rhDayToggle(this)"> Sex
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-sab">
+            <input type="checkbox" value="sab" onchange="rhDayToggle(this)"> Sáb
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-dom">
+            <input type="checkbox" value="dom" onchange="rhDayToggle(this)"> Dom
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button type="button" onclick="rhSelecionarDias('util')" style="font-size:0.76rem;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;color:var(--text-muted);">Dias Úteis</button>
+          <button type="button" onclick="rhSelecionarDias('todos')" style="font-size:0.76rem;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;color:var(--text-muted);">Todos</button>
+          <button type="button" onclick="rhSelecionarDias('nenhum')" style="font-size:0.76rem;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;color:var(--text-muted);">Nenhum</button>
+        </div>
+      </div>
+      <!-- Horários -->
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Hora Início <span style="color:#dc2626">*</span></label>
+          <input type="time" id="rh-m-hora-inicio" class="form-input" value="00:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora Fim <span style="color:#dc2626">*</span></label>
+          <input type="time" id="rh-m-hora-fim" class="form-input" value="23:59">
+        </div>
+        <div class="form-group" style="flex:0 0 130px">
+          <label class="form-label">Status</label>
+          <select id="rh-m-ativo" class="form-input">
+            <option value="1">Ativo</option>
+            <option value="0">Inativo</option>
+          </select>
+        </div>
+      </div>
+      <!-- Observação -->
+      <div class="form-group">
+        <label class="form-label">Observação</label>
+        <input type="text" id="rh-m-obs" class="form-input" placeholder="Observação opcional">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeRestricaoModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="saveRestricao()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Salvar Restrição
       </button>
     </div>
   </div>
@@ -7268,6 +7469,309 @@ async function excluirCliente(id, nome) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  DIAS E HORÁRIOS PERMITIDOS PARA ABASTECIMENTO
+// ═══════════════════════════════════════════════════════════════
+let restricoesHorario = [];
+
+const _RH_DIAS_LABEL = { seg:'Seg', ter:'Ter', qua:'Qua', qui:'Qui', sex:'Sex', sab:'Sáb', dom:'Dom' };
+const _RH_DIAS_ORDER = ['seg','ter','qua','qui','sex','sab','dom'];
+
+async function loadRestricoesHorario() {
+  try {
+    const rows = await apiCall('GET', '/api/restricoes-horario');
+    restricoesHorario = (rows || []).map(r => ({
+      ...r,
+      dias_semana: typeof r.dias_semana === 'string' ? JSON.parse(r.dias_semana || '[]') : (r.dias_semana || [])
+    }));
+  } catch(e) { /* offline */ }
+  _rhPopulateFiltros();
+  renderRestricoesHorario();
+}
+
+function _rhPopulateFiltros() {
+  // Clientes
+  const selCli = document.getElementById('rh-f-cliente');
+  if (selCli) {
+    const cur = selCli.value;
+    const ids = [...new Set(restricoesHorario.filter(r => r.cliente_id).map(r => r.cliente_id))];
+    selCli.innerHTML = '<option value="">Todos os clientes</option>' +
+      ids.map(id => `<option value="${id}">${escHtml(_clienteNome(id))}</option>`).join('');
+    selCli.value = cur;
+  }
+  // Placas
+  const selPl = document.getElementById('rh-f-placa');
+  if (selPl) {
+    const cur = selPl.value;
+    const pls = [...new Set(restricoesHorario.filter(r => r.placa).map(r => r.placa))].sort();
+    selPl.innerHTML = '<option value="">Todos</option>' + pls.map(p => `<option value="${p}">${p}</option>`).join('');
+    selPl.value = cur;
+  }
+  // Motoristas
+  const selMot = document.getElementById('rh-f-motorista');
+  if (selMot) {
+    const cur = selMot.value;
+    const mots = [...new Set(restricoesHorario.filter(r => r.motorista).map(r => r.motorista))].sort();
+    selMot.innerHTML = '<option value="">Todos</option>' + mots.map(m => `<option value="${m}">${escHtml(m)}</option>`).join('');
+    selMot.value = cur;
+  }
+}
+
+function renderRestricoesHorario() {
+  const filtCli  = document.getElementById('rh-f-cliente')?.value  || '';
+  const filtClass = document.getElementById('rh-f-class')?.value   || '';
+  const filtPl   = document.getElementById('rh-f-placa')?.value    || '';
+  const filtMot  = document.getElementById('rh-f-motorista')?.value || '';
+  const filtSt   = document.getElementById('rh-f-status')?.value   || '';
+
+  let lista = [...restricoesHorario];
+  if (filtCli)   lista = lista.filter(r => String(r.cliente_id) === filtCli);
+  if (filtClass) lista = lista.filter(r => r.classificacao === filtClass || r.classificacao === 'Todos');
+  if (filtPl)    lista = lista.filter(r => r.placa === filtPl);
+  if (filtMot)   lista = lista.filter(r => r.motorista === filtMot);
+  if (filtSt !== '') lista = lista.filter(r => String(r.ativo ? '1' : '0') === filtSt);
+
+  // Estatísticas (do total, sem filtros)
+  const tot = restricoesHorario.length;
+  const atv = restricoesHorario.filter(r => r.ativo).length;
+  const ina = tot - atv;
+  const eTotal   = document.getElementById('rh-stat-total');
+  const eAtivos  = document.getElementById('rh-stat-ativos');
+  const eInativos= document.getElementById('rh-stat-inativos');
+  if (eTotal)    eTotal.textContent    = tot;
+  if (eAtivos)   eAtivos.textContent   = atv;
+  if (eInativos) eInativos.textContent = ina;
+
+  const tbody = document.getElementById('rh-tbody');
+  const empty = document.getElementById('rh-empty');
+  const wrap  = document.getElementById('rh-table-wrap');
+  if (!tbody) return;
+
+  if (!lista.length) {
+    if (empty) empty.style.display = '';
+    if (wrap)  wrap.style.display  = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (wrap)  wrap.style.display  = '';
+
+  tbody.innerHTML = lista.map(r => {
+    const dias = (r.dias_semana || []);
+    const diasLabel = dias.length === 7 ? 'Todos os dias' :
+      dias.length === 0 ? '—' :
+      dias.map(d => _RH_DIAS_LABEL[d] || d).join(', ');
+    return `<tr>
+      <td style="min-width:110px">${r.cliente_id ? escHtml(_clienteNome(r.cliente_id)) : '<em style="color:var(--text-muted)">Todos</em>'}</td>
+      <td>${escHtml(r.classificacao||'Todos')}</td>
+      <td>${r.placa ? `<span class="plate">${escHtml(r.placa)}</span>` : '<em style="color:var(--text-muted)">Todos</em>'}</td>
+      <td>${r.motorista ? escHtml(r.motorista) : '<em style="color:var(--text-muted)">Todos</em>'}</td>
+      <td style="font-size:0.82rem">${escHtml(diasLabel)}</td>
+      <td style="white-space:nowrap">${escHtml(r.hora_inicio||'00:00')} – ${escHtml(r.hora_fim||'23:59')}</td>
+      <td><span style="background:${r.ativo?'#dcfce7':'#f1f5f9'};color:${r.ativo?'#15803d':'#64748b'};padding:2px 8px;border-radius:10px;font-size:0.76rem;font-weight:700">${r.ativo?'Ativo':'Inativo'}</span></td>
+      <td style="color:var(--text-muted);font-size:0.83rem">${escHtml(r.observacao||'—')}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <div style="display:inline-flex;gap:4px">
+          <button class="btn btn-sm btn-outline" onclick="openRestricaoModal(${r.id})">✎ Editar</button>
+          <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="deleteRestricao(${r.id})">✕</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function rhLimparFiltros() {
+  ['rh-f-cliente','rh-f-class','rh-f-placa','rh-f-motorista','rh-f-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  renderRestricoesHorario();
+}
+
+function rhDayToggle(cb) {
+  const lbl = cb.closest('label');
+  if (lbl) lbl.style.background = cb.checked ? '#dbeafe' : '';
+  if (lbl) lbl.style.borderColor = cb.checked ? '#3b82f6' : '';
+}
+
+function rhSelecionarDias(tipo) {
+  const uteis = ['seg','ter','qua','qui','sex'];
+  _RH_DIAS_ORDER.forEach(d => {
+    const cb = document.querySelector(`#rh-day-${d} input`);
+    if (!cb) return;
+    cb.checked = tipo === 'todos' ? true : tipo === 'util' ? uteis.includes(d) : false;
+    rhDayToggle(cb);
+  });
+}
+
+function _rhGetDiasSelecionados() {
+  return _RH_DIAS_ORDER.filter(d => {
+    const cb = document.querySelector(`#rh-day-${d} input`);
+    return cb && cb.checked;
+  });
+}
+
+function _rhSetDiasSelecionados(dias) {
+  _RH_DIAS_ORDER.forEach(d => {
+    const cb = document.querySelector(`#rh-day-${d} input`);
+    if (!cb) return;
+    cb.checked = dias.includes(d);
+    rhDayToggle(cb);
+  });
+}
+
+function rhModalOnClienteChange() {
+  const cliId = document.getElementById('rh-m-cliente')?.value || '';
+  _rhPopulateModalVeiculos(cliId, document.getElementById('rh-m-class')?.value || 'Todos');
+  _rhPopulateModalMotoristas(cliId);
+}
+
+function rhModalOnClassChange() {
+  const cliId = document.getElementById('rh-m-cliente')?.value || '';
+  const cls   = document.getElementById('rh-m-class')?.value  || 'Todos';
+  _rhPopulateModalVeiculos(cliId, cls);
+}
+
+function _rhPopulateModalVeiculos(cliId, cls) {
+  const sel = document.getElementById('rh-m-placa');
+  if (!sel) return;
+  const cur = sel.value;
+  let vl = veiculos.filter(v => v.status === 'Ativo');
+  if (cliId) vl = vl.filter(v => String(v.cliente_id) === cliId);
+  if (cls && cls !== 'Todos') vl = vl.filter(v => v.tipo === cls);
+  sel.innerHTML = '<option value="">Todos os veículos</option>' +
+    vl.map(v => `<option value="${v.placa}">${v.placa}</option>`).join('');
+  if (vl.some(v => v.placa === cur)) sel.value = cur;
+}
+
+function _rhPopulateModalMotoristas(cliId) {
+  const sel = document.getElementById('rh-m-motorista');
+  if (!sel) return;
+  const cur = sel.value;
+  let ml = motoristas.filter(m => m.status === 'Ativo');
+  if (cliId) {
+    // Usa vínculos para filtrar motoristas do cliente
+    const vinculosCliente = vinculos.filter(v => String(v.cliente_id) === cliId).map(v => v.motorista);
+    if (vinculosCliente.length) ml = ml.filter(m => vinculosCliente.includes(m.nome));
+  }
+  sel.innerHTML = '<option value="">Todos os motoristas</option>' +
+    ml.map(m => `<option value="${m.nome}">${escHtml(m.nome)}</option>`).join('');
+  if (ml.some(m => m.nome === cur)) sel.value = cur;
+}
+
+function _rhPopulateModalClientes() {
+  const sel = document.getElementById('rh-m-cliente');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todos os clientes</option>' +
+    clientes.map(c => `<option value="${c.id}">${escHtml(c.nome||c.razao||'')}</option>`).join('');
+  if (clientes.some(c => String(c.id) === cur)) sel.value = cur;
+}
+
+function openRestricaoModal(id = null) {
+  document.getElementById('rh-edit-id').value = id || '';
+  document.getElementById('restricaoHorarioModalTitle').textContent =
+    id ? 'Editar Restrição de Horário' : 'Nova Restrição de Horário';
+
+  // Popula selects
+  _rhPopulateModalClientes();
+  _rhSetDiasSelecionados([]);
+
+  if (id) {
+    const r = restricoesHorario.find(x => x.id === id);
+    if (r) {
+      document.getElementById('rh-m-cliente').value     = r.cliente_id || '';
+      document.getElementById('rh-m-class').value       = r.classificacao || 'Todos';
+      _rhPopulateModalVeiculos(r.cliente_id || '', r.classificacao || 'Todos');
+      _rhPopulateModalMotoristas(r.cliente_id || '');
+      document.getElementById('rh-m-placa').value       = r.placa || '';
+      document.getElementById('rh-m-motorista').value   = r.motorista || '';
+      _rhSetDiasSelecionados(r.dias_semana || []);
+      document.getElementById('rh-m-hora-inicio').value = r.hora_inicio || '00:00';
+      document.getElementById('rh-m-hora-fim').value    = r.hora_fim    || '23:59';
+      document.getElementById('rh-m-ativo').value       = r.ativo ? '1' : '0';
+      document.getElementById('rh-m-obs').value         = r.observacao || '';
+    }
+  } else {
+    document.getElementById('rh-m-cliente').value     = _clienteAtualId || '';
+    document.getElementById('rh-m-class').value       = 'Todos';
+    const cliId = _clienteAtualId ? String(_clienteAtualId) : '';
+    _rhPopulateModalVeiculos(cliId, 'Todos');
+    _rhPopulateModalMotoristas(cliId);
+    document.getElementById('rh-m-placa').value       = '';
+    document.getElementById('rh-m-motorista').value   = '';
+    rhSelecionarDias('util');
+    document.getElementById('rh-m-hora-inicio').value = '00:00';
+    document.getElementById('rh-m-hora-fim').value    = '23:59';
+    document.getElementById('rh-m-ativo').value       = '1';
+    document.getElementById('rh-m-obs').value         = '';
+  }
+  document.getElementById('restricaoHorarioModalOverlay').classList.add('open');
+}
+
+function closeRestricaoModal() {
+  document.getElementById('restricaoHorarioModalOverlay').classList.remove('open');
+}
+
+async function saveRestricao() {
+  const dias = _rhGetDiasSelecionados();
+  if (!dias.length) { showToast('Selecione ao menos um dia da semana.', 'error'); return; }
+  const horaInicio = document.getElementById('rh-m-hora-inicio').value;
+  const horaFim    = document.getElementById('rh-m-hora-fim').value;
+  if (!horaInicio || !horaFim) { showToast('Informe os horários de início e fim.', 'error'); return; }
+
+  const editId   = document.getElementById('rh-edit-id').value;
+  const cliId    = document.getElementById('rh-m-cliente').value || null;
+  const rec = {
+    cliente_id:    cliId ? parseInt(cliId) : null,
+    classificacao: document.getElementById('rh-m-class').value     || 'Todos',
+    placa:         document.getElementById('rh-m-placa').value     || '',
+    motorista:     document.getElementById('rh-m-motorista').value || '',
+    diasSemana:    dias,
+    horaInicio:    horaInicio,
+    horaFim:       horaFim,
+    ativo:         document.getElementById('rh-m-ativo').value === '1',
+    observacao:    document.getElementById('rh-m-obs').value.trim(),
+  };
+
+  const recLocal = {
+    ...rec,
+    dias_semana: dias,
+    hora_inicio: horaInicio,
+    hora_fim: horaFim,
+  };
+
+  if (editId) {
+    const idx = restricoesHorario.findIndex(r => String(r.id) === String(editId));
+    if (idx > -1) restricoesHorario[idx] = { ...restricoesHorario[idx], ...recLocal, id: parseInt(editId) };
+    try { await apiCall('PUT', `/api/restricoes-horario/${editId}`, rec); showToast('Restrição atualizada!', 'success'); }
+    catch(e) { showToast('Erro ao salvar no banco.', 'error'); await loadRestricoesHorario(); return; }
+  } else {
+    const tempId = -(Date.now());
+    const newR = { ...recLocal, id: tempId };
+    restricoesHorario.push(newR);
+    try {
+      const res = await apiCall('POST', '/api/restricoes-horario', rec);
+      if (res?.id) newR.id = res.id;
+      showToast('Restrição criada!', 'success');
+    } catch(e) {
+      restricoesHorario = restricoesHorario.filter(r => r !== newR);
+      showToast('Erro ao salvar no banco.', 'error');
+    }
+  }
+  closeRestricaoModal();
+  _rhPopulateFiltros();
+  renderRestricoesHorario();
+}
+
+async function deleteRestricao(id) {
+  if (!confirm('Remover esta restrição de horário de abastecimento?')) return;
+  const backup = [...restricoesHorario];
+  restricoesHorario = restricoesHorario.filter(r => r.id !== id);
+  renderRestricoesHorario();
+  try { await apiCall('DELETE', `/api/restricoes-horario/${id}`); showToast('Restrição removida.', ''); }
+  catch(e) { restricoesHorario = backup; renderRestricoesHorario(); showToast('Erro ao remover.', 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  VARIAÇÃO MÁXIMA DE HODÔMETRO — LEVES E PESADOS
 // ═══════════════════════════════════════════════════════════════
 let hodoVariacoes = [];
@@ -7474,6 +7978,7 @@ async function initApp() {
     loadSeguranca(),
     loadProdutosAbastecidos(),
     loadHodoVariacao(),
+    loadRestricoesHorario(),
     populateClienteSelector(),
     loadCentrosCusto(),
     loadPerfisAcesso(),
@@ -8652,7 +9157,43 @@ async function saveRecord() {
   const valorTotal = parseFloat((combustivelTotal + arla32Total + svcTotal).toFixed(2));
   const rec = { data, hora, placa, cpfMotorista, motorista, posto, cnpjPosto, cidadePosto, ufPosto, combustivel, hodometro, volume, precoUnitario: preco, valorTotal, arla32Volume, arla32Preco, arla32Total, servicosAbast, cliente_id: _getModalClienteId() };
 
-  // ── Aplica localmente primeiro ──
+  // ── Para registros NOVOS: valida restrição de horário no servidor antes de aplicar ──
+  if (!editId && serverOnline) {
+    try {
+      const _h = { 'Content-Type': 'application/json' };
+      if (_authToken) _h['Authorization'] = `Bearer ${_authToken}`;
+      const _r = await fetch(`${API_BASE}/api/abastecimentos`, {
+        method: 'POST', headers: _h, body: JSON.stringify(rec)
+      });
+      if (_r.status === 403) {
+        const _body = await _r.json().catch(() => ({}));
+        const _motivo = _body.error || 'Abastecimento bloqueado por restrição de horário.';
+        showToast(`🚫 ${_motivo}`, 'error');
+        return;
+      }
+      if (!_r.ok) throw new Error(`HTTP ${_r.status}`);
+      const res = await _r.json().catch(() => ({}));
+      rec.id = (res && res.id) ? res.id : nextId++;
+      nextId = rec.id + 1;
+      records.push(rec);
+      closeModal();
+      filteredRecords = [...records];
+      refreshConsumoMap();
+      _populateCombFilter();
+      applyFilters();
+      updateKPIs();
+      renderConsumoVeiculos();
+      showToast('Abastecimento registrado!', 'success');
+      return;
+    } catch(e) {
+      serverOnline = false;
+      setServerStatus('offline');
+      document.getElementById('offline-banner').style.display = 'flex';
+      // Aplica offline normalmente
+    }
+  }
+
+  // ── Aplica localmente (edição ou modo offline) ──
   if (editId) {
     const idx = records.findIndex(r => String(r.id) === String(editId));
     if (idx !== -1) records[idx] = { ...records[idx], ...rec };
@@ -8669,17 +9210,10 @@ async function saveRecord() {
   renderConsumoVeiculos();
   showToast(editId ? 'Abastecimento atualizado!' : 'Abastecimento registrado!', 'success');
 
-  // ── Tenta sincronizar com o servidor em background ──
-  if (serverOnline) {
+  // ── Sincroniza edição com o servidor em background ──
+  if (editId && serverOnline) {
     try {
-      if (editId) {
-        await apiCall('PUT', `/api/abastecimentos/${editId}`, rec);
-      } else {
-        const res = await apiCall('POST', '/api/abastecimentos', rec);
-        // Atualiza o id do registro com o id gerado pelo banco
-        const local = records.find(r => r.id === rec.id);
-        if (local && res && res.id) { local.id = res.id; nextId = res.id + 1; }
-      }
+      await apiCall('PUT', `/api/abastecimentos/${editId}`, rec);
     } catch(e) {
       serverOnline = false;
       setServerStatus('offline');
@@ -10653,7 +11187,7 @@ function switchTab(tab) {
   if (tab === 'negociacoes')   { loadNegociacoes(); loadPostos(); }
   if (tab === 'veiculos')      loadVeiculos();
   if (tab === 'motoristas')    loadMotoristas();
-  if (tab === 'parametros')    { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); loadValoresDiarios(); loadVolumesDiarios(); loadProdutosAbastecidos(); loadHodoVariacao(); }
+  if (tab === 'parametros')    { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); loadValoresDiarios(); loadVolumesDiarios(); loadProdutosAbastecidos(); loadHodoVariacao(); loadRestricoesHorario(); }
   if (tab === 'seguranca')     { loadSeguranca(); loadMotoristas(); }
   if (tab === 'precos')        { _loadPrecosIframe(); }
   if (tab === 'varprecos')     { loadAbastecimentos().then(() => _renderVarPrecos()); }
