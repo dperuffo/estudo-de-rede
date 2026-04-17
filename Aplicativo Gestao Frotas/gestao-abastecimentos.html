@@ -18337,24 +18337,32 @@ function _roteizAtualizarBadgeEdicao(nome) {
 async function salvarRoteizRota() {
   if (!_roteizRotaAtual) { showToast('Calcule uma rota antes de salvar.', 'error'); return; }
 
-  // Captura litragens editadas pelo usuário e atualiza os postos antes de salvar
-  const litAtual = _getLitragemAtual();
-  _roteizRotaAtual.postosNaRota.forEach((p, i) => {
-    const info = litAtual[i];
-    if (info) {
-      p._litSuger    = info.lit;
-      p._custoParada = info.lit * (info.preco || p._preco || 0);
-    }
-  });
-  // Recalcula custo total com os valores informados pelo usuário
-  const custoTotal = _roteizRotaAtual.postosNaRota.reduce((s,p) => s + (p._custoParada || 0), 0);
-  if (custoTotal > 0) _roteizRotaAtual.custoEstimado = custoTotal;
+  try {
+    // Captura litragens editadas pelo usuário e atualiza os postos antes de salvar
+    const litAtual = _getLitragemAtual();
+    const postos = _roteizRotaAtual.postosNaRota || [];
+    postos.forEach((p, i) => {
+      const info = litAtual[i];
+      if (info) {
+        p._litSuger    = info.lit;
+        p._custoParada = info.lit * (info.preco || p._preco || 0);
+      }
+    });
+    // Recalcula custo total com os valores informados pelo usuário
+    const custoTotal = postos.reduce((s,p) => s + (p._custoParada || 0), 0);
+    if (custoTotal > 0) _roteizRotaAtual.custoEstimado = custoTotal;
 
-  // Abre modal de salvar rota para coletar nome e cliente
-  const nomeDefault = _roteizRotaId
-    ? (_roteizRotas.find(x => x.id === _roteizRotaId)?.nome || 'Rota')
-    : `Monte Sua Rota — ${_roteizRotaAtual.origem.label.split(',')[0]} → ${_roteizRotaAtual.destino.label.split(',')[0]}`;
-  _abrirSalvarRotaModal(nomeDefault);
+    // Abre modal de salvar rota para coletar nome e cliente
+    const origem  = _roteizRotaAtual.origem?.label  || '';
+    const destino = _roteizRotaAtual.destino?.label || '';
+    const nomeDefault = _roteizRotaId
+      ? (_roteizRotas.find(x => x.id === _roteizRotaId)?.nome || 'Rota')
+      : `Rota — ${origem.split(',')[0]} → ${destino.split(',')[0]}`;
+    _abrirSalvarRotaModal(nomeDefault);
+  } catch(e) {
+    console.error('Erro ao abrir modal de salvar rota:', e);
+    showToast('Erro ao preparar salvamento: ' + e.message, 'error');
+  }
 }
 
 // ── Modal Salvar Rota ──────────────────────────────────────────
@@ -18371,13 +18379,17 @@ function _abrirSalvarRotaModal(nomeDefault) {
     const prev = document.getElementById('roteiz-f-cliente')?.value;
     if (prev) salvarSel.value = prev;
   }
-  overlay.style.display = 'flex';
+  overlay.style.display = '';       // limpa inline display:none anterior
+  overlay.classList.add('open');    // ativa opacity:1 e pointer-events
   setTimeout(() => nomeEl.select(), 80);
 }
 
 function _fecharSalvarRotaModal() {
   const overlay = document.getElementById('roteizSalvarModalOverlay');
-  if (overlay) overlay.style.display = 'none';
+  if (overlay) {
+    overlay.classList.remove('open');
+    overlay.style.display = 'none'; // garante que fique oculto
+  }
 }
 
 async function _confirmarSalvarRota() {
