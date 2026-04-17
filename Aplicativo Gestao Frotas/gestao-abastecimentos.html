@@ -21140,7 +21140,9 @@ function _abrirProntuario(placa) {
   document.getElementById('pred-det-info').textContent  = `${modelo || 'Veículo'} · ${v.tipo || 'Leve'} · ${a.kmAtual.toLocaleString('pt-BR')} km`;
   document.getElementById('pred-det-badge').innerHTML   = _predBadge(a.statusGeral);
 
-  document.getElementById('predDetalheModalOverlay').style.display = 'flex';
+  const predOverlay = document.getElementById('predDetalheModalOverlay');
+  predOverlay.style.display = '';
+  predOverlay.classList.add('open');
   _predSwitchTab('analise');
 }
 
@@ -21148,7 +21150,9 @@ function _abrirProntuario(placa) {
 function _abrirPredDetalhe(placa) { _abrirProntuario(placa); }
 
 function _fecharPredDetalhe() {
-  document.getElementById('predDetalheModalOverlay').style.display = 'none';
+  const predOverlay = document.getElementById('predDetalheModalOverlay');
+  predOverlay.classList.remove('open');
+  predOverlay.style.display = 'none';
   _predDetalheAtual = null;
   _predTabAtiva = 'analise';
 }
