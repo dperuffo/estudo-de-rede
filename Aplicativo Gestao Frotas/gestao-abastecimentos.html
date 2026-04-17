@@ -19635,12 +19635,14 @@ function preencherDadosVeiculoRoteiz() {
   const v = veiculos.find(x => x.placa === placa);
   if (!v) return;
   const capEl = document.getElementById('roteiz-cap-tanque');
-  if (capEl && v.capacidade_tanque) capEl.value = v.capacidade_tanque;
+  const capVal = v.capacidadeTanque || v.capacidade_tanque || 0;
+  if (capEl && capVal) capEl.value = capVal;
   calcRoteizLitrosMin();
   // Combustível
   const combEl = document.getElementById('roteiz-smart-comb');
-  if (combEl && v.combustivel_especificado) {
-    combEl.innerHTML = `<option value="${v.combustivel_especificado}">${v.combustivel_especificado}</option>`;
+  const combVal = v.combustivelEspecificado || v.combustivel_especificado || '';
+  if (combEl && combVal) {
+    combEl.innerHTML = `<option value="${combVal}">${combVal}</option>`;
   }
   // Média de consumo — calcula a partir dos registros
   const recsPlaca = records.filter(r => r.placa === placa && _isDiesel(_combEfetivo(r)));
