@@ -215,6 +215,20 @@ def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
                 cliente_id or None,
             ])
 
+def _calc_combustivel_real(conn, placa, data_saida, data_fim=None):
+    """Soma o valor_total dos abastecimentos do veículo no período da viagem.
+    data_fim = data_retorno_prevista ou data atual se em andamento."""
+    if not placa or not data_saida:
+        return 0.0
+    data_ini_str = data_saida[:10] if data_saida else ''
+    data_fim_str = (data_fim or _hoje())[:10]
+    row = _fetchone(conn, '''
+        SELECT COALESCE(SUM(valor_total), 0) AS total
+        FROM abastecimentos
+        WHERE placa=%s AND data >= %s AND data <= %s
+    ''', [placa, data_ini_str, data_fim_str])
+    return float(row.get('total', 0) if row else 0)
+
 def _sync_manut_lancamentos(conn, manut_id, placa, data, custo,
                              itens, oficina, tecnico, cliente_id):
     """Cria/atualiza lançamento em lancamentos_cc para um registro de manutenção,
@@ -970,6 +984,9 @@ def init_db():
         ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
     cur.execute('''ALTER TABLE planos_viagem
         ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
+    # custo_combustivel_real: soma dos abastecimentos do veículo no período da viagem
+    cur.execute('''ALTER TABLE planos_viagem
+        ADD COLUMN IF NOT EXISTS custo_combustivel_real REAL DEFAULT 0''')
 
     # ── Migração: corrige lançamentos de combustível que usavam valor_total
     #    (combustível + Arla 32 + serviços) em vez de volume × preco_unitario ──
@@ -2278,6 +2295,25 @@ class Handler(BaseHTTPRequestHandler):
                 conn.commit()
             conn.close()
             self.send_json({'id': new_id}, 201)
+
+        elif re.match(r'^/api/planos-viagem/(\d+)/revisar-combustivel$', path):
+            pid  = int(re.match(r'^/api/planos-viagem/(\d+)/revisar-combustivel$', path).group(1))
+            conn = get_db()
+            plano = _fetchone(conn, 'SELECT * FROM planos_viagem WHERE id=%s', [pid])
+            if not plano:
+                conn.close(); self.send_json({'error': 'Plano não encontrado'}, 404); return
+            data_fim = plano.get('data_retorno_prevista') or None
+            # Se ainda em andamento, usa hoje como data fim
+            if plano.get('status') in ('Em Andamento', 'Aprovado'):
+                data_fim = _hoje()
+            comb_real = _calc_combustivel_real(
+                conn, plano.get('placa',''),
+                plano.get('data_saida',''), data_fim)
+            _exec(conn, 'UPDATE planos_viagem SET custo_combustivel_real=%s WHERE id=%s',
+                  [comb_real, pid])
+            conn.commit()
+            conn.close()
+            self.send_json({'custo_combustivel_real': comb_real})
 
         elif path == '/api/planos-viagem-pedagios':
             conn = get_db()

@@ -4954,9 +4954,23 @@
             <input type="number" id="pv-f-preco-comb" class="form-control" min="0" step="0.001" placeholder="0.000" oninput="_pvCalcTotais()" />
           </div>
           <div class="form-group">
-            <label>Custo Combustível (R$)</label>
+            <label>Custo Combustível <span style="background:#fef9c3;color:#854d0e;border:1px solid #fde047;border-radius:4px;padding:1px 6px;font-size:0.7rem;font-weight:700;">ESTIMADO</span></label>
             <input type="number" id="pv-f-custo-comb" class="form-control" style="background:#fef9c3;font-weight:700;" readonly placeholder="Calculado" />
           </div>
+        </div>
+        <!-- Combustível Real -->
+        <div style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:160px;">
+            <div style="font-size:0.75rem;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">⛽ Combustível Real (do Controle de Custos)</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span id="pv-combustivel-real-valor" style="font-size:1.1rem;font-weight:800;color:#c2410c;">—</span>
+              <span id="pv-combustivel-real-diff" style="font-size:0.78rem;color:var(--text-muted);"></span>
+            </div>
+            <div id="pv-combustivel-real-info" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;"></div>
+          </div>
+          <button id="pv-btn-revisar-comb" class="btn btn-sm" style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;white-space:nowrap;" onclick="_pvRevisarCombustivel()">
+            🔄 Revisar
+          </button>
         </div>
       </div>
 
@@ -5032,6 +5046,7 @@
           <div class="form-group">
             <label style="color:rgba(255,255,255,0.8);">Custo Total Real (R$)</label>
             <input type="number" id="pv-f-total-real" class="form-control" style="background:rgba(255,255,255,0.15);color:white;border-color:rgba(255,255,255,0.3);" min="0" step="0.01" placeholder="Preencher após a viagem" />
+            <div style="font-size:0.7rem;opacity:0.7;margin-top:3px;">💡 Use "Revisar" em Combustível para atualizar com os dados reais</div>
           </div>
         </div>
       </div>
@@ -16473,6 +16488,8 @@ async function openPlanoModal(id) {
     _pvPedagios = pedagios.map(pg => ({ ...pg, _saved: true }));
     _pvExistingClienteId = p.cliente_id || null;
     _pvCalcTotais();
+    // Mostra combustível real já revisado (se houver)
+    _pvMostrarCombustivelReal(p.custo_combustivel_real || 0, p.custo_combustivel || 0);
   } else {
     _pvRenderPedagios();
     _pvCalcTotais();
@@ -16493,6 +16510,61 @@ async function openPlanoModal(id) {
   document.getElementById('planoViagemModalOverlay').classList.add('open');
 }
 function closePlanoModal() { document.getElementById('planoViagemModalOverlay').classList.remove('open'); }
+
+// ── Revisão de Combustível Real ──────────────────────────────────
+function _pvMostrarCombustivelReal(combReal, custoCombEst) {
+  const fmtBRL = v => 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
+  const elVal  = document.getElementById('pv-combustivel-real-valor');
+  const elDiff = document.getElementById('pv-combustivel-real-diff');
+  const elInfo = document.getElementById('pv-combustivel-real-info');
+  if (!elVal) return;
+  if (combReal > 0) {
+    elVal.textContent = fmtBRL(combReal);
+    const diff = combReal - custoCombEst;
+    if (custoCombEst > 0) {
+      const pct  = ((diff / custoCombEst) * 100).toFixed(1);
+      elDiff.textContent = diff >= 0 ? `▲ ${fmtBRL(diff)} (${pct}% acima)` : `▼ ${fmtBRL(Math.abs(diff))} (${Math.abs(pct)}% abaixo)`;
+      elDiff.style.color = diff > 0 ? '#dc2626' : '#16a34a';
+    } else {
+      elDiff.textContent = '';
+    }
+    elInfo.textContent = 'Baseado nos abastecimentos registrados no período da viagem';
+  } else {
+    elVal.textContent = '— Nenhum abastecimento no período';
+    elDiff.textContent = '';
+    elInfo.textContent = 'Clique em "Revisar" para buscar dados do Controle de Custos';
+  }
+}
+
+async function _pvRevisarCombustivel() {
+  const editId = document.getElementById('pv-edit-id').value;
+  if (!editId) {
+    showToast('Salve o plano primeiro para revisar o combustível real.', 'error');
+    return;
+  }
+  const btn = document.getElementById('pv-btn-revisar-comb');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando…'; }
+  try {
+    const res = await apiCall('POST', `/api/planos-viagem/${editId}/revisar-combustivel`, {});
+    const combReal = res.custo_combustivel_real || 0;
+    const custoCombEst = parseFloat(document.getElementById('pv-f-custo-comb')?.value) || 0;
+    _pvMostrarCombustivelReal(combReal, custoCombEst);
+    // Sugere atualizar o total real
+    const totalReal = document.getElementById('pv-f-total-real');
+    if (totalReal && combReal > 0) {
+      const custoPed  = parseFloat(document.querySelector('#pv-pedagio-total-label')?.textContent?.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+      const custoDiar = parseFloat(document.getElementById('pv-f-custo-diarias')?.value) || 0;
+      const custoManu = parseFloat(document.getElementById('pv-f-custo-manut')?.value) || 0;
+      const totalCalculado = combReal + custoPed + custoDiar + custoManu;
+      totalReal.value = totalCalculado.toFixed(2);
+    }
+    showToast('Combustível real atualizado!', 'success');
+  } catch(e) {
+    showToast('Erro ao revisar: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Revisar'; }
+  }
+}
 
 async function _pvPopulateSelects() {
   // Garante arrays locais populados
