@@ -3087,6 +3087,95 @@
         </div>
         <!-- fim param-card Dias e Horários -->
 
+        <!-- ── POSTOS PERMITIDOS PARA ABASTECIMENTO ── -->
+        <div class="param-card" style="grid-column:1/-1">
+          <div class="param-card-header">
+            <div class="param-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+              Postos Permitidos para Abastecimento
+            </div>
+            <button class="btn btn-primary" style="background:#fff;color:#1d4ed8;border:1.5px solid #93c5fd;font-size:0.82rem;" onclick="openRestricaoPostoModal()">
+              + Nova Restrição
+            </button>
+          </div>
+          <div class="param-card-body">
+            <!-- KPI Row -->
+            <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+              <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
+                <div id="rp-stat-total" style="font-size:1.4rem;font-weight:800;color:#0369a1">—</div>
+                <div style="font-size:0.72rem;color:#0369a1;font-weight:600;text-transform:uppercase;margin-top:2px;">Total</div>
+              </div>
+              <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
+                <div id="rp-stat-ativos" style="font-size:1.4rem;font-weight:800;color:#15803d">—</div>
+                <div style="font-size:0.72rem;color:#15803d;font-weight:600;text-transform:uppercase;margin-top:2px;">Ativos</div>
+              </div>
+              <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
+                <div id="rp-stat-inativos" style="font-size:1.4rem;font-weight:800;color:#dc2626">—</div>
+                <div style="font-size:0.72rem;color:#dc2626;font-weight:600;text-transform:uppercase;margin-top:2px;">Inativos</div>
+              </div>
+            </div>
+            <!-- Filtros -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end;">
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:150px;">
+                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Cliente</label>
+                <select id="rp-f-cliente" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:120px;">
+                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Veículo</label>
+                <select id="rp-f-placa" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:140px;">
+                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Motorista</label>
+                <select id="rp-f-motorista" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:140px;">
+                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Posto</label>
+                <select id="rp-f-posto" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:100px;">
+                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Status</label>
+                <select id="rp-f-status" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
+                  <option value="">Todos</option>
+                  <option value="1">Ativo</option>
+                  <option value="0">Inativo</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <button onclick="rpLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
+              </div>
+            </div>
+            <div id="rp-empty" class="vl-empty" style="display:none">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;color:var(--text-muted)"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+              <p>Nenhuma restrição cadastrada. Clique em <strong>Nova Restrição</strong> para definir os postos permitidos.</p>
+            </div>
+            <div id="rp-table-wrap" style="display:none;overflow-x:auto">
+              <table class="vinculos-table">
+                <thead><tr>
+                  <th>Cliente</th>
+                  <th>Classificação</th>
+                  <th>Veículo</th>
+                  <th>Motorista</th>
+                  <th>Posto</th>
+                  <th>Limite</th>
+                  <th>Status</th>
+                  <th>Observação</th>
+                  <th style="text-align:right">Ações</th>
+                </tr></thead>
+                <tbody id="rp-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- fim param-card Postos Permitidos -->
+
       </div><!-- /param-section -->
 
     </div>
@@ -4798,6 +4887,93 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeRestricaoModal()">Cancelar</button>
       <button class="btn btn-success" onclick="saveRestricao()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Salvar Restrição
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ░░ MODAL RESTRIÇÃO DE POSTO ░░ -->
+<div class="modal-overlay" id="restricaoPostoModalOverlay" onclick="if(event.target===this)closeRestricaoPostoModal()">
+  <div class="modal" style="max-width:600px;width:95vw;">
+    <div class="modal-header">
+      <h2 class="modal-title" id="restricaoPostoModalTitle">Nova Restrição de Posto</h2>
+      <button class="modal-close" onclick="closeRestricaoPostoModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="rp-edit-id">
+      <!-- Cliente -->
+      <div class="form-group">
+        <label class="form-label">Cliente</label>
+        <select id="rp-m-cliente" class="form-input" onchange="rpModalOnClienteChange()">
+          <option value="">Todos os clientes</option>
+        </select>
+      </div>
+      <!-- Classificação + Veículo -->
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 160px">
+          <label class="form-label">Classificação</label>
+          <select id="rp-m-class" class="form-input" onchange="rpModalOnClassChange()">
+            <option value="Todos">Todos</option>
+            <option value="Leve">Leve</option>
+            <option value="Pesado">Pesado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Veículo (Placa)</label>
+          <select id="rp-m-placa" class="form-input">
+            <option value="">Todos os veículos</option>
+          </select>
+        </div>
+      </div>
+      <!-- Motorista -->
+      <div class="form-group">
+        <label class="form-label">Motorista</label>
+        <select id="rp-m-motorista" class="form-input">
+          <option value="">Todos os motoristas</option>
+        </select>
+      </div>
+      <!-- Posto -->
+      <div class="form-group">
+        <label class="form-label">Posto <span style="color:#dc2626">*</span></label>
+        <select id="rp-m-posto" class="form-input">
+          <option value="">Selecione o posto</option>
+        </select>
+      </div>
+      <!-- Tipo de limite + Valor -->
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 180px">
+          <label class="form-label">Tipo de Limite</label>
+          <select id="rp-m-limite-tipo" class="form-input" onchange="rpToggleLimiteValor()">
+            <option value="nenhum">Sem limite</option>
+            <option value="valor">Valor máximo (R$)</option>
+            <option value="volume">Volume máximo (L)</option>
+          </select>
+        </div>
+        <div class="form-group" id="rp-m-limite-valor-group" style="display:none">
+          <label class="form-label" id="rp-m-limite-valor-label">Valor Máximo</label>
+          <input type="number" id="rp-m-limite-valor" class="form-input" min="0" step="0.01" placeholder="0,00">
+        </div>
+      </div>
+      <!-- Status + Observação -->
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 140px">
+          <label class="form-label">Status</label>
+          <select id="rp-m-ativo" class="form-input">
+            <option value="1">Ativo</option>
+            <option value="0">Inativo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observação</label>
+          <input type="text" id="rp-m-obs" class="form-input" placeholder="Observação opcional">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeRestricaoPostoModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="saveRestricaoPosto()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         Salvar Restrição
       </button>
@@ -6890,7 +7066,8 @@ function _refreshClienteSelects() {
    'iv-f-cliente','vd-f-cliente2','vol-f-cliente','pa-f-cliente',
    'hodo-leve-f-cliente','hodo-pesado-f-cliente',
    'roto-f-cliente','pv-f-cliente','seg-f-cliente','roteiz-f-cliente',
-   'rh-f-cliente','rh-m-cliente'].forEach(id => {
+   'rh-f-cliente','rh-m-cliente',
+   'rp-f-cliente','rp-m-cliente'].forEach(id => {
     const sel = document.getElementById(id);
     if (sel) { const v = sel.value; sel.innerHTML = opts; sel.value = v; }
   });
@@ -7768,6 +7945,289 @@ async function deleteRestricao(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  POSTOS PERMITIDOS PARA ABASTECIMENTO
+// ═══════════════════════════════════════════════════════════════
+let restricoesPosto = [];
+
+async function loadRestricoesPosto() {
+  try {
+    const rows = await apiCall('GET', '/api/restricoes-posto');
+    restricoesPosto = rows || [];
+  } catch(e) { /* offline */ }
+  _rpPopulateFiltros();
+  renderRestricoesPosto();
+}
+
+function _rpPopulateFiltros() {
+  // Cliente
+  const selCli = document.getElementById('rp-f-cliente');
+  if (selCli) {
+    const cur = selCli.value;
+    const lista = (_clientes || []).filter(c => c.status === 'Ativo');
+    selCli.innerHTML = '<option value="">Todos</option>' +
+      lista.map(c => `<option value="${c.id}">${c.razao_social}</option>`).join('');
+    selCli.value = cur;
+  }
+  // Placas
+  const selPl = document.getElementById('rp-f-placa');
+  if (selPl) {
+    const cur = selPl.value;
+    const pls = [...new Set(restricoesPosto.filter(r => r.placa).map(r => r.placa))].sort();
+    selPl.innerHTML = '<option value="">Todos</option>' +
+      pls.map(p => `<option value="${p}">${p}</option>`).join('');
+    selPl.value = cur;
+  }
+  // Motoristas
+  const selMot = document.getElementById('rp-f-motorista');
+  if (selMot) {
+    const cur = selMot.value;
+    const mots = [...new Set(restricoesPosto.filter(r => r.motorista).map(r => r.motorista))].sort();
+    selMot.innerHTML = '<option value="">Todos</option>' +
+      mots.map(m => `<option value="${m}">${m}</option>`).join('');
+    selMot.value = cur;
+  }
+  // Postos
+  const selPos = document.getElementById('rp-f-posto');
+  if (selPos) {
+    const cur = selPos.value;
+    const postos = [...new Set(restricoesPosto.filter(r => r.posto_nome).map(r => r.posto_nome))].sort();
+    selPos.innerHTML = '<option value="">Todos</option>' +
+      postos.map(p => `<option value="${p}">${p}</option>`).join('');
+    selPos.value = cur;
+  }
+}
+
+function renderRestricoesPosto() {
+  const filtCli  = document.getElementById('rp-f-cliente')?.value  || '';
+  const filtPl   = document.getElementById('rp-f-placa')?.value    || '';
+  const filtMot  = document.getElementById('rp-f-motorista')?.value || '';
+  const filtPos  = document.getElementById('rp-f-posto')?.value    || '';
+  const filtSt   = document.getElementById('rp-f-status')?.value   || '';
+
+  let lista = [...restricoesPosto];
+  if (filtCli) lista = lista.filter(r => String(r.cliente_id) === filtCli);
+  if (filtPl)  lista = lista.filter(r => r.placa === filtPl);
+  if (filtMot) lista = lista.filter(r => r.motorista === filtMot);
+  if (filtPos) lista = lista.filter(r => r.posto_nome === filtPos);
+  if (filtSt)  lista = lista.filter(r => filtSt === '1' ? r.ativo : !r.ativo);
+
+  const tot = restricoesPosto.length;
+  const atv = restricoesPosto.filter(r => r.ativo).length;
+
+  const eTotal    = document.getElementById('rp-stat-total');
+  const eAtivos   = document.getElementById('rp-stat-ativos');
+  const eInativos = document.getElementById('rp-stat-inativos');
+  if (eTotal)    eTotal.textContent    = tot;
+  if (eAtivos)   eAtivos.textContent   = atv;
+  if (eInativos) eInativos.textContent = tot - atv;
+
+  const tbody = document.getElementById('rp-tbody');
+  const empty = document.getElementById('rp-empty');
+  const wrap  = document.getElementById('rp-table-wrap');
+  if (!tbody) return;
+
+  if (!lista.length) {
+    if (empty) empty.style.display = '';
+    if (wrap)  wrap.style.display  = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (wrap)  wrap.style.display  = '';
+
+  const cliMap = {};
+  (_clientes || []).forEach(c => { cliMap[c.id] = c.razao_social; });
+
+  tbody.innerHTML = lista.map(r => {
+    const cliLabel = r.cliente_id ? (cliMap[r.cliente_id] || `#${r.cliente_id}`) : 'Todos';
+    const placaLabel = r.placa || 'Todos';
+    const motLabel = r.motorista || 'Todos';
+    const classLabel = r.classificacao || 'Todos';
+    let limiteLabel = '—';
+    if (r.limite_tipo === 'valor') limiteLabel = `R$ ${parseFloat(r.limite_valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+    else if (r.limite_tipo === 'volume') limiteLabel = `${parseFloat(r.limite_valor||0).toLocaleString('pt-BR',{minimumFractionDigits:0})} L`;
+    const status = r.ativo
+      ? '<span style="background:#f0fdf4;color:#15803d;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;">Ativo</span>'
+      : '<span style="background:#fef2f2;color:#dc2626;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;">Inativo</span>';
+    return `<tr>
+      <td>${cliLabel}</td>
+      <td>${classLabel}</td>
+      <td>${placaLabel}</td>
+      <td>${motLabel}</td>
+      <td>${r.posto_nome || '—'}</td>
+      <td>${limiteLabel}</td>
+      <td>${status}</td>
+      <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.observacao || '—'}</td>
+      <td style="text-align:right;white-space:nowrap;">
+        <button class="btn btn-sm btn-outline" style="padding:3px 10px;font-size:0.75rem;" onclick="openRestricaoPostoModal(${r.id})">Editar</button>
+        <button class="btn btn-sm" style="padding:3px 10px;font-size:0.75rem;background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="deleteRestricaoPosto(${r.id})">Excluir</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function rpLimparFiltros() {
+  ['rp-f-cliente','rp-f-placa','rp-f-motorista','rp-f-posto','rp-f-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  renderRestricoesPosto();
+}
+
+function rpToggleLimiteValor() {
+  const tipo = document.getElementById('rp-m-limite-tipo')?.value || 'nenhum';
+  const grp  = document.getElementById('rp-m-limite-valor-group');
+  const lbl  = document.getElementById('rp-m-limite-valor-label');
+  if (!grp) return;
+  grp.style.display = (tipo === 'nenhum') ? 'none' : '';
+  if (lbl) lbl.textContent = tipo === 'valor' ? 'Valor Máximo (R$)' : 'Volume Máximo (L)';
+}
+
+function rpModalOnClienteChange() {
+  const cliId = document.getElementById('rp-m-cliente')?.value || '';
+  _rpPopulateModalVeiculos(cliId, document.getElementById('rp-m-class')?.value || 'Todos');
+  _rpPopulateModalMotoristas(cliId);
+}
+
+function rpModalOnClassChange() {
+  const cliId = document.getElementById('rp-m-cliente')?.value || '';
+  _rpPopulateModalVeiculos(cliId, document.getElementById('rp-m-class')?.value || 'Todos');
+}
+
+function _rpPopulateModalVeiculos(cliId, classificacao) {
+  const sel = document.getElementById('rp-m-placa');
+  if (!sel) return;
+  const cur = sel.value;
+  let vl = veiculos || [];
+  if (cliId)         vl = vl.filter(v => String(v.cliente_id) === String(cliId));
+  if (classificacao && classificacao !== 'Todos') {
+    vl = vl.filter(v => (v.classificacao || '').toLowerCase() === classificacao.toLowerCase());
+  }
+  sel.innerHTML = '<option value="">Todos os veículos</option>' +
+    vl.map(v => `<option value="${v.placa}">${v.placa}${v.modelo ? ' — '+v.modelo : ''}</option>`).join('');
+  sel.value = cur;
+}
+
+function _rpPopulateModalMotoristas(cliId) {
+  const sel = document.getElementById('rp-m-motorista');
+  if (!sel) return;
+  const cur = sel.value;
+  let ml = motoristas || [];
+  if (cliId) ml = ml.filter(m => String(m.cliente_id) === String(cliId));
+  sel.innerHTML = '<option value="">Todos os motoristas</option>' +
+    ml.map(m => `<option value="${m.nome}">${m.nome}</option>`).join('');
+  sel.value = cur;
+}
+
+function _rpPopulateModalPostos() {
+  const sel = document.getElementById('rp-m-posto');
+  if (!sel) return;
+  const cur = sel.value;
+  const postosList = (postos || []);
+  sel.innerHTML = '<option value="">Selecione o posto</option>' +
+    postosList.map(p => `<option value="${p.id}">${p.razao || p.cnpj || p.id}</option>`).join('');
+  sel.value = cur;
+}
+
+async function openRestricaoPostoModal(id) {
+  document.getElementById('restricaoPostoModalTitle').textContent = id ? 'Editar Restrição de Posto' : 'Nova Restrição de Posto';
+  document.getElementById('rp-edit-id').value = id || '';
+  document.getElementById('rp-m-obs').value = '';
+  document.getElementById('rp-m-limite-tipo').value = 'nenhum';
+  document.getElementById('rp-m-limite-valor').value = '';
+  document.getElementById('rp-m-ativo').value = '1';
+  rpToggleLimiteValor();
+  _rpPopulateModalPostos();
+
+  const cliId = _clienteAtualId || '';
+  const classDef = 'Todos';
+  _rpPopulateModalVeiculos(cliId, classDef);
+  _rpPopulateModalMotoristas(cliId);
+
+  if (id) {
+    const r = restricoesPosto.find(x => x.id === id);
+    if (r) {
+      document.getElementById('rp-m-cliente').value     = r.cliente_id || '';
+      document.getElementById('rp-m-class').value       = r.classificacao || 'Todos';
+      _rpPopulateModalVeiculos(r.cliente_id || '', r.classificacao || 'Todos');
+      _rpPopulateModalMotoristas(r.cliente_id || '');
+      document.getElementById('rp-m-placa').value       = r.placa || '';
+      document.getElementById('rp-m-motorista').value   = r.motorista || '';
+      // Posto — populate then set by id
+      _rpPopulateModalPostos();
+      document.getElementById('rp-m-posto').value       = r.posto_id || '';
+      document.getElementById('rp-m-limite-tipo').value = r.limite_tipo || 'nenhum';
+      document.getElementById('rp-m-limite-valor').value= r.limite_valor || '';
+      document.getElementById('rp-m-ativo').value       = r.ativo ? '1' : '0';
+      document.getElementById('rp-m-obs').value         = r.observacao || '';
+      rpToggleLimiteValor();
+    }
+  } else {
+    document.getElementById('rp-m-cliente').value = _clienteAtualId || '';
+    document.getElementById('rp-m-class').value   = 'Todos';
+  }
+
+  document.getElementById('restricaoPostoModalOverlay').classList.add('open');
+}
+
+function closeRestricaoPostoModal() {
+  document.getElementById('restricaoPostoModalOverlay').classList.remove('open');
+}
+
+async function saveRestricaoPosto() {
+  const postoSel = document.getElementById('rp-m-posto');
+  const postoId  = postoSel?.value || '';
+  const postoNome = postoSel?.options[postoSel?.selectedIndex]?.text || '';
+  if (!postoId) { showToast('Selecione um posto.', 'error'); return; }
+
+  const limiteTipo  = document.getElementById('rp-m-limite-tipo').value;
+  const limiteValor = parseFloat(document.getElementById('rp-m-limite-valor').value || 0) || 0;
+
+  const payload = {
+    cliente_id:   document.getElementById('rp-m-cliente').value || null,
+    classificacao: document.getElementById('rp-m-class').value || 'Todos',
+    placa:        document.getElementById('rp-m-placa').value   || '',
+    motorista:    document.getElementById('rp-m-motorista').value || '',
+    posto_id:     postoId ? parseInt(postoId) : null,
+    posto_nome:   postoNome,
+    limiteTipo,
+    limiteValor,
+    ativo:        document.getElementById('rp-m-ativo').value === '1',
+    observacao:   document.getElementById('rp-m-obs').value || ''
+  };
+  if (payload.cliente_id === '') payload.cliente_id = null;
+
+  const editId = document.getElementById('rp-edit-id').value;
+  try {
+    if (editId) {
+      await apiCall('PUT', `/api/restricoes-posto/${editId}`, payload);
+      const idx = restricoesPosto.findIndex(r => r.id === parseInt(editId));
+      if (idx >= 0) restricoesPosto[idx] = { ...restricoesPosto[idx], ...payload,
+        id: parseInt(editId), cliente_id: payload.cliente_id ? parseInt(payload.cliente_id) : null,
+        limite_tipo: limiteTipo, limite_valor: limiteValor };
+      showToast('Restrição atualizada.', '');
+    } else {
+      const res = await apiCall('POST', '/api/restricoes-posto', payload);
+      restricoesPosto.unshift({ ...payload, id: res.id,
+        cliente_id: payload.cliente_id ? parseInt(payload.cliente_id) : null,
+        limite_tipo: limiteTipo, limite_valor: limiteValor });
+      showToast('Restrição criada.', '');
+    }
+    closeRestricaoPostoModal();
+    _rpPopulateFiltros();
+    renderRestricoesPosto();
+  } catch(e) { showToast('Erro ao salvar: ' + e.message, 'error'); }
+}
+
+async function deleteRestricaoPosto(id) {
+  if (!confirm('Remover esta restrição de posto para abastecimento?')) return;
+  const backup = [...restricoesPosto];
+  restricoesPosto = restricoesPosto.filter(r => r.id !== id);
+  renderRestricoesPosto();
+  try { await apiCall('DELETE', `/api/restricoes-posto/${id}`); showToast('Restrição removida.', ''); }
+  catch(e) { restricoesPosto = backup; renderRestricoesPosto(); showToast('Erro ao remover.', 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  VARIAÇÃO MÁXIMA DE HODÔMETRO — LEVES E PESADOS
 // ═══════════════════════════════════════════════════════════════
 let hodoVariacoes = [];
@@ -7975,6 +8435,7 @@ async function initApp() {
     loadProdutosAbastecidos(),
     loadHodoVariacao(),
     loadRestricoesHorario(),
+    loadRestricoesPosto(),
     populateClienteSelector(),
     loadCentrosCusto(),
     loadPerfisAcesso(),
@@ -11260,7 +11721,7 @@ function switchTab(tab) {
   if (tab === 'negociacoes')   { loadNegociacoes(); loadPostos(); }
   if (tab === 'veiculos')      loadVeiculos();
   if (tab === 'motoristas')    loadMotoristas();
-  if (tab === 'parametros')    { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); loadValoresDiarios(); loadVolumesDiarios(); loadProdutosAbastecidos(); loadHodoVariacao(); loadRestricoesHorario(); }
+  if (tab === 'parametros')    { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); loadValoresDiarios(); loadVolumesDiarios(); loadProdutosAbastecidos(); loadHodoVariacao(); loadRestricoesHorario(); loadRestricoesPosto(); }
   if (tab === 'seguranca')     { loadSeguranca(); loadMotoristas(); }
   if (tab === 'precos')        { _loadPrecosIframe(); }
   if (tab === 'varprecos')     { loadAbastecimentos().then(() => _renderVarPrecos()); }

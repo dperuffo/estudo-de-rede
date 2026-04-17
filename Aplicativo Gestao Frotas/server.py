@@ -285,6 +285,83 @@ def _validar_restricao_horario(conn, placa, motorista, cliente_id, data_str, hor
                    f"Horário: {restr.get('hora_inicio','00:00')} – {restr.get('hora_fim','23:59')}.")
     }
 
+def _validar_restricao_posto(conn, placa, motorista, cliente_id, posto_nome, cnpj_posto, volume, valor_total):
+    """Verifica se o abastecimento viola alguma restrição de posto ativa.
+    Lógica:
+      - Se existem restrições ativas para o veículo/motorista/cliente,
+        o posto informado DEVE estar na lista.
+      - Se o posto está na lista mas tem limite de valor ou volume, verifica o limite.
+    Retorna None se OK, ou dict {'bloqueado': True, 'motivo': '...'} se bloqueado."""
+
+    # Descobre classificação do veículo
+    veiculo = _fetchone(conn, 'SELECT tipo FROM veiculos WHERE placa=%s', [placa or ''])
+    tipo_veiculo = (veiculo.get('tipo','') if veiculo else '').lower()
+    is_pesado = 'pesado' in tipo_veiculo or 'semi' in tipo_veiculo
+
+    # Busca TODAS as restrições ativas que se aplicam a este veículo/motorista
+    restricoes = _fetchall(conn, '''
+        SELECT * FROM restricoes_posto_abast
+        WHERE ativo = TRUE
+          AND (cliente_id IS NULL OR cliente_id = %s)
+          AND (placa = '' OR placa = %s)
+          AND (motorista = '' OR motorista = %s)
+          AND (classificacao = 'Todos'
+               OR (classificacao = 'Pesado' AND %s)
+               OR (classificacao = 'Leve'   AND NOT %s))
+    ''', [cliente_id or None, placa or '', motorista or '', is_pesado, is_pesado])
+
+    if not restricoes:
+        return None  # sem restrição → livre
+
+    # Normaliza nome do posto para comparação
+    posto_norm = (posto_nome or '').strip().lower()
+
+    # Verifica se o posto está entre os permitidos
+    def _posto_match(r):
+        rn = (r.get('posto_nome') or '').strip().lower()
+        if rn and rn == posto_norm:
+            return True
+        if cnpj_posto and r.get('posto_cnpj') and \
+           cnpj_posto.replace('.','').replace('/','').replace('-','') == \
+           r['posto_cnpj'].replace('.','').replace('/','').replace('-',''):
+            return True
+        return False
+
+    matches = [r for r in restricoes if _posto_match(r)]
+
+    if not matches:
+        # Posto não está na lista de permitidos
+        postos_permitidos = ', '.join(
+            f'"{r.get("posto_nome","")}"' for r in restricoes if r.get('posto_nome')
+        )
+        return {
+            'bloqueado': True,
+            'motivo': (f'Posto "{posto_nome}" não está na lista de postos permitidos '
+                       f'para este veículo/motorista. '
+                       f'Permitidos: {postos_permitidos or "nenhum cadastrado"}.')
+        }
+
+    # Posto está na lista — verifica limites
+    for r in matches:
+        tipo = r.get('limite_tipo','nenhum')
+        lim  = float(r.get('limite_valor') or 0)
+        if tipo == 'valor' and lim > 0 and float(valor_total or 0) > lim:
+            return {
+                'bloqueado': True,
+                'motivo': (f'Valor do abastecimento '
+                           f'(R$ {float(valor_total):.2f}) excede o limite '
+                           f'permitido (R$ {lim:.2f}) no posto "{posto_nome}".')
+            }
+        if tipo == 'volume' and lim > 0 and float(volume or 0) > lim:
+            return {
+                'bloqueado': True,
+                'motivo': (f'Volume ({float(volume):.1f} L) excede o limite '
+                           f'permitido ({lim:.1f} L) no posto "{posto_nome}".')
+            }
+
+    return None  # dentro dos limites → ok
+
+
 def _calc_combustivel_real(conn, placa, data_saida, data_fim=None):
     """Soma o valor_total dos abastecimentos do veículo no período da viagem.
     data_fim = data_retorno_prevista ou data atual se em andamento."""
@@ -1074,6 +1151,21 @@ def init_db():
     )''')
     cur.execute("ALTER TABLE restricoes_horario_abast ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
 
+    cur.execute('''CREATE TABLE IF NOT EXISTS restricoes_posto_abast (
+        id             SERIAL PRIMARY KEY,
+        cliente_id     INTEGER DEFAULT NULL,
+        classificacao  TEXT    DEFAULT 'Todos',
+        placa          TEXT    DEFAULT '',
+        motorista      TEXT    DEFAULT '',
+        posto_id       INTEGER DEFAULT NULL,
+        posto_nome     TEXT    DEFAULT '',
+        limite_tipo    TEXT    DEFAULT 'nenhum',
+        limite_valor   NUMERIC DEFAULT 0,
+        ativo          BOOLEAN DEFAULT TRUE,
+        observacao     TEXT    DEFAULT '',
+        criado_em      TEXT    DEFAULT TO_CHAR(NOW(),\'YYYY-MM-DD HH24:MI:SS\')
+    )''')
+
     # ── Migração: corrige lançamentos de combustível que usavam valor_total
     #    (combustível + Arla 32 + serviços) em vez de volume × preco_unitario ──
     cur.execute('''
@@ -1639,6 +1731,25 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json(rows)
 
+        elif path == '/api/restricoes-posto':
+            qs   = parse_qs(urlparse(self.path).query)
+            cid  = qs.get('cliente_id', [None])[0]
+            placa = qs.get('placa', [None])[0]
+            mot  = qs.get('motorista', [None])[0]
+            posto = qs.get('posto_id', [None])[0]
+            conn = get_db()
+            where, params = [], []
+            if cid:   where.append('cliente_id=%s');  params.append(int(cid))
+            if placa: where.append('placa=%s');        params.append(placa)
+            if mot:   where.append('motorista=%s');    params.append(mot)
+            if posto: where.append('posto_id=%s');     params.append(int(posto))
+            sql = 'SELECT * FROM restricoes_posto_abast'
+            if where: sql += ' WHERE ' + ' AND '.join(where)
+            sql += ' ORDER BY id DESC'
+            rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
+
         elif path == '/api/hodo-variacao':
             qs   = parse_qs(urlparse(self.path).query)
             tipo = qs.get('tipo', [None])[0]
@@ -2012,6 +2123,21 @@ class Handler(BaseHTTPRequestHandler):
                 conn.close()
                 self.send_json({'error': bloqueio['motivo'], 'bloqueado': True}, 403)
                 return
+            # ── Valida restrição de posto ─────────────────────────
+            bloqueio_posto = _validar_restricao_posto(
+                conn,
+                placa       = d.get('placa',''),
+                motorista   = d.get('motorista',''),
+                cliente_id  = d.get('cliente_id') or None,
+                posto_nome  = d.get('posto',''),
+                cnpj_posto  = d.get('cnpjPosto',''),
+                volume      = d.get('volume', 0),
+                valor_total = d.get('valorTotal', 0),
+            )
+            if bloqueio_posto:
+                conn.close()
+                self.send_json({'error': bloqueio_posto['motivo'], 'bloqueado': True}, 403)
+                return
             cur  = _exec(conn, '''INSERT INTO abastecimentos
                 (data,hora,placa,motorista,cpf_motorista,hodometro,
                  posto,cnpj_posto,cidade_posto,uf_posto,
@@ -2364,6 +2490,25 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('motorista',''), dias,
                 d.get('horaInicio', d.get('hora_inicio','00:00')),
                 d.get('horaFim',    d.get('hora_fim','23:59')),
+                bool(d.get('ativo', True)), d.get('observacao','')
+            ])
+            conn.commit()
+            new_id = cur.fetchone()['id']
+            conn.close()
+            self.send_json({'id': new_id}, 201)
+
+        elif path == '/api/restricoes-posto':
+            conn = get_db()
+            cur  = _exec(conn, '''INSERT INTO restricoes_posto_abast
+                (cliente_id,classificacao,placa,motorista,posto_id,posto_nome,
+                 limite_tipo,limite_valor,ativo,observacao)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
+                d.get('cliente_id') or None,
+                d.get('classificacao','Todos'), d.get('placa',''),
+                d.get('motorista',''),
+                d.get('posto_id') or None, d.get('posto_nome',''),
+                d.get('limiteTipo', d.get('limite_tipo','nenhum')),
+                d.get('limiteValor', d.get('limite_valor', 0)) or 0,
                 bool(d.get('ativo', True)), d.get('observacao','')
             ])
             conn.commit()
@@ -2881,6 +3026,27 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
+        m = re.match(r'^/api/restricoes-posto/(\d+)$', path)
+        if m:
+            id_ = int(m.group(1))
+            conn = get_db()
+            _exec(conn, '''UPDATE restricoes_posto_abast SET
+                cliente_id=%s,classificacao=%s,placa=%s,motorista=%s,
+                posto_id=%s,posto_nome=%s,limite_tipo=%s,limite_valor=%s,
+                ativo=%s,observacao=%s
+                WHERE id=%s''', [
+                d.get('cliente_id') or None,
+                d.get('classificacao','Todos'), d.get('placa',''),
+                d.get('motorista',''),
+                d.get('posto_id') or None, d.get('posto_nome',''),
+                d.get('limiteTipo', d.get('limite_tipo','nenhum')),
+                d.get('limiteValor', d.get('limite_valor', 0)) or 0,
+                bool(d.get('ativo', True)), d.get('observacao',''),
+                id_
+            ])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
         m = re.match(r'^/api/negociacoes/(\d+)$', path)
         if m:
             id_ = int(m.group(1))
@@ -3281,6 +3447,13 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM restricoes_horario_abast WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/restricoes-posto/(\d+)$', path)
+        if m:
+            conn = get_db()
+            _exec(conn, 'DELETE FROM restricoes_posto_abast WHERE id=%s', [int(m.group(1))])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
