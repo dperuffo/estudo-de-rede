@@ -8211,36 +8211,53 @@ function _rpPopulateModalClientes() {
 }
 
 // ── Multi-select de postos ────────────────────────────────────
-let _rpPostosAll = [];  // cache dos postos para o modal
+let _rpPostosAll      = [];        // cache de todos os postos disponíveis
+let _rpSelectedIds    = new Set(); // seleções persistentes — independente do DOM/filtro
 
-function _rpRenderPostosCheckboxes(selectedIds, filter) {
+// ─── helpers de highlight ────────────────────────────────────────────────────
+function _rpHl(text, q) {
+  if (!q || !text) return escHtml(text || '');
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx < 0) return escHtml(text);
+  return escHtml(text.slice(0, idx))
+    + `<mark style="background:#fef08a;border-radius:2px;padding:0 1px;">${escHtml(text.slice(idx, idx + q.length))}</mark>`
+    + escHtml(text.slice(idx + q.length));
+}
+
+/**
+ * Renderiza a lista de checkboxes com base em _rpPostosAll e _rpSelectedIds.
+ * O parâmetro `filter` (string) aplica busca textual — NÃO altera as seleções.
+ */
+function _rpRenderPostosCheckboxes(filter) {
   const container = document.getElementById('rp-m-postos-list');
   if (!container) return;
   const q = (filter || '').toLowerCase().trim();
+
+  // Filtra visualmente — seleções (_rpSelectedIds) são preservadas
   let lista = _rpPostosAll;
   if (q) lista = lista.filter(p =>
-    (p.razao||'').toLowerCase().includes(q)
-    || (p.cnpj||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))
-    || (p.cidade||'').toLowerCase().includes(q)
-    || (p.uf||'').toLowerCase().includes(q)
-    || (p.bandeira||'').toLowerCase().includes(q)
+    (p.razao   || '').toLowerCase().includes(q)
+    || (p.cnpj || '').replace(/\D/g,'').includes(q.replace(/\D/g,''))
+    || (p.cidade|| '').toLowerCase().includes(q)
+    || (p.uf   || '').toLowerCase().includes(q)
+    || (p.bandeira || '').toLowerCase().includes(q)
   );
 
-  // Atualiza contador de resultados
+  // Contador de resultados
   const foundEl = document.getElementById('rp-m-postos-found');
   if (foundEl) {
     foundEl.textContent = q
       ? `${lista.length} resultado${lista.length !== 1 ? 's' : ''} para "${q}"`
       : `${_rpPostosAll.length} posto${_rpPostosAll.length !== 1 ? 's' : ''} disponível${_rpPostosAll.length !== 1 ? 'is' : ''}`;
   }
-  // Mostra/esconde botão limpar busca
   const clearBtn = document.getElementById('rp-m-postos-search-clear');
   if (clearBtn) clearBtn.style.display = q ? '' : 'none';
 
   if (!lista.length) {
     container.innerHTML = `
       <div style="padding:24px 16px;text-align:center;color:var(--text-muted);">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.4;display:block;margin-left:auto;margin-right:auto;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             style="margin-bottom:8px;opacity:.4;display:block;margin-left:auto;margin-right:auto;">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
         <div style="font-size:0.83rem;font-weight:600;">Nenhum posto encontrado</div>
@@ -8250,20 +8267,10 @@ function _rpRenderPostosCheckboxes(selectedIds, filter) {
     return;
   }
 
-  // Função para destacar o termo buscado
-  function _hl(text, q) {
-    if (!q || !text) return escHtml(text||'');
-    const idx = text.toLowerCase().indexOf(q.toLowerCase());
-    if (idx < 0) return escHtml(text);
-    return escHtml(text.slice(0, idx))
-      + `<mark style="background:#fef08a;border-radius:2px;padding:0 1px;">${escHtml(text.slice(idx, idx + q.length))}</mark>`
-      + escHtml(text.slice(idx + q.length));
-  }
-
   container.innerHTML = lista.map((p, i) => {
-    const isChecked = selectedIds.has(p.id);
+    const isChecked = _rpSelectedIds.has(p.id);
     const nome   = p.razao || p.cnpj || `Posto #${p.id}`;
-    const cnpj   = p.cnpj  || '';
+    const cnpj   = p.cnpj    || '';
     const loc    = [p.cidade, p.uf].filter(Boolean).join('/');
     const band   = p.bandeira || '';
     const isLast = i === lista.length - 1;
@@ -8271,44 +8278,55 @@ function _rpRenderPostosCheckboxes(selectedIds, filter) {
     <label id="rp-posto-row-${p.id}"
       style="display:flex;align-items:center;gap:12px;padding:9px 12px;cursor:pointer;
              border-bottom:${isLast ? 'none' : '1px solid #f1f5f9'};
-             background:${isChecked ? '#eff6ff' : '#fff'};
-             transition:background .1s;"
-      onmouseover="if(!document.getElementById('rp-cb-${p.id}').checked)this.style.background='#f8fafc'"
-      onmouseout="this.style.background=document.getElementById('rp-cb-${p.id}').checked?'#eff6ff':'#fff'">
-      <!-- Checkbox -->
+             background:${isChecked ? '#eff6ff' : '#fff'};transition:background .1s;"
+      onmouseover="if(!_rpSelectedIds.has(${p.id}))this.style.background='#f8fafc'"
+      onmouseout="this.style.background=_rpSelectedIds.has(${p.id})?'#eff6ff':'#fff'">
       <input type="checkbox" id="rp-cb-${p.id}" value="${p.id}"${isChecked ? ' checked' : ''}
         style="width:16px;height:16px;accent-color:#2563eb;cursor:pointer;flex-shrink:0;"
         onchange="_rpOnPostoCheckChange(this, ${p.id})">
-      <!-- Ícone de posto -->
-      <div style="width:34px;height:34px;border-radius:8px;background:${isChecked ? '#dbeafe' : '#f1f5f9'};
+      <div style="width:34px;height:34px;border-radius:8px;
+                  background:${isChecked ? '#dbeafe' : '#f1f5f9'};
                   display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${isChecked ? '#2563eb' : '#94a3b8'}" stroke-width="2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="${isChecked ? '#2563eb' : '#94a3b8'}" stroke-width="2">
           <path d="M3 22V8l9-6 9 6v14H3z"/><rect x="9" y="14" width="6" height="8"/>
           <path d="M9 10h6M12 7v6"/>
         </svg>
       </div>
-      <!-- Info -->
       <div style="flex:1;min-width:0;">
-        <div style="font-size:0.84rem;font-weight:${isChecked ? '700' : '600'};color:${isChecked ? '#1d4ed8' : 'var(--text)'};
+        <div style="font-size:0.84rem;font-weight:${isChecked ? '700' : '600'};
+                    color:${isChecked ? '#1d4ed8' : 'var(--text)'};
                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-          ${_hl(nome, q)}
+          ${_rpHl(nome, q)}
         </div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap;">
-          ${cnpj ? `<span style="font-size:0.71rem;font-family:monospace;color:var(--text-muted);background:#f1f5f9;
-                                  padding:1px 5px;border-radius:4px;">${_hl(cnpj, q)}</span>` : ''}
-          ${loc  ? `<span style="font-size:0.71rem;color:var(--text-muted);">📍 ${_hl(loc, q)}</span>` : ''}
-          ${band ? `<span style="font-size:0.71rem;color:#7c3aed;background:#f5f3ff;padding:1px 5px;border-radius:4px;">${escHtml(band)}</span>` : ''}
+          ${cnpj ? `<span style="font-size:0.71rem;font-family:monospace;color:var(--text-muted);
+                                 background:#f1f5f9;padding:1px 5px;border-radius:4px;">${_rpHl(cnpj, q)}</span>` : ''}
+          ${loc  ? `<span style="font-size:0.71rem;color:var(--text-muted);">📍 ${_rpHl(loc, q)}</span>` : ''}
+          ${band ? `<span style="font-size:0.71rem;color:#7c3aed;background:#f5f3ff;
+                                 padding:1px 5px;border-radius:4px;">${escHtml(band)}</span>` : ''}
         </div>
       </div>
-      <!-- Check badge se selecionado -->
-      ${isChecked ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>` : '<div style="width:16px;flex-shrink:0;"></div>'}
+      ${isChecked
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"
+               style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>`
+        : '<div style="width:16px;flex-shrink:0;"></div>'}
     </label>`;
   }).join('');
   _rpUpdatePostosCount();
 }
 
+/**
+ * Chamado quando o usuário marca/desmarca um checkbox.
+ * Atualiza _rpSelectedIds (persistente) e o visual da linha.
+ */
 function _rpOnPostoCheckChange(cb, postoId) {
-  // Atualiza visual da linha sem re-renderizar toda a lista
+  if (cb.checked) {
+    _rpSelectedIds.add(postoId);
+  } else {
+    _rpSelectedIds.delete(postoId);
+  }
+  // Atualiza visual da linha sem re-renderizar
   const row = document.getElementById(`rp-posto-row-${postoId}`);
   if (row) {
     const checked = cb.checked;
@@ -8324,25 +8342,26 @@ function _rpOnPostoCheckChange(cb, postoId) {
       nameEl.style.fontWeight = checked ? '700' : '600';
       nameEl.style.color = checked ? '#1d4ed8' : 'var(--text)';
     }
+    // badge checkmark (último filho da label)
     const badge = row.lastElementChild;
-    if (badge) {
-      badge.style.display = checked ? '' : 'none';
-    }
+    if (badge) badge.style.display = checked ? '' : 'none';
   }
   _rpUpdatePostosCount();
 }
 
+/**
+ * Badge contador — usa _rpSelectedIds (não o DOM) como fonte de verdade.
+ */
 function _rpUpdatePostosCount() {
-  const container = document.getElementById('rp-m-postos-list');
-  const countEl   = document.getElementById('rp-m-postos-count');
+  const countEl = document.getElementById('rp-m-postos-count');
   if (!countEl) return;
-  const checked = container ? container.querySelectorAll('input[type=checkbox]:checked').length : 0;
+  const checked = _rpSelectedIds.size;
   const total   = _rpPostosAll.length;
   if (checked === 0) {
     countEl.textContent = 'Nenhum selecionado';
     countEl.style.background = '#fef2f2';
     countEl.style.color = '#dc2626';
-  } else if (checked === total) {
+  } else if (checked >= total && total > 0) {
     countEl.textContent = `Todos (${total})`;
     countEl.style.background = '#f0fdf4';
     countEl.style.color = '#15803d';
@@ -8353,37 +8372,62 @@ function _rpUpdatePostosCount() {
   }
 }
 
+/** Filtra a lista visualmente ao digitar na busca — preserva seleções. */
 function rpFiltrarPostosModal() {
-  const q   = document.getElementById('rp-m-postos-search')?.value || '';
-  const sel = _rpGetSelectedPostoIds();
-  _rpRenderPostosCheckboxes(sel, q);
+  const q = document.getElementById('rp-m-postos-search')?.value || '';
+  _rpRenderPostosCheckboxes(q);
 }
 
+/**
+ * Seleciona/deseleciona todos os postos VISÍVEIS (resultado do filtro atual).
+ * Seleções anteriores de postos fora do filtro são mantidas.
+ */
 function rpSelecionarTodosPostos(selecionar) {
   const container = document.getElementById('rp-m-postos-list');
   if (!container) return;
-  container.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = selecionar; });
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = selecionar;
+    const id = parseInt(cb.value);
+    if (selecionar) _rpSelectedIds.add(id); else _rpSelectedIds.delete(id);
+  });
+  // Atualiza visual de todas as linhas visíveis
+  container.querySelectorAll('label[id^="rp-posto-row-"]').forEach(row => {
+    row.style.background = selecionar ? '#eff6ff' : '#fff';
+    const icon = row.querySelector('div[style*="border-radius:8px"]');
+    if (icon) {
+      icon.style.background = selecionar ? '#dbeafe' : '#f1f5f9';
+      const svg = icon.querySelector('svg');
+      if (svg) svg.setAttribute('stroke', selecionar ? '#2563eb' : '#94a3b8');
+    }
+    const nameEl = row.querySelector('div[style*="font-size:0.84rem"]');
+    if (nameEl) {
+      nameEl.style.fontWeight = selecionar ? '700' : '600';
+      nameEl.style.color = selecionar ? '#1d4ed8' : 'var(--text)';
+    }
+    const badge = row.lastElementChild;
+    if (badge) badge.style.display = selecionar ? '' : 'none';
+  });
   _rpUpdatePostosCount();
 }
 
+/** Retorna o Set persistente de IDs selecionados. */
 function _rpGetSelectedPostoIds() {
-  const container = document.getElementById('rp-m-postos-list');
-  if (!container) return new Set();
-  const ids = new Set();
-  container.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
-    ids.add(parseInt(cb.value));
-  });
-  return ids;
+  return new Set(_rpSelectedIds);
 }
 
+/** Inicializa a lista de postos no modal e define as seleções iniciais. */
 function _rpPopulateModalPostos(selectedIds) {
   _rpPostosAll = (postos || []).map(p => ({
-    id: p.id, razao: p.razao, cnpj: p.cnpj, cidade: p.cidade, uf: p.uf
+    id: p.id, razao: p.razao, cnpj: p.cnpj, cidade: p.cidade, uf: p.uf, bandeira: p.bandeira || ''
   }));
-  const sel = selectedIds instanceof Set ? selectedIds : new Set((selectedIds || []).map(Number));
-  const q = document.getElementById('rp-m-postos-search')?.value || '';
-  if (document.getElementById('rp-m-postos-search')) document.getElementById('rp-m-postos-search').value = '';
-  _rpRenderPostosCheckboxes(sel, '');
+  // Inicializa o Set persistente com as seleções passadas
+  _rpSelectedIds = selectedIds instanceof Set
+    ? new Set(selectedIds)
+    : new Set((selectedIds || []).map(Number));
+  // Limpa a busca e renderiza
+  const searchEl = document.getElementById('rp-m-postos-search');
+  if (searchEl) searchEl.value = '';
+  _rpRenderPostosCheckboxes('');
 }
 
 async function openRestricaoPostoModal(id) {
