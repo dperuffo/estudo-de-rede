@@ -8118,13 +8118,27 @@ function _rpPopulateModalMotoristas(cliId) {
   sel.value = cur;
 }
 
+function _rpPopulateModalClientes() {
+  const sel = document.getElementById('rp-m-cliente');
+  if (!sel) return;
+  const cur = sel.value;
+  const lista = (_clientes || []).filter(c => c.status === 'Ativo');
+  sel.innerHTML = '<option value="">Todos os clientes</option>' +
+    lista.map(c => `<option value="${c.id}">${escHtml(c.razao_social || '')}</option>`).join('');
+  if (lista.some(c => String(c.id) === cur)) sel.value = cur;
+}
+
 function _rpPopulateModalPostos() {
   const sel = document.getElementById('rp-m-posto');
   if (!sel) return;
   const cur = sel.value;
   const postosList = (postos || []);
   sel.innerHTML = '<option value="">Selecione o posto</option>' +
-    postosList.map(p => `<option value="${p.id}">${p.razao || p.cnpj || p.id}</option>`).join('');
+    postosList.map(p => {
+      const cidade = p.cidade ? ` — ${p.cidade}/${p.uf || ''}` : '';
+      const cnpj   = p.cnpj   ? ` [${p.cnpj}]` : '';
+      return `<option value="${p.id}">${escHtml(p.razao || '')}${cnpj}${cidade}</option>`;
+    }).join('');
   sel.value = cur;
 }
 
@@ -8136,11 +8150,13 @@ async function openRestricaoPostoModal(id) {
   document.getElementById('rp-m-limite-valor').value = '';
   document.getElementById('rp-m-ativo').value = '1';
   rpToggleLimiteValor();
+
+  // Popula clientes explicitamente (igual ao modal de horário)
+  _rpPopulateModalClientes();
   _rpPopulateModalPostos();
 
   const cliId = _clienteAtualId || '';
-  const classDef = 'Todos';
-  _rpPopulateModalVeiculos(cliId, classDef);
+  _rpPopulateModalVeiculos(cliId, 'Todos');
   _rpPopulateModalMotoristas(cliId);
 
   if (id) {
@@ -8152,8 +8168,6 @@ async function openRestricaoPostoModal(id) {
       _rpPopulateModalMotoristas(r.cliente_id || '');
       document.getElementById('rp-m-placa').value       = r.placa || '';
       document.getElementById('rp-m-motorista').value   = r.motorista || '';
-      // Posto — populate then set by id
-      _rpPopulateModalPostos();
       document.getElementById('rp-m-posto').value       = r.posto_id || '';
       document.getElementById('rp-m-limite-tipo').value = r.limite_tipo || 'nenhum';
       document.getElementById('rp-m-limite-valor').value= r.limite_valor || '';
