@@ -6128,6 +6128,26 @@
             </div>
           </div>
 
+          <!-- ── Banner de restrição de postos ── -->
+          <div class="form-group span2" id="f-posto-restricao-wrap" style="display:none;">
+            <div id="f-posto-restricao-banner" style="display:flex;align-items:flex-start;gap:10px;padding:10px 13px;
+                border-radius:9px;flex-wrap:wrap;border:1.5px solid #fbbf24;background:#fffbeb;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" style="flex-shrink:0;margin-top:1px;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:0.78rem;font-weight:700;color:#92400e;" id="f-posto-restricao-titulo">
+                  Postos permitidos por restrição parametrizada
+                </div>
+                <div style="font-size:0.75rem;color:#78350f;margin-top:2px;line-height:1.5;" id="f-posto-restricao-detalhe"></div>
+              </div>
+              <span id="f-posto-restricao-badge"
+                style="font-size:0.72rem;font-weight:700;white-space:nowrap;padding:2px 9px;
+                       border-radius:20px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;flex-shrink:0;"></span>
+            </div>
+          </div>
+
           <div class="form-group span2">
             <label>Nome do Posto *</label>
             <div class="ac-wrapper">
@@ -9182,6 +9202,9 @@ async function openModal(id = null) {
     if (ufFiltroEl) ufFiltroEl.value = '';
     const ufBadge = document.getElementById('f-posto-uf-count');
     if (ufBadge) ufBadge.style.display = 'none';
+    // Esconde banner de restrição de postos
+    const rpWrap = document.getElementById('f-posto-restricao-wrap');
+    if (rpWrap) rpWrap.style.display = 'none';
     // Reset serviços
     ['lavagem','lubrificacao','restaurante','banheiro','estacionamento','hotel','outros'].forEach(id => {
       const cb = document.getElementById(`svc-${id}-cb`);
@@ -9212,6 +9235,8 @@ async function openModal(id = null) {
 
   _injectClienteRow(document.querySelector('#modal .modal-body'), id ? records.find(x => x.id === id)?.cliente_id : null);
   document.getElementById('modalOverlay').classList.add('open');
+  // Aplica filtro de postos permitidos (necessário em modo edição onde placa/motorista já estão preenchidos)
+  setTimeout(() => _atualizarFiltroPostosForm(), 50);
   setTimeout(() => document.getElementById('f-new-placa').focus(), 200);
 }
 
@@ -13771,6 +13796,9 @@ document.addEventListener('keydown', e => {
 });
 document.getElementById('f-new-placa').addEventListener('input', function() {
   this.value = this.value.toUpperCase();
+  // Atualiza filtro de postos quando placa é digitada/apagada manualmente
+  clearTimeout(this._rpTimer);
+  this._rpTimer = setTimeout(() => _atualizarFiltroPostosForm(), 400);
 });
 
 // ─── VALIDAÇÃO DE HODÔMETRO ──────────────────────────────────────────────────
@@ -14200,6 +14228,8 @@ function _onSelectPlaca(item) {
   }
   // Atualiza painel de inteligência geográfica para a nova placa
   _verificarAutonomiaGeo();
+  // Atualiza filtro de postos permitidos para a placa selecionada
+  _atualizarFiltroPostosForm();
 }
 function comboAbrirPlaca() {
   const lista = _veiculosByCliente(_getModalClienteId());
@@ -14240,6 +14270,8 @@ function _onSelectMotorista(item) {
       cliSel.value = String(m.cliente_id);
     }
   }
+  // Atualiza filtro de postos permitidos para o motorista selecionado
+  _atualizarFiltroPostosForm();
 }
 function comboAbrirMotorista() {
   const lista = _motoristasByCliente(_getModalClienteId());
@@ -14282,7 +14314,132 @@ function _postoUFFiltrado() {
 
 function _postoListaFiltrada() {
   const uf = _postoUFFiltrado();
-  return postos.filter(p => _postoComPreco(p) && (!uf || (p.uf || '').toUpperCase() === uf));
+  const base = postos.filter(p => _postoComPreco(p) && (!uf || (p.uf || '').toUpperCase() === uf));
+  // Aplica restrição de postos parametrizada (se houver)
+  const permitidos = _getPostosPermitidosPorRestricao();
+  if (permitidos === null) return base;  // sem restrição
+  return base.filter(p => permitidos.has(p.id));
+}
+
+// ── Restrição de Postos Permitidos no formulário de abastecimento ─────────────
+/**
+ * Calcula o conjunto de IDs de postos permitidos considerando as restrições
+ * parametrizadas ativas para a combinação placa/motorista/cliente atual.
+ *
+ * Retorna:
+ *   null  → nenhuma restrição ativa com postos configurados (todos os postos são exibidos)
+ *   Set   → conjunto de IDs permitidos (interseção das restrições que têm postos configurados)
+ */
+function _getPostosPermitidosPorRestricao() {
+  const placa     = (document.getElementById('f-new-placa')?.value    || '').trim().toUpperCase();
+  const motorista = (document.getElementById('f-new-motorista')?.value || '').trim();
+  const cliId     = String(document.getElementById('_modal-cli-sel')?.value || '');
+
+  if (!placa && !motorista) return null;  // nada selecionado → sem filtro
+
+  // Coleta restrições ativas que se aplicam a esta combinação
+  const aplicaveis = (restricoesPosto || []).filter(r => {
+    if (!r.ativo) return false;
+    // Cada campo vazio na regra = "Todos" (curinga)
+    if (r.placa     && r.placa.trim().toUpperCase() !== placa)     return false;
+    if (r.motorista && r.motorista.trim() !== motorista)            return false;
+    if (r.cliente_id && cliId && String(r.cliente_id) !== cliId)   return false;
+    return true;
+  });
+
+  // Mantém apenas regras que têm postos efetivamente configurados
+  const comPostos = aplicaveis.filter(r => {
+    let pids = [];
+    try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
+    if (!pids.length && r.posto_id) pids = [r.posto_id];
+    return pids.length > 0;
+  });
+
+  if (!comPostos.length) return null;  // regras existem mas sem posto configurado → sem filtro
+
+  // Interseção: um posto só é permitido se estiver em TODAS as regras aplicáveis
+  // (ex: regra por placa E regra por motorista — posto deve atender às duas)
+  let resultado = null;
+  for (const r of comPostos) {
+    let pids = [];
+    try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
+    if (!pids.length && r.posto_id) pids = [r.posto_id];
+    const set = new Set(pids.map(Number));
+    if (resultado === null) {
+      resultado = set;
+    } else {
+      // interseção
+      for (const id of resultado) { if (!set.has(id)) resultado.delete(id); }
+    }
+  }
+  return resultado || new Set();
+}
+
+/**
+ * Atualiza o banner de restrição de postos e refresca o autocomplete.
+ * Deve ser chamada sempre que placa ou motorista mudar no formulário.
+ */
+function _atualizarFiltroPostosForm() {
+  const wrap   = document.getElementById('f-posto-restricao-wrap');
+  const titulo = document.getElementById('f-posto-restricao-titulo');
+  const detail = document.getElementById('f-posto-restricao-detalhe');
+  const badge  = document.getElementById('f-posto-restricao-badge');
+
+  const placa     = (document.getElementById('f-new-placa')?.value    || '').trim().toUpperCase();
+  const motorista = (document.getElementById('f-new-motorista')?.value || '').trim();
+
+  if (wrap) wrap.style.display = 'none';
+
+  if (!placa && !motorista) {
+    acBuscarPosto(); return;
+  }
+
+  const permitidos = _getPostosPermitidosPorRestricao();
+  if (permitidos === null) {
+    acBuscarPosto(); return;  // sem restrição de posto
+  }
+
+  // Há restrição — monta o banner
+  if (wrap) wrap.style.display = '';
+
+  const total  = permitidos.size;
+  const labels = [];
+  if (placa)     labels.push(`Placa <strong>${escHtml(placa)}</strong>`);
+  if (motorista) labels.push(`Motorista <strong>${escHtml(motorista)}</strong>`);
+
+  if (titulo) titulo.innerHTML = '🔒 Postos permitidos por restrição parametrizada';
+  if (detail) detail.innerHTML = `Regra aplicada para ${labels.join(' + ')}. Somente os postos abaixo podem ser selecionados.`;
+  if (badge)  badge.textContent = total === 0
+    ? '⛔ Nenhum posto permitido'
+    : `${total} posto${total !== 1 ? 's' : ''} permitido${total !== 1 ? 's' : ''}`;
+
+  // Se o posto já selecionado não está na lista, limpa o campo
+  const postoInput = document.getElementById('f-new-posto');
+  const cnpjInput  = document.getElementById('f-new-cnpj');
+  if (postoInput && postoInput.value.trim()) {
+    const postoAtualNome = postoInput.value.trim().toLowerCase();
+    const postoAtualCnpj = (cnpjInput?.value || '').replace(/\D/g,'');
+    const postoNaLista = postos.some(p =>
+      permitidos.has(p.id) && (
+        (p.razao  || '').toLowerCase() === postoAtualNome ||
+        (p.cnpj   || '').replace(/\D/g,'') === postoAtualCnpj
+      )
+    );
+    if (!postoNaLista) {
+      postoInput.value = '';
+      if (cnpjInput) cnpjInput.value = '';
+      const cidadeInput = document.getElementById('f-new-cidade');
+      const ufSel       = document.getElementById('f-new-uf');
+      if (cidadeInput) cidadeInput.value = '';
+      if (ufSel)       ufSel.value = '';
+      postoInput.classList.remove('field-valid','field-invalid');
+      const postoInfo = document.getElementById('ac-posto-info');
+      if (postoInfo) postoInfo.textContent = '';
+    }
+  }
+
+  acHide('ac-posto');
+  acBuscarPosto();
 }
 
 function _postoFiltroUFChange() {
