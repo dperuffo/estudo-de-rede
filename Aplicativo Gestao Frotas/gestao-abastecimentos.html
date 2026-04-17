@@ -10200,7 +10200,6 @@ function _renderMonthlyChart() {
   }
 
   // Bars + tooltips
-  window._tipData = []; // reset antes de re-renderizar
   data.forEach((d, i) => {
     const x = padL + i * barGroup + (barGroup - barW) / 2;
     const total   = d.diesel + d.gas + d.outros;
@@ -10233,9 +10232,7 @@ function _renderMonthlyChart() {
     const tipIdx = window._tipData.length - 1;
     const hoverX = padL + i * barGroup;
     content += `<rect x="${hoverX}" y="${padT}" width="${barGroup}" height="${chartH}"
-      fill="transparent"
-      onmouseover="_showChartTip(event,${tipIdx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()"
-      style="cursor:default"/>`;
+      fill="transparent" data-tip-idx="${tipIdx}" style="cursor:default"/>`;
   });
 
   // Axis line
@@ -10464,9 +10461,7 @@ function _renderEvolPostosMensal(top5, container, legend) {
     tipLines.push(`<div style="margin-top:5px;border-top:1px solid rgba(255,255,255,0.15);padding-top:4px;font-weight:700">Total: ${totFmt} L</div>`);
     window._tipData.push(tipLines.join(''));
     const tipIdx = window._tipData.length - 1;
-    // hover zone
-    bars += `<rect x="${x}" y="${PT}" width="${barW}" height="${cH}" fill="transparent"
-      onmouseover="_showChartTip(event,${tipIdx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()" style="cursor:default"/>`;
+    bars += `<rect x="${x}" y="${PT}" width="${barW}" height="${cH}" fill="transparent" data-tip-idx="${tipIdx}" style="cursor:default"/>`;
   });
 
   container.innerHTML = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block">
@@ -10562,8 +10557,7 @@ function _renderEvolPostosDiario(top5, recs, container, legend) {
         + `<div>${dtFmt}: <strong>${vFmt} L</strong></div>`;
       window._tipData.push(tipHtml);
       const tipIdx = window._tipData.length - 1;
-      dots += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${dotR}" fill="${color}" stroke="#fff" stroke-width="1.5"
-        onmouseover="_showChartTip(event,${tipIdx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()" style="cursor:pointer"/>`;
+      dots += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${dotR}" fill="${color}" stroke="#fff" stroke-width="1.5" data-tip-idx="${tipIdx}" style="cursor:pointer"/>`;
     });
   });
 
@@ -10737,8 +10731,7 @@ function _renderPrecoMedioChart() {
         + `<div>${buckets[i].label}: <strong>${pf}/L</strong></div>`;
       window._tipData.push(tipHtml);
       const tipIdx = window._tipData.length - 1;
-      dots += `<circle cx="${x}" cy="${y}" r="${dotR}" fill="${s.color}" stroke="#fff" stroke-width="1.5"
-        onmouseover="_showChartTip(event,${tipIdx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()" style="cursor:pointer"/>`;
+      dots += `<circle cx="${x}" cy="${y}" r="${dotR}" fill="${s.color}" stroke="#fff" stroke-width="1.5" data-tip-idx="${tipIdx}" style="cursor:pointer"/>`;
     });
   });
 
@@ -22180,38 +22173,59 @@ function _predRenderHistorico() {
 // initApp();
 
 // ═══════════════════════════════════════════════════════════════
-//  TOOLTIP FLUTUANTE — GRÁFICOS
+//  TOOLTIP FLUTUANTE — GRÁFICOS (event delegation via data-tip-idx)
 // ═══════════════════════════════════════════════════════════════
-window._tipData = []; // armazena conteúdo HTML dos tooltips por índice
+window._tipData = [];
 
-function _showChartTip(evt, idx) {
-  const tt = document.getElementById('chart-tooltip');
-  if (!tt) return;
-  tt.innerHTML = window._tipData[idx] || '';
-  tt.style.display = 'block';
-  _moveChartTip(evt);
-}
-function _moveChartTip(evt) {
-  const tt = document.getElementById('chart-tooltip');
-  if (!tt || tt.style.display === 'none') return;
-  const x = evt.clientX + 18;
-  const y = evt.clientY - 14;
-  tt.style.left = Math.min(x, window.innerWidth  - tt.offsetWidth  - 16) + 'px';
-  tt.style.top  = Math.max(8, Math.min(y, window.innerHeight - tt.offsetHeight - 8)) + 'px';
-}
-function _hideChartTip() {
-  const tt = document.getElementById('chart-tooltip');
-  if (tt) tt.style.display = 'none';
-}
-// Helper: registra tooltip e retorna os atributos SVG para o elemento
-function _tipAttrs(htmlContent) {
-  window._tipData.push(htmlContent);
-  const idx = window._tipData.length - 1;
-  return `onmouseover="_showChartTip(event,${idx})" onmousemove="_moveChartTip(event)" onmouseout="_hideChartTip()" style="cursor:pointer"`;
-}
+// Os SVGs são injetados via innerHTML — event handlers inline não funcionam.
+// Usamos event delegation: ouvimos mousemove/mouseleave no document e
+// verificamos se o alvo tem data-tip-idx.
+(function() {
+  function _tt() { return document.getElementById('chart-tooltip'); }
+
+  document.addEventListener('mousemove', function(evt) {
+    const el = evt.target;
+    const idx = el.getAttribute ? el.getAttribute('data-tip-idx') : null;
+    if (idx === null) {
+      // Se saiu de um elemento com tooltip, esconde
+      const tt = _tt();
+      if (tt && tt.style.display !== 'none') {
+        // Só esconde se o novo alvo também não tem tooltip
+        if (!el.closest || !el.closest('[data-tip-idx]')) {
+          tt.style.display = 'none';
+        }
+      }
+      return;
+    }
+    const html = window._tipData[parseInt(idx)];
+    if (!html) return;
+    const tt = _tt();
+    if (!tt) return;
+    tt.innerHTML = html;
+    tt.style.display = 'block';
+    const x = evt.clientX + 18;
+    const y = evt.clientY - 14;
+    tt.style.left = Math.min(x, window.innerWidth  - tt.offsetWidth  - 16) + 'px';
+    tt.style.top  = Math.max(8, Math.min(y, window.innerHeight - tt.offsetHeight - 8)) + 'px';
+  });
+
+  document.addEventListener('mouseleave', function() {
+    const tt = _tt(); if (tt) tt.style.display = 'none';
+  }, true);
+})();
 </script>
 
 <!-- ── TOOLTIP FLUTUANTE DOS GRÁFICOS ── -->
-<div id="chart-tooltip"></div>
+<div id="chart-tooltip" style="
+  position:fixed;z-index:99999;
+  display:none;
+  background:rgba(15,23,42,0.95);color:#f1f5f9;
+  padding:10px 14px;border-radius:10px;
+  font-size:0.8rem;line-height:1.65;
+  pointer-events:none;
+  min-width:160px;max-width:260px;
+  box-shadow:0 6px 24px rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.1);
+"></div>
 </body>
 </html>
