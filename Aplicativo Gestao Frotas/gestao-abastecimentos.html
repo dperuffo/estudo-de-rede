@@ -8239,13 +8239,16 @@ function _rpRenderPostosCheckboxes(filter) {
 
   // Filtra visualmente — seleções (_rpSelectedIds) são preservadas
   let lista = _rpPostosAll;
-  if (q) lista = lista.filter(p =>
-    (p.razao   || '').toLowerCase().includes(q)
-    || (p.cnpj || '').replace(/\D/g,'').includes(q.replace(/\D/g,''))
-    || (p.cidade|| '').toLowerCase().includes(q)
-    || (p.uf   || '').toLowerCase().includes(q)
-    || (p.bandeira || '').toLowerCase().includes(q)
-  );
+  if (q) {
+    const qDigits = q.replace(/\D/g, '');  // parte numérica do query (para CNPJ)
+    lista = lista.filter(p =>
+      (p.razao    || '').toLowerCase().includes(q)
+      || (qDigits && (p.cnpj || '').replace(/\D/g,'').includes(qDigits))
+      || (p.cidade || '').toLowerCase().includes(q)
+      || (p.uf    || '').toLowerCase().includes(q)
+      || (p.bandeira || '').toLowerCase().includes(q)
+    );
+  }
 
   // Contador de resultados
   const foundEl = document.getElementById('rp-m-postos-found');
@@ -14509,7 +14512,7 @@ function _atualizarFiltroPostosForm() {
     const postoNaLista = postos.some(p =>
       permitidos.has(p.id) && (
         (p.razao  || '').toLowerCase() === postoAtualNome ||
-        (p.cnpj   || '').replace(/\D/g,'') === postoAtualCnpj
+        (postoAtualCnpj && (p.cnpj || '').replace(/\D/g,'') === postoAtualCnpj)
       )
     );
     if (!postoNaLista) {
@@ -14628,11 +14631,13 @@ function acBuscarPosto() {
     acShow('ac-posto', lista.slice(0, 50).map(_comboItemPosto), _onSelectPosto, false);
     return;
   }
+  const qDigits = q.replace(/\D/g, '');
   const matches = lista.filter(p =>
     (p.razao||'').toLowerCase().includes(q) ||
-    (p.cnpj||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+    (qDigits && (p.cnpj||'').replace(/\D/g,'').includes(qDigits)) ||
     (p.bandeira||'').toLowerCase().includes(q) ||
-    (p.cidade||'').toLowerCase().includes(q)
+    (p.cidade||'').toLowerCase().includes(q) ||
+    (p.uf||'').toLowerCase().includes(q)
   );
   if (!matches.length) { acHide('ac-posto'); return; }
   acShow('ac-posto', matches.map(p => _comboItemPosto(p)), _onSelectPosto);
