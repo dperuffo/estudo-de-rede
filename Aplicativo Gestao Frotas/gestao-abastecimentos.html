@@ -19281,10 +19281,59 @@ async function _selecionarPostosNaRota(geometry, distKm) {
                 || 'Diesel';
   const RAIO_KM = 20; // raio aumentado para 20 km para capturar mais postos
 
-  // Apenas postos com coordenadas geográficas válidas
+  // ── Lê filtros activos no painel lateral ──────────────────────
+  const filtUrb = document.getElementById('roteiz-postos-urbanos')?.checked;
+  const filtRod = document.getElementById('roteiz-postos-rodovia')?.checked;
+  const filtIpi = document.getElementById('roteiz-filter-ipiranga')?.checked;
+  const filt24h = document.getElementById('roteiz-filter-24h')?.checked;
+  const filtNeg = document.getElementById('roteiz-filter-negociado')?.checked;
+  const filtrarPorTipo = filtUrb || filtRod;
+
+  // Apenas postos com coordenadas geográficas válidas + aplicação dos filtros do painel
   const postosComGeo = postos.filter(p => {
     const lat = parseFloat(p.lat), lon = parseFloat(p.lon);
-    return isFinite(lat) && isFinite(lon) && lat !== 0 && lon !== 0;
+    if (!isFinite(lat) || !isFinite(lon) || lat === 0 || lon === 0) return false;
+
+    // Filtro Urbano / Rodovia
+    const isUrb = _roteizIsUrbano(p);
+    if (filtrarPorTipo && isUrb  && !filtUrb) return false;
+    if (filtrarPorTipo && !isUrb && !filtRod) return false;
+
+    // Filtros específicos de rodovia
+    if (!isUrb && filtIpi && (p.bandeira || '').toLowerCase() !== 'ipiranga') return false;
+    if (!isUrb && filt24h) {
+      const servs = _parseJSON(p.servicos, []);
+      if (!servs.some(s => /24/i.test(s))) return false;
+    }
+    if (!isUrb && filtNeg) {
+      const combs = _parseJSON(p.combustiveis, {});
+      if (Object.keys(combs).length === 0) return false;
+    }
+
+    // Filtro de combustíveis selecionados (chips)
+    if (_roteizCombSel.length > 0) {
+      const combObj  = _parseJSON(p.combustiveis, {});
+      const combKeys = Object.keys(combObj).map(k => k.toLowerCase());
+      if (combKeys.length > 0) {
+        const match = _roteizCombSel.some(c => {
+          const cL = c.toLowerCase();
+          return combKeys.some(k => k.includes(cL) || cL.includes(k));
+        });
+        if (!match) return false;
+      }
+      // Posto sem dados de combustível → passa (permissivo)
+    }
+
+    // Filtro de serviços desejados (chips)
+    if (_roteizServSel.length > 0) {
+      const servs = _parseJSON(p.servicos, []);
+      if (Array.isArray(servs) && servs.length > 0) {
+        if (!_roteizServSel.every(s => servs.includes(s))) return false;
+      }
+      // Posto sem dados de serviços → passa (permissivo)
+    }
+
+    return true;
   });
 
   if (postosComGeo.length === 0) return [];
