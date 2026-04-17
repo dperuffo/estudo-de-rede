@@ -7751,7 +7751,7 @@ function renderRestricoesHorario() {
       dias.length === 0 ? '—' :
       dias.map(d => _RH_DIAS_LABEL[d] || d).join(', ');
     return `<tr>
-      <td style="min-width:110px">${r.cliente_id ? escHtml(_clienteNome(r.cliente_id)) : '<em style="color:var(--text-muted)">Todos</em>'}</td>
+      <td style="min-width:110px">${r.cliente_id ? _clienteNome(r.cliente_id) : '<em style="color:var(--text-muted)">Todos</em>'}</td>
       <td>${escHtml(r.classificacao||'Todos')}</td>
       <td>${r.placa ? `<span class="plate">${escHtml(r.placa)}</span>` : '<em style="color:var(--text-muted)">Todos</em>'}</td>
       <td>${r.motorista ? escHtml(r.motorista) : '<em style="color:var(--text-muted)">Todos</em>'}</td>
