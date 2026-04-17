@@ -46,7 +46,12 @@ if _DATABASE_URL:
     DB_NAME  = _u.path.lstrip('/')
     DB_USER  = _u.username
     DB_PASS  = _u.password
-    DB_SSL   = {'sslmode': 'require'}   # Railway exige SSL
+    # Fly.io usa rede interna (.flycast) que não suporta SSL;
+    # Railway/Render/Heroku exigem SSL. Detecta automaticamente.
+    _host = _u.hostname or ''
+    _sslmode = os.environ.get('DB_SSLMODE',
+                  'disable' if _host.endswith('.flycast') else 'require')
+    DB_SSL   = {'sslmode': _sslmode} if _sslmode else {}
 else:
     DB_HOST  = os.environ.get('PG_HOST',    'localhost')
     DB_PORT  = int(os.environ.get('PG_PORT','5432'))
