@@ -6891,7 +6891,8 @@ function _refreshClienteSelects() {
   ['f-cliente','v-f-cliente','m-f-cliente','neg-f-cliente',
    'iv-f-cliente','vd-f-cliente2','vol-f-cliente','pa-f-cliente',
    'hodo-leve-f-cliente','hodo-pesado-f-cliente',
-   'roto-f-cliente','pv-f-cliente','seg-f-cliente','roteiz-f-cliente'].forEach(id => {
+   'roto-f-cliente','pv-f-cliente','seg-f-cliente','roteiz-f-cliente',
+   'rh-f-cliente','rh-m-cliente'].forEach(id => {
     const sel = document.getElementById(id);
     if (sel) { const v = sel.value; sel.innerHTML = opts; sel.value = v; }
   });
@@ -7492,7 +7493,7 @@ function _rhPopulateFiltros() {
     const cur = selCli.value;
     const lista = (_clientes || []).filter(c => c.status === 'Ativo');
     selCli.innerHTML = '<option value="">Todos os clientes</option>' +
-      lista.map(c => `<option value="${c.id}">${escHtml(c.nome||c.razao||'')}</option>`).join('');
+      lista.map(c => `<option value="${c.id}">${escHtml(c.razao_social||'')}</option>`).join('');
     if (lista.some(c => String(c.id) === cur)) selCli.value = cur;
   }
   // Placas
@@ -7660,7 +7661,7 @@ function _rhPopulateModalClientes() {
   const cur = sel.value;
   const lista = (_clientes || []).filter(c => c.status === 'Ativo');
   sel.innerHTML = '<option value="">Todos os clientes</option>' +
-    lista.map(c => `<option value="${c.id}">${escHtml(c.nome||c.razao||'')}</option>`).join('');
+    lista.map(c => `<option value="${c.id}">${escHtml(c.razao_social||'')}</option>`).join('');
   if (lista.some(c => String(c.id) === cur)) sel.value = cur;
 }
 
