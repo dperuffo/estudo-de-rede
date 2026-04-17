@@ -260,19 +260,23 @@
 
     /* ─── MODAL ─── */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+      position: fixed; inset: 0; background: rgba(15,23,42,0.62);
       display: flex; align-items: center; justify-content: center;
-      z-index: 999; padding: 20px; backdrop-filter: blur(3px);
-      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+      z-index: 999; padding: 20px;
+      /* backdrop-filter removido: causava GPU flicker em toda a página */
+      opacity: 0; pointer-events: none; transition: opacity 0.15s;
+      overflow-y: auto;
     }
     .modal-overlay.open { opacity: 1; pointer-events: all; }
     .modal {
       background: #fff; border-radius: 14px; width: 100%; max-width: 680px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-      transform: translateY(16px); transition: transform 0.2s;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+      /* transform transition removida: eliminava GPU compositing desnecessário */
       max-height: 90vh; overflow-y: auto;
+      margin: auto; /* garante centralização mesmo com overflow-y no overlay */
+      flex-shrink: 0;
     }
-    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-overlay.open .modal { transform: none; }
     .modal-header {
       padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
@@ -19652,6 +19656,9 @@ function _abrirSalvarRotaModal(nomeDefault) {
   }
   overlay.style.display = '';       // limpa inline display:none anterior
   overlay.classList.add('open');    // ativa opacity:1 e pointer-events
+  // Esconde o detail-sheet do roteirizador para não sobrepor a modal
+  const sheet = document.getElementById('roteiz-detail-sheet');
+  if (sheet) sheet.dataset.hiddenByModal = '1', sheet.style.display = 'none';
   setTimeout(() => nomeEl.select(), 80);
 }
 
@@ -19660,6 +19667,12 @@ function _fecharSalvarRotaModal() {
   if (overlay) {
     overlay.classList.remove('open');
     overlay.style.display = 'none'; // garante que fique oculto
+  }
+  // Restaura o detail-sheet se estava visível antes
+  const sheet = document.getElementById('roteiz-detail-sheet');
+  if (sheet && sheet.dataset.hiddenByModal) {
+    delete sheet.dataset.hiddenByModal;
+    sheet.style.display = ''; // volta ao estado anterior
   }
 }
 
@@ -19762,10 +19775,20 @@ async function loadRoteirizadorRotas() {
 function abrirListaRotas() {
   loadRoteirizadorRotas().then(() => renderListaRotas());
   document.getElementById('roteirizadorListOverlay').classList.add('open');
+  const sheet = document.getElementById('roteiz-detail-sheet');
+  if (sheet && sheet.style.display !== 'none') {
+    sheet.dataset.hiddenByListModal = '1';
+    sheet.style.display = 'none';
+  }
 }
 
 function fecharListaRotas() {
   document.getElementById('roteirizadorListOverlay').classList.remove('open');
+  const sheet = document.getElementById('roteiz-detail-sheet');
+  if (sheet && sheet.dataset.hiddenByListModal) {
+    delete sheet.dataset.hiddenByListModal;
+    sheet.style.display = '';
+  }
 }
 
 function renderListaRotas() {
