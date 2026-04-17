@@ -215,6 +215,45 @@ def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
                 cliente_id or None,
             ])
 
+def _sync_manut_lancamentos(conn, manut_id, placa, data, custo,
+                             itens, oficina, tecnico, cliente_id):
+    """Cria/atualiza lançamento em lancamentos_cc para um registro de manutenção,
+    usando o centro_custo_id do veículo (se configurado)."""
+    veiculo = _fetchone(conn,
+        'SELECT centro_custo_id FROM veiculos WHERE placa=%s', [placa])
+    cc_id = veiculo.get('centro_custo_id') if veiculo else None
+    if not cc_id:
+        return  # veículo sem centro de custo → não gera lançamento
+
+    # Remove lançamento anterior deste registro de manutenção
+    _exec(conn,
+        "DELETE FROM lancamentos_cc WHERE referencia_tipo='Manutenção' AND referencia_id=%s",
+        [manut_id])
+
+    custo_val = float(custo or 0)
+    if custo_val <= 0:
+        return  # sem custo, nada a lançar
+
+    data_lanc = (data or _hoje())[:10]
+
+    # Monta descrição com itens realizados
+    if isinstance(itens, str):
+        try:    itens = json.loads(itens)
+        except: itens = []
+    realizados = [i.get('descricao') or i.get('tipo','') for i in (itens or []) if i.get('realizado')]
+    desc_itens = ', '.join(realizados[:3]) if realizados else ''
+    local_str  = oficina or tecnico or ''
+    desc = f"Manutenção {placa}" + (f" — {desc_itens}" if desc_itens else '') + (f" ({local_str})" if local_str else '')
+
+    _exec(conn, '''INSERT INTO lancamentos_cc
+        (centro_custo_id,data,categoria,descricao,valor,tipo,
+         referencia_tipo,referencia_id,cliente_id)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
+        cc_id, data_lanc, 'Manutenção', desc,
+        custo_val, 'Despesa', 'Manutenção', manut_id,
+        cliente_id or None,
+    ])
+
 # ═══════════════════════════════════════════════════════════════
 #  SCHEMA – CREATE TABLES
 # ═══════════════════════════════════════════════════════════════
@@ -2316,6 +2355,11 @@ class Handler(BaseHTTPRequestHandler):
             ])
             conn.commit()
             new_id = cur.fetchone()['id']
+            _sync_manut_lancamentos(conn, new_id,
+                d.get('placa',''), d.get('data',''), d.get('custo',0),
+                d.get('itens',[]), d.get('oficina',''), d.get('tecnico',''),
+                d.get('cliente_id') or None)
+            conn.commit()
             row    = _fetchone(conn, 'SELECT * FROM manutencao_registros WHERE id=%s', [new_id])
             conn.close()
             self.send_json(row or {'id': new_id}, 201)
@@ -2709,6 +2753,10 @@ class Handler(BaseHTTPRequestHandler):
                 d.get('tecnico',''), d.get('oficina',''), d.get('custo',0),
                 itens, d.get('obsGerais', d.get('obs_gerais','')), id_
             ])
+            _sync_manut_lancamentos(conn, id_,
+                d.get('placa',''), d.get('data',''), d.get('custo',0),
+                d.get('itens',[]), d.get('oficina',''), d.get('tecnico',''),
+                d.get('cliente_id') or None)
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
@@ -3067,6 +3115,9 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM manutencao_registros WHERE id=%s', [int(m.group(1))])
+            _exec(conn,
+                "DELETE FROM lancamentos_cc WHERE referencia_tipo='Manutenção' AND referencia_id=%s",
+                [int(m.group(1))])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
