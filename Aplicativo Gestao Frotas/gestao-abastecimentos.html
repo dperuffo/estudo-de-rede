@@ -4934,12 +4934,30 @@
           <option value="">Todos os motoristas</option>
         </select>
       </div>
-      <!-- Posto -->
+      <!-- Postos (multi-seleção com checkboxes) -->
       <div class="form-group">
-        <label class="form-label">Posto <span style="color:#dc2626">*</span></label>
-        <select id="rp-m-posto" class="form-input">
-          <option value="">Selecione o posto</option>
-        </select>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label class="form-label" style="margin:0;">Postos Permitidos <span style="color:#dc2626">*</span></label>
+          <span id="rp-m-postos-count" style="font-size:0.75rem;color:#2563eb;font-weight:700;"></span>
+        </div>
+        <!-- Busca + ações rápidas -->
+        <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+          <input type="text" id="rp-m-postos-search" class="form-input"
+            style="flex:1;font-size:0.82rem;padding:6px 10px;"
+            placeholder="Filtrar postos..."
+            oninput="rpFiltrarPostosModal()">
+          <button type="button"
+            style="padding:5px 10px;font-size:0.78rem;background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;border-radius:7px;cursor:pointer;white-space:nowrap;"
+            onclick="rpSelecionarTodosPostos(true)">Todos</button>
+          <button type="button"
+            style="padding:5px 10px;font-size:0.78rem;background:#f8fafc;color:var(--text-muted);border:1.5px solid var(--border);border-radius:7px;cursor:pointer;white-space:nowrap;"
+            onclick="rpSelecionarTodosPostos(false)">Nenhum</button>
+        </div>
+        <!-- Lista de checkboxes -->
+        <div id="rp-m-postos-list"
+          style="max-height:200px;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;padding:6px 4px;background:#fff;">
+          <div style="padding:12px;text-align:center;color:var(--text-muted);font-size:0.82rem;">Carregando postos...</div>
+        </div>
       </div>
       <!-- Tipo de limite + Valor -->
       <div class="form-row">
@@ -8034,16 +8052,35 @@ function renderRestricoesPosto() {
   if (empty) empty.style.display = 'none';
   if (wrap)  wrap.style.display  = '';
 
-  const cliMap = {};
+  const cliMap  = {};
+  const postoMap = {};
   (_clientes || []).forEach(c => { cliMap[c.id] = c.razao_social; });
+  (postos || []).forEach(p => { postoMap[p.id] = p.razao || p.cnpj || String(p.id); });
 
   tbody.innerHTML = lista.map(r => {
-    const cliLabel = r.cliente_id ? (cliMap[r.cliente_id] || `#${r.cliente_id}`) : 'Todos';
-    const placaLabel = r.placa || 'Todos';
-    const motLabel = r.motorista || 'Todos';
+    const cliLabel   = r.cliente_id ? (cliMap[r.cliente_id] || `#${r.cliente_id}`) : 'Todos';
+    const placaLabel = r.placa     || 'Todos';
+    const motLabel   = r.motorista || 'Todos';
     const classLabel = r.classificacao || 'Todos';
+
+    // Monta label dos postos a partir de postos_ids
+    let postosLabel = '—';
+    let pids = [];
+    try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
+    if (!pids.length && r.posto_id) pids = [r.posto_id];  // backward compat
+    if (pids.length) {
+      const names = pids.map(pid => postoMap[pid] || `#${pid}`);
+      if (names.length <= 2) {
+        postosLabel = names.map(n => escHtml(n)).join('<br>');
+      } else {
+        postosLabel = `${escHtml(names[0])}<br><span style="font-size:0.72rem;color:var(--text-muted);">+${names.length-1} mais</span>`;
+      }
+    } else if (r.posto_nome) {
+      postosLabel = escHtml(r.posto_nome);
+    }
+
     let limiteLabel = '—';
-    if (r.limite_tipo === 'valor') limiteLabel = `R$ ${parseFloat(r.limite_valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+    if (r.limite_tipo === 'valor')  limiteLabel = `R$ ${parseFloat(r.limite_valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
     else if (r.limite_tipo === 'volume') limiteLabel = `${parseFloat(r.limite_valor||0).toLocaleString('pt-BR',{minimumFractionDigits:0})} L`;
     const status = r.ativo
       ? '<span style="background:#f0fdf4;color:#15803d;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;">Ativo</span>'
@@ -8053,10 +8090,10 @@ function renderRestricoesPosto() {
       <td>${classLabel}</td>
       <td>${placaLabel}</td>
       <td>${motLabel}</td>
-      <td>${r.posto_nome || '—'}</td>
+      <td style="max-width:220px;line-height:1.4;">${postosLabel}</td>
       <td>${limiteLabel}</td>
       <td>${status}</td>
-      <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.observacao || '—'}</td>
+      <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(r.observacao || '—')}</td>
       <td style="text-align:right;white-space:nowrap;">
         <button class="btn btn-sm btn-outline" style="padding:3px 10px;font-size:0.75rem;" onclick="openRestricaoPostoModal(${r.id})">Editar</button>
         <button class="btn btn-sm" style="padding:3px 10px;font-size:0.75rem;background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="deleteRestricaoPosto(${r.id})">Excluir</button>
@@ -8128,18 +8165,91 @@ function _rpPopulateModalClientes() {
   if (lista.some(c => String(c.id) === cur)) sel.value = cur;
 }
 
-function _rpPopulateModalPostos() {
-  const sel = document.getElementById('rp-m-posto');
-  if (!sel) return;
-  const cur = sel.value;
-  const postosList = (postos || []);
-  sel.innerHTML = '<option value="">Selecione o posto</option>' +
-    postosList.map(p => {
-      const cidade = p.cidade ? ` — ${p.cidade}/${p.uf || ''}` : '';
-      const cnpj   = p.cnpj   ? ` [${p.cnpj}]` : '';
-      return `<option value="${p.id}">${escHtml(p.razao || '')}${cnpj}${cidade}</option>`;
-    }).join('');
-  sel.value = cur;
+// ── Multi-select de postos ────────────────────────────────────
+let _rpPostosAll = [];  // cache dos postos para o modal
+
+function _rpRenderPostosCheckboxes(selectedIds, filter) {
+  const container = document.getElementById('rp-m-postos-list');
+  if (!container) return;
+  const q = (filter || '').toLowerCase().trim();
+  let lista = _rpPostosAll;
+  if (q) lista = lista.filter(p => {
+    return (p.razao||'').toLowerCase().includes(q)
+        || (p.cnpj||'').includes(q)
+        || (p.cidade||'').toLowerCase().includes(q)
+        || (p.uf||'').toLowerCase().includes(q);
+  });
+  if (!lista.length) {
+    container.innerHTML = `<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:0.82rem;">Nenhum posto encontrado.</div>`;
+    _rpUpdatePostosCount();
+    return;
+  }
+  container.innerHTML = lista.map(p => {
+    const checked = selectedIds.has(p.id) ? ' checked' : '';
+    const cidade = p.cidade ? `${p.cidade}/${p.uf||''}` : '';
+    const cnpj   = p.cnpj || '';
+    const sub    = [cnpj, cidade].filter(Boolean).join(' · ');
+    return `<label style="display:flex;align-items:flex-start;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;transition:background .1s;"
+        onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${p.id}"${checked}
+        style="margin-top:2px;accent-color:#2563eb;cursor:pointer;"
+        onchange="_rpOnPostoCheckChange(this)">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:0.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(p.razao||'—')}</div>
+        ${sub ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:1px;">${escHtml(sub)}</div>` : ''}
+      </div>
+    </label>`;
+  }).join('');
+  _rpUpdatePostosCount();
+}
+
+function _rpOnPostoCheckChange() {
+  _rpUpdatePostosCount();
+}
+
+function _rpUpdatePostosCount() {
+  const container = document.getElementById('rp-m-postos-list');
+  const countEl   = document.getElementById('rp-m-postos-count');
+  if (!countEl) return;
+  const checked = container ? container.querySelectorAll('input[type=checkbox]:checked').length : 0;
+  const total   = _rpPostosAll.length;
+  if (checked === 0)     countEl.textContent = 'Nenhum selecionado';
+  else if (checked === total) countEl.textContent = 'Todos selecionados';
+  else countEl.textContent = `${checked} de ${total} selecionado${checked !== 1 ? 's' : ''}`;
+  countEl.style.color = checked === 0 ? '#dc2626' : '#2563eb';
+}
+
+function rpFiltrarPostosModal() {
+  const q   = document.getElementById('rp-m-postos-search')?.value || '';
+  const sel = _rpGetSelectedPostoIds();
+  _rpRenderPostosCheckboxes(sel, q);
+}
+
+function rpSelecionarTodosPostos(selecionar) {
+  const container = document.getElementById('rp-m-postos-list');
+  if (!container) return;
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = selecionar; });
+  _rpUpdatePostosCount();
+}
+
+function _rpGetSelectedPostoIds() {
+  const container = document.getElementById('rp-m-postos-list');
+  if (!container) return new Set();
+  const ids = new Set();
+  container.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+    ids.add(parseInt(cb.value));
+  });
+  return ids;
+}
+
+function _rpPopulateModalPostos(selectedIds) {
+  _rpPostosAll = (postos || []).map(p => ({
+    id: p.id, razao: p.razao, cnpj: p.cnpj, cidade: p.cidade, uf: p.uf
+  }));
+  const sel = selectedIds instanceof Set ? selectedIds : new Set((selectedIds || []).map(Number));
+  const q = document.getElementById('rp-m-postos-search')?.value || '';
+  if (document.getElementById('rp-m-postos-search')) document.getElementById('rp-m-postos-search').value = '';
+  _rpRenderPostosCheckboxes(sel, '');
 }
 
 async function openRestricaoPostoModal(id) {
@@ -8151,9 +8261,7 @@ async function openRestricaoPostoModal(id) {
   document.getElementById('rp-m-ativo').value = '1';
   rpToggleLimiteValor();
 
-  // Popula clientes explicitamente (igual ao modal de horário)
   _rpPopulateModalClientes();
-  _rpPopulateModalPostos();
 
   const cliId = _clienteAtualId || '';
   _rpPopulateModalVeiculos(cliId, 'Todos');
@@ -8168,7 +8276,11 @@ async function openRestricaoPostoModal(id) {
       _rpPopulateModalMotoristas(r.cliente_id || '');
       document.getElementById('rp-m-placa').value       = r.placa || '';
       document.getElementById('rp-m-motorista').value   = r.motorista || '';
-      document.getElementById('rp-m-posto').value       = r.posto_id || '';
+      // Carrega postos_ids salvos
+      let pids = [];
+      try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
+      if (!pids.length && r.posto_id) pids = [r.posto_id];  // backward compat
+      _rpPopulateModalPostos(pids);
       document.getElementById('rp-m-limite-tipo').value = r.limite_tipo || 'nenhum';
       document.getElementById('rp-m-limite-valor').value= r.limite_valor || '';
       document.getElementById('rp-m-ativo').value       = r.ativo ? '1' : '0';
@@ -8178,6 +8290,7 @@ async function openRestricaoPostoModal(id) {
   } else {
     document.getElementById('rp-m-cliente').value = _clienteAtualId || '';
     document.getElementById('rp-m-class').value   = 'Todos';
+    _rpPopulateModalPostos([]);
   }
 
   document.getElementById('restricaoPostoModalOverlay').classList.add('open');
@@ -8188,27 +8301,30 @@ function closeRestricaoPostoModal() {
 }
 
 async function saveRestricaoPosto() {
-  const postoSel = document.getElementById('rp-m-posto');
-  const postoId  = postoSel?.value || '';
-  const postoNome = postoSel?.options[postoSel?.selectedIndex]?.text || '';
-  if (!postoId) { showToast('Selecione um posto.', 'error'); return; }
+  const postosIds = Array.from(_rpGetSelectedPostoIds());
+  if (!postosIds.length) { showToast('Selecione ao menos um posto.', 'error'); return; }
+  // Nomes para exibição na tabela
+  const postoNomes = postosIds.map(pid => {
+    const p = _rpPostosAll.find(x => x.id === pid);
+    return p ? (p.razao || p.cnpj || String(pid)) : String(pid);
+  });
 
   const limiteTipo  = document.getElementById('rp-m-limite-tipo').value;
   const limiteValor = parseFloat(document.getElementById('rp-m-limite-valor').value || 0) || 0;
+  const cliId       = document.getElementById('rp-m-cliente').value || null;
 
   const payload = {
-    cliente_id:   document.getElementById('rp-m-cliente').value || null,
+    cliente_id:   cliId ? parseInt(cliId) : null,
     classificacao: document.getElementById('rp-m-class').value || 'Todos',
     placa:        document.getElementById('rp-m-placa').value   || '',
     motorista:    document.getElementById('rp-m-motorista').value || '',
-    posto_id:     postoId ? parseInt(postoId) : null,
-    posto_nome:   postoNome,
+    postos_ids:   postosIds,
+    posto_nome:   postoNomes.join(', '),   // legado: string para display
     limiteTipo,
     limiteValor,
     ativo:        document.getElementById('rp-m-ativo').value === '1',
     observacao:   document.getElementById('rp-m-obs').value || ''
   };
-  if (payload.cliente_id === '') payload.cliente_id = null;
 
   const editId = document.getElementById('rp-edit-id').value;
   try {
@@ -8216,13 +8332,14 @@ async function saveRestricaoPosto() {
       await apiCall('PUT', `/api/restricoes-posto/${editId}`, payload);
       const idx = restricoesPosto.findIndex(r => r.id === parseInt(editId));
       if (idx >= 0) restricoesPosto[idx] = { ...restricoesPosto[idx], ...payload,
-        id: parseInt(editId), cliente_id: payload.cliente_id ? parseInt(payload.cliente_id) : null,
+        id: parseInt(editId),
+        postos_ids: JSON.stringify(postosIds),
         limite_tipo: limiteTipo, limite_valor: limiteValor };
       showToast('Restrição atualizada.', '');
     } else {
       const res = await apiCall('POST', '/api/restricoes-posto', payload);
       restricoesPosto.unshift({ ...payload, id: res.id,
-        cliente_id: payload.cliente_id ? parseInt(payload.cliente_id) : null,
+        postos_ids: JSON.stringify(postosIds),
         limite_tipo: limiteTipo, limite_valor: limiteValor });
       showToast('Restrição criada.', '');
     }
