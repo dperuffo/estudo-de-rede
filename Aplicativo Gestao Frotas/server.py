@@ -110,7 +110,7 @@ def _gen_token() -> str:
     return secrets.token_urlsafe(48)
 
 def _auth_get_user(conn, token: str):
-    """Valida token de sessão e retorna usuário + permissões, ou None."""
+    """Valida token de sessão e retorna usuário + permissões + clientes, ou None."""
     if not token:
         return None
     sess = _fetchone(conn,
@@ -126,6 +126,12 @@ def _auth_get_user(conn, token: str):
     perms = _fetchall(conn,
         "SELECT * FROM permissoes_perfil WHERE perfil_id=%s", [usr.get('perfil_id')])
     usr['permissoes'] = perms
+    # Carrega clientes associados ao usuário
+    clientes = _fetchall(conn,
+        "SELECT c.id, c.razao_social, c.cnpj, c.status "
+        "FROM usuario_clientes uc JOIN clientes c ON c.id = uc.cliente_id "
+        "WHERE uc.usuario_id=%s ORDER BY c.razao_social", [usr['id']])
+    usr['clientes'] = clientes or []
     return usr
 
 def _token_from_request(handler) -> str:
@@ -1215,6 +1221,15 @@ def init_db():
           AND lc.descricao      NOT LIKE 'Arla 32%'
     ''')
 
+    # ── Associação Usuário ↔ Cliente (many-to-many) ──────────────
+    cur.execute('''CREATE TABLE IF NOT EXISTS usuario_clientes (
+        id          SERIAL PRIMARY KEY,
+        usuario_id  INTEGER NOT NULL,
+        cliente_id  INTEGER NOT NULL,
+        created_at  TEXT DEFAULT TO_CHAR(NOW(), \'YYYY-MM-DD HH24:MI:SS\'),
+        UNIQUE(usuario_id, cliente_id)
+    )''')
+
     conn.commit()
     conn.close()
 
@@ -1503,6 +1518,44 @@ class Handler(BaseHTTPRequestHandler):
             sql += ' ORDER BY nome'
             conn = get_db()
             rows = _fetchall(conn, sql, params)
+            conn.close()
+            self.send_json(rows)
+
+        elif path == '/api/usuario-clientes':
+            # Retorna todas as associações usuário↔cliente (admin) ou só as do usuário autenticado
+            conn = get_db()
+            usr  = _auth_get_user(conn, _token_from_request(self))
+            if not usr:
+                conn.close(); self.send_json({'error': 'Não autenticado'}, 401); return
+            qs = parse_qs(urlparse(self.path).query)
+            uid = qs.get('usuario_id', [None])[0]
+            if usr.get('is_admin'):
+                if uid:
+                    rows = _fetchall(conn,
+                        "SELECT uc.id, uc.usuario_id, uc.cliente_id, uc.created_at, "
+                        "u.nome AS usuario_nome, u.email AS usuario_email, "
+                        "c.razao_social AS cliente_nome "
+                        "FROM usuario_clientes uc "
+                        "JOIN usuarios u ON u.id=uc.usuario_id "
+                        "JOIN clientes c ON c.id=uc.cliente_id "
+                        "WHERE uc.usuario_id=%s ORDER BY c.razao_social", [int(uid)])
+                else:
+                    rows = _fetchall(conn,
+                        "SELECT uc.id, uc.usuario_id, uc.cliente_id, uc.created_at, "
+                        "u.nome AS usuario_nome, u.email AS usuario_email, "
+                        "c.razao_social AS cliente_nome "
+                        "FROM usuario_clientes uc "
+                        "JOIN usuarios u ON u.id=uc.usuario_id "
+                        "JOIN clientes c ON c.id=uc.cliente_id "
+                        "ORDER BY u.nome, c.razao_social")
+            else:
+                # Usuário comum só vê as próprias associações
+                rows = _fetchall(conn,
+                    "SELECT uc.id, uc.usuario_id, uc.cliente_id, uc.created_at, "
+                    "c.razao_social AS cliente_nome "
+                    "FROM usuario_clientes uc "
+                    "JOIN clientes c ON c.id=uc.cliente_id "
+                    "WHERE uc.usuario_id=%s ORDER BY c.razao_social", [usr['id']])
             conn.close()
             self.send_json(rows)
 
@@ -1950,6 +2003,11 @@ class Handler(BaseHTTPRequestHandler):
                               [usr.get('perfil_id')]) if usr.get('perfil_id') else []
             perfil = _fetchone(conn, "SELECT nome FROM perfis_acesso WHERE id=%s",
                                [usr.get('perfil_id')]) if usr.get('perfil_id') else None
+            # Carrega clientes associados
+            clientes_assoc = _fetchall(conn,
+                "SELECT c.id, c.razao_social, c.cnpj, c.status "
+                "FROM usuario_clientes uc JOIN clientes c ON c.id = uc.cliente_id "
+                "WHERE uc.usuario_id=%s ORDER BY c.razao_social", [usr['id']])
             conn.close()
             self.send_json({
                 'token': token,
@@ -1963,6 +2021,7 @@ class Handler(BaseHTTPRequestHandler):
                     'perfil_nome': perfil['nome'] if perfil else usr.get('perfil',''),
                     'cliente_id':  usr.get('cliente_id'),
                     'is_admin':    bool(usr.get('is_admin', False)),
+                    'clientes':    clientes_assoc or [],
                 },
                 'permissoes': perms,
             }); return
@@ -2056,6 +2115,27 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True}); return
 
         # ══════════════════════════════════════════════════════
+
+        if path == '/api/usuario-clientes':
+            conn = get_db()
+            usr  = _auth_get_user(conn, _token_from_request(self))
+            if not usr or not usr.get('is_admin'):
+                conn.close(); self.send_json({'error': 'Acesso restrito ao administrador'}, 403); return
+            uid = d.get('usuario_id')
+            cid = d.get('cliente_id')
+            if not uid or not cid:
+                conn.close(); self.send_json({'error': 'usuario_id e cliente_id obrigatórios'}, 400); return
+            try:
+                cur = _exec(conn,
+                    "INSERT INTO usuario_clientes (usuario_id, cliente_id) VALUES (%s,%s) RETURNING id",
+                    [int(uid), int(cid)])
+                conn.commit()
+                new_id = cur.fetchone()['id']
+                conn.close()
+                self.send_json({'id': new_id}, 201); return
+            except Exception as e:
+                conn.rollback(); conn.close()
+                self.send_json({'error': str(e)}, 409); return
 
         if path == '/api/clientes':
             conn = get_db()
@@ -3537,6 +3617,16 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM negociacoes WHERE id=%s', [int(m.group(1))])
+            conn.commit(); conn.close()
+            self.send_json({'ok': True}); return
+
+        m = re.match(r'^/api/usuario-clientes/(\d+)$', path)
+        if m:
+            conn = get_db()
+            usr  = _auth_get_user(conn, _token_from_request(self))
+            if not usr or not usr.get('is_admin'):
+                conn.close(); self.send_json({'error': 'Acesso restrito ao administrador'}, 403); return
+            _exec(conn, 'DELETE FROM usuario_clientes WHERE id=%s', [int(m.group(1))])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 

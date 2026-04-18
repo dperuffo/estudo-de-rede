@@ -1176,6 +1176,19 @@
 </div>
 <!-- fim auth-overlay -->
 
+<!-- ░░ MODAL SELETOR DE CLIENTE (pós-login) ░░ -->
+<div id="cliente-picker-overlay" style="display:none;position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:18px;padding:36px 32px;max-width:520px;width:calc(100% - 40px);box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
+    <div style="width:56px;height:56px;background:#eff6ff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+    </div>
+    <h2 style="font-size:1.25rem;font-weight:700;margin:0 0 6px;color:#111827;">Selecione o Cliente</h2>
+    <p id="cliente-picker-subtitle" style="font-size:0.88rem;color:#6b7280;margin:0 0 24px;">Você tem acesso a mais de um cliente. Selecione com qual deseja trabalhar agora.</p>
+    <div id="cliente-picker-cards" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;text-align:left;margin-bottom:20px;"></div>
+    <p style="font-size:0.78rem;color:#9ca3af;margin:0;">Você poderá trocar de cliente clicando no seu nome no cabeçalho.</p>
+  </div>
+</div>
+
 <!-- ░░ HEADER ░░ -->
 <header>
   <div class="header-brand">
@@ -1207,6 +1220,14 @@
   <div class="header-actions" style="display:flex;align-items:center;gap:10px;">
     <span id="srv-dot" style="padding:5px 12px;background:rgba(255,255,255,0.15);border-radius:20px;font-size:0.78rem;font-weight:600;color:#f59e0b;letter-spacing:0.2px;white-space:nowrap;">● Conectando...</span>
     <!-- Usuário logado -->
+    <!-- Badge do cliente ativo (não-admin) -->
+    <div id="cliente-ativo-badge" style="display:none;align-items:center;gap:6px;
+         background:rgba(255,255,255,0.18);border-radius:20px;padding:5px 14px;cursor:pointer;border:1px solid rgba(255,255,255,0.3);"
+         onclick="_abrirClientePicker()" title="Clique para trocar de cliente">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      <span id="cliente-ativo-nome" style="font-size:.78rem;font-weight:700;color:#fff;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <svg id="cliente-troca-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2.5" style="display:none;"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
     <div id="auth-user-info" style="display:none;align-items:center;gap:8px;
          background:rgba(255,255,255,0.12);border-radius:20px;padding:5px 14px;">
       <span style="font-size:1rem;">👤</span>
@@ -1259,6 +1280,10 @@
       <button class="sidebar-item sidebar-subitem" id="side-btn-perfil-usuario" onclick="switchTab('perfil-usuario')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
         Perfil de Usuário
+      </button>
+      <button class="sidebar-item sidebar-subitem" id="side-btn-usuario-cliente" onclick="switchTab('usuario-cliente')" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Acesso por Cliente
       </button>
     </div>
   </div>
@@ -4518,6 +4543,62 @@
     </div>
   </div><!-- /view-perfil-usuario -->
 
+  <!-- ░░ ACESSO POR CLIENTE (Associação Usuário ↔ Cliente) ░░ -->
+  <div id="view-usuario-cliente" style="display:none">
+    <div class="panel">
+      <div class="motorista-panel-header">
+        <div class="panel-title">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+          Acesso por Cliente — Associação de Usuários
+        </div>
+        <div style="color:var(--text-muted);font-size:0.82rem;max-width:540px;line-height:1.5;">
+          Defina quais clientes cada usuário pode visualizar ao fazer login. Usuários sem associação não terão acesso a nenhum cliente.
+        </div>
+      </div>
+
+      <!-- Seletor de usuário -->
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:var(--bg-alt,#f9fafb);border-radius:10px;border:1.5px solid var(--border);">
+        <div style="flex:1;min-width:220px;">
+          <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:5px;">Usuário</label>
+          <select id="uc-sel-usuario" class="form-input" onchange="ucCarregarAssociacoes()" style="width:100%;">
+            <option value="">— Selecione um usuário —</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:220px;">
+          <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:5px;">Adicionar Cliente</label>
+          <div style="display:flex;gap:6px;">
+            <select id="uc-sel-cliente" class="form-input" style="flex:1;">
+              <option value="">— Selecione o cliente —</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="ucAdicionarAssociacao()" title="Adicionar associação">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adicionar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de clientes do usuário selecionado -->
+      <div id="uc-lista-wrap" style="display:none">
+        <div style="font-size:0.85rem;font-weight:600;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          <span id="uc-usuario-nome-label">—</span>
+          — Clientes com acesso liberado
+        </div>
+        <div id="uc-empty" style="display:none;padding:30px;text-align:center;color:var(--text-muted);background:var(--bg-alt,#f9fafb);border-radius:8px;border:1.5px dashed var(--border);">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          <p style="margin:0;">Nenhum cliente associado. Use o seletor acima para adicionar clientes.</p>
+        </div>
+        <div id="uc-cards" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+
+      <div id="uc-sem-usuario" style="text-align:center;padding:50px 20px;color:var(--text-muted);">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <p style="margin-top:12px;">Selecione um usuário para gerenciar seus clientes de acesso.</p>
+      </div>
+    </div>
+  </div><!-- /view-usuario-cliente -->
+
 </div><!-- /content-area -->
 </div><!-- /app-wrapper -->
 
@@ -7132,8 +7213,15 @@ function _clienteNome(id) {
 
 // Popula todos os <select> de filtro de cliente na página
 function _refreshClienteSelects() {
+  // Para usuários não-admin com cliente ativo, limita a lista ao(s) cliente(s) deles
+  const isAdmin = _currentUser?.is_admin;
+  const ativos = (_clientes || []).filter(c => c.status === 'Ativo');
+  const clientesVisiveis = (!isAdmin && _currentUser?.clientes?.length)
+    ? ativos.filter(c => (_currentUser.clientes || []).some(uc => uc.id === c.id))
+    : ativos;
+
   const opts = '<option value="">Todos os clientes</option>' +
-    (_clientes || []).filter(c => c.status === 'Ativo').map(c =>
+    clientesVisiveis.map(c =>
       `<option value="${c.id}">${c.razao_social}</option>`).join('');
   ['f-cliente','v-f-cliente','m-f-cliente','neg-f-cliente',
    'iv-f-cliente','vd-f-cliente2','vol-f-cliente','pa-f-cliente',
@@ -7143,7 +7231,17 @@ function _refreshClienteSelects() {
    'rp-f-cliente','rp-m-cliente',
    'roteiz-cliente-sel'].forEach(id => {
     const sel = document.getElementById(id);
-    if (sel) { const v = sel.value; sel.innerHTML = opts; sel.value = v; }
+    if (!sel) return;
+    const v = sel.value;
+    sel.innerHTML = opts;
+    // Se usuário tem cliente ativo bloqueado, força o valor e desabilita
+    if (!isAdmin && _clienteAtualId) {
+      sel.value    = String(_clienteAtualId);
+      sel.disabled = true;
+    } else {
+      sel.value    = v;
+      sel.disabled = false;
+    }
   });
   // Modal salvar rota — usa opção "Selecione" em vez de "Todos"
   const salvarSel = document.getElementById('roteiz-salvar-cliente');
@@ -7169,20 +7267,28 @@ function _refreshClienteSelects() {
 
 // ── Shared client row for all modals ──────────────────────────
 function _clienteRowHtml(selectedId) {
+  const isAdmin = _currentUser?.is_admin;
+  // Para não-admin com cliente ativo, força o cliente da sessão
+  const effectiveId = (!isAdmin && _clienteAtualId) ? _clienteAtualId : selectedId;
   const ativos  = (_clientes || []).filter(c => c.status === 'Ativo');
-  const opts    = ativos.map(c =>
-    `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.razao_social}</option>`
+  // Filtra opções pelos clientes do usuário (não-admin)
+  const optsSource = (!isAdmin && _currentUser?.clientes?.length)
+    ? ativos.filter(c => (_currentUser.clientes || []).some(uc => uc.id === c.id))
+    : ativos;
+  const opts    = optsSource.map(c =>
+    `<option value="${c.id}" ${c.id === effectiveId ? 'selected' : ''}>${c.razao_social}</option>`
   ).join('');
-  const hasClient = selectedId && ativos.some(c => c.id === selectedId);
+  const hasClient = effectiveId && ativos.some(c => c.id === effectiveId);
   const bg     = hasClient ? '#eff6ff' : '#fff7ed';
   const border = hasClient ? '#bfdbfe' : '#fed7aa';
   const color  = hasClient ? '#1e40af' : '#9a3412';
   const stroke = hasClient ? '#2563eb' : '#c2410c';
+  const disabled = (!isAdmin && _clienteAtualId) ? 'disabled' : '';
   return `<div id="_modal-cli-row" style="display:flex;align-items:center;gap:8px;background:${bg};border:1.5px solid ${border};border-radius:8px;padding:7px 12px;margin-bottom:12px;flex-wrap:wrap;">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
     <label style="font-size:0.78rem;font-weight:700;color:${color};white-space:nowrap;">Cliente *</label>
     <select id="_modal-cli-sel" style="flex:1;min-width:160px;padding:4px 8px;border:1.5px solid ${border};border-radius:6px;font-size:0.82rem;background:#fff;"
-      onchange="_onModalClienteChange()">
+      onchange="_onModalClienteChange()" ${disabled}>
       <option value="">— Selecionar Cliente —</option>
       ${opts}
     </select>
@@ -7503,7 +7609,13 @@ let _editClienteId = null;
 async function loadClientes() {
   try {
     const rows  = await apiCall('GET', '/api/clientes');
-    _clientes   = rows || [];
+    let allRows = rows || [];
+    // Não-admin: filtra somente os clientes aos quais o usuário está associado
+    if (_currentUser && !_currentUser.is_admin && _currentUser.clientes?.length) {
+      const ids = new Set(_currentUser.clientes.map(c => c.id));
+      allRows = allRows.filter(c => ids.has(c.id));
+    }
+    _clientes = allRows;
   } catch(e) { _clientes = []; }
   _clientesFilt = [..._clientes];
   renderClientesKpis();
@@ -11918,7 +12030,7 @@ function _renderConsumoMedio(curr) {
 const _subItemGroup = {
   precos:'paineldinamico', varprecos:'paineldinamico', mapabandeira:'paineldinamico', volprojetado:'paineldinamico',
   'plano-viagem':'orcamento', 'custos':'orcamento',
-  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros', 'perfil-usuario':'cadastros',
+  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros', 'perfil-usuario':'cadastros', 'usuario-cliente':'cadastros',
   'gestao-preditiva':'manutencao'
 };
 
@@ -11934,7 +12046,7 @@ function switchTab(tab) {
       if (fallback !== tab) { switchTab(fallback); return; }
     }
   }
-  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','perfil-usuario','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos','gestao-preditiva'].forEach(t => {
+  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','perfil-usuario','usuario-cliente','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos','gestao-preditiva'].forEach(t => {
     const view = document.getElementById('view-' + t);
     if (view) view.style.display = tab === t ? '' : 'none';
     const tabBtn  = document.getElementById('tab-btn-' + t);
@@ -12063,6 +12175,7 @@ function switchTab(tab) {
   if (tab === 'clientes')      { loadClientes(); }
   if (tab === 'usuarios')        { loadUsuarios(); }
   if (tab === 'perfil-usuario')  { loadPerfisAcesso(); loadPfDashboard(); }
+  if (tab === 'usuario-cliente') { ucLoadTab(); }
   if (tab === 'custos')        { loadCentrosCusto().then(() => { loadOrcamentosCC(); loadLancamentosCC(); renderDashboardCC(); }); }
   if (tab === 'gestao-preditiva') { loadGestaoPreditiva(); }
 }
@@ -21656,6 +21769,7 @@ const _PF_MODULOS = [
   { grupo: 'Cadastros',           modulo: 'motoristas',       label: 'Motoristas' },
   { grupo: 'Cadastros',           modulo: 'usuarios',         label: 'Usuários' },
   { grupo: 'Cadastros',           modulo: 'perfil-usuario',   label: 'Perfil de Usuário' },
+  { grupo: 'Cadastros',           modulo: 'usuario-cliente',  label: 'Acesso por Cliente' },
   { grupo: 'Operacional',         modulo: 'abastecimentos',   label: 'Abastecimentos' },
   { grupo: 'Operacional',         modulo: 'postos',           label: 'Postos Cadastrados' },
   { grupo: 'Operacional',         modulo: 'negociacoes',      label: 'Negociações' },
@@ -22201,6 +22315,209 @@ function _firstAllowedTab() {
   return 'indicadores';
 }
 
+// ══════════════════════════════════════════════════════════════
+//  SEGMENTAÇÃO POR CLIENTE — lógica de acesso pós-login
+// ══════════════════════════════════════════════════════════════
+
+// Define o cliente ativo e atualiza toda a UI de contexto
+function _setClienteAtivo(cliente) {
+  // cliente = { id, razao_social } ou null (admin)
+  _clienteAtualId   = cliente ? cliente.id   : null;
+  _clienteAtualNome = cliente ? (cliente.razao_social || '') : '';
+
+  const badge    = document.getElementById('cliente-ativo-badge');
+  const nomeSpan = document.getElementById('cliente-ativo-nome');
+  if (!badge) return;
+
+  if (!_currentUser || _currentUser.is_admin || !cliente) {
+    badge.style.display = 'none';
+    return;
+  }
+  if (nomeSpan) nomeSpan.textContent = _clienteAtualNome;
+
+  // Mostra ícone de troca se o usuário tem mais de um cliente
+  const temMultiplos = (_currentUser.clientes || []).length > 1;
+  const trocaIcon = document.getElementById('cliente-troca-icon');
+  if (trocaIcon) trocaIcon.style.display = temMultiplos ? '' : 'none';
+
+  badge.style.display = 'flex';
+
+  // Reaplica bloqueio nos selects de filtro de cliente
+  _refreshClienteSelects();
+}
+
+// Abre o picker de cliente (clique no badge do header)
+function _abrirClientePicker() {
+  const clientes = (_currentUser && _currentUser.clientes) || [];
+  if (clientes.length <= 1) return;   // nada a trocar
+  _mostrarClientePicker(clientes);
+}
+
+// Exibe o modal de seleção de cliente
+function _mostrarClientePicker(clientes) {
+  const overlay = document.getElementById('cliente-picker-overlay');
+  const cards   = document.getElementById('cliente-picker-cards');
+  const sub     = document.getElementById('cliente-picker-subtitle');
+  if (!overlay || !cards) return;
+
+  if (sub) {
+    sub.textContent = clientes.length > 1
+      ? 'Você tem acesso a mais de um cliente. Selecione com qual deseja trabalhar agora.'
+      : 'Clique para continuar.';
+  }
+
+  cards.innerHTML = clientes.map(c => `
+    <div onclick="_selecionarClientePicker(${c.id})"
+         style="display:flex;align-items:center;gap:14px;padding:14px 18px;
+                border:2px solid ${_clienteAtualId === c.id ? '#2563eb' : '#e5e7eb'};
+                background:${_clienteAtualId === c.id ? '#eff6ff' : '#fff'};
+                border-radius:10px;cursor:pointer;transition:all .15s;"
+         onmouseover="this.style.borderColor='#2563eb';this.style.background='#eff6ff'"
+         onmouseout="this.style.borderColor='${_clienteAtualId === c.id ? '#2563eb' : '#e5e7eb'}';this.style.background='${_clienteAtualId === c.id ? '#eff6ff' : '#fff'}'">
+      <div style="width:40px;height:40px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:0.95rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.razao_social}</div>
+        ${c.cnpj ? `<div style="font-size:0.75rem;color:#6b7280;font-family:monospace;">${c.cnpj}</div>` : ''}
+      </div>
+      ${_clienteAtualId === c.id ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+    </div>`).join('');
+
+  overlay.style.display = 'flex';
+}
+
+function _selecionarClientePicker(clienteId) {
+  const overlay  = document.getElementById('cliente-picker-overlay');
+  const clientes = (_currentUser && _currentUser.clientes) || [];
+  const c = clientes.find(x => x.id === clienteId);
+  if (!c) return;
+  if (overlay) overlay.style.display = 'none';
+  _setClienteAtivo(c);
+  // Recarrega a aba atual com o novo contexto de cliente
+  switchTab('indicadores');
+}
+
+// ──────────────────────────────────────────────────────────────
+//  ABA "Acesso por Cliente" — CRUD de associações usuário↔cliente
+// ──────────────────────────────────────────────────────────────
+let _ucAssociacoes = [];   // associações do usuário selecionado
+
+async function ucLoadTab() {
+  // Popula select de usuários (sem o admin)
+  let usuarios = [];
+  try { usuarios = await apiCall('GET', '/api/usuarios'); } catch(e) {}
+  const sel = document.getElementById('uc-sel-usuario');
+  if (sel) {
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— Selecione um usuário —</option>' +
+      usuarios.filter(u => !u.is_admin).map(u =>
+        `<option value="${u.id}">${u.nome} — ${u.email || ''}</option>`).join('');
+    if (prev) sel.value = prev;
+  }
+  // Popula select de clientes disponíveis
+  const selCli = document.getElementById('uc-sel-cliente');
+  if (selCli) {
+    selCli.innerHTML = '<option value="">— Selecione o cliente —</option>' +
+      (_clientes || []).filter(c => c.status === 'Ativo').map(c =>
+        `<option value="${c.id}">${c.razao_social}</option>`).join('');
+  }
+  // Se já havia um usuário selecionado, recarrega
+  if (sel && sel.value) ucCarregarAssociacoes();
+  else _ucMostrarSemUsuario();
+}
+
+async function ucCarregarAssociacoes() {
+  const uid = document.getElementById('uc-sel-usuario')?.value;
+  const nomeLabel = document.getElementById('uc-usuario-nome-label');
+  const listaWrap = document.getElementById('uc-lista-wrap');
+  const semUsuario = document.getElementById('uc-sem-usuario');
+
+  if (!uid) { _ucMostrarSemUsuario(); return; }
+
+  const selEl = document.getElementById('uc-sel-usuario');
+  const nomeUsuario = selEl?.options[selEl.selectedIndex]?.text?.split(' — ')[0] || 'Usuário';
+  if (nomeLabel) nomeLabel.textContent = nomeUsuario;
+  if (semUsuario) semUsuario.style.display = 'none';
+  if (listaWrap) listaWrap.style.display = '';
+
+  try {
+    _ucAssociacoes = await apiCall('GET', `/api/usuario-clientes?usuario_id=${uid}`);
+  } catch(e) { _ucAssociacoes = []; }
+
+  _ucRenderCards();
+}
+
+function _ucMostrarSemUsuario() {
+  const listaWrap  = document.getElementById('uc-lista-wrap');
+  const semUsuario = document.getElementById('uc-sem-usuario');
+  if (listaWrap)  listaWrap.style.display  = 'none';
+  if (semUsuario) semUsuario.style.display = '';
+}
+
+function _ucRenderCards() {
+  const cards   = document.getElementById('uc-cards');
+  const empty   = document.getElementById('uc-empty');
+  if (!cards) return;
+
+  if (!_ucAssociacoes.length) {
+    cards.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  cards.innerHTML = _ucAssociacoes.map(a => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;
+                background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;
+                min-width:220px;max-width:360px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:0.88rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.cliente_nome}</div>
+        <div style="font-size:0.73rem;color:#6b7280;">ID: ${a.cliente_id}</div>
+      </div>
+      <button onclick="ucRemoverAssociacao(${a.id})"
+              style="background:none;border:none;cursor:pointer;color:#ef4444;padding:4px;border-radius:6px;display:flex;align-items:center;"
+              title="Remover acesso">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </button>
+    </div>`).join('');
+}
+
+async function ucAdicionarAssociacao() {
+  const uid = document.getElementById('uc-sel-usuario')?.value;
+  const cid = document.getElementById('uc-sel-cliente')?.value;
+  if (!uid || !cid) { alert('Selecione um usuário e um cliente.'); return; }
+  // Verifica duplicata
+  if (_ucAssociacoes.some(a => String(a.cliente_id) === String(cid))) {
+    alert('Este cliente já está associado ao usuário.'); return;
+  }
+  try {
+    await apiCall('POST', '/api/usuario-clientes', { usuario_id: parseInt(uid), cliente_id: parseInt(cid) });
+    await ucCarregarAssociacoes();
+    // Reseta o select de cliente
+    const selCli = document.getElementById('uc-sel-cliente');
+    if (selCli) selCli.selectedIndex = 0;
+  } catch(e) {
+    alert('Erro ao adicionar associação: ' + (e.message || e));
+  }
+}
+
+async function ucRemoverAssociacao(assocId) {
+  if (!confirm('Remover o acesso deste cliente para o usuário?')) return;
+  try {
+    await fetch(`${API_BASE}/api/usuario-clientes/${assocId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${_authToken}`, 'Content-Type': 'application/json' },
+    });
+    await ucCarregarAssociacoes();
+  } catch(e) {
+    alert('Erro ao remover associação.');
+  }
+}
+
 // Login com e-mail + senha
 async function authDoLogin() {
   const email = (document.getElementById('auth-email')?.value || '').trim();
@@ -22320,8 +22637,12 @@ async function authDoLogout() {
   _authToken      = null;
   _currentUser    = null;
   _userPermissoes = {};
+  _clienteAtualId   = null;
+  _clienteAtualNome = '';
   document.getElementById('auth-user-info').style.display  = 'none';
   document.getElementById('auth-logout-btn').style.display = 'none';
+  const badgeEl = document.getElementById('cliente-ativo-badge');
+  if (badgeEl) badgeEl.style.display = 'none';
   document.getElementById('auth-overlay').style.display    = 'flex';
   authShowPanel('login');
   document.getElementById('auth-email').value = '';
@@ -22351,16 +22672,42 @@ function _authSuccessUI() {
   const logoutEl = document.getElementById('auth-logout-btn');
   if (logoutEl) logoutEl.style.display = '';
 
+  // ── Aba "Acesso por Cliente" apenas para admin ─────────────
+  const ucBtn = document.getElementById('side-btn-usuario-cliente');
+  if (ucBtn) ucBtn.style.display = _currentUser.is_admin ? '' : 'none';
+
   // Aplica permissões em botões de ação (data-perm)
   _applyPermissions();
   // Aplica visibilidade das abas do sidebar
   _applySidebarPermissions();
 
-  // Inicia o app se ainda não carregou
+  // ── Contexto de cliente pós-login ──────────────────────────
+  const clientes = _currentUser.clientes || [];
+
+  if (_currentUser.is_admin) {
+    // Admin: sem restrição de cliente
+    _setClienteAtivo(null);
+    _iniciarApp();
+  } else if (clientes.length === 0) {
+    // Sem clientes associados: acessa sem contexto de cliente
+    _setClienteAtivo(null);
+    _iniciarApp();
+  } else if (clientes.length === 1) {
+    // Apenas um cliente: define automaticamente
+    _setClienteAtivo(clientes[0]);
+    _iniciarApp();
+  } else {
+    // Múltiplos clientes: mostra picker e aguarda seleção
+    // O app só inicia após a escolha
+    _iniciarApp();   // carrega dados em background
+    _mostrarClientePicker(clientes);
+  }
+}
+
+function _iniciarApp() {
   if (!_appLoaded) {
     _appLoaded = true;
     initApp().then(() => {
-      // Sempre navega para "Comece seu dia!" (indicadores) após login
       switchTab('indicadores');
     });
   } else {
