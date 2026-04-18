@@ -1221,6 +1221,21 @@ def init_db():
           AND lc.descricao      NOT LIKE 'Arla 32%'
     ''')
 
+    # ── Seed: senha do usuário de teste daniel.vieira@artemis.com.br ──
+    # Hash de 'UserFrota@2026' via pbkdf2_hmac sha256 + salt gestao_frota_salt_2024
+    _TEST_EMAIL = 'daniel.vieira@artemis.com.br'
+    _TEST_HASH  = '9a1555d4bb42f69de3e40e0203dbc95c9314c819606080c80efa924f5010f3e8'
+    cur.execute("SELECT id FROM usuarios WHERE LOWER(email)=%s", [_TEST_EMAIL])
+    _test_row = cur.fetchone()
+    if _test_row:
+        cur.execute("UPDATE usuarios SET senha_hash=%s, status='Ativo' WHERE id=%s",
+                    [_TEST_HASH, _test_row['id']])
+    else:
+        cur.execute("""
+            INSERT INTO usuarios (nome, email, cpf, perfil, segmento, tipo_acesso, status, senha_hash)
+            VALUES ('Daniel Vieira', %s, '', 'Operador', 'Frota', 'Frota', 'Ativo', %s)
+        """, [_TEST_EMAIL, _TEST_HASH])
+
     # ── Associação Usuário ↔ Cliente (many-to-many) ──────────────
     cur.execute('''CREATE TABLE IF NOT EXISTS usuario_clientes (
         id          SERIAL PRIMARY KEY,
