@@ -1996,6 +1996,32 @@ class Handler(BaseHTTPRequestHandler):
         # ══════════════════════════════════════════════════════
 
         # ── Login ─────────────────────────────────────────────
+        # ── Endpoint de emergência: define/redefine senha de qualquer usuário ──
+        # Protegido por chave de admin hardcoded; remova após uso em produção.
+        if path == '/api/admin/set-password':
+            _ADMIN_KEY = 'GestaoFrotas#SetPwd2026'
+            if d.get('admin_key') != _ADMIN_KEY:
+                self.send_json({'error': 'Chave inválida'}, 403); return
+            target_email = (d.get('email') or '').strip().lower()
+            new_senha    = d.get('senha') or ''
+            if not target_email or not new_senha:
+                self.send_json({'error': 'email e senha obrigatórios'}, 400); return
+            conn = get_db()
+            usr = _fetchone(conn, "SELECT id FROM usuarios WHERE LOWER(email)=%s", [target_email])
+            if usr:
+                _exec(conn, "UPDATE usuarios SET senha_hash=%s, status='Ativo' WHERE id=%s",
+                      [_hash_senha(new_senha), usr['id']])
+                conn.commit(); conn.close()
+                self.send_json({'ok': True, 'action': 'updated'}); return
+            else:
+                # Cria o usuário se não existir
+                cur = _exec(conn, """
+                    INSERT INTO usuarios (nome, email, cpf, perfil, segmento, tipo_acesso, status, senha_hash)
+                    VALUES (%s, %s, '', 'Operador', 'Frota', 'Frota', 'Ativo', %s) RETURNING id
+                """, [target_email.split('@')[0].replace('.', ' ').title(), target_email, _hash_senha(new_senha)])
+                conn.commit(); new_id = cur.fetchone()['id']; conn.close()
+                self.send_json({'ok': True, 'action': 'created', 'id': new_id}); return
+
         if path == '/api/auth/login':
             email = (d.get('email') or '').strip().lower()
             senha = d.get('senha') or ''
