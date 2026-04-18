@@ -7490,13 +7490,16 @@ async function apiCall(method, path, body = null, timeoutMs = 5000) {
 }
 
 async function loadAbastecimentos() {
-  // Usa fetch direto (sem apiCall) para garantir que records contenha
-  // TODOS os abastecimentos, sem injeção de cliente_id.
-  // A filtragem por cliente na listagem é feita localmente via filteredRecords.
+  // Para não-admins com cliente activo, filtra no servidor para não expor
+  // dados de outros clientes em memória.
   try {
     const _h = { 'Content-Type': 'application/json' };
     if (_authToken) _h['Authorization'] = `Bearer ${_authToken}`;
-    const _r = await fetch(`${API_BASE}/api/abastecimentos`, { method: 'GET', headers: _h });
+    let url = `${API_BASE}/api/abastecimentos`;
+    if (_clienteAtualId && _currentUser && !_currentUser.is_admin) {
+      url += `?cliente_id=${_clienteAtualId}`;
+    }
+    const _r = await fetch(url, { method: 'GET', headers: _h });
     if (!_r.ok) throw new Error(`HTTP ${_r.status}`);
     const rows = await _r.json();
     records = rows.map(mapAbast);
@@ -9009,7 +9012,11 @@ function applyFilters() {
   const motorista= document.getElementById('f-motorista').value.trim().toLowerCase();
   const comb     = document.getElementById('f-combustivel').value;
   const posto    = document.getElementById('f-posto').value.trim().toLowerCase();
-  const cliente  = document.getElementById('f-cliente')?.value;
+  // Filtro de cliente: usa o da sessão (não-admin) ou o do select (admin)
+  const clienteSessao = (_clienteAtualId && _currentUser && !_currentUser.is_admin)
+    ? String(_clienteAtualId) : null;
+  const clienteSelect = document.getElementById('f-cliente')?.value || null;
+  const clienteFiltro = clienteSessao || clienteSelect;
 
   filteredRecords = records.filter(r => {
     if (dataIni && r.data < dataIni) return false;
@@ -9018,7 +9025,7 @@ function applyFilters() {
     if (motorista && !r.motorista.toLowerCase().includes(motorista)) return false;
     if (comb && r.combustivel !== comb) return false;
     if (posto && !r.posto.toLowerCase().includes(posto)) return false;
-    if (cliente && String(r.cliente_id) !== String(cliente)) return false;
+    if (clienteFiltro && String(r.cliente_id) !== clienteFiltro) return false;
     return true;
   });
   currentPage = 1;
@@ -10920,8 +10927,18 @@ function _prevPeriod(start, end) {
   return { start: _isoDate(ps), end: _isoDate(pe) };
 }
 
+// ── Helper: retorna os records visíveis para o contexto de sessão atual ──────
+// Para não-admins com cliente activo, filtra pelo cliente da sessão.
+// Usado como base para todas as funções de análise/indicadores.
+function _recordsSessao() {
+  const cliSessao = (_clienteAtualId && _currentUser && !_currentUser.is_admin)
+    ? String(_clienteAtualId) : null;
+  if (!cliSessao) return records;
+  return records.filter(r => String(r.cliente_id) === cliSessao);
+}
+
 function _filterPeriod(start, end) {
-  return records.filter(r => r.data >= start && r.data <= end);
+  return _recordsSessao().filter(r => r.data >= start && r.data <= end);
 }
 
 function _trendBadge(curr, prev, isLowerBetter = false) {
@@ -16243,8 +16260,9 @@ function _renderVarPrecos() {
   const prevStart = `${prevY}-${pad(prevM)}-01`;
   const prevEnd   = `${prevY}-${pad(prevM)}-${pad(new Date(prevY, prevM, 0).getDate())}`;
 
-  const currRecs = records.filter(r => r.data >= currStart && r.data <= currEnd && r.combustivel !== _ARLA);
-  const prevRecs = records.filter(r => r.data >= prevStart && r.data <= prevEnd && r.combustivel !== _ARLA);
+  const _rSessao = _recordsSessao();
+  const currRecs = _rSessao.filter(r => r.data >= currStart && r.data <= currEnd && r.combustivel !== _ARLA);
+  const prevRecs = _rSessao.filter(r => r.data >= prevStart && r.data <= prevEnd && r.combustivel !== _ARLA);
 
   const fuels = [...new Set([...currRecs, ...prevRecs].map(r => r.combustivel))].sort();
   const grid  = document.getElementById('varpreco-grid');
@@ -16427,15 +16445,16 @@ const _MAPA_PALETTE = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec489
 let _mapaData = {}; // populated each render for tooltip
 
 function _renderMapaBandeira() {
+  const _rSessao = _recordsSessao();
   // Populate combustível filter
-  const allCombs = [...new Set(records.filter(r => r.combustivel !== _ARLA).map(r => r.combustivel))].sort();
+  const allCombs = [...new Set(_rSessao.filter(r => r.combustivel !== _ARLA).map(r => r.combustivel))].sort();
   const selEl = document.getElementById('mapa-comb-filter');
   if (selEl) {
     const prev = selEl.value;
     selEl.innerHTML = '<option value="">Todos</option>' + allCombs.map(c => `<option value="${c}"${c===prev?' selected':''}>${c}</option>`).join('');
   }
   const combFilter = selEl ? selEl.value : '';
-  const recs = records.filter(r => r.combustivel !== _ARLA && (!combFilter || r.combustivel === combFilter));
+  const recs = _rSessao.filter(r => r.combustivel !== _ARLA && (!combFilter || r.combustivel === combFilter));
 
   // Monta índice de bandeira a partir do cadastro de postos (chave: CNPJ normalizado)
   const cnpjBandMap = {};
@@ -16672,8 +16691,9 @@ function _renderVolProjetado() {
   const prevStart = `${prevY}-${pad(prevM)}-01`;
   const prevEnd   = `${prevY}-${pad(prevM)}-${pad(new Date(prevY, prevM, 0).getDate())}`;
 
-  const currRecs = records.filter(r => r.data >= currStart && r.data <= today && r.combustivel !== _ARLA);
-  const prevRecs = records.filter(r => r.data >= prevStart && r.data <= prevEnd && r.combustivel !== _ARLA);
+  const _rSessao2 = _recordsSessao();
+  const currRecs = _rSessao2.filter(r => r.data >= currStart && r.data <= today && r.combustivel !== _ARLA);
+  const prevRecs = _rSessao2.filter(r => r.data >= prevStart && r.data <= prevEnd && r.combustivel !== _ARLA);
 
   const currVol = currRecs.reduce((s,r) => s+(r.volume||0), 0);
   const prevVol = prevRecs.reduce((s,r) => s+(r.volume||0), 0);
@@ -22394,7 +22414,20 @@ function _selecionarClientePicker(clienteId) {
   if (!c) return;
   if (overlay) overlay.style.display = 'none';
   _setClienteAtivo(c);
-  // Recarrega a aba atual com o novo contexto de cliente
+  // Recarrega todos os dados com o novo contexto de cliente
+  _recarregarDadosCliente();
+}
+
+// Recarrega os dados principais após troca de cliente
+async function _recarregarDadosCliente() {
+  try {
+    await Promise.allSettled([
+      loadAbastecimentos(),
+      loadVeiculos(),
+      loadMotoristas(),
+      loadClientes(),
+    ]);
+  } catch(e) {}
   switchTab('indicadores');
 }
 
