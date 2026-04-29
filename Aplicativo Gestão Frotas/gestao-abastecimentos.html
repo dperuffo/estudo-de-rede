@@ -260,23 +260,19 @@
 
     /* ─── MODAL ─── */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(15,23,42,0.62);
+      position: fixed; inset: 0; background: rgba(15,23,42,0.5);
       display: flex; align-items: center; justify-content: center;
-      z-index: 999; padding: 20px;
-      /* backdrop-filter removido: causava GPU flicker em toda a página */
-      opacity: 0; pointer-events: none; transition: opacity 0.15s;
-      overflow-y: auto;
+      z-index: 999; padding: 20px; backdrop-filter: blur(3px);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
     }
     .modal-overlay.open { opacity: 1; pointer-events: all; }
     .modal {
       background: #fff; border-radius: 14px; width: 100%; max-width: 680px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.28);
-      /* transform transition removida: eliminava GPU compositing desnecessário */
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      transform: translateY(16px); transition: transform 0.2s;
       max-height: 90vh; overflow-y: auto;
-      margin: auto; /* garante centralização mesmo com overflow-y no overlay */
-      flex-shrink: 0;
     }
-    .modal-overlay.open .modal { transform: none; }
+    .modal-overlay.open .modal { transform: translateY(0); }
     .modal-header {
       padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
@@ -1176,19 +1172,6 @@
 </div>
 <!-- fim auth-overlay -->
 
-<!-- ░░ MODAL SELETOR DE CLIENTE (pós-login) ░░ -->
-<div id="cliente-picker-overlay" style="display:none;position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:18px;padding:36px 32px;max-width:520px;width:calc(100% - 40px);box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
-    <div style="width:56px;height:56px;background:#eff6ff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-    </div>
-    <h2 style="font-size:1.25rem;font-weight:700;margin:0 0 6px;color:#111827;">Selecione o Cliente</h2>
-    <p id="cliente-picker-subtitle" style="font-size:0.88rem;color:#6b7280;margin:0 0 24px;">Você tem acesso a mais de um cliente. Selecione com qual deseja trabalhar agora.</p>
-    <div id="cliente-picker-cards" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;text-align:left;margin-bottom:20px;"></div>
-    <p style="font-size:0.78rem;color:#9ca3af;margin:0;">Você poderá trocar de cliente clicando no seu nome no cabeçalho.</p>
-  </div>
-</div>
-
 <!-- ░░ HEADER ░░ -->
 <header>
   <div class="header-brand">
@@ -1220,14 +1203,6 @@
   <div class="header-actions" style="display:flex;align-items:center;gap:10px;">
     <span id="srv-dot" style="padding:5px 12px;background:rgba(255,255,255,0.15);border-radius:20px;font-size:0.78rem;font-weight:600;color:#f59e0b;letter-spacing:0.2px;white-space:nowrap;">● Conectando...</span>
     <!-- Usuário logado -->
-    <!-- Badge do cliente ativo (não-admin) -->
-    <div id="cliente-ativo-badge" style="display:none;align-items:center;gap:6px;
-         background:rgba(255,255,255,0.18);border-radius:20px;padding:5px 14px;cursor:pointer;border:1px solid rgba(255,255,255,0.3);"
-         onclick="_abrirClientePicker()" title="Clique para trocar de cliente">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-      <span id="cliente-ativo-nome" style="font-size:.78rem;font-weight:700;color:#fff;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-      <svg id="cliente-troca-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2.5" style="display:none;"><polyline points="6 9 12 15 18 9"/></svg>
-    </div>
     <div id="auth-user-info" style="display:none;align-items:center;gap:8px;
          background:rgba(255,255,255,0.12);border-radius:20px;padding:5px 14px;">
       <span style="font-size:1rem;">👤</span>
@@ -1281,10 +1256,6 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
         Perfil de Usuário
       </button>
-      <button class="sidebar-item sidebar-subitem" id="side-btn-usuario-cliente" onclick="switchTab('usuario-cliente')" style="display:none">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-        Acesso por Cliente
-      </button>
     </div>
   </div>
 
@@ -1323,7 +1294,22 @@
     Rotograma
   </button>
 
-  <!-- ── Orçamento (grupo colapsável) — inclui Manutenção ── -->
+  <!-- ── Manutenção (grupo colapsável) ── -->
+  <div class="sidebar-group">
+    <button class="sidebar-item sidebar-group-header" id="side-btn-manutencao" onclick="toggleSidebarGroup('manutencao')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Manutenção
+      <svg class="sidebar-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:auto"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="sidebar-submenu" id="sidebar-submenu-manutencao">
+      <button class="sidebar-item sidebar-subitem" id="side-btn-gestao-preditiva" onclick="switchTab('gestao-preditiva')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Gestão Preditiva
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Orçamento (grupo colapsável) ── -->
   <div class="sidebar-group">
     <button class="sidebar-item sidebar-group-header" id="side-btn-orcamento" onclick="toggleSidebarGroup('orcamento')">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h2m2 0h2m2 0h2M7 12h2m4 0h4"/></svg>
@@ -1338,10 +1324,6 @@
       <button class="sidebar-item sidebar-subitem" id="side-btn-custos" onclick="switchTab('custos')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Controle de Custos
-      </button>
-      <button class="sidebar-item sidebar-subitem" id="side-btn-gestao-preditiva" onclick="switchTab('gestao-preditiva')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        Gestão Preditiva
       </button>
     </div>
   </div>
@@ -1738,17 +1720,11 @@
     <!-- Evolutivo de Volume em Postos — Top 5 -->
     <p class="ind-section-title">Evolutivo de Volume em Postos — Top 5</p>
     <div class="chart-panel" style="margin-bottom:24px;">
-      <div class="chart-panel-header" style="gap:12px;flex-wrap:wrap;align-items:center;">
-        <span class="chart-panel-title">Volume (L) por Posto · Top 5</span>
-        <!-- Toggle Mensal / Diário -->
-        <div style="display:flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0;">
-          <button id="evol-btn-mensal" onclick="_evolSetView('mensal')"
-            style="padding:4px 14px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;background:#1d4ed8;color:#fff;transition:all .15s">Mensal</button>
-          <button id="evol-btn-diario" onclick="_evolSetView('diario')"
-            style="padding:4px 14px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;background:var(--bg);color:var(--text-muted);transition:all .15s">Diário</button>
-        </div>
+      <!-- barra de filtro de combustível -->
+      <div class="chart-panel-header" style="gap:14px;flex-wrap:wrap;">
+        <span class="chart-panel-title">Volume (L) por Mês · Filtrar por Combustível:</span>
         <select id="ind-evol-combustivel"
-          style="height:30px;padding:0 10px;border-radius:7px;border:1.5px solid var(--border);font-size:0.82rem;background:#fff;color:var(--text);min-width:160px;"
+          style="height:30px;padding:0 10px;border-radius:7px;border:1.5px solid var(--border);font-size:0.82rem;background:#fff;color:var(--text);min-width:180px;"
           onchange="_renderEvolPostos()">
           <option value="">Todos os Combustíveis</option>
         </select>
@@ -3021,190 +2997,6 @@
         </div>
         <!-- fim param-card Hodômetro Pesados -->
 
-        <!-- ── PARÂMETRO: DIAS E HORÁRIOS PERMITIDOS PARA ABASTECIMENTO ── -->
-        <div class="param-card" style="grid-column:1/-1">
-          <div class="param-card-header">
-            <div class="param-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Dias e Horários Permitidos para Abastecimento
-            </div>
-            <button onclick="openRestricaoModal()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(255,255,255,0.18);color:#fff;border:1.5px solid rgba(255,255,255,0.4);border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Nova Restrição
-            </button>
-          </div>
-          <div class="param-card-body">
-            <p style="font-size:0.83rem;color:var(--text-muted);margin:0 0 16px">
-              Define os dias da semana e horários em que o abastecimento é permitido para cada combinação de cliente, veículo, classificação e motorista. Abastecimentos fora dos horários definidos serão <strong>bloqueados</strong>.
-            </p>
-            <!-- Estatísticas rápidas -->
-            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-              <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px 16px;min-width:100px;text-align:center;">
-                <div id="rh-stat-total" style="font-size:1.4rem;font-weight:800;color:#0369a1">—</div>
-                <div style="font-size:0.73rem;color:#0369a1;font-weight:600;">Total</div>
-              </div>
-              <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:10px 16px;min-width:100px;text-align:center;">
-                <div id="rh-stat-ativos" style="font-size:1.4rem;font-weight:800;color:#15803d">—</div>
-                <div style="font-size:0.73rem;color:#15803d;font-weight:600;">Ativos</div>
-              </div>
-              <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:10px;padding:10px 16px;min-width:100px;text-align:center;">
-                <div id="rh-stat-inativos" style="font-size:1.4rem;font-weight:800;color:#dc2626">—</div>
-                <div style="font-size:0.73rem;color:#dc2626;font-weight:600;">Inativos</div>
-              </div>
-            </div>
-            <!-- Filtros -->
-            <div class="param-filter-row">
-              <div class="form-group">
-                <label>Cliente</label>
-                <select id="rh-f-cliente" onchange="renderRestricoesHorario()">
-                  <option value="">Todos os clientes</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Classificação</label>
-                <select id="rh-f-class" onchange="renderRestricoesHorario()">
-                  <option value="">Todos</option>
-                  <option value="Leve">Leve</option>
-                  <option value="Pesado">Pesado</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Veículo (Placa)</label>
-                <select id="rh-f-placa" onchange="renderRestricoesHorario()">
-                  <option value="">Todos</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Motorista</label>
-                <select id="rh-f-motorista" onchange="renderRestricoesHorario()">
-                  <option value="">Todos</option>
-                </select>
-              </div>
-              <div class="form-group" style="flex:0 0 130px">
-                <label>Status</label>
-                <select id="rh-f-status" onchange="renderRestricoesHorario()">
-                  <option value="">Todos</option>
-                  <option value="1">Ativo</option>
-                  <option value="0">Inativo</option>
-                </select>
-              </div>
-              <div style="display:flex;gap:8px;align-items:flex-end">
-                <button onclick="rhLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
-              </div>
-            </div>
-            <div id="rh-empty" class="vl-empty" style="display:none">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;color:var(--text-muted)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <p>Nenhuma restrição cadastrada. Clique em <strong>Nova Restrição</strong> para definir os dias e horários permitidos.</p>
-            </div>
-            <div id="rh-table-wrap" style="display:none;overflow-x:auto">
-              <table class="vinculos-table">
-                <thead><tr>
-                  <th>Cliente</th>
-                  <th>Classificação</th>
-                  <th>Veículo</th>
-                  <th>Motorista</th>
-                  <th>Dias Permitidos</th>
-                  <th>Horário</th>
-                  <th>Status</th>
-                  <th>Observação</th>
-                  <th style="text-align:right">Ações</th>
-                </tr></thead>
-                <tbody id="rh-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <!-- fim param-card Dias e Horários -->
-
-        <!-- ── POSTOS PERMITIDOS PARA ABASTECIMENTO ── -->
-        <div class="param-card" style="grid-column:1/-1">
-          <div class="param-card-header">
-            <div class="param-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
-              Postos Permitidos para Abastecimento
-            </div>
-            <button class="btn btn-primary" style="background:#fff;color:#1d4ed8;border:1.5px solid #93c5fd;font-size:0.82rem;" onclick="openRestricaoPostoModal()">
-              + Nova Restrição
-            </button>
-          </div>
-          <div class="param-card-body">
-            <!-- KPI Row -->
-            <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
-              <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
-                <div id="rp-stat-total" style="font-size:1.4rem;font-weight:800;color:#0369a1">—</div>
-                <div style="font-size:0.72rem;color:#0369a1;font-weight:600;text-transform:uppercase;margin-top:2px;">Total</div>
-              </div>
-              <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
-                <div id="rp-stat-ativos" style="font-size:1.4rem;font-weight:800;color:#15803d">—</div>
-                <div style="font-size:0.72rem;color:#15803d;font-weight:600;text-transform:uppercase;margin-top:2px;">Ativos</div>
-              </div>
-              <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:10px 18px;min-width:110px;text-align:center;">
-                <div id="rp-stat-inativos" style="font-size:1.4rem;font-weight:800;color:#dc2626">—</div>
-                <div style="font-size:0.72rem;color:#dc2626;font-weight:600;text-transform:uppercase;margin-top:2px;">Inativos</div>
-              </div>
-            </div>
-            <!-- Filtros -->
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end;">
-              <div style="display:flex;flex-direction:column;gap:3px;min-width:150px;">
-                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Cliente</label>
-                <select id="rp-f-cliente" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
-                  <option value="">Todos</option>
-                </select>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:3px;min-width:120px;">
-                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Veículo</label>
-                <select id="rp-f-placa" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
-                  <option value="">Todos</option>
-                </select>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:3px;min-width:140px;">
-                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Motorista</label>
-                <select id="rp-f-motorista" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
-                  <option value="">Todos</option>
-                </select>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:3px;min-width:140px;">
-                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Posto</label>
-                <select id="rp-f-posto" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
-                  <option value="">Todos</option>
-                </select>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:3px;min-width:100px;">
-                <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Status</label>
-                <select id="rp-f-status" class="form-input" style="font-size:0.82rem;padding:6px 10px;" onchange="renderRestricoesPosto()">
-                  <option value="">Todos</option>
-                  <option value="1">Ativo</option>
-                  <option value="0">Inativo</option>
-                </select>
-              </div>
-              <div style="display:flex;gap:8px;align-items:flex-end">
-                <button onclick="rpLimparFiltros()" style="padding:8px 12px;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);border-radius:8px;font-size:0.82rem;cursor:pointer;">Limpar</button>
-              </div>
-            </div>
-            <div id="rp-empty" class="vl-empty" style="display:none">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;color:var(--text-muted)"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
-              <p>Nenhuma restrição cadastrada. Clique em <strong>Nova Restrição</strong> para definir os postos permitidos.</p>
-            </div>
-            <div id="rp-table-wrap" style="display:none;overflow-x:auto">
-              <table class="vinculos-table">
-                <thead><tr>
-                  <th>Cliente</th>
-                  <th>Classificação</th>
-                  <th>Veículo</th>
-                  <th>Motorista</th>
-                  <th>Posto</th>
-                  <th>Limite</th>
-                  <th>Status</th>
-                  <th>Observação</th>
-                  <th style="text-align:right">Ações</th>
-                </tr></thead>
-                <tbody id="rp-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <!-- fim param-card Postos Permitidos -->
-
       </div><!-- /param-section -->
 
     </div>
@@ -3526,16 +3318,10 @@
           </div>
         </div>
 
-        <!-- Cliente + Dados do Veículo -->
+        <!-- Dados do Veículo -->
         <div id="roteiz-smart-fields" style="padding:12px 16px;border-bottom:1px solid var(--border);">
           <div style="font-weight:700;color:var(--text);margin-bottom:4px;font-size:0.82rem;text-transform:uppercase;letter-spacing:.04em;">Dados do Veículo</div>
           <div style="font-size:0.73rem;color:var(--text-muted);margin-bottom:8px;">Opcional — usado para calcular paradas de abastecimento ideais</div>
-          <div class="form-group" style="margin-bottom:8px;">
-            <label class="form-label">Cliente</label>
-            <select id="roteiz-cliente-sel" class="form-input" onchange="_roteizClienteChanged()">
-              <option value="">— Todos os clientes —</option>
-            </select>
-          </div>
           <div class="form-group" style="margin-bottom:8px;">
             <label class="form-label">Placa do Veículo</label>
             <select id="roteiz-placa" class="form-input" onchange="preencherDadosVeiculoRoteiz()">
@@ -3626,10 +3412,6 @@
           <button id="roteiz-salvar-btn" class="btn btn-sm" style="background:#fef9c3;color:#854d0e;border:1.5px solid #fde047;" onclick="salvarRoteizRota()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             <span id="roteiz-salvar-label">Salvar</span>
-          </button>
-          <button id="roteiz-nova-rota-btn" class="btn btn-sm" style="display:none;background:#f0fdf4;color:#15803d;border:1.5px solid #86efac;" onclick="limparRoteiz()" title="Limpar rota atual e iniciar uma nova">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nova Rota
           </button>
           <button class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="fecharDetailSheet()">✕</button>
         </div>
@@ -4543,62 +4325,6 @@
     </div>
   </div><!-- /view-perfil-usuario -->
 
-  <!-- ░░ ACESSO POR CLIENTE (Associação Usuário ↔ Cliente) ░░ -->
-  <div id="view-usuario-cliente" style="display:none">
-    <div class="panel">
-      <div class="motorista-panel-header">
-        <div class="panel-title">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-          Acesso por Cliente — Associação de Usuários
-        </div>
-        <div style="color:var(--text-muted);font-size:0.82rem;max-width:540px;line-height:1.5;">
-          Defina quais clientes cada usuário pode visualizar ao fazer login. Usuários sem associação não terão acesso a nenhum cliente.
-        </div>
-      </div>
-
-      <!-- Seletor de usuário -->
-      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:var(--bg-alt,#f9fafb);border-radius:10px;border:1.5px solid var(--border);">
-        <div style="flex:1;min-width:220px;">
-          <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:5px;">Usuário</label>
-          <select id="uc-sel-usuario" class="form-input" onchange="ucCarregarAssociacoes()" style="width:100%;">
-            <option value="">— Selecione um usuário —</option>
-          </select>
-        </div>
-        <div style="flex:1;min-width:220px;">
-          <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:5px;">Adicionar Cliente</label>
-          <div style="display:flex;gap:6px;">
-            <select id="uc-sel-cliente" class="form-input" style="flex:1;">
-              <option value="">— Selecione o cliente —</option>
-            </select>
-            <button class="btn btn-primary btn-sm" onclick="ucAdicionarAssociacao()" title="Adicionar associação">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Adicionar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Lista de clientes do usuário selecionado -->
-      <div id="uc-lista-wrap" style="display:none">
-        <div style="font-size:0.85rem;font-weight:600;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-          <span id="uc-usuario-nome-label">—</span>
-          — Clientes com acesso liberado
-        </div>
-        <div id="uc-empty" style="display:none;padding:30px;text-align:center;color:var(--text-muted);background:var(--bg-alt,#f9fafb);border-radius:8px;border:1.5px dashed var(--border);">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-          <p style="margin:0;">Nenhum cliente associado. Use o seletor acima para adicionar clientes.</p>
-        </div>
-        <div id="uc-cards" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
-      </div>
-
-      <div id="uc-sem-usuario" style="text-align:center;padding:50px 20px;color:var(--text-muted);">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <p style="margin-top:12px;">Selecione um usuário para gerenciar seus clientes de acesso.</p>
-      </div>
-    </div>
-  </div><!-- /view-usuario-cliente -->
-
 </div><!-- /content-area -->
 </div><!-- /app-wrapper -->
 
@@ -4878,238 +4604,6 @@
       <button class="btn btn-success" onclick="saveHodoVariacao()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         Salvar Regra
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ░░ MODAL DIAS E HORÁRIOS PERMITIDOS PARA ABASTECIMENTO ░░ -->
-<div class="modal-overlay" id="restricaoHorarioModalOverlay" onclick="if(event.target===this)closeRestricaoModal()">
-  <div class="modal" style="max-width:560px">
-    <div class="modal-header">
-      <h2 class="modal-title" id="restricaoHorarioModalTitle">Nova Restrição de Horário</h2>
-      <button class="modal-close" onclick="closeRestricaoModal()">×</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
-      <input type="hidden" id="rh-edit-id">
-      <!-- Cliente -->
-      <div class="form-group">
-        <label class="form-label">Cliente</label>
-        <select id="rh-m-cliente" class="form-input" onchange="rhModalOnClienteChange()">
-          <option value="">Todos os clientes</option>
-        </select>
-      </div>
-      <!-- Classificação + Veículo -->
-      <div class="form-row">
-        <div class="form-group" style="flex:0 0 160px">
-          <label class="form-label">Classificação</label>
-          <select id="rh-m-class" class="form-input" onchange="rhModalOnClassChange()">
-            <option value="Todos">Todos</option>
-            <option value="Leve">Leve</option>
-            <option value="Pesado">Pesado</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Veículo (Placa)</label>
-          <select id="rh-m-placa" class="form-input">
-            <option value="">Todos os veículos</option>
-          </select>
-        </div>
-      </div>
-      <!-- Motorista -->
-      <div class="form-group">
-        <label class="form-label">Motorista</label>
-        <select id="rh-m-motorista" class="form-input">
-          <option value="">Todos os motoristas</option>
-        </select>
-      </div>
-      <!-- Dias da semana -->
-      <div class="form-group">
-        <label class="form-label">Dias Permitidos <span style="color:#dc2626">*</span></label>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;" id="rh-m-dias-container">
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-seg">
-            <input type="checkbox" value="seg" onchange="rhDayToggle(this)"> Seg
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-ter">
-            <input type="checkbox" value="ter" onchange="rhDayToggle(this)"> Ter
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-qua">
-            <input type="checkbox" value="qua" onchange="rhDayToggle(this)"> Qua
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-qui">
-            <input type="checkbox" value="qui" onchange="rhDayToggle(this)"> Qui
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-sex">
-            <input type="checkbox" value="sex" onchange="rhDayToggle(this)"> Sex
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-sab">
-            <input type="checkbox" value="sab" onchange="rhDayToggle(this)"> Sáb
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:0.83rem;user-select:none;" id="rh-day-dom">
-            <input type="checkbox" value="dom" onchange="rhDayToggle(this)"> Dom
-          </label>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:6px;">
-          <button type="button" onclick="rhSelecionarDias('util')" style="font-size:0.76rem;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;color:var(--text-muted);">Dias Úteis</button>
-          <button type="button" onclick="rhSelecionarDias('todos')" style="font-size:0.76rem;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;color:var(--text-muted);">Todos</button>
-          <button type="button" onclick="rhSelecionarDias('nenhum')" style="font-size:0.76rem;padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;color:var(--text-muted);">Nenhum</button>
-        </div>
-      </div>
-      <!-- Horários -->
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Hora Início <span style="color:#dc2626">*</span></label>
-          <input type="time" id="rh-m-hora-inicio" class="form-input" value="00:00">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Hora Fim <span style="color:#dc2626">*</span></label>
-          <input type="time" id="rh-m-hora-fim" class="form-input" value="23:59">
-        </div>
-        <div class="form-group" style="flex:0 0 130px">
-          <label class="form-label">Status</label>
-          <select id="rh-m-ativo" class="form-input">
-            <option value="1">Ativo</option>
-            <option value="0">Inativo</option>
-          </select>
-        </div>
-      </div>
-      <!-- Observação -->
-      <div class="form-group">
-        <label class="form-label">Observação</label>
-        <input type="text" id="rh-m-obs" class="form-input" placeholder="Observação opcional">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeRestricaoModal()">Cancelar</button>
-      <button class="btn btn-success" onclick="saveRestricao()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        Salvar Restrição
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ░░ MODAL RESTRIÇÃO DE POSTO ░░ -->
-<div class="modal-overlay" id="restricaoPostoModalOverlay" onclick="if(event.target===this)closeRestricaoPostoModal()">
-  <div class="modal" style="max-width:600px;width:95vw;">
-    <div class="modal-header">
-      <h2 class="modal-title" id="restricaoPostoModalTitle">Nova Restrição de Posto</h2>
-      <button class="modal-close" onclick="closeRestricaoPostoModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="rp-edit-id">
-      <!-- Cliente -->
-      <div class="form-group">
-        <label class="form-label">Cliente</label>
-        <select id="rp-m-cliente" class="form-input" onchange="rpModalOnClienteChange()">
-          <option value="">Todos os clientes</option>
-        </select>
-      </div>
-      <!-- Classificação + Veículo -->
-      <div class="form-row">
-        <div class="form-group" style="flex:0 0 160px">
-          <label class="form-label">Classificação</label>
-          <select id="rp-m-class" class="form-input" onchange="rpModalOnClassChange()">
-            <option value="Todos">Todos</option>
-            <option value="Leve">Leve</option>
-            <option value="Pesado">Pesado</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Veículo (Placa)</label>
-          <select id="rp-m-placa" class="form-input">
-            <option value="">Todos os veículos</option>
-          </select>
-        </div>
-      </div>
-      <!-- Motorista -->
-      <div class="form-group">
-        <label class="form-label">Motorista</label>
-        <select id="rp-m-motorista" class="form-input">
-          <option value="">Todos os motoristas</option>
-        </select>
-      </div>
-      <!-- Postos (multi-seleção com checkboxes) -->
-      <div class="form-group">
-        <!-- Cabeçalho: label + contador -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <label class="form-label" style="margin:0;">
-            Postos Permitidos <span style="color:#dc2626">*</span>
-          </label>
-          <span id="rp-m-postos-count"
-            style="font-size:0.75rem;font-weight:700;padding:2px 10px;border-radius:20px;background:#eff6ff;color:#2563eb;"></span>
-        </div>
-
-        <!-- Barra de busca -->
-        <div style="position:relative;margin-bottom:6px;">
-          <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted);"
-            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input type="text" id="rp-m-postos-search" class="form-input"
-            style="padding:8px 10px 8px 32px;font-size:0.83rem;width:100%;"
-            placeholder="Buscar por nome, CNPJ, cidade ou UF..."
-            oninput="rpFiltrarPostosModal()">
-          <button type="button" id="rp-m-postos-search-clear"
-            onclick="document.getElementById('rp-m-postos-search').value='';rpFiltrarPostosModal()"
-            style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);
-                   background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;line-height:1;padding:2px 4px;">✕</button>
-        </div>
-
-        <!-- Ações rápidas + resultado de busca -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <span id="rp-m-postos-found" style="font-size:0.72rem;color:var(--text-muted);"></span>
-          <div style="display:flex;gap:4px;">
-            <button type="button"
-              style="padding:3px 10px;font-size:0.75rem;font-weight:600;background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;border-radius:6px;cursor:pointer;"
-              onclick="rpSelecionarTodosPostos(true)">✓ Todos visíveis</button>
-            <button type="button"
-              style="padding:3px 10px;font-size:0.75rem;font-weight:600;background:#f8fafc;color:#64748b;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;"
-              onclick="rpSelecionarTodosPostos(false)">✕ Limpar</button>
-          </div>
-        </div>
-
-        <!-- Lista de checkboxes -->
-        <div id="rp-m-postos-list"
-          style="max-height:220px;overflow-y:auto;border:1.5px solid var(--border);border-radius:10px;background:#fff;">
-          <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.82rem;">Carregando postos...</div>
-        </div>
-      </div>
-      <!-- Tipo de limite + Valor -->
-      <div class="form-row">
-        <div class="form-group" style="flex:0 0 180px">
-          <label class="form-label">Tipo de Limite</label>
-          <select id="rp-m-limite-tipo" class="form-input" onchange="rpToggleLimiteValor()">
-            <option value="nenhum">Sem limite</option>
-            <option value="valor">Valor máximo (R$)</option>
-            <option value="volume">Volume máximo (L)</option>
-          </select>
-        </div>
-        <div class="form-group" id="rp-m-limite-valor-group" style="display:none">
-          <label class="form-label" id="rp-m-limite-valor-label">Valor Máximo</label>
-          <input type="number" id="rp-m-limite-valor" class="form-input" min="0" step="0.01" placeholder="0,00">
-        </div>
-      </div>
-      <!-- Status + Observação -->
-      <div class="form-row">
-        <div class="form-group" style="flex:0 0 140px">
-          <label class="form-label">Status</label>
-          <select id="rp-m-ativo" class="form-input">
-            <option value="1">Ativo</option>
-            <option value="0">Inativo</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Observação</label>
-          <input type="text" id="rp-m-obs" class="form-input" placeholder="Observação opcional">
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeRestricaoPostoModal()">Cancelar</button>
-      <button class="btn btn-success" onclick="saveRestricaoPosto()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        Salvar Restrição
       </button>
     </div>
   </div>
@@ -5460,23 +4954,9 @@
             <input type="number" id="pv-f-preco-comb" class="form-control" min="0" step="0.001" placeholder="0.000" oninput="_pvCalcTotais()" />
           </div>
           <div class="form-group">
-            <label>Custo Combustível <span style="background:#fef9c3;color:#854d0e;border:1px solid #fde047;border-radius:4px;padding:1px 6px;font-size:0.7rem;font-weight:700;">ESTIMADO</span></label>
+            <label>Custo Combustível (R$)</label>
             <input type="number" id="pv-f-custo-comb" class="form-control" style="background:#fef9c3;font-weight:700;" readonly placeholder="Calculado" />
           </div>
-        </div>
-        <!-- Combustível Real -->
-        <div style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:160px;">
-            <div style="font-size:0.75rem;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">⛽ Combustível Real (do Controle de Custos)</div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span id="pv-combustivel-real-valor" style="font-size:1.1rem;font-weight:800;color:#c2410c;">—</span>
-              <span id="pv-combustivel-real-diff" style="font-size:0.78rem;color:var(--text-muted);"></span>
-            </div>
-            <div id="pv-combustivel-real-info" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;"></div>
-          </div>
-          <button id="pv-btn-revisar-comb" class="btn btn-sm" style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;white-space:nowrap;" onclick="_pvRevisarCombustivel()">
-            🔄 Revisar
-          </button>
         </div>
       </div>
 
@@ -5552,7 +5032,6 @@
           <div class="form-group">
             <label style="color:rgba(255,255,255,0.8);">Custo Total Real (R$)</label>
             <input type="number" id="pv-f-total-real" class="form-control" style="background:rgba(255,255,255,0.15);color:white;border-color:rgba(255,255,255,0.3);" min="0" step="0.01" placeholder="Preencher após a viagem" />
-            <div style="font-size:0.7rem;opacity:0.7;margin-top:3px;">💡 Use "Revisar" em Combustível para atualizar com os dados reais</div>
           </div>
         </div>
       </div>
@@ -6216,26 +5695,6 @@
               <span id="f-posto-uf-count"
                 style="font-size:0.75rem;color:#2563eb;font-weight:700;white-space:nowrap;
                        background:#dbeafe;padding:3px 9px;border-radius:20px;display:none;"></span>
-            </div>
-          </div>
-
-          <!-- ── Banner de restrição de postos ── -->
-          <div class="form-group span2" id="f-posto-restricao-wrap" style="display:none;">
-            <div id="f-posto-restricao-banner" style="display:flex;align-items:flex-start;gap:10px;padding:10px 13px;
-                border-radius:9px;flex-wrap:wrap;border:1.5px solid #fbbf24;background:#fffbeb;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" style="flex-shrink:0;margin-top:1px;">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:0.78rem;font-weight:700;color:#92400e;" id="f-posto-restricao-titulo">
-                  Postos permitidos por restrição parametrizada
-                </div>
-                <div style="font-size:0.75rem;color:#78350f;margin-top:2px;line-height:1.5;" id="f-posto-restricao-detalhe"></div>
-              </div>
-              <span id="f-posto-restricao-badge"
-                style="font-size:0.72rem;font-weight:700;white-space:nowrap;padding:2px 9px;
-                       border-radius:20px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;flex-shrink:0;"></span>
             </div>
           </div>
 
@@ -7213,35 +6672,15 @@ function _clienteNome(id) {
 
 // Popula todos os <select> de filtro de cliente na página
 function _refreshClienteSelects() {
-  // Para usuários não-admin com cliente ativo, limita a lista ao(s) cliente(s) deles
-  const isAdmin = _currentUser?.is_admin;
-  const ativos = (_clientes || []).filter(c => c.status === 'Ativo');
-  const clientesVisiveis = (!isAdmin && _currentUser?.clientes?.length)
-    ? ativos.filter(c => (_currentUser.clientes || []).some(uc => uc.id === c.id))
-    : ativos;
-
   const opts = '<option value="">Todos os clientes</option>' +
-    clientesVisiveis.map(c =>
+    (_clientes || []).filter(c => c.status === 'Ativo').map(c =>
       `<option value="${c.id}">${c.razao_social}</option>`).join('');
   ['f-cliente','v-f-cliente','m-f-cliente','neg-f-cliente',
    'iv-f-cliente','vd-f-cliente2','vol-f-cliente','pa-f-cliente',
    'hodo-leve-f-cliente','hodo-pesado-f-cliente',
-   'roto-f-cliente','pv-f-cliente','seg-f-cliente','roteiz-f-cliente',
-   'rh-f-cliente','rh-m-cliente',
-   'rp-f-cliente','rp-m-cliente',
-   'roteiz-cliente-sel'].forEach(id => {
+   'roto-f-cliente','pv-f-cliente','seg-f-cliente','roteiz-f-cliente'].forEach(id => {
     const sel = document.getElementById(id);
-    if (!sel) return;
-    const v = sel.value;
-    sel.innerHTML = opts;
-    // Se usuário tem cliente ativo bloqueado, força o valor e desabilita
-    if (!isAdmin && _clienteAtualId) {
-      sel.value    = String(_clienteAtualId);
-      sel.disabled = true;
-    } else {
-      sel.value    = v;
-      sel.disabled = false;
-    }
+    if (sel) { const v = sel.value; sel.innerHTML = opts; sel.value = v; }
   });
   // Modal salvar rota — usa opção "Selecione" em vez de "Todos"
   const salvarSel = document.getElementById('roteiz-salvar-cliente');
@@ -7267,28 +6706,20 @@ function _refreshClienteSelects() {
 
 // ── Shared client row for all modals ──────────────────────────
 function _clienteRowHtml(selectedId) {
-  const isAdmin = _currentUser?.is_admin;
-  // Para não-admin com cliente ativo, força o cliente da sessão
-  const effectiveId = (!isAdmin && _clienteAtualId) ? _clienteAtualId : selectedId;
   const ativos  = (_clientes || []).filter(c => c.status === 'Ativo');
-  // Filtra opções pelos clientes do usuário (não-admin)
-  const optsSource = (!isAdmin && _currentUser?.clientes?.length)
-    ? ativos.filter(c => (_currentUser.clientes || []).some(uc => uc.id === c.id))
-    : ativos;
-  const opts    = optsSource.map(c =>
-    `<option value="${c.id}" ${c.id === effectiveId ? 'selected' : ''}>${c.razao_social}</option>`
+  const opts    = ativos.map(c =>
+    `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.razao_social}</option>`
   ).join('');
-  const hasClient = effectiveId && ativos.some(c => c.id === effectiveId);
+  const hasClient = selectedId && ativos.some(c => c.id === selectedId);
   const bg     = hasClient ? '#eff6ff' : '#fff7ed';
   const border = hasClient ? '#bfdbfe' : '#fed7aa';
   const color  = hasClient ? '#1e40af' : '#9a3412';
   const stroke = hasClient ? '#2563eb' : '#c2410c';
-  const disabled = (!isAdmin && _clienteAtualId) ? 'disabled' : '';
   return `<div id="_modal-cli-row" style="display:flex;align-items:center;gap:8px;background:${bg};border:1.5px solid ${border};border-radius:8px;padding:7px 12px;margin-bottom:12px;flex-wrap:wrap;">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
     <label style="font-size:0.78rem;font-weight:700;color:${color};white-space:nowrap;">Cliente *</label>
     <select id="_modal-cli-sel" style="flex:1;min-width:160px;padding:4px 8px;border:1.5px solid ${border};border-radius:6px;font-size:0.82rem;background:#fff;"
-      onchange="_onModalClienteChange()" ${disabled}>
+      onchange="_onModalClienteChange()">
       <option value="">— Selecionar Cliente —</option>
       ${opts}
     </select>
@@ -7490,16 +6921,13 @@ async function apiCall(method, path, body = null, timeoutMs = 5000) {
 }
 
 async function loadAbastecimentos() {
-  // Para não-admins com cliente activo, filtra no servidor para não expor
-  // dados de outros clientes em memória.
+  // Usa fetch direto (sem apiCall) para garantir que records contenha
+  // TODOS os abastecimentos, sem injeção de cliente_id.
+  // A filtragem por cliente na listagem é feita localmente via filteredRecords.
   try {
     const _h = { 'Content-Type': 'application/json' };
     if (_authToken) _h['Authorization'] = `Bearer ${_authToken}`;
-    let url = `${API_BASE}/api/abastecimentos`;
-    if (_clienteAtualId && _currentUser && !_currentUser.is_admin) {
-      url += `?cliente_id=${_clienteAtualId}`;
-    }
-    const _r = await fetch(url, { method: 'GET', headers: _h });
+    const _r = await fetch(`${API_BASE}/api/abastecimentos`, { method: 'GET', headers: _h });
     if (!_r.ok) throw new Error(`HTTP ${_r.status}`);
     const rows = await _r.json();
     records = rows.map(mapAbast);
@@ -7612,13 +7040,7 @@ let _editClienteId = null;
 async function loadClientes() {
   try {
     const rows  = await apiCall('GET', '/api/clientes');
-    let allRows = rows || [];
-    // Não-admin: filtra somente os clientes aos quais o usuário está associado
-    if (_currentUser && !_currentUser.is_admin && _currentUser.clientes?.length) {
-      const ids = new Set(_currentUser.clientes.map(c => c.id));
-      allRows = allRows.filter(c => ids.has(c.id));
-    }
-    _clientes = allRows;
+    _clientes   = rows || [];
   } catch(e) { _clientes = []; }
   _clientesFilt = [..._clientes];
   renderClientesKpis();
@@ -7831,841 +7253,6 @@ async function excluirCliente(id, nome) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  DIAS E HORÁRIOS PERMITIDOS PARA ABASTECIMENTO
-// ═══════════════════════════════════════════════════════════════
-let restricoesHorario = [];
-
-const _RH_DIAS_LABEL = { seg:'Seg', ter:'Ter', qua:'Qua', qui:'Qui', sex:'Sex', sab:'Sáb', dom:'Dom' };
-const _RH_DIAS_ORDER = ['seg','ter','qua','qui','sex','sab','dom'];
-
-async function loadRestricoesHorario() {
-  try {
-    const rows = await apiCall('GET', '/api/restricoes-horario');
-    restricoesHorario = (rows || []).map(r => ({
-      ...r,
-      dias_semana: typeof r.dias_semana === 'string' ? JSON.parse(r.dias_semana || '[]') : (r.dias_semana || [])
-    }));
-  } catch(e) { /* offline */ }
-  _rhPopulateFiltros();
-  renderRestricoesHorario();
-}
-
-function _rhPopulateFiltros() {
-  // Clientes — usa _clientes global para listar todos, não só os que têm restrição
-  const selCli = document.getElementById('rh-f-cliente');
-  if (selCli) {
-    const cur = selCli.value;
-    const lista = (_clientes || []).filter(c => c.status === 'Ativo');
-    selCli.innerHTML = '<option value="">Todos os clientes</option>' +
-      lista.map(c => `<option value="${c.id}">${escHtml(c.razao_social||'')}</option>`).join('');
-    if (lista.some(c => String(c.id) === cur)) selCli.value = cur;
-  }
-  // Placas
-  const selPl = document.getElementById('rh-f-placa');
-  if (selPl) {
-    const cur = selPl.value;
-    const pls = [...new Set(restricoesHorario.filter(r => r.placa).map(r => r.placa))].sort();
-    selPl.innerHTML = '<option value="">Todos</option>' + pls.map(p => `<option value="${p}">${p}</option>`).join('');
-    selPl.value = cur;
-  }
-  // Motoristas
-  const selMot = document.getElementById('rh-f-motorista');
-  if (selMot) {
-    const cur = selMot.value;
-    const mots = [...new Set(restricoesHorario.filter(r => r.motorista).map(r => r.motorista))].sort();
-    selMot.innerHTML = '<option value="">Todos</option>' + mots.map(m => `<option value="${m}">${escHtml(m)}</option>`).join('');
-    selMot.value = cur;
-  }
-}
-
-function renderRestricoesHorario() {
-  const filtCli  = document.getElementById('rh-f-cliente')?.value  || '';
-  const filtClass = document.getElementById('rh-f-class')?.value   || '';
-  const filtPl   = document.getElementById('rh-f-placa')?.value    || '';
-  const filtMot  = document.getElementById('rh-f-motorista')?.value || '';
-  const filtSt   = document.getElementById('rh-f-status')?.value   || '';
-
-  let lista = [...restricoesHorario];
-  if (filtCli)   lista = lista.filter(r => String(r.cliente_id) === filtCli);
-  if (filtClass) lista = lista.filter(r => r.classificacao === filtClass || r.classificacao === 'Todos');
-  if (filtPl)    lista = lista.filter(r => r.placa === filtPl);
-  if (filtMot)   lista = lista.filter(r => r.motorista === filtMot);
-  if (filtSt !== '') lista = lista.filter(r => String(r.ativo ? '1' : '0') === filtSt);
-
-  // Estatísticas (do total, sem filtros)
-  const tot = restricoesHorario.length;
-  const atv = restricoesHorario.filter(r => r.ativo).length;
-  const ina = tot - atv;
-  const eTotal   = document.getElementById('rh-stat-total');
-  const eAtivos  = document.getElementById('rh-stat-ativos');
-  const eInativos= document.getElementById('rh-stat-inativos');
-  if (eTotal)    eTotal.textContent    = tot;
-  if (eAtivos)   eAtivos.textContent   = atv;
-  if (eInativos) eInativos.textContent = ina;
-
-  const tbody = document.getElementById('rh-tbody');
-  const empty = document.getElementById('rh-empty');
-  const wrap  = document.getElementById('rh-table-wrap');
-  if (!tbody) return;
-
-  if (!lista.length) {
-    if (empty) empty.style.display = '';
-    if (wrap)  wrap.style.display  = 'none';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-  if (wrap)  wrap.style.display  = '';
-
-  tbody.innerHTML = lista.map(r => {
-    const dias = (r.dias_semana || []);
-    const diasLabel = dias.length === 7 ? 'Todos os dias' :
-      dias.length === 0 ? '—' :
-      dias.map(d => _RH_DIAS_LABEL[d] || d).join(', ');
-    return `<tr>
-      <td style="min-width:110px">${r.cliente_id ? _clienteNome(r.cliente_id) : '<em style="color:var(--text-muted)">Todos</em>'}</td>
-      <td>${escHtml(r.classificacao||'Todos')}</td>
-      <td>${r.placa ? `<span class="plate">${escHtml(r.placa)}</span>` : '<em style="color:var(--text-muted)">Todos</em>'}</td>
-      <td>${r.motorista ? escHtml(r.motorista) : '<em style="color:var(--text-muted)">Todos</em>'}</td>
-      <td style="font-size:0.82rem">${escHtml(diasLabel)}</td>
-      <td style="white-space:nowrap">${escHtml(r.hora_inicio||'00:00')} – ${escHtml(r.hora_fim||'23:59')}</td>
-      <td><span style="background:${r.ativo?'#dcfce7':'#f1f5f9'};color:${r.ativo?'#15803d':'#64748b'};padding:2px 8px;border-radius:10px;font-size:0.76rem;font-weight:700">${r.ativo?'Ativo':'Inativo'}</span></td>
-      <td style="color:var(--text-muted);font-size:0.83rem">${escHtml(r.observacao||'—')}</td>
-      <td style="text-align:right;white-space:nowrap">
-        <div style="display:inline-flex;gap:4px">
-          <button class="btn btn-sm btn-outline" onclick="openRestricaoModal(${r.id})">✎ Editar</button>
-          <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5" onclick="deleteRestricao(${r.id})">✕</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function rhLimparFiltros() {
-  ['rh-f-cliente','rh-f-class','rh-f-placa','rh-f-motorista','rh-f-status'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  renderRestricoesHorario();
-}
-
-function rhDayToggle(cb) {
-  const lbl = cb.closest('label');
-  if (lbl) lbl.style.background = cb.checked ? '#dbeafe' : '';
-  if (lbl) lbl.style.borderColor = cb.checked ? '#3b82f6' : '';
-}
-
-function rhSelecionarDias(tipo) {
-  const uteis = ['seg','ter','qua','qui','sex'];
-  _RH_DIAS_ORDER.forEach(d => {
-    const cb = document.querySelector(`#rh-day-${d} input`);
-    if (!cb) return;
-    cb.checked = tipo === 'todos' ? true : tipo === 'util' ? uteis.includes(d) : false;
-    rhDayToggle(cb);
-  });
-}
-
-function _rhGetDiasSelecionados() {
-  return _RH_DIAS_ORDER.filter(d => {
-    const cb = document.querySelector(`#rh-day-${d} input`);
-    return cb && cb.checked;
-  });
-}
-
-function _rhSetDiasSelecionados(dias) {
-  _RH_DIAS_ORDER.forEach(d => {
-    const cb = document.querySelector(`#rh-day-${d} input`);
-    if (!cb) return;
-    cb.checked = dias.includes(d);
-    rhDayToggle(cb);
-  });
-}
-
-function rhModalOnClienteChange() {
-  const cliId = document.getElementById('rh-m-cliente')?.value || '';
-  _rhPopulateModalVeiculos(cliId, document.getElementById('rh-m-class')?.value || 'Todos');
-  _rhPopulateModalMotoristas(cliId);
-}
-
-function rhModalOnClassChange() {
-  const cliId = document.getElementById('rh-m-cliente')?.value || '';
-  const cls   = document.getElementById('rh-m-class')?.value  || 'Todos';
-  _rhPopulateModalVeiculos(cliId, cls);
-}
-
-function _rhPopulateModalVeiculos(cliId, cls) {
-  const sel = document.getElementById('rh-m-placa');
-  if (!sel) return;
-  const cur = sel.value;
-  let vl = veiculos.filter(v => v.status === 'Ativo');
-  if (cliId) vl = vl.filter(v => String(v.cliente_id) === cliId);
-  if (cls && cls !== 'Todos') vl = vl.filter(v => v.tipo === cls);
-  sel.innerHTML = '<option value="">Todos os veículos</option>' +
-    vl.map(v => `<option value="${v.placa}">${v.placa}</option>`).join('');
-  if (vl.some(v => v.placa === cur)) sel.value = cur;
-}
-
-function _rhPopulateModalMotoristas(cliId) {
-  const sel = document.getElementById('rh-m-motorista');
-  if (!sel) return;
-  const cur = sel.value;
-  let ml = motoristas.filter(m => m.status === 'Ativo');
-  if (cliId) {
-    // Filtra pelo cliente_id direto do motorista
-    ml = ml.filter(m => String(m.cliente_id) === String(cliId));
-  }
-  sel.innerHTML = '<option value="">Todos os motoristas</option>' +
-    ml.map(m => `<option value="${m.nome}">${escHtml(m.nome)}</option>`).join('');
-  if (ml.some(m => m.nome === cur)) sel.value = cur;
-}
-
-function _rhPopulateModalClientes() {
-  const sel = document.getElementById('rh-m-cliente');
-  if (!sel) return;
-  const cur = sel.value;
-  const lista = (_clientes || []).filter(c => c.status === 'Ativo');
-  sel.innerHTML = '<option value="">Todos os clientes</option>' +
-    lista.map(c => `<option value="${c.id}">${escHtml(c.razao_social||'')}</option>`).join('');
-  if (lista.some(c => String(c.id) === cur)) sel.value = cur;
-}
-
-function openRestricaoModal(id = null) {
-  document.getElementById('rh-edit-id').value = id || '';
-  document.getElementById('restricaoHorarioModalTitle').textContent =
-    id ? 'Editar Restrição de Horário' : 'Nova Restrição de Horário';
-
-  // Popula selects
-  _rhPopulateModalClientes();
-  _rhSetDiasSelecionados([]);
-
-  if (id) {
-    const r = restricoesHorario.find(x => x.id === id);
-    if (r) {
-      document.getElementById('rh-m-cliente').value     = r.cliente_id || '';
-      document.getElementById('rh-m-class').value       = r.classificacao || 'Todos';
-      _rhPopulateModalVeiculos(r.cliente_id || '', r.classificacao || 'Todos');
-      _rhPopulateModalMotoristas(r.cliente_id || '');
-      document.getElementById('rh-m-placa').value       = r.placa || '';
-      document.getElementById('rh-m-motorista').value   = r.motorista || '';
-      _rhSetDiasSelecionados(r.dias_semana || []);
-      document.getElementById('rh-m-hora-inicio').value = r.hora_inicio || '00:00';
-      document.getElementById('rh-m-hora-fim').value    = r.hora_fim    || '23:59';
-      document.getElementById('rh-m-ativo').value       = r.ativo ? '1' : '0';
-      document.getElementById('rh-m-obs').value         = r.observacao || '';
-    }
-  } else {
-    document.getElementById('rh-m-cliente').value     = _clienteAtualId || '';
-    document.getElementById('rh-m-class').value       = 'Todos';
-    const cliId = _clienteAtualId ? String(_clienteAtualId) : '';
-    _rhPopulateModalVeiculos(cliId, 'Todos');
-    _rhPopulateModalMotoristas(cliId);
-    document.getElementById('rh-m-placa').value       = '';
-    document.getElementById('rh-m-motorista').value   = '';
-    rhSelecionarDias('util');
-    document.getElementById('rh-m-hora-inicio').value = '00:00';
-    document.getElementById('rh-m-hora-fim').value    = '23:59';
-    document.getElementById('rh-m-ativo').value       = '1';
-    document.getElementById('rh-m-obs').value         = '';
-  }
-  document.getElementById('restricaoHorarioModalOverlay').classList.add('open');
-}
-
-function closeRestricaoModal() {
-  document.getElementById('restricaoHorarioModalOverlay').classList.remove('open');
-}
-
-async function saveRestricao() {
-  const dias = _rhGetDiasSelecionados();
-  if (!dias.length) { showToast('Selecione ao menos um dia da semana.', 'error'); return; }
-  const horaInicio = document.getElementById('rh-m-hora-inicio').value;
-  const horaFim    = document.getElementById('rh-m-hora-fim').value;
-  if (!horaInicio || !horaFim) { showToast('Informe os horários de início e fim.', 'error'); return; }
-
-  const editId   = document.getElementById('rh-edit-id').value;
-  const cliId    = document.getElementById('rh-m-cliente').value || null;
-  const rec = {
-    cliente_id:    cliId ? parseInt(cliId) : null,
-    classificacao: document.getElementById('rh-m-class').value     || 'Todos',
-    placa:         document.getElementById('rh-m-placa').value     || '',
-    motorista:     document.getElementById('rh-m-motorista').value || '',
-    diasSemana:    dias,
-    horaInicio:    horaInicio,
-    horaFim:       horaFim,
-    ativo:         document.getElementById('rh-m-ativo').value === '1',
-    observacao:    document.getElementById('rh-m-obs').value.trim(),
-  };
-
-  const recLocal = {
-    ...rec,
-    dias_semana: dias,
-    hora_inicio: horaInicio,
-    hora_fim: horaFim,
-  };
-
-  if (editId) {
-    const idx = restricoesHorario.findIndex(r => String(r.id) === String(editId));
-    if (idx > -1) restricoesHorario[idx] = { ...restricoesHorario[idx], ...recLocal, id: parseInt(editId) };
-    try { await apiCall('PUT', `/api/restricoes-horario/${editId}`, rec); showToast('Restrição atualizada!', 'success'); }
-    catch(e) { showToast('Erro ao salvar no banco.', 'error'); await loadRestricoesHorario(); return; }
-  } else {
-    const tempId = -(Date.now());
-    const newR = { ...recLocal, id: tempId };
-    restricoesHorario.push(newR);
-    try {
-      const res = await apiCall('POST', '/api/restricoes-horario', rec);
-      if (res?.id) newR.id = res.id;
-      showToast('Restrição criada!', 'success');
-    } catch(e) {
-      restricoesHorario = restricoesHorario.filter(r => r !== newR);
-      showToast('Erro ao salvar no banco.', 'error');
-    }
-  }
-  closeRestricaoModal();
-  _rhPopulateFiltros();
-  renderRestricoesHorario();
-}
-
-async function deleteRestricao(id) {
-  if (!confirm('Remover esta restrição de horário de abastecimento?')) return;
-  const backup = [...restricoesHorario];
-  restricoesHorario = restricoesHorario.filter(r => r.id !== id);
-  renderRestricoesHorario();
-  try { await apiCall('DELETE', `/api/restricoes-horario/${id}`); showToast('Restrição removida.', ''); }
-  catch(e) { restricoesHorario = backup; renderRestricoesHorario(); showToast('Erro ao remover.', 'error'); }
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  POSTOS PERMITIDOS PARA ABASTECIMENTO
-// ═══════════════════════════════════════════════════════════════
-let restricoesPosto = [];
-
-async function loadRestricoesPosto() {
-  try {
-    const rows = await apiCall('GET', '/api/restricoes-posto');
-    restricoesPosto = rows || [];
-  } catch(e) { /* offline */ }
-  _rpPopulateFiltros();
-  renderRestricoesPosto();
-}
-
-function _rpPopulateFiltros() {
-  // Cliente
-  const selCli = document.getElementById('rp-f-cliente');
-  if (selCli) {
-    const cur = selCli.value;
-    const lista = (_clientes || []).filter(c => c.status === 'Ativo');
-    selCli.innerHTML = '<option value="">Todos</option>' +
-      lista.map(c => `<option value="${c.id}">${c.razao_social}</option>`).join('');
-    selCli.value = cur;
-  }
-  // Placas
-  const selPl = document.getElementById('rp-f-placa');
-  if (selPl) {
-    const cur = selPl.value;
-    const pls = [...new Set(restricoesPosto.filter(r => r.placa).map(r => r.placa))].sort();
-    selPl.innerHTML = '<option value="">Todos</option>' +
-      pls.map(p => `<option value="${p}">${p}</option>`).join('');
-    selPl.value = cur;
-  }
-  // Motoristas
-  const selMot = document.getElementById('rp-f-motorista');
-  if (selMot) {
-    const cur = selMot.value;
-    const mots = [...new Set(restricoesPosto.filter(r => r.motorista).map(r => r.motorista))].sort();
-    selMot.innerHTML = '<option value="">Todos</option>' +
-      mots.map(m => `<option value="${m}">${m}</option>`).join('');
-    selMot.value = cur;
-  }
-  // Postos
-  const selPos = document.getElementById('rp-f-posto');
-  if (selPos) {
-    const cur = selPos.value;
-    const postos = [...new Set(restricoesPosto.filter(r => r.posto_nome).map(r => r.posto_nome))].sort();
-    selPos.innerHTML = '<option value="">Todos</option>' +
-      postos.map(p => `<option value="${p}">${p}</option>`).join('');
-    selPos.value = cur;
-  }
-}
-
-function renderRestricoesPosto() {
-  const filtCli  = document.getElementById('rp-f-cliente')?.value  || '';
-  const filtPl   = document.getElementById('rp-f-placa')?.value    || '';
-  const filtMot  = document.getElementById('rp-f-motorista')?.value || '';
-  const filtPos  = document.getElementById('rp-f-posto')?.value    || '';
-  const filtSt   = document.getElementById('rp-f-status')?.value   || '';
-
-  let lista = [...restricoesPosto];
-  if (filtCli) lista = lista.filter(r => String(r.cliente_id) === filtCli);
-  if (filtPl)  lista = lista.filter(r => r.placa === filtPl);
-  if (filtMot) lista = lista.filter(r => r.motorista === filtMot);
-  if (filtPos) lista = lista.filter(r => r.posto_nome === filtPos);
-  if (filtSt)  lista = lista.filter(r => filtSt === '1' ? r.ativo : !r.ativo);
-
-  const tot = restricoesPosto.length;
-  const atv = restricoesPosto.filter(r => r.ativo).length;
-
-  const eTotal    = document.getElementById('rp-stat-total');
-  const eAtivos   = document.getElementById('rp-stat-ativos');
-  const eInativos = document.getElementById('rp-stat-inativos');
-  if (eTotal)    eTotal.textContent    = tot;
-  if (eAtivos)   eAtivos.textContent   = atv;
-  if (eInativos) eInativos.textContent = tot - atv;
-
-  const tbody = document.getElementById('rp-tbody');
-  const empty = document.getElementById('rp-empty');
-  const wrap  = document.getElementById('rp-table-wrap');
-  if (!tbody) return;
-
-  if (!lista.length) {
-    if (empty) empty.style.display = '';
-    if (wrap)  wrap.style.display  = 'none';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-  if (wrap)  wrap.style.display  = '';
-
-  const cliMap  = {};
-  const postoMap = {};
-  (_clientes || []).forEach(c => { cliMap[c.id] = c.razao_social; });
-  (postos || []).forEach(p => { postoMap[p.id] = p.razao || p.cnpj || String(p.id); });
-
-  tbody.innerHTML = lista.map(r => {
-    const cliLabel   = r.cliente_id ? (cliMap[r.cliente_id] || `#${r.cliente_id}`) : 'Todos';
-    const placaLabel = r.placa     || 'Todos';
-    const motLabel   = r.motorista || 'Todos';
-    const classLabel = r.classificacao || 'Todos';
-
-    // Monta label dos postos a partir de postos_ids
-    let postosLabel = '—';
-    let pids = [];
-    try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
-    if (!pids.length && r.posto_id) pids = [r.posto_id];  // backward compat
-    if (pids.length) {
-      const names = pids.map(pid => postoMap[pid] || `#${pid}`);
-      if (names.length <= 2) {
-        postosLabel = names.map(n => escHtml(n)).join('<br>');
-      } else {
-        postosLabel = `${escHtml(names[0])}<br><span style="font-size:0.72rem;color:var(--text-muted);">+${names.length-1} mais</span>`;
-      }
-    } else if (r.posto_nome) {
-      postosLabel = escHtml(r.posto_nome);
-    }
-
-    let limiteLabel = '—';
-    if (r.limite_tipo === 'valor')  limiteLabel = `R$ ${parseFloat(r.limite_valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
-    else if (r.limite_tipo === 'volume') limiteLabel = `${parseFloat(r.limite_valor||0).toLocaleString('pt-BR',{minimumFractionDigits:0})} L`;
-    const status = r.ativo
-      ? '<span style="background:#f0fdf4;color:#15803d;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;">Ativo</span>'
-      : '<span style="background:#fef2f2;color:#dc2626;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;">Inativo</span>';
-    return `<tr>
-      <td>${cliLabel}</td>
-      <td>${classLabel}</td>
-      <td>${placaLabel}</td>
-      <td>${motLabel}</td>
-      <td style="max-width:220px;line-height:1.4;">${postosLabel}</td>
-      <td>${limiteLabel}</td>
-      <td>${status}</td>
-      <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(r.observacao || '—')}</td>
-      <td style="text-align:right;white-space:nowrap;">
-        <button class="btn btn-sm btn-outline" style="padding:3px 10px;font-size:0.75rem;" onclick="openRestricaoPostoModal(${r.id})">Editar</button>
-        <button class="btn btn-sm" style="padding:3px 10px;font-size:0.75rem;background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="deleteRestricaoPosto(${r.id})">Excluir</button>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function rpLimparFiltros() {
-  ['rp-f-cliente','rp-f-placa','rp-f-motorista','rp-f-posto','rp-f-status'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  renderRestricoesPosto();
-}
-
-function rpToggleLimiteValor() {
-  const tipo = document.getElementById('rp-m-limite-tipo')?.value || 'nenhum';
-  const grp  = document.getElementById('rp-m-limite-valor-group');
-  const lbl  = document.getElementById('rp-m-limite-valor-label');
-  if (!grp) return;
-  grp.style.display = (tipo === 'nenhum') ? 'none' : '';
-  if (lbl) lbl.textContent = tipo === 'valor' ? 'Valor Máximo (R$)' : 'Volume Máximo (L)';
-}
-
-function rpModalOnClienteChange() {
-  const cliId = document.getElementById('rp-m-cliente')?.value || '';
-  _rpPopulateModalVeiculos(cliId, document.getElementById('rp-m-class')?.value || 'Todos');
-  _rpPopulateModalMotoristas(cliId);
-}
-
-function rpModalOnClassChange() {
-  const cliId = document.getElementById('rp-m-cliente')?.value || '';
-  _rpPopulateModalVeiculos(cliId, document.getElementById('rp-m-class')?.value || 'Todos');
-}
-
-function _rpPopulateModalVeiculos(cliId, classificacao) {
-  const sel = document.getElementById('rp-m-placa');
-  if (!sel) return;
-  const cur = sel.value;
-  let vl = veiculos || [];
-  if (cliId)         vl = vl.filter(v => String(v.cliente_id) === String(cliId));
-  if (classificacao && classificacao !== 'Todos') {
-    vl = vl.filter(v => (v.classificacao || '').toLowerCase() === classificacao.toLowerCase());
-  }
-  sel.innerHTML = '<option value="">Todos os veículos</option>' +
-    vl.map(v => `<option value="${v.placa}">${v.placa}${v.modelo ? ' — '+v.modelo : ''}</option>`).join('');
-  sel.value = cur;
-}
-
-function _rpPopulateModalMotoristas(cliId) {
-  const sel = document.getElementById('rp-m-motorista');
-  if (!sel) return;
-  const cur = sel.value;
-  let ml = motoristas || [];
-  if (cliId) ml = ml.filter(m => String(m.cliente_id) === String(cliId));
-  sel.innerHTML = '<option value="">Todos os motoristas</option>' +
-    ml.map(m => `<option value="${m.nome}">${m.nome}</option>`).join('');
-  sel.value = cur;
-}
-
-function _rpPopulateModalClientes() {
-  const sel = document.getElementById('rp-m-cliente');
-  if (!sel) return;
-  const cur = sel.value;
-  const lista = (_clientes || []).filter(c => c.status === 'Ativo');
-  sel.innerHTML = '<option value="">Todos os clientes</option>' +
-    lista.map(c => `<option value="${c.id}">${escHtml(c.razao_social || '')}</option>`).join('');
-  if (lista.some(c => String(c.id) === cur)) sel.value = cur;
-}
-
-// ── Multi-select de postos ────────────────────────────────────
-let _rpPostosAll      = [];        // cache de todos os postos disponíveis
-let _rpSelectedIds    = new Set(); // seleções persistentes — independente do DOM/filtro
-
-// ─── helpers de highlight ────────────────────────────────────────────────────
-function _rpHl(text, q) {
-  if (!q || !text) return escHtml(text || '');
-  const idx = text.toLowerCase().indexOf(q.toLowerCase());
-  if (idx < 0) return escHtml(text);
-  return escHtml(text.slice(0, idx))
-    + `<mark style="background:#fef08a;border-radius:2px;padding:0 1px;">${escHtml(text.slice(idx, idx + q.length))}</mark>`
-    + escHtml(text.slice(idx + q.length));
-}
-
-/**
- * Renderiza a lista de checkboxes com base em _rpPostosAll e _rpSelectedIds.
- * O parâmetro `filter` (string) aplica busca textual — NÃO altera as seleções.
- */
-function _rpRenderPostosCheckboxes(filter) {
-  const container = document.getElementById('rp-m-postos-list');
-  if (!container) return;
-  const q = (filter || '').toLowerCase().trim();
-
-  // Filtra visualmente — seleções (_rpSelectedIds) são preservadas
-  let lista = _rpPostosAll;
-  if (q) {
-    const qDigits = q.replace(/\D/g, '');  // parte numérica do query (para CNPJ)
-    lista = lista.filter(p =>
-      (p.razao    || '').toLowerCase().includes(q)
-      || (qDigits && (p.cnpj || '').replace(/\D/g,'').includes(qDigits))
-      || (p.cidade || '').toLowerCase().includes(q)
-      || (p.uf    || '').toLowerCase().includes(q)
-      || (p.bandeira || '').toLowerCase().includes(q)
-    );
-  }
-
-  // Contador de resultados
-  const foundEl = document.getElementById('rp-m-postos-found');
-  if (foundEl) {
-    foundEl.textContent = q
-      ? `${lista.length} resultado${lista.length !== 1 ? 's' : ''} para "${q}"`
-      : `${_rpPostosAll.length} posto${_rpPostosAll.length !== 1 ? 's' : ''} disponível${_rpPostosAll.length !== 1 ? 'is' : ''}`;
-  }
-  const clearBtn = document.getElementById('rp-m-postos-search-clear');
-  if (clearBtn) clearBtn.style.display = q ? '' : 'none';
-
-  if (!lista.length) {
-    container.innerHTML = `
-      <div style="padding:24px 16px;text-align:center;color:var(--text-muted);">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-             style="margin-bottom:8px;opacity:.4;display:block;margin-left:auto;margin-right:auto;">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <div style="font-size:0.83rem;font-weight:600;">Nenhum posto encontrado</div>
-        <div style="font-size:0.75rem;margin-top:2px;">Tente outro termo de busca</div>
-      </div>`;
-    _rpUpdatePostosCount();
-    return;
-  }
-
-  container.innerHTML = lista.map((p, i) => {
-    const isChecked = _rpSelectedIds.has(p.id);
-    const nome   = p.razao || p.cnpj || `Posto #${p.id}`;
-    const cnpj   = p.cnpj    || '';
-    const loc    = [p.cidade, p.uf].filter(Boolean).join('/');
-    const band   = p.bandeira || '';
-    const isLast = i === lista.length - 1;
-    return `
-    <label id="rp-posto-row-${p.id}"
-      style="display:flex;align-items:center;gap:12px;padding:9px 12px;cursor:pointer;
-             border-bottom:${isLast ? 'none' : '1px solid #f1f5f9'};
-             background:${isChecked ? '#eff6ff' : '#fff'};transition:background .1s;"
-      onmouseover="if(!_rpSelectedIds.has(${p.id}))this.style.background='#f8fafc'"
-      onmouseout="this.style.background=_rpSelectedIds.has(${p.id})?'#eff6ff':'#fff'">
-      <input type="checkbox" id="rp-cb-${p.id}" value="${p.id}"${isChecked ? ' checked' : ''}
-        style="width:16px;height:16px;accent-color:#2563eb;cursor:pointer;flex-shrink:0;"
-        onchange="_rpOnPostoCheckChange(this, ${p.id})">
-      <div style="width:34px;height:34px;border-radius:8px;
-                  background:${isChecked ? '#dbeafe' : '#f1f5f9'};
-                  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-             stroke="${isChecked ? '#2563eb' : '#94a3b8'}" stroke-width="2">
-          <path d="M3 22V8l9-6 9 6v14H3z"/><rect x="9" y="14" width="6" height="8"/>
-          <path d="M9 10h6M12 7v6"/>
-        </svg>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:0.84rem;font-weight:${isChecked ? '700' : '600'};
-                    color:${isChecked ? '#1d4ed8' : 'var(--text)'};
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-          ${_rpHl(nome, q)}
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap;">
-          ${cnpj ? `<span style="font-size:0.71rem;font-family:monospace;color:var(--text-muted);
-                                 background:#f1f5f9;padding:1px 5px;border-radius:4px;">${_rpHl(cnpj, q)}</span>` : ''}
-          ${loc  ? `<span style="font-size:0.71rem;color:var(--text-muted);">📍 ${_rpHl(loc, q)}</span>` : ''}
-          ${band ? `<span style="font-size:0.71rem;color:#7c3aed;background:#f5f3ff;
-                                 padding:1px 5px;border-radius:4px;">${escHtml(band)}</span>` : ''}
-        </div>
-      </div>
-      ${isChecked
-        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"
-               style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>`
-        : '<div style="width:16px;flex-shrink:0;"></div>'}
-    </label>`;
-  }).join('');
-  _rpUpdatePostosCount();
-}
-
-/**
- * Chamado quando o usuário marca/desmarca um checkbox.
- * Atualiza _rpSelectedIds (persistente) e o visual da linha.
- */
-function _rpOnPostoCheckChange(cb, postoId) {
-  if (cb.checked) {
-    _rpSelectedIds.add(postoId);
-  } else {
-    _rpSelectedIds.delete(postoId);
-  }
-  // Atualiza visual da linha sem re-renderizar
-  const row = document.getElementById(`rp-posto-row-${postoId}`);
-  if (row) {
-    const checked = cb.checked;
-    row.style.background = checked ? '#eff6ff' : '#fff';
-    const icon = row.querySelector('div[style*="border-radius:8px"]');
-    if (icon) {
-      icon.style.background = checked ? '#dbeafe' : '#f1f5f9';
-      const svg = icon.querySelector('svg');
-      if (svg) svg.setAttribute('stroke', checked ? '#2563eb' : '#94a3b8');
-    }
-    const nameEl = row.querySelector('div[style*="font-size:0.84rem"]');
-    if (nameEl) {
-      nameEl.style.fontWeight = checked ? '700' : '600';
-      nameEl.style.color = checked ? '#1d4ed8' : 'var(--text)';
-    }
-    // badge checkmark (último filho da label)
-    const badge = row.lastElementChild;
-    if (badge) badge.style.display = checked ? '' : 'none';
-  }
-  _rpUpdatePostosCount();
-}
-
-/**
- * Badge contador — usa _rpSelectedIds (não o DOM) como fonte de verdade.
- */
-function _rpUpdatePostosCount() {
-  const countEl = document.getElementById('rp-m-postos-count');
-  if (!countEl) return;
-  const checked = _rpSelectedIds.size;
-  const total   = _rpPostosAll.length;
-  if (checked === 0) {
-    countEl.textContent = 'Nenhum selecionado';
-    countEl.style.background = '#fef2f2';
-    countEl.style.color = '#dc2626';
-  } else if (checked >= total && total > 0) {
-    countEl.textContent = `Todos (${total})`;
-    countEl.style.background = '#f0fdf4';
-    countEl.style.color = '#15803d';
-  } else {
-    countEl.textContent = `${checked} de ${total} selecionado${checked !== 1 ? 's' : ''}`;
-    countEl.style.background = '#eff6ff';
-    countEl.style.color = '#2563eb';
-  }
-}
-
-/** Filtra a lista visualmente ao digitar na busca — preserva seleções. */
-function rpFiltrarPostosModal() {
-  const q = document.getElementById('rp-m-postos-search')?.value || '';
-  _rpRenderPostosCheckboxes(q);
-}
-
-/**
- * Seleciona/deseleciona todos os postos VISÍVEIS (resultado do filtro atual).
- * Seleções anteriores de postos fora do filtro são mantidas.
- */
-function rpSelecionarTodosPostos(selecionar) {
-  const container = document.getElementById('rp-m-postos-list');
-  if (!container) return;
-  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
-    cb.checked = selecionar;
-    const id = parseInt(cb.value);
-    if (selecionar) _rpSelectedIds.add(id); else _rpSelectedIds.delete(id);
-  });
-  // Atualiza visual de todas as linhas visíveis
-  container.querySelectorAll('label[id^="rp-posto-row-"]').forEach(row => {
-    row.style.background = selecionar ? '#eff6ff' : '#fff';
-    const icon = row.querySelector('div[style*="border-radius:8px"]');
-    if (icon) {
-      icon.style.background = selecionar ? '#dbeafe' : '#f1f5f9';
-      const svg = icon.querySelector('svg');
-      if (svg) svg.setAttribute('stroke', selecionar ? '#2563eb' : '#94a3b8');
-    }
-    const nameEl = row.querySelector('div[style*="font-size:0.84rem"]');
-    if (nameEl) {
-      nameEl.style.fontWeight = selecionar ? '700' : '600';
-      nameEl.style.color = selecionar ? '#1d4ed8' : 'var(--text)';
-    }
-    const badge = row.lastElementChild;
-    if (badge) badge.style.display = selecionar ? '' : 'none';
-  });
-  _rpUpdatePostosCount();
-}
-
-/** Retorna o Set persistente de IDs selecionados. */
-function _rpGetSelectedPostoIds() {
-  return new Set(_rpSelectedIds);
-}
-
-/** Inicializa a lista de postos no modal e define as seleções iniciais. */
-function _rpPopulateModalPostos(selectedIds) {
-  _rpPostosAll = (postos || []).map(p => ({
-    id: p.id, razao: p.razao, cnpj: p.cnpj, cidade: p.cidade, uf: p.uf, bandeira: p.bandeira || ''
-  }));
-  // Inicializa o Set persistente com as seleções passadas
-  _rpSelectedIds = selectedIds instanceof Set
-    ? new Set(selectedIds)
-    : new Set((selectedIds || []).map(Number));
-  // Limpa a busca e renderiza
-  const searchEl = document.getElementById('rp-m-postos-search');
-  if (searchEl) searchEl.value = '';
-  _rpRenderPostosCheckboxes('');
-}
-
-async function openRestricaoPostoModal(id) {
-  document.getElementById('restricaoPostoModalTitle').textContent = id ? 'Editar Restrição de Posto' : 'Nova Restrição de Posto';
-  document.getElementById('rp-edit-id').value = id || '';
-  document.getElementById('rp-m-obs').value = '';
-  document.getElementById('rp-m-limite-tipo').value = 'nenhum';
-  document.getElementById('rp-m-limite-valor').value = '';
-  document.getElementById('rp-m-ativo').value = '1';
-  rpToggleLimiteValor();
-
-  _rpPopulateModalClientes();
-
-  const cliId = _clienteAtualId || '';
-  _rpPopulateModalVeiculos(cliId, 'Todos');
-  _rpPopulateModalMotoristas(cliId);
-
-  if (id) {
-    const r = restricoesPosto.find(x => x.id === id);
-    if (r) {
-      document.getElementById('rp-m-cliente').value     = r.cliente_id || '';
-      document.getElementById('rp-m-class').value       = r.classificacao || 'Todos';
-      _rpPopulateModalVeiculos(r.cliente_id || '', r.classificacao || 'Todos');
-      _rpPopulateModalMotoristas(r.cliente_id || '');
-      document.getElementById('rp-m-placa').value       = r.placa || '';
-      document.getElementById('rp-m-motorista').value   = r.motorista || '';
-      // Carrega postos_ids salvos
-      let pids = [];
-      try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
-      if (!pids.length && r.posto_id) pids = [r.posto_id];  // backward compat
-      _rpPopulateModalPostos(pids);
-      document.getElementById('rp-m-limite-tipo').value = r.limite_tipo || 'nenhum';
-      document.getElementById('rp-m-limite-valor').value= r.limite_valor || '';
-      document.getElementById('rp-m-ativo').value       = r.ativo ? '1' : '0';
-      document.getElementById('rp-m-obs').value         = r.observacao || '';
-      rpToggleLimiteValor();
-    }
-  } else {
-    document.getElementById('rp-m-cliente').value = _clienteAtualId || '';
-    document.getElementById('rp-m-class').value   = 'Todos';
-    _rpPopulateModalPostos([]);
-  }
-
-  document.getElementById('restricaoPostoModalOverlay').classList.add('open');
-}
-
-function closeRestricaoPostoModal() {
-  document.getElementById('restricaoPostoModalOverlay').classList.remove('open');
-}
-
-async function saveRestricaoPosto() {
-  const postosIds = Array.from(_rpGetSelectedPostoIds());
-  if (!postosIds.length) { showToast('Selecione ao menos um posto.', 'error'); return; }
-  // Nomes para exibição na tabela
-  const postoNomes = postosIds.map(pid => {
-    const p = _rpPostosAll.find(x => x.id === pid);
-    return p ? (p.razao || p.cnpj || String(pid)) : String(pid);
-  });
-
-  const limiteTipo  = document.getElementById('rp-m-limite-tipo').value;
-  const limiteValor = parseFloat(document.getElementById('rp-m-limite-valor').value || 0) || 0;
-  const cliId       = document.getElementById('rp-m-cliente').value || null;
-
-  const payload = {
-    cliente_id:   cliId ? parseInt(cliId) : null,
-    classificacao: document.getElementById('rp-m-class').value || 'Todos',
-    placa:        document.getElementById('rp-m-placa').value   || '',
-    motorista:    document.getElementById('rp-m-motorista').value || '',
-    postos_ids:   postosIds,
-    posto_nome:   postoNomes.join(', '),   // legado: string para display
-    limiteTipo,
-    limiteValor,
-    ativo:        document.getElementById('rp-m-ativo').value === '1',
-    observacao:   document.getElementById('rp-m-obs').value || ''
-  };
-
-  const editId = document.getElementById('rp-edit-id').value;
-  try {
-    if (editId) {
-      await apiCall('PUT', `/api/restricoes-posto/${editId}`, payload);
-      const idx = restricoesPosto.findIndex(r => r.id === parseInt(editId));
-      if (idx >= 0) restricoesPosto[idx] = { ...restricoesPosto[idx], ...payload,
-        id: parseInt(editId),
-        postos_ids: JSON.stringify(postosIds),
-        limite_tipo: limiteTipo, limite_valor: limiteValor };
-      showToast('Restrição atualizada.', '');
-    } else {
-      const res = await apiCall('POST', '/api/restricoes-posto', payload);
-      restricoesPosto.unshift({ ...payload, id: res.id,
-        postos_ids: JSON.stringify(postosIds),
-        limite_tipo: limiteTipo, limite_valor: limiteValor });
-      showToast('Restrição criada.', '');
-    }
-    closeRestricaoPostoModal();
-    _rpPopulateFiltros();
-    renderRestricoesPosto();
-  } catch(e) { showToast('Erro ao salvar: ' + e.message, 'error'); }
-}
-
-async function deleteRestricaoPosto(id) {
-  if (!confirm('Remover esta restrição de posto para abastecimento?')) return;
-  const backup = [...restricoesPosto];
-  restricoesPosto = restricoesPosto.filter(r => r.id !== id);
-  renderRestricoesPosto();
-  try { await apiCall('DELETE', `/api/restricoes-posto/${id}`); showToast('Restrição removida.', ''); }
-  catch(e) { restricoesPosto = backup; renderRestricoesPosto(); showToast('Erro ao remover.', 'error'); }
-}
-
-// ═══════════════════════════════════════════════════════════════
 //  VARIAÇÃO MÁXIMA DE HODÔMETRO — LEVES E PESADOS
 // ═══════════════════════════════════════════════════════════════
 let hodoVariacoes = [];
@@ -8872,8 +7459,6 @@ async function initApp() {
     loadSeguranca(),
     loadProdutosAbastecidos(),
     loadHodoVariacao(),
-    loadRestricoesHorario(),
-    loadRestricoesPosto(),
     populateClienteSelector(),
     loadCentrosCusto(),
     loadPerfisAcesso(),
@@ -9012,11 +7597,7 @@ function applyFilters() {
   const motorista= document.getElementById('f-motorista').value.trim().toLowerCase();
   const comb     = document.getElementById('f-combustivel').value;
   const posto    = document.getElementById('f-posto').value.trim().toLowerCase();
-  // Filtro de cliente: usa o da sessão (não-admin) ou o do select (admin)
-  const clienteSessao = (_clienteAtualId && _currentUser && !_currentUser.is_admin)
-    ? String(_clienteAtualId) : null;
-  const clienteSelect = document.getElementById('f-cliente')?.value || null;
-  const clienteFiltro = clienteSessao || clienteSelect;
+  const cliente  = document.getElementById('f-cliente')?.value;
 
   filteredRecords = records.filter(r => {
     if (dataIni && r.data < dataIni) return false;
@@ -9025,7 +7606,7 @@ function applyFilters() {
     if (motorista && !r.motorista.toLowerCase().includes(motorista)) return false;
     if (comb && r.combustivel !== comb) return false;
     if (posto && !r.posto.toLowerCase().includes(posto)) return false;
-    if (clienteFiltro && String(r.cliente_id) !== clienteFiltro) return false;
+    if (cliente && String(r.cliente_id) !== String(cliente)) return false;
     return true;
   });
   currentPage = 1;
@@ -9302,9 +7883,7 @@ async function openModal(id = null) {
     _loadAllMotoristas(),
     apiCall('GET', '/api/postos').then(rows     => { postos     = rows.map(mapPosto);     _setOnline(); }).catch(()=>{}),
     apiCall('GET', '/api/vinculos').then(rows   => { vinculos   = rows.map(mapVinculo);   _setOnline(); }).catch(()=>{}),
-    apiCall('GET', '/api/intervalos').then(rows => { intervalos = rows.map(mapIntervalo); _setOnline(); }).catch(()=>{}),
-    // Recarrega restrições de posto para garantir dados atualizados no filtro do form
-    apiCall('GET', '/api/restricoes-posto').then(rows => { restricoesPosto = rows || []; }).catch(()=>{})
+    apiCall('GET', '/api/intervalos').then(rows => { intervalos = rows.map(mapIntervalo); _setOnline(); }).catch(()=>{})
   ]);
 
   document.getElementById('editId').value = id || '';
@@ -9381,9 +7960,6 @@ async function openModal(id = null) {
     if (ufFiltroEl) ufFiltroEl.value = '';
     const ufBadge = document.getElementById('f-posto-uf-count');
     if (ufBadge) ufBadge.style.display = 'none';
-    // Esconde banner de restrição de postos
-    const rpWrap = document.getElementById('f-posto-restricao-wrap');
-    if (rpWrap) rpWrap.style.display = 'none';
     // Reset serviços
     ['lavagem','lubrificacao','restaurante','banheiro','estacionamento','hotel','outros'].forEach(id => {
       const cb = document.getElementById(`svc-${id}-cb`);
@@ -9414,8 +7990,6 @@ async function openModal(id = null) {
 
   _injectClienteRow(document.querySelector('#modal .modal-body'), id ? records.find(x => x.id === id)?.cliente_id : null);
   document.getElementById('modalOverlay').classList.add('open');
-  // Aplica filtro de postos permitidos (necessário em modo edição onde placa/motorista já estão preenchidos)
-  setTimeout(() => _atualizarFiltroPostosForm(), 50);
   setTimeout(() => document.getElementById('f-new-placa').focus(), 200);
 }
 
@@ -10063,43 +8637,7 @@ async function saveRecord() {
   const valorTotal = parseFloat((combustivelTotal + arla32Total + svcTotal).toFixed(2));
   const rec = { data, hora, placa, cpfMotorista, motorista, posto, cnpjPosto, cidadePosto, ufPosto, combustivel, hodometro, volume, precoUnitario: preco, valorTotal, arla32Volume, arla32Preco, arla32Total, servicosAbast, cliente_id: _getModalClienteId() };
 
-  // ── Para registros NOVOS: valida restrição de horário no servidor antes de aplicar ──
-  if (!editId && serverOnline) {
-    try {
-      const _h = { 'Content-Type': 'application/json' };
-      if (_authToken) _h['Authorization'] = `Bearer ${_authToken}`;
-      const _r = await fetch(`${API_BASE}/api/abastecimentos`, {
-        method: 'POST', headers: _h, body: JSON.stringify(rec)
-      });
-      if (_r.status === 403) {
-        const _body = await _r.json().catch(() => ({}));
-        const _motivo = _body.error || 'Abastecimento bloqueado por restrição de horário.';
-        showToast(`🚫 ${_motivo}`, 'error');
-        return;
-      }
-      if (!_r.ok) throw new Error(`HTTP ${_r.status}`);
-      const res = await _r.json().catch(() => ({}));
-      rec.id = (res && res.id) ? res.id : nextId++;
-      nextId = rec.id + 1;
-      records.push(rec);
-      closeModal();
-      filteredRecords = [...records];
-      refreshConsumoMap();
-      _populateCombFilter();
-      applyFilters();
-      updateKPIs();
-      renderConsumoVeiculos();
-      showToast('Abastecimento registrado!', 'success');
-      return;
-    } catch(e) {
-      serverOnline = false;
-      setServerStatus('offline');
-      document.getElementById('offline-banner').style.display = 'flex';
-      // Aplica offline normalmente
-    }
-  }
-
-  // ── Aplica localmente (edição ou modo offline) ──
+  // ── Aplica localmente primeiro ──
   if (editId) {
     const idx = records.findIndex(r => String(r.id) === String(editId));
     if (idx !== -1) records[idx] = { ...records[idx], ...rec };
@@ -10116,10 +8654,17 @@ async function saveRecord() {
   renderConsumoVeiculos();
   showToast(editId ? 'Abastecimento atualizado!' : 'Abastecimento registrado!', 'success');
 
-  // ── Sincroniza edição com o servidor em background ──
-  if (editId && serverOnline) {
+  // ── Tenta sincronizar com o servidor em background ──
+  if (serverOnline) {
     try {
-      await apiCall('PUT', `/api/abastecimentos/${editId}`, rec);
+      if (editId) {
+        await apiCall('PUT', `/api/abastecimentos/${editId}`, rec);
+      } else {
+        const res = await apiCall('POST', '/api/abastecimentos', rec);
+        // Atualiza o id do registro com o id gerado pelo banco
+        const local = records.find(r => r.id === rec.id);
+        if (local && res && res.id) { local.id = res.id; nextId = res.id + 1; }
+      }
     } catch(e) {
       serverOnline = false;
       setServerStatus('offline');
@@ -10927,18 +9472,8 @@ function _prevPeriod(start, end) {
   return { start: _isoDate(ps), end: _isoDate(pe) };
 }
 
-// ── Helper: retorna os records visíveis para o contexto de sessão atual ──────
-// Para não-admins com cliente activo, filtra pelo cliente da sessão.
-// Usado como base para todas as funções de análise/indicadores.
-function _recordsSessao() {
-  const cliSessao = (_clienteAtualId && _currentUser && !_currentUser.is_admin)
-    ? String(_clienteAtualId) : null;
-  if (!cliSessao) return records;
-  return records.filter(r => String(r.cliente_id) === cliSessao);
-}
-
 function _filterPeriod(start, end) {
-  return _recordsSessao().filter(r => r.data >= start && r.data <= end);
+  return records.filter(r => r.data >= start && r.data <= end);
 }
 
 function _trendBadge(curr, prev, isLowerBetter = false) {
@@ -11119,11 +9654,10 @@ function _renderMonthlyChart() {
     content += `<text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="#94a3b8">${label}</text>`;
   }
 
-  // Bars + tooltips
+  // Bars
   data.forEach((d, i) => {
     const x = padL + i * barGroup + (barGroup - barW) / 2;
-    const total   = d.diesel + d.gas + d.outros;
-    const totalH  = chartH * (total  / maxVal);
+    const totalH = chartH * ((d.diesel + d.gas + d.outros) / maxVal);
     const dieselH = chartH * (d.diesel / maxVal);
     const gasH    = chartH * (d.gas    / maxVal);
     const outrosH = totalH - dieselH - gasH;
@@ -11135,24 +9669,11 @@ function _renderMonthlyChart() {
     if (d.outros > 0)  content += `<rect x="${x}" y="${yOtros}"  width="${barW}" height="${outrosH}" fill="#94a3b8" rx="2"/>`;
     if (d.gas > 0)     content += `<rect x="${x}" y="${yGas}"    width="${barW}" height="${gasH}"    fill="#d97706" rx="2"/>`;
     if (d.diesel > 0)  content += `<rect x="${x}" y="${yDiesel}" width="${barW}" height="${dieselH}" fill="#1d4ed8" rx="2"/>`;
-    if (totalH === 0)  content += `<rect x="${x}" y="${padT + chartH - 2}" width="${barW}" height="2" fill="#e2e8f0" rx="1"/>`;
+    if (totalH === 0) content += `<rect x="${x}" y="${padT + chartH - 2}" width="${barW}" height="2" fill="#e2e8f0" rx="1"/>`;
 
     // Label X
     const xLabel = x + barW / 2;
     content += `<text x="${xLabel}" y="${padT + chartH + 14}" text-anchor="middle" font-size="9" fill="#94a3b8">${d.label}</text>`;
-
-    // Tooltip — rect transparente sobre toda a coluna
-    const fmt = v => 'R$\u00a0' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-    const tipHtml = `<div style="font-weight:700;margin-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px">${d.label}</div>`
-      + (d.diesel > 0 ? `<div><span style="display:inline-block;width:10px;height:10px;background:#1d4ed8;border-radius:2px;margin-right:5px;vertical-align:middle"></span>Diesel: <strong>${fmt(d.diesel)}</strong></div>` : '')
-      + (d.gas > 0    ? `<div><span style="display:inline-block;width:10px;height:10px;background:#d97706;border-radius:2px;margin-right:5px;vertical-align:middle"></span>Gasolina/Álc: <strong>${fmt(d.gas)}</strong></div>` : '')
-      + (d.outros > 0 ? `<div><span style="display:inline-block;width:10px;height:10px;background:#94a3b8;border-radius:2px;margin-right:5px;vertical-align:middle"></span>Outros: <strong>${fmt(d.outros)}</strong></div>` : '')
-      + `<div style="margin-top:5px;border-top:1px solid rgba(255,255,255,0.15);padding-top:4px;font-weight:700">Total: ${fmt(total)}</div>`;
-    window._tipData.push(tipHtml);
-    const tipIdx = window._tipData.length - 1;
-    const hoverX = padL + i * barGroup;
-    content += `<rect x="${hoverX}" y="${padT}" width="${barGroup}" height="${chartH}"
-      fill="transparent" data-tip-idx="${tipIdx}" style="cursor:default"/>`;
   });
 
   // Axis line
@@ -11275,226 +9796,166 @@ function _updateEvolCombFilter() {
     combs.map(c => `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`).join('');
 }
 
-let _evolView = 'mensal'; // 'mensal' | 'diario'
-function _evolSetView(v) {
-  _evolView = v;
-  document.getElementById('evol-btn-mensal').style.background = v === 'mensal' ? '#1d4ed8' : 'var(--bg)';
-  document.getElementById('evol-btn-mensal').style.color      = v === 'mensal' ? '#fff'    : 'var(--text-muted)';
-  document.getElementById('evol-btn-diario').style.background = v === 'diario' ? '#1d4ed8' : 'var(--bg)';
-  document.getElementById('evol-btn-diario').style.color      = v === 'diario' ? '#fff'    : 'var(--text-muted)';
-  _renderEvolPostos();
-}
-
 function _renderEvolPostos() {
   const container = document.getElementById('ind-evol-chart');
   const legend    = document.getElementById('ind-evol-legend');
   if (!container) return;
 
-  const combFiltro = document.getElementById('ind-evol-combustivel')?.value || '';
-  const recs = combFiltro ? _indCurrRecs.filter(r => r.combustivel === combFiltro) : _indCurrRecs;
+  const sel = document.getElementById('ind-evol-combustivel');
+  const combFiltro = sel ? sel.value : '';
 
-  const empty = msg => {
+  // Aplica filtro de combustível
+  const recs = combFiltro
+    ? _indCurrRecs.filter(r => r.combustivel === combFiltro)
+    : _indCurrRecs;
+
+  const empty = (msg) => {
     container.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.85rem;">${msg}</div>`;
     if (legend) legend.innerHTML = '';
   };
-  if (!recs.length) { empty('Nenhum registro no período' + (combFiltro ? ` para <strong>${combFiltro}</strong>` : '') + '.'); return; }
 
-  // Top 5 postos por volume total
+  if (!recs.length) {
+    empty('Nenhum registro no período' + (combFiltro ? ` para <strong>${combFiltro}</strong>` : '') + '.');
+    return;
+  }
+
+  // ── Gera todos os dias do intervalo (min→max dos dados) ──────
+  const allDates = recs.map(r => r.data).sort();
+  const startD   = allDates[0];
+  const endD     = allDates[allDates.length - 1];
+
+  const dias = [];
+  const cur  = new Date(startD + 'T00:00:00');
+  const fin  = new Date(endD   + 'T00:00:00');
+  while (cur <= fin) {
+    dias.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  if (!dias.length) { empty('Sem dados para exibir.'); return; }
+
+  // ── Top 5 postos por volume total no período ─────────────────
   const byPosto = {};
   recs.forEach(r => {
     const key = r.posto || '(sem nome)';
-    if (!byPosto[key]) byPosto[key] = { posto: key, total: 0, dia: {}, mes: {} };
-    byPosto[key].total += r.volume;
+    if (!byPosto[key]) byPosto[key] = { posto: key, total: 0, dia: {} };
+    byPosto[key].total     += r.volume;
     byPosto[key].dia[r.data] = (byPosto[key].dia[r.data] || 0) + r.volume;
-    const ym = r.data.slice(0,7);
-    byPosto[key].mes[ym] = (byPosto[key].mes[ym] || 0) + r.volume;
   });
-  const top5 = Object.values(byPosto).sort((a,b) => b.total - a.total).slice(0,5);
+
+  const top5 = Object.values(byPosto)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
   if (!top5.length) { empty('Sem postos para exibir.'); return; }
 
-  if (_evolView === 'mensal') {
-    _renderEvolPostosMensal(top5, container, legend);
-  } else {
-    _renderEvolPostosDiario(top5, recs, container, legend);
-  }
-}
-
-function _renderEvolPostosMensal(top5, container, legend) {
-  // Gera todos os meses do intervalo
-  const allYms = [...new Set(top5.flatMap(p => Object.keys(p.mes)))].sort();
-  if (!allYms.length) { container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Sem dados mensais.</div>'; return; }
-
-  const wrapEl = document.getElementById('ind-evol-chart-wrap');
-  const barGroupW = Math.max(60, Math.min(90, ((wrapEl?.clientWidth || 700) - 80) / allYms.length));
-  const barW   = barGroupW * 0.72;
-  const W      = Math.max(allYms.length * barGroupW + 80, (wrapEl?.clientWidth || 700) - 4);
-  const H      = 280;
-  const PL     = 58, PR = 16, PT = 20, PB = 52;
-  const cW     = W - PL - PR;
-  const cH     = H - PT - PB;
-
-  // Escala Y — máximo do total empilhado por mês
-  const maxV = Math.max(...allYms.map(ym => top5.reduce((s,p) => s + (p.mes[ym]||0), 0)), 1);
-  const scY  = v => PT + cH - (v / maxV) * cH;
-
-  let grid = '', axes = '', bars = '', xlabels = '', ylabels = '';
-
-  // Grid horizontal
-  for (let t = 0; t <= 4; t++) {
-    const val = maxV * t / 4;
-    const y   = scY(val);
-    const lbl = val >= 1000 ? (val/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : val.toLocaleString('pt-BR',{maximumFractionDigits:0});
-    grid    += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
-    ylabels += `<text x="${PL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#94a3b8">${lbl} L</text>`;
-  }
-  axes += `<line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+cH}" stroke="#cbd5e1" stroke-width="1"/>`;
-  axes += `<line x1="${PL}" y1="${PT+cH}" x2="${W-PR}" y2="${PT+cH}" stroke="#cbd5e1" stroke-width="1"/>`;
-
-  allYms.forEach((ym, i) => {
-    const x = PL + i * (cW / allYms.length) + (cW / allYms.length - barW) / 2;
-    const [y, m] = ym.split('-').map(Number);
-    const lbl = String(m).padStart(2,'0') + '/' + String(y).slice(2);
-    xlabels += `<text x="${x + barW/2}" y="${PT+cH+14}" text-anchor="middle" font-size="9.5" fill="#64748b"
-      transform="rotate(-35 ${x+barW/2} ${PT+cH+14})">${lbl}</text>`;
-
-    // Barras empilhadas por posto (p4 no fundo → p0 no topo)
-    let yBase = PT + cH;
-    const tipLines = [`<div style="font-weight:700;margin-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px">${lbl}</div>`];
-    let total = 0;
-    [...top5].reverse().forEach((p, ri) => {
-      const pi = top5.length - 1 - ri;
-      const v = p.mes[ym] || 0;
-      if (v <= 0) return;
-      const bH = cH * (v / maxV);
-      yBase -= bH;
-      bars += `<rect x="${x}" y="${yBase.toFixed(1)}" width="${barW}" height="${bH.toFixed(1)}" fill="${_EVOL_COLORS[pi]}" rx="2"/>`;
-      total += v;
-    });
-    // tooltip
-    top5.forEach((p, pi) => {
-      const v = p.mes[ym] || 0;
-      if (v <= 0) return;
-      const vFmt = v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
-      tipLines.push(`<div><span style="display:inline-block;width:9px;height:9px;background:${_EVOL_COLORS[pi]};border-radius:2px;margin-right:5px;vertical-align:middle"></span>${escHtml(p.posto.length>28?p.posto.slice(0,26)+'…':p.posto)}: <strong>${vFmt} L</strong></div>`);
-    });
-    const totFmt = total.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
-    tipLines.push(`<div style="margin-top:5px;border-top:1px solid rgba(255,255,255,0.15);padding-top:4px;font-weight:700">Total: ${totFmt} L</div>`);
-    window._tipData.push(tipLines.join(''));
-    const tipIdx = window._tipData.length - 1;
-    bars += `<rect x="${x}" y="${PT}" width="${barW}" height="${cH}" fill="transparent" data-tip-idx="${tipIdx}" style="cursor:default"/>`;
-  });
-
-  container.innerHTML = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block">
-    ${grid}${axes}${ylabels}${xlabels}${bars}
-  </svg>`;
-
-  if (legend) {
-    legend.innerHTML = top5.map((p, pi) => {
-      const totFmt = p.total.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
-      return `<div style="display:flex;align-items:center;gap:6px;font-size:0.79rem;color:var(--text);">
-        <span style="display:inline-block;width:12px;height:12px;background:${_EVOL_COLORS[pi]};border-radius:2px;flex-shrink:0"></span>
-        <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.posto}">${p.posto}</span>
-        <span style="color:var(--text-muted);font-size:0.74rem">(${totFmt} L)</span>
-      </div>`;
-    }).join('');
-  }
-}
-
-function _renderEvolPostosDiario(top5, recs, container, legend) {
-  const allDates = recs.map(r => r.data).sort();
-  const startD = allDates[0], endD = allDates[allDates.length-1];
-  const dias = [];
-  const cur = new Date(startD+'T00:00:00'), fin = new Date(endD+'T00:00:00');
-  while (cur <= fin) { dias.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
-  if (!dias.length) { container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Sem dados.</div>'; return; }
-
-  const wrapEl = document.getElementById('ind-evol-chart-wrap');
-  const minPxPD = dias.length <= 30 ? 20 : dias.length <= 90 ? 10 : 6;
-  const W  = Math.max(dias.length * minPxPD + 80, (wrapEl?.clientWidth || 700) - 4);
-  const H  = 280;
-  const PL = 58, PR = 16, PT = 20, PB = 52;
+  // ── Dimensões SVG ────────────────────────────────────────────
+  const wrapEl  = document.getElementById('ind-evol-chart-wrap');
+  const minPxPD = dias.length <= 30 ? 20 : dias.length <= 90 ? 10 : 6; // px mínimos por dia
+  const W  = Math.max(dias.length * minPxPD + 80, (wrapEl ? wrapEl.clientWidth : 700) - 4);
+  const H  = 260;
+  const PL = 58, PR = 16, PT = 16, PB = 48;
   const cW = W - PL - PR;
   const cH = H - PT - PB;
 
+  // Escala Y (máximo diário entre todos os postos)
   const allVals = top5.flatMap(p => dias.map(d => p.dia[d] || 0));
   const maxV    = Math.max(...allVals, 1);
-  const scY     = v => PT + cH - (v / maxV) * cH;
-  const scX     = i => PL + (i + 0.5) * (cW / dias.length);
-  const baseY   = PT + cH;
+  const scY     = v  => PT + cH - (v / maxV) * cH;
+  const scX     = i  => PL + (i + 0.5) * (cW / dias.length);
 
-  let grid = '', axes = '', areas = '', lines = '', dots = '', xlabels = '', ylabels = '';
+  let grid = '', axes = '', lines = '', dots = '', xlabels = '', ylabels = '';
 
+  // Grid horizontal (5 linhas)
   for (let t = 0; t <= 4; t++) {
-    const val = maxV * t / 4;
+    const val = (maxV * t) / 4;
     const y   = scY(val);
-    const lbl = val >= 1000 ? (val/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k' : val.toLocaleString('pt-BR',{maximumFractionDigits:0});
+    const lbl = val >= 1000
+      ? (val / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k'
+      : val.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
     grid    += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
-    ylabels += `<text x="${PL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#94a3b8">${lbl} L</text>`;
+    ylabels += `<text x="${PL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#94a3b8">${lbl}</text>`;
   }
+
+  // Eixos
   axes += `<line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+cH}" stroke="#cbd5e1" stroke-width="1"/>`;
   axes += `<line x1="${PL}" y1="${PT+cH}" x2="${W-PR}" y2="${PT+cH}" stroke="#cbd5e1" stroke-width="1"/>`;
 
+  // Rótulos eixo X — frequência adaptativa
   const n = dias.length;
-  const step = n<=7?1:n<=14?2:n<=31?3:n<=60?7:n<=180?14:30;
-  dias.forEach((d,i) => {
-    if (i % step !== 0 && i !== dias.length-1) return;
-    const dt = new Date(d+'T00:00:00');
-    const dd = String(dt.getDate()).padStart(2,'0'), mm = String(dt.getMonth()+1).padStart(2,'0');
-    const lbl = n<=31 ? `${dd}/${mm}` : `${dd}/${mm}/${String(dt.getFullYear()).slice(2)}`;
-    const x = scX(i);
-    xlabels += `<text x="${x}" y="${PT+cH+14}" text-anchor="middle" font-size="9.5" fill="#64748b" transform="rotate(-35 ${x} ${PT+cH+14})">${lbl}</text>`;
+  const step = n <= 7  ? 1
+             : n <= 14 ? 2
+             : n <= 31 ? 3
+             : n <= 60 ? 7
+             : n <= 180 ? 14
+             : 30;
+
+  dias.forEach((d, i) => {
+    const isLast = i === dias.length - 1;
+    if (i % step !== 0 && !isLast) return;
+    const dt   = new Date(d + 'T00:00:00');
+    const dd   = String(dt.getDate()).padStart(2, '0');
+    const mm   = String(dt.getMonth() + 1).padStart(2, '0');
+    const lbl  = n <= 31 ? `${dd}/${mm}` : `${dd}/${mm}/${String(dt.getFullYear()).slice(2)}`;
+    const x    = scX(i);
+    xlabels += `<text x="${x}" y="${PT+cH+14}" text-anchor="middle" font-size="9.5" fill="#64748b"
+      transform="rotate(-35 ${x} ${PT+cH+14})">${lbl}</text>`;
+    xlabels += `<line x1="${x}" y1="${PT+cH}" x2="${x}" y2="${PT+cH+4}" stroke="#cbd5e1" stroke-width="1"/>`;
   });
 
-  const dotR = dias.length <= 30 ? 4.5 : dias.length <= 90 ? 3 : 2.5;
-  const _colHex = (hex, alpha) => hex + Math.round(alpha*255).toString(16).padStart(2,'0');
+  // ── Linhas + pontos por posto ─────────────────────────────────
+  const dotR = dias.length <= 30 ? 4 : dias.length <= 90 ? 3 : 2.5;
 
   top5.forEach((p, pi) => {
     const color = _EVOL_COLORS[pi];
-    const pts = dias.map((d,i) => { const v = p.dia[d]; return v !== undefined ? {x:scX(i),y:scY(v),v,d} : null; });
-
-    // Área preenchida
-    let areaD = '', pathD = '';
-    pts.forEach((pt,i) => {
-      if (!pt) return;
-      const isFirst = !pathD || pts.slice(0,i).every(x=>x===null);
-      if (isFirst) { areaD += `M ${pt.x.toFixed(1)} ${baseY} L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `; pathD += `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `; }
-      else { areaD += `L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `; pathD += `L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `; }
+    const pts   = dias.map((d, i) => {
+      const v = p.dia[d];
+      return v !== undefined ? { x: scX(i), y: scY(v), v, d } : null;
     });
-    // Fecha área
-    const lastPt = [...pts].reverse().find(p => p);
-    const firstPt = pts.find(p => p);
-    if (areaD && lastPt && firstPt) {
-      areaD += `L ${lastPt.x.toFixed(1)} ${baseY} Z`;
-      areas += `<path d="${areaD}" fill="${color}22" stroke="none"/>`;
-    }
-    if (pathD) lines += `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
 
+    // Constrói path — levanta caneta em dias sem dados (gap real)
+    let pathD = '';
+    pts.forEach((pt, i) => {
+      if (!pt) return;
+      if (!pathD || pts[i - 1] === null || pts.slice(0, i).every(x => x === null)) {
+        pathD += `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `;
+      } else {
+        pathD += `L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)} `;
+      }
+    });
+
+    if (pathD) {
+      lines += `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5"
+        stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+
+    // Pontos — só se houver dados no dia
     pts.forEach(pt => {
       if (!pt) return;
-      const vFmt = pt.v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
-      const dtFmt = new Date(pt.d+'T00:00:00').toLocaleDateString('pt-BR');
-      const tipHtml = `<div style="font-weight:700;margin-bottom:4px">${escHtml(p.posto)}</div>`
-        + `<div>${dtFmt}: <strong>${vFmt} L</strong></div>`;
-      window._tipData.push(tipHtml);
-      const tipIdx = window._tipData.length - 1;
-      dots += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${dotR}" fill="${color}" stroke="#fff" stroke-width="1.5" data-tip-idx="${tipIdx}" style="cursor:pointer"/>`;
+      const volFmt = pt.v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      const dtFmt  = new Date(pt.d + 'T00:00:00').toLocaleDateString('pt-BR');
+      dots += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${dotR}"
+        fill="${color}" stroke="#fff" stroke-width="1.5">
+        <title>${p.posto}\n${dtFmt}: ${volFmt} L</title></circle>`;
     });
   });
 
+  // SVG final
   container.innerHTML = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block">
-    ${grid}${axes}${ylabels}${xlabels}${areas}${lines}${dots}
+    ${grid}${axes}${ylabels}${xlabels}${lines}${dots}
   </svg>`;
 
+  // Legenda
   if (legend) {
-    legend.innerHTML = top5.map((p,pi) => {
-      const totFmt = p.total.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+    legend.innerHTML = top5.map((p, pi) => {
+      const totalFmt = p.total.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
       return `<div style="display:flex;align-items:center;gap:6px;font-size:0.79rem;color:var(--text);">
         <svg width="22" height="10">
           <line x1="0" y1="5" x2="22" y2="5" stroke="${_EVOL_COLORS[pi]}" stroke-width="2.5"/>
           <circle cx="11" cy="5" r="3.5" fill="${_EVOL_COLORS[pi]}" stroke="#fff" stroke-width="1.5"/>
         </svg>
-        <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.posto}">${p.posto}</span>
-        <span style="color:var(--text-muted);font-size:0.74rem">(${totFmt} L total)</span>
+        <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+          title="${p.posto}">${p.posto}</span>
+        <span style="color:var(--text-muted);font-size:0.74rem">(${totalFmt} L)</span>
       </div>`;
     }).join('');
   }
@@ -11630,7 +10091,7 @@ function _renderPrecoMedioChart() {
     xlabels += `<line x1="${x}" y1="${PT+cH}" x2="${x}" y2="${PT+cH+4}" stroke="#cbd5e1" stroke-width="1"/>`;
   });
 
-  // Linhas e pontos por série (com tooltip interativo)
+  // Linhas e pontos por série
   const dotR = buckets.length <= 30 ? 4 : buckets.length <= 90 ? 3 : 2.5;
   seriesData.forEach(s => {
     let pathD = '';
@@ -11646,12 +10107,9 @@ function _renderPrecoMedioChart() {
     s.vals.forEach((v, i) => {
       if (v === null) return;
       const x  = scX(i).toFixed(1), y = scY(v).toFixed(1);
-      const pf = 'R$\u00a0' + v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-      const tipHtml = `<div style="font-weight:700;margin-bottom:4px">${s.label}</div>`
-        + `<div>${buckets[i].label}: <strong>${pf}/L</strong></div>`;
-      window._tipData.push(tipHtml);
-      const tipIdx = window._tipData.length - 1;
-      dots += `<circle cx="${x}" cy="${y}" r="${dotR}" fill="${s.color}" stroke="#fff" stroke-width="1.5" data-tip-idx="${tipIdx}" style="cursor:pointer"/>`;
+      const pf = 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+      dots += `<circle cx="${x}" cy="${y}" r="${dotR}" fill="${s.color}" stroke="#fff" stroke-width="1.5">
+        <title>${s.label}\n${buckets[i].label}: ${pf}/L</title></circle>`;
     });
   });
 
@@ -12047,7 +10505,7 @@ function _renderConsumoMedio(curr) {
 const _subItemGroup = {
   precos:'paineldinamico', varprecos:'paineldinamico', mapabandeira:'paineldinamico', volprojetado:'paineldinamico',
   'plano-viagem':'orcamento', 'custos':'orcamento',
-  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros', 'perfil-usuario':'cadastros', 'usuario-cliente':'cadastros',
+  veiculos:'cadastros', motoristas:'cadastros', clientes:'cadastros', usuarios:'cadastros', 'perfil-usuario':'cadastros',
   'gestao-preditiva':'manutencao'
 };
 
@@ -12063,7 +10521,7 @@ function switchTab(tab) {
       if (fallback !== tab) { switchTab(fallback); return; }
     }
   }
-  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','perfil-usuario','usuario-cliente','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos','gestao-preditiva'].forEach(t => {
+  ['abastecimentos','indicadores','postos','negociacoes','veiculos','motoristas','clientes','usuarios','perfil-usuario','parametros','seguranca','precos','varprecos','mapabandeira','volprojetado','roteirizador','rotograma','plano-viagem','custos','gestao-preditiva'].forEach(t => {
     const view = document.getElementById('view-' + t);
     if (view) view.style.display = tab === t ? '' : 'none';
     const tabBtn  = document.getElementById('tab-btn-' + t);
@@ -12180,7 +10638,7 @@ function switchTab(tab) {
   if (tab === 'negociacoes')   { loadNegociacoes(); loadPostos(); }
   if (tab === 'veiculos')      loadVeiculos();
   if (tab === 'motoristas')    loadMotoristas();
-  if (tab === 'parametros')    { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); loadValoresDiarios(); loadVolumesDiarios(); loadProdutosAbastecidos(); loadHodoVariacao(); loadRestricoesHorario(); loadRestricoesPosto(); }
+  if (tab === 'parametros')    { loadVeiculos(); loadMotoristas(); loadVinculos(); loadIntervalos(); loadValoresDiarios(); loadVolumesDiarios(); loadProdutosAbastecidos(); loadHodoVariacao(); }
   if (tab === 'seguranca')     { loadSeguranca(); loadMotoristas(); }
   if (tab === 'precos')        { _loadPrecosIframe(); }
   if (tab === 'varprecos')     { loadAbastecimentos().then(() => _renderVarPrecos()); }
@@ -12192,7 +10650,6 @@ function switchTab(tab) {
   if (tab === 'clientes')      { loadClientes(); }
   if (tab === 'usuarios')        { loadUsuarios(); }
   if (tab === 'perfil-usuario')  { loadPerfisAcesso(); loadPfDashboard(); }
-  if (tab === 'usuario-cliente') { ucLoadTab(); }
   if (tab === 'custos')        { loadCentrosCusto().then(() => { loadOrcamentosCC(); loadLancamentosCC(); renderDashboardCC(); }); }
   if (tab === 'gestao-preditiva') { loadGestaoPreditiva(); }
 }
@@ -13986,9 +12443,6 @@ document.addEventListener('keydown', e => {
 });
 document.getElementById('f-new-placa').addEventListener('input', function() {
   this.value = this.value.toUpperCase();
-  // Atualiza filtro de postos quando placa é digitada/apagada manualmente
-  clearTimeout(this._rpTimer);
-  this._rpTimer = setTimeout(() => _atualizarFiltroPostosForm(), 400);
 });
 
 // ─── VALIDAÇÃO DE HODÔMETRO ──────────────────────────────────────────────────
@@ -14418,8 +12872,6 @@ function _onSelectPlaca(item) {
   }
   // Atualiza painel de inteligência geográfica para a nova placa
   _verificarAutonomiaGeo();
-  // Atualiza filtro de postos permitidos para a placa selecionada
-  _atualizarFiltroPostosForm();
 }
 function comboAbrirPlaca() {
   const lista = _veiculosByCliente(_getModalClienteId());
@@ -14460,8 +12912,6 @@ function _onSelectMotorista(item) {
       cliSel.value = String(m.cliente_id);
     }
   }
-  // Atualiza filtro de postos permitidos para o motorista selecionado
-  _atualizarFiltroPostosForm();
 }
 function comboAbrirMotorista() {
   const lista = _motoristasByCliente(_getModalClienteId());
@@ -14504,169 +12954,7 @@ function _postoUFFiltrado() {
 
 function _postoListaFiltrada() {
   const uf = _postoUFFiltrado();
-  const base = postos.filter(p => _postoComPreco(p) && (!uf || (p.uf || '').toUpperCase() === uf));
-  // Aplica restrição de postos parametrizada (se houver)
-  const permitidos = _getPostosPermitidosPorRestricao();
-  if (permitidos === null) return base;  // sem restrição
-  return base.filter(p => permitidos.has(p.id));
-}
-
-// ── Restrição de Postos Permitidos no formulário de abastecimento ─────────────
-/**
- * Calcula o conjunto de IDs de postos permitidos considerando as restrições
- * parametrizadas ativas para a combinação placa/motorista/cliente/classificação atual.
- *
- * Retorna:
- *   null  → nenhuma restrição ativa com postos configurados (todos os postos são exibidos)
- *   Set   → conjunto de IDs permitidos (interseção das restrições que têm postos configurados)
- */
-function _getPostosPermitidosPorRestricao() {
-  const placa     = (document.getElementById('f-new-placa')?.value    || '').trim().toUpperCase();
-  const motorista = (document.getElementById('f-new-motorista')?.value || '').trim();
-  const cliId     = String(document.getElementById('_modal-cli-sel')?.value || '');
-
-  if (!placa && !motorista) return null;  // nada selecionado → sem filtro
-
-  // Busca a classificação do veículo selecionado (para match por classificação)
-  let classificacaoVeiculo = '';
-  if (placa) {
-    const veiculo = (veiculos || []).find(v => (v.placa || '').toUpperCase() === placa);
-    classificacaoVeiculo = (veiculo?.classificacao || '').trim();
-  }
-
-  const lista = restricoesPosto || [];
-  console.log('[RestricaoPosto] total regras:', lista.length, '| placa:', placa, '| motorista:', motorista, '| cliId:', cliId, '| classif:', classificacaoVeiculo);
-
-  // Coleta restrições ativas que se aplicam a esta combinação
-  const aplicaveis = lista.filter(r => {
-    // ativo pode vir como boolean true ou integer 1
-    if (r.ativo === false || r.ativo === 0 || r.ativo === '0') return false;
-    if (!r.ativo && r.ativo !== undefined) return false;
-
-    // ── match de placa ──
-    // Se a regra tem placa específica, deve bater exatamente
-    const rPlaca = (r.placa || '').trim().toUpperCase();
-    if (rPlaca && rPlaca !== placa) return false;
-
-    // ── match de classificação ──
-    // Se a regra tem classificação diferente de 'Todos' e diferente de '' (curinga),
-    // e o veículo tem classificação definida, elas devem coincidir
-    const rClass = (r.classificacao || '').trim();
-    if (rClass && rClass !== 'Todos' && classificacaoVeiculo && rClass !== classificacaoVeiculo) return false;
-
-    // ── match de motorista ──
-    const rMot = (r.motorista || '').trim();
-    if (rMot && motorista && rMot !== motorista) return false;
-    // Se a regra exige motorista mas nenhum está preenchido no form, a regra não se aplica
-    if (rMot && !motorista) return false;
-
-    // ── match de cliente ──
-    // Se a regra tem cliente, e um cliente está selecionado, eles devem coincidir
-    if (r.cliente_id && cliId && String(r.cliente_id) !== cliId) return false;
-
-    return true;
-  });
-
-  console.log('[RestricaoPosto] aplicaveis:', aplicaveis.length, aplicaveis.map(r => ({id:r.id, placa:r.placa, motorista:r.motorista, postos_ids:r.postos_ids, ativo:r.ativo})));
-
-  // Mantém apenas regras que têm postos efetivamente configurados
-  const comPostos = aplicaveis.filter(r => {
-    let pids = [];
-    try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
-    if (!Array.isArray(pids)) pids = [];
-    if (!pids.length && r.posto_id) pids = [r.posto_id];
-    return pids.length > 0;
-  });
-
-  console.log('[RestricaoPosto] comPostos:', comPostos.length);
-
-  if (!comPostos.length) return null;  // regras existem mas sem posto configurado → sem filtro
-
-  // Interseção: um posto só é permitido se estiver em TODAS as regras aplicáveis
-  let resultado = null;
-  for (const r of comPostos) {
-    let pids = [];
-    try { pids = JSON.parse(r.postos_ids || '[]'); } catch(e) { pids = []; }
-    if (!Array.isArray(pids)) pids = [];
-    if (!pids.length && r.posto_id) pids = [r.posto_id];
-    const set = new Set(pids.map(Number));
-    if (resultado === null) {
-      resultado = new Set(set);  // cópia para não modificar o original
-    } else {
-      // interseção: mantém apenas IDs que estão nos dois conjuntos
-      const novosIds = new Set([...resultado].filter(id => set.has(id)));
-      resultado = novosIds;
-    }
-  }
-  console.log('[RestricaoPosto] permitidos IDs:', resultado ? [...resultado] : null);
-  return resultado || new Set();
-}
-
-/**
- * Atualiza o banner de restrição de postos e refresca o autocomplete.
- * Deve ser chamada sempre que placa ou motorista mudar no formulário.
- */
-function _atualizarFiltroPostosForm() {
-  const wrap   = document.getElementById('f-posto-restricao-wrap');
-  const titulo = document.getElementById('f-posto-restricao-titulo');
-  const detail = document.getElementById('f-posto-restricao-detalhe');
-  const badge  = document.getElementById('f-posto-restricao-badge');
-
-  const placa     = (document.getElementById('f-new-placa')?.value    || '').trim().toUpperCase();
-  const motorista = (document.getElementById('f-new-motorista')?.value || '').trim();
-
-  if (wrap) wrap.style.display = 'none';
-
-  if (!placa && !motorista) {
-    acBuscarPosto(); return;
-  }
-
-  const permitidos = _getPostosPermitidosPorRestricao();
-  if (permitidos === null) {
-    acBuscarPosto(); return;  // sem restrição de posto
-  }
-
-  // Há restrição — monta o banner
-  if (wrap) wrap.style.display = '';
-
-  const total  = permitidos.size;
-  const labels = [];
-  if (placa)     labels.push(`Placa <strong>${escHtml(placa)}</strong>`);
-  if (motorista) labels.push(`Motorista <strong>${escHtml(motorista)}</strong>`);
-
-  if (titulo) titulo.innerHTML = '🔒 Postos permitidos por restrição parametrizada';
-  if (detail) detail.innerHTML = `Regra aplicada para ${labels.join(' + ')}. Somente os postos abaixo podem ser selecionados.`;
-  if (badge)  badge.textContent = total === 0
-    ? '⛔ Nenhum posto permitido'
-    : `${total} posto${total !== 1 ? 's' : ''} permitido${total !== 1 ? 's' : ''}`;
-
-  // Se o posto já selecionado não está na lista, limpa o campo
-  const postoInput = document.getElementById('f-new-posto');
-  const cnpjInput  = document.getElementById('f-new-cnpj');
-  if (postoInput && postoInput.value.trim()) {
-    const postoAtualNome = postoInput.value.trim().toLowerCase();
-    const postoAtualCnpj = (cnpjInput?.value || '').replace(/\D/g,'');
-    const postoNaLista = postos.some(p =>
-      permitidos.has(p.id) && (
-        (p.razao  || '').toLowerCase() === postoAtualNome ||
-        (postoAtualCnpj && (p.cnpj || '').replace(/\D/g,'') === postoAtualCnpj)
-      )
-    );
-    if (!postoNaLista) {
-      postoInput.value = '';
-      if (cnpjInput) cnpjInput.value = '';
-      const cidadeInput = document.getElementById('f-new-cidade');
-      const ufSel       = document.getElementById('f-new-uf');
-      if (cidadeInput) cidadeInput.value = '';
-      if (ufSel)       ufSel.value = '';
-      postoInput.classList.remove('field-valid','field-invalid');
-      const postoInfo = document.getElementById('ac-posto-info');
-      if (postoInfo) postoInfo.textContent = '';
-    }
-  }
-
-  acHide('ac-posto');
-  acBuscarPosto();
+  return postos.filter(p => _postoComPreco(p) && (!uf || (p.uf || '').toUpperCase() === uf));
 }
 
 function _postoFiltroUFChange() {
@@ -14768,13 +13056,11 @@ function acBuscarPosto() {
     acShow('ac-posto', lista.slice(0, 50).map(_comboItemPosto), _onSelectPosto, false);
     return;
   }
-  const qDigits = q.replace(/\D/g, '');
   const matches = lista.filter(p =>
     (p.razao||'').toLowerCase().includes(q) ||
-    (qDigits && (p.cnpj||'').replace(/\D/g,'').includes(qDigits)) ||
+    (p.cnpj||'').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
     (p.bandeira||'').toLowerCase().includes(q) ||
-    (p.cidade||'').toLowerCase().includes(q) ||
-    (p.uf||'').toLowerCase().includes(q)
+    (p.cidade||'').toLowerCase().includes(q)
   );
   if (!matches.length) { acHide('ac-posto'); return; }
   acShow('ac-posto', matches.map(p => _comboItemPosto(p)), _onSelectPosto);
@@ -16260,9 +14546,8 @@ function _renderVarPrecos() {
   const prevStart = `${prevY}-${pad(prevM)}-01`;
   const prevEnd   = `${prevY}-${pad(prevM)}-${pad(new Date(prevY, prevM, 0).getDate())}`;
 
-  const _rSessao = _recordsSessao();
-  const currRecs = _rSessao.filter(r => r.data >= currStart && r.data <= currEnd && r.combustivel !== _ARLA);
-  const prevRecs = _rSessao.filter(r => r.data >= prevStart && r.data <= prevEnd && r.combustivel !== _ARLA);
+  const currRecs = records.filter(r => r.data >= currStart && r.data <= currEnd && r.combustivel !== _ARLA);
+  const prevRecs = records.filter(r => r.data >= prevStart && r.data <= prevEnd && r.combustivel !== _ARLA);
 
   const fuels = [...new Set([...currRecs, ...prevRecs].map(r => r.combustivel))].sort();
   const grid  = document.getElementById('varpreco-grid');
@@ -16445,16 +14730,15 @@ const _MAPA_PALETTE = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec489
 let _mapaData = {}; // populated each render for tooltip
 
 function _renderMapaBandeira() {
-  const _rSessao = _recordsSessao();
   // Populate combustível filter
-  const allCombs = [...new Set(_rSessao.filter(r => r.combustivel !== _ARLA).map(r => r.combustivel))].sort();
+  const allCombs = [...new Set(records.filter(r => r.combustivel !== _ARLA).map(r => r.combustivel))].sort();
   const selEl = document.getElementById('mapa-comb-filter');
   if (selEl) {
     const prev = selEl.value;
     selEl.innerHTML = '<option value="">Todos</option>' + allCombs.map(c => `<option value="${c}"${c===prev?' selected':''}>${c}</option>`).join('');
   }
   const combFilter = selEl ? selEl.value : '';
-  const recs = _rSessao.filter(r => r.combustivel !== _ARLA && (!combFilter || r.combustivel === combFilter));
+  const recs = records.filter(r => r.combustivel !== _ARLA && (!combFilter || r.combustivel === combFilter));
 
   // Monta índice de bandeira a partir do cadastro de postos (chave: CNPJ normalizado)
   const cnpjBandMap = {};
@@ -16691,9 +14975,8 @@ function _renderVolProjetado() {
   const prevStart = `${prevY}-${pad(prevM)}-01`;
   const prevEnd   = `${prevY}-${pad(prevM)}-${pad(new Date(prevY, prevM, 0).getDate())}`;
 
-  const _rSessao2 = _recordsSessao();
-  const currRecs = _rSessao2.filter(r => r.data >= currStart && r.data <= today && r.combustivel !== _ARLA);
-  const prevRecs = _rSessao2.filter(r => r.data >= prevStart && r.data <= prevEnd && r.combustivel !== _ARLA);
+  const currRecs = records.filter(r => r.data >= currStart && r.data <= today && r.combustivel !== _ARLA);
+  const prevRecs = records.filter(r => r.data >= prevStart && r.data <= prevEnd && r.combustivel !== _ARLA);
 
   const currVol = currRecs.reduce((s,r) => s+(r.volume||0), 0);
   const prevVol = prevRecs.reduce((s,r) => s+(r.volume||0), 0);
@@ -18190,8 +16473,6 @@ async function openPlanoModal(id) {
     _pvPedagios = pedagios.map(pg => ({ ...pg, _saved: true }));
     _pvExistingClienteId = p.cliente_id || null;
     _pvCalcTotais();
-    // Mostra combustível real já revisado (se houver)
-    _pvMostrarCombustivelReal(p.custo_combustivel_real || 0, p.custo_combustivel || 0);
   } else {
     _pvRenderPedagios();
     _pvCalcTotais();
@@ -18212,61 +16493,6 @@ async function openPlanoModal(id) {
   document.getElementById('planoViagemModalOverlay').classList.add('open');
 }
 function closePlanoModal() { document.getElementById('planoViagemModalOverlay').classList.remove('open'); }
-
-// ── Revisão de Combustível Real ──────────────────────────────────
-function _pvMostrarCombustivelReal(combReal, custoCombEst) {
-  const fmtBRL = v => 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
-  const elVal  = document.getElementById('pv-combustivel-real-valor');
-  const elDiff = document.getElementById('pv-combustivel-real-diff');
-  const elInfo = document.getElementById('pv-combustivel-real-info');
-  if (!elVal) return;
-  if (combReal > 0) {
-    elVal.textContent = fmtBRL(combReal);
-    const diff = combReal - custoCombEst;
-    if (custoCombEst > 0) {
-      const pct  = ((diff / custoCombEst) * 100).toFixed(1);
-      elDiff.textContent = diff >= 0 ? `▲ ${fmtBRL(diff)} (${pct}% acima)` : `▼ ${fmtBRL(Math.abs(diff))} (${Math.abs(pct)}% abaixo)`;
-      elDiff.style.color = diff > 0 ? '#dc2626' : '#16a34a';
-    } else {
-      elDiff.textContent = '';
-    }
-    elInfo.textContent = 'Baseado nos abastecimentos registrados no período da viagem';
-  } else {
-    elVal.textContent = '— Nenhum abastecimento no período';
-    elDiff.textContent = '';
-    elInfo.textContent = 'Clique em "Revisar" para buscar dados do Controle de Custos';
-  }
-}
-
-async function _pvRevisarCombustivel() {
-  const editId = document.getElementById('pv-edit-id').value;
-  if (!editId) {
-    showToast('Salve o plano primeiro para revisar o combustível real.', 'error');
-    return;
-  }
-  const btn = document.getElementById('pv-btn-revisar-comb');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Buscando…'; }
-  try {
-    const res = await apiCall('POST', `/api/planos-viagem/${editId}/revisar-combustivel`, {});
-    const combReal = res.custo_combustivel_real || 0;
-    const custoCombEst = parseFloat(document.getElementById('pv-f-custo-comb')?.value) || 0;
-    _pvMostrarCombustivelReal(combReal, custoCombEst);
-    // Sugere atualizar o total real
-    const totalReal = document.getElementById('pv-f-total-real');
-    if (totalReal && combReal > 0) {
-      const custoPed  = parseFloat(document.querySelector('#pv-pedagio-total-label')?.textContent?.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
-      const custoDiar = parseFloat(document.getElementById('pv-f-custo-diarias')?.value) || 0;
-      const custoManu = parseFloat(document.getElementById('pv-f-custo-manut')?.value) || 0;
-      const totalCalculado = combReal + custoPed + custoDiar + custoManu;
-      totalReal.value = totalCalculado.toFixed(2);
-    }
-    showToast('Combustível real atualizado!', 'success');
-  } catch(e) {
-    showToast('Erro ao revisar: ' + e.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 Revisar'; }
-  }
-}
 
 async function _pvPopulateSelects() {
   // Garante arrays locais populados
@@ -18617,9 +16843,14 @@ function _roteizPopularFiltros() {
       combs.map(c => `<option value="${c}">${c}</option>`).join('');
   }
 
-  // Placa select (rota inteligente) — respeita cliente já selecionado
-  const cliIdRoteiz = document.getElementById('roteiz-cliente-sel')?.value || '';
-  _roteizPopulatePlacas(cliIdRoteiz);
+  // Placa select (rota inteligente)
+  const placaSel = document.getElementById('roteiz-placa');
+  if (placaSel) {
+    placaSel.innerHTML = '<option value="">-- selecione --</option>' +
+      veiculos.filter(v => v.status === 'Ativo').map(v =>
+        `<option value="${v.placa}">${v.placa} — ${v.modelo || v.marca || ''}</option>`
+      ).join('');
+  }
 
   // Contadores de postos por tipo
   _atualizarContadoresPostos();
@@ -19414,59 +17645,10 @@ async function _selecionarPostosNaRota(geometry, distKm) {
                 || 'Diesel';
   const RAIO_KM = 20; // raio aumentado para 20 km para capturar mais postos
 
-  // ── Lê filtros activos no painel lateral ──────────────────────
-  const filtUrb = document.getElementById('roteiz-postos-urbanos')?.checked;
-  const filtRod = document.getElementById('roteiz-postos-rodovia')?.checked;
-  const filtIpi = document.getElementById('roteiz-filter-ipiranga')?.checked;
-  const filt24h = document.getElementById('roteiz-filter-24h')?.checked;
-  const filtNeg = document.getElementById('roteiz-filter-negociado')?.checked;
-  const filtrarPorTipo = filtUrb || filtRod;
-
-  // Apenas postos com coordenadas geográficas válidas + aplicação dos filtros do painel
+  // Apenas postos com coordenadas geográficas válidas
   const postosComGeo = postos.filter(p => {
     const lat = parseFloat(p.lat), lon = parseFloat(p.lon);
-    if (!isFinite(lat) || !isFinite(lon) || lat === 0 || lon === 0) return false;
-
-    // Filtro Urbano / Rodovia
-    const isUrb = _roteizIsUrbano(p);
-    if (filtrarPorTipo && isUrb  && !filtUrb) return false;
-    if (filtrarPorTipo && !isUrb && !filtRod) return false;
-
-    // Filtros específicos de rodovia
-    if (!isUrb && filtIpi && (p.bandeira || '').toLowerCase() !== 'ipiranga') return false;
-    if (!isUrb && filt24h) {
-      const servs = _parseJSON(p.servicos, []);
-      if (!servs.some(s => /24/i.test(s))) return false;
-    }
-    if (!isUrb && filtNeg) {
-      const combs = _parseJSON(p.combustiveis, {});
-      if (Object.keys(combs).length === 0) return false;
-    }
-
-    // Filtro de combustíveis selecionados (chips)
-    if (_roteizCombSel.length > 0) {
-      const combObj  = _parseJSON(p.combustiveis, {});
-      const combKeys = Object.keys(combObj).map(k => k.toLowerCase());
-      if (combKeys.length > 0) {
-        const match = _roteizCombSel.some(c => {
-          const cL = c.toLowerCase();
-          return combKeys.some(k => k.includes(cL) || cL.includes(k));
-        });
-        if (!match) return false;
-      }
-      // Posto sem dados de combustível → passa (permissivo)
-    }
-
-    // Filtro de serviços desejados (chips)
-    if (_roteizServSel.length > 0) {
-      const servs = _parseJSON(p.servicos, []);
-      if (Array.isArray(servs) && servs.length > 0) {
-        if (!_roteizServSel.every(s => servs.includes(s))) return false;
-      }
-      // Posto sem dados de serviços → passa (permissivo)
-    }
-
-    return true;
+    return isFinite(lat) && isFinite(lon) && lat !== 0 && lon !== 0;
   });
 
   if (postosComGeo.length === 0) return [];
@@ -19768,14 +17950,12 @@ function preencherDadosVeiculoRoteiz() {
   const v = veiculos.find(x => x.placa === placa);
   if (!v) return;
   const capEl = document.getElementById('roteiz-cap-tanque');
-  const capVal = v.capacidadeTanque || v.capacidade_tanque || 0;
-  if (capEl && capVal) capEl.value = capVal;
+  if (capEl && v.capacidade_tanque) capEl.value = v.capacidade_tanque;
   calcRoteizLitrosMin();
   // Combustível
   const combEl = document.getElementById('roteiz-smart-comb');
-  const combVal = v.combustivelEspecificado || v.combustivel_especificado || '';
-  if (combEl && combVal) {
-    combEl.innerHTML = `<option value="${combVal}">${combVal}</option>`;
+  if (combEl && v.combustivel_especificado) {
+    combEl.innerHTML = `<option value="${v.combustivel_especificado}">${v.combustivel_especificado}</option>`;
   }
   // Média de consumo — calcula a partir dos registros
   const recsPlaca = records.filter(r => r.placa === placa && _isDiesel(_combEfetivo(r)));
@@ -19783,43 +17963,6 @@ function preencherDadosVeiculoRoteiz() {
   const med = kmsL.length ? kmsL.reduce((s,v)=>s+v,0)/kmsL.length : 0;
   const conEl = document.getElementById('roteiz-consumo');
   if (conEl && med > 0) conEl.value = med.toFixed(2);
-}
-
-/**
- * Chamado quando o cliente é alterado no selector do roteirizador.
- * Filtra a lista de placas e sincroniza o select oculto roteiz-f-cliente.
- */
-function _roteizClienteChanged() {
-  const cliId  = document.getElementById('roteiz-cliente-sel')?.value || '';
-  // Sincroniza com o select oculto (usado em loadListaRotas / filtros)
-  const hidden = document.getElementById('roteiz-f-cliente');
-  if (hidden) hidden.value = cliId;
-  // Repopula a lista de veículos filtrada pelo cliente
-  _roteizPopulatePlacas(cliId);
-}
-
-/** Popula o select de placa do roteirizador, opcionalmente filtrado por cliente. */
-function _roteizPopulatePlacas(cliId) {
-  const placaSel = document.getElementById('roteiz-placa');
-  if (!placaSel) return;
-  const prevPlaca = placaSel.value;
-  let vl = (veiculos || []).filter(v => v.status === 'Ativo');
-  if (cliId) vl = vl.filter(v => String(v.cliente_id) === String(cliId));
-  placaSel.innerHTML = '<option value="">-- selecione --</option>' +
-    vl.map(v => `<option value="${v.placa}">${v.placa} — ${v.modelo || v.marca || ''}</option>`).join('');
-  // Mantém a seleção anterior se o veículo ainda estiver na lista filtrada
-  if (prevPlaca && vl.some(v => v.placa === prevPlaca)) {
-    placaSel.value = prevPlaca;
-  } else if (prevPlaca) {
-    // Veículo selecionado não pertence ao cliente — limpa campos
-    placaSel.value = '';
-    ['roteiz-cap-tanque','roteiz-litros-tanque','roteiz-consumo'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
-    });
-    document.getElementById('roteiz-cap-hint') && (document.getElementById('roteiz-cap-hint').textContent = '');
-    document.getElementById('roteiz-litros-hint') && (document.getElementById('roteiz-litros-hint').textContent = '');
-  }
 }
 
 function calcRoteizLitrosMin() {
@@ -20139,13 +18282,6 @@ function limparRoteiz() {
   _roteizRotaId    = null;
   _roteizAtualizarBadgeEdicao(null);
   _roteizCombSel = [];
-  // Esconde botão "Nova Rota" ao limpar
-  const btnNova = document.getElementById('roteiz-nova-rota-btn');
-  if (btnNova) btnNova.style.display = 'none';
-  // Reseta cliente do sidebar e repopula placas (todas)
-  const cliSelRoteiz = document.getElementById('roteiz-cliente-sel');
-  if (cliSelRoteiz) cliSelRoteiz.value = '';
-  _roteizPopulatePlacas('');
   _roteizServSel = [];
 
   // Limpa inputs
@@ -20201,32 +18337,24 @@ function _roteizAtualizarBadgeEdicao(nome) {
 async function salvarRoteizRota() {
   if (!_roteizRotaAtual) { showToast('Calcule uma rota antes de salvar.', 'error'); return; }
 
-  try {
-    // Captura litragens editadas pelo usuário e atualiza os postos antes de salvar
-    const litAtual = _getLitragemAtual();
-    const postos = _roteizRotaAtual.postosNaRota || [];
-    postos.forEach((p, i) => {
-      const info = litAtual[i];
-      if (info) {
-        p._litSuger    = info.lit;
-        p._custoParada = info.lit * (info.preco || p._preco || 0);
-      }
-    });
-    // Recalcula custo total com os valores informados pelo usuário
-    const custoTotal = postos.reduce((s,p) => s + (p._custoParada || 0), 0);
-    if (custoTotal > 0) _roteizRotaAtual.custoEstimado = custoTotal;
+  // Captura litragens editadas pelo usuário e atualiza os postos antes de salvar
+  const litAtual = _getLitragemAtual();
+  _roteizRotaAtual.postosNaRota.forEach((p, i) => {
+    const info = litAtual[i];
+    if (info) {
+      p._litSuger    = info.lit;
+      p._custoParada = info.lit * (info.preco || p._preco || 0);
+    }
+  });
+  // Recalcula custo total com os valores informados pelo usuário
+  const custoTotal = _roteizRotaAtual.postosNaRota.reduce((s,p) => s + (p._custoParada || 0), 0);
+  if (custoTotal > 0) _roteizRotaAtual.custoEstimado = custoTotal;
 
-    // Abre modal de salvar rota para coletar nome e cliente
-    const origem  = _roteizRotaAtual.origem?.label  || '';
-    const destino = _roteizRotaAtual.destino?.label || '';
-    const nomeDefault = _roteizRotaId
-      ? (_roteizRotas.find(x => x.id === _roteizRotaId)?.nome || 'Rota')
-      : `Rota — ${origem.split(',')[0]} → ${destino.split(',')[0]}`;
-    _abrirSalvarRotaModal(nomeDefault);
-  } catch(e) {
-    console.error('Erro ao abrir modal de salvar rota:', e);
-    showToast('Erro ao preparar salvamento: ' + e.message, 'error');
-  }
+  // Abre modal de salvar rota para coletar nome e cliente
+  const nomeDefault = _roteizRotaId
+    ? (_roteizRotas.find(x => x.id === _roteizRotaId)?.nome || 'Rota')
+    : `Monte Sua Rota — ${_roteizRotaAtual.origem.label.split(',')[0]} → ${_roteizRotaAtual.destino.label.split(',')[0]}`;
+  _abrirSalvarRotaModal(nomeDefault);
 }
 
 // ── Modal Salvar Rota ──────────────────────────────────────────
@@ -20237,33 +18365,19 @@ function _abrirSalvarRotaModal(nomeDefault) {
   if (!overlay || !nomeEl) return;
   if (titulo) titulo.textContent = _roteizRotaId ? 'Editar Rota' : 'Salvar Rota';
   nomeEl.value = nomeDefault || '';
-  // Pre-seleciona cliente do sidebar (roteiz-cliente-sel tem prioridade sobre roteiz-f-cliente)
+  // Pre-seleciona cliente anterior se existir
   const salvarSel = document.getElementById('roteiz-salvar-cliente');
   if (salvarSel) {
-    const cliSidebar = document.getElementById('roteiz-cliente-sel')?.value
-      || document.getElementById('roteiz-f-cliente')?.value || '';
-    if (cliSidebar) salvarSel.value = cliSidebar;
+    const prev = document.getElementById('roteiz-f-cliente')?.value;
+    if (prev) salvarSel.value = prev;
   }
-  overlay.style.display = '';       // limpa inline display:none anterior
-  overlay.classList.add('open');    // ativa opacity:1 e pointer-events
-  // Esconde o detail-sheet do roteirizador para não sobrepor a modal
-  const sheet = document.getElementById('roteiz-detail-sheet');
-  if (sheet) sheet.dataset.hiddenByModal = '1', sheet.style.display = 'none';
+  overlay.style.display = 'flex';
   setTimeout(() => nomeEl.select(), 80);
 }
 
 function _fecharSalvarRotaModal() {
   const overlay = document.getElementById('roteizSalvarModalOverlay');
-  if (overlay) {
-    overlay.classList.remove('open');
-    overlay.style.display = 'none'; // garante que fique oculto
-  }
-  // Restaura o detail-sheet se estava visível antes
-  const sheet = document.getElementById('roteiz-detail-sheet');
-  if (sheet && sheet.dataset.hiddenByModal) {
-    delete sheet.dataset.hiddenByModal;
-    sheet.style.display = ''; // volta ao estado anterior
-  }
+  if (overlay) overlay.style.display = 'none';
 }
 
 async function _confirmarSalvarRota() {
@@ -20271,12 +18385,13 @@ async function _confirmarSalvarRota() {
   const cliSel = document.getElementById('roteiz-salvar-cliente');
   const nome = (nomeEl?.value || '').trim();
   if (!nome) { nomeEl?.focus(); showToast('Informe um nome para a rota.', 'error'); return; }
-  const clienteIdRaw = cliSel?.value || '';
+  const _roteizCliId = cliSel?.value;
+  if (!_roteizCliId) { cliSel?.focus(); showToast('Selecione um cliente para a rota.', 'error'); return; }
   _fecharSalvarRotaModal();
 
   // Persiste também no select oculto (compatibilidade)
   const hiddenSel = document.getElementById('roteiz-f-cliente');
-  if (hiddenSel && clienteIdRaw) hiddenSel.value = clienteIdRaw;
+  if (hiddenSel) hiddenSel.value = _roteizCliId;
 
   const r = _roteizRotaAtual;
   const body = {
@@ -20284,6 +18399,7 @@ async function _confirmarSalvarRota() {
     origem: r.origem.label, origemLat: r.origem.lat, origemLon: r.origem.lon,
     destino: r.destino.label, destinoLat: r.destino.lat, destinoLon: r.destino.lon,
     paradas: r.paradas,
+    // Salva objetos completos dos postos (com litragem, preço, score, etc.)
     postosRota: r.postosNaRota,
     distanciaKm: r.distanciaKm, duracaoMin: r.duracaoMin,
     combustivel: _roteizCombSel.join(','),
@@ -20295,98 +18411,42 @@ async function _confirmarSalvarRota() {
     filtros: { numPedagios: r.numPedagios || 0, combRef: r.combRef || _roteizCombSel[0] || '' },
     geometria: r.geometry,
     status: 'Concluída', observacao: '',
-    cliente_id: clienteIdRaw ? parseInt(clienteIdRaw) : null,
-    criadoEm: new Date().toISOString()
+    cliente_id: parseInt(_roteizCliId)
   };
-
-  // ── Tenta API, cai em localStorage se falhar ──────────────────
-  let salvoViaAPI = false;
   try {
     if (_roteizRotaId) {
+      // Atualiza rota existente
       await apiCall('PUT', `/api/roteirizador-rotas/${_roteizRotaId}`, body);
-      salvoViaAPI = true;
       showToast('Rota atualizada com sucesso!', 'success');
       _roteizAtualizarBadgeEdicao(nome);
     } else {
+      // Nova rota
       const res = await apiCall('POST', '/api/roteirizador-rotas', body);
-      if (res && res.id) {
-        _roteizRotaId = res.id;
-        salvoViaAPI = true;
-        _roteizAtualizarBadgeEdicao(nome);
-        showToast('Rota salva com sucesso!', 'success');
-      }
-    }
-  } catch(e) { /* offline — usa localStorage */ }
-
-  if (!salvoViaAPI) {
-    // Fallback: salva/atualiza no localStorage
-    try {
-      let rotas = [];
-      try { rotas = JSON.parse(localStorage.getItem('_roteizRotas') || '[]'); } catch(e) { rotas = []; }
-      if (_roteizRotaId) {
-        // Atualiza registro existente
-        const idx = rotas.findIndex(x => x.id === _roteizRotaId);
-        if (idx >= 0) rotas[idx] = { ...rotas[idx], ...body, id: _roteizRotaId };
-        else rotas.push({ ...body, id: _roteizRotaId });
-        showToast('Rota atualizada (modo offline).', 'success');
-      } else {
-        // Nova rota — gera ID local
-        const newId = 'local_' + Date.now();
-        _roteizRotaId = newId;
-        rotas.push({ ...body, id: newId });
-        showToast('Rota salva localmente.', 'success');
-      }
-      localStorage.setItem('_roteizRotas', JSON.stringify(rotas));
-      _roteizRotas = rotas;
+      if (!res || !res.id) throw new Error('Erro ao salvar');
+      _roteizRotaId = res.id;
       _roteizAtualizarBadgeEdicao(nome);
-    } catch(e) {
-      showToast('Erro ao salvar rota: ' + e.message, 'error');
-      return;
+      showToast('Rota salva com sucesso!', 'success');
     }
-  } else {
-    await loadRoteirizadorRotas();
+    loadRoteirizadorRotas();
+  } catch(e) {
+    showToast('Erro ao salvar rota: ' + e.message, 'error');
   }
-  // Exibe botão "Nova Rota" após salvar com sucesso
-  _roteizMostrarBotaoNovaRota();
-}
-
-/** Exibe o botão "+ Nova Rota" no detail-sheet após salvar. */
-function _roteizMostrarBotaoNovaRota() {
-  const btn = document.getElementById('roteiz-nova-rota-btn');
-  if (btn) btn.style.display = '';
 }
 
 async function loadRoteirizadorRotas() {
   try {
     const data = await apiCall('GET', '/api/roteirizador-rotas');
-    if (Array.isArray(data) && data.length) {
-      _roteizRotas = data;
-      // Sincroniza localStorage com dados do servidor
-      try { localStorage.setItem('_roteizRotas', JSON.stringify(_roteizRotas)); } catch(e) {}
-      return;
-    }
-  } catch(e) { /* offline — usa localStorage */ }
-  // Fallback localStorage
-  try { _roteizRotas = JSON.parse(localStorage.getItem('_roteizRotas') || '[]'); } catch(e) { _roteizRotas = []; }
+    _roteizRotas = Array.isArray(data) ? data : [];
+  } catch(e) { _roteizRotas = []; }
 }
 
 function abrirListaRotas() {
   loadRoteirizadorRotas().then(() => renderListaRotas());
   document.getElementById('roteirizadorListOverlay').classList.add('open');
-  const sheet = document.getElementById('roteiz-detail-sheet');
-  if (sheet && sheet.style.display !== 'none') {
-    sheet.dataset.hiddenByListModal = '1';
-    sheet.style.display = 'none';
-  }
 }
 
 function fecharListaRotas() {
   document.getElementById('roteirizadorListOverlay').classList.remove('open');
-  const sheet = document.getElementById('roteiz-detail-sheet');
-  if (sheet && sheet.dataset.hiddenByListModal) {
-    delete sheet.dataset.hiddenByListModal;
-    sheet.style.display = '';
-  }
 }
 
 function renderListaRotas() {
@@ -20399,46 +18459,33 @@ function renderListaRotas() {
     return;
   }
   if (empty) empty.style.display = 'none';
-  tbody.innerHTML = _roteizRotas.map((r,i) => {
-    // Normaliza campos: suporta snake_case (API) e camelCase (localStorage)
-    const tipo      = r.tipo_rota    || r.tipoRota    || '—';
-    const distKm    = r.distancia_km ?? r.distanciaKm ?? null;
-    const custo     = r.custo_estimado ?? r.custoEstimado ?? null;
-    const criadoRaw = r.created_at   || r.criadoEm   || '';
-    const criado    = criadoRaw ? criadoRaw.split('T')[0].split(' ')[0].split('-').reverse().join('/') : '—';
-    const isLocal   = String(r.id).startsWith('local_');
-    const idJson    = JSON.stringify(r.id);  // garante aspas em IDs string
-    return `
+  tbody.innerHTML = _roteizRotas.map((r,i) => `
     <tr>
-      <td style="font-weight:600;">${r.nome || '(sem nome)'}${isLocal ? ' <span style="font-size:0.7rem;background:#fef9c3;color:#854d0e;padding:1px 5px;border-radius:4px;">local</span>' : ''}</td>
-      <td>${tipo}</td>
+      <td style="font-weight:600;">${r.nome || '(sem nome)'}</td>
+      <td>${r.tipo_rota}</td>
       <td style="font-size:0.8rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(r.origem||'').split(',').slice(0,2).join(',').trim()} → ${(r.destino||'').split(',').slice(0,2).join(',').trim()}</td>
-      <td class="td-right">${distKm != null ? Number(distKm).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' km' : '—'}</td>
-      <td class="td-right">${custo != null ? fmtBRL(custo) : '—'}</td>
+      <td class="td-right">${r.distancia_km ? r.distancia_km.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' km' : '—'}</td>
+      <td class="td-right">${r.custo_estimado ? fmtBRL(r.custo_estimado) : '—'}</td>
       <td><span class="badge" style="background:#dcfce7;color:#15803d;">${r.status||'—'}</span></td>
-      <td style="font-size:0.8rem;color:var(--text-muted);">${criado}</td>
+      <td style="font-size:0.8rem;color:var(--text-muted);">${r.created_at ? r.created_at.split(' ')[0].split('-').reverse().join('/') : '—'}</td>
       <td class="td-center">
-        <button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1.5px solid #93c5fd;margin-right:4px;" onclick="carregarRotaSalva(${idJson})">
+        <button class="btn btn-sm" style="background:#eff6ff;color:#2563eb;border:1.5px solid #93c5fd;margin-right:4px;" onclick="carregarRotaSalva(${r.id})">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/></svg>
           Abrir
         </button>
-        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="excluirRoteizRota(${idJson})">
+        <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;" onclick="excluirRoteizRota(${r.id})">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         </button>
       </td>
-    </tr>`;
-  }).join('');
+    </tr>
+  `).join('');
 }
 
 async function excluirRoteizRota(id) {
   if (!confirm('Excluir esta rota salva?')) return;
-  _roteizRotas = _roteizRotas.filter(r => r.id !== id);
-  // Sempre atualiza localStorage
-  try { localStorage.setItem('_roteizRotas', JSON.stringify(_roteizRotas)); } catch(e) {}
+  _roteizRotas = _roteizRotas.filter(r => r.id !== id); // optimistic
   renderListaRotas();
-  if (!String(id).startsWith('local_')) {
-    try { await apiCall('DELETE', `/api/roteirizador-rotas/${id}`); } catch(e) {}
-  }
+  await apiCall('DELETE', `/api/roteirizador-rotas/${id}`);
   showToast('Rota excluída.', 'success');
 }
 
@@ -20447,30 +18494,9 @@ function carregarRotaSalva(id) {
   if (!r) return;
   fecharListaRotas();
 
-  // ── Normaliza campos: suporta snake_case (API) e camelCase (localStorage) ──
-  const _rn = (snake, camel) => r[snake] ?? r[camel] ?? null;
-  const rNorm = {
-    tipoRota:          _rn('tipo_rota',          'tipoRota')          || 'Monte Sua Rota',
-    origemLat:         _rn('origem_lat',          'origemLat'),
-    origemLon:         _rn('origem_lon',          'origemLon'),
-    destinoLat:        _rn('destino_lat',         'destinoLat'),
-    destinoLon:        _rn('destino_lon',         'destinoLon'),
-    distanciaKm:       _rn('distancia_km',        'distanciaKm'),
-    duracaoMin:        _rn('duracao_min',          'duracaoMin'),
-    custoEstimado:     _rn('custo_estimado',       'custoEstimado'),
-    litrosTanque:      _rn('litros_tanque',        'litrosTanque'),
-    capacidadeTanque:  _rn('capacidade_tanque',    'capacidadeTanque'),
-    mediaConsumo:      _rn('media_consumo',        'mediaConsumo'),
-    postosRotaRaw:     _rn('postos_rota',          'postosRota'),
-    geometria:         r.geometria || null,
-  };
-
   // Restaura geometria no mapa
   let geo = null;
-  try {
-    const geoSrc = typeof rNorm.geometria === 'string' ? JSON.parse(rNorm.geometria) : rNorm.geometria;
-    geo = geoSrc;
-  } catch(e){}
+  try { geo = JSON.parse(r.geometria || 'null'); } catch(e){}
   if (geo && _roteizMap) {
     if (_roteizRouteLayer) _roteizMap.removeLayer(_roteizRouteLayer);
     _roteizRouteLayer = L.geoJSON(geo, {
@@ -20482,8 +18508,9 @@ function carregarRotaSalva(id) {
   // Restaura postos completos (objetos salvos com litragem, preço, score, etc.)
   let postosNaRota = [];
   try {
-    const raw = rNorm.postosRotaRaw;
-    const parsed = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
+    const parsed = JSON.parse(r.postos_rota || '[]');
+    // Se salvou objetos completos (tem _litSuger ou bandeira), usa diretamente
+    // Se salvou só IDs (legado), tenta buscar no array global de postos
     if (Array.isArray(parsed) && parsed.length > 0) {
       if (typeof parsed[0] === 'object' && parsed[0] !== null) {
         postosNaRota = parsed; // formato novo: objetos completos
@@ -20496,25 +18523,25 @@ function carregarRotaSalva(id) {
 
   // Recria rotaAtual
   _roteizRotaAtual = {
-    tipo:          rNorm.tipoRota,
-    origem:  { lat: rNorm.origemLat,  lon: rNorm.origemLon,  label: r.origem  },
-    destino: { lat: rNorm.destinoLat, lon: rNorm.destinoLon, label: r.destino },
-    paradas: (() => { try { const p = r.paradas; return Array.isArray(p) ? p : JSON.parse(p || '[]'); } catch(e) { return []; } })(),
+    tipo: r.tipo_rota || 'Monte Sua Rota',
+    origem:  { lat: r.origem_lat,  lon: r.origem_lon,  label: r.origem  },
+    destino: { lat: r.destino_lat, lon: r.destino_lon, label: r.destino },
+    paradas: (() => { try { return JSON.parse(r.paradas || '[]'); } catch(e) { return []; } })(),
     postosNaRota,
-    distanciaKm:   rNorm.distanciaKm,
-    duracaoMin:    rNorm.duracaoMin,
-    custoEstimado: rNorm.custoEstimado,
-    numPedagios:   (() => { try { const f = r.filtros; const fo = typeof f === 'string' ? JSON.parse(f) : (f||{}); return fo.numPedagios || 0; } catch(e) { return 0; } })(),
-    combRef:       r.combustivel || '',
-    geometry:      rNorm.geometria
+    distanciaKm:  r.distancia_km,
+    duracaoMin:   r.duracao_min,
+    custoEstimado: r.custo_estimado,
+    numPedagios:  (() => { try { return (JSON.parse(r.filtros||'{}')).numPedagios || 0; } catch(e) { return 0; } })(),
+    combRef:      r.combustivel || '',
+    geometry:     r.geometria
   };
 
   // Restaura campos do veículo no formulário
-  const setVal = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
   setVal('roteiz-placa',          r.placa);
-  setVal('roteiz-litros-tanque',  rNorm.litrosTanque);
-  setVal('roteiz-cap-tanque',     rNorm.capacidadeTanque);
-  setVal('roteiz-consumo',        rNorm.mediaConsumo);
+  setVal('roteiz-litros-tanque',  r.litros_tanque);
+  setVal('roteiz-cap-tanque',     r.capacidade_tanque);
+  setVal('roteiz-consumo',        r.media_consumo);
   // Restaura combustível selecionado
   if (r.combustivel) {
     _roteizCombSel = r.combustivel.split(',').filter(Boolean);
@@ -21789,7 +19816,6 @@ const _PF_MODULOS = [
   { grupo: 'Cadastros',           modulo: 'motoristas',       label: 'Motoristas' },
   { grupo: 'Cadastros',           modulo: 'usuarios',         label: 'Usuários' },
   { grupo: 'Cadastros',           modulo: 'perfil-usuario',   label: 'Perfil de Usuário' },
-  { grupo: 'Cadastros',           modulo: 'usuario-cliente',  label: 'Acesso por Cliente' },
   { grupo: 'Operacional',         modulo: 'abastecimentos',   label: 'Abastecimentos' },
   { grupo: 'Operacional',         modulo: 'postos',           label: 'Postos Cadastrados' },
   { grupo: 'Operacional',         modulo: 'negociacoes',      label: 'Negociações' },
@@ -22335,222 +20361,6 @@ function _firstAllowedTab() {
   return 'indicadores';
 }
 
-// ══════════════════════════════════════════════════════════════
-//  SEGMENTAÇÃO POR CLIENTE — lógica de acesso pós-login
-// ══════════════════════════════════════════════════════════════
-
-// Define o cliente ativo e atualiza toda a UI de contexto
-function _setClienteAtivo(cliente) {
-  // cliente = { id, razao_social } ou null (admin)
-  _clienteAtualId   = cliente ? cliente.id   : null;
-  _clienteAtualNome = cliente ? (cliente.razao_social || '') : '';
-
-  const badge    = document.getElementById('cliente-ativo-badge');
-  const nomeSpan = document.getElementById('cliente-ativo-nome');
-  if (!badge) return;
-
-  if (!_currentUser || _currentUser.is_admin || !cliente) {
-    badge.style.display = 'none';
-    return;
-  }
-  if (nomeSpan) nomeSpan.textContent = _clienteAtualNome;
-
-  // Mostra ícone de troca se o usuário tem mais de um cliente
-  const temMultiplos = (_currentUser.clientes || []).length > 1;
-  const trocaIcon = document.getElementById('cliente-troca-icon');
-  if (trocaIcon) trocaIcon.style.display = temMultiplos ? '' : 'none';
-
-  badge.style.display = 'flex';
-
-  // Reaplica bloqueio nos selects de filtro de cliente
-  _refreshClienteSelects();
-}
-
-// Abre o picker de cliente (clique no badge do header)
-function _abrirClientePicker() {
-  const clientes = (_currentUser && _currentUser.clientes) || [];
-  if (clientes.length <= 1) return;   // nada a trocar
-  _mostrarClientePicker(clientes);
-}
-
-// Exibe o modal de seleção de cliente
-function _mostrarClientePicker(clientes) {
-  const overlay = document.getElementById('cliente-picker-overlay');
-  const cards   = document.getElementById('cliente-picker-cards');
-  const sub     = document.getElementById('cliente-picker-subtitle');
-  if (!overlay || !cards) return;
-
-  if (sub) {
-    sub.textContent = clientes.length > 1
-      ? 'Você tem acesso a mais de um cliente. Selecione com qual deseja trabalhar agora.'
-      : 'Clique para continuar.';
-  }
-
-  cards.innerHTML = clientes.map(c => `
-    <div onclick="_selecionarClientePicker(${c.id})"
-         style="display:flex;align-items:center;gap:14px;padding:14px 18px;
-                border:2px solid ${_clienteAtualId === c.id ? '#2563eb' : '#e5e7eb'};
-                background:${_clienteAtualId === c.id ? '#eff6ff' : '#fff'};
-                border-radius:10px;cursor:pointer;transition:all .15s;"
-         onmouseover="this.style.borderColor='#2563eb';this.style.background='#eff6ff'"
-         onmouseout="this.style.borderColor='${_clienteAtualId === c.id ? '#2563eb' : '#e5e7eb'}';this.style.background='${_clienteAtualId === c.id ? '#eff6ff' : '#fff'}'">
-      <div style="width:40px;height:40px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-weight:700;font-size:0.95rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.razao_social}</div>
-        ${c.cnpj ? `<div style="font-size:0.75rem;color:#6b7280;font-family:monospace;">${c.cnpj}</div>` : ''}
-      </div>
-      ${_clienteAtualId === c.id ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-    </div>`).join('');
-
-  overlay.style.display = 'flex';
-}
-
-function _selecionarClientePicker(clienteId) {
-  const overlay  = document.getElementById('cliente-picker-overlay');
-  const clientes = (_currentUser && _currentUser.clientes) || [];
-  const c = clientes.find(x => x.id === clienteId);
-  if (!c) return;
-  if (overlay) overlay.style.display = 'none';
-  _setClienteAtivo(c);
-  // Recarrega todos os dados com o novo contexto de cliente
-  _recarregarDadosCliente();
-}
-
-// Recarrega os dados principais após troca de cliente
-async function _recarregarDadosCliente() {
-  try {
-    await Promise.allSettled([
-      loadAbastecimentos(),
-      loadVeiculos(),
-      loadMotoristas(),
-      loadClientes(),
-    ]);
-  } catch(e) {}
-  switchTab('indicadores');
-}
-
-// ──────────────────────────────────────────────────────────────
-//  ABA "Acesso por Cliente" — CRUD de associações usuário↔cliente
-// ──────────────────────────────────────────────────────────────
-let _ucAssociacoes = [];   // associações do usuário selecionado
-
-async function ucLoadTab() {
-  // Popula select de usuários (sem o admin)
-  let usuarios = [];
-  try { usuarios = await apiCall('GET', '/api/usuarios'); } catch(e) {}
-  const sel = document.getElementById('uc-sel-usuario');
-  if (sel) {
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">— Selecione um usuário —</option>' +
-      usuarios.filter(u => !u.is_admin).map(u =>
-        `<option value="${u.id}">${u.nome} — ${u.email || ''}</option>`).join('');
-    if (prev) sel.value = prev;
-  }
-  // Popula select de clientes disponíveis
-  const selCli = document.getElementById('uc-sel-cliente');
-  if (selCli) {
-    selCli.innerHTML = '<option value="">— Selecione o cliente —</option>' +
-      (_clientes || []).filter(c => c.status === 'Ativo').map(c =>
-        `<option value="${c.id}">${c.razao_social}</option>`).join('');
-  }
-  // Se já havia um usuário selecionado, recarrega
-  if (sel && sel.value) ucCarregarAssociacoes();
-  else _ucMostrarSemUsuario();
-}
-
-async function ucCarregarAssociacoes() {
-  const uid = document.getElementById('uc-sel-usuario')?.value;
-  const nomeLabel = document.getElementById('uc-usuario-nome-label');
-  const listaWrap = document.getElementById('uc-lista-wrap');
-  const semUsuario = document.getElementById('uc-sem-usuario');
-
-  if (!uid) { _ucMostrarSemUsuario(); return; }
-
-  const selEl = document.getElementById('uc-sel-usuario');
-  const nomeUsuario = selEl?.options[selEl.selectedIndex]?.text?.split(' — ')[0] || 'Usuário';
-  if (nomeLabel) nomeLabel.textContent = nomeUsuario;
-  if (semUsuario) semUsuario.style.display = 'none';
-  if (listaWrap) listaWrap.style.display = '';
-
-  try {
-    _ucAssociacoes = await apiCall('GET', `/api/usuario-clientes?usuario_id=${uid}`);
-  } catch(e) { _ucAssociacoes = []; }
-
-  _ucRenderCards();
-}
-
-function _ucMostrarSemUsuario() {
-  const listaWrap  = document.getElementById('uc-lista-wrap');
-  const semUsuario = document.getElementById('uc-sem-usuario');
-  if (listaWrap)  listaWrap.style.display  = 'none';
-  if (semUsuario) semUsuario.style.display = '';
-}
-
-function _ucRenderCards() {
-  const cards   = document.getElementById('uc-cards');
-  const empty   = document.getElementById('uc-empty');
-  if (!cards) return;
-
-  if (!_ucAssociacoes.length) {
-    cards.innerHTML = '';
-    if (empty) empty.style.display = '';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-
-  cards.innerHTML = _ucAssociacoes.map(a => `
-    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;
-                background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;
-                min-width:220px;max-width:360px;">
-      <div style="width:36px;height:36px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-weight:600;font-size:0.88rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.cliente_nome}</div>
-        <div style="font-size:0.73rem;color:#6b7280;">ID: ${a.cliente_id}</div>
-      </div>
-      <button onclick="ucRemoverAssociacao(${a.id})"
-              style="background:none;border:none;cursor:pointer;color:#ef4444;padding:4px;border-radius:6px;display:flex;align-items:center;"
-              title="Remover acesso">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-      </button>
-    </div>`).join('');
-}
-
-async function ucAdicionarAssociacao() {
-  const uid = document.getElementById('uc-sel-usuario')?.value;
-  const cid = document.getElementById('uc-sel-cliente')?.value;
-  if (!uid || !cid) { alert('Selecione um usuário e um cliente.'); return; }
-  // Verifica duplicata
-  if (_ucAssociacoes.some(a => String(a.cliente_id) === String(cid))) {
-    alert('Este cliente já está associado ao usuário.'); return;
-  }
-  try {
-    await apiCall('POST', '/api/usuario-clientes', { usuario_id: parseInt(uid), cliente_id: parseInt(cid) });
-    await ucCarregarAssociacoes();
-    // Reseta o select de cliente
-    const selCli = document.getElementById('uc-sel-cliente');
-    if (selCli) selCli.selectedIndex = 0;
-  } catch(e) {
-    alert('Erro ao adicionar associação: ' + (e.message || e));
-  }
-}
-
-async function ucRemoverAssociacao(assocId) {
-  if (!confirm('Remover o acesso deste cliente para o usuário?')) return;
-  try {
-    await fetch(`${API_BASE}/api/usuario-clientes/${assocId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${_authToken}`, 'Content-Type': 'application/json' },
-    });
-    await ucCarregarAssociacoes();
-  } catch(e) {
-    alert('Erro ao remover associação.');
-  }
-}
-
 // Login com e-mail + senha
 async function authDoLogin() {
   const email = (document.getElementById('auth-email')?.value || '').trim();
@@ -22670,12 +20480,8 @@ async function authDoLogout() {
   _authToken      = null;
   _currentUser    = null;
   _userPermissoes = {};
-  _clienteAtualId   = null;
-  _clienteAtualNome = '';
   document.getElementById('auth-user-info').style.display  = 'none';
   document.getElementById('auth-logout-btn').style.display = 'none';
-  const badgeEl = document.getElementById('cliente-ativo-badge');
-  if (badgeEl) badgeEl.style.display = 'none';
   document.getElementById('auth-overlay').style.display    = 'flex';
   authShowPanel('login');
   document.getElementById('auth-email').value = '';
@@ -22705,42 +20511,16 @@ function _authSuccessUI() {
   const logoutEl = document.getElementById('auth-logout-btn');
   if (logoutEl) logoutEl.style.display = '';
 
-  // ── Aba "Acesso por Cliente" apenas para admin ─────────────
-  const ucBtn = document.getElementById('side-btn-usuario-cliente');
-  if (ucBtn) ucBtn.style.display = _currentUser.is_admin ? '' : 'none';
-
   // Aplica permissões em botões de ação (data-perm)
   _applyPermissions();
   // Aplica visibilidade das abas do sidebar
   _applySidebarPermissions();
 
-  // ── Contexto de cliente pós-login ──────────────────────────
-  const clientes = _currentUser.clientes || [];
-
-  if (_currentUser.is_admin) {
-    // Admin: sem restrição de cliente
-    _setClienteAtivo(null);
-    _iniciarApp();
-  } else if (clientes.length === 0) {
-    // Sem clientes associados: acessa sem contexto de cliente
-    _setClienteAtivo(null);
-    _iniciarApp();
-  } else if (clientes.length === 1) {
-    // Apenas um cliente: define automaticamente
-    _setClienteAtivo(clientes[0]);
-    _iniciarApp();
-  } else {
-    // Múltiplos clientes: mostra picker e aguarda seleção
-    // O app só inicia após a escolha
-    _iniciarApp();   // carrega dados em background
-    _mostrarClientePicker(clientes);
-  }
-}
-
-function _iniciarApp() {
+  // Inicia o app se ainda não carregou
   if (!_appLoaded) {
     _appLoaded = true;
     initApp().then(() => {
+      // Sempre navega para "Comece seu dia!" (indicadores) após login
       switchTab('indicadores');
     });
   } else {
@@ -22891,7 +20671,7 @@ function _predDiasSemAbast(placa) {
 // ── Última manutenção real registrada para veículo+tipo ───────
 function _predUltimaManutencaoReal(placa, tipo) {
   return _predRegistros
-    .filter(r => r.placa === placa && _parseJSON(r.itens, []).some(i => i.tipo === tipo && i.realizado))
+    .filter(r => r.placa === placa && (r.itens || []).some(i => i.tipo === tipo && i.realizado))
     .sort((a, b) => (b.hodometro || 0) - (a.hodometro || 0))[0] || null;
 }
 
@@ -23110,7 +20890,7 @@ function _predVehicleCard(a) {
         ${a.consumo.atual ? `· <span style="font-weight:600;color:var(--text);">${a.consumo.atual.toFixed(1)}</span> km/L` : ''}
         ${a.consumo.degradacao > 0.05 ? `<span style="color:#d97706;"> ↓${Math.round(a.consumo.degradacao*100)}%</span>` : ''}
       </div>
-      <button onclick="_abrirProntuario('${(a.placa || '').replace(/'/g, '')}')"
+      <button onclick="_abrirProntuario('${a.placa}')"
         style="background:#ea580c;border:none;border-radius:7px;padding:5px 11px;font-size:0.76rem;font-weight:700;color:#fff;cursor:pointer;display:flex;align-items:center;gap:4px;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
         Detalhes / Manutenção
@@ -23255,33 +21035,17 @@ function renderGestaoPreditiva() {
 
 // ── Abre o modal (ponto de entrada único) ─────────────────────
 function _abrirProntuario(placa) {
-  // 1) Tenta achar no cache
-  let a = _predAnalise.find(x => x.placa === placa);
-
-  // 2) Fallback: reconstrói a análise a partir do veículo (se _predAnalise vazio)
-  if (!a) {
-    const v = veiculos.find(x => x.placa === placa);
-    if (!v) {
-      showToast('Veículo não encontrado. Recarregue a aba Gestão Preditiva.', 'error');
-      return;
-    }
-    a = _predAnalisarVeiculo(v);
-    // Insere no cache para tabs subsequentes
-    const idx = _predAnalise.findIndex(x => x.placa === placa);
-    if (idx >= 0) _predAnalise[idx] = a; else _predAnalise.push(a);
-  }
-
+  const a = _predAnalise.find(x => x.placa === placa);
+  if (!a) return;
   _predDetalheAtual = a;
-  const v     = a.veiculo;
+  const v = a.veiculo;
   const modelo = [v.marca, v.modelo, v.anoFabricacao].filter(Boolean).join(' ');
 
   document.getElementById('pred-det-placa').textContent = placa;
   document.getElementById('pred-det-info').textContent  = `${modelo || 'Veículo'} · ${v.tipo || 'Leve'} · ${a.kmAtual.toLocaleString('pt-BR')} km`;
   document.getElementById('pred-det-badge').innerHTML   = _predBadge(a.statusGeral);
 
-  const predOverlay = document.getElementById('predDetalheModalOverlay');
-  predOverlay.style.display = '';
-  predOverlay.classList.add('open');
+  document.getElementById('predDetalheModalOverlay').style.display = 'flex';
   _predSwitchTab('analise');
 }
 
@@ -23289,9 +21053,7 @@ function _abrirProntuario(placa) {
 function _abrirPredDetalhe(placa) { _abrirProntuario(placa); }
 
 function _fecharPredDetalhe() {
-  const predOverlay = document.getElementById('predDetalheModalOverlay');
-  predOverlay.classList.remove('open');
-  predOverlay.style.display = 'none';
+  document.getElementById('predDetalheModalOverlay').style.display = 'none';
   _predDetalheAtual = null;
   _predTabAtiva = 'analise';
 }
@@ -23584,7 +21346,7 @@ function _predRenderHistorico() {
       ${registros.length} registro${registros.length !== 1 ? 's' : ''} de manutenção — ${a.placa}
     </div>
     ${registros.map(r => {
-      const realizados = _parseJSON(r.itens, []).filter(i => i.realizado);
+      const realizados = (r.itens || []).filter(i => i.realizado);
       const dateFmt    = r.data ? new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
       return `
       <div style="border:1.5px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:10px;">
@@ -23631,61 +21393,6 @@ function _predRenderHistorico() {
 // Inicia aplicação (conecta ao servidor e carrega dados)
 // initApp() agora é chamado APENAS após login bem-sucedido
 // initApp();
-
-// ═══════════════════════════════════════════════════════════════
-//  TOOLTIP FLUTUANTE — GRÁFICOS (event delegation via data-tip-idx)
-// ═══════════════════════════════════════════════════════════════
-window._tipData = [];
-
-// Os SVGs são injetados via innerHTML — event handlers inline não funcionam.
-// Usamos event delegation: ouvimos mousemove/mouseleave no document e
-// verificamos se o alvo tem data-tip-idx.
-(function() {
-  function _tt() { return document.getElementById('chart-tooltip'); }
-
-  document.addEventListener('mousemove', function(evt) {
-    const el = evt.target;
-    const idx = el.getAttribute ? el.getAttribute('data-tip-idx') : null;
-    if (idx === null) {
-      // Se saiu de um elemento com tooltip, esconde
-      const tt = _tt();
-      if (tt && tt.style.display !== 'none') {
-        // Só esconde se o novo alvo também não tem tooltip
-        if (!el.closest || !el.closest('[data-tip-idx]')) {
-          tt.style.display = 'none';
-        }
-      }
-      return;
-    }
-    const html = window._tipData[parseInt(idx)];
-    if (!html) return;
-    const tt = _tt();
-    if (!tt) return;
-    tt.innerHTML = html;
-    tt.style.display = 'block';
-    const x = evt.clientX + 18;
-    const y = evt.clientY - 14;
-    tt.style.left = Math.min(x, window.innerWidth  - tt.offsetWidth  - 16) + 'px';
-    tt.style.top  = Math.max(8, Math.min(y, window.innerHeight - tt.offsetHeight - 8)) + 'px';
-  });
-
-  document.addEventListener('mouseleave', function() {
-    const tt = _tt(); if (tt) tt.style.display = 'none';
-  }, true);
-})();
 </script>
-
-<!-- ── TOOLTIP FLUTUANTE DOS GRÁFICOS ── -->
-<div id="chart-tooltip" style="
-  position:fixed;z-index:99999;
-  display:none;
-  background:rgba(15,23,42,0.95);color:#f1f5f9;
-  padding:10px 14px;border-radius:10px;
-  font-size:0.8rem;line-height:1.65;
-  pointer-events:none;
-  min-width:160px;max-width:260px;
-  box-shadow:0 6px 24px rgba(0,0,0,0.35);
-  border:1px solid rgba(255,255,255,0.1);
-"></div>
 </body>
 </html>

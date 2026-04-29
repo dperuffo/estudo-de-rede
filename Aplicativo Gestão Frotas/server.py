@@ -46,12 +46,7 @@ if _DATABASE_URL:
     DB_NAME  = _u.path.lstrip('/')
     DB_USER  = _u.username
     DB_PASS  = _u.password
-    # Fly.io usa rede interna (.flycast) que não suporta SSL;
-    # Railway/Render/Heroku exigem SSL. Detecta automaticamente.
-    _host = _u.hostname or ''
-    _sslmode = os.environ.get('DB_SSLMODE',
-                  'disable' if _host.endswith('.flycast') else 'require')
-    DB_SSL   = {'sslmode': _sslmode} if _sslmode else {}
+    DB_SSL   = {'sslmode': 'require'}   # Railway exige SSL
 else:
     DB_HOST  = os.environ.get('PG_HOST',    'localhost')
     DB_PORT  = int(os.environ.get('PG_PORT','5432'))
@@ -110,7 +105,7 @@ def _gen_token() -> str:
     return secrets.token_urlsafe(48)
 
 def _auth_get_user(conn, token: str):
-    """Valida token de sessão e retorna usuário + permissões + clientes, ou None."""
+    """Valida token de sessão e retorna usuário + permissões, ou None."""
     if not token:
         return None
     sess = _fetchone(conn,
@@ -126,12 +121,6 @@ def _auth_get_user(conn, token: str):
     perms = _fetchall(conn,
         "SELECT * FROM permissoes_perfil WHERE perfil_id=%s", [usr.get('perfil_id')])
     usr['permissoes'] = perms
-    # Carrega clientes associados ao usuário
-    clientes = _fetchall(conn,
-        "SELECT c.id, c.razao_social, c.cnpj, c.status "
-        "FROM usuario_clientes uc JOIN clientes c ON c.id = uc.cliente_id "
-        "WHERE uc.usuario_id=%s ORDER BY c.razao_social", [usr['id']])
-    usr['clientes'] = clientes or []
     return usr
 
 def _token_from_request(handler) -> str:
@@ -220,239 +209,6 @@ def _sync_abast_lancamentos(conn, abast_id, placa, data, posto,
                 v, 'Despesa', 'Abastecimento', abast_id,
                 cliente_id or None,
             ])
-
-_DIAS_SEMANA_MAP = {'seg':0,'ter':1,'qua':2,'qui':3,'sex':4,'sab':5,'dom':6}
-
-def _validar_restricao_horario(conn, placa, motorista, cliente_id, data_str, hora_str):
-    """Verifica se o abastecimento viola alguma restrição de horário ativa.
-    Retorna None se OK, ou dict com mensagem de erro se bloqueado."""
-    if not data_str:
-        return None
-
-    # Descobre classificação do veículo
-    veiculo = _fetchone(conn, 'SELECT tipo FROM veiculos WHERE placa=%s', [placa or ''])
-    tipo_veiculo = (veiculo.get('tipo','') if veiculo else '').lower()
-    is_pesado = 'pesado' in tipo_veiculo or 'semi' in tipo_veiculo or 'caminhao' in tipo_veiculo or 'ônibus' in tipo_veiculo
-
-    # Busca restrições ativas que se aplicam a este caso
-    restricoes = _fetchall(conn, '''
-        SELECT * FROM restricoes_horario_abast
-        WHERE ativo = TRUE
-          AND (cliente_id IS NULL OR cliente_id = %s)
-          AND (placa = '' OR placa = %s)
-          AND (motorista = '' OR motorista = %s)
-          AND (classificacao = 'Todos'
-               OR (classificacao = 'Pesado' AND %s)
-               OR (classificacao = 'Leve'   AND NOT %s))
-    ''', [cliente_id or None, placa or '', motorista or '', is_pesado, is_pesado])
-
-    if not restricoes:
-        return None  # sem restrição configurada → livre
-
-    # Dia da semana do abastecimento
-    try:
-        dt = _date.fromisoformat(data_str[:10])
-        dia_idx = dt.weekday()  # 0=seg … 6=dom
-    except Exception:
-        return None
-
-    # Hora do abastecimento
-    hora_str = (hora_str or '00:00')[:5]
-
-    # Verifica se cai em alguma janela permitida
-    for r in restricoes:
-        try:
-            dias = json.loads(r.get('dias_semana') or '[]')
-        except Exception:
-            dias = []
-        if not dias:
-            continue
-        dias_idx = [_DIAS_SEMANA_MAP.get(d, -1) for d in dias]
-        if dia_idx not in dias_idx:
-            continue
-        h_ini = (r.get('hora_inicio') or '00:00')[:5]
-        h_fim = (r.get('hora_fim')    or '23:59')[:5]
-        if h_ini <= hora_str <= h_fim:
-            return None  # está dentro de uma janela permitida
-
-    # Nenhuma janela permitiu
-    dias_nomes = {'seg':'Segunda','ter':'Terça','qua':'Quarta','qui':'Quinta',
-                  'sex':'Sexta','sab':'Sábado','dom':'Domingo'}
-    restr = restricoes[0]
-    try:
-        dias = json.loads(restr.get('dias_semana') or '[]')
-        dias_str = ', '.join(dias_nomes.get(d, d) for d in dias)
-    except Exception:
-        dias_str = '—'
-    return {
-        'bloqueado': True,
-        'motivo': (f"Abastecimento fora do período permitido. "
-                   f"Dias: {dias_str}. "
-                   f"Horário: {restr.get('hora_inicio','00:00')} – {restr.get('hora_fim','23:59')}.")
-    }
-
-def _validar_restricao_posto(conn, placa, motorista, cliente_id, posto_nome, cnpj_posto, volume, valor_total):
-    """Verifica se o abastecimento viola alguma restrição de posto ativa.
-    Lógica:
-      - Se existem restrições ativas para o veículo/motorista/cliente,
-        o posto informado DEVE estar na lista.
-      - Se o posto está na lista mas tem limite de valor ou volume, verifica o limite.
-    Retorna None se OK, ou dict {'bloqueado': True, 'motivo': '...'} se bloqueado."""
-
-    # Descobre classificação do veículo
-    veiculo = _fetchone(conn, 'SELECT tipo FROM veiculos WHERE placa=%s', [placa or ''])
-    tipo_veiculo = (veiculo.get('tipo','') if veiculo else '').lower()
-    is_pesado = 'pesado' in tipo_veiculo or 'semi' in tipo_veiculo
-
-    # Busca TODAS as restrições ativas que se aplicam a este veículo/motorista
-    restricoes = _fetchall(conn, '''
-        SELECT * FROM restricoes_posto_abast
-        WHERE ativo = TRUE
-          AND (cliente_id IS NULL OR cliente_id = %s)
-          AND (placa = '' OR placa = %s)
-          AND (motorista = '' OR motorista = %s)
-          AND (classificacao = 'Todos'
-               OR (classificacao = 'Pesado' AND %s)
-               OR (classificacao = 'Leve'   AND NOT %s))
-    ''', [cliente_id or None, placa or '', motorista or '', is_pesado, is_pesado])
-
-    if not restricoes:
-        return None  # sem restrição → livre
-
-    # Normaliza nome do posto para comparação
-    posto_norm = (posto_nome or '').strip().lower()
-
-    # Verifica se o posto está entre os permitidos
-    def _posto_match(r):
-        # Nova lógica: postos_ids (JSON array de IDs inteiros)
-        pids_raw = r.get('postos_ids') or '[]'
-        try:
-            pids = json.loads(pids_raw) if isinstance(pids_raw, str) else pids_raw
-        except Exception:
-            pids = []
-        # Se a lista de IDs não está vazia, verifica pelo CNPJ/nome do posto cadastrado
-        # (não temos o posto_id direto no abastecimento; usamos nome/cnpj do cadastro)
-        if pids:
-            # Busca os postos cadastrados cujos IDs estão na lista
-            fmt = ','.join(['%s'] * len(pids))
-            postos_rows = _fetchall(conn, f'SELECT id, razao, cnpj FROM postos WHERE id IN ({fmt})', pids)
-            for pr in postos_rows:
-                pr_nome = (pr.get('razao') or '').strip().lower()
-                pr_cnpj = (pr.get('cnpj') or '').replace('.','').replace('/','').replace('-','')
-                if pr_nome and pr_nome == posto_norm:
-                    return True
-                if cnpj_posto and pr_cnpj and \
-                   cnpj_posto.replace('.','').replace('/','').replace('-','') == pr_cnpj:
-                    return True
-            return False
-        # Fallback: campo legado posto_nome
-        rn = (r.get('posto_nome') or '').strip().lower()
-        if rn and rn == posto_norm:
-            return True
-        if cnpj_posto and r.get('posto_cnpj') and \
-           cnpj_posto.replace('.','').replace('/','').replace('-','') == \
-           r['posto_cnpj'].replace('.','').replace('/','').replace('-',''):
-            return True
-        return False
-
-    matches = [r for r in restricoes if _posto_match(r)]
-
-    if not matches:
-        # Posto não está na lista de permitidos — monta lista dos nomes permitidos
-        postos_permitidos_nomes = []
-        for r in restricoes:
-            pids_raw = r.get('postos_ids') or '[]'
-            try:
-                pids = json.loads(pids_raw) if isinstance(pids_raw, str) else pids_raw
-            except Exception:
-                pids = []
-            if pids:
-                fmt = ','.join(['%s'] * len(pids))
-                prows = _fetchall(conn, f'SELECT razao FROM postos WHERE id IN ({fmt})', pids)
-                postos_permitidos_nomes += [pr['razao'] for pr in prows if pr.get('razao')]
-            elif r.get('posto_nome'):
-                postos_permitidos_nomes.append(r['posto_nome'])
-        postos_permitidos = ', '.join(f'"{n}"' for n in postos_permitidos_nomes)
-        return {
-            'bloqueado': True,
-            'motivo': (f'Posto "{posto_nome}" não está na lista de postos permitidos '
-                       f'para este veículo/motorista. '
-                       f'Permitidos: {postos_permitidos or "nenhum cadastrado"}.')
-        }
-
-    # Posto está na lista — verifica limites
-    for r in matches:
-        tipo = r.get('limite_tipo','nenhum')
-        lim  = float(r.get('limite_valor') or 0)
-        if tipo == 'valor' and lim > 0 and float(valor_total or 0) > lim:
-            return {
-                'bloqueado': True,
-                'motivo': (f'Valor do abastecimento '
-                           f'(R$ {float(valor_total):.2f}) excede o limite '
-                           f'permitido (R$ {lim:.2f}) no posto "{posto_nome}".')
-            }
-        if tipo == 'volume' and lim > 0 and float(volume or 0) > lim:
-            return {
-                'bloqueado': True,
-                'motivo': (f'Volume ({float(volume):.1f} L) excede o limite '
-                           f'permitido ({lim:.1f} L) no posto "{posto_nome}".')
-            }
-
-    return None  # dentro dos limites → ok
-
-
-def _calc_combustivel_real(conn, placa, data_saida, data_fim=None):
-    """Soma o valor_total dos abastecimentos do veículo no período da viagem.
-    data_fim = data_retorno_prevista ou data atual se em andamento."""
-    if not placa or not data_saida:
-        return 0.0
-    data_ini_str = data_saida[:10] if data_saida else ''
-    data_fim_str = (data_fim or _hoje())[:10]
-    row = _fetchone(conn, '''
-        SELECT COALESCE(SUM(valor_total), 0) AS total
-        FROM abastecimentos
-        WHERE placa=%s AND data >= %s AND data <= %s
-    ''', [placa, data_ini_str, data_fim_str])
-    return float(row.get('total', 0) if row else 0)
-
-def _sync_manut_lancamentos(conn, manut_id, placa, data, custo,
-                             itens, oficina, tecnico, cliente_id):
-    """Cria/atualiza lançamento em lancamentos_cc para um registro de manutenção,
-    usando o centro_custo_id do veículo (se configurado)."""
-    veiculo = _fetchone(conn,
-        'SELECT centro_custo_id FROM veiculos WHERE placa=%s', [placa])
-    cc_id = veiculo.get('centro_custo_id') if veiculo else None
-    if not cc_id:
-        return  # veículo sem centro de custo → não gera lançamento
-
-    # Remove lançamento anterior deste registro de manutenção
-    _exec(conn,
-        "DELETE FROM lancamentos_cc WHERE referencia_tipo='Manutenção' AND referencia_id=%s",
-        [manut_id])
-
-    custo_val = float(custo or 0)
-    if custo_val <= 0:
-        return  # sem custo, nada a lançar
-
-    data_lanc = (data or _hoje())[:10]
-
-    # Monta descrição com itens realizados
-    if isinstance(itens, str):
-        try:    itens = json.loads(itens)
-        except: itens = []
-    realizados = [i.get('descricao') or i.get('tipo','') for i in (itens or []) if i.get('realizado')]
-    desc_itens = ', '.join(realizados[:3]) if realizados else ''
-    local_str  = oficina or tecnico or ''
-    desc = f"Manutenção {placa}" + (f" — {desc_itens}" if desc_itens else '') + (f" ({local_str})" if local_str else '')
-
-    _exec(conn, '''INSERT INTO lancamentos_cc
-        (centro_custo_id,data,categoria,descricao,valor,tipo,
-         referencia_tipo,referencia_id,cliente_id)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''', [
-        cc_id, data_lanc, 'Manutenção', desc,
-        custo_val, 'Despesa', 'Manutenção', manut_id,
-        cliente_id or None,
-    ])
 
 # ═══════════════════════════════════════════════════════════════
 #  SCHEMA – CREATE TABLES
@@ -792,24 +548,7 @@ def init_db():
         geometria         TEXT    DEFAULT '',
         status            TEXT    DEFAULT 'Rascunho',
         observacao        TEXT    DEFAULT '',
-        cliente_id        INTEGER DEFAULT NULL,
         created_at        TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
-    )''')
-    cur.execute("ALTER TABLE roteirizador_rotas ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
-
-    # ── Manutenção Preditiva — prontuários ────────────────────
-    cur.execute('''CREATE TABLE IF NOT EXISTS manutencao_registros (
-        id          SERIAL PRIMARY KEY,
-        placa       TEXT    DEFAULT '',
-        data        TEXT    DEFAULT '',
-        hodometro   REAL    DEFAULT 0,
-        tecnico     TEXT    DEFAULT '',
-        oficina     TEXT    DEFAULT '',
-        custo       REAL    DEFAULT 0,
-        itens       TEXT    DEFAULT '[]',
-        obs_gerais  TEXT    DEFAULT '',
-        cliente_id  INTEGER DEFAULT NULL,
-        created_at  TEXT    DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
     )''')
 
     # ── Tabela de Clientes ────────────────────────────────────
@@ -1170,44 +909,6 @@ def init_db():
         ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
     cur.execute('''ALTER TABLE planos_viagem
         ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER DEFAULT NULL''')
-    # custo_combustivel_real: soma dos abastecimentos do veículo no período da viagem
-    cur.execute('''ALTER TABLE planos_viagem
-        ADD COLUMN IF NOT EXISTS custo_combustivel_real REAL DEFAULT 0''')
-
-    # ── Restrições de Dias e Horários para Abastecimento ──────────
-    cur.execute('''CREATE TABLE IF NOT EXISTS restricoes_horario_abast (
-        id             SERIAL PRIMARY KEY,
-        cliente_id     INTEGER DEFAULT NULL,
-        classificacao  TEXT    DEFAULT 'Todos',
-        placa          TEXT    DEFAULT '',
-        motorista      TEXT    DEFAULT '',
-        dias_semana    TEXT    DEFAULT '[]',
-        hora_inicio    TEXT    DEFAULT '00:00',
-        hora_fim       TEXT    DEFAULT '23:59',
-        ativo          BOOLEAN DEFAULT TRUE,
-        observacao     TEXT    DEFAULT '',
-        criado_em      TEXT    DEFAULT TO_CHAR(NOW(),\'YYYY-MM-DD HH24:MI:SS\')
-    )''')
-    cur.execute("ALTER TABLE restricoes_horario_abast ADD COLUMN IF NOT EXISTS cliente_id INTEGER DEFAULT NULL")
-
-    cur.execute('''CREATE TABLE IF NOT EXISTS restricoes_posto_abast (
-        id             SERIAL PRIMARY KEY,
-        cliente_id     INTEGER DEFAULT NULL,
-        classificacao  TEXT    DEFAULT 'Todos',
-        placa          TEXT    DEFAULT '',
-        motorista      TEXT    DEFAULT '',
-        posto_id       INTEGER DEFAULT NULL,
-        posto_nome     TEXT    DEFAULT '',
-        limite_tipo    TEXT    DEFAULT 'nenhum',
-        limite_valor   NUMERIC DEFAULT 0,
-        ativo          BOOLEAN DEFAULT TRUE,
-        observacao     TEXT    DEFAULT '',
-        criado_em      TEXT    DEFAULT TO_CHAR(NOW(),\'YYYY-MM-DD HH24:MI:SS\')
-    )''')
-    # Migração: adiciona coluna postos_ids (lista de IDs em JSON) para multi-seleção
-    try:
-        cur.execute("ALTER TABLE restricoes_posto_abast ADD COLUMN IF NOT EXISTS postos_ids TEXT DEFAULT '[]'")
-    except Exception: pass
 
     # ── Migração: corrige lançamentos de combustível que usavam valor_total
     #    (combustível + Arla 32 + serviços) em vez de volume × preco_unitario ──
@@ -1220,30 +921,6 @@ def init_db():
           AND lc.categoria      = 'Combustível'
           AND lc.descricao      NOT LIKE 'Arla 32%'
     ''')
-
-    # ── Seed: senha do usuário de teste daniel.vieira@artemis.com.br ──
-    # Hash de 'UserFrota@2026' via pbkdf2_hmac sha256 + salt gestao_frota_salt_2024
-    _TEST_EMAIL = 'daniel.vieira@artemis.com.br'
-    _TEST_HASH  = '9a1555d4bb42f69de3e40e0203dbc95c9314c819606080c80efa924f5010f3e8'
-    cur.execute("SELECT id FROM usuarios WHERE LOWER(email)=%s", [_TEST_EMAIL])
-    _test_row = cur.fetchone()
-    if _test_row:
-        cur.execute("UPDATE usuarios SET senha_hash=%s, status='Ativo' WHERE id=%s",
-                    [_TEST_HASH, _test_row['id']])
-    else:
-        cur.execute("""
-            INSERT INTO usuarios (nome, email, cpf, perfil, segmento, tipo_acesso, status, senha_hash)
-            VALUES ('Daniel Vieira', %s, '', 'Operador', 'Frota', 'Frota', 'Ativo', %s)
-        """, [_TEST_EMAIL, _TEST_HASH])
-
-    # ── Associação Usuário ↔ Cliente (many-to-many) ──────────────
-    cur.execute('''CREATE TABLE IF NOT EXISTS usuario_clientes (
-        id          SERIAL PRIMARY KEY,
-        usuario_id  INTEGER NOT NULL,
-        cliente_id  INTEGER NOT NULL,
-        created_at  TEXT DEFAULT TO_CHAR(NOW(), \'YYYY-MM-DD HH24:MI:SS\'),
-        UNIQUE(usuario_id, cliente_id)
-    )''')
 
     conn.commit()
     conn.close()
@@ -1536,44 +1213,6 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json(rows)
 
-        elif path == '/api/usuario-clientes':
-            # Retorna todas as associações usuário↔cliente (admin) ou só as do usuário autenticado
-            conn = get_db()
-            usr  = _auth_get_user(conn, _token_from_request(self))
-            if not usr:
-                conn.close(); self.send_json({'error': 'Não autenticado'}, 401); return
-            qs = parse_qs(urlparse(self.path).query)
-            uid = qs.get('usuario_id', [None])[0]
-            if usr.get('is_admin'):
-                if uid:
-                    rows = _fetchall(conn,
-                        "SELECT uc.id, uc.usuario_id, uc.cliente_id, uc.created_at, "
-                        "u.nome AS usuario_nome, u.email AS usuario_email, "
-                        "c.razao_social AS cliente_nome "
-                        "FROM usuario_clientes uc "
-                        "JOIN usuarios u ON u.id=uc.usuario_id "
-                        "JOIN clientes c ON c.id=uc.cliente_id "
-                        "WHERE uc.usuario_id=%s ORDER BY c.razao_social", [int(uid)])
-                else:
-                    rows = _fetchall(conn,
-                        "SELECT uc.id, uc.usuario_id, uc.cliente_id, uc.created_at, "
-                        "u.nome AS usuario_nome, u.email AS usuario_email, "
-                        "c.razao_social AS cliente_nome "
-                        "FROM usuario_clientes uc "
-                        "JOIN usuarios u ON u.id=uc.usuario_id "
-                        "JOIN clientes c ON c.id=uc.cliente_id "
-                        "ORDER BY u.nome, c.razao_social")
-            else:
-                # Usuário comum só vê as próprias associações
-                rows = _fetchall(conn,
-                    "SELECT uc.id, uc.usuario_id, uc.cliente_id, uc.created_at, "
-                    "c.razao_social AS cliente_nome "
-                    "FROM usuario_clientes uc "
-                    "JOIN clientes c ON c.id=uc.cliente_id "
-                    "WHERE uc.usuario_id=%s ORDER BY c.razao_social", [usr['id']])
-            conn.close()
-            self.send_json(rows)
-
         elif path == '/api/perfis-acesso':
             conn = get_db()
             rows = _fetchall(conn, 'SELECT * FROM perfis_acesso ORDER BY nome', [])
@@ -1823,38 +1462,6 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json(rows)
 
-        elif path == '/api/restricoes-horario':
-            qs  = parse_qs(urlparse(self.path).query)
-            cid = qs.get('cliente_id', [None])[0]
-            conn = get_db()
-            where, params = [], []
-            if cid: where.append('cliente_id=%s'); params.append(int(cid))
-            sql = 'SELECT * FROM restricoes_horario_abast'
-            if where: sql += ' WHERE ' + ' AND '.join(where)
-            sql += ' ORDER BY id DESC'
-            rows = _fetchall(conn, sql, params)
-            conn.close()
-            self.send_json(rows)
-
-        elif path == '/api/restricoes-posto':
-            qs   = parse_qs(urlparse(self.path).query)
-            cid  = qs.get('cliente_id', [None])[0]
-            placa = qs.get('placa', [None])[0]
-            mot  = qs.get('motorista', [None])[0]
-            posto = qs.get('posto_id', [None])[0]
-            conn = get_db()
-            where, params = [], []
-            if cid:   where.append('cliente_id=%s');  params.append(int(cid))
-            if placa: where.append('placa=%s');        params.append(placa)
-            if mot:   where.append('motorista=%s');    params.append(mot)
-            if posto: where.append('posto_id=%s');     params.append(int(posto))
-            sql = 'SELECT * FROM restricoes_posto_abast'
-            if where: sql += ' WHERE ' + ' AND '.join(where)
-            sql += ' ORDER BY id DESC'
-            rows = _fetchall(conn, sql, params)
-            conn.close()
-            self.send_json(rows)
-
         elif path == '/api/hodo-variacao':
             qs   = parse_qs(urlparse(self.path).query)
             tipo = qs.get('tipo', [None])[0]
@@ -1899,19 +1506,6 @@ class Handler(BaseHTTPRequestHandler):
                 rows = _fetchall(conn, 'SELECT * FROM roteirizador_rotas WHERE cliente_id=%s ORDER BY created_at DESC', [int(cid)])
             else:
                 rows = _fetchall(conn, 'SELECT * FROM roteirizador_rotas ORDER BY created_at DESC')
-            conn.close()
-            self.send_json(rows)
-
-        elif path == '/api/manutencao-registros':
-            qs  = parse_qs(urlparse(self.path).query)
-            cid = qs.get('cliente_id', [None])[0]
-            placa = qs.get('placa', [None])[0]
-            conn = get_db()
-            conds, params = [], []
-            if cid:   conds.append('cliente_id=%s'); params.append(int(cid))
-            if placa: conds.append('placa=%s');      params.append(placa)
-            where = ('WHERE ' + ' AND '.join(conds)) if conds else ''
-            rows  = _fetchall(conn, f'SELECT * FROM manutencao_registros {where} ORDER BY created_at DESC', params)
             conn.close()
             self.send_json(rows)
 
@@ -1996,32 +1590,6 @@ class Handler(BaseHTTPRequestHandler):
         # ══════════════════════════════════════════════════════
 
         # ── Login ─────────────────────────────────────────────
-        # ── Endpoint de emergência: define/redefine senha de qualquer usuário ──
-        # Protegido por chave de admin hardcoded; remova após uso em produção.
-        if path == '/api/admin/set-password':
-            _ADMIN_KEY = 'GestaoFrotas#SetPwd2026'
-            if d.get('admin_key') != _ADMIN_KEY:
-                self.send_json({'error': 'Chave inválida'}, 403); return
-            target_email = (d.get('email') or '').strip().lower()
-            new_senha    = d.get('senha') or ''
-            if not target_email or not new_senha:
-                self.send_json({'error': 'email e senha obrigatórios'}, 400); return
-            conn = get_db()
-            usr = _fetchone(conn, "SELECT id FROM usuarios WHERE LOWER(email)=%s", [target_email])
-            if usr:
-                _exec(conn, "UPDATE usuarios SET senha_hash=%s, status='Ativo' WHERE id=%s",
-                      [_hash_senha(new_senha), usr['id']])
-                conn.commit(); conn.close()
-                self.send_json({'ok': True, 'action': 'updated'}); return
-            else:
-                # Cria o usuário se não existir
-                cur = _exec(conn, """
-                    INSERT INTO usuarios (nome, email, cpf, perfil, segmento, tipo_acesso, status, senha_hash)
-                    VALUES (%s, %s, '', 'Operador', 'Frota', 'Frota', 'Ativo', %s) RETURNING id
-                """, [target_email.split('@')[0].replace('.', ' ').title(), target_email, _hash_senha(new_senha)])
-                conn.commit(); new_id = cur.fetchone()['id']; conn.close()
-                self.send_json({'ok': True, 'action': 'created', 'id': new_id}); return
-
         if path == '/api/auth/login':
             email = (d.get('email') or '').strip().lower()
             senha = d.get('senha') or ''
@@ -2044,11 +1612,6 @@ class Handler(BaseHTTPRequestHandler):
                               [usr.get('perfil_id')]) if usr.get('perfil_id') else []
             perfil = _fetchone(conn, "SELECT nome FROM perfis_acesso WHERE id=%s",
                                [usr.get('perfil_id')]) if usr.get('perfil_id') else None
-            # Carrega clientes associados
-            clientes_assoc = _fetchall(conn,
-                "SELECT c.id, c.razao_social, c.cnpj, c.status "
-                "FROM usuario_clientes uc JOIN clientes c ON c.id = uc.cliente_id "
-                "WHERE uc.usuario_id=%s ORDER BY c.razao_social", [usr['id']])
             conn.close()
             self.send_json({
                 'token': token,
@@ -2062,7 +1625,6 @@ class Handler(BaseHTTPRequestHandler):
                     'perfil_nome': perfil['nome'] if perfil else usr.get('perfil',''),
                     'cliente_id':  usr.get('cliente_id'),
                     'is_admin':    bool(usr.get('is_admin', False)),
-                    'clientes':    clientes_assoc or [],
                 },
                 'permissoes': perms,
             }); return
@@ -2157,27 +1719,6 @@ class Handler(BaseHTTPRequestHandler):
 
         # ══════════════════════════════════════════════════════
 
-        if path == '/api/usuario-clientes':
-            conn = get_db()
-            usr  = _auth_get_user(conn, _token_from_request(self))
-            if not usr or not usr.get('is_admin'):
-                conn.close(); self.send_json({'error': 'Acesso restrito ao administrador'}, 403); return
-            uid = d.get('usuario_id')
-            cid = d.get('cliente_id')
-            if not uid or not cid:
-                conn.close(); self.send_json({'error': 'usuario_id e cliente_id obrigatórios'}, 400); return
-            try:
-                cur = _exec(conn,
-                    "INSERT INTO usuario_clientes (usuario_id, cliente_id) VALUES (%s,%s) RETURNING id",
-                    [int(uid), int(cid)])
-                conn.commit()
-                new_id = cur.fetchone()['id']
-                conn.close()
-                self.send_json({'id': new_id}, 201); return
-            except Exception as e:
-                conn.rollback(); conn.close()
-                self.send_json({'error': str(e)}, 409); return
-
         if path == '/api/clientes':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO clientes
@@ -2268,34 +1809,6 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == '/api/abastecimentos':
             conn = get_db()
-            # ── Valida restrição de horário ───────────────────────
-            bloqueio = _validar_restricao_horario(
-                conn,
-                placa      = d.get('placa',''),
-                motorista  = d.get('motorista',''),
-                cliente_id = d.get('cliente_id') or None,
-                data_str   = d.get('data',''),
-                hora_str   = d.get('hora',''),
-            )
-            if bloqueio:
-                conn.close()
-                self.send_json({'error': bloqueio['motivo'], 'bloqueado': True}, 403)
-                return
-            # ── Valida restrição de posto ─────────────────────────
-            bloqueio_posto = _validar_restricao_posto(
-                conn,
-                placa       = d.get('placa',''),
-                motorista   = d.get('motorista',''),
-                cliente_id  = d.get('cliente_id') or None,
-                posto_nome  = d.get('posto',''),
-                cnpj_posto  = d.get('cnpjPosto',''),
-                volume      = d.get('volume', 0),
-                valor_total = d.get('valorTotal', 0),
-            )
-            if bloqueio_posto:
-                conn.close()
-                self.send_json({'error': bloqueio_posto['motivo'], 'bloqueado': True}, 403)
-                return
             cur  = _exec(conn, '''INSERT INTO abastecimentos
                 (data,hora,placa,motorista,cpf_motorista,hodometro,
                  posto,cnpj_posto,cidade_posto,uf_posto,
@@ -2635,48 +2148,6 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
             self.send_json({'id': new_id}, 201)
 
-        elif path == '/api/restricoes-horario':
-            dias = d.get('diasSemana', d.get('dias_semana', []))
-            if not isinstance(dias, str): dias = json.dumps(dias, ensure_ascii=False)
-            conn = get_db()
-            cur  = _exec(conn, '''INSERT INTO restricoes_horario_abast
-                (cliente_id,classificacao,placa,motorista,dias_semana,
-                 hora_inicio,hora_fim,ativo,observacao)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
-                d.get('cliente_id') or None,
-                d.get('classificacao','Todos'), d.get('placa',''),
-                d.get('motorista',''), dias,
-                d.get('horaInicio', d.get('hora_inicio','00:00')),
-                d.get('horaFim',    d.get('hora_fim','23:59')),
-                bool(d.get('ativo', True)), d.get('observacao','')
-            ])
-            conn.commit()
-            new_id = cur.fetchone()['id']
-            conn.close()
-            self.send_json({'id': new_id}, 201)
-
-        elif path == '/api/restricoes-posto':
-            pids = d.get('postos_ids', [])
-            if not isinstance(pids, str): pids = json.dumps(pids, ensure_ascii=False)
-            conn = get_db()
-            cur  = _exec(conn, '''INSERT INTO restricoes_posto_abast
-                (cliente_id,classificacao,placa,motorista,posto_id,posto_nome,
-                 postos_ids,limite_tipo,limite_valor,ativo,observacao)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
-                d.get('cliente_id') or None,
-                d.get('classificacao','Todos'), d.get('placa',''),
-                d.get('motorista',''),
-                d.get('posto_id') or None, d.get('posto_nome',''),
-                pids,
-                d.get('limiteTipo', d.get('limite_tipo','nenhum')),
-                d.get('limiteValor', d.get('limite_valor', 0)) or 0,
-                bool(d.get('ativo', True)), d.get('observacao','')
-            ])
-            conn.commit()
-            new_id = cur.fetchone()['id']
-            conn.close()
-            self.send_json({'id': new_id}, 201)
-
         elif path == '/api/hodo-variacao':
             conn = get_db()
             cur  = _exec(conn, '''INSERT INTO hodo_variacao
@@ -2733,25 +2204,6 @@ class Handler(BaseHTTPRequestHandler):
                 conn.commit()
             conn.close()
             self.send_json({'id': new_id}, 201)
-
-        elif re.match(r'^/api/planos-viagem/(\d+)/revisar-combustivel$', path):
-            pid  = int(re.match(r'^/api/planos-viagem/(\d+)/revisar-combustivel$', path).group(1))
-            conn = get_db()
-            plano = _fetchone(conn, 'SELECT * FROM planos_viagem WHERE id=%s', [pid])
-            if not plano:
-                conn.close(); self.send_json({'error': 'Plano não encontrado'}, 404); return
-            data_fim = plano.get('data_retorno_prevista') or None
-            # Se ainda em andamento, usa hoje como data fim
-            if plano.get('status') in ('Em Andamento', 'Aprovado'):
-                data_fim = _hoje()
-            comb_real = _calc_combustivel_real(
-                conn, plano.get('placa',''),
-                plano.get('data_saida',''), data_fim)
-            _exec(conn, 'UPDATE planos_viagem SET custo_combustivel_real=%s WHERE id=%s',
-                  [comb_real, pid])
-            conn.commit()
-            conn.close()
-            self.send_json({'custo_combustivel_real': comb_real})
 
         elif path == '/api/planos-viagem-pedagios':
             conn = get_db()
@@ -2813,30 +2265,6 @@ class Handler(BaseHTTPRequestHandler):
             new_id = cur.fetchone()['id']
             conn.close()
             self.send_json({'id': new_id}, 201)
-
-        elif path == '/api/manutencao-registros':
-            itens = d.get('itens', [])
-            if not isinstance(itens, str):
-                itens = json.dumps(itens, ensure_ascii=False)
-            conn = get_db()
-            cur  = _exec(conn, '''INSERT INTO manutencao_registros
-                (placa,data,hodometro,tecnico,oficina,custo,itens,obs_gerais,cliente_id)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''', [
-                d.get('placa',''), d.get('data',''), d.get('hodometro',0),
-                d.get('tecnico',''), d.get('oficina',''), d.get('custo',0),
-                itens, d.get('obsGerais', d.get('obs_gerais','')),
-                d.get('cliente_id') or None,
-            ])
-            conn.commit()
-            new_id = cur.fetchone()['id']
-            _sync_manut_lancamentos(conn, new_id,
-                d.get('placa',''), d.get('data',''), d.get('custo',0),
-                d.get('itens',[]), d.get('oficina',''), d.get('tecnico',''),
-                d.get('cliente_id') or None)
-            conn.commit()
-            row    = _fetchone(conn, 'SELECT * FROM manutencao_registros WHERE id=%s', [new_id])
-            conn.close()
-            self.send_json(row or {'id': new_id}, 201)
 
         elif path == '/api/motoristas/bulk-status':
             items = d if isinstance(d, list) else []
@@ -3166,51 +2594,6 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
-        m = re.match(r'^/api/restricoes-horario/(\d+)$', path)
-        if m:
-            id_ = int(m.group(1))
-            dias = d.get('diasSemana', d.get('dias_semana', []))
-            if not isinstance(dias, str): dias = json.dumps(dias, ensure_ascii=False)
-            conn = get_db()
-            _exec(conn, '''UPDATE restricoes_horario_abast SET
-                cliente_id=%s,classificacao=%s,placa=%s,motorista=%s,
-                dias_semana=%s,hora_inicio=%s,hora_fim=%s,ativo=%s,observacao=%s
-                WHERE id=%s''', [
-                d.get('cliente_id') or None,
-                d.get('classificacao','Todos'), d.get('placa',''),
-                d.get('motorista',''), dias,
-                d.get('horaInicio', d.get('hora_inicio','00:00')),
-                d.get('horaFim',    d.get('hora_fim','23:59')),
-                bool(d.get('ativo', True)), d.get('observacao',''),
-                id_
-            ])
-            conn.commit(); conn.close()
-            self.send_json({'ok': True}); return
-
-        m = re.match(r'^/api/restricoes-posto/(\d+)$', path)
-        if m:
-            id_ = int(m.group(1))
-            pids = d.get('postos_ids', [])
-            if not isinstance(pids, str): pids = json.dumps(pids, ensure_ascii=False)
-            conn = get_db()
-            _exec(conn, '''UPDATE restricoes_posto_abast SET
-                cliente_id=%s,classificacao=%s,placa=%s,motorista=%s,
-                posto_id=%s,posto_nome=%s,postos_ids=%s,
-                limite_tipo=%s,limite_valor=%s,ativo=%s,observacao=%s
-                WHERE id=%s''', [
-                d.get('cliente_id') or None,
-                d.get('classificacao','Todos'), d.get('placa',''),
-                d.get('motorista',''),
-                d.get('posto_id') or None, d.get('posto_nome',''),
-                pids,
-                d.get('limiteTipo', d.get('limite_tipo','nenhum')),
-                d.get('limiteValor', d.get('limite_valor', 0)) or 0,
-                bool(d.get('ativo', True)), d.get('observacao',''),
-                id_
-            ])
-            conn.commit(); conn.close()
-            self.send_json({'ok': True}); return
-
         m = re.match(r'^/api/negociacoes/(\d+)$', path)
         if m:
             id_ = int(m.group(1))
@@ -3255,27 +2638,6 @@ class Handler(BaseHTTPRequestHandler):
                 json.dumps(d.get('filtros',{})), d.get('geometria',''),
                 d.get('status','Rascunho'), d.get('observacao',''), id_
             ])
-            conn.commit(); conn.close()
-            self.send_json({'ok': True}); return
-
-        m = re.match(r'^/api/manutencao-registros/(\d+)$', path)
-        if m:
-            id_   = int(m.group(1))
-            itens = d.get('itens', [])
-            if not isinstance(itens, str):
-                itens = json.dumps(itens, ensure_ascii=False)
-            conn  = get_db()
-            _exec(conn, '''UPDATE manutencao_registros SET
-                placa=%s,data=%s,hodometro=%s,tecnico=%s,oficina=%s,
-                custo=%s,itens=%s,obs_gerais=%s WHERE id=%s''', [
-                d.get('placa',''), d.get('data',''), d.get('hodometro',0),
-                d.get('tecnico',''), d.get('oficina',''), d.get('custo',0),
-                itens, d.get('obsGerais', d.get('obs_gerais','')), id_
-            ])
-            _sync_manut_lancamentos(conn, id_,
-                d.get('placa',''), d.get('data',''), d.get('custo',0),
-                d.get('itens',[]), d.get('oficina',''), d.get('tecnico',''),
-                d.get('cliente_id') or None)
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
@@ -3607,20 +2969,6 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
-        m = re.match(r'^/api/restricoes-horario/(\d+)$', path)
-        if m:
-            conn = get_db()
-            _exec(conn, 'DELETE FROM restricoes_horario_abast WHERE id=%s', [int(m.group(1))])
-            conn.commit(); conn.close()
-            self.send_json({'ok': True}); return
-
-        m = re.match(r'^/api/restricoes-posto/(\d+)$', path)
-        if m:
-            conn = get_db()
-            _exec(conn, 'DELETE FROM restricoes_posto_abast WHERE id=%s', [int(m.group(1))])
-            conn.commit(); conn.close()
-            self.send_json({'ok': True}); return
-
         m = re.match(r'^/api/planos-viagem/(\d+)$', path)
         if m:
             pid  = int(m.group(1))
@@ -3644,30 +2992,10 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
-        m = re.match(r'^/api/manutencao-registros/(\d+)$', path)
-        if m:
-            conn = get_db()
-            _exec(conn, 'DELETE FROM manutencao_registros WHERE id=%s', [int(m.group(1))])
-            _exec(conn,
-                "DELETE FROM lancamentos_cc WHERE referencia_tipo='Manutenção' AND referencia_id=%s",
-                [int(m.group(1))])
-            conn.commit(); conn.close()
-            self.send_json({'ok': True}); return
-
         m = re.match(r'^/api/negociacoes/(\d+)$', path)
         if m:
             conn = get_db()
             _exec(conn, 'DELETE FROM negociacoes WHERE id=%s', [int(m.group(1))])
-            conn.commit(); conn.close()
-            self.send_json({'ok': True}); return
-
-        m = re.match(r'^/api/usuario-clientes/(\d+)$', path)
-        if m:
-            conn = get_db()
-            usr  = _auth_get_user(conn, _token_from_request(self))
-            if not usr or not usr.get('is_admin'):
-                conn.close(); self.send_json({'error': 'Acesso restrito ao administrador'}, 403); return
-            _exec(conn, 'DELETE FROM usuario_clientes WHERE id=%s', [int(m.group(1))])
             conn.commit(); conn.close()
             self.send_json({'ok': True}); return
 
