@@ -701,8 +701,9 @@ with st.sidebar:
     st.divider()
 
     # ── Auto-carregamento do repositório ─────────────────────
-    # Tenta carregar pro_frotas.xlsx do repo se ainda não há CNPJs nesta sessão
-    if not st.session_state.get("cnpjs_pro_frotas"):
+    # Tenta UMA VEZ por sessão — usa flag para não repetir
+    if not st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("_repo_tentado"):
+        st.session_state["_repo_tentado"] = True   # evita loop
         _cnpjs_repo, _msg_repo, _prev_repo = _auto_carregar_pro_frotas_repo()
         if _cnpjs_repo:
             st.session_state["cnpjs_pro_frotas"]  = _cnpjs_repo
@@ -748,9 +749,16 @@ with st.sidebar:
         if st.button("🔄 Recarregar do repositório", use_container_width=True,
                      help="Força nova leitura do pro_frotas.xlsx no GitHub"):
             _auto_carregar_pro_frotas_repo.clear()
-            st.session_state.pop("cnpjs_pro_frotas", None)
-            st.session_state.pop("_pf_fonte", None)
-            st.rerun()
+            with st.spinner(f"Lendo `{ARQUIVO_PF_REPO}` do repositório…"):
+                _cnpjs_r, _msg_r, _prev_r = _auto_carregar_pro_frotas_repo()
+            if _cnpjs_r:
+                st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
+                st.session_state["_pf_fonte"]        = "repo"
+                st.success(f"✅ {_msg_r}")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(_msg_r or f"❌ `{ARQUIVO_PF_REPO}` não encontrado no repositório.")
 
         st.divider()
         st.markdown(
