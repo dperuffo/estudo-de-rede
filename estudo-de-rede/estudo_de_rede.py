@@ -176,19 +176,52 @@ def detectar_coluna_cnpj(df: pd.DataFrame):
     return None
 
 
-@st.cache_data(show_spinner=False)
-def ler_planilha_pro_frotas(conteudo: bytes, nome: str):
+def ler_planilha_pro_frotas(arquivo):
+    """
+    Lê o UploadedFile do Streamlit e retorna (set_cnpjs, msg, df_preview).
+    Sem @st.cache_data — upload de arquivo não é cacheável de forma segura.
+    """
     try:
-        df = pd.read_csv(io.BytesIO(conteudo), dtype=str) if nome.lower().endswith(".csv") \
-             else pd.read_excel(io.BytesIO(conteudo), dtype=str)
+        nome = arquivo.name.lower()
+        conteudo = arquivo.read()          # lê os bytes uma única vez
+        buf = io.BytesIO(conteudo)
+
+        if nome.endswith(".csv"):
+            # Tenta UTF-8, depois latin-1
+            try:
+                df = pd.read_csv(buf, dtype=str, encoding="utf-8")
+            except UnicodeDecodeError:
+                buf.seek(0)
+                df = pd.read_csv(buf, dtype=str, encoding="latin-1")
+        elif nome.endswith(".xls"):
+            df = pd.read_excel(buf, dtype=str, engine="xlrd")
+        else:
+            # .xlsx e outros formatos Excel modernos
+            df = pd.read_excel(buf, dtype=str, engine="openpyxl")
+
+        if df.empty:
+            return None, "A planilha está vazia.", None
+
         col = detectar_coluna_cnpj(df)
         if col is None:
-            return None, "Coluna CNPJ não encontrada. Certifique-se que há uma coluna chamada 'CNPJ'.", None
+            colunas = ", ".join(df.columns.tolist())
+            return None, (
+                f"Coluna CNPJ não encontrada. "
+                f"Colunas disponíveis: **{colunas}**. "
+                "Renomeie a coluna de CNPJ para 'CNPJ'."
+            ), None
+
         cnpjs = {c for c in df[col].dropna().apply(normalizar_cnpj) if len(c) == 14}
+        if not cnpjs:
+            return None, "Nenhum CNPJ válido (14 dígitos) encontrado na coluna detectada.", None
+
         preview = df[[col]].rename(columns={col: "CNPJ (original)"}).head(10)
         return cnpjs, f"{len(cnpjs)} CNPJs Pró-Frotas carregados (coluna: **{col}**)", preview
+
+    except ImportError as e:
+        return None, f"Biblioteca ausente no servidor: **{e}**. Contate o administrador.", None
     except Exception as e:
-        return None, f"Erro ao ler arquivo: {e}", None
+        return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None
 
 
 def marcar_pro_frotas(df: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
@@ -580,12 +613,13 @@ with st.sidebar:
             key="upload_pf", label_visibility="collapsed",
         )
         if arquivo_pf is not None:
-            cnpjs_pf, msg_pf, preview_pf = ler_planilha_pro_frotas(arquivo_pf.read(), arquivo_pf.name)
+            with st.spinner("Lendo planilha…"):
+                cnpjs_pf, msg_pf, preview_pf = ler_planilha_pro_frotas(arquivo_pf)
             if cnpjs_pf is not None:
                 st.session_state["cnpjs_pro_frotas"] = cnpjs_pf
                 st.success(msg_pf)
                 if preview_pf is not None:
-                    with st.expander("Ver amostra"):
+                    with st.expander("Ver amostra dos CNPJs"):
                         st.dataframe(preview_pf, use_container_width=True)
             else:
                 st.error(msg_pf)
