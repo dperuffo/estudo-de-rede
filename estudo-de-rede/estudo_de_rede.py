@@ -190,6 +190,10 @@ COR_PF_BORDA = "#FFD700"
 #  PRÓ-FROTAS — Upload e comparação de CNPJs
 # ═══════════════════════════════════════════════════════════════════
 
+# Nome do arquivo fixo esperado na raiz do repositório
+ARQUIVO_PF_REPO = "pro_frotas.xlsx"
+
+
 def normalizar_cnpj(valor):
     if pd.isna(valor):
         return ""
@@ -207,52 +211,75 @@ def detectar_coluna_cnpj(df: pd.DataFrame):
     return None
 
 
+def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
+    """
+    Núcleo de leitura da planilha Pró-Frotas.
+    Aceita o nome do arquivo e seus bytes brutos.
+    Retorna (set_cnpjs, msg, df_preview) ou (None, msg_erro, None).
+    """
+    buf = io.BytesIO(conteudo)
+    nome_l = nome.lower()
+
+    if nome_l.endswith(".csv"):
+        try:
+            df = pd.read_csv(buf, dtype=str, encoding="utf-8")
+        except UnicodeDecodeError:
+            buf.seek(0)
+            df = pd.read_csv(buf, dtype=str, encoding="latin-1")
+    elif nome_l.endswith(".xls"):
+        df = pd.read_excel(buf, dtype=str, engine="xlrd")
+    else:
+        df = pd.read_excel(buf, dtype=str, engine="openpyxl")
+
+    if df.empty:
+        return None, "A planilha está vazia.", None
+
+    col = detectar_coluna_cnpj(df)
+    if col is None:
+        colunas = ", ".join(df.columns.tolist())
+        return None, (
+            f"Coluna CNPJ não encontrada. "
+            f"Colunas disponíveis: **{colunas}**. "
+            "Renomeie a coluna de CNPJ para 'CNPJ'."
+        ), None
+
+    cnpjs = {c for c in df[col].dropna().apply(normalizar_cnpj) if len(c) == 14}
+    if not cnpjs:
+        return None, "Nenhum CNPJ válido (14 dígitos) encontrado na coluna detectada.", None
+
+    preview = df[[col]].rename(columns={col: "CNPJ (original)"}).head(10)
+    return cnpjs, f"{len(cnpjs)} CNPJs carregados (coluna: **{col}**)", preview
+
+
 def ler_planilha_pro_frotas(arquivo):
-    """
-    Lê o UploadedFile do Streamlit e retorna (set_cnpjs, msg, df_preview).
-    Sem @st.cache_data — upload de arquivo não é cacheável de forma segura.
-    """
+    """Lê UploadedFile do Streamlit. Sem @st.cache_data (upload não é cacheável)."""
     try:
-        nome = arquivo.name.lower()
-        conteudo = arquivo.read()          # lê os bytes uma única vez
-        buf = io.BytesIO(conteudo)
-
-        if nome.endswith(".csv"):
-            # Tenta UTF-8, depois latin-1
-            try:
-                df = pd.read_csv(buf, dtype=str, encoding="utf-8")
-            except UnicodeDecodeError:
-                buf.seek(0)
-                df = pd.read_csv(buf, dtype=str, encoding="latin-1")
-        elif nome.endswith(".xls"):
-            df = pd.read_excel(buf, dtype=str, engine="xlrd")
-        else:
-            # .xlsx e outros formatos Excel modernos
-            df = pd.read_excel(buf, dtype=str, engine="openpyxl")
-
-        if df.empty:
-            return None, "A planilha está vazia.", None
-
-        col = detectar_coluna_cnpj(df)
-        if col is None:
-            colunas = ", ".join(df.columns.tolist())
-            return None, (
-                f"Coluna CNPJ não encontrada. "
-                f"Colunas disponíveis: **{colunas}**. "
-                "Renomeie a coluna de CNPJ para 'CNPJ'."
-            ), None
-
-        cnpjs = {c for c in df[col].dropna().apply(normalizar_cnpj) if len(c) == 14}
-        if not cnpjs:
-            return None, "Nenhum CNPJ válido (14 dígitos) encontrado na coluna detectada.", None
-
-        preview = df[[col]].rename(columns={col: "CNPJ (original)"}).head(10)
-        return cnpjs, f"{len(cnpjs)} CNPJs Pró-Frotas carregados (coluna: **{col}**)", preview
-
+        return _processar_bytes_pro_frotas(arquivo.name, arquivo.read())
     except ImportError as e:
-        return None, f"Biblioteca ausente no servidor: **{e}**. Contate o administrador.", None
+        return None, f"Biblioteca ausente no servidor: **{e}**.", None
     except Exception as e:
         return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None
+
+
+@st.cache_data(show_spinner=False, ttl=86400)   # 24 horas — lê o arquivo do repo uma vez por dia
+def _auto_carregar_pro_frotas_repo():
+    """
+    Tenta carregar automaticamente a planilha Pró-Frotas do repositório.
+    Aceita: pro_frotas.xlsx / pro_frotas.xls / pro_frotas.csv
+    Retorna (set_cnpjs, msg, df_preview) ou (None, None, None) se não encontrar.
+    """
+    import os
+    for nome in [ARQUIVO_PF_REPO, "pro_frotas.xls", "pro_frotas.csv"]:
+        if os.path.exists(nome):
+            try:
+                with open(nome, "rb") as f:
+                    conteudo = f.read()
+                cnpjs, msg, preview = _processar_bytes_pro_frotas(nome, conteudo)
+                if cnpjs:
+                    return cnpjs, msg, preview
+            except Exception as e:
+                return None, f"Erro ao ler {nome} do repositório: {e}", None
+    return None, None, None   # arquivo não encontrado no repo
 
 
 def marcar_pro_frotas(df: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
@@ -670,12 +697,53 @@ with st.sidebar:
 
     st.divider()
 
+    # ── Auto-carregamento do repositório ─────────────────────
+    # Tenta carregar pro_frotas.xlsx do repo se ainda não há CNPJs nesta sessão
+    if not st.session_state.get("cnpjs_pro_frotas"):
+        _cnpjs_repo, _msg_repo, _prev_repo = _auto_carregar_pro_frotas_repo()
+        if _cnpjs_repo:
+            st.session_state["cnpjs_pro_frotas"]  = _cnpjs_repo
+            st.session_state["_pf_fonte"]         = "repo"
+
     # ── Pró-Frotas ────────────────────────────────────────────
-    with st.expander("⭐  Carga Postos Pró-Frotas", expanded=False):
+    _pf_fonte = st.session_state.get("_pf_fonte", "manual")
+    _pf_set   = st.session_state.get("cnpjs_pro_frotas", set())
+
+    # Badge de status acima do expander
+    if _pf_set:
+        if _pf_fonte == "repo":
+            st.markdown(
+                f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;"
+                f"padding:8px 12px;font-size:12px;color:#2e7d32;margin-bottom:8px'>"
+                f"✅ <b>Pró-Frotas carregado automaticamente</b><br>"
+                f"📋 {len(_pf_set):,} CNPJs · atualiza a cada 24 h<br>"
+                f"<span style='font-size:10px;opacity:.8'>Fonte: <code>{ARQUIVO_PF_REPO}</code> no repositório</span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"<div style='background:#fff8e1;border:1px solid #ffe082;border-radius:8px;"
+                f"padding:8px 12px;font-size:12px;color:#f57f17;margin-bottom:8px'>"
+                f"⭐ <b>Pró-Frotas carregado manualmente</b><br>"
+                f"📋 {len(_pf_set):,} CNPJs ativos nesta sessão"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+    else:
         st.markdown(
-            "<small>Carregue um arquivo <b>Excel</b> ou <b>CSV</b> com os CNPJs "
-            "dos postos credenciados. O sistema identificará automaticamente "
-            "cada posto com uma <b>estrela dourada ⭐</b> no mapa.</small>",
+            "<div style='background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;"
+            "padding:8px 12px;font-size:12px;color:#e65100;margin-bottom:8px'>"
+            "⚠️ <b>Pró-Frotas não carregado</b><br>"
+            f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_PF_REPO}</code> ao repositório<br>"
+            "ou faça upload manual abaixo.</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+    with st.expander("⭐  Gerenciar Pró-Frotas", expanded=not bool(_pf_set)):
+        st.markdown(
+            "<small><b>Upload manual</b> — substitui os dados do repositório nesta sessão:</small>",
             unsafe_allow_html=True,
         )
         st.markdown("")
@@ -688,21 +756,21 @@ with st.sidebar:
                 cnpjs_pf, msg_pf, preview_pf = ler_planilha_pro_frotas(arquivo_pf)
             if cnpjs_pf is not None:
                 st.session_state["cnpjs_pro_frotas"] = cnpjs_pf
+                st.session_state["_pf_fonte"]        = "manual"
                 st.success(msg_pf)
                 if preview_pf is not None:
                     with st.expander("Ver amostra dos CNPJs"):
                         st.dataframe(preview_pf, use_container_width=True)
+                st.rerun()
             else:
                 st.error(msg_pf)
 
-        pf_set = st.session_state.get("cnpjs_pro_frotas", set())
-        if pf_set:
-            st.info(f"📋 **{len(pf_set)}** CNPJs ativos")
+        if _pf_set:
+            st.divider()
             if st.button("🗑️ Remover Pró-Frotas", use_container_width=True):
                 st.session_state.pop("cnpjs_pro_frotas", None)
+                st.session_state.pop("_pf_fonte", None)
                 st.rerun()
-        else:
-            st.caption("Nenhuma planilha carregada ainda.")
 
     st.divider()
 
