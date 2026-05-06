@@ -373,20 +373,25 @@ def _haversine(lat1, lon1, lat2, lon2):
     return R * 2 * math.asin(math.sqrt(a))
 
 
-def dist_minima_rota_np(lats_arr, lons_arr, coords_rota):
+def dist_minima_rota_np(lats_arr, lons_arr, coords_rota, chunk=4000):
     """
-    Calcula distância mínima de TODOS os postos à rota de uma só vez (NumPy).
+    Calcula distância mínima de TODOS os postos à rota (NumPy vetorizado).
     lats_arr, lons_arr : arrays 1-D com as coordenadas dos postos (M elementos)
     coords_rota        : lista de [lat, lon] do trajeto  (N pontos)
+    chunk              : processa postos em lotes para limitar uso de RAM
     Retorna            : array 1-D com distância em metros para cada posto
-    ~100× mais rápido que loop Python equivalente.
+
+    Limite de memória: chunk × 150 segmentos × 6 arrays × 8 bytes ≈ 28 MB/lote
+    → seguro para o limite de 1 GB do Streamlit Community Cloud.
     """
     if not coords_rota:
         return np.full(len(lats_arr), np.inf)
 
-    rota = np.array(coords_rota, dtype=np.float64)          # (N, 2)
-    lats = np.asarray(lats_arr,  dtype=np.float64)          # (M,)
-    lons = np.asarray(lons_arr,  dtype=np.float64)          # (M,)
+    # Limita a rota a 150 pontos — suficiente para precisão de ±50 m
+    coords_ds = _downsample(coords_rota, 150)
+    rota = np.array(coords_ds, dtype=np.float64)            # (N, 2)
+    lats = np.asarray(lats_arr, dtype=np.float64)           # (M,)
+    lons = np.asarray(lons_arr, dtype=np.float64)           # (M,)
 
     # Projeção plana local (erro < 0,1 % para distâncias até 500 km)
     R       = 6_371_000.0
@@ -394,28 +399,30 @@ def dist_minima_rota_np(lats_arr, lons_arr, coords_rota):
     cos_lat = np.cos(np.radians(rota[:, 0].mean()))
 
     # Converte para metros (eixo X = leste, Y = norte)
-    rx = np.radians(rota[:, 1] - lon0) * cos_lat * R       # (N,)
+    rx = np.radians(rota[:, 1] - lon0) * cos_lat * R        # (N,)
     ry = np.radians(rota[:, 0] - lat0) * R                  # (N,)
-    px = np.radians(lons - lon0)       * cos_lat * R        # (M,)
-    py = np.radians(lats - lat0)       * R                  # (M,)
+    px = np.radians(lons - lon0)        * cos_lat * R        # (M,)
+    py = np.radians(lats - lat0)        * R                  # (M,)
 
     # Vetores de cada segmento A→B
-    ax = rx[:-1];  ay = ry[:-1]                             # (N-1,)
+    ax = rx[:-1];  ay = ry[:-1]                              # (N-1,)
     dx = rx[1:] - ax;  dy = ry[1:] - ay                     # (N-1,)
     ab2 = dx*dx + dy*dy
     ab2 = np.where(ab2 < 1e-10, 1e-10, ab2)                 # evita /0
 
-    # Parâmetro t do ponto mais próximo em cada segmento — broadcasting (M, N-1)
-    apx = px[:, None] - ax[None, :]
-    apy = py[:, None] - ay[None, :]
-    t   = np.clip((apx * dx + apy * dy) / ab2, 0.0, 1.0)
+    # Processa em lotes para não estourar RAM (cada lote ≈ 28 MB)
+    M = len(lats)
+    result = np.empty(M, dtype=np.float64)
+    for start in range(0, M, chunk):
+        end = min(start + chunk, M)
+        apx = px[start:end, None] - ax[None, :]             # (chunk, N-1)
+        apy = py[start:end, None] - ay[None, :]
+        t   = np.clip((apx * dx + apy * dy) / ab2, 0.0, 1.0)
+        ex  = apx - t * dx
+        ey  = apy - t * dy
+        result[start:end] = np.sqrt((ex*ex + ey*ey).min(axis=1))
 
-    # Distância ao quadrado de cada posto a cada segmento
-    ex   = apx - t * dx
-    ey   = apy - t * dy
-    d2   = ex*ex + ey*ey                                     # (M, N-1)
-
-    return np.sqrt(d2.min(axis=1))                           # (M,)
+    return result                                            # (M,)
 
 
 def _downsample(coords, max_pts=300):
