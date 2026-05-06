@@ -594,10 +594,9 @@ def _get(url, params, tentativas=3):
 
 
 @st.cache_data(show_spinner=False, ttl=86400)   # 24 horas
-def buscar_postos(uf=None, municipio=None):
+def buscar_postos(uf=None):
     params = {"numeropagina": 1}
-    if uf:        params["uf"]        = uf
-    if municipio: params["municipio"] = municipio
+    if uf: params["uf"] = uf
     resp = _get(f"{API_BASE_URL}{ENDPOINT}", params)
     data = resp.json()
     registros = data["data"] if isinstance(data, dict) and "data" in data else data
@@ -1031,20 +1030,31 @@ with st.sidebar:
 if modo == "📍 Por Estado/Município":
 
     if uf:
-        if uf != st.session_state.get("_uf_carregada") or municipio_input != st.session_state.get("_mun_carregado"):
+        # Carrega o estado inteiro apenas quando a UF muda (aproveita cache 24h)
+        if uf != st.session_state.get("_uf_carregada"):
             with st.spinner(f"⏳ Carregando postos de **{uf}**…"):
-                df_raw = buscar_postos(uf=uf, municipio=municipio_input or None)
-            st.session_state.update({"df_raw": df_raw, "_uf_carregada": uf, "_mun_carregado": municipio_input})
-            if not df_raw.empty and "distribuidora" in df_raw.columns:
+                df_raw_full = buscar_postos(uf=uf)
+            st.session_state.update({"df_raw_full": df_raw_full, "_uf_carregada": uf})
+            if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
                 st.session_state["distribuidoras_disponiveis"] = sorted(
-                    df_raw["distribuidora"].dropna().unique().tolist())
+                    df_raw_full["distribuidora"].dropna().unique().tolist())
             # Registra UF como disponível para busca por nome/CNPJ
             precar = st.session_state.get("_estados_precarregados", [])
             if uf not in precar:
-                precar = precar + [uf]
-                st.session_state["_estados_precarregados"] = precar
+                st.session_state["_estados_precarregados"] = precar + [uf]
         else:
-            df_raw = st.session_state.get("df_raw", pd.DataFrame())
+            df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
+
+        # Filtra por município localmente (instantâneo, sem nova chamada à API)
+        mun = municipio_input.strip()
+        if mun:
+            df_raw = df_raw_full[
+                df_raw_full["municipio"].fillna("").str.upper().str.contains(
+                    mun.upper(), regex=False, na=False
+                )
+            ].copy()
+        else:
+            df_raw = df_raw_full
 
         df_show = preparar_df(df_raw, distribuidoras_filtro)
 
