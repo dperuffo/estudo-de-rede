@@ -19,6 +19,7 @@ st.set_page_config(
     page_title="Estudo de Rede – Pró-Frotas",
     page_icon="⛽",
     layout="wide",
+    initial_sidebar_state="expanded",   # sidebar sempre aberta ao carregar
 )
 
 # ─── CSS Global ────────────────────────────────────────────────────
@@ -94,21 +95,37 @@ details summary {
 /* ── Separador sidebar ── */
 hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
 
-/* ── Botão de recolher/expandir sidebar — sempre visível ── */
-button[data-testid="collapsedControl"],
+/* ── Botão expandir/recolher sidebar — fixado na borda esquerda ── */
 [data-testid="collapsedControl"] {
+    position: fixed !important;
+    top: 50vh !important;
+    left: 0 !important;
+    transform: translateY(-50%) !important;
+    z-index: 999999 !important;
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
     background: #1565c0 !important;
-    color: white !important;
-    border-radius: 0 8px 8px 0 !important;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.25) !important;
-    z-index: 9999 !important;
+    border-radius: 0 24px 24px 0 !important;
+    width: 28px !important;
+    min-height: 64px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 3px 0 12px rgba(0,0,0,0.3) !important;
+    cursor: pointer !important;
+    border: none !important;
 }
-section[data-testid="stSidebar"][aria-expanded="false"] ~ div
-    button[data-testid="collapsedControl"] {
-    display: flex !important;
+[data-testid="collapsedControl"]:hover {
+    background: #1976d2 !important;
+    width: 34px !important;
+}
+[data-testid="collapsedControl"] svg,
+[data-testid="collapsedControl"] span {
+    fill: white !important;
+    color: white !important;
+    stroke: white !important;
+    display: block !important;
+    visibility: visible !important;
 }
 
 /* ── Botão primário ── */
