@@ -25,8 +25,21 @@ st.set_page_config(
 # ─── CSS Global ────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Esconde cabeçalho padrão do Streamlit ── */
-header[data-testid="stHeader"] { display: none !important; }
+/* ── Minimiza o header padrão mas mantém o botão de sidebar ── */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    height: 2.5rem !important;
+}
+/* Esconde apenas elementos desnecessários do header */
+header[data-testid="stHeader"] > * { opacity: 0 !important; }
+/* Mantém visível apenas o botão de toggle da sidebar */
+header[data-testid="stHeader"] button[kind="header"],
+header[data-testid="stHeader"] [data-testid="collapsedControl"],
+[data-testid="collapsedControl"] {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+}
 #MainMenu { display: none !important; }
 footer    { display: none !important; }
 
@@ -124,81 +137,6 @@ hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
 .empty-state-title { font-size: 20px; font-weight: 700; color: #546e7a; margin-bottom: 8px; }
 .empty-state-desc  { font-size: 14px; line-height: 1.6; }
 </style>
-""", unsafe_allow_html=True)
-
-# ─── Botão flutuante de expansão da sidebar (JavaScript) ──────────
-st.markdown("""
-<script>
-(function() {
-    function instalarBotaoSidebar() {
-        if (document.getElementById('_btn_sidebar_toggle')) return;
-
-        var btn = document.createElement('button');
-        btn.id = '_btn_sidebar_toggle';
-        btn.innerHTML = '&#9776;';
-        btn.title = 'Abrir/Fechar menu';
-        btn.style.cssText = [
-            'position:fixed', 'left:0', 'top:50vh',
-            'transform:translateY(-50%)',
-            'z-index:2147483647',
-            'background:#1565c0', 'color:white',
-            'border:none', 'border-radius:0 12px 12px 0',
-            'padding:14px 10px', 'font-size:18px',
-            'cursor:pointer', 'line-height:1',
-            'box-shadow:3px 0 10px rgba(0,0,0,.35)',
-            'transition:padding .15s,background .15s',
-            'display:none'
-        ].join(';');
-
-        btn.onmouseenter = function() {
-            btn.style.paddingRight = '16px';
-            btn.style.background = '#1976d2';
-        };
-        btn.onmouseleave = function() {
-            btn.style.paddingRight = '10px';
-            btn.style.background = '#1565c0';
-        };
-        btn.onclick = function() {
-            /* tenta o botão nativo primeiro */
-            var native = document.querySelector('[data-testid="collapsedControl"]');
-            if (native) { native.click(); return; }
-            /* fallback: botão de fechar dentro da sidebar */
-            var close = document.querySelector('[data-testid="stSidebar"] button');
-            if (close) close.click();
-        };
-
-        document.body.appendChild(btn);
-
-        function atualizarBotao() {
-            var sidebar = document.querySelector('[data-testid="stSidebar"]');
-            if (!sidebar) return;
-            var expandida = sidebar.getAttribute('aria-expanded') !== 'false'
-                            && window.getComputedStyle(sidebar).display !== 'none'
-                            && sidebar.offsetWidth > 50;
-            btn.style.display = expandida ? 'none' : 'flex';
-            btn.style.alignItems = 'center';
-            btn.style.justifyContent = 'center';
-        }
-
-        /* Observa mudanças de atributo na sidebar */
-        var sidebar = document.querySelector('[data-testid="stSidebar"]');
-        if (sidebar) {
-            new MutationObserver(atualizarBotao)
-                .observe(sidebar, {attributes: true, subtree: false});
-        }
-
-        /* Também verifica periodicamente (Streamlit re-renderiza) */
-        setInterval(atualizarBotao, 800);
-        atualizarBotao();
-    }
-
-    /* Aguarda o DOM e tenta múltiplas vezes */
-    setTimeout(instalarBotaoSidebar, 800);
-    setTimeout(instalarBotaoSidebar, 2000);
-    setTimeout(instalarBotaoSidebar, 4000);
-    document.addEventListener('DOMContentLoaded', instalarBotaoSidebar);
-})();
-</script>
 """, unsafe_allow_html=True)
 
 # ─── Constantes ───────────────────────────────────────────────────
