@@ -95,36 +95,9 @@ details summary {
 /* ── Separador sidebar ── */
 hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
 
-/* ── Botão expandir/recolher sidebar — fixado na borda esquerda ── */
+/* ── Botão nativo de collapse — garante visibilidade mínima ── */
 [data-testid="collapsedControl"] {
-    position: fixed !important;
-    top: 50vh !important;
-    left: 0 !important;
-    transform: translateY(-50%) !important;
-    z-index: 999999 !important;
-    display: flex !important;
-    visibility: visible !important;
     opacity: 1 !important;
-    background: #1565c0 !important;
-    border-radius: 0 24px 24px 0 !important;
-    width: 28px !important;
-    min-height: 64px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: 3px 0 12px rgba(0,0,0,0.3) !important;
-    cursor: pointer !important;
-    border: none !important;
-}
-[data-testid="collapsedControl"]:hover {
-    background: #1976d2 !important;
-    width: 34px !important;
-}
-[data-testid="collapsedControl"] svg,
-[data-testid="collapsedControl"] span {
-    fill: white !important;
-    color: white !important;
-    stroke: white !important;
-    display: block !important;
     visibility: visible !important;
 }
 
@@ -151,6 +124,81 @@ hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
 .empty-state-title { font-size: 20px; font-weight: 700; color: #546e7a; margin-bottom: 8px; }
 .empty-state-desc  { font-size: 14px; line-height: 1.6; }
 </style>
+""", unsafe_allow_html=True)
+
+# ─── Botão flutuante de expansão da sidebar (JavaScript) ──────────
+st.markdown("""
+<script>
+(function() {
+    function instalarBotaoSidebar() {
+        if (document.getElementById('_btn_sidebar_toggle')) return;
+
+        var btn = document.createElement('button');
+        btn.id = '_btn_sidebar_toggle';
+        btn.innerHTML = '&#9776;';
+        btn.title = 'Abrir/Fechar menu';
+        btn.style.cssText = [
+            'position:fixed', 'left:0', 'top:50vh',
+            'transform:translateY(-50%)',
+            'z-index:2147483647',
+            'background:#1565c0', 'color:white',
+            'border:none', 'border-radius:0 12px 12px 0',
+            'padding:14px 10px', 'font-size:18px',
+            'cursor:pointer', 'line-height:1',
+            'box-shadow:3px 0 10px rgba(0,0,0,.35)',
+            'transition:padding .15s,background .15s',
+            'display:none'
+        ].join(';');
+
+        btn.onmouseenter = function() {
+            btn.style.paddingRight = '16px';
+            btn.style.background = '#1976d2';
+        };
+        btn.onmouseleave = function() {
+            btn.style.paddingRight = '10px';
+            btn.style.background = '#1565c0';
+        };
+        btn.onclick = function() {
+            /* tenta o botão nativo primeiro */
+            var native = document.querySelector('[data-testid="collapsedControl"]');
+            if (native) { native.click(); return; }
+            /* fallback: botão de fechar dentro da sidebar */
+            var close = document.querySelector('[data-testid="stSidebar"] button');
+            if (close) close.click();
+        };
+
+        document.body.appendChild(btn);
+
+        function atualizarBotao() {
+            var sidebar = document.querySelector('[data-testid="stSidebar"]');
+            if (!sidebar) return;
+            var expandida = sidebar.getAttribute('aria-expanded') !== 'false'
+                            && window.getComputedStyle(sidebar).display !== 'none'
+                            && sidebar.offsetWidth > 50;
+            btn.style.display = expandida ? 'none' : 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+        }
+
+        /* Observa mudanças de atributo na sidebar */
+        var sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {
+            new MutationObserver(atualizarBotao)
+                .observe(sidebar, {attributes: true, subtree: false});
+        }
+
+        /* Também verifica periodicamente (Streamlit re-renderiza) */
+        setInterval(atualizarBotao, 800);
+        atualizarBotao();
+    }
+
+    /* Aguarda o DOM e tenta múltiplas vezes */
+    setTimeout(instalarBotaoSidebar, 800);
+    setTimeout(instalarBotaoSidebar, 2000);
+    setTimeout(instalarBotaoSidebar, 4000);
+    document.addEventListener('DOMContentLoaded', instalarBotaoSidebar);
+})();
+</script>
 """, unsafe_allow_html=True)
 
 # ─── Constantes ───────────────────────────────────────────────────
