@@ -375,12 +375,12 @@ def calcular_rota(lat1, lon1, lat2, lon2):
 def _get(url, params, tentativas=3):
     for i in range(tentativas):
         try:
-            r = requests.get(url, params=params, timeout=30)
+            r = requests.get(url, params=params, timeout=45)
             r.raise_for_status()
             return r
         except Exception:
             if i == tentativas-1: raise
-            time.sleep(1.5)
+            time.sleep(2)
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -789,20 +789,49 @@ else:
             if linha_reta:
                 st.warning("⚠️ Servidor de roteamento indisponível. Usando **linha reta** como aproximação.")
             ufs_rota = ufs_ao_longo_rota(coords_rota)
-            with st.spinner(f"⛽ Buscando postos em {', '.join(ufs_rota)}…"):
-                frames = []
-                for uf_b in ufs_rota:
+            if not ufs_rota:
+                st.error("❌ Não foi possível detectar estados ao longo da rota. Verifique os pontos de origem e destino.")
+                ufs_rota = []
+
+            frames = []
+            erros_uf = []
+            if ufs_rota:
+                st.info(f"🗺️ Estados detectados na rota: **{', '.join(ufs_rota)}**")
+                prog = st.progress(0, text="Buscando postos nos estados da rota…")
+                for idx_uf, uf_b in enumerate(ufs_rota):
+                    prog.progress((idx_uf) / len(ufs_rota), text=f"⛽ Carregando postos de **{uf_b}**…")
                     try:
                         df_uf = buscar_postos(uf=uf_b)
-                        if not df_uf.empty: frames.append(df_uf)
-                    except Exception: pass
+                        if not df_uf.empty:
+                            frames.append(df_uf)
+                    except Exception as e:
+                        erros_uf.append(f"**{uf_b}**: {type(e).__name__} — {e}")
+                prog.progress(1.0, text="✅ Busca concluída!")
+                time.sleep(0.5)
+                prog.empty()
+
+            if erros_uf:
+                with st.expander(f"⚠️ {len(erros_uf)} estado(s) com erro na busca — clique para ver"):
+                    for err in erros_uf:
+                        st.markdown(f"- {err}")
+
             df_todos = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
             if not df_todos.empty:
                 with st.spinner("📏 Calculando distâncias…"):
                     df_todos["_dist_rota"] = df_todos.apply(
                         lambda r: dist_minima_rota(r["_lat"], r["_lon"], coords_rota), axis=1)
                 df_rota = df_todos[df_todos["_dist_rota"] <= raio].copy().sort_values("_dist_rota").reset_index(drop=True)
+                if df_rota.empty:
+                    st.warning(
+                        f"⚠️ Foram encontrados **{len(df_todos):,}** postos nos estados, mas nenhum está "
+                        f"dentro de **{raio} m** da rota. Tente aumentar o raio na barra lateral."
+                    )
             else:
+                if not erros_uf:
+                    st.error(
+                        "❌ Nenhum posto retornado pela API ANP para os estados da rota. "
+                        "Verifique se a API está acessível: https://revendedoresapi.anp.gov.br"
+                    )
                 df_rota = pd.DataFrame()
             st.session_state.update({
                 "df_rota": df_rota, "coords_rota": coords_rota,
