@@ -1008,10 +1008,8 @@ else:
                 time.sleep(0.5)
                 prog.empty()
 
-            if erros_uf:
-                with st.expander(f"⚠️ {len(erros_uf)} estado(s) com erro na busca — clique para ver"):
-                    for err in erros_uf:
-                        st.markdown(f"- {err}")
+            # erros de API (ex: 403) são silenciosos para o usuário final
+            # — os estados com cache já resolvem a maioria dos casos
 
             df_todos = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
             if not df_todos.empty:
