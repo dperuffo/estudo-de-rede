@@ -123,6 +123,19 @@ API_BASE_URL = "https://revendedoresapi.anp.gov.br"
 ENDPOINT     = "/v1/combustivel"
 NOMINATIM    = "https://nominatim.openstreetmap.org/search"
 
+# Headers que simulam um navegador — evita bloqueio 403 da API ANP
+HEADERS_ANP = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept":          "application/json, text/plain, */*",
+    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Referer":         "https://postos.anp.gov.br/",
+    "Origin":          "https://postos.anp.gov.br",
+}
+
 UFS = [
     "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS",
     "MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC",
@@ -375,7 +388,7 @@ def calcular_rota(lat1, lon1, lat2, lon2):
 def _get(url, params, tentativas=3):
     for i in range(tentativas):
         try:
-            r = requests.get(url, params=params, timeout=45)
+            r = requests.get(url, params=params, headers=HEADERS_ANP, timeout=45)
             r.raise_for_status()
             return r
         except Exception:
@@ -806,6 +819,7 @@ else:
                             frames.append(df_uf)
                     except Exception as e:
                         erros_uf.append(f"**{uf_b}**: {type(e).__name__} — {e}")
+                    time.sleep(0.5)  # pausa entre UFs para não sobrecarregar a API
                 prog.progress(1.0, text="✅ Busca concluída!")
                 time.sleep(0.5)
                 prog.empty()
