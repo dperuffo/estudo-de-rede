@@ -226,8 +226,8 @@ def ler_planilha_pro_frotas(arquivo):
 
 def marcar_pro_frotas(df: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
     df = df.copy()
-    if cnpjs_pf:
-        df["_cnpj_norm"] = df["cnpj"].apply(normalizar_cnpj)
+    if cnpjs_pf and "cnpj" in df.columns:
+        df["_cnpj_norm"] = df["cnpj"].fillna("").apply(normalizar_cnpj)
         df["_pro_frotas"] = df["_cnpj_norm"].isin(cnpjs_pf)
     else:
         df["_pro_frotas"] = False
@@ -465,16 +465,19 @@ def _popup(row):
     )
 
 
-def _icone_pf(cor):
-    return folium.DivIcon(html=f"""
-        <div style="position:relative;width:28px;height:28px">
-          <div style="width:22px;height:22px;background:{cor};
-               border:3px solid {COR_PF_BORDA};border-radius:50%;
-               position:absolute;top:3px;left:3px;
-               box-shadow:0 0 6px {COR_PF_BORDA}88"></div>
-          <div style="position:absolute;top:-7px;right:-5px;
-               font-size:15px;filter:drop-shadow(0 0 2px #555)">⭐</div>
-        </div>""", icon_size=(32,32), icon_anchor=(14,14))
+def _marcador_pf(lat, lon, popup, tooltip):
+    """CircleMarker dourado grande para postos Pró-Frotas — renderiza corretamente em clusters."""
+    return folium.CircleMarker(
+        location=[lat, lon],
+        radius=13,
+        color="#B8860B",       # borda dourado escuro
+        weight=2.5,
+        fill=True,
+        fill_color="#FFD700",  # interior amarelo ouro
+        fill_opacity=0.92,
+        popup=popup,
+        tooltip=tooltip,
+    )
 
 
 def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
@@ -516,8 +519,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             tip   = f"{'⭐ PRÓ-FROTAS | ' if is_pf else ''}⛽ {row.get('razaoSocial','?')} ({row.get('distribuidora','?')})"
             pop   = _popup(row)
             if is_pf:
-                folium.Marker([row["_lat"],row["_lon"]], icon=_icone_pf(cor),
-                              popup=pop, tooltip=tip).add_to(c_pf)
+                _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
             else:
                 folium.CircleMarker([row["_lat"],row["_lon"]], radius=7,
                                     color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
