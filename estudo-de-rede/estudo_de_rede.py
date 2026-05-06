@@ -5,6 +5,7 @@
 
 import io
 import math
+import os
 import time
 import requests
 import numpy as np
@@ -13,6 +14,9 @@ import streamlit as st
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
+
+# Diretório onde este script está — usado para localizar arquivos do repo
+_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
@@ -268,21 +272,23 @@ def ler_planilha_pro_frotas(arquivo):
 def _auto_carregar_pro_frotas_repo():
     """
     Tenta carregar automaticamente a planilha Pró-Frotas do repositório.
+    Usa o diretório do script (_DIR) para localizar o arquivo com precisão
+    no Streamlit Cloud, independente do diretório de trabalho atual.
     Aceita: pro_frotas.xlsx / pro_frotas.xls / pro_frotas.csv
-    Retorna (set_cnpjs, msg, df_preview) ou (None, None, None) se não encontrar.
+    Retorna (set_cnpjs, msg, df_preview) ou (None, msg_erro, None).
     """
-    import os
     for nome in [ARQUIVO_PF_REPO, "pro_frotas.xls", "pro_frotas.csv"]:
-        if os.path.exists(nome):
+        caminho = os.path.join(_DIR, nome)
+        if os.path.exists(caminho):
             try:
-                with open(nome, "rb") as f:
+                with open(caminho, "rb") as f:
                     conteudo = f.read()
                 cnpjs, msg, preview = _processar_bytes_pro_frotas(nome, conteudo)
                 if cnpjs:
                     return cnpjs, msg, preview
             except Exception as e:
                 return None, f"Erro ao ler {nome} do repositório: {e}", None
-    return None, None, None   # arquivo não encontrado no repo
+    return None, f"Arquivo `{ARQUIVO_PF_REPO}` não encontrado em: {_DIR}", None
 
 
 def marcar_pro_frotas(df: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
