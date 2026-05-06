@@ -328,6 +328,73 @@ def sugestoes_nominatim(texto: str):
         return []
 
 
+def _formatar_cnpj(cnpj_str: str) -> str:
+    """Formata string de dígitos como CNPJ: XX.XXX.XXX/XXXX-XX."""
+    d = "".join(c for c in str(cnpj_str) if c.isdigit())
+    if len(d) == 14:
+        return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
+    return cnpj_str
+
+
+def buscar_posto_por_texto(texto: str, max_results: int = 6) -> list:
+    """
+    Busca postos por razão social (parcial) ou CNPJ nos estados já em cache.
+    Usa apenas dados que já estão na memória — sem chamadas extras à API ANP.
+    Retorna lista de dicts: {label, lat, lon, tipo='posto'}.
+    """
+    texto_clean = texto.strip()
+    if len(texto_clean) < 3:
+        return []
+
+    cnpj_digits = "".join(c for c in texto_clean if c.isdigit())
+    # É CNPJ se a maioria dos caracteres são dígitos (ex: "12.345" ou "123456")
+    is_cnpj = (
+        len(cnpj_digits) >= 6
+        and len(cnpj_digits) / max(len(texto_clean.replace(" ", "")), 1) > 0.65
+    )
+
+    estados = st.session_state.get("_estados_precarregados", [])
+    if not estados:
+        return []
+
+    resultados = []
+    for uf in estados:
+        try:
+            df = buscar_postos(uf=uf)   # instantâneo se estiver em cache
+            if df.empty or "razaoSocial" not in df.columns:
+                continue
+
+            if is_cnpj:
+                mask = df["cnpj"].fillna("").apply(
+                    lambda x: cnpj_digits in "".join(c for c in str(x) if c.isdigit())
+                )
+            else:
+                mask = df["razaoSocial"].fillna("").str.upper().str.contains(
+                    texto_clean.upper(), regex=False, na=False
+                )
+
+            for _, row in df[mask].head(3).iterrows():
+                nome   = str(row.get("razaoSocial", "?"))
+                cidade = str(row.get("municipio", ""))
+                uf_r   = str(row.get("uf", uf))
+                cnpj   = _formatar_cnpj(str(row.get("cnpj", "")))
+                label  = f"⛽ {nome} — {cidade}/{uf_r} | CNPJ: {cnpj}"
+                resultados.append({
+                    "label": label,
+                    "lat":   float(row["_lat"]),
+                    "lon":   float(row["_lon"]),
+                    "tipo":  "posto",
+                })
+                if len(resultados) >= max_results:
+                    break
+        except Exception:
+            continue
+        if len(resultados) >= max_results:
+            break
+
+    return resultados
+
+
 def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
     st.markdown(f"<div style='font-weight:700;font-size:13px;margin-bottom:4px'>{titulo}</div>",
                 unsafe_allow_html=True)
@@ -339,20 +406,55 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
         if len(texto) < 3:
             st.session_state.pop(key_estado, None)
 
-    sugestoes = sugestoes_nominatim(texto) if len(texto.strip()) >= 3 else []
+    texto_strip = texto.strip()
+    sugestoes   = []
+
+    if len(texto_strip) >= 3:
+        cnpj_digits = "".join(c for c in texto_strip if c.isdigit())
+        is_cnpj_input = (
+            len(cnpj_digits) >= 6
+            and len(cnpj_digits) / max(len(texto_strip.replace(" ", "")), 1) > 0.65
+        )
+
+        if is_cnpj_input:
+            # Modo CNPJ — só busca postos
+            sugestoes = buscar_posto_por_texto(texto_strip)
+            if not sugestoes:
+                estados_n = len(st.session_state.get("_estados_precarregados", []))
+                if estados_n == 0:
+                    st.markdown(
+                        "<small style='color:#e65100'>⚠️ Pré-carregue os estados na sidebar "
+                        "para buscar por CNPJ.</small>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        f"<small style='color:#e65100'>⚠️ CNPJ não encontrado nos "
+                        f"{estados_n} estado(s) já carregado(s).</small>",
+                        unsafe_allow_html=True,
+                    )
+        else:
+            # Modo híbrido — cidades (Nominatim) + postos (nome)
+            sug_postos  = buscar_posto_por_texto(texto_strip)
+            sug_cidades = [dict(s, tipo="cidade") for s in sugestoes_nominatim(texto_strip)]
+            sugestoes   = sug_postos[:4] + sug_cidades[:4]
+
     if sugestoes:
         labels = [s["label"] for s in sugestoes]
         idx = st.selectbox("Sugestões:", range(len(labels)),
                            format_func=lambda i: labels[i], key=f"_sel_{key_estado}")
         sel = sugestoes[idx]
         st.session_state[key_estado] = sel
-        st.markdown(f"<small style='color:#1565c0'>📍 {sel['label']}</small>", unsafe_allow_html=True)
+        icone = "⛽" if sel.get("tipo") == "posto" else "📍"
+        st.markdown(f"<small style='color:#1565c0'>{icone} {sel['label']}</small>",
+                    unsafe_allow_html=True)
         return sel
-    elif len(texto.strip()) >= 3:
+    elif len(texto_strip) >= 3 and not any(c.isdigit() for c in texto_strip[:2]):
+        # Só mostra "não encontrado" para buscas de texto (não CNPJ parcial ainda digitando)
         st.markdown("<small style='color:#e65100'>⚠️ Nenhuma sugestão encontrada.</small>",
                     unsafe_allow_html=True)
         return st.session_state.get(key_estado)
-    elif len(texto.strip()) > 0:
+    elif len(texto_strip) > 0:
         st.markdown("<small style='color:#888'>Continue digitando (mín. 3 letras)…</small>",
                     unsafe_allow_html=True)
     return st.session_state.get(key_estado)
@@ -815,26 +917,30 @@ with st.sidebar:
         st.markdown("")
         if st.button("⚡ Carregar todos os estados agora",
                      use_container_width=True, key="btn_preload"):
-            prog_pl  = st.progress(0, text="Iniciando…")
-            erros_pl = []
+            prog_pl      = st.progress(0, text="Iniciando…")
+            erros_pl     = []
+            carregados_pl = []
             for i_pl, uf_pl in enumerate(UFS):
                 pct = i_pl / len(UFS)
                 prog_pl.progress(pct, text=f"📡 Carregando **{uf_pl}** ({i_pl+1}/{len(UFS)})…")
                 try:
                     buscar_postos(uf=uf_pl)
-                except Exception as e_pl:
+                    carregados_pl.append(uf_pl)
+                except Exception:
                     erros_pl.append(uf_pl)
                 time.sleep(0.4)          # pausa para não sobrecarregar a API
             prog_pl.progress(1.0, text="✅ Concluído!")
             time.sleep(0.8)
             prog_pl.empty()
-            ok_pl = len(UFS) - len(erros_pl)
+            # Registra estados disponíveis para busca por nome/CNPJ
+            st.session_state["_estados_precarregados"] = carregados_pl
+            ok_pl = len(carregados_pl)
             if erros_pl:
                 st.warning(f"✅ {ok_pl} estados carregados. "
                            f"⚠️ Falha em: {', '.join(erros_pl)}")
             else:
                 st.success(f"✅ Todos os {len(UFS)} estados carregados! "
-                           "Buscas por rota agora são instantâneas por 24 horas.")
+                           "Buscas por rota e por nome/CNPJ agora são instantâneas por 24 h.")
 
     st.divider()
 
@@ -869,12 +975,21 @@ with st.sidebar:
         st.markdown(
             "<div style='background:#e3f2fd;border-radius:8px;padding:10px 12px;"
             "font-size:12px;color:#1565c0;margin-bottom:12px'>"
-            "💡 Digite a cidade e selecione nas sugestões para confirmar o ponto.</div>",
+            "💡 Digite <b>cidade</b>, <b>nome do posto</b> (ex: Rudnick) ou "
+            "<b>CNPJ</b> (dígitos) e selecione nas sugestões.</div>",
             unsafe_allow_html=True,
         )
-        orig_sel = campo_autocomplete("🟢 Ponto de Origem", "Ex: São Paulo", "txt_origem", "orig_sel")
+        orig_sel = campo_autocomplete(
+            "🟢 Ponto de Origem",
+            "Cidade, nome do posto ou CNPJ…",
+            "txt_origem", "orig_sel",
+        )
         st.markdown("")
-        dest_sel = campo_autocomplete("🔴 Ponto de Destino", "Ex: Rio de Janeiro", "txt_destino", "dest_sel")
+        dest_sel = campo_autocomplete(
+            "🔴 Ponto de Destino",
+            "Cidade, nome do posto ou CNPJ…",
+            "txt_destino", "dest_sel",
+        )
         st.divider()
 
         st.markdown("<div style='font-weight:700;font-size:13px;margin-bottom:6px'>📏 Raio da rota</div>",
@@ -911,6 +1026,11 @@ if modo == "📍 Por Estado/Município":
             if not df_raw.empty and "distribuidora" in df_raw.columns:
                 st.session_state["distribuidoras_disponiveis"] = sorted(
                     df_raw["distribuidora"].dropna().unique().tolist())
+            # Registra UF como disponível para busca por nome/CNPJ
+            precar = st.session_state.get("_estados_precarregados", [])
+            if uf not in precar:
+                precar = precar + [uf]
+                st.session_state["_estados_precarregados"] = precar
         else:
             df_raw = st.session_state.get("df_raw", pd.DataFrame())
 
@@ -1005,6 +1125,10 @@ else:
                         df_uf = buscar_postos(uf=uf_b)
                         if not df_uf.empty:
                             frames.append(df_uf)
+                            # Registra UF como disponível para busca por nome/CNPJ
+                            precar = st.session_state.get("_estados_precarregados", [])
+                            if uf_b not in precar:
+                                st.session_state["_estados_precarregados"] = precar + [uf_b]
                     except Exception as e:
                         erros_uf.append(f"**{uf_b}**: {type(e).__name__} — {e}")
                     time.sleep(0.5)  # pausa entre UFs para não sobrecarregar a API
