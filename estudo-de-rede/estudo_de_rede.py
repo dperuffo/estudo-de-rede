@@ -29,23 +29,26 @@ st.set_page_config(
 # ─── CSS Global ────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Minimiza o header padrão mas mantém o botão de sidebar ── */
+/* ── Header transparente — não toca nos filhos para não quebrar o toggle ── */
 header[data-testid="stHeader"] {
     background: transparent !important;
-    height: 2.5rem !important;
+    box-shadow: none !important;
 }
-/* Esconde apenas elementos desnecessários do header */
-header[data-testid="stHeader"] > * { opacity: 0 !important; }
-/* Mantém visível apenas o botão de toggle da sidebar */
-header[data-testid="stHeader"] button[kind="header"],
-header[data-testid="stHeader"] [data-testid="collapsedControl"],
+/* Esconde apenas os itens que não queremos ver */
+#MainMenu          { display: none !important; }
+footer             { display: none !important; }
+.stDeployButton    { display: none !important; }
+/* Garante que o botão de recolher/expandir sidebar sempre aparece */
+[data-testid="collapsedControl"],
+button[data-testid="baseButton-headerNoPadding"] {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+/* ── Botão nativo de collapse — garante visibilidade mínima ── */
 [data-testid="collapsedControl"] {
     opacity: 1 !important;
     visibility: visible !important;
-    display: flex !important;
 }
-#MainMenu { display: none !important; }
-footer    { display: none !important; }
 
 /* ── Barra superior personalizada ── */
 .topbar {
@@ -111,12 +114,6 @@ details summary {
 
 /* ── Separador sidebar ── */
 hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
-
-/* ── Botão nativo de collapse — garante visibilidade mínima ── */
-[data-testid="collapsedControl"] {
-    opacity: 1 !important;
-    visibility: visible !important;
-}
 
 /* ── Botão primário ── */
 .stButton > button[kind="primary"] {
