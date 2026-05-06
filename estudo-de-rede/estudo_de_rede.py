@@ -3,6 +3,7 @@
 #  Versão 5.0  |  NumPy vetorizado + cache 24h + pré-carga de estados
 # ═══════════════════════════════════════════════════════════════════
 
+import base64
 import io
 import math
 import os
@@ -18,10 +19,35 @@ from streamlit_folium import st_folium
 # Diretório onde este script está — usado para localizar arquivos do repo
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ─── Logo Pró-Frotas ───────────────────────────────────────────────
+# Aceita qualquer variação de nome/extensão que possa estar no repositório
+for _logo_nome in ["Logo_profrotas.jpg", "logo_profrotas.jpg",
+                   "Logo_profrotas.png", "logo_profrotas.png"]:
+    _logo_candidato = os.path.join(_DIR, _logo_nome)
+    if os.path.exists(_logo_candidato):
+        _LOGO_PATH = _logo_candidato
+        break
+else:
+    _LOGO_PATH = ""
+
+if os.path.exists(_LOGO_PATH):
+    with open(_LOGO_PATH, "rb") as _f:
+        _LOGO_B64 = base64.b64encode(_f.read()).decode()
+    _LOGO_TOPBAR   = (f'<img src="data:image/png;base64,{_LOGO_B64}" '
+                      f'style="height:44px;object-fit:contain">')
+    _LOGO_SIDEBAR  = (f'<img src="data:image/png;base64,{_LOGO_B64}" '
+                      f'style="height:56px;object-fit:contain;margin:4px 0">')
+    _LOGO_PAGE_ICON = _LOGO_PATH
+else:
+    _LOGO_B64      = None
+    _LOGO_TOPBAR   = '<span style="font-size:36px">⛽</span>'
+    _LOGO_SIDEBAR  = '<span style="font-size:32px">⛽</span>'
+    _LOGO_PAGE_ICON = "⛽"
+
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
     page_title="Estudo de Rede – Pró-Frotas",
-    page_icon="⛽",
+    page_icon=_LOGO_PAGE_ICON,
     layout="wide",
     initial_sidebar_state="expanded",   # sidebar sempre aberta ao carregar
 )
@@ -784,7 +810,7 @@ pf_badge_html = (
 
 st.markdown(f"""
 <div class="topbar">
-  <div class="topbar-icon">⛽</div>
+  <div class="topbar-icon">{_LOGO_TOPBAR}</div>
   <div>
     <div class="topbar-title">Estudo de Rede – Pró-Frotas</div>
     <div class="topbar-sub">ANP · Agência Nacional do Petróleo, Gás Natural e Biocombustíveis</div>
@@ -801,11 +827,10 @@ st.markdown(f"""
 with st.sidebar:
 
     # ── Logo / título lateral ─────────────────────────────────
-    st.markdown("""
+    st.markdown(f"""
     <div style='text-align:center;padding:10px 0 6px'>
-      <div style='font-size:32px'>⛽</div>
-      <div style='font-weight:800;font-size:15px;color:#0d1b4b'>Estudo de Rede</div>
-      <div style='font-size:11px;color:#666;margin-top:2px'>Pró-Frotas · ANP</div>
+      <div style='margin-bottom:6px'>{_LOGO_SIDEBAR}</div>
+      <div style='font-size:11px;color:#666;margin-top:2px'>Estudo de Rede · ANP</div>
     </div>
     """, unsafe_allow_html=True)
 
