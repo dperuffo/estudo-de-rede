@@ -93,6 +93,23 @@ details summary {
 /* ── Separador sidebar ── */
 hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
 
+/* ── Botão de recolher/expandir sidebar — sempre visível ── */
+button[data-testid="collapsedControl"],
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: #1565c0 !important;
+    color: white !important;
+    border-radius: 0 8px 8px 0 !important;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.25) !important;
+    z-index: 9999 !important;
+}
+section[data-testid="stSidebar"][aria-expanded="false"] ~ div
+    button[data-testid="collapsedControl"] {
+    display: flex !important;
+}
+
 /* ── Botão primário ── */
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #1565c0, #0d47a1);
@@ -339,6 +356,18 @@ def dist_minima_rota(lat, lon, coords):
                for i in range(len(coords)-1))
 
 
+def _downsample(coords, max_pts=300):
+    """Reduz o número de pontos da polyline sem perder o traçado geral."""
+    if len(coords) <= max_pts:
+        return coords
+    step = max(1, len(coords) // max_pts)
+    result = coords[::step]
+    # Garante que o último ponto está incluído
+    if result[-1] != coords[-1]:
+        result = result + [coords[-1]]
+    return result
+
+
 def ufs_ao_longo_rota(coords_rota):
     ufs = set()
     passo = max(1, len(coords_rota)//80)
@@ -509,7 +538,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     mapa_cores = {d.upper().strip(): CORES[i%len(CORES)] for i,d in enumerate(distribuidoras)}
 
     if coords_rota and len(coords_rota) >= 2:
-        folium.PolyLine(coords_rota, color="#1565C0", weight=5,
+        coords_poly = _downsample(coords_rota, 300)
+        folium.PolyLine(coords_poly, color="#1565C0", weight=5,
                         opacity=0.85, tooltip="🗺️ Rota").add_to(m)
     if lat_orig is not None:
         folium.Marker([lat_orig,lon_orig],
@@ -889,7 +919,8 @@ else:
                            lat_orig=lat_orig, lon_orig=lon_orig,
                            lat_dest=lat_dest, lon_dest=lon_dest,
                            label_orig=label_orig, label_dest=label_dest)
-            st_folium(m, use_container_width=True, height=650, returned_objects=[])
+            st_folium(m, use_container_width=True, height=650,
+                      returned_objects=[], key="mapa_rota")
 
         with tab_d:
             cols_r = [c for c in ["razaoSocial","distribuidora","_pro_frotas",
