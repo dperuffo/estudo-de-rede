@@ -1002,6 +1002,20 @@ with st.sidebar:
         buscar_rota_btn = st.button("🗺️ Traçar Rota e Buscar Postos",
                                     use_container_width=True, type="primary")
 
+        # Botão Limpar — só aparece se houver uma consulta ativa
+        if st.session_state.get("df_rota") is not None:
+            if st.button("🗑️ Limpar Consulta", use_container_width=True,
+                         help="Remove os resultados e limpa os campos de origem e destino"):
+                for _k in ["df_rota", "coords_rota",
+                            "lat_orig", "lon_orig", "label_orig",
+                            "lat_dest", "lon_dest", "label_dest",
+                            "dist_km", "dur_min", "raio_usado", "linha_reta",
+                            "distribuidoras_rota",
+                            "orig_sel", "dest_sel",
+                            "_orig_sel_txt_ant", "_dest_sel_txt_ant"]:
+                    st.session_state.pop(_k, None)
+                st.rerun()
+
         distribuidoras_filtro = []
         if st.session_state.get("distribuidoras_rota"):
             st.divider()
