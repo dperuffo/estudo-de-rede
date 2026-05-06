@@ -32,16 +32,28 @@ else:
 
 if os.path.exists(_LOGO_PATH):
     with open(_LOGO_PATH, "rb") as _f:
-        _LOGO_B64 = base64.b64encode(_f.read()).decode()
-    _LOGO_TOPBAR   = (f'<img src="data:image/png;base64,{_LOGO_B64}" '
-                      f'style="height:44px;object-fit:contain">')
-    _LOGO_SIDEBAR  = (f'<img src="data:image/png;base64,{_LOGO_B64}" '
-                      f'style="height:56px;object-fit:contain;margin:4px 0">')
+        _logo_bytes = _f.read()
+    _logo_mime = "image/jpeg" if _LOGO_PATH.lower().endswith(".jpg") else "image/png"
+    _LOGO_B64 = base64.b64encode(_logo_bytes).decode()
+    # Topbar azul: mix-blend-mode screen funde o fundo azul da logo com o gradiente,
+    # deixando apenas o texto branco e o ícone laranja visíveis
+    _LOGO_TOPBAR  = (
+        f'<img src="data:{_logo_mime};base64,{_LOGO_B64}" '
+        f'style="height:46px;object-fit:contain;mix-blend-mode:screen;'
+        f'filter:brightness(1.15) contrast(1.05)">'
+    )
+    # Sidebar cinza: card branco emoldura a logo deixando-a harmonizada
+    _LOGO_SIDEBAR = (
+        f'<div style="display:inline-block;background:#fff;border-radius:10px;'
+        f'padding:6px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.12)">'
+        f'<img src="data:{_logo_mime};base64,{_LOGO_B64}" '
+        f'style="height:48px;object-fit:contain;display:block"></div>'
+    )
     _LOGO_PAGE_ICON = _LOGO_PATH
 else:
-    _LOGO_B64      = None
-    _LOGO_TOPBAR   = '<span style="font-size:36px">⛽</span>'
-    _LOGO_SIDEBAR  = '<span style="font-size:32px">⛽</span>'
+    _LOGO_B64       = None
+    _LOGO_TOPBAR    = '<span style="font-size:36px">⛽</span>'
+    _LOGO_SIDEBAR   = '<span style="font-size:32px">⛽</span>'
     _LOGO_PAGE_ICON = "⛽"
 
 # ─── Configuração da página ────────────────────────────────────────
