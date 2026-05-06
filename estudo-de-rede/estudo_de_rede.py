@@ -745,6 +745,14 @@ with st.sidebar:
         )
 
     with st.expander("⭐  Gerenciar Pró-Frotas", expanded=not bool(_pf_set)):
+        if st.button("🔄 Recarregar do repositório", use_container_width=True,
+                     help="Força nova leitura do pro_frotas.xlsx no GitHub"):
+            _auto_carregar_pro_frotas_repo.clear()
+            st.session_state.pop("cnpjs_pro_frotas", None)
+            st.session_state.pop("_pf_fonte", None)
+            st.rerun()
+
+        st.divider()
         st.markdown(
             "<small><b>Upload manual</b> — substitui os dados do repositório nesta sessão:</small>",
             unsafe_allow_html=True,
