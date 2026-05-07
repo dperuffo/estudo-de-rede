@@ -1279,14 +1279,24 @@ if modo == "📍 Por Estado/Município":
         with tab_mapa:
             _map_out = st_folium(
                 criar_mapa(df_show), use_container_width=True, height=520,
-                returned_objects=["last_object_clicked_popup"],
+                returned_objects=["last_object_clicked"],
                 key=f"mapa_estado_{uf}",
             )
-            # ── Captura posto clicado ──────────────────────────────
-            _popup_raw = (_map_out or {}).get("last_object_clicked_popup")
-            _posto_clicado = _extrair_posto_do_popup(_popup_raw)
-            if _posto_clicado:
-                st.session_state["_map_posto_sel"] = _posto_clicado
+            # ── Captura posto clicado pelo objeto mais próximo ─────
+            _clicked = (_map_out or {}).get("last_object_clicked")
+            if _clicked and isinstance(_clicked, dict) and "lat" in _clicked:
+                _clat = float(_clicked["lat"])
+                _clon = float(_clicked.get("lng", _clicked.get("lon", 0)))
+                if not df_show.empty:
+                    _d2 = (df_show["_lat"] - _clat)**2 + (df_show["_lon"] - _clon)**2
+                    _idx_min = _d2.idxmin()
+                    if _d2[_idx_min] < 0.01:   # tolerância ~1 km
+                        _r = df_show.loc[_idx_min]
+                        st.session_state["_map_posto_sel"] = {
+                            "lat":   float(_r["_lat"]),
+                            "lon":   float(_r["_lon"]),
+                            "label": str(_r.get("razaoSocial", "Posto")),
+                        }
 
             _sel = st.session_state.get("_map_posto_sel")
             if _sel:
@@ -1517,12 +1527,23 @@ else:
                            lat_dest=lat_dest, lon_dest=lon_dest,
                            label_orig=label_orig, label_dest=label_dest)
             _rota_out = st_folium(m, use_container_width=True, height=520,
-                                  returned_objects=["last_object_clicked_popup"],
+                                  returned_objects=["last_object_clicked"],
                                   key="mapa_rota")
-            # ── Clique no mapa de rota → atualiza origem ou destino ──
-            _rp = _extrair_posto_do_popup((_rota_out or {}).get("last_object_clicked_popup"))
-            if _rp:
-                st.session_state["_rota_map_sel"] = _rp
+            # ── Captura posto clicado pelo objeto mais próximo ────────
+            _rota_clicked = (_rota_out or {}).get("last_object_clicked")
+            if _rota_clicked and isinstance(_rota_clicked, dict) and "lat" in _rota_clicked:
+                _rclat = float(_rota_clicked["lat"])
+                _rclon = float(_rota_clicked.get("lng", _rota_clicked.get("lon", 0)))
+                if not df_show_r.empty:
+                    _rd2 = (df_show_r["_lat"] - _rclat)**2 + (df_show_r["_lon"] - _rclon)**2
+                    _ridx = _rd2.idxmin()
+                    if _rd2[_ridx] < 0.01:   # tolerância ~1 km
+                        _rr2 = df_show_r.loc[_ridx]
+                        st.session_state["_rota_map_sel"] = {
+                            "lat":   float(_rr2["_lat"]),
+                            "lon":   float(_rr2["_lon"]),
+                            "label": str(_rr2.get("razaoSocial", "Posto")),
+                        }
             _rs = st.session_state.get("_rota_map_sel")
             if _rs:
                 st.markdown(
