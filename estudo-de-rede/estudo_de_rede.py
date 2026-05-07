@@ -1302,9 +1302,11 @@ if modo == "📍 Por Estado/Município":
             "🗺️  Mapa Interativo", "📋  Dados Tabulares", "📊  Análise por Bandeira"])
 
         with tab_mapa:
+            # returned_objects=["last_object_clicked"] garante renderização correta
+            # do componente; o valor retornado é ignorado (seleção via busca abaixo)
             st_folium(
                 criar_mapa(df_show), use_container_width=True, height=520,
-                returned_objects=[],
+                returned_objects=["last_object_clicked"],
                 key=f"mapa_estado_{uf}",
             )
 
@@ -1444,7 +1446,7 @@ if modo == "📍 Por Estado/Município":
                     label_orig=_rr["orig"]["label"], label_dest=_rr["dest"]["label"],
                 )
                 st_folium(_mapa_rota, use_container_width=True, height=480,
-                          returned_objects=[], key="mapa_rota_estado")
+                          returned_objects=["last_object_clicked"], key="mapa_rota_estado")
 
         with tab_dados:
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
@@ -1481,7 +1483,7 @@ if modo == "📍 Por Estado/Município":
           </div>
         </div>
         """, unsafe_allow_html=True)
-        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=440, returned_objects=[])
+        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=440, returned_objects=["last_object_clicked"])
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1602,7 +1604,7 @@ else:
                            lat_dest=lat_dest, lon_dest=lon_dest,
                            label_orig=label_orig, label_dest=label_dest)
             st_folium(m, use_container_width=True, height=520,
-                      returned_objects=[],
+                      returned_objects=["last_object_clicked"],
                       key="mapa_rota")
 
             # ── Busca rápida — refinar Origem/Destino com posto da rota ─
@@ -1681,4 +1683,4 @@ else:
           </div>
         </div>
         """, unsafe_allow_html=True)
-        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=520, returned_objects=[])
+        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=520, returned_objects=["last_object_clicked"])
