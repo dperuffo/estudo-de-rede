@@ -434,10 +434,15 @@ def buscar_posto_por_texto(texto: str, max_results: int = 6) -> list:
 
 
 def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
+    # Sufixo dinâmico garante reset completo dos widgets ao limpar consulta
+    fk = st.session_state.get("_form_key", 0)
+    key_txt_widget = f"{key_texto}_{fk}"
+    key_sel_widget = f"_sel_{key_estado}_{fk}"
+
     st.markdown(f"<div style='font-weight:700;font-size:13px;margin-bottom:4px'>{titulo}</div>",
                 unsafe_allow_html=True)
     texto = st.text_input(titulo, placeholder=placeholder,
-                          key=key_texto, label_visibility="collapsed")
+                          key=key_txt_widget, label_visibility="collapsed")
     ultimo = st.session_state.get(f"_{key_estado}_txt_ant", "")
     if texto != ultimo:
         st.session_state[f"_{key_estado}_txt_ant"] = texto
@@ -455,7 +460,6 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
         )
 
         if is_cnpj_input:
-            # Modo CNPJ — só busca postos
             sugestoes = buscar_posto_por_texto(texto_strip)
             if not sugestoes:
                 estados_n = len(st.session_state.get("_estados_precarregados", []))
@@ -472,7 +476,6 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
                         unsafe_allow_html=True,
                     )
         else:
-            # Modo híbrido — cidades (Nominatim) + postos (nome)
             sug_postos  = buscar_posto_por_texto(texto_strip)
             sug_cidades = [dict(s, tipo="cidade") for s in sugestoes_nominatim(texto_strip)]
             sugestoes   = sug_postos[:4] + sug_cidades[:4]
@@ -480,7 +483,7 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
     if sugestoes:
         labels = [s["label"] for s in sugestoes]
         idx = st.selectbox("Sugestões:", range(len(labels)),
-                           format_func=lambda i: labels[i], key=f"_sel_{key_estado}")
+                           format_func=lambda i: labels[i], key=key_sel_widget)
         sel = sugestoes[idx]
         st.session_state[key_estado] = sel
         icone = "⛽" if sel.get("tipo") == "posto" else "📍"
@@ -488,7 +491,6 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
                     unsafe_allow_html=True)
         return sel
     elif len(texto_strip) >= 3 and not any(c.isdigit() for c in texto_strip[:2]):
-        # Só mostra "não encontrado" para buscas de texto (não CNPJ parcial ainda digitando)
         st.markdown("<small style='color:#e65100'>⚠️ Nenhuma sugestão encontrada.</small>",
                     unsafe_allow_html=True)
         return st.session_state.get(key_estado)
@@ -1061,21 +1063,17 @@ with st.sidebar:
         if st.button("🗑️ Limpar Consulta", use_container_width=True,
                      help="Remove os resultados e limpa os campos de origem e destino"):
             for _k in [
-                # Resultados da rota
                 "df_rota", "coords_rota",
                 "lat_orig", "lon_orig", "label_orig",
                 "lat_dest", "lon_dest", "label_dest",
                 "dist_km", "dur_min", "raio_usado", "linha_reta",
                 "distribuidoras_rota",
-                # Seleções do autocomplete
                 "orig_sel", "dest_sel",
                 "_orig_sel_txt_ant", "_dest_sel_txt_ant",
-                # Campos de texto (txt_origem / txt_destino)
-                "txt_origem", "txt_destino",
-                # Selectboxes de sugestões
-                "_sel_orig_sel", "_sel_dest_sel",
             ]:
                 st.session_state.pop(_k, None)
+            # Incrementa o sufixo dos widgets — força criação de novos campos em branco
+            st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
             st.rerun()
 
         distribuidoras_filtro = []
