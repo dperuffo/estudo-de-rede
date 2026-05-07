@@ -4,12 +4,14 @@
 # ═══════════════════════════════════════════════════════════════════
 
 import base64
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import io
 import math
 import os
 import re
 import time
+import unicodedata
 import requests
 import numpy as np
 import pandas as pd
@@ -569,8 +571,12 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
                     )
         else:
             sug_postos  = buscar_posto_por_texto(texto_strip)
-            sug_cidades = [dict(s, tipo="cidade") for s in sugestoes_nominatim(texto_strip)]
-            sugestoes   = sug_postos[:4] + sug_cidades[:4]
+            # Busca cidade no cache ANP (sem acento, sem Nominatim)
+            sug_cidades = _buscar_cidades_cache(texto_strip)
+            # Fallback: Nominatim se cache vazio (base ainda não carregada)
+            if not sug_cidades:
+                sug_cidades = [dict(s, tipo="cidade") for s in sugestoes_nominatim(texto_strip)]
+            sugestoes = sug_postos[:4] + sug_cidades[:4]
 
     if sugestoes:
         labels = [s["label"] for s in sugestoes]
@@ -958,6 +964,81 @@ def _n(valor, dec: int = 0) -> str:
     return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _sem_acento(texto: str) -> str:
+    """Remove acentos e retorna texto normalizado em maiúsculas.
+    Permite comparar 'Ribeirao Preto' com 'RIBEIRÃO PRETO'.
+    """
+    return "".join(
+        c for c in unicodedata.normalize("NFD", texto.upper())
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def _precarregar_estados_paralelo(max_workers: int = 5):
+    """Carrega todos os 27 estados em paralelo (até max_workers simultâneos).
+    - Hits de cache são instantâneos (< 1s total).
+    - Chamadas reais à API rodam em paralelo: ~5-10s no lugar de ~50s sequencial.
+    Retorna (lista_ok, lista_err).
+    """
+    def _load(uf):
+        try:
+            df = buscar_postos(uf=uf)
+            return uf, not df.empty
+        except Exception:
+            return uf, False
+
+    ok, err = [], []
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(_load, uf): uf for uf in UFS}
+        for f in as_completed(futures):
+            uf, success = f.result()
+            (ok if success else err).append(uf)
+    return sorted(ok), sorted(err)
+
+
+def _buscar_cidades_cache(texto: str, max_results: int = 6) -> list:
+    """Busca municípios diretamente no cache ANP — sem depender do Nominatim.
+    Normaliza acentos, então 'Ribeirao Preto' encontra 'RIBEIRÃO PRETO'.
+    Retorna lista de dicts {label, lat, lon, tipo='cidade'}.
+    """
+    texto_norm = _sem_acento(texto.strip())
+    if len(texto_norm) < 2:
+        return []
+
+    estados = st.session_state.get("_estados_precarregados", [])
+    if not estados:
+        return []
+
+    vistos: set = set()
+    resultados: list = []
+
+    for uf in estados:
+        try:
+            df = buscar_postos(uf=uf)
+            if df.empty or "municipio" not in df.columns:
+                continue
+            mask = df["municipio"].fillna("").apply(
+                lambda x: texto_norm in _sem_acento(x)
+            )
+            for mun, grupo in df[mask].groupby("municipio"):
+                chave = f"{mun}|{uf}"
+                if chave in vistos:
+                    continue
+                vistos.add(chave)
+                resultados.append({
+                    "label": f"{mun} – {uf}",
+                    "lat":   float(grupo["_lat"].mean()),
+                    "lon":   float(grupo["_lon"].mean()),
+                    "tipo":  "cidade",
+                })
+                if len(resultados) >= max_results:
+                    return resultados
+        except Exception:
+            continue
+
+    return resultados
+
+
 # ═══════════════════════════════════════════════════════════════════
 #  INTERFACE — BARRA SUPERIOR
 # ═══════════════════════════════════════════════════════════════════
@@ -978,6 +1059,27 @@ st.markdown(f"""
   {pf_badge_html}
 </div>
 """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  AUTO-CARGA DA BASE NACIONAL (uma vez por sessão)
+#  Carrega os 27 estados em paralelo ao abrir o app.
+#  - Hits de cache (24h): quase instantâneo.
+#  - Cache frio (1ª abertura ou restart): ~5-15s com 5 workers paralelos.
+#  Garante que buscas por cidade, nome e CNPJ funcionem imediatamente.
+# ═══════════════════════════════════════════════════════════════════
+
+if not st.session_state.get("_base_auto_ok"):
+    with st.spinner("⏳ Carregando base nacional de postos… (apenas na primeira abertura)"):
+        _auto_ok, _auto_err = _precarregar_estados_paralelo(max_workers=5)
+    st.session_state.update({
+        "_estados_precarregados": _auto_ok,
+        "_preload_brasil_em":     _agora(),
+        "_preload_brasil_ok":     len(_auto_ok),
+        "_preload_brasil_err":    _auto_err,
+        "_base_auto_ok":          True,
+    })
+    st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1126,35 +1228,22 @@ with st.sidebar:
                 unsafe_allow_html=True,
             )
         st.markdown("")
-        if st.button("⚡ Carregar todos os estados agora",
+        if st.button("⚡ Recarregar todos os estados agora",
                      use_container_width=True, key="btn_preload"):
-            prog_pl       = st.progress(0, text="Iniciando…")
-            erros_pl      = []
-            carregados_pl = []
-            for i_pl, uf_pl in enumerate(UFS):
-                pct = i_pl / len(UFS)
-                prog_pl.progress(pct, text=f"📡 Carregando **{uf_pl}** ({i_pl+1}/{len(UFS)})…")
-                try:
-                    buscar_postos(uf=uf_pl)
-                    carregados_pl.append(uf_pl)
-                except Exception:
-                    erros_pl.append(uf_pl)
-                time.sleep(0.4)
-            prog_pl.progress(1.0, text="✅ Concluído!")
-            time.sleep(0.8)
-            prog_pl.empty()
-            # Registra estados e timestamp
+            buscar_postos.clear()   # limpa cache para forçar nova leitura da API
+            with st.spinner("📡 Recarregando base em paralelo…"):
+                carregados_pl, erros_pl = _precarregar_estados_paralelo(max_workers=5)
             st.session_state["_estados_precarregados"] = carregados_pl
             st.session_state["_preload_brasil_em"]     = _agora()
             st.session_state["_preload_brasil_ok"]     = len(carregados_pl)
             st.session_state["_preload_brasil_err"]    = erros_pl
-            ok_pl = len(carregados_pl)
+            st.session_state["_base_auto_ok"]          = True
             if erros_pl:
-                st.warning(f"✅ {ok_pl} estados carregados. "
+                st.warning(f"✅ {len(carregados_pl)} estados carregados. "
                            f"⚠️ Falha em: {', '.join(erros_pl)}")
             else:
                 st.success(f"✅ Todos os {len(UFS)} estados carregados! "
-                           "Buscas por rota e por nome/CNPJ agora são instantâneas por 24 h.")
+                           "Buscas por cidade, nome e CNPJ são instantâneas por 24 h.")
             st.rerun()
 
     st.divider()
