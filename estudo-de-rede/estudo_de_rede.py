@@ -1277,47 +1277,70 @@ if modo == "📍 Por Estado/Município":
             "🗺️  Mapa Interativo", "📋  Dados Tabulares", "📊  Análise por Bandeira"])
 
         with tab_mapa:
-            _map_out = st_folium(
+            st_folium(
                 criar_mapa(df_show), use_container_width=True, height=520,
-                returned_objects=["last_object_clicked"],
+                returned_objects=[],
                 key=f"mapa_estado_{uf}",
             )
-            # ── Captura posto clicado pelo objeto mais próximo ─────
-            _clicked = (_map_out or {}).get("last_object_clicked")
-            if _clicked and isinstance(_clicked, dict) and "lat" in _clicked:
-                _clat = float(_clicked["lat"])
-                _clon = float(_clicked.get("lng", _clicked.get("lon", 0)))
-                if not df_show.empty:
-                    _d2 = (df_show["_lat"] - _clat)**2 + (df_show["_lon"] - _clon)**2
-                    _idx_min = _d2.idxmin()
-                    if _d2[_idx_min] < 0.01:   # tolerância ~1 km
-                        _r = df_show.loc[_idx_min]
-                        st.session_state["_map_posto_sel"] = {
-                            "lat":   float(_r["_lat"]),
-                            "lon":   float(_r["_lon"]),
-                            "label": str(_r.get("razaoSocial", "Posto")),
-                        }
 
-            _sel = st.session_state.get("_map_posto_sel")
-            if _sel:
-                st.markdown(
-                    f"<div style='background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;"
-                    f"padding:10px 14px;margin-top:8px;font-size:13px'>"
-                    f"📍 <b>Posto selecionado:</b> {_sel['label']}</div>",
-                    unsafe_allow_html=True,
-                )
-                _ca, _cb, _cc = st.columns([2, 2, 1])
-                if _ca.button("🟢 Definir como Origem", use_container_width=True,
-                              key="btn_set_orig_map"):
-                    st.session_state["_map_orig"] = _sel
-                    st.session_state.pop("_map_rota_result", None)
-                if _cb.button("🔴 Definir como Destino", use_container_width=True,
-                              key="btn_set_dest_map"):
-                    st.session_state["_map_dest"] = _sel
-                    st.session_state.pop("_map_rota_result", None)
-                if _cc.button("✖", use_container_width=True, key="btn_clear_sel_map"):
-                    st.session_state.pop("_map_posto_sel", None)
-                    st.rerun()
+            # ── Busca rápida — selecionar posto como Origem / Destino ─
+            # Filtra o DataFrame local: sem rerender do mapa, sem round-trip JS
+            st.markdown("---")
+            st.markdown(
+                "<div style='font-weight:700;font-size:13px;margin-bottom:6px'>"
+                "🔍 Selecionar posto como Origem / Destino</div>",
+                unsafe_allow_html=True,
+            )
+            _col_busca_m, _col_limpa_m = st.columns([5, 1])
+            _busca_txt = _col_busca_m.text_input(
+                "Buscar posto",
+                placeholder="Digite parte do nome ou CNPJ do posto…",
+                key="busca_posto_mapa",
+                label_visibility="collapsed",
+            )
+            if _col_limpa_m.button("🗑️", key="limpa_sel_mapa",
+                                    help="Limpar Origem e Destino selecionados"):
+                for _k in ["_map_orig", "_map_dest", "_map_rota_result"]:
+                    st.session_state.pop(_k, None)
+                st.rerun()
+
+            if _busca_txt and len(_busca_txt.strip()) >= 2 and not df_show.empty:
+                _bt = _busca_txt.strip().upper()
+                _mask_busca = df_show["razaoSocial"].fillna("").str.upper().str.contains(
+                    _bt, regex=False, na=False)
+                if "cnpj" in df_show.columns:
+                    _btd = "".join(c for c in _busca_txt if c.isdigit())
+                    if _btd:
+                        _mask_cnpj = df_show["cnpj"].fillna("").apply(
+                            lambda x: _btd in "".join(c for c in str(x) if c.isdigit()))
+                        _mask_busca = _mask_busca | _mask_cnpj
+
+                _res = df_show[_mask_busca].head(6)
+                if not _res.empty:
+                    for _idx_r, _row_r in _res.iterrows():
+                        _ic = "⭐" if bool(_row_r.get("_pro_frotas")) else "⛽"
+                        _lbl_r = (f"{str(_row_r.get('razaoSocial', '?'))[:50]}"
+                                  f" — {_row_r.get('municipio','')}/{_row_r.get('uf','')}")
+                        _c1r, _c2r, _c3r = st.columns([5, 1, 1])
+                        _c1r.markdown(f"{_ic} {_lbl_r}")
+                        if _c2r.button("🟢", key=f"set_orig_{_idx_r}", help="Definir como Origem"):
+                            st.session_state["_map_orig"] = {
+                                "lat":   float(_row_r["_lat"]),
+                                "lon":   float(_row_r["_lon"]),
+                                "label": str(_row_r.get("razaoSocial", "Posto")),
+                            }
+                            st.session_state.pop("_map_rota_result", None)
+                            st.rerun()
+                        if _c3r.button("🔴", key=f"set_dest_{_idx_r}", help="Definir como Destino"):
+                            st.session_state["_map_dest"] = {
+                                "lat":   float(_row_r["_lat"]),
+                                "lon":   float(_row_r["_lon"]),
+                                "label": str(_row_r.get("razaoSocial", "Posto")),
+                            }
+                            st.session_state.pop("_map_rota_result", None)
+                            st.rerun()
+                else:
+                    st.caption("⚠️ Nenhum posto encontrado. Tente outro nome ou CNPJ.")
 
             # ── Painel Origem / Destino selecionados ──────────────
             _map_o = st.session_state.get("_map_orig")
@@ -1345,7 +1368,7 @@ if modo == "📍 Por Estado/Município":
                     st.rerun()
                 if _col_clr.button("🗑️ Limpar seleção", use_container_width=True,
                                    key="btn_clr_mapa_sel"):
-                    for _k in ["_map_orig", "_map_dest", "_map_posto_sel", "_map_rota_result"]:
+                    for _k in ["_map_orig", "_map_dest", "_map_rota_result"]:
                         st.session_state.pop(_k, None)
                     st.rerun()
 
@@ -1526,46 +1549,59 @@ else:
                            lat_orig=lat_orig, lon_orig=lon_orig,
                            lat_dest=lat_dest, lon_dest=lon_dest,
                            label_orig=label_orig, label_dest=label_dest)
-            _rota_out = st_folium(m, use_container_width=True, height=520,
-                                  returned_objects=["last_object_clicked"],
-                                  key="mapa_rota")
-            # ── Captura posto clicado pelo objeto mais próximo ────────
-            _rota_clicked = (_rota_out or {}).get("last_object_clicked")
-            if _rota_clicked and isinstance(_rota_clicked, dict) and "lat" in _rota_clicked:
-                _rclat = float(_rota_clicked["lat"])
-                _rclon = float(_rota_clicked.get("lng", _rota_clicked.get("lon", 0)))
-                if not df_show_r.empty:
-                    _rd2 = (df_show_r["_lat"] - _rclat)**2 + (df_show_r["_lon"] - _rclon)**2
-                    _ridx = _rd2.idxmin()
-                    if _rd2[_ridx] < 0.01:   # tolerância ~1 km
-                        _rr2 = df_show_r.loc[_ridx]
-                        st.session_state["_rota_map_sel"] = {
-                            "lat":   float(_rr2["_lat"]),
-                            "lon":   float(_rr2["_lon"]),
-                            "label": str(_rr2.get("razaoSocial", "Posto")),
-                        }
-            _rs = st.session_state.get("_rota_map_sel")
-            if _rs:
+            st_folium(m, use_container_width=True, height=520,
+                      returned_objects=[],
+                      key="mapa_rota")
+
+            # ── Busca rápida — refinar Origem/Destino com posto da rota ─
+            if not df_show_r.empty:
+                st.markdown("---")
                 st.markdown(
-                    f"<div style='background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;"
-                    f"padding:10px 14px;margin-top:8px;font-size:13px'>"
-                    f"📍 <b>Posto selecionado:</b> {_rs['label']}</div>",
+                    "<div style='font-weight:700;font-size:13px;margin-bottom:6px'>"
+                    "🔍 Selecionar posto da rota como nova Origem / Destino</div>",
                     unsafe_allow_html=True,
                 )
-                _ra, _rb, _rc = st.columns([2, 2, 1])
-                if _ra.button("🟢 Nova Origem", use_container_width=True, key="btn_rota_orig2"):
-                    st.session_state["orig_sel"] = _rs
-                    st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
-                    st.session_state.pop("_rota_map_sel", None)
-                    st.rerun()
-                if _rb.button("🔴 Novo Destino", use_container_width=True, key="btn_rota_dest2"):
-                    st.session_state["dest_sel"] = _rs
-                    st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
-                    st.session_state.pop("_rota_map_sel", None)
-                    st.rerun()
-                if _rc.button("✖", use_container_width=True, key="btn_rota_clr_sel"):
-                    st.session_state.pop("_rota_map_sel", None)
-                    st.rerun()
+                _busca_r = st.text_input(
+                    "Buscar posto na rota",
+                    placeholder="Digite parte do nome ou CNPJ do posto…",
+                    key="busca_posto_rota",
+                    label_visibility="collapsed",
+                )
+                if _busca_r and len(_busca_r.strip()) >= 2:
+                    _br = _busca_r.strip().upper()
+                    _mask_r = df_show_r["razaoSocial"].fillna("").str.upper().str.contains(
+                        _br, regex=False, na=False)
+                    if "cnpj" in df_show_r.columns:
+                        _brd = "".join(c for c in _busca_r if c.isdigit())
+                        if _brd:
+                            _mask_r_cnpj = df_show_r["cnpj"].fillna("").apply(
+                                lambda x: _brd in "".join(c for c in str(x) if c.isdigit()))
+                            _mask_r = _mask_r | _mask_r_cnpj
+
+                    _res_r = df_show_r[_mask_r].head(6)
+                    if not _res_r.empty:
+                        for _idx_rr, _row_rr in _res_r.iterrows():
+                            _ic_r = "⭐" if bool(_row_rr.get("_pro_frotas")) else "⛽"
+                            _dist_r = int(_row_rr["_dist_rota"]) if pd.notna(_row_rr.get("_dist_rota")) else 0
+                            _lbl_r2 = (f"{str(_row_rr.get('razaoSocial','?'))[:45]}"
+                                       f" — {_row_rr.get('municipio','')}/{_row_rr.get('uf','')} | {_dist_r} m da rota")
+                            _c1rr, _c2rr, _c3rr = st.columns([5, 1, 1])
+                            _c1rr.markdown(f"{_ic_r} {_lbl_r2}")
+                            _sel_r = {
+                                "lat":   float(_row_rr["_lat"]),
+                                "lon":   float(_row_rr["_lon"]),
+                                "label": str(_row_rr.get("razaoSocial", "Posto")),
+                            }
+                            if _c2rr.button("🟢", key=f"rota_orig_{_idx_rr}", help="Nova Origem"):
+                                st.session_state["orig_sel"] = _sel_r
+                                st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
+                                st.rerun()
+                            if _c3rr.button("🔴", key=f"rota_dest_{_idx_rr}", help="Novo Destino"):
+                                st.session_state["dest_sel"] = _sel_r
+                                st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
+                                st.rerun()
+                    else:
+                        st.caption("⚠️ Nenhum posto encontrado na rota com esse nome.")
 
         with tab_d:
             cols_r = [c for c in ["razaoSocial","distribuidora","_pro_frotas",
