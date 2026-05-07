@@ -321,6 +321,11 @@ CORES = [
 ]
 COR_PF_BORDA = "#FFD700"
 
+# Limite de marcadores no mapa. Acima disso os postos são amostrados
+# (Pró-Frotas têm prioridade) e o popup é simplificado.
+# → evita serializar 5-6 MB de HTML para estados como SP (4 000+ postos).
+MAX_MAPA_POSTOS = 1500
+
 
 # ═══════════════════════════════════════════════════════════════════
 #  PRÓ-FROTAS — Upload e comparação de CNPJs
@@ -874,6 +879,36 @@ def _popup(row):
     )
 
 
+def _popup_simples(row):
+    """Popup compacto (~250 bytes × marcador vs ~1.2 KB do popup completo).
+    Usado automaticamente quando o mapa exibe muitos postos (> MAX_MAPA_POSTOS)
+    para reduzir o HTML serializado e manter o mapa responsivo.
+    """
+    def v(c):
+        s = str(row.get(c, "")).strip()
+        return s if s and s not in ("nan", "None") else "—"
+
+    lat = row.get("_lat", ""); lon = row.get("_lon", "")
+    maps_url = f"https://www.google.com/maps?q={lat},{lon}"
+    pf_txt = ("<div style='color:#7B5E00;font-weight:700;font-size:11px;"
+              "margin-bottom:4px'>⭐ PRÓ-FROTAS</div>"
+              if row.get("_pro_frotas") else "")
+
+    return folium.Popup(
+        f"<div style='font-family:sans-serif;font-size:12px;min-width:200px;max-width:260px'>"
+        f"{pf_txt}"
+        f"<b>⛽ {v('razaoSocial')}</b><br>"
+        f"<span style='color:#777;font-size:11px'>{v('distribuidora')}</span>"
+        f"<hr style='margin:5px 0'>"
+        f"<b>CNPJ:</b> {v('cnpj')}<br>"
+        f"<b>📍</b> {v('municipio')} / {v('uf')}<br>"
+        f"<a href='{maps_url}' target='_blank' "
+        f"style='font-size:11px;color:#1a73e8'>🗺️ Ver no Google Maps</a>"
+        f"</div>",
+        max_width=280,
+    )
+
+
 def _extrair_posto_do_popup(popup_html: str):
     """Extrai lat, lon e nome do marcador oculto no HTML do popup."""
     if not popup_html:
@@ -905,6 +940,27 @@ def _marcador_pf(lat, lon, popup, tooltip):
 
 def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino"):
+    # ── Cap de marcadores — evita travar estados grandes como SP (4 000+ postos) ──
+    # Acima de MAX_MAPA_POSTOS: amostra postos regulares preservando todos os PF.
+    # Usa popup compacto (~250 B/marcador) em vez do completo (~1.2 KB/marcador),
+    # reduzindo o HTML serializado de ~5 MB para ~400 KB.
+    n_total = len(df)
+    foi_limitado = False
+    if not df.empty and n_total > MAX_MAPA_POSTOS:
+        foi_limitado = True
+        if "_pro_frotas" in df.columns:
+            df_pf  = df[df["_pro_frotas"]]
+            df_reg = df[~df["_pro_frotas"]]
+        else:
+            df_pf  = pd.DataFrame()
+            df_reg = df
+        n_reg_max = max(0, MAX_MAPA_POSTOS - len(df_pf))
+        if len(df_reg) > n_reg_max:
+            df_reg = df_reg.sample(n=n_reg_max, random_state=42)
+        df = pd.concat([df_pf, df_reg], ignore_index=True)
+    # Popup compacto quando o dataset é grande (>300) mesmo sem cap
+    usar_popup_simples = (n_total > 300)
+
     if not df.empty:
         clat, clon, zoom = df["_lat"].mean(), df["_lon"].mean(), 7
     elif coords_rota:
@@ -937,17 +993,30 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         c_reg = MarkerCluster(name="⛽ Postos").add_to(m)
         c_pf  = MarkerCluster(name="⭐ Pró-Frotas").add_to(m)
         tem_pf = "_pro_frotas" in df.columns
+        _fn_popup = _popup_simples if usar_popup_simples else _popup
         for _, row in df.iterrows():
             cor   = _cor(row.get("distribuidora",""), mapa_cores)
             is_pf = tem_pf and bool(row.get("_pro_frotas"))
             tip   = f"{'⭐ PRÓ-FROTAS | ' if is_pf else ''}⛽ {row.get('razaoSocial','?')} ({row.get('distribuidora','?')})"
-            pop   = _popup(row)
+            pop   = _fn_popup(row)
             if is_pf:
                 _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
             else:
                 folium.CircleMarker([row["_lat"],row["_lon"]], radius=7,
                                     color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
                                     popup=pop, tooltip=tip).add_to(c_reg)
+
+    # Aviso de limitação (overlay flutuante no mapa)
+    if foi_limitado:
+        m.get_root().html.add_child(folium.Element(
+            f"<div style='position:fixed;top:10px;left:50%;transform:translateX(-50%);"
+            f"z-index:9999;background:#fff3e0;border:1px solid #ff9800;border-radius:8px;"
+            f"padding:8px 18px;font-size:12px;color:#e65100;text-align:center;"
+            f"box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none'>"
+            f"⚠️ Mapa exibindo <b>{MAX_MAPA_POSTOS:,}</b> de <b>{n_total:,}</b> postos "
+            f"(Pró-Frotas priorizados). Use a aba <b>Dados Tabulares</b> para ver todos."
+            f"</div>"
+        ))
 
     if mapa_cores:
         items = "".join(
@@ -1418,8 +1487,12 @@ if modo == "📍 Por Estado/Município":
         df_show = preparar_df(df_raw, distribuidoras_filtro)
 
         # ── Métricas ──────────────────────────────────────────
+        _n_total_show = len(df_show)
+        _n_mapa_show  = min(_n_total_show, MAX_MAPA_POSTOS)
+        _mapa_label   = (f"⛽ Postos ({_n(MAX_MAPA_POSTOS)} no mapa)"
+                         if _n_total_show > MAX_MAPA_POSTOS else "⛽ Postos")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("⛽ Postos exibidos",  _n(len(df_show)))
+        c1.metric(_mapa_label,          _n(_n_total_show))
         c2.metric("⭐ Credenciados PF",  _n(n_pf(df_show)))
         c3.metric("🏷️ Bandeiras",       _n(df_show['distribuidora'].nunique()) if not df_show.empty else "0")
         c4.metric("📍 Estado",          uf)
