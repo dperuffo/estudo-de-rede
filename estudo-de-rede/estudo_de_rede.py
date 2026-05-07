@@ -1039,13 +1039,21 @@ with st.sidebar:
 
         if st.button("🗑️ Limpar Consulta", use_container_width=True,
                      help="Remove os resultados e limpa os campos de origem e destino"):
-            for _k in ["df_rota", "coords_rota",
-                        "lat_orig", "lon_orig", "label_orig",
-                        "lat_dest", "lon_dest", "label_dest",
-                        "dist_km", "dur_min", "raio_usado", "linha_reta",
-                        "distribuidoras_rota",
-                        "orig_sel", "dest_sel",
-                        "_orig_sel_txt_ant", "_dest_sel_txt_ant"]:
+            for _k in [
+                # Resultados da rota
+                "df_rota", "coords_rota",
+                "lat_orig", "lon_orig", "label_orig",
+                "lat_dest", "lon_dest", "label_dest",
+                "dist_km", "dur_min", "raio_usado", "linha_reta",
+                "distribuidoras_rota",
+                # Seleções do autocomplete
+                "orig_sel", "dest_sel",
+                "_orig_sel_txt_ant", "_dest_sel_txt_ant",
+                # Campos de texto (txt_origem / txt_destino)
+                "txt_origem", "txt_destino",
+                # Selectboxes de sugestões
+                "_sel_orig_sel", "_sel_dest_sel",
+            ]:
                 st.session_state.pop(_k, None)
             st.rerun()
 
