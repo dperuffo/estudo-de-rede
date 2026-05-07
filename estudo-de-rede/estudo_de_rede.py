@@ -6,6 +6,7 @@
 import base64
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+import hashlib
 import io
 import math
 import os
@@ -313,13 +314,77 @@ BBOX_UFS = {
     "TO": (-13.46,-50.74,-5.18,-45.74),
 }
 
-CORES = [
-    "#e6194b","#3cb44b","#4363d8","#f58231","#911eb4","#42d4f4",
-    "#f032e6","#bfef45","#fabed4","#469990","#dcbeff","#9A6324",
-    "#fffac8","#800000","#aaffc3","#808000","#ffd8b1","#000075",
-    "#a9a9a9","#e6beff","#ffe119","#000000",
+# Paleta de fallback — usada apenas para distribuidoras não mapeadas em CORES_MARCAS.
+# Cores vibrantes e distintas entre si para fácil diferenciação visual.
+CORES_FALLBACK = [
+    "#00ACC1","#FB8C00","#8D6E63","#546E7A","#EC407A","#66BB6A",
+    "#AB47BC","#EF5350","#26A69A","#7E57C2","#D4E157","#FF7043",
+    "#29B6F6","#9CCC65","#FFA726","#26C6DA","#EF9A9A","#80CBC4",
+    "#CE93D8","#A5D6A7","#FFCC02","#90CAF9",
 ]
-COR_PF_BORDA = "#FFD700"
+
+# ── Cores padronizadas por marca ──────────────────────────────────────────────
+# Identificadas por substring no nome da distribuidora (case-insensitive).
+# A ordem importa: substrings mais específicas devem vir antes das genéricas.
+CORES_MARCAS = {
+    # ── Grandes redes nacionais ──────────────────────────────────
+    "IPIRANGA":          "#FFB300",  # amarelo âmbar — cor da marca Ipiranga
+    "ULTRAPAR":          "#FFB300",  # grupo controlador da Ipiranga
+    "VIBRA":             "#43A047",  # verde — cor da marca Vibra Energy
+    "BR DISTRIBUIDORA":  "#43A047",  # nome comercial anterior da Vibra
+    "PETROBRAS DIST":    "#43A047",  # razão social anterior da Vibra
+    "RAIZEN":            "#E53935",  # vermelho — Raízen Combustíveis/Shell
+    "RAÍZEN":            "#E53935",
+    "SHELL":             "#E53935",  # Raízen opera sob a marca Shell no Brasil
+    "BANDEIRA BRANCA":   "#7B1FA2",  # roxo — postos independentes
+    "SEM BANDEIRA":      "#7B1FA2",  # variação do nome no cadastro ANP
+    # ── Redes regionais e demais ─────────────────────────────────
+    "ALESAT":            "#F57C00",  # laranja — Alesat Combustíveis
+    "ALE COMB":          "#F57C00",  # ALE Combustíveis
+    "SABBA":             "#00838F",  # teal — Sabbá (região Norte/AM)
+    "SABBÁ":             "#00838F",
+    "DISLUB":            "#455A64",  # cinza ardósia — Dislub Equador
+    "PETRONIT":          "#37474F",  # cinza chumbo — Petronit
+    "PLURAL":            "#1976D2",  # azul — Plural Distribuidora
+    "REPSOL":            "#003087",  # azul escuro — Repsol Sinopec
+    "TEXACO":            "#D32F2F",  # vermelho escuro — Texaco
+    "NACIONAL GAS":      "#5D4037",  # marrom — Nacional Gás
+    "NACIONAL GÁS":      "#5D4037",
+    "COSAN":             "#F44336",  # vermelho — Cosan (holding Raízen)
+    "PETRO RIO":         "#0288D1",  # azul claro — PetroRio
+    "PETROIL":           "#0097A7",  # ciano — Petroil
+    "COMFORGAS":         "#558B2F",  # verde musgo — Comforgas
+    "TERPASTOS":         "#795548",  # marrom — Terpastos
+    "GLP":               "#FDD835",  # amarelo vivo — distribuidoras de GLP
+    "LIQUIGAS":          "#1565C0",  # azul — Liquigás
+    "ULTRAGAZ":          "#E91E63",  # rosa — Ultragaz
+    "COPAGAZ":           "#FF6F00",  # âmbar escuro — Copagaz
+    "SUPERGASB":         "#6A1B9A",  # roxo escuro — Supergasbras
+    "SUPERGASB":         "#6A1B9A",
+    "NACIONAL":          "#4E342E",  # marrom escuro — Nacional (genérico)
+}
+
+# Cor e estilo do marcador Pró-Frotas
+COR_PF_FILL  = "#1565C0"   # azul — identificação visual do credenciamento
+COR_PF_BORDA = "#0D47A1"   # azul escuro
+
+
+def _cor_marca(distribuidora: str) -> str:
+    """Retorna a cor do pin para qualquer distribuidora.
+
+    Ordem de resolução:
+    1. Marcas conhecidas em CORES_MARCAS → cor da identidade da marca.
+    2. Desconhecidas → cor determinística via MD5 do nome (sempre igual,
+       independente do estado ou ordem de carregamento).
+    """
+    d = str(distribuidora).upper().strip()
+    for marca, cor in CORES_MARCAS.items():
+        if marca in d:
+            return cor
+    # Fallback determinístico: mesma distribuidora → mesma cor em qualquer consulta
+    h = int(hashlib.md5(d.encode()).hexdigest(), 16)
+    return CORES_FALLBACK[h % len(CORES_FALLBACK)]
+
 
 # Limite de marcadores no mapa. Acima disso os postos são amostrados
 # (Pró-Frotas têm prioridade) e o popup é simplificado.
@@ -793,7 +858,8 @@ def buscar_postos(uf=None):
 # ═══════════════════════════════════════════════════════════════════
 
 def _cor(distribuidora, mapa_cores):
-    return mapa_cores.get(str(distribuidora).upper().strip(), "#808080")
+    """Retorna cor do pin — delega a _cor_marca para garantir consistência."""
+    return _cor_marca(distribuidora)
 
 
 def _popup(row):
@@ -924,14 +990,14 @@ def _extrair_posto_do_popup(popup_html: str):
 
 
 def _marcador_pf(lat, lon, popup, tooltip):
-    """CircleMarker dourado grande para postos Pró-Frotas — renderiza corretamente em clusters."""
+    """CircleMarker azul maior para postos Pró-Frotas — destaca o credenciamento."""
     return folium.CircleMarker(
         location=[lat, lon],
-        radius=13,
-        color="#B8860B",       # borda dourado escuro
+        radius=14,             # maior que o marcador regular (7)
+        color=COR_PF_BORDA,    # borda azul escuro
         weight=2.5,
         fill=True,
-        fill_color="#FFD700",  # interior amarelo ouro
+        fill_color=COR_PF_FILL,  # interior azul
         fill_opacity=0.92,
         popup=popup,
         tooltip=tooltip,
@@ -972,7 +1038,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     m = folium.Map(location=[clat,clon], zoom_start=zoom, tiles="CartoDB positron")
 
     distribuidoras = sorted(df["distribuidora"].dropna().unique()) if not df.empty else []
-    mapa_cores = {d.upper().strip(): CORES[i%len(CORES)] for i,d in enumerate(distribuidoras)}
+    # _cor_marca garante cor fixa por marca — usada também para montar a legenda
+    mapa_cores = {d.upper().strip(): _cor_marca(d) for d in distribuidoras}
 
     if coords_rota and len(coords_rota) >= 2:
         coords_poly = _downsample(coords_rota, 300)
@@ -1031,7 +1098,10 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             f"<b style='font-size:12px'>Distribuidoras</b>"
             f"<ul style='list-style:none;padding:0;margin:6px 0 0'>{items}"
             "<li style='margin-top:6px;padding-top:6px;border-top:1px solid #eee'>"
-            "<span style='font-size:13px;margin-right:4px'>⭐</span><b>Pró-Frotas</b></li>"
+            f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
+            f"background:{COR_PF_FILL};border:2px solid {COR_PF_BORDA};"
+            f"vertical-align:middle;margin-right:5px'></span>"
+            "<b>Pró-Frotas</b> ● maior</li>"
             "</ul></div>"
         ))
     folium.LayerControl().add_to(m)
