@@ -61,34 +61,33 @@ st.set_page_config(
     page_title="Estudo de Rede – Pró-Frotas",
     page_icon=_LOGO_PAGE_ICON,
     layout="wide",
-    initial_sidebar_state="expanded",   # sidebar sempre aberta ao carregar
+    initial_sidebar_state="auto",   # aberta no desktop, fechada no mobile
 )
 
-# ─── CSS Global ────────────────────────────────────────────────────
+# ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Header transparente — não toca nos filhos para não quebrar o toggle ── */
+/* ══ HEADER ════════════════════════════════════════════════════════ */
 header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
 }
-/* Esconde apenas os itens que não queremos ver */
 #MainMenu          { display: none !important; }
 footer             { display: none !important; }
 .stDeployButton    { display: none !important; }
-/* Garante que o botão de recolher/expandir sidebar sempre aparece */
 [data-testid="collapsedControl"],
 button[data-testid="baseButton-headerNoPadding"] {
     opacity: 1 !important;
     visibility: visible !important;
 }
-/* ── Botão nativo de collapse — garante visibilidade mínima ── */
-[data-testid="collapsedControl"] {
-    opacity: 1 !important;
-    visibility: visible !important;
+
+/* ══ LAYOUT GERAL ══════════════════════════════════════════════════ */
+.main .block-container {
+    padding: 0.75rem 1.5rem 2rem !important;
+    max-width: 100% !important;
 }
 
-/* ── Barra superior personalizada ── */
+/* ══ TOPBAR ════════════════════════════════════════════════════════ */
 .topbar {
     background: linear-gradient(135deg, #0d1b4b 0%, #1565c0 60%, #0288d1 100%);
     color: white;
@@ -99,8 +98,8 @@ button[data-testid="baseButton-headerNoPadding"] {
     align-items: center;
     gap: 14px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    flex-wrap: wrap;
 }
-.topbar-icon  { font-size: 36px; }
 .topbar-title { font-size: 22px; font-weight: 800; letter-spacing: 0.4px; }
 .topbar-sub   { font-size: 11px; opacity: 0.75; margin-top: 2px; }
 .topbar-badge {
@@ -114,7 +113,7 @@ button[data-testid="baseButton-headerNoPadding"] {
     white-space: nowrap;
 }
 
-/* ── Sidebar ── */
+/* ══ SIDEBAR ═══════════════════════════════════════════════════════ */
 section[data-testid="stSidebar"] > div:first-child {
     background: #f0f4f9;
     border-right: 1px solid #d0dce8;
@@ -122,9 +121,10 @@ section[data-testid="stSidebar"] > div:first-child {
 section[data-testid="stSidebar"] .stButton > button {
     border-radius: 8px;
     font-weight: 600;
+    min-height: 44px;
 }
 
-/* ── Cards de métricas ── */
+/* ══ MÉTRICAS ══════════════════════════════════════════════════════ */
 [data-testid="stMetric"] {
     background: white;
     border-radius: 10px;
@@ -135,46 +135,134 @@ section[data-testid="stSidebar"] .stButton > button {
 [data-testid="stMetricLabel"] { font-size: 12px !important; color: #555 !important; }
 [data-testid="stMetricValue"] { font-size: 24px !important; font-weight: 700 !important; }
 
-/* ── Tabs ── */
-button[data-baseweb="tab"] {
-    font-weight: 600;
-    font-size: 13px;
-}
+/* ══ TABS ══════════════════════════════════════════════════════════ */
+button[data-baseweb="tab"] { font-weight: 600; font-size: 13px; }
 
-/* ── Expander Pró-Frotas ── */
-details summary {
-    font-weight: 700;
-    font-size: 14px;
-}
+/* ══ EXPANDER ══════════════════════════════════════════════════════ */
+details summary { font-weight: 700; font-size: 14px; }
 
-/* ── Caixa de info/sucesso/aviso ── */
+/* ══ ALERTS / SEPARADORES ══════════════════════════════════════════ */
 .stAlert { border-radius: 8px !important; }
-
-/* ── Separador sidebar ── */
 hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
 
-/* ── Botão primário ── */
+/* ══ BOTÕES ════════════════════════════════════════════════════════ */
+.stButton > button {
+    min-height: 44px;
+    border-radius: 8px;
+    font-weight: 600;
+}
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #1565c0, #0d47a1);
     border: none;
     font-size: 14px;
     padding: 10px 0;
-    border-radius: 8px;
 }
 .stButton > button[kind="primary"]:hover {
     background: linear-gradient(135deg, #1976d2, #1565c0);
     box-shadow: 0 4px 12px rgba(21,101,192,0.4);
 }
 
-/* ── Empty state ── */
+/* ══ EMPTY STATE ═══════════════════════════════════════════════════ */
 .empty-state {
     text-align: center;
     padding: 60px 40px;
     color: #90a4b0;
 }
-.empty-state-icon { font-size: 64px; margin-bottom: 16px; }
+.empty-state-icon  { font-size: 64px; margin-bottom: 16px; }
 .empty-state-title { font-size: 20px; font-weight: 700; color: #546e7a; margin-bottom: 8px; }
 .empty-state-desc  { font-size: 14px; line-height: 1.6; }
+
+/* ══ TABELA SCROLL HORIZONTAL ══════════════════════════════════════ */
+[data-testid="stDataFrame"] { overflow-x: auto !important; }
+
+/* ══ RESPONSIVO — TABLET (≤ 1024px) ═══════════════════════════════ */
+@media (max-width: 1024px) {
+    .main .block-container { padding: 0.5rem 1rem 2rem !important; }
+    .topbar { padding: 12px 18px; }
+    .topbar-title { font-size: 18px; }
+    [data-testid="stMetricValue"] { font-size: 20px !important; }
+}
+
+/* ══ RESPONSIVO — MOBILE (≤ 768px) ════════════════════════════════ */
+@media (max-width: 768px) {
+    /* Layout */
+    .main .block-container { padding: 0.25rem 0.5rem 2rem !important; }
+
+    /* Topbar compacto */
+    .topbar {
+        padding: 10px 12px;
+        border-radius: 0 0 8px 8px;
+        margin-bottom: 12px;
+        gap: 6px;
+    }
+    .topbar-title { font-size: 15px; letter-spacing: 0; }
+    .topbar-sub   { font-size: 9px; }
+    .topbar-badge {
+        margin-left: 0;
+        font-size: 10px;
+        padding: 3px 8px;
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    /* Métricas: 2 colunas no mobile */
+    [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        flex: 0 0 48% !important;
+        min-width: 48% !important;
+        max-width: 48% !important;
+    }
+    [data-testid="stMetric"] { padding: 10px 12px !important; }
+    [data-testid="stMetricValue"] { font-size: 18px !important; }
+    [data-testid="stMetricLabel"] { font-size: 10px !important; }
+
+    /* Tabs menores */
+    button[data-baseweb="tab"] {
+        font-size: 11px !important;
+        padding: 8px 6px !important;
+    }
+
+    /* Inputs — font-size 16px evita zoom automático no iOS */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+    [data-testid="stTextInput"] input  { min-height: 44px !important; }
+    [data-testid="stSelectbox"] select { min-height: 44px !important; }
+
+    /* Botões touch-friendly */
+    .stButton > button { min-height: 48px !important; font-size: 14px !important; }
+
+    /* Mapa: altura menor no mobile */
+    iframe { max-height: 380px !important; }
+
+    /* Sidebar full-width quando aberta no mobile */
+    section[data-testid="stSidebar"] {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Empty state menor */
+    .empty-state       { padding: 30px 16px; }
+    .empty-state-icon  { font-size: 40px; }
+    .empty-state-title { font-size: 16px; }
+    .empty-state-desc  { font-size: 12px; }
+
+    /* Slider touch */
+    [data-testid="stSlider"] { padding: 12px 0 !important; }
+
+    /* Sucesso / info / aviso com texto menor */
+    .stAlert { font-size: 13px !important; }
+}
+
+/* ══ RESPONSIVO — SMARTPHONE PEQUENO (≤ 480px) ════════════════════ */
+@media (max-width: 480px) {
+    .topbar-title { font-size: 13px; }
+    .topbar-sub   { display: none; }
+    [data-testid="stMetricValue"] { font-size: 16px !important; }
+    button[data-baseweb="tab"]    { font-size: 10px !important; }
+    iframe                        { max-height: 300px !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1132,7 +1220,7 @@ if modo == "📍 Por Estado/Município":
             "🗺️  Mapa Interativo", "📋  Dados Tabulares", "📊  Análise por Bandeira"])
 
         with tab_mapa:
-            st_folium(criar_mapa(df_show), use_container_width=True, height=620, returned_objects=[])
+            st_folium(criar_mapa(df_show), use_container_width=True, height=520, returned_objects=[])
 
         with tab_dados:
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
@@ -1169,7 +1257,7 @@ if modo == "📍 Por Estado/Município":
           </div>
         </div>
         """, unsafe_allow_html=True)
-        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=520, returned_objects=[])
+        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=440, returned_objects=[])
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1289,7 +1377,7 @@ else:
                            lat_orig=lat_orig, lon_orig=lon_orig,
                            lat_dest=lat_dest, lon_dest=lon_dest,
                            label_orig=label_orig, label_dest=label_dest)
-            st_folium(m, use_container_width=True, height=650,
+            st_folium(m, use_container_width=True, height=520,
                       returned_objects=[], key="mapa_rota")
 
         with tab_d:
