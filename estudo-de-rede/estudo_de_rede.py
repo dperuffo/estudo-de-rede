@@ -8,6 +8,7 @@ from datetime import datetime
 import io
 import math
 import os
+import re
 import time
 import requests
 import numpy as np
@@ -804,6 +805,10 @@ def _popup(row):
         f"</div>"
     )
 
+    # Marcador oculto para captura de clique no Streamlit
+    nome_safe = v("razaoSocial").replace(";", ",")[:80]
+    coord_tag = f"<!-- POSTO_SEL:{row.get('_lat', '')};{row.get('_lon', '')};{nome_safe} -->"
+
     return folium.Popup(
         f"<div style='font-family:sans-serif;font-size:12px;min-width:260px;max-width:320px'>"
         f"{pf_badge}"
@@ -819,9 +824,24 @@ def _popup(row):
         f"{dist_txt}"
         f"{produtos_html}"
         f"{botoes_html}"
+        f"{coord_tag}"
         f"</div>",
         max_width=340
     )
+
+
+def _extrair_posto_do_popup(popup_html: str):
+    """Extrai lat, lon e nome do marcador oculto no HTML do popup."""
+    if not popup_html:
+        return None
+    try:
+        m = re.search(r"<!-- POSTO_SEL:([-\d.]+);([-\d.]+);(.+?) -->", popup_html)
+        if not m:
+            return None
+        return {"lat": float(m.group(1)), "lon": float(m.group(2)),
+                "label": m.group(3).strip()}
+    except Exception:
+        return None
 
 
 def _marcador_pf(lat, lon, popup, tooltip):
@@ -1257,7 +1277,89 @@ if modo == "📍 Por Estado/Município":
             "🗺️  Mapa Interativo", "📋  Dados Tabulares", "📊  Análise por Bandeira"])
 
         with tab_mapa:
-            st_folium(criar_mapa(df_show), use_container_width=True, height=520, returned_objects=[])
+            _map_out = st_folium(
+                criar_mapa(df_show), use_container_width=True, height=520,
+                returned_objects=["last_object_clicked_popup"],
+                key=f"mapa_estado_{uf}",
+            )
+            # ── Captura posto clicado ──────────────────────────────
+            _popup_raw = (_map_out or {}).get("last_object_clicked_popup")
+            _posto_clicado = _extrair_posto_do_popup(_popup_raw)
+            if _posto_clicado:
+                st.session_state["_map_posto_sel"] = _posto_clicado
+
+            _sel = st.session_state.get("_map_posto_sel")
+            if _sel:
+                st.markdown(
+                    f"<div style='background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;"
+                    f"padding:10px 14px;margin-top:8px;font-size:13px'>"
+                    f"📍 <b>Posto selecionado:</b> {_sel['label']}</div>",
+                    unsafe_allow_html=True,
+                )
+                _ca, _cb, _cc = st.columns([2, 2, 1])
+                if _ca.button("🟢 Definir como Origem", use_container_width=True,
+                              key="btn_set_orig_map"):
+                    st.session_state["_map_orig"] = _sel
+                    st.session_state.pop("_map_rota_result", None)
+                if _cb.button("🔴 Definir como Destino", use_container_width=True,
+                              key="btn_set_dest_map"):
+                    st.session_state["_map_dest"] = _sel
+                    st.session_state.pop("_map_rota_result", None)
+                if _cc.button("✖", use_container_width=True, key="btn_clear_sel_map"):
+                    st.session_state.pop("_map_posto_sel", None)
+                    st.rerun()
+
+            # ── Painel Origem / Destino selecionados ──────────────
+            _map_o = st.session_state.get("_map_orig")
+            _map_d = st.session_state.get("_map_dest")
+            if _map_o or _map_d:
+                _co, _cd = st.columns(2)
+                _co.info(f"🟢 **Origem:** {_map_o['label'][:45] if _map_o else '— não definida'}")
+                _cd.info(f"🔴 **Destino:** {_map_d['label'][:45] if _map_d else '— não definida'}")
+
+            # ── Botão Traçar Rota ──────────────────────────────────
+            if _map_o and _map_d:
+                _col_btn, _col_clr = st.columns([3, 1])
+                if _col_btn.button("🗺️ Traçar Rota entre os postos selecionados",
+                                   use_container_width=True, type="primary",
+                                   key="btn_tracar_mapa"):
+                    with st.spinner("Calculando rota…"):
+                        _cr, _dk, _dm, _lr = calcular_rota(
+                            _map_o["lat"], _map_o["lon"],
+                            _map_d["lat"], _map_d["lon"])
+                    st.session_state["_map_rota_result"] = {
+                        "coords": _cr, "dist_km": _dk, "dur_min": _dm,
+                        "linha_reta": _lr,
+                        "orig": _map_o, "dest": _map_d,
+                    }
+                    st.rerun()
+                if _col_clr.button("🗑️ Limpar seleção", use_container_width=True,
+                                   key="btn_clr_mapa_sel"):
+                    for _k in ["_map_orig", "_map_dest", "_map_posto_sel", "_map_rota_result"]:
+                        st.session_state.pop(_k, None)
+                    st.rerun()
+
+            # ── Resultado da rota traçada pelo mapa ───────────────
+            _rr = st.session_state.get("_map_rota_result")
+            if _rr:
+                if _rr["linha_reta"]:
+                    st.warning("⚠️ OSRM indisponível — rota exibida como linha reta.")
+                st.markdown("---")
+                _m1, _m2, _m3, _m4 = st.columns(4)
+                _m1.metric("🛣️ Distância",      f"{_rr['dist_km']:,.0f} km")
+                _m2.metric("⏱️ Tempo estimado", f"{int(_rr['dur_min']//60)}h {int(_rr['dur_min']%60)}min")
+                _m3.metric("🟢 Origem",  _rr["orig"]["label"][:25])
+                _m4.metric("🔴 Destino", _rr["dest"]["label"][:25])
+                st.success(f"✅ **{_rr['orig']['label']}** → **{_rr['dest']['label']}**"
+                           f" | {_rr['dist_km']:,.0f} km")
+                _mapa_rota = criar_mapa(
+                    df_show, coords_rota=_rr["coords"],
+                    lat_orig=_rr["orig"]["lat"], lon_orig=_rr["orig"]["lon"],
+                    lat_dest=_rr["dest"]["lat"], lon_dest=_rr["dest"]["lon"],
+                    label_orig=_rr["orig"]["label"], label_dest=_rr["dest"]["label"],
+                )
+                st_folium(_mapa_rota, use_container_width=True, height=480,
+                          returned_objects=[], key="mapa_rota_estado")
 
         with tab_dados:
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
@@ -1414,8 +1516,35 @@ else:
                            lat_orig=lat_orig, lon_orig=lon_orig,
                            lat_dest=lat_dest, lon_dest=lon_dest,
                            label_orig=label_orig, label_dest=label_dest)
-            st_folium(m, use_container_width=True, height=520,
-                      returned_objects=[], key="mapa_rota")
+            _rota_out = st_folium(m, use_container_width=True, height=520,
+                                  returned_objects=["last_object_clicked_popup"],
+                                  key="mapa_rota")
+            # ── Clique no mapa de rota → atualiza origem ou destino ──
+            _rp = _extrair_posto_do_popup((_rota_out or {}).get("last_object_clicked_popup"))
+            if _rp:
+                st.session_state["_rota_map_sel"] = _rp
+            _rs = st.session_state.get("_rota_map_sel")
+            if _rs:
+                st.markdown(
+                    f"<div style='background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;"
+                    f"padding:10px 14px;margin-top:8px;font-size:13px'>"
+                    f"📍 <b>Posto selecionado:</b> {_rs['label']}</div>",
+                    unsafe_allow_html=True,
+                )
+                _ra, _rb, _rc = st.columns([2, 2, 1])
+                if _ra.button("🟢 Nova Origem", use_container_width=True, key="btn_rota_orig2"):
+                    st.session_state["orig_sel"] = _rs
+                    st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
+                    st.session_state.pop("_rota_map_sel", None)
+                    st.rerun()
+                if _rb.button("🔴 Novo Destino", use_container_width=True, key="btn_rota_dest2"):
+                    st.session_state["dest_sel"] = _rs
+                    st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
+                    st.session_state.pop("_rota_map_sel", None)
+                    st.rerun()
+                if _rc.button("✖", use_container_width=True, key="btn_rota_clr_sel"):
+                    st.session_state.pop("_rota_map_sel", None)
+                    st.rerun()
 
         with tab_d:
             cols_r = [c for c in ["razaoSocial","distribuidora","_pro_frotas",
