@@ -948,6 +948,16 @@ def _agora() -> str:
     return datetime.now().strftime("%d/%m/%Y às %H:%M")
 
 
+def _n(valor, dec: int = 0) -> str:
+    """Formata número com ponto como separador de milhar (padrão BR).
+    Exemplos: _n(1234) → '1.234'  |  _n(1234.5, 1) → '1.234,5'
+    """
+    if dec == 0:
+        return f"{int(round(valor)):,}".replace(",", ".")
+    s = f"{valor:,.{dec}f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 # ═══════════════════════════════════════════════════════════════════
 #  INTERFACE — BARRA SUPERIOR
 # ═══════════════════════════════════════════════════════════════════
@@ -1010,7 +1020,7 @@ with st.sidebar:
                 f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;"
                 f"padding:8px 12px;font-size:12px;color:#2e7d32;margin-bottom:8px'>"
                 f"✅ <b>Pró-Frotas carregado automaticamente</b><br>"
-                f"📋 {len(_pf_set):,} CNPJs · atualiza a cada 24 h"
+                f"📋 {_n(len(_pf_set))} CNPJs · atualiza a cada 24 h"
                 f"{_pf_ts_html}<br>"
                 f"<span style='font-size:10px;opacity:.8'>Fonte: <code>{ARQUIVO_PF_REPO}</code> no repositório</span>"
                 f"</div>",
@@ -1021,7 +1031,7 @@ with st.sidebar:
                 f"<div style='background:#fff8e1;border:1px solid #ffe082;border-radius:8px;"
                 f"padding:8px 12px;font-size:12px;color:#f57f17;margin-bottom:8px'>"
                 f"⭐ <b>Pró-Frotas carregado manualmente</b><br>"
-                f"📋 {len(_pf_set):,} CNPJs ativos nesta sessão"
+                f"📋 {_n(len(_pf_set))} CNPJs ativos nesta sessão"
                 f"{_pf_ts_html}"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -1283,9 +1293,9 @@ if modo == "📍 Por Estado/Município":
 
         # ── Métricas ──────────────────────────────────────────
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("⛽ Postos exibidos",  f"{len(df_show):,}")
-        c2.metric("⭐ Credenciados PF",  f"{n_pf(df_show):,}")
-        c3.metric("🏷️ Bandeiras",       f"{df_show['distribuidora'].nunique():,}" if not df_show.empty else "0")
+        c1.metric("⛽ Postos exibidos",  _n(len(df_show)))
+        c2.metric("⭐ Credenciados PF",  _n(n_pf(df_show)))
+        c3.metric("🏷️ Bandeiras",       _n(df_show['distribuidora'].nunique()) if not df_show.empty else "0")
         c4.metric("📍 Estado",          uf)
 
         tab_mapa, tab_dados, tab_analise = st.tabs([
@@ -1340,17 +1350,23 @@ if modo == "📍 Por Estado/Município":
                         _c1r.markdown(f"{_ic} {_lbl_r}")
                         if _c2r.button("🟢", key=f"set_orig_{_idx_r}", help="Definir como Origem"):
                             st.session_state["_map_orig"] = {
-                                "lat":   float(_row_r["_lat"]),
-                                "lon":   float(_row_r["_lon"]),
-                                "label": str(_row_r.get("razaoSocial", "Posto")),
+                                "lat":      float(_row_r["_lat"]),
+                                "lon":      float(_row_r["_lon"]),
+                                "label":    str(_row_r.get("razaoSocial", "Posto")),
+                                "municipio": str(_row_r.get("municipio", "")),
+                                "uf":       str(_row_r.get("uf", "")),
+                                "cnpj":     _formatar_cnpj(str(_row_r.get("cnpj", ""))),
                             }
                             st.session_state.pop("_map_rota_result", None)
                             st.rerun()
                         if _c3r.button("🔴", key=f"set_dest_{_idx_r}", help="Definir como Destino"):
                             st.session_state["_map_dest"] = {
-                                "lat":   float(_row_r["_lat"]),
-                                "lon":   float(_row_r["_lon"]),
-                                "label": str(_row_r.get("razaoSocial", "Posto")),
+                                "lat":      float(_row_r["_lat"]),
+                                "lon":      float(_row_r["_lon"]),
+                                "label":    str(_row_r.get("razaoSocial", "Posto")),
+                                "municipio": str(_row_r.get("municipio", "")),
+                                "uf":       str(_row_r.get("uf", "")),
+                                "cnpj":     _formatar_cnpj(str(_row_r.get("cnpj", ""))),
                             }
                             st.session_state.pop("_map_rota_result", None)
                             st.rerun()
@@ -1360,10 +1376,31 @@ if modo == "📍 Por Estado/Município":
             # ── Painel Origem / Destino selecionados ──────────────
             _map_o = st.session_state.get("_map_orig")
             _map_d = st.session_state.get("_map_dest")
+
+            def _card_sel(icone, cor, sel):
+                if not sel:
+                    return (f"<div style='border:1px dashed #ccc;border-radius:8px;"
+                            f"padding:10px 14px;font-size:12px;color:#999'>"
+                            f"{icone} Não definido</div>")
+                nome = sel.get("label", "?")
+                mun  = sel.get("municipio", "")
+                uf   = sel.get("uf", "")
+                cnpj = sel.get("cnpj", "—")
+                loc  = f"{mun} / {uf}" if mun else uf
+                return (
+                    f"<div style='border-left:4px solid {cor};background:#f8fafc;"
+                    f"border-radius:0 8px 8px 0;padding:10px 14px;font-size:12px'>"
+                    f"<div style='font-weight:700;font-size:13px;color:#1a1a1a'>{icone} {nome}</div>"
+                    f"<div style='color:#555;margin-top:4px'>📍 {loc}</div>"
+                    f"<div style='color:#555'>🪪 CNPJ: {cnpj}</div>"
+                    f"</div>"
+                )
+
             if _map_o or _map_d:
                 _co, _cd = st.columns(2)
-                _co.info(f"🟢 **Origem:** {_map_o['label'][:45] if _map_o else '— não definida'}")
-                _cd.info(f"🔴 **Destino:** {_map_d['label'][:45] if _map_d else '— não definida'}")
+                _co.markdown(_card_sel("🟢 Origem", "#43a047", _map_o), unsafe_allow_html=True)
+                _cd.markdown(_card_sel("🔴 Destino", "#e53935", _map_d), unsafe_allow_html=True)
+                st.markdown("")
 
             # ── Botão Traçar Rota ──────────────────────────────────
             if _map_o and _map_d:
@@ -1394,12 +1431,12 @@ if modo == "📍 Por Estado/Município":
                     st.warning("⚠️ OSRM indisponível — rota exibida como linha reta.")
                 st.markdown("---")
                 _m1, _m2, _m3, _m4 = st.columns(4)
-                _m1.metric("🛣️ Distância",      f"{_rr['dist_km']:,.0f} km")
+                _m1.metric("🛣️ Distância",      f"{_n(_rr['dist_km'])} km")
                 _m2.metric("⏱️ Tempo estimado", f"{int(_rr['dur_min']//60)}h {int(_rr['dur_min']%60)}min")
                 _m3.metric("🟢 Origem",  _rr["orig"]["label"][:25])
                 _m4.metric("🔴 Destino", _rr["dest"]["label"][:25])
                 st.success(f"✅ **{_rr['orig']['label']}** → **{_rr['dest']['label']}**"
-                           f" | {_rr['dist_km']:,.0f} km")
+                           f" | {_n(_rr['dist_km'])} km")
                 _mapa_rota = criar_mapa(
                     df_show, coords_rota=_rr["coords"],
                     lat_orig=_rr["orig"]["lat"], lon_orig=_rr["orig"]["lon"],
@@ -1512,7 +1549,7 @@ else:
                 df_rota = df_todos[df_todos["_dist_rota"] <= raio].copy().sort_values("_dist_rota").reset_index(drop=True)
                 if df_rota.empty:
                     st.warning(
-                        f"⚠️ Foram encontrados **{len(df_todos):,}** postos nos estados, mas nenhum está "
+                        f"⚠️ Foram encontrados **{_n(len(df_todos))}** postos nos estados, mas nenhum está "
                         f"dentro de **{raio} m** da rota. Tente aumentar o raio na barra lateral."
                     )
             else:
@@ -1550,12 +1587,12 @@ else:
         df_show_r = preparar_df(df_rota, distribuidoras_filtro)
 
         c1,c2,c3,c4 = st.columns(4)
-        c1.metric("🛣️ Distância",       f"{dist_km:,.0f} km")
+        c1.metric("🛣️ Distância",       f"{_n(dist_km)} km")
         c2.metric("⏱️ Tempo estimado",  f"{int(dur_min//60)}h {int(dur_min%60)}min")
-        c3.metric("⛽ Postos na rota",  f"{len(df_show_r):,}")
-        c4.metric("⭐ Pró-Frotas",      f"{n_pf(df_show_r):,}")
+        c3.metric("⛽ Postos na rota",  _n(len(df_show_r)))
+        c4.metric("⭐ Pró-Frotas",      _n(n_pf(df_show_r)))
 
-        st.success(f"✅ **{label_orig}** → **{label_dest}** | {len(df_show_r):,} postos a até {raio_usado} m")
+        st.success(f"✅ **{label_orig}** → **{label_dest}** | {_n(len(df_show_r))} postos a até {raio_usado} m")
 
         tab_m, tab_d = st.tabs(["🗺️  Mapa da Rota", "📋  Postos na Rota"])
 
