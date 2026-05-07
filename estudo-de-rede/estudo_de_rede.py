@@ -74,9 +74,11 @@ header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
 }
-#MainMenu          { display: none !important; }
-footer             { display: none !important; }
-.stDeployButton    { display: none !important; }
+#MainMenu                            { display: none !important; }
+footer                               { display: none !important; }
+.stDeployButton                      { display: none !important; }
+[data-testid="stToolbarActions"]     { display: none !important; }
+a[href*="github.com"]                { display: none !important; }
 [data-testid="collapsedControl"],
 button[data-testid="baseButton-headerNoPadding"] {
     opacity: 1 !important;
