@@ -528,7 +528,12 @@ def buscar_posto_por_texto(texto: str, max_results: int = 6) -> list:
 
 
 def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
-    # Sufixo dinâmico garante reset completo dos widgets ao limpar consulta
+    """Campo inteligente que aceita 4 tipos de entrada:
+    • UF/Estado  — ex: SP, RJ, MG  (2 letras → centro do estado)
+    • Cidade     — ex: Ribeirao Preto  (busca no cache ANP, sem acento)
+    • Razão Social — ex: Rudnick  (busca por nome do posto)
+    • CNPJ       — ex: 12.345.678/0001-99  (busca por CNPJ)
+    """
     fk = st.session_state.get("_form_key", 0)
     key_txt_widget = f"{key_texto}_{fk}"
     key_sel_widget = f"_sel_{key_estado}_{fk}"
@@ -537,46 +542,73 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
                 unsafe_allow_html=True)
     texto = st.text_input(titulo, placeholder=placeholder,
                           key=key_txt_widget, label_visibility="collapsed")
+
     ultimo = st.session_state.get(f"_{key_estado}_txt_ant", "")
     if texto != ultimo:
         st.session_state[f"_{key_estado}_txt_ant"] = texto
-        if len(texto) < 3:
+        if len(texto) < 2:
             st.session_state.pop(key_estado, None)
 
     texto_strip = texto.strip()
+    texto_up    = texto_strip.upper()
     sugestoes   = []
 
-    if len(texto_strip) >= 3:
+    if len(texto_strip) >= 2:
         cnpj_digits = "".join(c for c in texto_strip if c.isdigit())
-        is_cnpj_input = (
+        is_cnpj = (
             len(cnpj_digits) >= 6
             and len(cnpj_digits) / max(len(texto_strip.replace(" ", "")), 1) > 0.65
         )
 
-        if is_cnpj_input:
+        # ── 1. UF/Estado (2 letras exatas) ──────────────────────────
+        if texto_up in UFS:
+            bbox   = BBOX_UFS.get(texto_up, (-15.8, -47.9, -15.7, -47.8))
+            lat_c  = (bbox[0] + bbox[2]) / 2
+            lon_c  = (bbox[1] + bbox[3]) / 2
+            sugestoes = [{
+                "label": f"🗺️ Estado {texto_up}",
+                "lat": lat_c, "lon": lon_c, "tipo": "estado",
+            }]
+
+        # ── 2. CNPJ (maioria dígitos) ────────────────────────────────
+        elif is_cnpj:
             sugestoes = buscar_posto_por_texto(texto_strip)
             if not sugestoes:
-                estados_n = len(st.session_state.get("_estados_precarregados", []))
-                if estados_n == 0:
-                    st.markdown(
-                        "<small style='color:#e65100'>⚠️ Pré-carregue os estados na sidebar "
-                        "para buscar por CNPJ.</small>",
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(
-                        f"<small style='color:#e65100'>⚠️ CNPJ não encontrado nos "
-                        f"{estados_n} estado(s) já carregado(s).</small>",
-                        unsafe_allow_html=True,
-                    )
-        else:
-            sug_postos  = buscar_posto_por_texto(texto_strip)
-            # Busca cidade no cache ANP (sem acento, sem Nominatim)
+                n_est = len(st.session_state.get("_estados_precarregados", []))
+                msg = ("⚠️ Base ainda carregando — tente novamente em instantes."
+                       if n_est == 0 else
+                       f"⚠️ CNPJ não encontrado nos {n_est} estado(s) carregado(s).")
+                st.markdown(f"<small style='color:#e65100'>{msg}</small>",
+                            unsafe_allow_html=True)
+
+        # ── 3. Cidade ou Razão Social (mín. 3 letras) ───────────────
+        elif len(texto_strip) >= 3:
+            # Cidade: busca no cache ANP com normalização de acentos
             sug_cidades = _buscar_cidades_cache(texto_strip)
-            # Fallback: Nominatim se cache vazio (base ainda não carregada)
+            # Fallback Nominatim se base ainda não tiver sido carregada
             if not sug_cidades:
-                sug_cidades = [dict(s, tipo="cidade") for s in sugestoes_nominatim(texto_strip)]
-            sugestoes = sug_postos[:4] + sug_cidades[:4]
+                sug_cidades = [
+                    dict(s, tipo="cidade") for s in sugestoes_nominatim(texto_strip)
+                ]
+            # Razão social: busca por nome do posto
+            sug_postos = buscar_posto_por_texto(texto_strip)
+            sugestoes  = sug_cidades[:4] + sug_postos[:4]
+
+        else:
+            st.markdown(
+                "<small style='color:#888'>"
+                "Digite UF (ex: SP), cidade, nome do posto ou CNPJ…"
+                "</small>",
+                unsafe_allow_html=True,
+            )
+
+    elif len(texto_strip) == 1:
+        st.markdown(
+            "<small style='color:#888'>"
+            "Digite UF (ex: SP), cidade, nome do posto ou CNPJ…"
+            "</small>",
+            unsafe_allow_html=True,
+        )
 
     if sugestoes:
         labels = [s["label"] for s in sugestoes]
@@ -584,17 +616,21 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
                            format_func=lambda i: labels[i], key=key_sel_widget)
         sel = sugestoes[idx]
         st.session_state[key_estado] = sel
-        icone = "⛽" if sel.get("tipo") == "posto" else "📍"
-        st.markdown(f"<small style='color:#1565c0'>{icone} {sel['label']}</small>",
-                    unsafe_allow_html=True)
+        tipo  = sel.get("tipo", "")
+        icone = {"estado": "🗺️", "cidade": "📍", "posto": "⛽"}.get(tipo, "📍")
+        st.markdown(
+            f"<small style='color:#1565c0'>{icone} {sel['label']}</small>",
+            unsafe_allow_html=True,
+        )
         return sel
-    elif len(texto_strip) >= 3 and not any(c.isdigit() for c in texto_strip[:2]):
-        st.markdown("<small style='color:#e65100'>⚠️ Nenhuma sugestão encontrada.</small>",
-                    unsafe_allow_html=True)
+    elif len(texto_strip) >= 3 and texto_up not in UFS:
+        st.markdown(
+            "<small style='color:#e65100'>⚠️ Nenhuma sugestão encontrada. "
+            "Tente outra grafia ou verifique se a base foi carregada.</small>",
+            unsafe_allow_html=True,
+        )
         return st.session_state.get(key_estado)
-    elif len(texto_strip) > 0:
-        st.markdown("<small style='color:#888'>Continue digitando (mín. 3 letras)…</small>",
-                    unsafe_allow_html=True)
+
     return st.session_state.get(key_estado)
 
 
