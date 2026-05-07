@@ -1428,12 +1428,15 @@ if modo == "📍 Por Estado/Município":
             "🗺️  Mapa Interativo", "📋  Dados Tabulares", "📊  Análise por Bandeira"])
 
         with tab_mapa:
-            # returned_objects=["last_object_clicked"] garante renderização correta
-            # do componente; o valor retornado é ignorado (seleção via busca abaixo)
+            # Chave ESTÁVEL "mapa_m1" — nunca muda entre reruns.
+            # Chave dinâmica (ex: mapa_estado_SP) faz o React desmontar/remontar
+            # o componente a cada troca de UF, deixando o iframe em branco.
+            # Com chave fixa, o componente é reutilizado; o HTML do mapa (prop)
+            # muda normalmente quando os dados mudam, e o iframe re-renderiza.
             st_folium(
                 criar_mapa(df_show), use_container_width=True, height=520,
                 returned_objects=["last_object_clicked"],
-                key=f"mapa_estado_{uf}",
+                key="mapa_m1",
             )
 
             # ── Busca rápida — selecionar posto como Origem / Destino ─
@@ -1609,7 +1612,8 @@ if modo == "📍 Por Estado/Município":
           </div>
         </div>
         """, unsafe_allow_html=True)
-        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=440, returned_objects=["last_object_clicked"])
+        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=440,
+                  returned_objects=["last_object_clicked"], key="mapa_m1_vazio")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1809,4 +1813,5 @@ else:
           </div>
         </div>
         """, unsafe_allow_html=True)
-        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=520, returned_objects=["last_object_clicked"])
+        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=520,
+                  returned_objects=["last_object_clicked"], key="mapa_m2_vazio")
