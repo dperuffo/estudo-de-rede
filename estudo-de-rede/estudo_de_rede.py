@@ -1328,19 +1328,20 @@ with st.sidebar:
         st.markdown(
             "<div style='background:#e3f2fd;border-radius:8px;padding:10px 12px;"
             "font-size:12px;color:#1565c0;margin-bottom:12px'>"
-            "💡 Digite <b>cidade</b>, <b>nome do posto</b> (ex: Rudnick) ou "
-            "<b>CNPJ</b> (dígitos) e selecione nas sugestões.</div>",
+            "💡 Busque por <b>UF</b> (ex: SP), <b>cidade</b> (ex: Ribeirão Preto), "
+            "<b>razão social</b> (ex: Rudnick) ou <b>CNPJ</b> (dígitos) "
+            "e selecione nas sugestões.</div>",
             unsafe_allow_html=True,
         )
         orig_sel = campo_autocomplete(
-            "🟢 Ponto de Origem",
-            "Cidade, nome do posto ou CNPJ…",
+            "🟢 Origem — UF, cidade, razão social ou CNPJ",
+            "Ex: SP  ·  Ribeirão Preto  ·  Rudnick  ·  12.345.678/0001-99",
             "txt_origem", "orig_sel",
         )
         st.markdown("")
         dest_sel = campo_autocomplete(
-            "🔴 Ponto de Destino",
-            "Cidade, nome do posto ou CNPJ…",
+            "🔴 Destino — UF, cidade, razão social ou CNPJ",
+            "Ex: RJ  ·  Campinas  ·  Auto Posto  ·  98.765.432/0001-00",
             "txt_destino", "dest_sel",
         )
         st.divider()
