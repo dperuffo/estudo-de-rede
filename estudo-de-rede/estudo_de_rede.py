@@ -694,6 +694,25 @@ def _popup(row):
             dist_txt = f"<b>Dist. da rota:</b> {int(d)} m<br>"
     except Exception: pass
 
+    lat = row.get("_lat", "")
+    lon = row.get("_lon", "")
+    sv_url   = f"https://www.google.com/maps?q=&layer=c&cbll={lat},{lon}"
+    maps_url = f"https://www.google.com/maps?q={lat},{lon}"
+    botoes_html = (
+        f"<div style='display:flex;gap:6px;margin-top:10px'>"
+        f"<a href='{sv_url}' target='_blank' style='"
+        f"flex:1;background:#1a73e8;color:#fff;text-decoration:none;"
+        f"border-radius:6px;padding:6px 0;text-align:center;"
+        f"font-size:11px;font-weight:700;display:block'>"
+        f"📷 Street View</a>"
+        f"<a href='{maps_url}' target='_blank' style='"
+        f"flex:1;background:#34a853;color:#fff;text-decoration:none;"
+        f"border-radius:6px;padding:6px 0;text-align:center;"
+        f"font-size:11px;font-weight:700;display:block'>"
+        f"🗺️ Google Maps</a>"
+        f"</div>"
+    )
+
     return folium.Popup(
         f"<div style='font-family:sans-serif;font-size:12px;min-width:260px;max-width:320px'>"
         f"{pf_badge}"
@@ -707,7 +726,9 @@ def _popup(row):
         f"<b>Autorização:</b> {v('autorizacao')}<br>"
         f"<b>Situação:</b> {v('situacaoConstatada')} | <b>SIGAF:</b> {v('statusSIGAF')}<br>"
         f"{dist_txt}"
-        f"{produtos_html}</div>",
+        f"{produtos_html}"
+        f"{botoes_html}"
+        f"</div>",
         max_width=340
     )
 
