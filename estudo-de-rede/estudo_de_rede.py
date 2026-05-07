@@ -4,6 +4,7 @@
 # ═══════════════════════════════════════════════════════════════════
 
 import base64
+from datetime import datetime
 import io
 import math
 import os
@@ -920,6 +921,11 @@ def n_pf(df):
     return int(df["_pro_frotas"].sum()) if "_pro_frotas" in df.columns else 0
 
 
+def _agora() -> str:
+    """Retorna data e hora atual formatada: 06/05/2026 às 20:53."""
+    return datetime.now().strftime("%d/%m/%Y às %H:%M")
+
+
 # ═══════════════════════════════════════════════════════════════════
 #  INTERFACE — BARRA SUPERIOR
 # ═══════════════════════════════════════════════════════════════════
@@ -966,19 +972,24 @@ with st.sidebar:
         if _cnpjs_repo:
             st.session_state["cnpjs_pro_frotas"]  = _cnpjs_repo
             st.session_state["_pf_fonte"]         = "repo"
+            st.session_state["_pf_carregado_em"]  = _agora()
 
     # ── Pró-Frotas ────────────────────────────────────────────
     _pf_fonte = st.session_state.get("_pf_fonte", "manual")
     _pf_set   = st.session_state.get("cnpjs_pro_frotas", set())
 
     # Badge de status acima do expander
+    _pf_ts = st.session_state.get("_pf_carregado_em", "")
+    _pf_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 Carregado em: {_pf_ts}</span>"
+                   if _pf_ts else "")
     if _pf_set:
         if _pf_fonte == "repo":
             st.markdown(
                 f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;"
                 f"padding:8px 12px;font-size:12px;color:#2e7d32;margin-bottom:8px'>"
                 f"✅ <b>Pró-Frotas carregado automaticamente</b><br>"
-                f"📋 {len(_pf_set):,} CNPJs · atualiza a cada 24 h<br>"
+                f"📋 {len(_pf_set):,} CNPJs · atualiza a cada 24 h"
+                f"{_pf_ts_html}<br>"
                 f"<span style='font-size:10px;opacity:.8'>Fonte: <code>{ARQUIVO_PF_REPO}</code> no repositório</span>"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -989,6 +1000,7 @@ with st.sidebar:
                 f"padding:8px 12px;font-size:12px;color:#f57f17;margin-bottom:8px'>"
                 f"⭐ <b>Pró-Frotas carregado manualmente</b><br>"
                 f"📋 {len(_pf_set):,} CNPJs ativos nesta sessão"
+                f"{_pf_ts_html}"
                 f"</div>",
                 unsafe_allow_html=True,
             )
@@ -1012,6 +1024,7 @@ with st.sidebar:
             if _cnpjs_r:
                 st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
                 st.session_state["_pf_fonte"]        = "repo"
+                st.session_state["_pf_carregado_em"] = _agora()
                 st.success(f"✅ {_msg_r}")
                 time.sleep(1)
                 st.rerun()
@@ -1034,6 +1047,7 @@ with st.sidebar:
             if cnpjs_pf is not None:
                 st.session_state["cnpjs_pro_frotas"] = cnpjs_pf
                 st.session_state["_pf_fonte"]        = "manual"
+                st.session_state["_pf_carregado_em"] = _agora()
                 st.success(msg_pf)
                 if preview_pf is not None:
                     with st.expander("Ver amostra dos CNPJs"):
@@ -1060,11 +1074,30 @@ with st.sidebar:
             "sem aguardar a API.</small>",
             unsafe_allow_html=True,
         )
+        # Exibe info da última carga se existir
+        _preload_ts  = st.session_state.get("_preload_brasil_em", "")
+        _preload_ok  = st.session_state.get("_preload_brasil_ok", 0)
+        _preload_err = st.session_state.get("_preload_brasil_err", [])
+        if _preload_ts:
+            _cor_card = "#e8f5e9" if not _preload_err else "#fff8e1"
+            _brd_card = "#a5d6a7" if not _preload_err else "#ffe082"
+            _txt_cor  = "#2e7d32" if not _preload_err else "#f57f17"
+            _ic       = "✅" if not _preload_err else "⚠️"
+            _err_txt  = (f"<br><span style='font-size:10px'>Falha em: {', '.join(_preload_err)}</span>"
+                         if _preload_err else "")
+            st.markdown(
+                f"<div style='background:{_cor_card};border:1px solid {_brd_card};"
+                f"border-radius:8px;padding:8px 12px;font-size:12px;color:{_txt_cor};margin:8px 0'>"
+                f"{_ic} <b>{_preload_ok} estado(s) carregado(s)</b>{_err_txt}<br>"
+                f"<span style='font-size:10px;opacity:.8'>🕐 Última carga: {_preload_ts}</span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
         st.markdown("")
         if st.button("⚡ Carregar todos os estados agora",
                      use_container_width=True, key="btn_preload"):
-            prog_pl      = st.progress(0, text="Iniciando…")
-            erros_pl     = []
+            prog_pl       = st.progress(0, text="Iniciando…")
+            erros_pl      = []
             carregados_pl = []
             for i_pl, uf_pl in enumerate(UFS):
                 pct = i_pl / len(UFS)
@@ -1074,12 +1107,15 @@ with st.sidebar:
                     carregados_pl.append(uf_pl)
                 except Exception:
                     erros_pl.append(uf_pl)
-                time.sleep(0.4)          # pausa para não sobrecarregar a API
+                time.sleep(0.4)
             prog_pl.progress(1.0, text="✅ Concluído!")
             time.sleep(0.8)
             prog_pl.empty()
-            # Registra estados disponíveis para busca por nome/CNPJ
+            # Registra estados e timestamp
             st.session_state["_estados_precarregados"] = carregados_pl
+            st.session_state["_preload_brasil_em"]     = _agora()
+            st.session_state["_preload_brasil_ok"]     = len(carregados_pl)
+            st.session_state["_preload_brasil_err"]    = erros_pl
             ok_pl = len(carregados_pl)
             if erros_pl:
                 st.warning(f"✅ {ok_pl} estados carregados. "
@@ -1087,6 +1123,7 @@ with st.sidebar:
             else:
                 st.success(f"✅ Todos os {len(UFS)} estados carregados! "
                            "Buscas por rota e por nome/CNPJ agora são instantâneas por 24 h.")
+            st.rerun()
 
     st.divider()
 
