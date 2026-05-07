@@ -1165,6 +1165,13 @@ with st.sidebar:
         municipio_input = st.text_input("🏙️ Município (opcional)",
                                          placeholder="Ex: Teresina",
                                          help="Filtra os postos por município dentro do estado")
+
+        if st.button("🗑️ Limpar Consulta", use_container_width=True,
+                     help="Remove a rota e a seleção de postos Origem/Destino"):
+            for _k in ["_map_orig", "_map_dest", "_map_rota_result", "_map_posto_sel"]:
+                st.session_state.pop(_k, None)
+            st.rerun()
+
         distribuidoras_filtro = []
         if st.session_state.get("distribuidoras_disponiveis"):
             st.markdown("<div style='font-weight:700;font-size:13px;margin:10px 0 6px'>🏷️ Filtrar por Bandeira</div>",
