@@ -1158,20 +1158,25 @@ with st.sidebar:
 
     # ── Modo 1 ────────────────────────────────────────────────
     if modo == "📍 Por Estado/Município":
+        _fk_m1 = st.session_state.get("_form_key_m1", 0)
         st.markdown("<div style='font-weight:700;font-size:13px;margin-bottom:6px'>🗺️ Localização</div>",
                     unsafe_allow_html=True)
         uf = st.selectbox("Estado (UF)", ["— Selecione —"] + UFS, index=0,
+                          key=f"sel_uf_{_fk_m1}",
                           help="Selecione o estado para carregar os postos")
         uf = "" if uf == "— Selecione —" else uf
 
         municipio_input = st.text_input("🏙️ Município (opcional)",
                                          placeholder="Ex: Teresina",
+                                         key=f"txt_mun_{_fk_m1}",
                                          help="Filtra os postos por município dentro do estado")
 
         if st.button("🗑️ Limpar Consulta", use_container_width=True,
-                     help="Remove a rota e a seleção de postos Origem/Destino"):
-            for _k in ["_map_orig", "_map_dest", "_map_rota_result", "_map_posto_sel"]:
+                     help="Limpa estado, município, filtros e seleção de rota"):
+            for _k in ["_map_orig", "_map_dest", "_map_rota_result", "_map_posto_sel",
+                       "_uf_carregada", "df_raw_full", "distribuidoras_disponiveis"]:
                 st.session_state.pop(_k, None)
+            st.session_state["_form_key_m1"] = _fk_m1 + 1
             st.rerun()
 
         distribuidoras_filtro = []
@@ -1180,7 +1185,8 @@ with st.sidebar:
                         unsafe_allow_html=True)
             distribuidoras_filtro = st.multiselect(
                 "Bandeiras", st.session_state["distribuidoras_disponiveis"],
-                placeholder="Todas as bandeiras", label_visibility="collapsed")
+                placeholder="Todas as bandeiras", label_visibility="collapsed",
+                key=f"mult_dist_{_fk_m1}")
 
     # ── Modo 2 ────────────────────────────────────────────────
     else:
