@@ -47,11 +47,10 @@ if os.path.exists(_LOGO_PATH):
         f'style="height:46px;object-fit:contain;mix-blend-mode:screen;'
         f'filter:brightness(1.15) contrast(1.05)">'
     )
-    # Sidebar: logo maior, blend com fundo escuro do header
+    # Sidebar: logo natural sobre fundo branco (sem blend-mode)
     _LOGO_SIDEBAR = (
         f'<img src="data:{_logo_mime};base64,{_LOGO_B64}" '
-        f'style="height:72px;object-fit:contain;display:block;margin:0 auto;'
-        f'mix-blend-mode:screen;filter:brightness(1.12) contrast(1.05)">'
+        f'style="height:78px;object-fit:contain;display:block;margin:0 auto">'
     )
     _LOGO_PAGE_ICON = _LOGO_PATH
 else:
@@ -1437,21 +1436,23 @@ with st.sidebar:
     st.markdown(f"""
     <div style='
         margin: -1rem -1rem 0 -1rem;
-        background: linear-gradient(135deg, #0d1b4b 0%, #1565c0 65%, #0288d1 100%);
-        border-radius: 0 0 16px 16px;
-        padding: 20px 16px 16px;
+        background: #ffffff;
+        padding: 22px 16px 14px;
         text-align: center;
-        box-shadow: 0 6px 18px rgba(13,27,75,0.30);
+        border-bottom: 4px solid transparent;
+        border-image: linear-gradient(90deg, #0d1b4b 0%, #1565c0 55%, #0288d1 100%) 1;
+        box-shadow: 0 4px 14px rgba(13,27,75,0.10);
         margin-bottom: 14px;
     '>
       {_LOGO_SIDEBAR}
       <div style='
           font-size: 10px;
-          color: rgba(255,255,255,0.60);
-          margin-top: 8px;
-          letter-spacing: 0.8px;
+          color: #1565c0;
+          margin-top: 9px;
+          letter-spacing: 1px;
           text-transform: uppercase;
-          font-weight: 600;
+          font-weight: 700;
+          opacity: 0.75;
       '>Estudo de Rede · ANP</div>
     </div>
     """, unsafe_allow_html=True)
