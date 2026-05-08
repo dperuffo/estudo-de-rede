@@ -87,10 +87,21 @@ footer                                            { display: none !important; }
 /* Links para github.com e streamlit.io */
 a[href*="github.com"]                             { display: none !important; }
 a[href*="streamlit.io"]                           { display: none !important; }
-/* Ícones de ação (estrela, fork, share) — apenas estes, não a toolbar toda */
+/* Ícones de ação — GitHub, Streamlit, estrela, share */
 button[title*="GitHub"]                           { display: none !important; }
+button[title*="github"]                           { display: none !important; }
 button[title*="Streamlit"]                        { display: none !important; }
 button[kind="icon"][data-testid*="Star"]          { display: none !important; }
+/* Toolbar inteira do Streamlit — esconde ações mas preserva seta da sidebar */
+[data-testid="stToolbarActions"]                  { display: none !important; }
+[data-testid="stToolbar"]                         { display: none !important; }
+/* Links e imagens do GitHub em qualquer contexto */
+a[href*="github.com"]                             { display: none !important; }
+img[alt*="github" i]                              { display: none !important; }
+img[src*="github" i]                              { display: none !important; }
+/* SVG do ícone GitHub (octicon) */
+svg[data-icon="mark-github"]                      { display: none !important; }
+[aria-label*="GitHub" i]                          { display: none !important; }
 /* Decoração superior colorida do Streamlit */
 [data-testid="stDecoration"]                      { display: none !important; }
 /* Header transparente sem sombra */
@@ -320,6 +331,32 @@ iframe {
     iframe                        { max-height: 300px !important; }
 }
 </style>
+<script>
+// Remove elementos do GitHub/Streamlit injetados dinamicamente após o carregamento
+(function() {
+    const SELECTORS = [
+        '[data-testid="stToolbarActions"]',
+        '[data-testid="stToolbar"]',
+        'button[title*="GitHub"]',
+        'button[title*="github"]',
+        'a[href*="github.com"]',
+        '[aria-label*="GitHub"]',
+        '.stDeployButton',
+        '#MainMenu',
+    ];
+    function removeElements() {
+        SELECTORS.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                el.style.setProperty('display', 'none', 'important');
+            });
+        });
+    }
+    // Executa imediatamente e observa mudanças no DOM
+    removeElements();
+    const observer = new MutationObserver(removeElements);
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
 """, unsafe_allow_html=True)
 
 # ─── Constantes ───────────────────────────────────────────────────
