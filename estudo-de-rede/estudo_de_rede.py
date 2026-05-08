@@ -72,16 +72,38 @@ st.set_page_config(
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
 <style>
-/* ══ HEADER ════════════════════════════════════════════════════════ */
+/* ══ OCULTAR ELEMENTOS STREAMLIT ══════════════════════════════════ */
+/* Menu principal (hambúrguer) */
+#MainMenu                                         { display: none !important; }
+/* Rodapé "Made with Streamlit" */
+footer                                            { display: none !important; }
+/* Botão Deploy */
+.stDeployButton                                   { display: none !important; }
+/* Barra de ações superior (GitHub, estrela, share…) */
+[data-testid="stToolbarActions"]                  { display: none !important; }
+[data-testid="stToolbar"]                         { display: none !important; }
+/* Botão "Manage app" (canto inferior direito no Community Cloud) */
+[data-testid="manage-app-button"]                 { display: none !important; }
+/* Status "Running" / "Error" no topo */
+[data-testid="stStatusWidget"]                    { display: none !important; }
+/* Badge do Streamlit (viewer badge) */
+[class*="viewerBadge"]                            { display: none !important; }
+[class*="ViewerBadge"]                            { display: none !important; }
+/* Links para github.com e streamlit.io */
+a[href*="github.com"]                             { display: none !important; }
+a[href*="streamlit.io"]                           { display: none !important; }
+/* Ícones de ação (estrela, fork, share) */
+button[title*="GitHub"]                           { display: none !important; }
+button[title*="Streamlit"]                        { display: none !important; }
+button[kind="icon"][data-testid*="Star"]          { display: none !important; }
+/* Decoração superior colorida do Streamlit */
+[data-testid="stDecoration"]                      { display: none !important; }
+/* Header transparente sem sombra */
 header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
 }
-#MainMenu                            { display: none !important; }
-footer                               { display: none !important; }
-.stDeployButton                      { display: none !important; }
-[data-testid="stToolbarActions"]     { display: none !important; }
-a[href*="github.com"]                { display: none !important; }
+/* Manter botão de recolher sidebar visível */
 [data-testid="collapsedControl"],
 button[data-testid="baseButton-headerNoPadding"] {
     opacity: 1 !important;
