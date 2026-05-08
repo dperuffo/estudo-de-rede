@@ -90,7 +90,7 @@ button[data-testid="baseButton-headerNoPadding"] {
 
 /* ══ LAYOUT GERAL ══════════════════════════════════════════════════ */
 .main .block-container {
-    padding: 0.75rem 1.5rem 2rem !important;
+    padding: 0.25rem 1rem 0.5rem !important;
     max-width: 100% !important;
 }
 
@@ -98,9 +98,9 @@ button[data-testid="baseButton-headerNoPadding"] {
 .topbar {
     background: linear-gradient(135deg, #0d1b4b 0%, #1565c0 60%, #0288d1 100%);
     color: white;
-    padding: 14px 28px;
-    border-radius: 0 0 12px 12px;
-    margin-bottom: 20px;
+    padding: 9px 24px;
+    border-radius: 0 0 10px 10px;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -1577,7 +1577,7 @@ if modo == "📍 Por Estado/Município":
             # Com chave fixa, o componente é reutilizado; o HTML do mapa (prop)
             # muda normalmente quando os dados mudam, e o iframe re-renderiza.
             st_folium(
-                criar_mapa(df_show), use_container_width=True, height=520,
+                criar_mapa(df_show), use_container_width=True, height=660,
                 returned_objects=["last_object_clicked"],
                 key="mapa_m1",
             )
@@ -1717,7 +1717,7 @@ if modo == "📍 Por Estado/Município":
                     lat_dest=_rr["dest"]["lat"], lon_dest=_rr["dest"]["lon"],
                     label_orig=_rr["orig"]["label"], label_dest=_rr["dest"]["label"],
                 )
-                st_folium(_mapa_rota, use_container_width=True, height=480,
+                st_folium(_mapa_rota, use_container_width=True, height=580,
                           returned_objects=["last_object_clicked"], key="mapa_rota_estado")
 
         with tab_dados:
@@ -1744,18 +1744,17 @@ if modo == "📍 Por Estado/Município":
                     pf_dist.columns = ["Distribuidora","Pró-Frotas"]
                     st.bar_chart(pf_dist.set_index("Distribuidora"), height=300)
     else:
-        st.markdown("""
-        <div class="empty-state">
-          <div class="empty-state-icon">🗺️</div>
-          <div class="empty-state-title">Selecione um Estado para começar</div>
-          <div class="empty-state-desc">
-            Escolha o estado (UF) na barra lateral à esquerda.<br>
-            Os postos serão carregados automaticamente da base ANP<br>
-            e exibidos no mapa com suas respectivas bandeiras.
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=440,
+        # Instrução como overlay dentro do mapa — sem desperdiçar área acima
+        _mapa_vazio_m1 = criar_mapa(pd.DataFrame())
+        _mapa_vazio_m1.get_root().html.add_child(folium.Element(
+            "<div style='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);"
+            "z-index:1000;background:rgba(13,27,75,0.88);color:#fff;border-radius:24px;"
+            "padding:10px 24px;font-size:13px;font-weight:600;pointer-events:none;"
+            "box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap'>"
+            "👈 Selecione um Estado na barra lateral para carregar os postos"
+            "</div>"
+        ))
+        st_folium(_mapa_vazio_m1, use_container_width=True, height=680,
                   returned_objects=["last_object_clicked"], key="mapa_m1_vazio")
 
 
@@ -1876,7 +1875,7 @@ else:
                            lat_orig=lat_orig, lon_orig=lon_orig,
                            lat_dest=lat_dest, lon_dest=lon_dest,
                            label_orig=label_orig, label_dest=label_dest)
-            st_folium(m, use_container_width=True, height=520,
+            st_folium(m, use_container_width=True, height=660,
                       returned_objects=["last_object_clicked"],
                       key="mapa_rota")
 
@@ -1945,16 +1944,15 @@ else:
                                df_show_r.to_csv(index=False).encode("utf-8"),
                                "postos_rota.csv","text/csv", use_container_width=True)
     else:
-        st.markdown("""
-        <div class="empty-state">
-          <div class="empty-state-icon">🛣️</div>
-          <div class="empty-state-title">Defina Origem e Destino para traçar a rota</div>
-          <div class="empty-state-desc">
-            Preencha os campos <b>Ponto de Origem</b> e <b>Ponto de Destino</b> na barra lateral,<br>
-            ajuste o raio desejado e clique em <b>Traçar Rota e Buscar Postos</b>.<br><br>
-            O mapa mostrará a rota em azul e todos os postos no raio configurado.
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st_folium(criar_mapa(pd.DataFrame()), use_container_width=True, height=520,
+        # Instrução como overlay dentro do mapa — sem desperdiçar área acima
+        _mapa_vazio_m2 = criar_mapa(pd.DataFrame())
+        _mapa_vazio_m2.get_root().html.add_child(folium.Element(
+            "<div style='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);"
+            "z-index:1000;background:rgba(13,27,75,0.88);color:#fff;border-radius:24px;"
+            "padding:10px 24px;font-size:13px;font-weight:600;pointer-events:none;"
+            "box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap'>"
+            "👈 Preencha Origem e Destino na barra lateral e clique em Traçar Rota"
+            "</div>"
+        ))
+        st_folium(_mapa_vazio_m2, use_container_width=True, height=680,
                   returned_objects=["last_object_clicked"], key="mapa_m2_vazio")
