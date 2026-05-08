@@ -1109,6 +1109,155 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  EXPORTAÇÃO — Base Nacional de Postos (Excel)
+# ═══════════════════════════════════════════════════════════════════
+
+def _gerar_excel_base_brasil() -> tuple:
+    """Consolida todos os estados em cache, marca Pró-Frotas e gera um .xlsx.
+
+    Retorna (bytes_do_arquivo | None, mensagem_str).
+
+    Estrutura do arquivo:
+      • Aba "Postos ANP"  — todos os postos, ordenados por UF > Município > Razão Social
+      • Cabeçalho azul escuro (#0D47A1) com texto branco
+      • Linhas Pró-Frotas destacadas em azul claro via formatação condicional
+        (avaliado pelo Excel, sem loop Python linha-a-linha — suporta 60 000+ linhas)
+      • Coluna "Pró-Frotas" com valor "SIM" nos postos credenciados
+    """
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.formatting.rule import FormulaRule
+    from openpyxl.utils import get_column_letter
+
+    estados = st.session_state.get("_estados_precarregados", [])
+    if not estados:
+        return None, "⚠️ Base não carregada. Use 'Pré-carregar Base Brasil' primeiro."
+
+    # ── Consolida todos os estados ────────────────────────────────
+    frames = []
+    for uf in estados:
+        try:
+            df_uf = buscar_postos(uf=uf)
+            if not df_uf.empty:
+                frames.append(df_uf)
+        except Exception:
+            continue
+
+    if not frames:
+        return None, "❌ Nenhum dado encontrado nos estados carregados."
+
+    df_all = pd.concat(frames, ignore_index=True)
+
+    # ── Marca Pró-Frotas ──────────────────────────────────────────
+    cnpjs_pf = st.session_state.get("cnpjs_pro_frotas", set())
+    df_all   = marcar_pro_frotas(df_all, cnpjs_pf)
+
+    # ── Formata CNPJ ──────────────────────────────────────────────
+    if "cnpj" in df_all.columns:
+        df_all["cnpj"] = df_all["cnpj"].fillna("").apply(
+            lambda x: _formatar_cnpj(str(x)) if x else "")
+
+    # Coluna legível para Pró-Frotas
+    df_all["_pf_txt"] = df_all["_pro_frotas"].map({True: "SIM", False: ""})
+
+    # ── Seleciona e renomeia colunas ──────────────────────────────
+    _COL_MAP = [
+        ("uf",                "UF"),
+        ("municipio",         "Município"),
+        ("razaoSocial",       "Razão Social"),
+        ("cnpj",              "CNPJ"),
+        ("distribuidora",     "Distribuidora / Bandeira"),
+        ("_pf_txt",           "Pró-Frotas"),
+        ("endereco",          "Endereço"),
+        ("bairro",            "Bairro"),
+        ("cep",               "CEP"),
+        ("autorizacao",       "Autorização ANP"),
+        ("situacaoConstatada","Situação"),
+        ("statusSIGAF",       "Status SIGAF"),
+        ("_lat",              "Latitude"),
+        ("_lon",              "Longitude"),
+    ]
+    cols_src = [c for c, _ in _COL_MAP if c in df_all.columns]
+    cols_dst = [d for c, d in _COL_MAP if c in df_all.columns]
+
+    df_exp = (df_all[cols_src]
+              .rename(columns=dict(zip(cols_src, cols_dst)))
+              .sort_values(["UF", "Município", "Razão Social"])
+              .reset_index(drop=True))
+
+    n_total = len(df_exp)
+    n_pf_exp = int(df_exp["Pró-Frotas"].eq("SIM").sum()) if "Pró-Frotas" in df_exp.columns else 0
+
+    # ── Gera Excel em memória ─────────────────────────────────────
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df_exp.to_excel(writer, index=False, sheet_name="Postos ANP")
+        ws = writer.sheets["Postos ANP"]
+
+        n_rows = n_total + 1   # +1 cabeçalho
+        n_cols = len(df_exp.columns)
+
+        # Estilos base
+        hdr_fill  = PatternFill("solid", fgColor="0D47A1")
+        hdr_font  = Font(color="FFFFFF", bold=True, size=10)
+        hdr_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        thin_side = Side(style="thin", color="C5CAE9")
+        thin_brd  = Border(left=thin_side, right=thin_side,
+                           top=thin_side, bottom=thin_side)
+
+        # Cabeçalho formatado
+        ws.row_dimensions[1].height = 28
+        for col_idx, cell in enumerate(ws[1], start=1):
+            cell.fill  = hdr_fill
+            cell.font  = hdr_font
+            cell.alignment = hdr_align
+            cell.border    = thin_brd
+
+        # Formatação condicional — linhas Pró-Frotas em azul claro
+        # Usa fórmula Excel avaliada pelo próprio app (rápido para 60 000+ linhas)
+        if "Pró-Frotas" in df_exp.columns:
+            pf_col_idx    = df_exp.columns.get_loc("Pró-Frotas") + 1   # 1-based
+            pf_col_letter = get_column_letter(pf_col_idx)
+            last_cell     = f"{get_column_letter(n_cols)}{n_rows}"
+            pf_fill       = PatternFill("solid", fgColor="DBEAFE")
+            pf_font       = Font(bold=True, size=10)
+            # A fórmula usa referência absoluta na coluna PF e relativa na linha
+            formula = [f'${pf_col_letter}2="SIM"']
+            ws.conditional_formatting.add(
+                f"A2:{last_cell}",
+                FormulaRule(formula=formula, fill=pf_fill, font=pf_font),
+            )
+
+        # Painel informativo — linha abaixo dos dados
+        info_row = n_rows + 2
+        ws.cell(info_row, 1,
+                f"Gerado em: {_agora()}  |  "
+                f"{_n(n_total)} postos  |  "
+                f"{_n(len(estados))} estados  |  "
+                f"{_n(n_pf_exp)} Pró-Frotas  |  "
+                f"Fonte: API ANP — revendedoresapi.anp.gov.br"
+                ).font = Font(italic=True, color="757575", size=9)
+
+        # Largura automática das colunas (amostragem das primeiras 500 linhas)
+        for col_idx, col_cells in enumerate(ws.iter_cols(
+                min_row=1, max_row=min(n_rows, 501), max_col=n_cols), start=1):
+            max_len = max((len(str(c.value or "")) for c in col_cells), default=8)
+            ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 3, 42)
+
+        # Congela linha do cabeçalho
+        ws.freeze_panes = "A2"
+
+        # Filtro automático
+        ws.auto_filter.ref = f"A1:{get_column_letter(n_cols)}1"
+
+    buf.seek(0)
+    data = buf.read()
+    msg  = (f"✅ {_n(n_total)} postos exportados "
+            f"({_n(len(estados))} estados)  |  "
+            f"⭐ {_n(n_pf_exp)} Pró-Frotas identificados")
+    return data, msg
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  HELPER
 # ═══════════════════════════════════════════════════════════════════
 
@@ -1420,6 +1569,58 @@ with st.sidebar:
                 st.success(f"✅ Todos os {len(UFS)} estados carregados! "
                            "Buscas por cidade, nome e CNPJ são instantâneas por 24 h.")
             st.rerun()
+
+    st.divider()
+
+    # ── Exportar Base Nacional ────────────────────────────────
+    with st.expander("📥  Exportar Base Nacional", expanded=False):
+        _n_est_exp = len(st.session_state.get("_estados_precarregados", []))
+        st.markdown(
+            "<small>Gera um arquivo <b>Excel (.xlsx)</b> com todos os postos "
+            "dos estados já carregados, identificando os <b>Pró-Frotas</b> "
+            "com destaque em azul.</small>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("")
+        if _n_est_exp == 0:
+            st.warning(
+                "⚠️ Carregue a base primeiro usando "
+                "**⚡ Recarregar todos os estados agora** acima.",
+                icon=None,
+            )
+        else:
+            st.markdown(
+                f"<div style='font-size:12px;color:#555;margin-bottom:8px'>"
+                f"📦 <b>{_n_est_exp} estado(s)</b> disponíveis para exportação</div>",
+                unsafe_allow_html=True,
+            )
+            if st.button("📊 Gerar arquivo Excel",
+                         use_container_width=True,
+                         key="btn_export_base"):
+                with st.spinner(f"⏳ Consolidando {_n_est_exp} estado(s)…"):
+                    _exp_bytes, _exp_msg = _gerar_excel_base_brasil()
+                if _exp_bytes:
+                    st.session_state["_base_export_bytes"] = _exp_bytes
+                    st.session_state["_base_export_msg"]   = _exp_msg
+                else:
+                    st.error(_exp_msg)
+
+        # Download button persiste após geração (sobrevive ao rerun)
+        if st.session_state.get("_base_export_bytes"):
+            st.download_button(
+                label="⬇️  Baixar Excel",
+                data=st.session_state["_base_export_bytes"],
+                file_name=f"postos_anp_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="btn_download_base",
+            )
+            st.success(st.session_state.get("_base_export_msg", ""))
+            if st.button("🗑️ Limpar exportação", use_container_width=True,
+                         key="btn_clear_export"):
+                st.session_state.pop("_base_export_bytes", None)
+                st.session_state.pop("_base_export_msg", None)
+                st.rerun()
 
     st.divider()
 
