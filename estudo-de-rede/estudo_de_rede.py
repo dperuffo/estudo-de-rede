@@ -47,12 +47,11 @@ if os.path.exists(_LOGO_PATH):
         f'style="height:46px;object-fit:contain;mix-blend-mode:screen;'
         f'filter:brightness(1.15) contrast(1.05)">'
     )
-    # Sidebar cinza: card branco emoldura a logo deixando-a harmonizada
+    # Sidebar: logo maior, blend com fundo escuro do header
     _LOGO_SIDEBAR = (
-        f'<div style="display:inline-block;background:#fff;border-radius:10px;'
-        f'padding:6px 14px;box-shadow:0 2px 8px rgba(0,0,0,0.12)">'
         f'<img src="data:{_logo_mime};base64,{_LOGO_B64}" '
-        f'style="height:48px;object-fit:contain;display:block"></div>'
+        f'style="height:72px;object-fit:contain;display:block;margin:0 auto;'
+        f'mix-blend-mode:screen;filter:brightness(1.12) contrast(1.05)">'
     )
     _LOGO_PAGE_ICON = _LOGO_PATH
 else:
@@ -144,8 +143,8 @@ button[data-testid="baseButton-headerNoPadding"] {
 
 /* ══ SIDEBAR ═══════════════════════════════════════════════════════ */
 section[data-testid="stSidebar"] > div:first-child {
-    background: #f0f4f9;
-    border-right: 1px solid #d0dce8;
+    background: linear-gradient(180deg, #e6edf8 0%, #f2f6fc 60%, #f7f9fd 100%);
+    border-right: 1px solid #c2d3e8;
 }
 section[data-testid="stSidebar"] .stButton > button {
     border-radius: 8px;
@@ -1436,13 +1435,26 @@ with st.sidebar:
 
     # ── Logo / título lateral ─────────────────────────────────
     st.markdown(f"""
-    <div style='text-align:center;padding:10px 0 6px'>
-      <div style='margin-bottom:6px'>{_LOGO_SIDEBAR}</div>
-      <div style='font-size:11px;color:#666;margin-top:2px'>Estudo de Rede · ANP</div>
+    <div style='
+        margin: -1rem -1rem 0 -1rem;
+        background: linear-gradient(135deg, #0d1b4b 0%, #1565c0 65%, #0288d1 100%);
+        border-radius: 0 0 16px 16px;
+        padding: 20px 16px 16px;
+        text-align: center;
+        box-shadow: 0 6px 18px rgba(13,27,75,0.30);
+        margin-bottom: 14px;
+    '>
+      {_LOGO_SIDEBAR}
+      <div style='
+          font-size: 10px;
+          color: rgba(255,255,255,0.60);
+          margin-top: 8px;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
+          font-weight: 600;
+      '>Estudo de Rede · ANP</div>
     </div>
     """, unsafe_allow_html=True)
-
-    st.divider()
 
     # ── Auto-carregamento do repositório ─────────────────────
     # Tenta UMA VEZ por sessão — usa flag para não repetir
