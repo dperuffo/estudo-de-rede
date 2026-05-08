@@ -77,9 +77,6 @@ st.markdown("""
 footer                                            { display: none !important; }
 /* Botão Deploy */
 .stDeployButton                                   { display: none !important; }
-/* Barra de ações superior (GitHub, estrela, share…) */
-[data-testid="stToolbarActions"]                  { display: none !important; }
-[data-testid="stToolbar"]                         { display: none !important; }
 /* Botão "Manage app" (canto inferior direito no Community Cloud) */
 [data-testid="manage-app-button"]                 { display: none !important; }
 /* Status "Running" / "Error" no topo */
@@ -90,7 +87,7 @@ footer                                            { display: none !important; }
 /* Links para github.com e streamlit.io */
 a[href*="github.com"]                             { display: none !important; }
 a[href*="streamlit.io"]                           { display: none !important; }
-/* Ícones de ação (estrela, fork, share) */
+/* Ícones de ação (estrela, fork, share) — apenas estes, não a toolbar toda */
 button[title*="GitHub"]                           { display: none !important; }
 button[title*="Streamlit"]                        { display: none !important; }
 button[kind="icon"][data-testid*="Star"]          { display: none !important; }
@@ -101,9 +98,14 @@ header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
 }
-/* Manter botão de recolher sidebar visível */
-[data-testid="collapsedControl"],
+/* Botão recolher/expandir sidebar — forçar visível com display explícito */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
 button[data-testid="baseButton-headerNoPadding"] {
+    display: inline-flex !important;
     opacity: 1 !important;
     visibility: visible !important;
 }
@@ -187,6 +189,33 @@ hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
 .stButton > button[kind="primary"]:hover {
     background: linear-gradient(135deg, #1976d2, #1565c0);
     box-shadow: 0 4px 12px rgba(21,101,192,0.4);
+}
+
+/* ══ LOADING / ANIMAÇÕES ═══════════════════════════════════════════ */
+/* Fade-in suave quando o iframe do mapa aparece */
+iframe {
+    animation: mapFadeIn 0.45s ease-in;
+}
+@keyframes mapFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0);   }
+}
+/* Spinner do Streamlit — aumenta levemente e centraliza */
+[data-testid="stSpinner"] {
+    padding: 18px 0 !important;
+    text-align: center !important;
+}
+[data-testid="stSpinner"] > div {
+    justify-content: center !important;
+    font-size: 15px !important;
+    color: #1565c0 !important;
+    font-weight: 600 !important;
+    gap: 10px !important;
+}
+/* Barra de progresso — cor da marca */
+[data-testid="stProgress"] > div > div {
+    background: linear-gradient(90deg, #0d1b4b, #1565c0, #0288d1) !important;
+    border-radius: 4px !important;
 }
 
 /* ══ EMPTY STATE ═══════════════════════════════════════════════════ */
@@ -1812,11 +1841,12 @@ if modo == "📍 Por Estado/Município":
             # o componente a cada troca de UF, deixando o iframe em branco.
             # Com chave fixa, o componente é reutilizado; o HTML do mapa (prop)
             # muda normalmente quando os dados mudam, e o iframe re-renderiza.
-            st_folium(
-                criar_mapa(df_show), use_container_width=True, height=660,
-                returned_objects=["last_object_clicked"],
-                key="mapa_m1",
-            )
+            with st.spinner(f"🗺️ Carregando mapa — {_n(len(df_show))} postos…"):
+                st_folium(
+                    criar_mapa(df_show), use_container_width=True, height=660,
+                    returned_objects=["last_object_clicked"],
+                    key="mapa_m1",
+                )
 
             # ── Busca rápida — selecionar posto como Origem / Destino ─
             # Filtra o DataFrame local: sem rerender do mapa, sem round-trip JS
@@ -1947,14 +1977,15 @@ if modo == "📍 Por Estado/Município":
                 _m4.metric("🔴 Destino", _rr["dest"]["label"][:25])
                 st.success(f"✅ **{_rr['orig']['label']}** → **{_rr['dest']['label']}**"
                            f" | {_n(_rr['dist_km'])} km")
-                _mapa_rota = criar_mapa(
-                    df_show, coords_rota=_rr["coords"],
-                    lat_orig=_rr["orig"]["lat"], lon_orig=_rr["orig"]["lon"],
-                    lat_dest=_rr["dest"]["lat"], lon_dest=_rr["dest"]["lon"],
-                    label_orig=_rr["orig"]["label"], label_dest=_rr["dest"]["label"],
-                )
-                st_folium(_mapa_rota, use_container_width=True, height=580,
-                          returned_objects=["last_object_clicked"], key="mapa_rota_estado")
+                with st.spinner("🗺️ Atualizando mapa com a rota…"):
+                    _mapa_rota = criar_mapa(
+                        df_show, coords_rota=_rr["coords"],
+                        lat_orig=_rr["orig"]["lat"], lon_orig=_rr["orig"]["lon"],
+                        lat_dest=_rr["dest"]["lat"], lon_dest=_rr["dest"]["lon"],
+                        label_orig=_rr["orig"]["label"], label_dest=_rr["dest"]["label"],
+                    )
+                    st_folium(_mapa_rota, use_container_width=True, height=580,
+                              returned_objects=["last_object_clicked"], key="mapa_rota_estado")
 
         with tab_dados:
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
@@ -2107,13 +2138,14 @@ else:
         tab_m, tab_d = st.tabs(["🗺️  Mapa da Rota", "📋  Postos na Rota"])
 
         with tab_m:
-            m = criar_mapa(df_show_r, coords_rota=coords_rota,
-                           lat_orig=lat_orig, lon_orig=lon_orig,
-                           lat_dest=lat_dest, lon_dest=lon_dest,
-                           label_orig=label_orig, label_dest=label_dest)
-            st_folium(m, use_container_width=True, height=660,
-                      returned_objects=["last_object_clicked"],
-                      key="mapa_rota")
+            with st.spinner(f"🗺️ Carregando mapa da rota — {_n(len(df_show_r))} postos…"):
+                m = criar_mapa(df_show_r, coords_rota=coords_rota,
+                               lat_orig=lat_orig, lon_orig=lon_orig,
+                               lat_dest=lat_dest, lon_dest=lon_dest,
+                               label_orig=label_orig, label_dest=label_dest)
+                st_folium(m, use_container_width=True, height=660,
+                          returned_objects=["last_object_clicked"],
+                          key="mapa_rota")
 
             # ── Busca rápida — refinar Origem/Destino com posto da rota ─
             if not df_show_r.empty:
