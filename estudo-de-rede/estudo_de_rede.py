@@ -71,54 +71,52 @@ st.set_page_config(
 st.markdown("""
 <style>
 /* ══ OCULTAR ELEMENTOS STREAMLIT ══════════════════════════════════ */
+/* Nota: toolbarMode="viewer" no config.toml já oculta a toolbar no servidor.
+   O CSS abaixo só age em elementos residuais que escapam dessa configuração.
+   NUNCA ocultar stToolbarActions/stToolbar via CSS — a seta da sidebar pode
+   estar dentro desses containers dependendo da versão do Streamlit.          */
+
 /* Menu principal (hambúrguer) */
 #MainMenu                                         { display: none !important; }
 /* Rodapé "Made with Streamlit" */
 footer                                            { display: none !important; }
 /* Botão Deploy */
 .stDeployButton                                   { display: none !important; }
-/* Botão "Manage app" (canto inferior direito no Community Cloud) */
+/* Botão "Manage app" (Community Cloud) */
 [data-testid="manage-app-button"]                 { display: none !important; }
-/* Status "Running" / "Error" no topo */
+/* Status "Running / Error" */
 [data-testid="stStatusWidget"]                    { display: none !important; }
-/* Badge do Streamlit (viewer badge) */
+/* Badge Streamlit */
 [class*="viewerBadge"]                            { display: none !important; }
 [class*="ViewerBadge"]                            { display: none !important; }
-/* Links para github.com e streamlit.io */
-a[href*="github.com"]                             { display: none !important; }
+/* Decoração superior colorida */
+[data-testid="stDecoration"]                      { display: none !important; }
+/* Links externos Streamlit/GitHub */
 a[href*="streamlit.io"]                           { display: none !important; }
-/* Ícones de ação — GitHub, Streamlit, estrela, share */
-button[title*="GitHub"]                           { display: none !important; }
-button[title*="github"]                           { display: none !important; }
-button[title*="Streamlit"]                        { display: none !important; }
-button[kind="icon"][data-testid*="Star"]          { display: none !important; }
-/* Toolbar inteira do Streamlit — esconde ações mas preserva seta da sidebar */
-[data-testid="stToolbarActions"]                  { display: none !important; }
-[data-testid="stToolbar"]                         { display: none !important; }
-/* Links e imagens do GitHub em qualquer contexto */
-a[href*="github.com"]                             { display: none !important; }
+/* Ícone GitHub — SVG interno (octicon) */
+svg[data-icon="mark-github"]                      { display: none !important; }
 img[alt*="github" i]                              { display: none !important; }
 img[src*="github" i]                              { display: none !important; }
-/* SVG do ícone GitHub (octicon) */
-svg[data-icon="mark-github"]                      { display: none !important; }
-[aria-label*="GitHub" i]                          { display: none !important; }
-/* Decoração superior colorida do Streamlit */
-[data-testid="stDecoration"]                      { display: none !important; }
-/* Header transparente sem sombra */
+
+/* Header transparente */
 header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
 }
-/* Botão recolher/expandir sidebar — forçar visível com display explícito */
-[data-testid="collapsedControl"] {
+/* ── Seta recolher/expandir sidebar — SEMPRE visível ───────────── */
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarNavCollapseButton"] {
     display: flex !important;
     opacity: 1 !important;
     visibility: visible !important;
+    pointer-events: auto !important;
 }
 button[data-testid="baseButton-headerNoPadding"] {
     display: inline-flex !important;
     opacity: 1 !important;
     visibility: visible !important;
+    pointer-events: auto !important;
 }
 
 /* ══ LAYOUT GERAL ══════════════════════════════════════════════════ */
@@ -332,26 +330,44 @@ iframe {
 }
 </style>
 <script>
-// Remove elementos do GitHub/Streamlit injetados dinamicamente após o carregamento
+// Remove ícone GitHub injetado dinamicamente pelo Streamlit.
+// IMPORTANTE: nunca ocultar stToolbarActions/stToolbar aqui — a seta da
+// sidebar pode viver dentro desses containers. O config.toml (toolbarMode=viewer)
+// já cuida da toolbar no servidor; este script só age no ícone GitHub residual.
 (function() {
     const SELECTORS = [
-        '[data-testid="stToolbarActions"]',
-        '[data-testid="stToolbar"]',
         'button[title*="GitHub"]',
         'button[title*="github"]',
         'a[href*="github.com"]',
-        '[aria-label*="GitHub"]',
+        'svg[data-icon="mark-github"]',
         '.stDeployButton',
         '#MainMenu',
+    ];
+    // Seletores que NUNCA devem ser ocultados (seta da sidebar)
+    const PROTEGIDOS = [
+        '[data-testid="collapsedControl"]',
+        '[data-testid="stSidebarCollapseButton"]',
+        'button[data-testid="baseButton-headerNoPadding"]',
     ];
     function removeElements() {
         SELECTORS.forEach(sel => {
             document.querySelectorAll(sel).forEach(el => {
-                el.style.setProperty('display', 'none', 'important');
+                // Garante que o elemento não é a seta da sidebar
+                const eProtegido = PROTEGIDOS.some(p => el.matches(p) || el.closest(p));
+                if (!eProtegido) {
+                    el.style.setProperty('display', 'none', 'important');
+                }
+            });
+        });
+        // Garante que a seta da sidebar está sempre visível
+        PROTEGIDOS.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                el.style.removeProperty('display');
+                el.style.setProperty('visibility', 'visible', 'important');
+                el.style.setProperty('opacity', '1', 'important');
             });
         });
     }
-    // Executa imediatamente e observa mudanças no DOM
     removeElements();
     const observer = new MutationObserver(removeElements);
     observer.observe(document.body, { childList: true, subtree: true });
