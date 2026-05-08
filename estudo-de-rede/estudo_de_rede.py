@@ -64,59 +64,49 @@ st.set_page_config(
     page_title="Estudo de Rede – Pró-Frotas",
     page_icon=_LOGO_PAGE_ICON,
     layout="wide",
-    initial_sidebar_state="auto",   # aberta no desktop, fechada no mobile
+    initial_sidebar_state="expanded",  # sempre aberta
 )
 
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
 <style>
 /* ══ OCULTAR ELEMENTOS STREAMLIT ══════════════════════════════════ */
-/* Nota: toolbarMode="viewer" no config.toml já oculta a toolbar no servidor.
-   O CSS abaixo só age em elementos residuais que escapam dessa configuração.
-   NUNCA ocultar stToolbarActions/stToolbar via CSS — a seta da sidebar pode
-   estar dentro desses containers dependendo da versão do Streamlit.          */
+/* toolbarMode="viewer" no config.toml oculta a toolbar no servidor.
+   CSS abaixo cobre elementos residuais.                              */
 
-/* Menu principal (hambúrguer) */
+/* Menu hambúrguer */
 #MainMenu                                         { display: none !important; }
-/* Rodapé "Made with Streamlit" */
+/* Rodapé */
 footer                                            { display: none !important; }
 /* Botão Deploy */
 .stDeployButton                                   { display: none !important; }
-/* Botão "Manage app" (Community Cloud) */
+/* Manage app / Community Cloud */
 [data-testid="manage-app-button"]                 { display: none !important; }
-/* Status "Running / Error" */
+/* Status Running/Error */
 [data-testid="stStatusWidget"]                    { display: none !important; }
 /* Badge Streamlit */
 [class*="viewerBadge"]                            { display: none !important; }
 [class*="ViewerBadge"]                            { display: none !important; }
-/* Decoração superior colorida */
+/* Decoração colorida do topo */
 [data-testid="stDecoration"]                      { display: none !important; }
-/* Links externos Streamlit/GitHub */
+/* Links externos */
 a[href*="streamlit.io"]                           { display: none !important; }
-/* Ícone GitHub — SVG interno (octicon) */
+a[href*="github.com"]                             { display: none !important; }
+/* Ícone e imagens do GitHub */
 svg[data-icon="mark-github"]                      { display: none !important; }
 img[alt*="github" i]                              { display: none !important; }
 img[src*="github" i]                              { display: none !important; }
+
+/* ── Seta recolher/expandir sidebar — OCULTA (menu sempre aberto) ── */
+[data-testid="collapsedControl"]                  { display: none !important; }
+[data-testid="stSidebarCollapseButton"]           { display: none !important; }
+[data-testid="stSidebarNavCollapseButton"]        { display: none !important; }
+button[data-testid="baseButton-headerNoPadding"]  { display: none !important; }
 
 /* Header transparente */
 header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
-}
-/* ── Seta recolher/expandir sidebar — SEMPRE visível ───────────── */
-[data-testid="collapsedControl"],
-[data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarNavCollapseButton"] {
-    display: flex !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-}
-button[data-testid="baseButton-headerNoPadding"] {
-    display: inline-flex !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
 }
 
 /* ══ LAYOUT GERAL ══════════════════════════════════════════════════ */
@@ -330,47 +320,29 @@ iframe {
 }
 </style>
 <script>
-// Remove ícone GitHub injetado dinamicamente pelo Streamlit.
-// IMPORTANTE: nunca ocultar stToolbarActions/stToolbar aqui — a seta da
-// sidebar pode viver dentro desses containers. O config.toml (toolbarMode=viewer)
-// já cuida da toolbar no servidor; este script só age no ícone GitHub residual.
+// Oculta elementos do GitHub/Streamlit injetados dinamicamente.
+// A seta da sidebar é intencionalmente ocultada (menu sempre fixo aberto).
 (function() {
-    const SELECTORS = [
+    const OCULTAR = [
         'button[title*="GitHub"]',
         'button[title*="github"]',
         'a[href*="github.com"]',
         'svg[data-icon="mark-github"]',
-        '.stDeployButton',
-        '#MainMenu',
-    ];
-    // Seletores que NUNCA devem ser ocultados (seta da sidebar)
-    const PROTEGIDOS = [
         '[data-testid="collapsedControl"]',
         '[data-testid="stSidebarCollapseButton"]',
         'button[data-testid="baseButton-headerNoPadding"]',
+        '.stDeployButton',
+        '#MainMenu',
     ];
-    function removeElements() {
-        SELECTORS.forEach(sel => {
+    function aplicar() {
+        OCULTAR.forEach(sel => {
             document.querySelectorAll(sel).forEach(el => {
-                // Garante que o elemento não é a seta da sidebar
-                const eProtegido = PROTEGIDOS.some(p => el.matches(p) || el.closest(p));
-                if (!eProtegido) {
-                    el.style.setProperty('display', 'none', 'important');
-                }
-            });
-        });
-        // Garante que a seta da sidebar está sempre visível
-        PROTEGIDOS.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => {
-                el.style.removeProperty('display');
-                el.style.setProperty('visibility', 'visible', 'important');
-                el.style.setProperty('opacity', '1', 'important');
+                el.style.setProperty('display', 'none', 'important');
             });
         });
     }
-    removeElements();
-    const observer = new MutationObserver(removeElements);
-    observer.observe(document.body, { childList: true, subtree: true });
+    aplicar();
+    new MutationObserver(aplicar).observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 """, unsafe_allow_html=True)
