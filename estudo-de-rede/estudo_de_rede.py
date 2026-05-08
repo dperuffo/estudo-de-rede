@@ -1216,7 +1216,7 @@ def _gerar_excel_base_brasil() -> tuple:
 
     estados = st.session_state.get("_estados_precarregados", [])
     if not estados:
-        return None, "⚠️ Base não carregada. Use 'Pré-carregar Base Brasil' primeiro."
+        return None, "⚠️ Base não carregada. Use 'Pré-carregar Base Nacional' primeiro."
 
     # ── Consolida todos os estados ────────────────────────────────
     frames = []
@@ -1624,8 +1624,8 @@ with st.sidebar:
 
     st.divider()
 
-    # ── Pré-carregar Base Brasil ──────────────────────────────
-    with st.expander("🗃️  Pré-carregar Base Brasil", expanded=False):
+    # ── Pré-carregar Base Nacional ────────────────────────────
+    with st.expander("🗃️  Pré-carregar Base Nacional", expanded=False):
         st.markdown(
             "<small>Carrega postos de <b>todos os 27 estados</b> antecipadamente "
             "e mantém em cache por <b>24 horas</b>.<br>"
