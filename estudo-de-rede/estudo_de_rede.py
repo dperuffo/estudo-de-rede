@@ -398,17 +398,19 @@ PRODUTOS_CHAVE = [
     "GNV",
     "GLP",
 ]
+# Chaves já normalizadas (sem acento, uppercase) — igual ao _anp_norm()
 PRODUTO_CURTO = {
-    "GASOLINA COMUM":               "⛽ Gasolina",
-    "GASOLINA ADITIVADA":           "⛽ Gasolina Aditivada",
-    "ETANOL HIDRATADO COMBUSTÍVEL": "🌿 Etanol",
-    "ETANOL HIDRATADO":             "🌿 Etanol",
-    "ÓLEO DIESEL":                  "🛢️ Diesel",
-    "OLEO DIESEL":                  "🛢️ Diesel",
-    "ÓLEO DIESEL S10":              "🛢️ Diesel S10",
-    "OLEO DIESEL S10":              "🛢️ Diesel S10",
-    "GNV":                          "💨 GNV",
-    "GLP":                          "🔵 GLP",
+    "GASOLINA COMUM":                    "⛽ Gasolina",
+    "GASOLINA ADITIVADA":                "⛽ Gasolina Aditivada",
+    "ETANOL HIDRATADO COMBUSTIVEL":      "🌿 Etanol",
+    "ETANOL HIDRATADO":                  "🌿 Etanol",
+    "OLEO DIESEL":                       "🛢️ Diesel",
+    "OLEO DIESEL S10":                   "🛢️ Diesel S10",
+    "GNV":                               "💨 GNV",
+    "GLP":                               "🔵 GLP",
+    "GAS NATURAL COMPRIMIDO":            "💨 GNV",
+    "GAS LIQUEFEITO DE PETROLEO":        "🔵 GLP",
+    "GAS LIQUEFEITO DO PETROLEO":        "🔵 GLP",
 }
 
 BBOX_UFS = {
@@ -1226,349 +1228,369 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
 #  PREÇOS ANP — Levantamento Semanal de Preços de Combustíveis
 # ═══════════════════════════════════════════════════════════════════
 
-@st.cache_data(show_spinner=False, ttl=86400)   # cache 24h
-def buscar_precos_anp():
-    """Baixa a planilha semanal de preços da ANP automaticamente.
+def _anp_norm(s):
+    """Remove acentos, uppercase, strip — para comparações robustas."""
+    return unicodedata.normalize("NFD", str(s)).encode("ascii", "ignore").decode("ascii").upper().strip()
 
-    Retorna (df_municipios | None, df_estados | None, semana_str, erro_str).
+
+def _anp_col(df, *termos):
+    """Retorna coluna cujo nome normalizado contenha qualquer dos termos."""
+    for col in df.columns:
+        cn = _anp_norm(col)
+        if any(t in cn for t in [_anp_norm(t) for t in termos]):
+            return col
+    return None
+
+
+def _anp_ler_aba(xls, aba):
+    """Lê aba da planilha ANP detectando automaticamente a linha real do cabeçalho.
+
+    A planilha ANP tem linhas de título/notas antes do cabeçalho real.
+    Procura a primeira linha que contenha 'PRODUTO' e 'ESTADO' ou 'MUNICIPIO'.
+    """
+    df_raw = pd.read_excel(xls, sheet_name=aba, header=None)
+    header_row = 0
+    for i in range(min(15, len(df_raw))):
+        row_str = _anp_norm(" ".join(str(v) for v in df_raw.iloc[i].values))
+        if "PRODUTO" in row_str and any(k in row_str for k in ["ESTADO", "MUNICIPIO", "PAIS"]):
+            header_row = i
+            break
+    df = pd.read_excel(xls, sheet_name=aba, header=header_row)
+    df.columns = [str(c).strip() for c in df.columns]
+    df = df.dropna(how="all").reset_index(drop=True)
+    # Remove linhas que não têm valor em "Produto"
+    col_p = _anp_col(df, "produto")
+    if col_p:
+        df = df[df[col_p].notna() & (df[col_p].astype(str).str.strip() != "")].copy()
+    return df
+
+
+def _anp_processar_arquivo(buf):
+    """Lê o arquivo XLSX da ANP e retorna dict {tipo: DataFrame}.
+
+    Tipos possíveis: 'municipios', 'estados', 'capitais', 'pais'.
+    """
+    xls = pd.ExcelFile(buf)
+    sheets = {}
+    mapa = {
+        "municipios": ["munic"],
+        "estados":    ["estado"],
+        "capitais":   ["capital"],
+        "pais":       ["pais", "brasil", "nacional"],
+    }
+    for tipo, palavras in mapa.items():
+        aba = next(
+            (s for s in xls.sheet_names
+             if any(p in _anp_norm(s) for p in palavras)),
+            None,
+        )
+        if aba:
+            try:
+                df = _anp_ler_aba(xls, aba)
+                if not df.empty:
+                    sheets[tipo] = df
+            except Exception:
+                pass
+    return sheets
+
+
+@st.cache_data(show_spinner=False, ttl=86400)
+def buscar_precos_anp():
+    """Tenta baixar a planilha de preços ANP automaticamente.
+    Retorna (bytes_xlsx | None, semana_str | None, erro_str | None).
     """
     try:
-        # 1. Busca a página de levantamento para descobrir o link do XLSX mais recente
         headers_page = {**HEADERS_ANP,
                         "Accept": "text/html,application/xhtml+xml,*/*",
                         "Referer": "https://www.gov.br/anp/"}
         resp = requests.get(ANP_PRECOS_URL, headers=headers_page, timeout=20)
         resp.raise_for_status()
-
-        # Extrai todos os links .xlsx da página
-        links_xlsx = re.findall(
-            r'href=["\']([^"\']*ca-combustiveis[^"\']*\.xlsx?)["\']',
-            resp.text, re.I
-        )
-        if not links_xlsx:
-            # fallback: qualquer .xlsx na página
-            links_xlsx = re.findall(r'href=["\']([^"\']+\.xlsx?)["\']', resp.text, re.I)
-
-        if not links_xlsx:
-            return None, None, None, "Nenhum link de planilha encontrado na página da ANP."
-
-        xlsx_url = links_xlsx[0]
-        if not xlsx_url.startswith("http"):
-            xlsx_url = "https://www.gov.br" + xlsx_url
-
-        # Extrai identificação da semana a partir do nome do arquivo
-        semana = re.sub(r'\.xlsx?$', '', xlsx_url.split("/")[-1], flags=re.I)
+        links = re.findall(r'href=["\']([^"\']*ca-combustiveis[^"\']*\.xlsx?)["\']',
+                           resp.text, re.I)
+        if not links:
+            links = re.findall(r'href=["\']([^"\']+\.xlsx?)["\']', resp.text, re.I)
+        if not links:
+            return None, None, "Nenhum link .xlsx encontrado na página da ANP."
+        url = links[0] if links[0].startswith("http") else "https://www.gov.br" + links[0]
+        semana = re.sub(r"\.xlsx?$", "", url.split("/")[-1], flags=re.I)
         semana = semana.replace("ca-combustiveis-", "").replace("-", " ").title()
-
-        # 2. Baixa o XLSX
-        resp2 = requests.get(xlsx_url, headers=headers_page, timeout=40)
+        resp2 = requests.get(url, headers=headers_page, timeout=45)
         resp2.raise_for_status()
-        buf = io.BytesIO(resp2.content)
-
-        # 3. Lê as abas MUNICIPIOS e ESTADOS (nomes podem variar)
-        xls = pd.ExcelFile(buf)
-        aba_mun = next(
-            (s for s in xls.sheet_names if "munic" in s.lower()), xls.sheet_names[0])
-        aba_est = next(
-            (s for s in xls.sheet_names if "estado" in s.lower()), None)
-
-        df_mun = pd.read_excel(xls, sheet_name=aba_mun, header=0)
-        df_est = pd.read_excel(xls, sheet_name=aba_est, header=0) if aba_est else None
-
-        # Normaliza nomes de colunas (remove acentos extras, strip)
-        def _norm_cols(df):
-            df.columns = [str(c).strip() for c in df.columns]
-            return df
-
-        df_mun = _norm_cols(df_mun)
-        if df_est is not None:
-            df_est = _norm_cols(df_est)
-
-        return df_mun, df_est, semana, None
-
+        return resp2.content, semana, None
     except Exception as e:
-        return None, None, None, str(e)
+        return None, None, str(e)
 
 
-def _col(df, *palavras):
-    """Retorna o nome da primeira coluna cujo nome contenha qualquer das palavras."""
-    palavras_lower = [p.lower() for p in palavras]
-    for col in df.columns:
-        c = col.lower()
-        if any(p in c for p in palavras_lower):
-            return col
-    return None
+def _anp_extrair_precos(sheets, uf=None, municipio=None):
+    """Extrai preços médios para uma UF/município.
 
+    Retorna lista de dicts com colunas: Combustível, Preço Médio, Mín, Máx,
+    Unidade, Postos, Nível, Ref. Estado.
+    """
+    nome_uf = _anp_norm(UF_NOME.get(uf or "", "")) if uf else None
 
-def _precos_localidade(df_mun, df_est, uf, municipio=None):
-    """Retorna dict produto -> {media_local, media_estado, unidade} para a localidade."""
-    if df_mun is None or df_mun.empty:
-        return None
+    # Escolhe a melhor aba para o nível solicitado
+    if municipio and "municipios" in sheets:
+        df_base = sheets["municipios"]
+        nivel_alvo = "Município"
+    elif uf and "estados" in sheets:
+        df_base = sheets["estados"]
+        nivel_alvo = "Estado"
+    else:
+        return []
 
-    nome_estado = UF_NOME.get(uf, "").upper()
+    col_est  = _anp_col(df_base, "estado")
+    col_mun  = _anp_col(df_base, "munic")
+    col_prod = _anp_col(df_base, "produto")
+    col_med  = _anp_col(df_base, "medio revenda", "media revenda", "preco medio")
+    col_min  = _anp_col(df_base, "minimo revenda", "preco min")
+    col_max  = _anp_col(df_base, "maximo revenda", "preco max")
+    col_uni  = _anp_col(df_base, "unidade")
+    col_npos = _anp_col(df_base, "postos pesq", "numero de postos", "n postos")
 
-    col_est  = _col(df_mun, "estado")
-    col_mun  = _col(df_mun, "munic")
-    col_prod = _col(df_mun, "produto")
-    col_med  = _col(df_mun, "médio revenda", "medio revenda", "preço médio", "preco medio")
-    col_min  = _col(df_mun, "mínimo revenda", "minimo revenda", "preco min")
-    col_max  = _col(df_mun, "máximo revenda", "maximo revenda", "preco max")
-    col_uni  = _col(df_mun, "unidade")
-    col_npos = _col(df_mun, "postos pesq", "numero de postos")
+    if not col_prod or not col_med:
+        return []
 
-    if not col_est or not col_prod or not col_med:
-        return None
+    df = df_base.copy()
 
     # Filtra por estado
-    df_uf = df_mun[
-        df_mun[col_est].astype(str).str.upper().str.strip() == nome_estado
-    ].copy()
+    if col_est and nome_uf:
+        df = df[df[col_est].apply(_anp_norm) == nome_uf]
 
-    # Referência do estado inteiro (para comparação)
-    if df_est is not None:
-        col_est2  = _col(df_est, "estado")
-        col_prod2 = _col(df_est, "produto")
-        col_med2  = _col(df_est, "médio revenda", "medio revenda", "preço médio", "preco medio")
-        if col_est2 and col_prod2 and col_med2:
-            df_ref = df_est[
-                df_est[col_est2].astype(str).str.upper().str.strip() == nome_estado
-            ].copy()
-        else:
-            df_ref = None
-    else:
-        # Se não tem aba de estados, agrega por estado a partir de municípios
-        df_ref = df_uf.copy()
+    # Filtra por município (se informado e aba municipios disponível)
+    nivel_real = "Estado"
+    if municipio and col_mun and "municipios" in sheets:
+        mun_n = _anp_norm(municipio)
+        df_m = df[df[col_mun].apply(_anp_norm).str.contains(mun_n, na=False)]
+        if not df_m.empty:
+            df = df_m
+            nivel_real = "Município"
 
-    # Se informou município, tenta filtrar
-    nivel = "Estado"
-    if municipio and col_mun:
-        mun_norm = municipio.strip().upper()
-        df_mun_fil = df_uf[
-            df_uf[col_mun].astype(str).str.upper().str.contains(mun_norm, na=False)
-        ]
-        if not df_mun_fil.empty:
-            df_uf  = df_mun_fil
-            nivel  = "Município"
+    if df.empty:
+        return []
 
-    if df_uf.empty:
-        return None
+    # Referência estadual (aba estados)
+    ref_estado = {}
+    if "estados" in sheets and uf:
+        df_est = sheets["estados"]
+        ce = _anp_col(df_est, "estado")
+        cp = _anp_col(df_est, "produto")
+        cm = _anp_col(df_est, "medio revenda", "media revenda", "preco medio")
+        if ce and cp and cm and nome_uf:
+            df_e = df_est[df_est[ce].apply(_anp_norm) == nome_uf]
+            for _, row in df_e.iterrows():
+                pk = _anp_norm(str(row[cp]))
+                v = pd.to_numeric(row[cm], errors="coerce")
+                if not pd.isna(v):
+                    ref_estado[pk] = round(float(v), 3)
 
-    resultado = {}
-    for prod_raw in df_uf[col_prod].dropna().unique():
-        prod_key = str(prod_raw).strip().upper()
-        df_p = df_uf[df_uf[col_prod] == prod_raw]
+    # Referência nacional (aba pais)
+    ref_pais = {}
+    if "pais" in sheets:
+        df_p = sheets["pais"]
+        cp2 = _anp_col(df_p, "produto")
+        cm2 = _anp_col(df_p, "medio revenda", "media revenda", "preco medio")
+        if cp2 and cm2:
+            for _, row in df_p.iterrows():
+                pk = _anp_norm(str(row[cp2]))
+                v = pd.to_numeric(row[cm2], errors="coerce")
+                if not pd.isna(v):
+                    ref_pais[pk] = round(float(v), 3)
 
-        med_loc = pd.to_numeric(df_p[col_med], errors="coerce").mean()
-        min_loc = pd.to_numeric(df_p[col_min], errors="coerce").min()  if col_min else None
-        max_loc = pd.to_numeric(df_p[col_max], errors="coerce").max()  if col_max else None
-        uni     = df_p[col_uni].iloc[0]  if col_uni and not df_p.empty else "R$/L"
-        npos    = int(pd.to_numeric(df_p[col_npos], errors="coerce").sum()) if col_npos else None
-
-        # Preço de referência estadual
-        med_est = None
-        if df_ref is not None and not df_ref.empty:
-            col_prod_r = _col(df_ref, "produto")
-            col_med_r  = _col(df_ref, "médio revenda", "medio revenda", "preço médio", "preco medio")
-            if col_prod_r and col_med_r:
-                df_pr = df_ref[df_ref[col_prod_r] == prod_raw]
-                med_est = pd.to_numeric(df_pr[col_med_r], errors="coerce").mean()
-
-        if pd.isna(med_loc):
+    # Agrega por produto
+    linhas = []
+    ordem = {_anp_norm(k): i for i, k in enumerate(PRODUTOS_CHAVE)}
+    for prod_raw, grp in df.groupby(col_prod):
+        pk = _anp_norm(str(prod_raw))
+        med = pd.to_numeric(grp[col_med], errors="coerce").mean()
+        if pd.isna(med):
             continue
+        mn  = pd.to_numeric(grp[col_min], errors="coerce").min() if col_min else None
+        mx  = pd.to_numeric(grp[col_max], errors="coerce").max() if col_max else None
+        uni = str(grp[col_uni].iloc[0]).strip() if col_uni else "R$/L"
+        nps = int(pd.to_numeric(grp[col_npos], errors="coerce").sum()) if col_npos else None
+        linhas.append({
+            "_ordem":      ordem.get(pk, 99),
+            "_pk":         pk,
+            "Combustível": PRODUTO_CURTO.get(pk, str(prod_raw).title()),
+            "Preço Médio": round(float(med), 3),
+            "Mín":         round(float(mn), 3) if mn is not None and not pd.isna(mn) else None,
+            "Máx":         round(float(mx), 3) if mx is not None and not pd.isna(mx) else None,
+            "Unidade":     uni,
+            "Postos":      nps,
+            "Nível":       nivel_real,
+            "Ref. Estado": ref_estado.get(pk),
+            "Ref. Brasil": ref_pais.get(pk),
+        })
 
-        resultado[prod_key] = {
-            "media_local": round(float(med_loc), 3),
-            "media_estado": round(float(med_est), 3) if med_est and not pd.isna(med_est) else None,
-            "min":  round(float(min_loc), 3) if min_loc and not pd.isna(min_loc) else None,
-            "max":  round(float(max_loc), 3) if max_loc and not pd.isna(max_loc) else None,
-            "unidade": str(uni).strip(),
-            "n_postos": npos,
-            "nivel": nivel,
-        }
-
-    return resultado if resultado else None
+    linhas.sort(key=lambda x: x["_ordem"])
+    return linhas
 
 
 def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
-    """Renderiza seção de preços ANP na aba correspondente.
+    """Renderiza aba de preços ANP.
 
-    uf            : UF principal (Modo 1) ou None (Modo 2)
-    municipio     : município filtrado (opcional, Modo 1)
-    ufs_multiplas : lista de UFs ao longo da rota (Modo 2)
+    Modo 1: uf + municipio opcional
+    Modo 2: ufs_multiplas (lista de UFs da rota)
     """
-    # ── Recupera dados já carregados (session_state) ──────────────
-    _cache = st.session_state.get("_precos_anp_cache", {})
-    df_mun = _cache.get("df_mun")
-    df_est = _cache.get("df_est")
-    semana = _cache.get("semana")
+    # ── Recupera sheets do session_state ─────────────────────────
+    _cache  = st.session_state.get("_precos_anp_cache", {})
+    sheets  = _cache.get("sheets")     # dict tipo→DataFrame
+    semana  = _cache.get("semana")
 
-    # ── Cabeçalho informativo ─────────────────────────────────────
-    st.markdown(
-        "<div style='background:#e8f0fe;border:1px solid #c5d5f5;border-radius:10px;"
-        "padding:12px 16px;margin-bottom:14px'>"
-        "<b>💰 Preços Médios de Combustíveis — ANP</b><br>"
-        "<span style='font-size:12px;color:#555'>Fonte: Levantamento Semanal de Preços "
-        "de Combustíveis · Agência Nacional do Petróleo (ANP)</span>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    # ── Painel de carregamento (sempre visível) ───────────────────
+    with st.expander("📂 Carregar planilha de preços ANP", expanded=(sheets is None)):
+        col_btn, col_up = st.columns([1, 1])
+        with col_btn:
+            if st.button("🔄 Buscar automaticamente", use_container_width=True,
+                         key="btn_buscar_precos"):
+                with st.spinner("📡 Baixando planilha da ANP…"):
+                    _raw, _sem, _err = buscar_precos_anp()
+                if _err or _raw is None:
+                    st.error(f"❌ Download automático falhou: {_err or 'sem dados'}\n\n"
+                             "Faça upload manual ao lado.")
+                else:
+                    _sheets = _anp_processar_arquivo(io.BytesIO(_raw))
+                    if not _sheets:
+                        st.error("❌ Não foi possível interpretar a planilha.")
+                    else:
+                        st.session_state["_precos_anp_cache"] = {"sheets": _sheets, "semana": _sem}
+                        st.success(f"✅ Carregado: {_sem} — abas: {', '.join(_sheets.keys())}")
+                        st.rerun()
 
-    # ── Painel de carregamento ────────────────────────────────────
-    col_btn, col_up = st.columns([1, 1])
+        with col_up:
+            arq = st.file_uploader(
+                "Upload manual (.xlsx)", type=["xlsx","xls"],
+                key="upload_precos_anp", label_visibility="collapsed",
+            )
+            if arq:
+                try:
+                    _sheets = _anp_processar_arquivo(io.BytesIO(arq.read()))
+                    if not _sheets:
+                        st.error("❌ Nenhuma aba reconhecida. Verifique se é a planilha correta.")
+                    else:
+                        _sem = arq.name.replace(".xlsx","").replace("ca-combustiveis-","")
+                        st.session_state["_precos_anp_cache"] = {"sheets": _sheets, "semana": _sem}
+                        sheets = _sheets
+                        semana = _sem
+                        st.success(f"✅ {arq.name} — abas: {', '.join(_sheets.keys())}")
+                        st.rerun()
+                except Exception as ex:
+                    st.error(f"❌ Erro ao ler arquivo: {ex}")
 
-    with col_btn:
-        if st.button("🔄 Buscar Preços da ANP", use_container_width=True,
-                     key="btn_buscar_precos", help="Baixa a planilha semanal automaticamente do site da ANP"):
-            with st.spinner("📡 Baixando planilha de preços da ANP…"):
-                _df_m, _df_e, _sem, _err = buscar_precos_anp()
-            if _err or _df_m is None:
-                st.error(f"❌ Não foi possível baixar automaticamente.\n\n{_err or ''}\n\n"
-                         "Faça o upload manual da planilha ao lado.")
-            else:
-                st.session_state["_precos_anp_cache"] = {
-                    "df_mun": _df_m, "df_est": _df_e, "semana": _sem}
-                df_mun, df_est, semana = _df_m, _df_e, _sem
-                st.success(f"✅ Planilha carregada! Pesquisa: {_sem}")
-                st.rerun()
-
-    with col_up:
-        arq = st.file_uploader(
-            "📂 Upload manual (ca-combustiveis-...xlsx)",
-            type=["xlsx", "xls"], key="upload_precos_anp",
-            label_visibility="collapsed",
-            help="Baixe a planilha em gov.br/anp e faça upload aqui",
+        st.markdown(
+            "<div style='font-size:11px;color:#888;margin-top:6px'>"
+            "Planilha em: <a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia"
+            "/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas' "
+            "target='_blank'>gov.br/anp → Levantamento de Preços</a></div>",
+            unsafe_allow_html=True,
         )
-        if arq:
-            try:
-                buf  = io.BytesIO(arq.read())
-                xls  = pd.ExcelFile(buf)
-                aba_m = next((s for s in xls.sheet_names if "munic" in s.lower()), xls.sheet_names[0])
-                aba_e = next((s for s in xls.sheet_names if "estado" in s.lower()), None)
-                _df_m = pd.read_excel(xls, sheet_name=aba_m, header=0)
-                _df_m.columns = [str(c).strip() for c in _df_m.columns]
-                _df_e = pd.read_excel(xls, sheet_name=aba_e, header=0) if aba_e else None
-                if _df_e is not None:
-                    _df_e.columns = [str(c).strip() for c in _df_e.columns]
-                _sem = arq.name.replace(".xlsx","").replace("ca-combustiveis-","")
-                st.session_state["_precos_anp_cache"] = {
-                    "df_mun": _df_m, "df_est": _df_e, "semana": _sem}
-                df_mun, df_est, semana = _df_m, _df_e, _sem
-                st.success(f"✅ {arq.name} carregado!")
-            except Exception as ex:
-                st.error(f"❌ Erro ao ler planilha: {ex}")
 
-    # ── Link direto para a página da ANP ─────────────────────────
-    st.markdown(
-        "<div style='font-size:11px;color:#666;margin-top:4px'>"
-        "💡 Planilha disponível em: "
-        "<a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia"
-        "/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas' "
-        "target='_blank'>gov.br/anp → Levantamento de Preços</a></div>",
-        unsafe_allow_html=True,
-    )
-
-    # ── Sem dados ainda ───────────────────────────────────────────
-    if df_mun is None:
-        st.info("👆 Clique em **Buscar Preços da ANP** ou faça upload da planilha para ver os indicadores.")
+    if sheets is None:
+        st.info("👆 Carregue a planilha de preços da ANP para ver os indicadores.")
         return
 
-    # ── Cabeçalho ────────────────────────────────────────────────
     if semana:
-        st.caption(f"📅 Pesquisa ANP — {semana}  ·  Fonte: Levantamento de Preços de Combustíveis (ANP)")
+        st.caption(f"📅 Pesquisa ANP: **{semana}** · abas disponíveis: {', '.join(sheets.keys())}")
 
-    # ── MODO 2: comparação entre múltiplas UFs ────────────────────
+    st.divider()
+
+    # ══════════════════════════════════════════════════════════════
+    # MODO 2 — Preços por estado ao longo da rota
+    # ══════════════════════════════════════════════════════════════
     if ufs_multiplas:
-        st.markdown("#### 💰 Preços Médios por Estado — Rota")
+        st.markdown("### 💰 Preços Médios por Estado — Rota")
+        df_est_sheet = sheets.get("estados")
+        if df_est_sheet is None:
+            st.warning("Aba 'estados' não encontrada na planilha.")
+            return
+
+        # Coleta preços de cada UF da rota
         linhas = []
         for uf_r in ufs_multiplas:
-            dados = _precos_localidade(df_mun, df_est, uf_r)
-            if not dados:
-                continue
-            for prod_key, v in dados.items():
-                nome = PRODUTO_CURTO.get(prod_key, prod_key.title())
-                linhas.append({
-                    "UF":      uf_r,
-                    "Estado":  UF_NOME.get(uf_r, uf_r),
-                    "Produto": nome,
-                    "Preço Médio (R$)": v["media_local"],
-                    "Mín (R$)": v.get("min"),
-                    "Máx (R$)": v.get("max"),
-                    "Unidade": v["unidade"],
-                })
+            rows = _anp_extrair_precos(sheets, uf=uf_r)
+            for r in rows:
+                linhas.append({"UF": uf_r, "Estado": UF_NOME.get(uf_r, uf_r), **r})
+
         if not linhas:
-            st.info("Dados de preço não disponíveis para as UFs desta rota.")
+            st.info("Preços não encontrados para os estados desta rota.")
             return
+
         df_tab = pd.DataFrame(linhas)
-        # Pivot: produto x estado
+
+        # Pivot: Combustível × UF
         try:
             pivot = df_tab.pivot_table(
-                index="Produto", columns="UF",
-                values="Preço Médio (R$)", aggfunc="mean"
+                index="Combustível", columns="UF",
+                values="Preço Médio", aggfunc="mean"
             ).round(3)
-            st.dataframe(pivot, use_container_width=True)
+            pivot.columns.name = None
+            st.dataframe(
+                pivot.style.format("R$ {:.3f}").highlight_min(axis=1, color="#d4edda")
+                           .highlight_max(axis=1, color="#f8d7da"),
+                use_container_width=True,
+            )
         except Exception:
-            st.dataframe(df_tab[["UF","Produto","Preço Médio (R$)","Mín (R$)","Máx (R$)"]],
-                         use_container_width=True)
+            st.dataframe(
+                df_tab[["UF","Combustível","Preço Médio","Mín","Máx"]],
+                use_container_width=True,
+            )
+
+        # Referência nacional
+        ref_pais = sheets.get("pais")
+        if ref_pais is not None:
+            rows_pais = _anp_extrair_precos({"pais": ref_pais, "estados": df_est_sheet}, uf=None)
+            if rows_pais:
+                st.markdown("**Referência nacional (média Brasil):**")
+                cols_p = st.columns(min(len(rows_pais), 5))
+                for i, r in enumerate(rows_pais[:5]):
+                    cols_p[i].metric(r["Combustível"], f"R$ {r['Preço Médio']:.3f}")
         return
 
-    # ── MODO 1: UF + município ────────────────────────────────────
-    dados = _precos_localidade(df_mun, df_est, uf, municipio)
-    if not dados:
-        st.info("Dados de preço não disponíveis para essa localidade nesta pesquisa.")
+    # ══════════════════════════════════════════════════════════════
+    # MODO 1 — Preços para UF / Município selecionado
+    # ══════════════════════════════════════════════════════════════
+    rows = _anp_extrair_precos(sheets, uf=uf, municipio=municipio or None)
+
+    if not rows:
+        st.warning(f"Preços não encontrados para **{municipio or UF_NOME.get(uf, uf)}** nesta pesquisa.")
         return
 
-    nivel = next(iter(dados.values())).get("nivel", "Estado")
-    scope = f"**{municipio}** ({uf})" if municipio and nivel == "Município" else f"**{uf}** — {UF_NOME.get(uf,'')}"
-    st.markdown(f"#### Preços em {scope}  <span style='font-size:12px;color:#888'>nível: {nivel}</span>",
-                unsafe_allow_html=True)
+    nivel = rows[0]["Nível"]
+    scope_label = (f"**{municipio}** ({uf})" if nivel == "Município"
+                   else f"**{UF_NOME.get(uf, uf)}** ({uf})")
+    st.markdown(f"### Preços em {scope_label} — nível: *{nivel}*")
 
-    # Ordena pelos produtos-chave primeiro, depois os demais
-    ordem = {k.upper(): i for i, k in enumerate(PRODUTOS_CHAVE)}
-    dados_ord = dict(sorted(dados.items(), key=lambda x: ordem.get(x[0], 99)))
+    # Cards de métricas — até 4 por linha
+    for i in range(0, len(rows), 4):
+        grupo = rows[i:i+4]
+        cols_row = st.columns(len(grupo))
+        for j, r in enumerate(grupo):
+            ref   = r.get("Ref. Estado")
+            delta = None
+            if ref and ref != r["Preço Médio"]:
+                diff  = r["Preço Médio"] - ref
+                delta = f"{'+' if diff>0 else ''}{diff:.3f} vs estado"
+            cols_row[j].metric(
+                label=r["Combustível"],
+                value=f"R$ {r['Preço Médio']:.3f}",
+                delta=delta,
+                delta_color="inverse",
+            )
 
-    # Métricas principais (gasolina, etanol, diesel, diesel S10)
-    principais = {k: v for k, v in dados_ord.items()
-                  if any(p in k for p in ["GASOLINA COMUM","ETANOL","DIESEL S10","DIESEL"])}
-    outros     = {k: v for k, v in dados_ord.items() if k not in principais}
-
-    def _card_preco(prod_key, dados_prod, col):
-        nome  = PRODUTO_CURTO.get(prod_key, prod_key.title())
-        preco = dados_prod["media_local"]
-        uni   = dados_prod["unidade"]
-        ref   = dados_prod.get("media_estado")
-        delta_str = None
-        if ref and ref != preco:
-            diff = preco - ref
-            sinal = "+" if diff > 0 else ""
-            delta_str = f"{sinal}{diff:.3f} vs estado"
-        col.metric(
-            label=nome,
-            value=f"R$ {preco:.3f}/{uni.replace('R$/','').strip() or 'L'}",
-            delta=delta_str,
-            delta_color="inverse",   # vermelho se mais caro que estado, verde se mais barato
-        )
-
-    # Linha de métricas — até 4 por linha
-    prods_list = list(principais.items()) + list(outros.items())
-    for i in range(0, len(prods_list), 4):
-        cols_row = st.columns(min(4, len(prods_list) - i))
-        for j, (pk, pv) in enumerate(prods_list[i:i+4]):
-            _card_preco(pk, pv, cols_row[j])
-
-    # Tabela detalhada expansível
-    with st.expander("📋 Ver tabela completa de preços", expanded=False):
-        linhas_tab = []
-        for pk, pv in dados_ord.items():
-            linhas_tab.append({
-                "Combustível":    PRODUTO_CURTO.get(pk, pk.title()),
-                f"Preço Médio ({nivel})": f"R$ {pv['media_local']:.3f}",
-                "Preço Médio (Estado)": f"R$ {pv['media_estado']:.3f}" if pv.get("media_estado") else "—",
-                "Mín (R$)":  f"{pv['min']:.3f}" if pv.get("min") else "—",
-                "Máx (R$)":  f"{pv['max']:.3f}" if pv.get("max") else "—",
-                "Unidade":   pv["unidade"],
-                "Postos pesq.": pv.get("n_postos") or "—",
-            })
-        st.dataframe(pd.DataFrame(linhas_tab), use_container_width=True, hide_index=True)
+    # Tabela completa com comparativo
+    st.divider()
+    df_disp = pd.DataFrame([{
+        "Combustível":          r["Combustível"],
+        f"Preço Médio ({nivel})": f"R$ {r['Preço Médio']:.3f}",
+        "Mín (R$)":             f"R$ {r['Mín']:.3f}" if r.get("Mín") else "—",
+        "Máx (R$)":             f"R$ {r['Máx']:.3f}" if r.get("Máx") else "—",
+        "Ref. Estado (R$)":     f"R$ {r['Ref. Estado']:.3f}" if r.get("Ref. Estado") else "—",
+        "Ref. Brasil (R$)":     f"R$ {r['Ref. Brasil']:.3f}" if r.get("Ref. Brasil") else "—",
+        "Postos pesq.":         r.get("Postos") or "—",
+        "Unidade":              r.get("Unidade","R$/L"),
+    } for r in rows])
+    st.dataframe(df_disp, use_container_width=True, hide_index=True)
 
 
 # ═══════════════════════════════════════════════════════════════════
