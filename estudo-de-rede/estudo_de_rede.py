@@ -1254,6 +1254,14 @@ def _anp_norm(s):
     return unicodedata.normalize("NFD", str(s)).encode("ascii", "ignore").decode("ascii").upper().strip()
 
 
+def _brl(v, d=2):
+    """Formata número no padrão monetário brasileiro: ponto para milhar, vírgula para decimal.
+    Exemplo: _brl(1234.5) → '1.234,50'  |  _brl(1.329, 3) → '1,329'
+    """
+    s = f"{v:,.{d}f}"          # '1,234.50' (padrão US)
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def _anp_col(df, *termos):
     """Retorna a primeira coluna cujo nome normalizado contenha qualquer dos termos."""
     for col in df.columns:
@@ -1821,7 +1829,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                 if custo_orig and custo and custo < custo_orig:
                     econ_val = custo_orig - custo
                     econ = (f"<div class='cc-econ'>💚 Economia de "
-                            f"<b>R$ {econ_val:,.2f}</b> vs origem</div>")
+                            f"<b>R$ {_brl(econ_val)}</b> vs origem</div>")
                 badge = "<span class='cc-best'>✦ MAIS BARATO</span>" if destaque else ""
                 return (
                     f"<div class='cc-card{' cc-best-card' if destaque else ''}'>"
@@ -1830,10 +1838,10 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-sub'>{subtitulo} · {nivel}</div></div>"
                     f"<div class='cc-body'>"
                     f"<div class='cc-preco-label'>Preço médio</div>"
-                    f"<div class='cc-preco'>R$ {preco:.3f}<span class='cc-unidade'>/L</span></div>"
+                    f"<div class='cc-preco'>R$ {_brl(preco, 3)}<span class='cc-unidade'>/L</span></div>"
                     f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
                     f"<div class='cc-custo-label'>Custo estimado</div>"
-                    f"<div class='cc-custo'>R$ {custo:,.2f}</div>"
+                    f"<div class='cc-custo'>R$ {_brl(custo)}</div>"
                     f"{econ}"
                     f"</div></div>"
                 )
@@ -1876,10 +1884,10 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-sub'>{len(precos_rota)} estados</div></div>"
                     f"<div class='cc-body'>"
                     f"<div class='cc-preco-label'>Preço médio</div>"
-                    f"<div class='cc-preco'>R$ {p_med_rota:.3f}<span class='cc-unidade'>/L</span></div>"
+                    f"<div class='cc-preco'>R$ {_brl(p_med_rota, 3)}<span class='cc-unidade'>/L</span></div>"
                     f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
                     f"<div class='cc-custo-label'>Custo estimado</div>"
-                    f"<div class='cc-custo'>R$ {custo_med_val:,.2f}</div>"
+                    f"<div class='cc-custo'>R$ {_brl(custo_med_val)}</div>"
                     f"</div></div>"
                 )
 
@@ -1964,7 +1972,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                 cells += (
                     f"<div class='pc-cell' style='background:{bg}'>"
                     f"<span class='pc-uf'>{uf_r}</span>"
-                    f"<span class='pc-val' style='color:{txt}'>R$ {preco:.3f}</span>"
+                    f"<span class='pc-val' style='color:{txt}'>R$ {_brl(preco, 3)}</span>"
                     f"<span class='pc-uni'>{unidade}</span>"
                     f"{badge_html}</div>"
                 )
@@ -2044,7 +2052,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                 row_cells = ""
                 for col in ref_cols:
                     v = vals.get(col)
-                    row_cells += f"<td>{'R$ '+f'{v:.3f}' if v else '—'}</td>"
+                    row_cells += f"<td>{'R$ '+_brl(v,3) if v else '—'}</td>"
                 rows_html += f"<tr><td class='rt-comb'>{comb}</td>{row_cells}</tr>"
 
             st.markdown(f"""
@@ -2136,10 +2144,10 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
             diff = pm - ref
             cls  = "pr-delta-up" if diff > 0 else "pr-delta-dn"
             seta = "▲" if diff > 0 else "▼"
-            arrow = f"<span class='{cls}'>{seta} {abs(diff):.3f}</span>"
+            arrow = f"<span class='{cls}'>{seta} {_brl(abs(diff), 3)}</span>"
             return (f"<div class='pr-ref-row'>"
                     f"<span class='pr-ref-label'>{label}</span>"
-                    f"<span class='pr-ref-val'>R$ " + f"{ref:.3f}" + f"{arrow}</span>"
+                    f"<span class='pr-ref-val'>R$ {_brl(ref, 3)}{arrow}</span>"
                     f"</div>")
 
         refs_html = ""
@@ -2152,7 +2160,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 <div class='pr-card'>
   <div class='pr-card-head'>
     <div class='pr-nome'>{r['Combustível']}</div>
-    <div class='pr-preco'>R$ {pm:.3f}</div>
+    <div class='pr-preco'>R$ {_brl(pm, 3)}</div>
     <div class='pr-uni'>{uni}</div>
   </div>
   <div class='pr-card-body'>
