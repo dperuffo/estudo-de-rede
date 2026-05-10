@@ -1616,10 +1616,9 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     st.divider()
 
     # ══════════════════════════════════════════════════════════════
-    # MODO 2 — Rota: pivot Estado × Combustível
+    # MODO 2 — Rota: cards por combustível + referências
     # ══════════════════════════════════════════════════════════════
     if ufs_multiplas:
-        st.markdown("### 💰 Preços Médios por Estado — Rota")
 
         if "estados" not in sheets:
             st.warning("Aba de estados não encontrada na planilha.")
@@ -1636,72 +1635,148 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 
         df_rota = pd.DataFrame(linhas_rota)
 
-        # Pivot: Combustível × UF
-        try:
-            pivot = df_rota.pivot_table(
-                index="Combustível", columns="UF",
-                values="Preço Médio", aggfunc="mean",
-            ).round(3)
-            pivot.columns.name = None
-            st.markdown("**Preço Médio Revenda (R$) — 🟢 menor · 🔴 maior preço na rota:**")
-            st.dataframe(
-                pivot.style
-                    .format("R$ {:.3f}")
-                    .highlight_min(axis=1, color="#d4edda")
-                    .highlight_max(axis=1, color="#f8d7da"),
-                use_container_width=True,
-            )
-        except Exception:
-            st.dataframe(
-                df_rota[["UF", "Combustível", "Preço Médio", "Unidade", "Postos"]],
-                use_container_width=True,
-            )
+        # ── Cabeçalho visual ──────────────────────────────────────
+        ufs_ord = list(dict.fromkeys(df_rota["UF"].tolist()))   # ordem original da rota
+        st.markdown(
+            "<h3 style='margin:0 0 4px 0;font-size:20px;color:#0d1b4b'>💰 Preços Médios por Estado</h3>"
+            f"<p style='margin:0 0 18px 0;font-size:13px;color:#555'>Rota: "
+            f"{'  →  '.join(f'<b>{u}</b>' for u in ufs_ord)}"
+            f" &nbsp;·&nbsp; Semana: <b>{semana or '—'}</b></p>",
+            unsafe_allow_html=True,
+        )
 
-        # Regiões percorridas
+        # ── Cards de combustível × estado ─────────────────────────
+        combustiveis = df_rota["Combustível"].unique().tolist()
+        ordem_comb = {_anp_norm(k): i for i, k in enumerate(PRODUTOS_CHAVE)}
+        combustiveis.sort(key=lambda c: ordem_comb.get(_anp_norm(c), 99))
+
+        for comb in combustiveis:
+            df_c = df_rota[df_rota["Combustível"] == comb]
+            precos = {row["UF"]: row["Preço Médio"] for _, row in df_c.iterrows()}
+            if not precos: continue
+
+            p_vals   = list(precos.values())
+            p_min    = min(p_vals)
+            p_max    = max(p_vals)
+            unidade  = df_c["Unidade"].iloc[0] if not df_c.empty else "R$/L"
+
+            # Linha HTML por combustível
+            cells = ""
+            for uf_r in ufs_ord:
+                preco = precos.get(uf_r)
+                if preco is None:
+                    cells += f"<div class='pc-cell pc-na'><span class='pc-uf'>{uf_r}</span><span class='pc-val'>—</span></div>"
+                    continue
+                diff = preco - p_min
+                pct  = (diff / (p_max - p_min) * 100) if p_max > p_min else 0
+                # Cor: verde (min) → amarelo → vermelho (max)
+                if pct < 1:
+                    bg, txt, badge = "#e8f5e9", "#1b5e20", "MIN"
+                elif pct > 98:
+                    bg, txt, badge = "#ffebee", "#b71c1c", "MAX"
+                else:
+                    bg, txt, badge = "#fff8e1", "#4e342e", ""
+                badge_html = f"<span class='pc-badge' style='background:{txt};color:#fff'>{badge}</span>" if badge else ""
+                cells += (
+                    f"<div class='pc-cell' style='background:{bg}'>"
+                    f"<span class='pc-uf'>{uf_r}</span>"
+                    f"<span class='pc-val' style='color:{txt}'>R$ {preco:.3f}</span>"
+                    f"<span class='pc-uni'>{unidade}</span>"
+                    f"{badge_html}</div>"
+                )
+
+            st.markdown(f"""
+<div class='pc-row'>
+  <div class='pc-label'>{comb}</div>
+  <div class='pc-cells'>{cells}</div>
+</div>""", unsafe_allow_html=True)
+
+        # CSS injetado uma vez
+        st.markdown("""
+<style>
+.pc-row{display:flex;align-items:stretch;margin-bottom:8px;border-radius:10px;
+        overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.pc-label{min-width:160px;max-width:160px;background:#0d1b4b;color:#fff;
+          display:flex;align-items:center;padding:10px 14px;
+          font-size:13px;font-weight:600;line-height:1.3}
+.pc-cells{display:flex;flex:1;flex-wrap:wrap}
+.pc-cell{flex:1;min-width:110px;display:flex;flex-direction:column;
+         align-items:center;justify-content:center;padding:10px 8px;
+         border-right:1px solid rgba(0,0,0,.06);gap:2px}
+.pc-cell:last-child{border-right:none}
+.pc-na{background:#f5f5f5}
+.pc-uf{font-size:11px;font-weight:700;color:#555;letter-spacing:.5px;text-transform:uppercase}
+.pc-val{font-size:15px;font-weight:700}
+.pc-uni{font-size:10px;color:#888}
+.pc-badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;
+          margin-top:2px;letter-spacing:.3px}
+</style>""", unsafe_allow_html=True)
+
+        # ── Referências (Região + Brasil) ─────────────────────────
         regioes_rota = [r for r in df_rota["Nome Região"].dropna().unique() if r]
-        if regioes_rota and "regioes" in sheets:
-            st.markdown("**Referência Regional:**")
-            df_reg_sheet = sheets["regioes"]
-            cr_reg  = _anp_col(df_reg_sheet, "regiao")
-            cr_prod = _anp_col(df_reg_sheet, "produto")
-            cr_med  = _anp_col(df_reg_sheet, "medio revenda", "media revenda", "preco medio")
-            cr_uni  = _anp_col(df_reg_sheet, "unidade")
-            cr_npos = _anp_col(df_reg_sheet, "postos pesq", "numero de postos", "n postos")
-            if cr_reg and cr_prod and cr_med:
-                linhas_reg = []
-                for reg in regioes_rota:
-                    for r in _anp_preco_medio(df_reg_sheet, cr_reg, reg,
-                                              cr_prod, cr_med, cr_uni, cr_npos):
-                        linhas_reg.append({"Região": reg.title(), **r})
-                if linhas_reg:
-                    df_reg_tab = pd.DataFrame(linhas_reg)
-                    try:
-                        pivot_reg = df_reg_tab.pivot_table(
-                            index="Combustível", columns="Região",
-                            values="Preço Médio", aggfunc="mean",
-                        ).round(3)
-                        pivot_reg.columns.name = None
-                        st.dataframe(pivot_reg.style.format("R$ {:.3f}"),
-                                     use_container_width=True)
-                    except Exception:
-                        st.dataframe(df_reg_tab[["Região", "Combustível", "Preço Médio"]],
-                                     use_container_width=True)
+        ref_rows: dict = {}   # pk → {brasil, regioes...}
 
-        # Média Brasil
         if "brasil" in sheets:
             df_b  = sheets["brasil"]
-            b_prod = _anp_col(df_b, "produto")
-            b_med  = _anp_col(df_b, "medio revenda", "media revenda", "preco medio")
-            b_uni  = _anp_col(df_b, "unidade")
-            b_npos = _anp_col(df_b, "postos pesq", "numero de postos", "n postos")
-            if b_prod and b_med:
-                rows_br = _anp_preco_medio(df_b, None, None, b_prod, b_med, b_uni, b_npos)
-                if rows_br:
-                    st.markdown("**Referência: Média Brasil**")
-                    cols_br = st.columns(min(len(rows_br), 4))
-                    for i, r in enumerate(rows_br[:4]):
-                        cols_br[i].metric(r["Combustível"], f"R$ {r['Preço Médio']:.3f}",
-                                          help=f"{r['Unidade']} | {r['Postos']} postos")
+            b_p   = _anp_col(df_b, "produto")
+            b_m   = _anp_col(df_b, "medio revenda", "media revenda", "preco medio")
+            b_u   = _anp_col(df_b, "unidade")
+            b_n   = _anp_col(df_b, "postos pesq", "numero de postos", "n postos")
+            if b_p and b_m:
+                for r in _anp_preco_medio(df_b, None, None, b_p, b_m, b_u, b_n):
+                    ref_rows.setdefault(r["Combustível"], {})["🌎 Brasil"] = r["Preço Médio"]
+
+        if regioes_rota and "regioes" in sheets:
+            df_reg = sheets["regioes"]
+            rg_r   = _anp_col(df_reg, "regiao")
+            rg_p   = _anp_col(df_reg, "produto")
+            rg_m   = _anp_col(df_reg, "medio revenda", "media revenda", "preco medio")
+            rg_u   = _anp_col(df_reg, "unidade")
+            rg_n   = _anp_col(df_reg, "postos pesq", "numero de postos", "n postos")
+            if rg_r and rg_p and rg_m:
+                for reg in regioes_rota:
+                    for r in _anp_preco_medio(df_reg, rg_r, reg, rg_p, rg_m, rg_u, rg_n):
+                        ref_rows.setdefault(r["Combustível"], {})[f"📍 {reg.title()}"] = r["Preço Médio"]
+
+        if ref_rows:
+            st.markdown(
+                "<div style='margin:24px 0 10px;font-size:14px;font-weight:700;"
+                "color:#0d1b4b;border-left:4px solid #1565c0;padding-left:10px'>"
+                "Referências: Região e Brasil</div>",
+                unsafe_allow_html=True,
+            )
+            # Constrói tabela HTML de referência
+            combust_keys = [c for c in [row["Combustível"] for row in linhas_rota] if c in ref_rows]
+            seen = set(); combust_keys = [x for x in combust_keys if not (x in seen or seen.add(x))]
+            ref_cols = []
+            for v in ref_rows.values():
+                for k in v: 
+                    if k not in ref_cols: ref_cols.append(k)
+
+            header_cells = "".join(f"<th>{c}</th>" for c in ref_cols)
+            rows_html = ""
+            for comb in combust_keys:
+                vals = ref_rows.get(comb, {})
+                row_cells = ""
+                for col in ref_cols:
+                    v = vals.get(col)
+                    row_cells += f"<td>{'R$ '+f'{v:.3f}' if v else '—'}</td>"
+                rows_html += f"<tr><td class='rt-comb'>{comb}</td>{row_cells}</tr>"
+
+            st.markdown(f"""
+<style>
+.ref-table{{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}}
+.ref-table th{{background:#1565c0;color:#fff;padding:8px 12px;text-align:right;font-weight:600}}
+.ref-table th:first-child{{text-align:left}}
+.ref-table td{{padding:7px 12px;border-bottom:1px solid #e8eaf6;text-align:right;color:#333}}
+.ref-table tr:hover td{{background:#f3f4ff}}
+.ref-table .rt-comb{{text-align:left;font-weight:600;color:#0d1b4b}}
+.ref-table tr:last-child td{{border-bottom:none}}
+</style>
+<table class='ref-table'>
+<thead><tr><th>Combustível</th>{header_cells}</tr></thead>
+<tbody>{rows_html}</tbody>
+</table>""", unsafe_allow_html=True)
         return
 
     # ══════════════════════════════════════════════════════════════
@@ -1719,51 +1794,91 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     nivel       = rows[0]["Nível"]
     nome_regiao = rows[0].get("Nome Região")
     scope_label = (
-        f"**{municipio}** ({uf})" if nivel in ("Município", "Capital")
-        else f"**{UF_NOME.get(uf or '', uf or '')}** ({uf})"
+        municipio if nivel in ("Município", "Capital")
+        else UF_NOME.get(uf or "", uf or "")
     )
-    st.markdown(f"### 💰 Preços em {scope_label}")
-    if nome_regiao:
-        st.caption(f"Região: **{nome_regiao.title()}**  ·  nível dos dados: *{nivel}*")
+    uf_label = f" ({uf})" if uf else ""
 
-    # Cards de métricas
-    for i in range(0, len(rows), 4):
-        grupo    = rows[i : i + 4]
-        cols_row = st.columns(len(grupo))
-        for j, r in enumerate(grupo):
-            ref = r.get("Ref. Estado") if nivel in ("Município", "Capital") else r.get("Ref. Brasil")
-            delta = None
-            if ref and ref != r["Preço Médio"]:
-                diff      = r["Preço Médio"] - ref
-                ref_label = "vs estado" if nivel in ("Município", "Capital") else "vs Brasil"
-                delta     = f"{'+' if diff > 0 else ''}{diff:.3f} {ref_label}"
-            cols_row[j].metric(
-                label=r["Combustível"],
-                value=f"R$ {r['Preço Médio']:.3f}",
-                delta=delta,
-                delta_color="inverse",
-                help=f"{r['Unidade']} | {r['Postos'] or '?'} postos pesquisados",
-            )
+    # ── Cabeçalho visual ──────────────────────────────────────────
+    st.markdown(
+        f"<h3 style='margin:0 0 2px 0;font-size:20px;color:#0d1b4b'>💰 Preços em {scope_label}{uf_label}</h3>"
+        + (f"<p style='margin:0 0 18px 0;font-size:13px;color:#555'>"
+           f"Região: <b>{nome_regiao.title()}</b>  ·  Nível: <i>{nivel}</i>"
+           f"  ·  Semana: <b>{semana or '—'}</b></p>" if nome_regiao else
+           f"<p style='margin:0 0 18px 0;font-size:13px;color:#555'>"
+           f"Nível: <i>{nivel}</i>  ·  Semana: <b>{semana or '—'}</b></p>"),
+        unsafe_allow_html=True,
+    )
 
-    # Tabela comparativa
-    st.divider()
-    st.markdown("**Comparativo de Preços (R$)**")
+    # ── Cards de combustível com comparativo hierárquico ──────────
+    col_est = f"Estado ({UF_NOME.get(uf or '', uf or '')})"
+    col_reg = f"Região ({nome_regiao.title()})" if nome_regiao else "Região"
+    col_br  = "Base Nacional"
 
-    col_nivel  = nivel
-    col_estado = f"Estado ({UF_NOME.get(uf or '', uf or '')})"
-    col_regiao = f"Região ({nome_regiao.title()})" if nome_regiao else "Região"
-    col_brasil = "Base Nacional"
+    # Cabeçalho de níveis
+    st.markdown(f"""
+<style>
+.pr-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px}}
+.pr-card{{border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.10);background:#fff}}
+.pr-card-head{{padding:10px 14px 8px;background:#0d1b4b;color:#fff}}
+.pr-card-head .pr-nome{{font-size:13px;font-weight:700}}
+.pr-card-head .pr-preco{{font-size:24px;font-weight:800;letter-spacing:-.3px;margin:2px 0}}
+.pr-card-head .pr-uni{{font-size:10px;opacity:.75}}
+.pr-card-body{{padding:10px 14px}}
+.pr-ref-row{{display:flex;justify-content:space-between;align-items:center;
+             padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:12px}}
+.pr-ref-row:last-child{{border-bottom:none}}
+.pr-ref-label{{color:#777;font-weight:500}}
+.pr-ref-val{{font-weight:700;color:#333}}
+.pr-delta-up{{color:#c62828;font-size:10px;margin-left:4px}}
+.pr-delta-dn{{color:#2e7d32;font-size:10px;margin-left:4px}}
+.pr-postos{{font-size:10px;color:#aaa;margin-top:6px;text-align:right}}
+</style>
+<div class='pr-grid'>""", unsafe_allow_html=True)
 
-    df_disp = pd.DataFrame([{
-        "Combustível": r["Combustível"],
-        col_nivel:     f"R$ {r['Preço Médio']:.3f}",
-        col_estado:    f"R$ {r['Ref. Estado']:.3f}" if r.get("Ref. Estado") else "—",
-        col_regiao:    f"R$ {r['Ref. Região']:.3f}" if r.get("Ref. Região") else "—",
-        col_brasil:    f"R$ {r['Ref. Brasil']:.3f}" if r.get("Ref. Brasil") else "—",
-        "Postos":      r.get("Postos") or "—",
-        "Unidade":     r.get("Unidade", "R$/L"),
-    } for r in rows])
-    st.dataframe(df_disp, use_container_width=True, hide_index=True)
+    for r in rows:
+        pm     = r["Preço Médio"]
+        r_est  = r.get("Ref. Estado")
+        r_reg  = r.get("Ref. Região")
+        r_br   = r.get("Ref. Brasil")
+        uni    = r.get("Unidade", "R$/L")
+        postos = r.get("Postos") or "?"
+
+        def _delta_html(ref, label):
+            if ref is None:
+                return (f"<div class='pr-ref-row'>"
+                        f"<span class='pr-ref-label'>{label}</span>"
+                        f"<span class='pr-ref-val'>—</span></div>")
+            diff = pm - ref
+            cls  = "pr-delta-up" if diff > 0 else "pr-delta-dn"
+            seta = "▲" if diff > 0 else "▼"
+            arrow = f"<span class='{cls}'>{seta} {abs(diff):.3f}</span>"
+            return (f"<div class='pr-ref-row'>"
+                    f"<span class='pr-ref-label'>{label}</span>"
+                    f"<span class='pr-ref-val'>R$ " + f"{ref:.3f}" + f"{arrow}</span>"
+                    f"</div>")
+
+        refs_html = ""
+        if nivel in ("Município", "Capital"):
+            refs_html += _delta_html(r_est, col_est)
+        refs_html += _delta_html(r_reg, col_reg)
+        refs_html += _delta_html(r_br,  col_br)
+
+        st.markdown(f"""
+<div class='pr-card'>
+  <div class='pr-card-head'>
+    <div class='pr-nome'>{r['Combustível']}</div>
+    <div class='pr-preco'>R$ {pm:.3f}</div>
+    <div class='pr-uni'>{uni}</div>
+  </div>
+  <div class='pr-card-body'>
+    {refs_html}
+    <div class='pr-postos'>{postos} postos pesquisados</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ═══════════════════════════════════════════════════════════════════
 #  EXPORTAÇÃO — Base Nacional de Postos (Excel)
