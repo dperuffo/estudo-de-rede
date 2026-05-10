@@ -942,15 +942,28 @@ def calcular_rota(lat1, lon1, lat2, lon2):
 #  API ANP
 # ═══════════════════════════════════════════════════════════════════
 
-def _get(url, params, tentativas=3):
+def _get(url, params, tentativas=4):
+    """Requisição GET com retry e backoff exponencial.
+
+    Trata 429 (rate-limit) e 5xx com espera maior.
+    Levanta a exceção original após esgotar as tentativas.
+    """
     for i in range(tentativas):
         try:
             r = requests.get(url, params=params, headers=HEADERS_ANP, timeout=45)
             r.raise_for_status()
             return r
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response is not None else 0
+            if i == tentativas - 1:
+                raise
+            # 429 = rate limit; 5xx = servidor sobrecarregado → espera maior
+            espera = 10 if status in (429, 503, 504) else (2 ** i)
+            time.sleep(espera)
         except Exception:
-            if i == tentativas-1: raise
-            time.sleep(2)
+            if i == tentativas - 1:
+                raise
+            time.sleep(2 ** i)
 
 
 @st.cache_data(show_spinner=False, ttl=86400)   # 24 horas
@@ -2335,7 +2348,15 @@ if modo == "📍 Por Estado/Município":
         # Carrega o estado inteiro apenas quando a UF muda (aproveita cache 24h)
         if uf != st.session_state.get("_uf_carregada"):
             with st.spinner(f"⏳ Carregando postos de **{uf}**…"):
-                df_raw_full = buscar_postos(uf=uf)
+                try:
+                    df_raw_full = buscar_postos(uf=uf)
+                except Exception as _api_err:
+                    st.error(
+                        f"❌ A API ANP retornou um erro ao buscar postos de **{uf}**.\n\n"
+                        f"Isso costuma ser temporário — tente novamente em alguns instantes.\n\n"
+                        f"Detalhe técnico: `{type(_api_err).__name__}`"
+                    )
+                    st.stop()
             st.session_state.update({"df_raw_full": df_raw_full, "_uf_carregada": uf})
             if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
                 st.session_state["distribuidoras_disponiveis"] = sorted(
