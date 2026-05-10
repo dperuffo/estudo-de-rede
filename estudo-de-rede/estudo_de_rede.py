@@ -1493,6 +1493,111 @@ def _anp_extrair_precos(sheets, uf=None, municipio=None):
     return resultado
 
 
+def _parse_label_localizacao(label: str) -> tuple:
+    """Extrai (municipio_str | None, uf_str | None) de um label de seleção de local.
+
+    Formatos suportados:
+      "CAMPINAS – SP"          → ("CAMPINAS", "SP")
+      "Campinas – São Paulo"   → ("Campinas", "SP")
+      "São Paulo"              → (None, "SP")   se for nome de estado
+      "PALMAS – TO | Posto X"  → ("PALMAS", "TO")
+    """
+    if not label:
+        return None, None
+
+    # Remove sufixo de posto, se houver
+    label = label.split(" | ")[0].strip()
+
+    if " – " in label or " - " in label:
+        sep = " – " if " – " in label else " - "
+        parts = label.split(sep, 1)
+        cidade     = parts[0].strip()
+        uf_ou_est  = parts[1].strip()
+
+        # 2-letter UF code
+        if len(uf_ou_est) == 2 and uf_ou_est.upper() in UF_NOME:
+            return cidade, uf_ou_est.upper()
+
+        # Full state name → reverse lookup
+        n = _anp_norm(uf_ou_est)
+        for uf_k, nome_k in UF_NOME.items():
+            if _anp_norm(nome_k) == n:
+                return cidade, uf_k
+        # Partial match
+        for uf_k, nome_k in UF_NOME.items():
+            if _anp_norm(nome_k) in n or n in _anp_norm(nome_k):
+                return cidade, uf_k
+        return cidade, None
+
+    # Sem separador — pode ser nome de estado, sigla, ou "Estado XX"
+    # Trata "Estado SP" / "Estado São Paulo" / "estado ES"
+    label_strip = label.strip()
+    prefixos = ("estado ", "state ", "uf ")
+    label_sem_prefixo = label_strip
+    for pfx in prefixos:
+        if _anp_norm(label_strip).startswith(_anp_norm(pfx)):
+            label_sem_prefixo = label_strip[len(pfx):].strip()
+            break
+
+    # Sigla de UF (2 letras)
+    if len(label_sem_prefixo) == 2 and label_sem_prefixo.upper() in UF_NOME:
+        return None, label_sem_prefixo.upper()
+
+    # Nome completo de estado
+    n = _anp_norm(label_sem_prefixo)
+    for uf_k, nome_k in UF_NOME.items():
+        if _anp_norm(nome_k) == n:
+            return None, uf_k
+
+    # Tentativa com label original (sem remover prefixo)
+    n_orig = _anp_norm(label_strip)
+    for uf_k, nome_k in UF_NOME.items():
+        if _anp_norm(nome_k) == n_orig:
+            return None, uf_k
+
+    return label_strip, None
+
+
+def _anp_preco_ponto(sheets: dict, label: str, combustivel_pk: str) -> tuple:
+    """Resolve o preço médio de um combustível para um ponto (label de cidade/estado).
+
+    Hierarquia: Município → Capital → Estado → Região → Brasil
+    Retorna (preco_float | None, nivel_str, descricao_str).
+    """
+    municipio, uf = _parse_label_localizacao(label)
+    if not uf and not municipio:
+        return None, "—", "—"
+
+    # Tenta extrair preço pelo nível mais detalhado disponível
+    rows = _anp_extrair_precos(sheets, uf=uf, municipio=municipio)
+    if rows:
+        for r in rows:
+            if r["_pk"] == combustivel_pk:
+                desc = municipio or UF_NOME.get(uf or "", uf or "")
+                return r["Preço Médio"], r["Nível"], desc
+
+    # Fallback: apenas estado
+    if uf:
+        rows_uf = _anp_extrair_precos(sheets, uf=uf)
+        for r in rows_uf:
+            if r["_pk"] == combustivel_pk:
+                return r["Preço Médio"], "Estado", UF_NOME.get(uf, uf)
+
+    # Fallback: Brasil
+    if "brasil" in sheets:
+        df_b   = sheets["brasil"]
+        b_prod = _anp_col(df_b, "produto")
+        b_med  = _anp_col(df_b, "medio revenda", "media revenda", "preco medio")
+        b_uni  = _anp_col(df_b, "unidade")
+        b_npos = _anp_col(df_b, "postos pesq", "numero de postos", "n postos")
+        if b_prod and b_med:
+            for r in _anp_preco_medio(df_b, None, None, b_prod, b_med, b_uni, b_npos):
+                if r["_pk"] == combustivel_pk:
+                    return r["Preço Médio"], "Brasil", "Média Nacional"
+
+    return None, "—", "—"
+
+
 def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     """Renderiza aba de preços ANP.
 
@@ -1634,6 +1739,185 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
             return
 
         df_rota = pd.DataFrame(linhas_rota)
+
+        # ══════════════════════════════════════════════════════════
+        # CALCULADORA DE CUSTO DA ROTA
+        # ══════════════════════════════════════════════════════════
+        label_orig = st.session_state.get("label_orig", "")
+        label_dest = st.session_state.get("label_dest", "")
+        dist_km    = st.session_state.get("dist_km", 0)
+
+        # Combustíveis disponíveis na planilha (ordenados)
+        comb_disponiveis = df_rota.drop_duplicates("Combustível")[["Combustível","_pk"]].values.tolist()
+        comb_nomes = [c[0] for c in comb_disponiveis]
+        comb_pks   = {c[0]: c[1] for c in comb_disponiveis}
+
+        # Filtra combustíveis relevantes para frota (não GLP)
+        comb_frota = [c for c in comb_nomes if "GLP" not in c.upper()]
+
+        st.markdown(
+            "<div style='background:linear-gradient(135deg,#0d1b4b 0%,#1565c0 100%);"
+            "border-radius:14px;padding:20px 24px 16px;margin-bottom:20px'>"
+            "<div style='color:#fff;font-size:18px;font-weight:700;margin-bottom:4px'>"
+            "⛽ Calculadora de Custo da Rota</div>"
+            f"<div style='color:rgba(255,255,255,.75);font-size:13px'>"
+            f"{label_orig or '—'}  →  {label_dest or '—'}"
+            f"{'  ·  ' + str(round(dist_km)) + ' km' if dist_km else ''}</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        col_comb, col_cons = st.columns([2, 1])
+        with col_comb:
+            comb_sel = st.selectbox(
+                "Combustível", comb_frota or comb_nomes,
+                key="calc_comb_sel",
+                label_visibility="visible",
+            )
+        with col_cons:
+            consumo = st.number_input(
+                "Consumo (km/L)", min_value=1.0, max_value=40.0,
+                value=12.0, step=0.5, key="calc_consumo",
+                help="Consumo médio do veículo em km por litro",
+            )
+
+        if comb_sel and dist_km and consumo:
+            pk_sel = comb_pks.get(comb_sel, _anp_norm(comb_sel))
+
+            # Preço origem
+            p_orig,  niv_orig,  desc_orig  = _anp_preco_ponto(sheets, label_orig, pk_sel)
+            # Preço destino
+            p_dest,  niv_dest,  desc_dest  = _anp_preco_ponto(sheets, label_dest, pk_sel)
+            # Preços por estado da rota
+            precos_rota = {}
+            for uf_r in ufs_multiplas:
+                rows_u = _anp_extrair_precos(sheets, uf=uf_r)
+                for r in rows_u:
+                    if r["_pk"] == pk_sel:
+                        precos_rota[uf_r] = r["Preço Médio"]
+            p_med_rota = round(sum(precos_rota.values()) / len(precos_rota), 3) if precos_rota else None
+            p_min_rota = min(precos_rota.values()) if precos_rota else None
+            uf_min_rota = min(precos_rota, key=precos_rota.get) if precos_rota else None
+
+            litros = dist_km / consumo
+
+            def _custo(p):
+                return round(p * litros, 2) if p else None
+
+            custo_orig  = _custo(p_orig)
+            custo_dest  = _custo(p_dest)
+            custo_med   = _custo(p_med_rota)
+            custo_min   = _custo(p_min_rota)
+
+            # Montagem do HTML dos cards de custo
+            def _card_custo(titulo, subtitulo, preco, custo, nivel, cor_header="#1565c0", destaque=False):
+                if preco is None:
+                    return (f"<div class='cc-card'>"
+                            f"<div class='cc-head' style='background:{cor_header}'>"
+                            f"<div class='cc-titulo'>{titulo}</div>"
+                            f"<div class='cc-sub'>{subtitulo}</div></div>"
+                            f"<div class='cc-body'><div class='cc-nd'>Preço não disponível</div></div></div>")
+                econ = ""
+                if custo_orig and custo and custo < custo_orig:
+                    econ_val = custo_orig - custo
+                    econ = (f"<div class='cc-econ'>💚 Economia de "
+                            f"<b>R$ {econ_val:,.2f}</b> vs origem</div>")
+                badge = "<span class='cc-best'>✦ MAIS BARATO</span>" if destaque else ""
+                return (
+                    f"<div class='cc-card{' cc-best-card' if destaque else ''}'>"
+                    f"<div class='cc-head' style='background:{cor_header}'>"
+                    f"<div class='cc-titulo'>{titulo}{badge}</div>"
+                    f"<div class='cc-sub'>{subtitulo} · {nivel}</div></div>"
+                    f"<div class='cc-body'>"
+                    f"<div class='cc-preco-label'>Preço médio</div>"
+                    f"<div class='cc-preco'>R$ {preco:.3f}<span class='cc-unidade'>/L</span></div>"
+                    f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                    f"<div class='cc-custo-label'>Custo estimado</div>"
+                    f"<div class='cc-custo'>R$ {custo:,.2f}</div>"
+                    f"{econ}"
+                    f"</div></div>"
+                )
+
+            # Determina qual é o mais barato
+            opcoes_preco = {k: v for k, v in {
+                "orig": p_orig, "dest": p_dest, "min": p_min_rota
+            }.items() if v is not None}
+            mais_barato = min(opcoes_preco, key=opcoes_preco.get) if opcoes_preco else None
+
+            cards_html = (
+                _card_custo(
+                    f"📍 {label_orig or 'Origem'}",
+                    desc_orig, p_orig, custo_orig, niv_orig,
+                    cor_header="#1565c0",
+                    destaque=(mais_barato == "orig"),
+                ) +
+                _card_custo(
+                    f"🏁 {label_dest or 'Destino'}",
+                    desc_dest, p_dest, custo_dest, niv_dest,
+                    cor_header="#37474f",
+                    destaque=(mais_barato == "dest"),
+                ) +
+                _card_custo(
+                    f"🟢 Menor preço ({uf_min_rota or '—'})",
+                    UF_NOME.get(uf_min_rota or "", uf_min_rota or "—"),
+                    p_min_rota, custo_min, "Estado",
+                    cor_header="#2e7d32",
+                    destaque=(mais_barato == "min"),
+                )
+            )
+
+            # Adiciona card de preço médio da rota se diferente do mínimo
+            if p_med_rota and p_med_rota != p_min_rota:
+                custo_med_val = _custo(p_med_rota)
+                cards_html += (
+                    f"<div class='cc-card'>"
+                    f"<div class='cc-head' style='background:#4527a0'>"
+                    f"<div class='cc-titulo'>📊 Média da Rota</div>"
+                    f"<div class='cc-sub'>{len(precos_rota)} estados</div></div>"
+                    f"<div class='cc-body'>"
+                    f"<div class='cc-preco-label'>Preço médio</div>"
+                    f"<div class='cc-preco'>R$ {p_med_rota:.3f}<span class='cc-unidade'>/L</span></div>"
+                    f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                    f"<div class='cc-custo-label'>Custo estimado</div>"
+                    f"<div class='cc-custo'>R$ {custo_med_val:,.2f}</div>"
+                    f"</div></div>"
+                )
+
+            st.markdown(f"""
+<style>
+.cc-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+          gap:12px;margin-bottom:24px}}
+.cc-card{{border-radius:12px;overflow:hidden;
+          box-shadow:0 2px 10px rgba(0,0,0,.12);background:#fff}}
+.cc-best-card{{box-shadow:0 4px 16px rgba(46,125,50,.35);
+               outline:2px solid #2e7d32}}
+.cc-head{{padding:12px 16px 10px;color:#fff}}
+.cc-titulo{{font-size:13px;font-weight:700;line-height:1.3;
+            display:flex;align-items:center;gap:6px;flex-wrap:wrap}}
+.cc-sub{{font-size:11px;opacity:.8;margin-top:3px}}
+.cc-best{{background:rgba(255,255,255,.25);font-size:9px;font-weight:800;
+          padding:2px 6px;border-radius:8px;letter-spacing:.4px}}
+.cc-body{{padding:14px 16px 12px}}
+.cc-preco-label,.cc-custo-label{{font-size:10px;color:#888;
+                                  text-transform:uppercase;letter-spacing:.5px}}
+.cc-preco{{font-size:22px;font-weight:800;color:#0d1b4b;margin:2px 0 4px}}
+.cc-unidade{{font-size:12px;font-weight:400;color:#666}}
+.cc-litros{{font-size:11px;color:#888;margin-bottom:10px}}
+.cc-custo{{font-size:20px;font-weight:800;color:#1565c0}}
+.cc-nd{{font-size:13px;color:#999;padding:20px 0;text-align:center}}
+.cc-econ{{font-size:11px;color:#2e7d32;margin-top:6px;
+          background:#e8f5e9;padding:4px 8px;border-radius:6px}}
+</style>
+<div class='cc-grid'>{cards_html}</div>
+""", unsafe_allow_html=True)
+
+            # Nota de rodapé
+            st.caption(
+                f"*Cálculo baseado em {dist_km:.0f} km ÷ {consumo:.1f} km/L = {litros:.1f} litros."
+                f" Preços: ANP semana {semana or '—'}. Valores estimados.*"
+            )
+
+        st.divider()
 
         # ── Cabeçalho visual ──────────────────────────────────────
         ufs_ord = list(dict.fromkeys(df_rota["UF"].tolist()))   # ordem original da rota
