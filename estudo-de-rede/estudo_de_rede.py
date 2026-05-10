@@ -1396,40 +1396,81 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     municipio     : município filtrado (opcional, Modo 1)
     ufs_multiplas : lista de UFs ao longo da rota (Modo 2)
     """
-    # ── Carrega / obtém do cache ──────────────────────────────────
-    carregando_placeholder = st.empty()
-    df_mun, df_est, semana, erro = buscar_precos_anp()
+    # ── Recupera dados já carregados (session_state) ──────────────
+    _cache = st.session_state.get("_precos_anp_cache", {})
+    df_mun = _cache.get("df_mun")
+    df_est = _cache.get("df_est")
+    semana = _cache.get("semana")
 
-    carregando_placeholder.empty()
+    # ── Cabeçalho informativo ─────────────────────────────────────
+    st.markdown(
+        "<div style='background:#e8f0fe;border:1px solid #c5d5f5;border-radius:10px;"
+        "padding:12px 16px;margin-bottom:14px'>"
+        "<b>💰 Preços Médios de Combustíveis — ANP</b><br>"
+        "<span style='font-size:12px;color:#555'>Fonte: Levantamento Semanal de Preços "
+        "de Combustíveis · Agência Nacional do Petróleo (ANP)</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    if erro or df_mun is None:
-        st.warning(
-            f"⚠️ Não foi possível carregar a planilha de preços da ANP automaticamente."
-            f"{(' Erro: ' + erro) if erro else ''}\n\n"
-            "Você pode fazer upload manual da planilha abaixo.",
-            icon=None,
-        )
+    # ── Painel de carregamento ────────────────────────────────────
+    col_btn, col_up = st.columns([1, 1])
+
+    with col_btn:
+        if st.button("🔄 Buscar Preços da ANP", use_container_width=True,
+                     key="btn_buscar_precos", help="Baixa a planilha semanal automaticamente do site da ANP"):
+            with st.spinner("📡 Baixando planilha de preços da ANP…"):
+                _df_m, _df_e, _sem, _err = buscar_precos_anp()
+            if _err or _df_m is None:
+                st.error(f"❌ Não foi possível baixar automaticamente.\n\n{_err or ''}\n\n"
+                         "Faça o upload manual da planilha ao lado.")
+            else:
+                st.session_state["_precos_anp_cache"] = {
+                    "df_mun": _df_m, "df_est": _df_e, "semana": _sem}
+                df_mun, df_est, semana = _df_m, _df_e, _sem
+                st.success(f"✅ Planilha carregada! Pesquisa: {_sem}")
+                st.rerun()
+
+    with col_up:
         arq = st.file_uploader(
-            "📂 Fazer upload da planilha ANP (ca-combustiveis-...xlsx)",
+            "📂 Upload manual (ca-combustiveis-...xlsx)",
             type=["xlsx", "xls"], key="upload_precos_anp",
+            label_visibility="collapsed",
+            help="Baixe a planilha em gov.br/anp e faça upload aqui",
         )
         if arq:
             try:
-                xls   = pd.ExcelFile(io.BytesIO(arq.read()))
+                buf  = io.BytesIO(arq.read())
+                xls  = pd.ExcelFile(buf)
                 aba_m = next((s for s in xls.sheet_names if "munic" in s.lower()), xls.sheet_names[0])
                 aba_e = next((s for s in xls.sheet_names if "estado" in s.lower()), None)
-                df_mun = pd.read_excel(xls, sheet_name=aba_m, header=0)
-                df_mun.columns = [str(c).strip() for c in df_mun.columns]
-                df_est = pd.read_excel(xls, sheet_name=aba_e, header=0) if aba_e else None
-                if df_est is not None:
-                    df_est.columns = [str(c).strip() for c in df_est.columns]
-                semana = arq.name.replace(".xlsx", "").replace("ca-combustiveis-", "")
-                st.success(f"✅ Planilha carregada: {arq.name}")
+                _df_m = pd.read_excel(xls, sheet_name=aba_m, header=0)
+                _df_m.columns = [str(c).strip() for c in _df_m.columns]
+                _df_e = pd.read_excel(xls, sheet_name=aba_e, header=0) if aba_e else None
+                if _df_e is not None:
+                    _df_e.columns = [str(c).strip() for c in _df_e.columns]
+                _sem = arq.name.replace(".xlsx","").replace("ca-combustiveis-","")
+                st.session_state["_precos_anp_cache"] = {
+                    "df_mun": _df_m, "df_est": _df_e, "semana": _sem}
+                df_mun, df_est, semana = _df_m, _df_e, _sem
+                st.success(f"✅ {arq.name} carregado!")
             except Exception as ex:
                 st.error(f"❌ Erro ao ler planilha: {ex}")
-                return
-        else:
-            return
+
+    # ── Link direto para a página da ANP ─────────────────────────
+    st.markdown(
+        "<div style='font-size:11px;color:#666;margin-top:4px'>"
+        "💡 Planilha disponível em: "
+        "<a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia"
+        "/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas' "
+        "target='_blank'>gov.br/anp → Levantamento de Preços</a></div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Sem dados ainda ───────────────────────────────────────────
+    if df_mun is None:
+        st.info("👆 Clique em **Buscar Preços da ANP** ou faça upload da planilha para ver os indicadores.")
+        return
 
     # ── Cabeçalho ────────────────────────────────────────────────
     if semana:
