@@ -648,12 +648,24 @@ def detectar_coluna_cnpj(df: pd.DataFrame):
     return None
 
 
+def _detectar_col(df: pd.DataFrame, termos: list) -> str | None:
+    """Retorna o nome da primeira coluna cujo nome normalizado contenha algum dos termos."""
+    for _c in df.columns:
+        _cn = _anp_norm(_c)
+        if any(t in _cn for t in termos):
+            return _c
+    return None
+
+
 def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
     """
     Núcleo de leitura da planilha Pró-Frotas.
     Aceita o nome do arquivo e seus bytes brutos.
-    Retorna (set_cnpjs, msg, df_preview, perfil_map) ou (None, msg_erro, None, None).
-    perfil_map: dict {cnpj_norm: "Perfil de Venda"} — inclui todos os registros com perfil.
+    Retorna (set_cnpjs, msg, df_preview, perfil_map, df_coords) ou (None, msg, None, None, None).
+
+    df_coords: DataFrame com colunas [cnpj_norm, _lat, _lon, razaoSocial, distribuidora,
+               municipio, uf] para postos que possuem coordenadas na planilha.
+    perfil_map: dict {cnpj_norm: "Perfil de Venda"}.
     """
     buf = io.BytesIO(conteudo)
     nome_l = nome.lower()
@@ -670,7 +682,7 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
         df = pd.read_excel(buf, dtype=str, engine="openpyxl")
 
     if df.empty:
-        return None, "A planilha está vazia.", None, None
+        return None, "A planilha está vazia.", None, None, None
 
     col = detectar_coluna_cnpj(df)
     if col is None:
@@ -679,20 +691,14 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
             f"Coluna CNPJ não encontrada. "
             f"Colunas disponíveis: **{colunas}**. "
             "Renomeie a coluna de CNPJ para 'CNPJ'."
-        ), None, None
+        ), None, None, None
 
     cnpjs = {c for c in df[col].dropna().apply(normalizar_cnpj) if len(c) == 14}
     if not cnpjs:
-        return None, "Nenhum CNPJ válido (14 dígitos) encontrado na coluna detectada.", None, None
+        return None, "Nenhum CNPJ válido (14 dígitos) encontrado na coluna detectada.", None, None, None
 
     # ── Detecta coluna "Perfil de Venda" ───────────────────────────
-    col_perfil = None
-    for _c in df.columns:
-        _cn = _anp_norm(_c)
-        if any(t in _cn for t in ["PERFIL DE VENDA", "PERFIL VENDA",
-                                   "PERFILDEVENDA", "PERFIL"]):
-            col_perfil = _c
-            break
+    col_perfil = _detectar_col(df, ["PERFIL DE VENDA", "PERFIL VENDA", "PERFILDEVENDA", "PERFIL"])
 
     perfil_map: dict = {}
     if col_perfil:
@@ -703,9 +709,52 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
                 if perfil and perfil.upper() not in ("NAN", "NONE", ""):
                     perfil_map[cnpj_n] = perfil
 
+    # ── Detecta colunas de coordenadas e dados complementares ──────
+    col_lat  = _detectar_col(df, ["LATITUDE", "LAT"])
+    col_lon  = _detectar_col(df, ["LONGITUDE", "LON", "LNG", "LONG"])
+    col_nome = _detectar_col(df, ["RAZAO SOCIAL", "RAZAO", "NOME FANTASIA", "NOME FANTASIA", "NOME"])
+    col_dist = _detectar_col(df, ["DISTRIBUIDORA", "BANDEIRA", "REDE"])
+    col_mun  = _detectar_col(df, ["MUNICIPIO", "CIDADE"])
+    col_uf   = _detectar_col(df, ["UF", "ESTADO"])
+
+    df_coords = pd.DataFrame()
+    if col_lat and col_lon:
+        rows = []
+        for _, row in df.iterrows():
+            cnpj_n = normalizar_cnpj(row.get(col, ""))
+            if len(cnpj_n) != 14:
+                continue
+            try:
+                lat = float(str(row[col_lat]).replace(",", "."))
+                lon = float(str(row[col_lon]).replace(",", "."))
+            except (ValueError, TypeError):
+                continue
+            if not (-33.8 <= lat <= 5.3 and -73.9 <= lon <= -34.7):
+                continue
+            rows.append({
+                "cnpj":         cnpj_n,
+                "_lat":         lat,
+                "_lon":         lon,
+                "razaoSocial":  str(row.get(col_nome, "")).strip() if col_nome else "",
+                "distribuidora":str(row.get(col_dist, "")).strip() if col_dist else "",
+                "municipio":    str(row.get(col_mun,  "")).strip() if col_mun  else "",
+                "uf":           str(row.get(col_uf,   "")).strip() if col_uf   else "",
+            })
+        if rows:
+            df_coords = pd.DataFrame(rows)
+            # Limpa valores "nan" / "None" que vieram como string
+            for _c in ["razaoSocial","distribuidora","municipio","uf"]:
+                df_coords[_c] = df_coords[_c].replace(
+                    {"nan": "", "None": "", "NaN": ""})
+
     preview = df[[col]].rename(columns={col: "CNPJ (original)"}).head(10)
-    perfil_info = f" · {len(set(perfil_map.values()))} perfis" if perfil_map else ""
-    return cnpjs, f"{len(cnpjs)} CNPJs carregados (coluna: **{col}**){perfil_info}", preview, perfil_map
+    perfil_info  = f" · {len(set(perfil_map.values()))} perfis" if perfil_map else ""
+    coords_info  = f" · {len(df_coords)} coords" if not df_coords.empty else ""
+    return (cnpjs,
+            f"{len(cnpjs)} CNPJs carregados (coluna: **{col}**){perfil_info}{coords_info}",
+            preview,
+            perfil_map,
+            df_coords)
 
 
 def ler_planilha_pro_frotas(arquivo):
@@ -713,9 +762,9 @@ def ler_planilha_pro_frotas(arquivo):
     try:
         return _processar_bytes_pro_frotas(arquivo.name, arquivo.read())
     except ImportError as e:
-        return None, f"Biblioteca ausente no servidor: **{e}**.", None, None
+        return None, f"Biblioteca ausente no servidor: **{e}**.", None, None, None
     except Exception as e:
-        return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None, None
+        return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None, None, None
 
 
 @st.cache_data(show_spinner=False, ttl=86400)   # 24 horas — lê o arquivo do repo uma vez por dia
@@ -723,7 +772,7 @@ def _auto_carregar_pro_frotas_repo():
     """
     Tenta carregar automaticamente a planilha Pró-Frotas do repositório.
     Aceita: pro_frotas.xlsx / pro_frotas.xls / pro_frotas.csv
-    Retorna (set_cnpjs, msg, df_preview, perfil_map) ou (None, msg_erro, None, None).
+    Retorna (set_cnpjs, msg, df_preview, perfil_map, df_coords) ou (None, msg, None, None, None).
     """
     for nome in [ARQUIVO_PF_REPO, "pro_frotas.xls", "pro_frotas.csv"]:
         caminho = os.path.join(_DIR, nome)
@@ -731,12 +780,12 @@ def _auto_carregar_pro_frotas_repo():
             try:
                 with open(caminho, "rb") as f:
                     conteudo = f.read()
-                cnpjs, msg, preview, perfil_map = _processar_bytes_pro_frotas(nome, conteudo)
+                cnpjs, msg, preview, perfil_map, df_coords = _processar_bytes_pro_frotas(nome, conteudo)
                 if cnpjs:
-                    return cnpjs, msg, preview, perfil_map
+                    return cnpjs, msg, preview, perfil_map, df_coords
             except Exception as e:
-                return None, f"Erro ao ler {nome} do repositório: {e}", None, None
-    return None, f"Arquivo `{ARQUIVO_PF_REPO}` não encontrado em: {_DIR}", None, None
+                return None, f"Erro ao ler {nome} do repositório: {e}", None, None, None
+    return None, f"Arquivo `{ARQUIVO_PF_REPO}` não encontrado em: {_DIR}", None, None, None
 
 
 # ── Postos Cercados ─────────────────────────────────────────────────
@@ -1467,41 +1516,42 @@ def buscar_posto_por_cnpj(cnpj_norm: str) -> pd.DataFrame:
 
 def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
     """
-    Verifica quais CNPJs Pró-Frotas estão ausentes em df_raw e os busca
-    individualmente na API ANP (sem filtro de UF).
+    Verifica quais CNPJs Pró-Frotas estão ausentes em df_raw e os injeta
+    usando as coordenadas armazenadas em pf_coords_df (lidas da planilha).
+    Não faz chamadas à API ANP — usa exclusivamente os dados da planilha.
     Retorna df_raw enriquecido com os postos encontrados.
-
-    Limita a busca a MAX_PF_BUSCA postos por chamada para não sobrecarregar a API.
     """
-    MAX_PF_BUSCA = 100  # máximo de CNPJs consultados por vez
-    if not cnpjs_pf or df_raw.empty or "cnpj" not in df_raw.columns:
-        # Mesmo sem dados do estado, tenta plotar todos os PF
-        ausentes = [c for c in cnpjs_pf if len(c) == 14]
-    else:
-        cnpjs_presentes = set(df_raw["cnpj"].fillna("").apply(normalizar_cnpj))
-        ausentes = [c for c in cnpjs_pf if len(c) == 14 and c not in cnpjs_presentes]
+    df_coords = st.session_state.get("pf_coords_df", pd.DataFrame())
+    if df_coords.empty or not cnpjs_pf:
+        return df_raw
 
+    # CNPJs já presentes no dataset do estado
+    if not df_raw.empty and "cnpj" in df_raw.columns:
+        cnpjs_presentes = set(df_raw["cnpj"].fillna("").apply(normalizar_cnpj))
+    else:
+        cnpjs_presentes = set()
+
+    ausentes = cnpjs_pf - cnpjs_presentes
     if not ausentes:
         return df_raw
 
-    ausentes = ausentes[:MAX_PF_BUSCA]
-    extras = []
-    for cnpj in ausentes:
-        df_ex = buscar_posto_por_cnpj(cnpj)
-        if not df_ex.empty:
-            extras.append(df_ex)
-
-    if not extras:
+    # Filtra df_coords para os ausentes
+    df_novos = df_coords[df_coords["cnpj"].isin(ausentes)].copy()
+    if df_novos.empty:
         return df_raw
 
-    df_novos = pd.concat(extras, ignore_index=True)
+    # Constrói linhas compatíveis com a estrutura do df_raw da API ANP
+    # Colunas obrigatórias para o mapa: cnpj, _lat, _lon, razaoSocial, distribuidora, municipio, uf
+    # Demais colunas do df_raw ficam como NaN (não afetam o funcionamento)
+    df_novos = df_novos.rename(columns={"cnpj": "cnpj"})  # já está normalizado
+    # Garante que todas as colunas do df_raw existam nos novos registros
+    for _col in df_raw.columns if not df_raw.empty else []:
+        if _col not in df_novos.columns:
+            df_novos[_col] = pd.NA
+
     if df_raw.empty:
-        return df_novos
-    # Evita duplicatas caso o posto já esteja no df (por CNPJ normalizado)
-    cnpjs_ja = set(df_raw["cnpj"].fillna("").apply(normalizar_cnpj))
-    df_novos = df_novos[
-        ~df_novos["cnpj"].fillna("").apply(normalizar_cnpj).isin(cnpjs_ja)
-    ]
+        return df_novos.reset_index(drop=True)
+
     return pd.concat([df_raw, df_novos], ignore_index=True)
 
 
@@ -3578,7 +3628,7 @@ with st.sidebar:
     # Tenta UMA VEZ por sessão — usa flag para não repetir
     if not st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("_repo_tentado"):
         st.session_state["_repo_tentado"] = True   # evita loop
-        _cnpjs_repo, _msg_repo, _prev_repo, _perfil_repo = _auto_carregar_pro_frotas_repo()
+        _cnpjs_repo, _msg_repo, _prev_repo, _perfil_repo, _coords_repo = _auto_carregar_pro_frotas_repo()
         if _cnpjs_repo:
             st.session_state["cnpjs_pro_frotas"]  = _cnpjs_repo
             st.session_state["_pf_fonte"]         = "repo"
@@ -3586,14 +3636,18 @@ with st.sidebar:
         if _perfil_repo:
             st.session_state["perfil_venda_map"]    = _perfil_repo
             st.session_state["perfis_pf_lista"]     = sorted(set(_perfil_repo.values()))
+        if _coords_repo is not None and not _coords_repo.empty:
+            st.session_state["pf_coords_df"] = _coords_repo
 
     # Fallback: CNPJs já carregados mas perfil_venda_map ainda ausente
     # (ocorre quando a sessão foi iniciada antes desta funcionalidade ser adicionada)
     if st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("perfil_venda_map"):
-        _cnpjs_r2, _, _, _perfil_r2 = _auto_carregar_pro_frotas_repo()
+        _cnpjs_r2, _, _, _perfil_r2, _coords_r2 = _auto_carregar_pro_frotas_repo()
         if _perfil_r2:
             st.session_state["perfil_venda_map"]  = _perfil_r2
             st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r2.values()))
+        if _coords_r2 is not None and not _coords_r2.empty:
+            st.session_state.setdefault("pf_coords_df", _coords_r2)
 
     # Auto-load Postos Cercados (uma vez por sessão)
     if not st.session_state.get("cnpjs_cercados") and not st.session_state.get("_cercados_tentado"):
@@ -3865,7 +3919,7 @@ with st.sidebar:
                          key="btn_reload_pf_cfg"):
                 _auto_carregar_pro_frotas_repo.clear()
                 with st.spinner(f"Lendo `{ARQUIVO_PF_REPO}`…"):
-                    _cnpjs_r, _msg_r, _prev_r, _perfil_r = _auto_carregar_pro_frotas_repo()
+                    _cnpjs_r, _msg_r, _prev_r, _perfil_r, _coords_r = _auto_carregar_pro_frotas_repo()
                 if _cnpjs_r:
                     st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
                     st.session_state["_pf_fonte"]        = "repo"
@@ -3873,6 +3927,8 @@ with st.sidebar:
                     if _perfil_r:
                         st.session_state["perfil_venda_map"]  = _perfil_r
                         st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r.values()))
+                    if _coords_r is not None and not _coords_r.empty:
+                        st.session_state["pf_coords_df"] = _coords_r
                     st.success(f"✅ {_msg_r}")
                     time.sleep(1)
                     st.rerun()
@@ -3887,7 +3943,7 @@ with st.sidebar:
                 _pf_file_id = f"{arquivo_pf.name}_{arquivo_pf.size}"
                 if st.session_state.get("_pf_last_upload_id") != _pf_file_id:
                     with st.spinner("Lendo planilha…"):
-                        cnpjs_pf, msg_pf, preview_pf, perfil_pf = ler_planilha_pro_frotas(arquivo_pf)
+                        cnpjs_pf, msg_pf, preview_pf, perfil_pf, coords_pf = ler_planilha_pro_frotas(arquivo_pf)
                     if cnpjs_pf is not None:
                         st.session_state["cnpjs_pro_frotas"]    = cnpjs_pf
                         st.session_state["_pf_fonte"]            = "manual"
@@ -3896,6 +3952,8 @@ with st.sidebar:
                         if perfil_pf:
                             st.session_state["perfil_venda_map"] = perfil_pf
                             st.session_state["perfis_pf_lista"]  = sorted(set(perfil_pf.values()))
+                        if coords_pf is not None and not coords_pf.empty:
+                            st.session_state["pf_coords_df"] = coords_pf
                         st.success(msg_pf)
                         if preview_pf is not None:
                             with st.expander("Ver amostra dos CNPJs"):
