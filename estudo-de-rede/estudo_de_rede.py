@@ -427,17 +427,67 @@ PRODUTOS_CHAVE = [
 ]
 # Chaves já normalizadas (sem acento, uppercase) — igual ao _anp_norm()
 PRODUTO_CURTO = {
+    # ANP canônicos
     "GASOLINA COMUM":                    "⛽ Gasolina",
     "GASOLINA ADITIVADA":                "⛽ Gasolina Aditivada",
     "ETANOL HIDRATADO COMBUSTIVEL":      "🌿 Etanol",
     "ETANOL HIDRATADO":                  "🌿 Etanol",
-    "OLEO DIESEL":                       "🛢️ Diesel",
+    "OLEO DIESEL":                       "🛢️ Diesel Comum",
     "OLEO DIESEL S10":                   "🛢️ Diesel S10",
     "GNV":                               "💨 GNV",
     "GLP":                               "🔵 GLP",
     "GAS NATURAL COMPRIMIDO":            "💨 GNV",
+    "GAS NATURAL VEICULAR":              "💨 GNV",
     "GAS LIQUEFEITO DE PETROLEO":        "🔵 GLP",
     "GAS LIQUEFEITO DO PETROLEO":        "🔵 GLP",
+    # Variantes comuns em planilhas de clientes (Preço Posto)
+    "GASOLINA":                          "⛽ Gasolina",
+    "GASOLINA C":                        "⛽ Gasolina",
+    "DIESEL":                            "🛢️ Diesel Comum",
+    "DIESEL COMUM":                      "🛢️ Diesel Comum",
+    "DIESEL S10":                        "🛢️ Diesel S10",
+    "DIESEL S-10":                       "🛢️ Diesel S10",
+    "OLEO DIESEL S-10":                  "🛢️ Diesel S10",
+    "ETANOL":                            "🌿 Etanol",
+    "ALCOOL":                            "🌿 Etanol",
+    "ALCOOL HIDRATADO":                  "🌿 Etanol",
+}
+
+# Mapeamento PK da planilha "Preço Posto" → PK canônico ANP
+# Resolve casos onde o nome do cliente difere completamente do nome ANP
+# (ex: "DIESEL COMUM" → "OLEO DIESEL",  "DIESEL S-10" → "OLEO DIESEL S10")
+_PP_PARA_ANP_PK: dict = {
+    # Gasolina
+    "GASOLINA":                          "GASOLINA COMUM",
+    "GASOLINA COMUM":                    "GASOLINA COMUM",
+    "GASOLINA C":                        "GASOLINA COMUM",
+    "GASOLINA ADITIVADA":                "GASOLINA ADITIVADA",
+    "GASOLINA PREMIUM":                  "GASOLINA ADITIVADA",
+    # Etanol / Álcool
+    "ETANOL":                            "ETANOL HIDRATADO COMBUSTIVEL",
+    "ETANOL HIDRATADO":                  "ETANOL HIDRATADO COMBUSTIVEL",
+    "ETANOL HIDRATADO COMBUSTIVEL":      "ETANOL HIDRATADO COMBUSTIVEL",
+    "ALCOOL":                            "ETANOL HIDRATADO COMBUSTIVEL",
+    "ALCOOL HIDRATADO":                  "ETANOL HIDRATADO COMBUSTIVEL",
+    # Diesel Comum
+    "DIESEL":                            "OLEO DIESEL",
+    "DIESEL COMUM":                      "OLEO DIESEL",
+    "OLEO DIESEL":                       "OLEO DIESEL",
+    # Diesel S10
+    "DIESEL S10":                        "OLEO DIESEL S10",
+    "DIESEL S-10":                       "OLEO DIESEL S10",
+    "DIESEL S 10":                       "OLEO DIESEL S10",
+    "OLEO DIESEL S10":                   "OLEO DIESEL S10",
+    "OLEO DIESEL S-10":                  "OLEO DIESEL S10",
+    "OLEO DIESEL S 10":                  "OLEO DIESEL S10",
+    # GNV
+    "GNV":                               "GNV",
+    "GAS NATURAL VEICULAR":              "GNV",
+    "GAS NATURAL COMPRIMIDO":            "GNV",
+    # GLP
+    "GLP":                               "GLP",
+    "GAS LIQUEFEITO DE PETROLEO":        "GLP",
+    "GAS LIQUEFEITO DO PETROLEO":        "GLP",
 }
 
 BBOX_UFS = {
@@ -2000,13 +2050,23 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
 
     resultado = []
     for pk, grp in df_pf.groupby("combustivel_pk"):
-        # Correspondência com chave ANP (match exato → parcial)
+        # ── Resolução de PK: PP → ANP ──────────────────────────────
+        # 1) Tenta match direto no dicionário ANP
         preco_anp = precos_anp.get(pk)
+
+        # 2) Usa tabela de mapeamento explícita (cobre "DIESEL COMUM" → "OLEO DIESEL" etc.)
+        if preco_anp is None:
+            anp_canonical = _PP_PARA_ANP_PK.get(pk)
+            if anp_canonical:
+                preco_anp = precos_anp.get(anp_canonical)
+
+        # 3) Fallback: substring bidirecional (último recurso)
         if preco_anp is None:
             for anp_pk, anp_p in precos_anp.items():
                 if pk in anp_pk or anp_pk in pk:
                     preco_anp = anp_p
                     break
+
         if preco_anp is None:
             continue
 
@@ -2014,7 +2074,11 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
         preco_pf_min = grp["preco"].min()
         preco_pf_max = grp["preco"].max()
         n_postos     = int(grp["cnpj_norm"].nunique())
-        label        = PRODUTO_CURTO.get(pk, grp["combustivel_label"].iloc[0].title())
+        # Label: usa PRODUTO_CURTO com o pk direto, depois tenta o canonical ANP, depois raw
+        anp_can_lbl = _PP_PARA_ANP_PK.get(pk, pk)
+        label = (PRODUTO_CURTO.get(pk)
+                 or PRODUTO_CURTO.get(anp_can_lbl)
+                 or grp["combustivel_label"].iloc[0].title())
         data_atz     = ""
         datas = grp["data_atualizacao"].dropna()
         if not datas.empty:
@@ -2028,8 +2092,11 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
         por_uf = []
         if ufs and len(ufs) > 1:
             _pp_uf = _anp_precos_por_fuel_por_uf(sheets_anp, ufs)
+            # Usa PK canonico ANP para buscar no dicionário por-UF
+            _pk_anp = _PP_PARA_ANP_PK.get(pk, pk)
             for uf_i in ufs:
-                p_uf = _pp_uf.get(pk, {}).get(uf_i)
+                p_uf = (_pp_uf.get(pk, {}).get(uf_i)
+                        or _pp_uf.get(_pk_anp, {}).get(uf_i))
                 if p_uf is not None:
                     d_abs_i = preco_pf_med - p_uf
                     d_pct_i = (d_abs_i / p_uf) * 100 if p_uf else 0
