@@ -1435,6 +1435,76 @@ def buscar_postos(uf=None):
     return df.reset_index(drop=True)
 
 
+@st.cache_data(show_spinner=False, ttl=86400)   # 24 horas — resultado por CNPJ
+def buscar_posto_por_cnpj(cnpj_norm: str) -> pd.DataFrame:
+    """
+    Consulta a API ANP pelo CNPJ do posto (sem filtro de UF).
+    Usado para encontrar postos Pró-Frotas ausentes na base do estado consultado.
+    Retorna DataFrame com o posto (ou vazio se não encontrado / erro).
+    """
+    if len(cnpj_norm) != 14:
+        return pd.DataFrame()
+    # Formata CNPJ no padrão esperado pela API: XX.XXX.XXX/XXXX-XX
+    cf = cnpj_norm
+    cnpj_fmt = f"{cf[:2]}.{cf[2:5]}.{cf[5:8]}/{cf[8:12]}-{cf[12:]}"
+    try:
+        resp = _get(f"{API_BASE_URL}{ENDPOINT}",
+                    {"numeropagina": 1, "cnpjRevenda": cnpj_fmt})
+        data = resp.json()
+        registros = data.get("data", data) if isinstance(data, dict) else data
+        if not registros:
+            return pd.DataFrame()
+        lst = registros if isinstance(registros, list) else [registros]
+        df = pd.DataFrame(lst)
+        df["_lat"] = pd.to_numeric(df.get("latitude"),  errors="coerce")
+        df["_lon"] = pd.to_numeric(df.get("longitude"), errors="coerce")
+        df = df.dropna(subset=["_lat", "_lon"])
+        df = df[df["_lat"].between(-33.8, 5.3) & df["_lon"].between(-73.9, -34.7)]
+        return df.reset_index(drop=True)
+    except Exception:
+        return pd.DataFrame()
+
+
+def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
+    """
+    Verifica quais CNPJs Pró-Frotas estão ausentes em df_raw e os busca
+    individualmente na API ANP (sem filtro de UF).
+    Retorna df_raw enriquecido com os postos encontrados.
+
+    Limita a busca a MAX_PF_BUSCA postos por chamada para não sobrecarregar a API.
+    """
+    MAX_PF_BUSCA = 100  # máximo de CNPJs consultados por vez
+    if not cnpjs_pf or df_raw.empty or "cnpj" not in df_raw.columns:
+        # Mesmo sem dados do estado, tenta plotar todos os PF
+        ausentes = [c for c in cnpjs_pf if len(c) == 14]
+    else:
+        cnpjs_presentes = set(df_raw["cnpj"].fillna("").apply(normalizar_cnpj))
+        ausentes = [c for c in cnpjs_pf if len(c) == 14 and c not in cnpjs_presentes]
+
+    if not ausentes:
+        return df_raw
+
+    ausentes = ausentes[:MAX_PF_BUSCA]
+    extras = []
+    for cnpj in ausentes:
+        df_ex = buscar_posto_por_cnpj(cnpj)
+        if not df_ex.empty:
+            extras.append(df_ex)
+
+    if not extras:
+        return df_raw
+
+    df_novos = pd.concat(extras, ignore_index=True)
+    if df_raw.empty:
+        return df_novos
+    # Evita duplicatas caso o posto já esteja no df (por CNPJ normalizado)
+    cnpjs_ja = set(df_raw["cnpj"].fillna("").apply(normalizar_cnpj))
+    df_novos = df_novos[
+        ~df_novos["cnpj"].fillna("").apply(normalizar_cnpj).isin(cnpjs_ja)
+    ]
+    return pd.concat([df_raw, df_novos], ignore_index=True)
+
+
 # ═══════════════════════════════════════════════════════════════════
 #  MAPA FOLIUM
 # ═══════════════════════════════════════════════════════════════════
@@ -4132,7 +4202,15 @@ if modo == "📍 Por Estado/Município":
 
     if uf:
         # Carrega o estado inteiro apenas quando a UF muda (aproveita cache 24h)
-        if uf != st.session_state.get("_uf_carregada"):
+        _uf_ja_carregada   = st.session_state.get("_uf_carregada")
+        _pf_ja_injetados   = st.session_state.get("_pf_injetados_uf")
+        _cnpjs_pf_atual    = st.session_state.get("cnpjs_pro_frotas", set())
+        _precisa_recarregar = (uf != _uf_ja_carregada)
+        _precisa_injetar    = (
+            _cnpjs_pf_atual and
+            (uf != _pf_ja_injetados)
+        )
+        if _precisa_recarregar:
             with st.spinner(f"⏳ Carregando postos de **{uf}**…"):
                 try:
                     df_raw_full = buscar_postos(uf=uf)
@@ -4144,6 +4222,18 @@ if modo == "📍 Por Estado/Município":
                     )
                     st.stop()
             st.session_state.update({"df_raw_full": df_raw_full, "_uf_carregada": uf})
+            _precisa_injetar = bool(_cnpjs_pf_atual)   # nova UF → reinjetar
+
+        if _precisa_injetar:
+            _df_base = st.session_state.get("df_raw_full", pd.DataFrame())
+            with st.spinner("🔍 Verificando postos Pró-Frotas ausentes na base ANP…"):
+                _df_injetado = _injetar_pf_ausentes(_df_base, _cnpjs_pf_atual)
+            if len(_df_injetado) > len(_df_base):
+                st.session_state["df_raw_full"] = _df_injetado
+                if "distribuidora" in _df_injetado.columns:
+                    st.session_state["distribuidoras_disponiveis"] = sorted(
+                        _df_injetado["distribuidora"].dropna().unique().tolist())
+            st.session_state["_pf_injetados_uf"] = uf
             if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
                 st.session_state["distribuidoras_disponiveis"] = sorted(
                     df_raw_full["distribuidora"].dropna().unique().tolist())
@@ -4466,6 +4556,19 @@ else:
                         "Verifique se a API está acessível: https://revendedoresapi.anp.gov.br"
                     )
                 df_rota = pd.DataFrame()
+            # Injeta postos Pró-Frotas ausentes (podem estar em outros estados)
+            _cnpjs_pf_r = st.session_state.get("cnpjs_pro_frotas", set())
+            if _cnpjs_pf_r and not df_rota.empty:
+                with st.spinner("🔍 Verificando postos Pró-Frotas ausentes na rota…"):
+                    _df_rota_enr = _injetar_pf_ausentes(df_rota, _cnpjs_pf_r)
+                if len(_df_rota_enr) > len(df_rota):
+                    # Recalcula distância para os postos injetados (sem coordenadas de rota)
+                    _novos = _df_rota_enr.iloc[len(df_rota):]
+                    _dists_n = dist_minima_rota_np(
+                        _novos["_lat"].values, _novos["_lon"].values, coords_rota)
+                    _df_rota_enr.loc[_novos.index, "_dist_rota"] = _dists_n
+                    df_rota = _df_rota_enr
+
             st.session_state.update({
                 "df_rota": df_rota, "coords_rota": coords_rota,
                 "lat_orig": lo["lat"], "lon_orig": lo["lon"], "label_orig": lo["label"],
