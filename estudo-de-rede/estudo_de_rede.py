@@ -1640,6 +1640,9 @@ def _marcador_rodo_rede(lat, lon, popup, tooltip):
 def marcar_perfil_venda(df: pd.DataFrame, perfil_map: dict) -> pd.DataFrame:
     """Adiciona colunas '_perfil_venda' e '_rodo_rede' ao DataFrame."""
     df = df.copy()
+    # Garante que _cnpj_norm existe mesmo que marcar_pro_frotas não tenha criado
+    if "_cnpj_norm" not in df.columns and "cnpj" in df.columns:
+        df["_cnpj_norm"] = df["cnpj"].fillna("").apply(normalizar_cnpj)
     if perfil_map and "_cnpj_norm" in df.columns:
         df["_perfil_venda"] = df["_cnpj_norm"].map(perfil_map).fillna("")
         df["_rodo_rede"] = df["_perfil_venda"].apply(
@@ -3218,12 +3221,9 @@ def preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=None):
     df = marcar_perfil_venda(df, perfil_map)
     if distribuidoras_filtro:
         df = df[df["distribuidora"].isin(distribuidoras_filtro)]
-    # Filtro de Perfil de Venda: aplica apenas nos postos PF;
-    # postos não-PF são sempre exibidos normalmente
+    # Filtro de Perfil de Venda: exibe APENAS postos com o perfil selecionado
     if perfis_filtro and "_perfil_venda" in df.columns:
-        mask_nao_pf = ~df["_pro_frotas"].fillna(False)
-        mask_perfil = df["_perfil_venda"].isin(perfis_filtro)
-        df = df[mask_nao_pf | mask_perfil]
+        df = df[df["_perfil_venda"].isin(perfis_filtro)]
     return df
 
 
