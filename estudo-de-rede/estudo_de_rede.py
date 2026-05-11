@@ -1792,6 +1792,60 @@ def _img_rodo_rede_b64() -> str:
     return ""
 
 
+@st.cache_data(show_spinner=False)
+def _logos_bandeiras_b64() -> dict:
+    """
+    Carrega logos de bandeiras do repositório e retorna dict
+    {SUBSTRING_UPPER: data_url_base64}.
+    Adicione mais entradas para suportar outras bandeiras no futuro.
+    Ex: {"IPIRANGA": "data:image/jpeg;base64,..."}
+    """
+    # Mapeamento: substring da distribuidora → lista de nomes de arquivo candidatos
+    MAPA = {
+        "IPIRANGA": ["Ipiranga.jpg", "ipiranga.jpg", "Ipiranga.jpeg",
+                     "ipiranga.jpeg", "Ipiranga.png", "ipiranga.png"],
+    }
+    resultado = {}
+    for marca, candidatos in MAPA.items():
+        for nome in candidatos:
+            caminho = os.path.join(_DIR, nome)
+            if os.path.exists(caminho):
+                ext  = nome.rsplit(".", 1)[-1].lower()
+                mime = "image/jpeg" if ext in ("jpg", "jpeg") else "image/png"
+                with open(caminho, "rb") as f:
+                    dados = base64.b64encode(f.read()).decode()
+                resultado[marca] = f"data:{mime};base64,{dados}"
+                break
+    return resultado
+
+
+def _logo_para_distribuidora(distribuidora: str, logos: dict) -> str:
+    """Retorna a data-URL da logo se a distribuidora tiver logo cadastrada, senão ''."""
+    d = str(distribuidora).upper().strip()
+    for marca, url in logos.items():
+        if marca in d:
+            return url
+    return ""
+
+
+def _marcador_logo_bandeira(lat, lon, popup, tooltip, img_b64: str, cor_borda: str):
+    """Marcador circular com a logo da bandeira para postos regulares."""
+    html_icon = (
+        f"<div style='"
+        f"width:28px;height:28px;"
+        f"border-radius:50%;"
+        f"border:2px solid {cor_borda};"
+        f"box-shadow:0 2px 6px rgba(0,0,0,.5);"
+        f"overflow:hidden;"
+        f"background:#fff;'>"
+        f"<img src='{img_b64}' "
+        f"style='width:100%;height:100%;object-fit:cover;display:block;'/>"
+        f"</div>"
+    )
+    icon = folium.DivIcon(html=html_icon, icon_size=(28, 28), icon_anchor=(14, 14))
+    return folium.Marker(location=[lat, lon], icon=icon, popup=popup, tooltip=tooltip)
+
+
 def _marcador_rodo_rede(lat, lon, popup, tooltip):
     """Marcador com logo Rodo Rede para postos Pró-Frotas com Perfil de Venda = Rodo Rede."""
     img_b64 = _img_rodo_rede_b64()
@@ -1898,6 +1952,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     distribuidoras = sorted(df["distribuidora"].dropna().unique()) if not df.empty else []
     # _cor_marca garante cor fixa por marca — usada também para montar a legenda
     mapa_cores = {d.upper().strip(): _cor_marca(d) for d in distribuidoras}
+    # Logos de bandeiras (Ipiranga, etc.) — carregadas uma vez por sessão (cache)
+    _logos_band = _logos_bandeiras_b64()
 
     if coords_rota and len(coords_rota) >= 2:
         coords_poly = _downsample(coords_rota, 300)
@@ -1943,9 +1999,15 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             elif is_pf:
                 _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
             else:
-                folium.CircleMarker([row["_lat"],row["_lon"]], radius=7,
-                                    color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
-                                    popup=pop, tooltip=tip).add_to(c_reg)
+                _logo_band = _logo_para_distribuidora(row.get("distribuidora", ""), _logos_band)
+                if _logo_band:
+                    _marcador_logo_bandeira(
+                        row["_lat"], row["_lon"], pop, tip, _logo_band, cor
+                    ).add_to(c_reg)
+                else:
+                    folium.CircleMarker([row["_lat"],row["_lon"]], radius=7,
+                                        color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
+                                        popup=pop, tooltip=tip).add_to(c_reg)
 
     # Aviso de limitação (overlay flutuante no mapa)
     if foi_limitado:
@@ -1960,10 +2022,27 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         ))
 
     if mapa_cores:
+        def _leg_icon(marca: str, cor: str) -> str:
+            """Ícone da legenda: logo se disponível, senão círculo colorido."""
+            _url = _logo_para_distribuidora(marca, _logos_band)
+            if _url:
+                return (
+                    f"<span style='display:inline-block;width:16px;height:16px;"
+                    f"border-radius:50%;border:1.5px solid {cor};"
+                    f"overflow:hidden;vertical-align:middle;margin-right:5px;background:#fff;'>"
+                    f"<img src='{_url}' style='width:100%;height:100%;object-fit:cover;display:block;'/>"
+                    f"</span>"
+                )
+            return (
+                f'<span style="background:{cor};display:inline-block;'
+                f'width:11px;height:11px;border-radius:50%;'
+                f'vertical-align:middle;margin-right:5px"></span>'
+            )
+
         items = "".join(
-            f'<li><span style="background:{cor};display:inline-block;'
-            f'width:11px;height:11px;border-radius:50%;margin-right:5px"></span>{d}</li>'
-            for d,cor in list(mapa_cores.items())[:22]
+            f'<li style="display:flex;align-items:center;margin-bottom:2px">'
+            f'{_leg_icon(d, cor)}{d.title()}</li>'
+            for d, cor in list(mapa_cores.items())[:22]
         )
         # Item Pró-Frotas: usa logo_profrotas.jpg se disponível, senão círculo azul
         _pf_img_b64 = _img_pro_frotas_b64()
