@@ -4259,16 +4259,10 @@ with st.sidebar:
 if modo == "📍 Por Estado/Município":
 
     if uf:
-        # Carrega o estado inteiro apenas quando a UF muda (aproveita cache 24h)
-        _uf_ja_carregada   = st.session_state.get("_uf_carregada")
-        _pf_ja_injetados   = st.session_state.get("_pf_injetados_uf")
-        _cnpjs_pf_atual    = st.session_state.get("cnpjs_pro_frotas", set())
-        _precisa_recarregar = (uf != _uf_ja_carregada)
-        _precisa_injetar    = (
-            _cnpjs_pf_atual and
-            (uf != _pf_ja_injetados)
-        )
-        if _precisa_recarregar:
+        _cnpjs_pf_atual = st.session_state.get("cnpjs_pro_frotas", set())
+
+        # ── Passo 1: carrega estado se mudou (aproveita cache 24h) ──
+        if uf != st.session_state.get("_uf_carregada"):
             with st.spinner(f"⏳ Carregando postos de **{uf}**…"):
                 try:
                     df_raw_full = buscar_postos(uf=uf)
@@ -4279,10 +4273,19 @@ if modo == "📍 Por Estado/Município":
                         f"Detalhe técnico: `{type(_api_err).__name__}`"
                     )
                     st.stop()
-            st.session_state.update({"df_raw_full": df_raw_full, "_uf_carregada": uf})
-            _precisa_injetar = bool(_cnpjs_pf_atual)   # nova UF → reinjetar
+            st.session_state["df_raw_full"]  = df_raw_full
+            st.session_state["_uf_carregada"] = uf
+            if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
+                st.session_state["distribuidoras_disponiveis"] = sorted(
+                    df_raw_full["distribuidora"].dropna().unique().tolist())
+            precar = st.session_state.get("_estados_precarregados", [])
+            if uf not in precar:
+                st.session_state["_estados_precarregados"] = precar + [uf]
+            # Nova UF: marca para reinjetar PF
+            st.session_state.pop("_pf_injetados_uf", None)
 
-        if _precisa_injetar:
+        # ── Passo 2: injeta PF ausentes (via planilha) se ainda não feito nesta UF ──
+        if _cnpjs_pf_atual and uf != st.session_state.get("_pf_injetados_uf"):
             _df_base = st.session_state.get("df_raw_full", pd.DataFrame())
             with st.spinner("🔍 Verificando postos Pró-Frotas ausentes na base ANP…"):
                 _df_injetado = _injetar_pf_ausentes(_df_base, _cnpjs_pf_atual)
@@ -4292,15 +4295,9 @@ if modo == "📍 Por Estado/Município":
                     st.session_state["distribuidoras_disponiveis"] = sorted(
                         _df_injetado["distribuidora"].dropna().unique().tolist())
             st.session_state["_pf_injetados_uf"] = uf
-            if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
-                st.session_state["distribuidoras_disponiveis"] = sorted(
-                    df_raw_full["distribuidora"].dropna().unique().tolist())
-            # Registra UF como disponível para busca por nome/CNPJ
-            precar = st.session_state.get("_estados_precarregados", [])
-            if uf not in precar:
-                st.session_state["_estados_precarregados"] = precar + [uf]
-        else:
-            df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
+
+        # ── Passo 3: sempre lê df_raw_full do session_state ──────────
+        df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
 
         # Filtra por município localmente (instantâneo, sem nova chamada à API)
         mun = municipio_input.strip()
