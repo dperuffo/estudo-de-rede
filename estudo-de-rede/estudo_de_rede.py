@@ -540,7 +540,10 @@ MAX_MAPA_POSTOS = 1500
 # ═══════════════════════════════════════════════════════════════════
 
 # Nome do arquivo fixo esperado na raiz do repositório
-ARQUIVO_PF_REPO = "pro_frotas.xlsx"
+ARQUIVO_PF_REPO       = "pro_frotas.xlsx"
+ARQUIVO_CERCADOS_REPO = "Postos Cercados.xlsx"
+COR_CERCADO_FILL      = "#FF8F00"   # laranja âmbar — alerta visual
+COR_CERCADO_BORDA     = "#E65100"   # laranja escuro
 
 
 def normalizar_cnpj(valor):
@@ -632,6 +635,98 @@ def _auto_carregar_pro_frotas_repo():
                 return None, f"Erro ao ler {nome} do repositório: {e}", None
     return None, f"Arquivo `{ARQUIVO_PF_REPO}` não encontrado em: {_DIR}", None
 
+
+# ── Postos Cercados ─────────────────────────────────────────────────
+
+def _processar_bytes_cercados(nome: str, conteudo: bytes):
+    """
+    Lê planilha de Postos Cercados (CNPJ).
+    Retorna (set_cnpjs, msg, df_preview) ou (None, msg_erro, None).
+    """
+    buf = io.BytesIO(conteudo)
+    nome_l = nome.lower()
+    if nome_l.endswith(".csv"):
+        try:
+            df = pd.read_csv(buf, dtype=str, encoding="utf-8")
+        except UnicodeDecodeError:
+            buf.seek(0)
+            df = pd.read_csv(buf, dtype=str, encoding="latin-1")
+    elif nome_l.endswith(".xls"):
+        df = pd.read_excel(buf, dtype=str, engine="xlrd")
+    else:
+        df = pd.read_excel(buf, dtype=str, engine="openpyxl")
+
+    if df.empty:
+        return None, "A planilha está vazia.", None
+
+    col = detectar_coluna_cnpj(df)
+    if col is None:
+        colunas = ", ".join(df.columns.tolist())
+        return None, (
+            f"Coluna CNPJ não encontrada. "
+            f"Colunas disponíveis: **{colunas}**. "
+            "Renomeie a coluna de CNPJ para 'CNPJ'."
+        ), None
+
+    cnpjs = {c for c in df[col].dropna().apply(normalizar_cnpj) if len(c) == 14}
+    if not cnpjs:
+        return None, "Nenhum CNPJ válido (14 dígitos) encontrado na coluna detectada.", None
+
+    preview = df[[col]].rename(columns={col: "CNPJ (original)"}).head(10)
+    return cnpjs, f"{len(cnpjs)} postos cercados carregados (coluna: **{col}**)", preview
+
+
+def ler_planilha_cercados(arquivo):
+    """Lê UploadedFile do Streamlit. Sem @st.cache_data (upload não é cacheável)."""
+    try:
+        return _processar_bytes_cercados(arquivo.name, arquivo.read())
+    except ImportError as e:
+        return None, f"Biblioteca ausente no servidor: **{e}**.", None
+    except Exception as e:
+        return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None
+
+
+@st.cache_data(show_spinner=False, ttl=86400)   # 24 h — re-lê o arquivo do repo uma vez por dia
+def _auto_carregar_cercados_repo():
+    """
+    Tenta carregar automaticamente 'Postos Cercados.xlsx' do repositório.
+    Aceita variações de nome: com/sem espaço, maiúsculo/minúsculo.
+    Retorna (set_cnpjs, msg, df_preview) ou (None, msg_erro, None).
+    """
+    candidatos = [
+        ARQUIVO_CERCADOS_REPO,          # "Postos Cercados.xlsx"
+        "postos_cercados.xlsx",
+        "postos_cercados.xls",
+        "Postos_Cercados.xlsx",
+        "postos cercados.xlsx",
+    ]
+    for nome in candidatos:
+        caminho = os.path.join(_DIR, nome)
+        if os.path.exists(caminho):
+            try:
+                with open(caminho, "rb") as f:
+                    conteudo = f.read()
+                cnpjs, msg, preview = _processar_bytes_cercados(nome, conteudo)
+                if cnpjs:
+                    return cnpjs, msg, preview
+            except Exception as e:
+                return None, f"Erro ao ler {nome} do repositório: {e}", None
+    return None, f"Arquivo `{ARQUIVO_CERCADOS_REPO}` não encontrado em: {_DIR}", None
+
+
+def marcar_cercados(df: pd.DataFrame, cnpjs_cercados: set) -> pd.DataFrame:
+    """Adiciona coluna '_cercado' ao DataFrame com base nos CNPJs."""
+    df = df.copy()
+    if cnpjs_cercados and "cnpj" in df.columns:
+        if "_cnpj_norm" not in df.columns:
+            df["_cnpj_norm"] = df["cnpj"].fillna("").apply(normalizar_cnpj)
+        df["_cercado"] = df["_cnpj_norm"].isin(cnpjs_cercados)
+    else:
+        df["_cercado"] = False
+    return df
+
+
+# ── Pró-Frotas ───────────────────────────────────────────────────────
 
 def marcar_pro_frotas(df: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
     df = df.copy()
@@ -1145,6 +1240,31 @@ def _extrair_posto_do_popup(popup_html: str):
         return None
 
 
+def _marcador_cercado(lat, lon, popup, tooltip):
+    """Marcador laranja com ⚠️ para postos cercados — destaca a situação competitiva."""
+    icon = folium.DivIcon(
+        html=(
+            f"<div style='"
+            f"background:{COR_CERCADO_FILL};"
+            f"border:2.5px solid {COR_CERCADO_BORDA};"
+            f"border-radius:50%;"
+            f"width:26px;height:26px;"
+            f"display:flex;align-items:center;justify-content:center;"
+            f"font-size:14px;line-height:1;"
+            f"box-shadow:0 2px 6px rgba(0,0,0,.5);"
+            f"'>⚠️</div>"
+        ),
+        icon_size=(26, 26),
+        icon_anchor=(13, 13),
+    )
+    return folium.Marker(
+        location=[lat, lon],
+        icon=icon,
+        popup=popup,
+        tooltip=tooltip,
+    )
+
+
 def _marcador_pf(lat, lon, popup, tooltip):
     """CircleMarker azul maior para postos Pró-Frotas — destaca o credenciamento."""
     return folium.CircleMarker(
@@ -1170,16 +1290,20 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     foi_limitado = False
     if not df.empty and n_total > MAX_MAPA_POSTOS:
         foi_limitado = True
-        if "_pro_frotas" in df.columns:
-            df_pf  = df[df["_pro_frotas"]]
-            df_reg = df[~df["_pro_frotas"]]
-        else:
-            df_pf  = pd.DataFrame()
-            df_reg = df
-        n_reg_max = max(0, MAX_MAPA_POSTOS - len(df_pf))
+        tem_pf_col  = "_pro_frotas" in df.columns
+        tem_cer_col = "_cercado"    in df.columns
+        # Preserva Pró-Frotas E Cercados no cap
+        _mask_prio = pd.Series(False, index=df.index)
+        if tem_pf_col:
+            _mask_prio |= df["_pro_frotas"].fillna(False)
+        if tem_cer_col:
+            _mask_prio |= df["_cercado"].fillna(False)
+        df_prio = df[_mask_prio]
+        df_reg  = df[~_mask_prio]
+        n_reg_max = max(0, MAX_MAPA_POSTOS - len(df_prio))
         if len(df_reg) > n_reg_max:
             df_reg = df_reg.sample(n=n_reg_max, random_state=42)
-        df = pd.concat([df_pf, df_reg], ignore_index=True)
+        df = pd.concat([df_prio, df_reg], ignore_index=True)
     # Popup compacto quando o dataset é grande (>300) mesmo sem cap
     usar_popup_simples = (n_total > 300)
 
@@ -1215,14 +1339,23 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     if not df.empty:
         c_reg = MarkerCluster(name="⛽ Postos").add_to(m)
         c_pf  = MarkerCluster(name="⭐ Pró-Frotas").add_to(m)
-        tem_pf = "_pro_frotas" in df.columns
+        c_cer = MarkerCluster(name="⚠️ Postos Cercados").add_to(m)
+        tem_pf  = "_pro_frotas" in df.columns
+        tem_cer = "_cercado"    in df.columns
         _fn_popup = _popup_simples if usar_popup_simples else _popup
         for _, row in df.iterrows():
-            cor   = _cor(row.get("distribuidora",""), mapa_cores)
-            is_pf = tem_pf and bool(row.get("_pro_frotas"))
-            tip   = f"{'⭐ PRÓ-FROTAS | ' if is_pf else ''}⛽ {row.get('razaoSocial','?')} ({row.get('distribuidora','?')})"
-            pop   = _fn_popup(row)
-            if is_pf:
+            cor    = _cor(row.get("distribuidora",""), mapa_cores)
+            is_pf  = tem_pf  and bool(row.get("_pro_frotas"))
+            is_cer = tem_cer and bool(row.get("_cercado"))
+            tip    = (
+                f"{'⚠️ CERCADO | ' if is_cer else ''}"
+                f"{'⭐ PRÓ-FROTAS | ' if is_pf else ''}"
+                f"⛽ {row.get('razaoSocial','?')} ({row.get('distribuidora','?')})"
+            )
+            pop = _fn_popup(row)
+            if is_cer:
+                _marcador_cercado(row["_lat"], row["_lon"], pop, tip).add_to(c_cer)
+            elif is_pf:
                 _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
             else:
                 folium.CircleMarker([row["_lat"],row["_lon"]], radius=7,
@@ -1258,6 +1391,11 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             f"background:{COR_PF_FILL};border:2px solid {COR_PF_BORDA};"
             f"vertical-align:middle;margin-right:5px'></span>"
             "<b>Pró-Frotas</b> ● maior</li>"
+            "<li style='margin-top:4px'>"
+            f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
+            f"background:{COR_CERCADO_FILL};border:2px solid {COR_CERCADO_BORDA};"
+            f"vertical-align:middle;margin-right:5px;text-align:center;font-size:9px;line-height:14px'>⚠</span>"
+            "<b>Posto Cercado</b></li>"
             "</ul></div>"
         ))
     folium.LayerControl().add_to(m)
@@ -2353,8 +2491,10 @@ def _gerar_excel_base_brasil() -> tuple:
 # ═══════════════════════════════════════════════════════════════════
 
 def preparar_df(df_raw, distribuidoras_filtro):
-    cnpjs_pf = st.session_state.get("cnpjs_pro_frotas", set())
+    cnpjs_pf  = st.session_state.get("cnpjs_pro_frotas", set())
+    cnpjs_cer = st.session_state.get("cnpjs_cercados",   set())
     df = marcar_pro_frotas(df_raw, cnpjs_pf)
+    df = marcar_cercados(df, cnpjs_cer)
     if distribuidoras_filtro:
         df = df[df["distribuidora"].isin(distribuidoras_filtro)]
     return df
@@ -2538,6 +2678,15 @@ with st.sidebar:
             st.session_state["_pf_fonte"]         = "repo"
             st.session_state["_pf_carregado_em"]  = _agora()
 
+    # Auto-load Postos Cercados (uma vez por sessão)
+    if not st.session_state.get("cnpjs_cercados") and not st.session_state.get("_cercados_tentado"):
+        st.session_state["_cercados_tentado"] = True
+        _cnpjs_cer, _msg_cer, _ = _auto_carregar_cercados_repo()
+        if _cnpjs_cer:
+            st.session_state["cnpjs_cercados"]          = _cnpjs_cer
+            st.session_state["_cercados_fonte"]         = "repo"
+            st.session_state["_cercados_carregado_em"]  = _agora()
+
     # ── Modo de consulta — toggle buttons ─────────────────────
     st.markdown("<div class='sb-label'>Modo de Consulta</div>", unsafe_allow_html=True)
     if "modo_selecionado" not in st.session_state:
@@ -2651,34 +2800,58 @@ with st.sidebar:
                 "Bandeiras", st.session_state["distribuidoras_rota"],
                 placeholder="Todas as bandeiras", label_visibility="collapsed")
 
-    # ── Configurações (Pró-Frotas · Base · Exportar) ──────────
+    # ── Configurações (Pró-Frotas · Cercados · Base · Exportar) ──
     st.markdown("---")
-    _pf_fonte = st.session_state.get("_pf_fonte", "manual")
-    _pf_set   = st.session_state.get("cnpjs_pro_frotas", set())
-    _pf_ts    = st.session_state.get("_pf_carregado_em", "")
+    _pf_fonte  = st.session_state.get("_pf_fonte",  "manual")
+    _pf_set    = st.session_state.get("cnpjs_pro_frotas", set())
+    _pf_ts     = st.session_state.get("_pf_carregado_em", "")
+    _cer_set   = st.session_state.get("cnpjs_cercados",   set())
+    _cer_fonte = st.session_state.get("_cercados_fonte",  "manual")
+    _cer_ts    = st.session_state.get("_cercados_carregado_em", "")
 
-    # Mini-badge compacto acima do expander
-    if _pf_set:
-        _pf_cor, _pf_brd, _pf_txt, _pf_ic = (
-            ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "repo"
-            else ("#fff8e1","#ffe082","#f57f17","⭐")
-        )
-        st.markdown(
-            f"<div style='background:{_pf_cor};border:1px solid {_pf_brd};"
-            f"border-radius:8px;padding:6px 10px;font-size:11px;color:{_pf_txt};margin-bottom:6px'>"
-            f"{_pf_ic} <b>Pró-Frotas</b> · {len(_pf_set):,} CNPJs</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            f"<div style='background:#fff3e0;border:1px solid #ffcc80;"
-            f"border-radius:8px;padding:6px 10px;font-size:11px;color:#e65100;margin-bottom:6px'>"
-            f"⚠️ <b>Pró-Frotas não carregado</b></div>",
-            unsafe_allow_html=True,
-        )
+    # Mini-badges compactos acima do expander
+    _col_b1, _col_b2 = st.columns(2)
+    with _col_b1:
+        if _pf_set:
+            _pf_cor, _pf_brd, _pf_txt, _pf_ic = (
+                ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "repo"
+                else ("#fff8e1","#ffe082","#f57f17","⭐")
+            )
+            st.markdown(
+                f"<div style='background:{_pf_cor};border:1px solid {_pf_brd};"
+                f"border-radius:8px;padding:6px 8px;font-size:10px;color:{_pf_txt};text-align:center'>"
+                f"{_pf_ic} <b>Pró-Frotas</b><br>{len(_pf_set):,} CNPJs</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='background:#fff3e0;border:1px solid #ffcc80;"
+                "border-radius:8px;padding:6px 8px;font-size:10px;color:#e65100;text-align:center'>"
+                "⚠️ <b>Pró-Frotas</b><br>não carregado</div>",
+                unsafe_allow_html=True,
+            )
+    with _col_b2:
+        if _cer_set:
+            _cer_cor = "#fff8e1" if _cer_fonte == "manual" else "#fff3e0"
+            _cer_brd = "#ffe082" if _cer_fonte == "manual" else "#ffcc80"
+            st.markdown(
+                f"<div style='background:{_cer_cor};border:1px solid {_cer_brd};"
+                f"border-radius:8px;padding:6px 8px;font-size:10px;color:#e65100;text-align:center'>"
+                f"⚠️ <b>Cercados</b><br>{len(_cer_set):,} postos</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='background:#f5f5f5;border:1px solid #ddd;"
+                "border-radius:8px;padding:6px 8px;font-size:10px;color:#999;text-align:center'>"
+                "⚠️ <b>Cercados</b><br>não carregado</div>",
+                unsafe_allow_html=True,
+            )
 
     with st.expander("⚙️  Configurações", expanded=False):
-        tab_pf, tab_base, tab_exp = st.tabs(["⭐ Pró-Frotas", "🗃️ Base", "📥 Exportar"])
+        tab_pf, tab_cer, tab_base, tab_exp = st.tabs(
+            ["⭐ Pró-Frotas", "⚠️ Cercados", "🗃️ Base", "📥 Exportar"]
+        )
 
         # ── Tab Pró-Frotas ────────────────────────────────────
         with tab_pf:
@@ -2746,6 +2919,81 @@ with st.sidebar:
                              key="btn_rm_pf_cfg"):
                     st.session_state.pop("cnpjs_pro_frotas", None)
                     st.session_state.pop("_pf_fonte", None)
+                    st.rerun()
+
+        # ── Tab Postos Cercados ───────────────────────────────
+        with tab_cer:
+            _cer_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_cer_ts}</span>"
+                            if _cer_ts else "")
+            if _cer_set:
+                _cc = ("#fff8e1","#ffe082","#e65100") if _cer_fonte == "manual" \
+                      else ("#fff3e0","#ffcc80","#bf360c")
+                _src_cer = (
+                    f"<span style='font-size:10px;opacity:.8'>"
+                    f"Fonte: <code>{ARQUIVO_CERCADOS_REPO}</code></span>"
+                    if _cer_fonte == "repo" else
+                    "<span style='font-size:10px;opacity:.8'>Carregado manualmente</span>"
+                )
+                st.markdown(
+                    f"<div style='background:{_cc[0]};border:1px solid {_cc[1]};"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_cc[2]}'>"
+                    f"⚠️ <b>{len(_cer_set):,} postos cercados</b> identificados"
+                    f"{_cer_ts_html}<br>{_src_cer}</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"<div style='background:#f5f5f5;border:1px solid #ddd;"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
+                    f"Planilha não carregada.<br>"
+                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_CERCADOS_REPO}</code> "
+                    f"ao repositório ou faça upload manual.</span></div>",
+                    unsafe_allow_html=True,
+                )
+            st.markdown("")
+            if st.button("🔄 Recarregar do repositório", use_container_width=True,
+                         help=f"Força nova leitura de '{ARQUIVO_CERCADOS_REPO}' no GitHub",
+                         key="btn_reload_cercados"):
+                _auto_carregar_cercados_repo.clear()
+                with st.spinner(f"Lendo `{ARQUIVO_CERCADOS_REPO}`…"):
+                    _cnpjs_cer2, _msg_cer2, _ = _auto_carregar_cercados_repo()
+                if _cnpjs_cer2:
+                    st.session_state["cnpjs_cercados"]          = _cnpjs_cer2
+                    st.session_state["_cercados_fonte"]         = "repo"
+                    st.session_state["_cercados_carregado_em"]  = _agora()
+                    st.success(f"✅ {_msg_cer2}")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(_msg_cer2 or f"❌ `{ARQUIVO_CERCADOS_REPO}` não encontrado.")
+
+            st.markdown("<small><b>Upload manual</b> — substitui nesta sessão:</small>",
+                        unsafe_allow_html=True)
+            arquivo_cer = st.file_uploader(
+                "Planilha Postos Cercados", type=["xlsx","xls","csv"],
+                key="upload_cercados", label_visibility="collapsed",
+            )
+            if arquivo_cer is not None:
+                with st.spinner("Lendo planilha…"):
+                    cnpjs_cer_up, msg_cer_up, prev_cer = ler_planilha_cercados(arquivo_cer)
+                if cnpjs_cer_up is not None:
+                    st.session_state["cnpjs_cercados"]          = cnpjs_cer_up
+                    st.session_state["_cercados_fonte"]         = "manual"
+                    st.session_state["_cercados_carregado_em"]  = _agora()
+                    st.success(msg_cer_up)
+                    if prev_cer is not None:
+                        with st.expander("Ver amostra"):
+                            st.dataframe(prev_cer, use_container_width=True)
+                    st.rerun()
+                else:
+                    st.error(msg_cer_up)
+
+            if _cer_set:
+                if st.button("🗑️ Remover Cercados", use_container_width=True,
+                             key="btn_rm_cercados"):
+                    st.session_state.pop("cnpjs_cercados", None)
+                    st.session_state.pop("_cercados_fonte", None)
+                    st.session_state.pop("_cercados_carregado_em", None)
                     st.rerun()
 
         # ── Tab Base Nacional ─────────────────────────────────
