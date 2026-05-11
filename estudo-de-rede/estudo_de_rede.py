@@ -3408,6 +3408,14 @@ with st.sidebar:
             st.session_state["perfil_venda_map"]    = _perfil_repo
             st.session_state["perfis_pf_lista"]     = sorted(set(_perfil_repo.values()))
 
+    # Fallback: CNPJs já carregados mas perfil_venda_map ainda ausente
+    # (ocorre quando a sessão foi iniciada antes desta funcionalidade ser adicionada)
+    if st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("perfil_venda_map"):
+        _cnpjs_r2, _, _, _perfil_r2 = _auto_carregar_pro_frotas_repo()
+        if _perfil_r2:
+            st.session_state["perfil_venda_map"]  = _perfil_r2
+            st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r2.values()))
+
     # Auto-load Postos Cercados (uma vez por sessão)
     if not st.session_state.get("cnpjs_cercados") and not st.session_state.get("_cercados_tentado"):
         st.session_state["_cercados_tentado"] = True
