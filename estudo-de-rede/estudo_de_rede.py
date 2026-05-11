@@ -1611,24 +1611,62 @@ def _marcador_pf(lat, lon, popup, tooltip):
     )
 
 
+@st.cache_data(show_spinner=False)
+def _img_rodo_rede_b64() -> str:
+    """
+    Carrega RodoRede.jpg do repositório e retorna data-URL base64.
+    Tenta extensões .jpg, .jpeg e .png. Retorna "" se não encontrado.
+    """
+    for nome in ["RodoRede.jpg", "RodoRede.jpeg", "RodoRede.png",
+                 "rodorede.jpg", "rodorede.jpeg", "rodorede.png"]:
+        caminho = os.path.join(_DIR, nome)
+        if os.path.exists(caminho):
+            ext = nome.rsplit(".", 1)[-1].lower()
+            mime = "image/jpeg" if ext in ("jpg", "jpeg") else "image/png"
+            with open(caminho, "rb") as f:
+                dados = base64.b64encode(f.read()).decode()
+            return f"data:{mime};base64,{dados}"
+    return ""
+
+
 def _marcador_rodo_rede(lat, lon, popup, tooltip):
-    """Marcador roxo com 🚛 para postos Pró-Frotas com Perfil de Venda = Rodo Rede."""
-    icon = folium.DivIcon(
-        html=(
+    """Marcador com logo Rodo Rede para postos Pró-Frotas com Perfil de Venda = Rodo Rede."""
+    img_b64 = _img_rodo_rede_b64()
+
+    if img_b64:
+        # Pin com a imagem RodoRede.jpg — circular com borda roxa
+        html_icon = (
+            f"<div style='"
+            f"width:40px;height:40px;"
+            f"border-radius:50%;"
+            f"border:3px solid {COR_RR_BORDA};"
+            f"box-shadow:0 2px 8px rgba(0,0,0,.6);"
+            f"overflow:hidden;"
+            f"background:#fff;'>"
+            f"<img src='{img_b64}' "
+            f"style='width:100%;height:100%;object-fit:cover;display:block;'/>"
+            f"</div>"
+        )
+        icon_size   = (40, 40)
+        icon_anchor = (20, 20)
+    else:
+        # Fallback: emoji 🚛 roxo se imagem não encontrada
+        html_icon = (
             f"<div style='"
             f"background:{COR_RR_FILL};"
             f"border:3px solid {COR_RR_BORDA};"
             f"border-radius:50%;"
-            f"width:30px;height:30px;"
+            f"width:34px;height:34px;"
             f"display:flex;align-items:center;justify-content:center;"
-            f"font-size:15px;line-height:1;"
+            f"font-size:17px;line-height:1;"
             f"box-shadow:0 2px 8px rgba(0,0,0,.55);'>"
             f"🚛"
             f"</div>"
-        ),
-        icon_size=(30, 30),
-        icon_anchor=(15, 15),
-    )
+        )
+        icon_size   = (34, 34)
+        icon_anchor = (17, 17)
+
+    icon = folium.DivIcon(html=html_icon, icon_size=icon_size, icon_anchor=icon_anchor)
     return folium.Marker(
         location=[lat, lon],
         icon=icon,
