@@ -589,6 +589,11 @@ CORES_MARCAS = {
 COR_PF_FILL  = "#1565C0"   # azul — identificação visual do credenciamento
 COR_PF_BORDA = "#0D47A1"   # azul escuro
 
+# Cor e estilo do marcador Rodo Rede (perfil de venda especial)
+COR_RR_FILL  = "#6A1B9A"   # roxo/púrpura — identifica Rodo Rede
+COR_RR_BORDA = "#4A148C"   # roxo escuro
+PERFIL_RODO_REDE = "RODO REDE"  # valor normalizado para comparação
+
 
 def _cor_marca(distribuidora: str) -> str:
     """Retorna a cor do pin para qualquer distribuidora.
@@ -647,7 +652,8 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
     """
     Núcleo de leitura da planilha Pró-Frotas.
     Aceita o nome do arquivo e seus bytes brutos.
-    Retorna (set_cnpjs, msg, df_preview) ou (None, msg_erro, None).
+    Retorna (set_cnpjs, msg, df_preview, perfil_map) ou (None, msg_erro, None, None).
+    perfil_map: dict {cnpj_norm: "Perfil de Venda"} — inclui todos os registros com perfil.
     """
     buf = io.BytesIO(conteudo)
     nome_l = nome.lower()
@@ -664,7 +670,7 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
         df = pd.read_excel(buf, dtype=str, engine="openpyxl")
 
     if df.empty:
-        return None, "A planilha está vazia.", None
+        return None, "A planilha está vazia.", None, None
 
     col = detectar_coluna_cnpj(df)
     if col is None:
@@ -673,14 +679,33 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
             f"Coluna CNPJ não encontrada. "
             f"Colunas disponíveis: **{colunas}**. "
             "Renomeie a coluna de CNPJ para 'CNPJ'."
-        ), None
+        ), None, None
 
     cnpjs = {c for c in df[col].dropna().apply(normalizar_cnpj) if len(c) == 14}
     if not cnpjs:
-        return None, "Nenhum CNPJ válido (14 dígitos) encontrado na coluna detectada.", None
+        return None, "Nenhum CNPJ válido (14 dígitos) encontrado na coluna detectada.", None, None
+
+    # ── Detecta coluna "Perfil de Venda" ───────────────────────────
+    col_perfil = None
+    for _c in df.columns:
+        _cn = _anp_norm(_c)
+        if any(t in _cn for t in ["PERFIL DE VENDA", "PERFIL VENDA",
+                                   "PERFILDEVENDA", "PERFIL"]):
+            col_perfil = _c
+            break
+
+    perfil_map: dict = {}
+    if col_perfil:
+        for _, row in df.iterrows():
+            cnpj_n = normalizar_cnpj(row.get(col, ""))
+            if len(cnpj_n) == 14:
+                perfil = str(row.get(col_perfil, "")).strip()
+                if perfil and perfil.upper() not in ("NAN", "NONE", ""):
+                    perfil_map[cnpj_n] = perfil
 
     preview = df[[col]].rename(columns={col: "CNPJ (original)"}).head(10)
-    return cnpjs, f"{len(cnpjs)} CNPJs carregados (coluna: **{col}**)", preview
+    perfil_info = f" · {len(set(perfil_map.values()))} perfis" if perfil_map else ""
+    return cnpjs, f"{len(cnpjs)} CNPJs carregados (coluna: **{col}**){perfil_info}", preview, perfil_map
 
 
 def ler_planilha_pro_frotas(arquivo):
@@ -688,19 +713,17 @@ def ler_planilha_pro_frotas(arquivo):
     try:
         return _processar_bytes_pro_frotas(arquivo.name, arquivo.read())
     except ImportError as e:
-        return None, f"Biblioteca ausente no servidor: **{e}**.", None
+        return None, f"Biblioteca ausente no servidor: **{e}**.", None, None
     except Exception as e:
-        return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None
+        return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None, None
 
 
 @st.cache_data(show_spinner=False, ttl=86400)   # 24 horas — lê o arquivo do repo uma vez por dia
 def _auto_carregar_pro_frotas_repo():
     """
     Tenta carregar automaticamente a planilha Pró-Frotas do repositório.
-    Usa o diretório do script (_DIR) para localizar o arquivo com precisão
-    no Streamlit Cloud, independente do diretório de trabalho atual.
     Aceita: pro_frotas.xlsx / pro_frotas.xls / pro_frotas.csv
-    Retorna (set_cnpjs, msg, df_preview) ou (None, msg_erro, None).
+    Retorna (set_cnpjs, msg, df_preview, perfil_map) ou (None, msg_erro, None, None).
     """
     for nome in [ARQUIVO_PF_REPO, "pro_frotas.xls", "pro_frotas.csv"]:
         caminho = os.path.join(_DIR, nome)
@@ -708,12 +731,12 @@ def _auto_carregar_pro_frotas_repo():
             try:
                 with open(caminho, "rb") as f:
                     conteudo = f.read()
-                cnpjs, msg, preview = _processar_bytes_pro_frotas(nome, conteudo)
+                cnpjs, msg, preview, perfil_map = _processar_bytes_pro_frotas(nome, conteudo)
                 if cnpjs:
-                    return cnpjs, msg, preview
+                    return cnpjs, msg, preview, perfil_map
             except Exception as e:
-                return None, f"Erro ao ler {nome} do repositório: {e}", None
-    return None, f"Arquivo `{ARQUIVO_PF_REPO}` não encontrado em: {_DIR}", None
+                return None, f"Erro ao ler {nome} do repositório: {e}", None, None
+    return None, f"Arquivo `{ARQUIVO_PF_REPO}` não encontrado em: {_DIR}", None, None
 
 
 # ── Postos Cercados ─────────────────────────────────────────────────
@@ -1588,6 +1611,46 @@ def _marcador_pf(lat, lon, popup, tooltip):
     )
 
 
+def _marcador_rodo_rede(lat, lon, popup, tooltip):
+    """Marcador roxo com 🚛 para postos Pró-Frotas com Perfil de Venda = Rodo Rede."""
+    icon = folium.DivIcon(
+        html=(
+            f"<div style='"
+            f"background:{COR_RR_FILL};"
+            f"border:3px solid {COR_RR_BORDA};"
+            f"border-radius:50%;"
+            f"width:30px;height:30px;"
+            f"display:flex;align-items:center;justify-content:center;"
+            f"font-size:15px;line-height:1;"
+            f"box-shadow:0 2px 8px rgba(0,0,0,.55);'>"
+            f"🚛"
+            f"</div>"
+        ),
+        icon_size=(30, 30),
+        icon_anchor=(15, 15),
+    )
+    return folium.Marker(
+        location=[lat, lon],
+        icon=icon,
+        popup=popup,
+        tooltip=tooltip,
+    )
+
+
+def marcar_perfil_venda(df: pd.DataFrame, perfil_map: dict) -> pd.DataFrame:
+    """Adiciona colunas '_perfil_venda' e '_rodo_rede' ao DataFrame."""
+    df = df.copy()
+    if perfil_map and "_cnpj_norm" in df.columns:
+        df["_perfil_venda"] = df["_cnpj_norm"].map(perfil_map).fillna("")
+        df["_rodo_rede"] = df["_perfil_venda"].apply(
+            lambda p: _anp_norm(p) == PERFIL_RODO_REDE
+        )
+    else:
+        df["_perfil_venda"] = ""
+        df["_rodo_rede"] = False
+    return df
+
+
 def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino"):
     # ── Cap de marcadores — evita travar estados grandes como SP (4 000+ postos) ──
@@ -1600,12 +1663,15 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         foi_limitado = True
         tem_pf_col  = "_pro_frotas" in df.columns
         tem_cer_col = "_cercado"    in df.columns
-        # Preserva Pró-Frotas E Cercados no cap
+        tem_rr_col  = "_rodo_rede"  in df.columns
+        # Preserva Pró-Frotas, Rodo Rede e Cercados no cap
         _mask_prio = pd.Series(False, index=df.index)
         if tem_pf_col:
             _mask_prio |= df["_pro_frotas"].fillna(False)
         if tem_cer_col:
             _mask_prio |= df["_cercado"].fillna(False)
+        if tem_rr_col:
+            _mask_prio |= df["_rodo_rede"].fillna(False)
         df_prio = df[_mask_prio]
         df_reg  = df[~_mask_prio]
         n_reg_max = max(0, MAX_MAPA_POSTOS - len(df_prio))
@@ -1647,22 +1713,29 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     if not df.empty:
         c_reg = MarkerCluster(name="⛽ Postos").add_to(m)
         c_pf  = MarkerCluster(name="⭐ Pró-Frotas").add_to(m)
+        c_rr  = MarkerCluster(name="🚛 Rodo Rede").add_to(m)
         c_cer = MarkerCluster(name="⚠️ Postos Cercados").add_to(m)
         tem_pf  = "_pro_frotas" in df.columns
         tem_cer = "_cercado"    in df.columns
+        tem_rr  = "_rodo_rede"  in df.columns
         _fn_popup = _popup_simples if usar_popup_simples else _popup
         for _, row in df.iterrows():
             cor    = _cor(row.get("distribuidora",""), mapa_cores)
             is_pf  = tem_pf  and bool(row.get("_pro_frotas"))
             is_cer = tem_cer and bool(row.get("_cercado"))
+            is_rr  = tem_rr  and bool(row.get("_rodo_rede"))
+            perfil = str(row.get("_perfil_venda", "")).strip()
             tip    = (
                 f"{'⚠️ CERCADO | ' if is_cer else ''}"
-                f"{'⭐ PRÓ-FROTAS | ' if is_pf else ''}"
+                f"{'🚛 RODO REDE | ' if is_rr else ('⭐ PRÓ-FROTAS | ' if is_pf else '')}"
                 f"⛽ {row.get('razaoSocial','?')} ({row.get('distribuidora','?')})"
+                f"{(' | ' + perfil) if perfil and is_pf else ''}"
             )
             pop = _fn_popup(row)
             if is_cer:
                 _marcador_cercado(row["_lat"], row["_lon"], pop, tip).add_to(c_cer)
+            elif is_rr:
+                _marcador_rodo_rede(row["_lat"], row["_lon"], pop, tip).add_to(c_rr)
             elif is_pf:
                 _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
             else:
@@ -1699,6 +1772,11 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             f"background:{COR_PF_FILL};border:2px solid {COR_PF_BORDA};"
             f"vertical-align:middle;margin-right:5px'></span>"
             "<b>Pró-Frotas</b> ● maior</li>"
+            "<li style='margin-top:4px'>"
+            f"<span style='display:inline-block;width:18px;height:18px;border-radius:50%;"
+            f"background:{COR_RR_FILL};border:2px solid {COR_RR_BORDA};"
+            f"vertical-align:middle;margin-right:5px;text-align:center;font-size:10px;line-height:18px'>🚛</span>"
+            "<b>Rodo Rede</b></li>"
             "<li style='margin-top:4px'>"
             f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
             f"background:{COR_CERCADO_FILL};border:2px solid {COR_CERCADO_BORDA};"
@@ -3131,13 +3209,21 @@ def _gerar_excel_base_brasil() -> tuple:
 #  HELPER
 # ═══════════════════════════════════════════════════════════════════
 
-def preparar_df(df_raw, distribuidoras_filtro):
-    cnpjs_pf  = st.session_state.get("cnpjs_pro_frotas", set())
-    cnpjs_cer = st.session_state.get("cnpjs_cercados",   set())
+def preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=None):
+    cnpjs_pf    = st.session_state.get("cnpjs_pro_frotas", set())
+    cnpjs_cer   = st.session_state.get("cnpjs_cercados",   set())
+    perfil_map  = st.session_state.get("perfil_venda_map", {})
     df = marcar_pro_frotas(df_raw, cnpjs_pf)
     df = marcar_cercados(df, cnpjs_cer)
+    df = marcar_perfil_venda(df, perfil_map)
     if distribuidoras_filtro:
         df = df[df["distribuidora"].isin(distribuidoras_filtro)]
+    # Filtro de Perfil de Venda: aplica apenas nos postos PF;
+    # postos não-PF são sempre exibidos normalmente
+    if perfis_filtro and "_perfil_venda" in df.columns:
+        mask_nao_pf = ~df["_pro_frotas"].fillna(False)
+        mask_perfil = df["_perfil_venda"].isin(perfis_filtro)
+        df = df[mask_nao_pf | mask_perfil]
     return df
 
 
@@ -3313,11 +3399,14 @@ with st.sidebar:
     # Tenta UMA VEZ por sessão — usa flag para não repetir
     if not st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("_repo_tentado"):
         st.session_state["_repo_tentado"] = True   # evita loop
-        _cnpjs_repo, _msg_repo, _prev_repo = _auto_carregar_pro_frotas_repo()
+        _cnpjs_repo, _msg_repo, _prev_repo, _perfil_repo = _auto_carregar_pro_frotas_repo()
         if _cnpjs_repo:
             st.session_state["cnpjs_pro_frotas"]  = _cnpjs_repo
             st.session_state["_pf_fonte"]         = "repo"
             st.session_state["_pf_carregado_em"]  = _agora()
+        if _perfil_repo:
+            st.session_state["perfil_venda_map"]    = _perfil_repo
+            st.session_state["perfis_pf_lista"]     = sorted(set(_perfil_repo.values()))
 
     # Auto-load Postos Cercados (uma vez por sessão)
     if not st.session_state.get("cnpjs_cercados") and not st.session_state.get("_cercados_tentado"):
@@ -3402,6 +3491,18 @@ with st.sidebar:
                 placeholder="Todas as bandeiras", label_visibility="collapsed",
                 key=f"mult_dist_{_fk_m1}")
 
+        # Filtro de Perfil de Venda (Pró-Frotas)
+        perfis_filtro_m1 = []
+        _perfis_lista_m1 = st.session_state.get("perfis_pf_lista", [])
+        if _perfis_lista_m1:
+            st.markdown("<div class='sb-label'>Perfil de Venda ⭐</div>", unsafe_allow_html=True)
+            perfis_filtro_m1 = st.multiselect(
+                "Perfil de Venda", _perfis_lista_m1,
+                placeholder="Todos os perfis", label_visibility="collapsed",
+                key=f"mult_perfil_{_fk_m1}",
+                help="Filtra os postos Pró-Frotas pelo perfil de venda. Postos não-PF sempre exibidos.",
+            )
+
     # ── Modo 2 ────────────────────────────────────────────────
     else:
         st.markdown(
@@ -3457,6 +3558,18 @@ with st.sidebar:
             distribuidoras_filtro = st.multiselect(
                 "Bandeiras", st.session_state["distribuidoras_rota"],
                 placeholder="Todas as bandeiras", label_visibility="collapsed")
+
+        # Filtro de Perfil de Venda — Modo Rota
+        perfis_filtro_m2 = []
+        _perfis_lista_m2 = st.session_state.get("perfis_pf_lista", [])
+        if _perfis_lista_m2:
+            st.markdown("<div class='sb-label'>Perfil de Venda ⭐</div>", unsafe_allow_html=True)
+            perfis_filtro_m2 = st.multiselect(
+                "Perfil de Venda", _perfis_lista_m2,
+                placeholder="Todos os perfis", label_visibility="collapsed",
+                key="mult_perfil_m2",
+                help="Filtra os postos Pró-Frotas pelo perfil de venda.",
+            )
 
     # ── Configurações (Pró-Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
@@ -3565,11 +3678,14 @@ with st.sidebar:
                          key="btn_reload_pf_cfg"):
                 _auto_carregar_pro_frotas_repo.clear()
                 with st.spinner(f"Lendo `{ARQUIVO_PF_REPO}`…"):
-                    _cnpjs_r, _msg_r, _prev_r = _auto_carregar_pro_frotas_repo()
+                    _cnpjs_r, _msg_r, _prev_r, _perfil_r = _auto_carregar_pro_frotas_repo()
                 if _cnpjs_r:
                     st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
                     st.session_state["_pf_fonte"]        = "repo"
                     st.session_state["_pf_carregado_em"] = _agora()
+                    if _perfil_r:
+                        st.session_state["perfil_venda_map"]  = _perfil_r
+                        st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r.values()))
                     st.success(f"✅ {_msg_r}")
                     time.sleep(1)
                     st.rerun()
@@ -3584,12 +3700,15 @@ with st.sidebar:
                 _pf_file_id = f"{arquivo_pf.name}_{arquivo_pf.size}"
                 if st.session_state.get("_pf_last_upload_id") != _pf_file_id:
                     with st.spinner("Lendo planilha…"):
-                        cnpjs_pf, msg_pf, preview_pf = ler_planilha_pro_frotas(arquivo_pf)
+                        cnpjs_pf, msg_pf, preview_pf, perfil_pf = ler_planilha_pro_frotas(arquivo_pf)
                     if cnpjs_pf is not None:
                         st.session_state["cnpjs_pro_frotas"]    = cnpjs_pf
                         st.session_state["_pf_fonte"]            = "manual"
                         st.session_state["_pf_carregado_em"]     = _agora()
                         st.session_state["_pf_last_upload_id"]   = _pf_file_id
+                        if perfil_pf:
+                            st.session_state["perfil_venda_map"] = perfil_pf
+                            st.session_state["perfis_pf_lista"]  = sorted(set(perfil_pf.values()))
                         st.success(msg_pf)
                         if preview_pf is not None:
                             with st.expander("Ver amostra dos CNPJs"):
@@ -3929,7 +4048,7 @@ if modo == "📍 Por Estado/Município":
         else:
             df_raw = df_raw_full
 
-        df_show = preparar_df(df_raw, distribuidoras_filtro)
+        df_show = preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=perfis_filtro_m1)
 
         # ── Métricas ──────────────────────────────────────────
         _n_total_show = len(df_show)
@@ -4256,7 +4375,7 @@ else:
         if st.session_state.get("linha_reta"):
             st.warning("⚠️ Rota exibida como **linha reta** (OSRM indisponível).")
 
-        df_show_r = preparar_df(df_rota, distribuidoras_filtro)
+        df_show_r = preparar_df(df_rota, distribuidoras_filtro, perfis_filtro=perfis_filtro_m2)
 
         c1,c2,c3,c4 = st.columns(4)
         c1.metric("🛣️ Distância",       f"{_n(dist_km)} km")
