@@ -544,6 +544,7 @@ ARQUIVO_PF_REPO       = "pro_frotas.xlsx"
 ARQUIVO_CERCADOS_REPO = "Postos Cercados.xlsx"
 COR_CERCADO_FILL      = "#FF8F00"   # laranja âmbar — alerta visual
 COR_CERCADO_BORDA     = "#E65100"   # laranja escuro
+ARQUIVO_PP_REPO       = "Preço Posto.xlsx"   # planilha de preços por posto
 
 
 def normalizar_cnpj(valor):
@@ -724,6 +725,133 @@ def marcar_cercados(df: pd.DataFrame, cnpjs_cercados: set) -> pd.DataFrame:
     else:
         df["_cercado"] = False
     return df
+
+
+# ── Preço Posto (preços por CNPJ com data de atualização) ───────────
+
+def _detectar_col_combustivel_pp(df):
+    for col in df.columns:
+        if any(t in _anp_norm(col) for t in ["PRODUTO","COMBUSTIVEL","FUEL","PRODUCT"]):
+            return col
+    return None
+
+def _detectar_col_preco_pp(df):
+    for col in df.columns:
+        if any(t in _anp_norm(col) for t in ["PRECO","VALOR","PRICE","VLR","CUSTO"]):
+            return col
+    return None
+
+def _detectar_col_data_pp(df):
+    for col in df.columns:
+        if any(t in _anp_norm(col) for t in ["DATA","DATE","ATUALIZ","UPDATE","VIGENCIA"]):
+            return col
+    return None
+
+
+def _processar_bytes_precos_postos(nome: str, conteudo: bytes):
+    """
+    Lê planilha de Preços por Posto.
+    Retorna (df_normalizado, msg, None) ou (None, msg_erro, None).
+    df tem colunas: cnpj_norm, combustivel_pk, combustivel_label, preco, data_atualizacao
+    """
+    buf = io.BytesIO(conteudo)
+    nome_l = nome.lower()
+    if nome_l.endswith(".csv"):
+        try:
+            df = pd.read_csv(buf, dtype=str, encoding="utf-8")
+        except UnicodeDecodeError:
+            buf.seek(0)
+            df = pd.read_csv(buf, dtype=str, encoding="latin-1")
+    elif nome_l.endswith(".xls"):
+        df = pd.read_excel(buf, dtype=str, engine="xlrd")
+    else:
+        df = pd.read_excel(buf, dtype=str, engine="openpyxl")
+
+    if df.empty:
+        return None, "A planilha está vazia.", None
+
+    col_cnpj  = detectar_coluna_cnpj(df)
+    col_comb  = _detectar_col_combustivel_pp(df)
+    col_preco = _detectar_col_preco_pp(df)
+    col_data  = _detectar_col_data_pp(df)
+
+    erros = []
+    if col_cnpj  is None: erros.append("CNPJ")
+    if col_comb  is None: erros.append("Combustível/Produto")
+    if col_preco is None: erros.append("Preço")
+    if erros:
+        cols = ", ".join(df.columns.tolist())
+        return None, (
+            f"Colunas não encontradas: **{', '.join(erros)}**. "
+            f"Disponíveis: {cols}"
+        ), None
+
+    result = []
+    for _, row in df.iterrows():
+        cnpj_n = normalizar_cnpj(row.get(col_cnpj, ""))
+        if len(cnpj_n) != 14:
+            continue
+        comb_raw = str(row.get(col_comb, "")).strip()
+        comb_pk  = _anp_norm(comb_raw)
+        if not comb_pk:
+            continue
+        try:
+            preco_str = str(row.get(col_preco, "")).replace(",", ".").strip()
+            preco = float(preco_str)
+            if preco <= 0:
+                continue
+        except (ValueError, TypeError):
+            continue
+        data_str = str(row.get(col_data, "")).strip() if col_data else ""
+        result.append({
+            "cnpj_norm":         cnpj_n,
+            "combustivel_pk":    comb_pk,
+            "combustivel_label": comb_raw,
+            "preco":             preco,
+            "data_atualizacao":  data_str,
+        })
+
+    if not result:
+        return None, "Nenhuma linha válida encontrada (verifique CNPJ e preço).", None
+
+    df_out = pd.DataFrame(result)
+    msg = (f"{len(df_out)} registros · "
+           f"{df_out['cnpj_norm'].nunique()} postos · "
+           f"{df_out['combustivel_pk'].nunique()} combustíveis")
+    return df_out, msg, None
+
+
+def ler_planilha_precos_postos(arquivo):
+    """Lê UploadedFile do Streamlit (sem cache — upload não é cacheável)."""
+    try:
+        return _processar_bytes_precos_postos(arquivo.name, arquivo.read())
+    except Exception as e:
+        return None, f"Erro: {type(e).__name__} — {e}", None
+
+
+@st.cache_data(show_spinner=False, ttl=3600)   # 1 h — preços atualizam com frequência
+def _auto_carregar_precos_postos_repo():
+    """Tenta carregar planilha de Preços Posto do repositório GitHub."""
+    candidatos = [
+        ARQUIVO_PP_REPO,           # "Preço Posto.xlsx"
+        "Preco Posto.xlsx",
+        "preco_posto.xlsx",
+        "precos_postos.xlsx",
+        "precos_posto.xlsx",
+        "Preco_Posto.xlsx",
+    ]
+    for nome in candidatos:
+        caminho = os.path.join(_DIR, nome)
+        if os.path.exists(caminho):
+            try:
+                with open(caminho, "rb") as f:
+                    conteudo = f.read()
+                df, msg, _ = _processar_bytes_precos_postos(nome, conteudo)
+                if df is not None:
+                    return df, msg, None
+            except Exception as e:
+                return None, f"Erro ao ler {nome}: {e}", None
+    return None, f"Arquivo `{ARQUIVO_PP_REPO}` não encontrado em: {_DIR}", None
 
 
 # ── Pró-Frotas ───────────────────────────────────────────────────────
@@ -1771,6 +1899,169 @@ def _anp_preco_ponto(sheets: dict, label: str, combustivel_pk: str) -> tuple:
     return None, "—", "—"
 
 
+def _anp_precos_por_fuel_brasil(sheets):
+    """Retorna dict {fuel_pk: preco_medio} do nível Brasil."""
+    if "brasil" not in sheets:
+        return {}
+    df_b  = sheets["brasil"]
+    c_prod = _anp_col(df_b, "produto")
+    c_med  = _anp_col(df_b, "medio revenda", "media revenda", "preco medio")
+    c_uni  = _anp_col(df_b, "unidade")
+    c_npos = _anp_col(df_b, "postos pesq", "numero de postos")
+    if not c_prod or not c_med:
+        return {}
+    return {r["_pk"]: r["Preço Médio"]
+            for r in _anp_preco_medio(df_b, None, None, c_prod, c_med, c_uni, c_npos)}
+
+
+def _anp_precos_por_fuel_ufs(sheets, ufs):
+    """Retorna dict {fuel_pk: preco_medio} média dos estados listados."""
+    acum: dict = {}
+    for uf in ufs:
+        for r in _anp_extrair_precos(sheets, uf=uf):
+            acum.setdefault(r["_pk"], []).append(r["Preço Médio"])
+    return {pk: sum(v) / len(v) for pk, v in acum.items()}
+
+
+def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
+    """
+    Calcula comparativo Pró-Frotas (Preço Posto) vs ANP.
+
+    Retorna lista de dicts com:
+      combustivel_label, combustivel_pk,
+      preco_pf_med, preco_pf_min, preco_pf_max, n_postos_pf,
+      preco_anp, nivel_anp,
+      delta_abs, delta_pct, economia_100l, data_atualizacao
+    """
+    if df_pp is None or df_pp.empty or not cnpjs_pf or sheets_anp is None:
+        return []
+
+    # Filtra só postos Pró-Frotas
+    df_pf = df_pp[df_pp["cnpj_norm"].isin(cnpjs_pf)].copy()
+    if df_pf.empty:
+        return []
+
+    # Preços ANP de referência
+    if ufs:
+        precos_anp = _anp_precos_por_fuel_ufs(sheets_anp, ufs)
+        nivel_anp  = UF_NOME.get(ufs[0], ufs[0]) if len(ufs) == 1 else f"{len(ufs)} estados"
+    else:
+        precos_anp = _anp_precos_por_fuel_brasil(sheets_anp)
+        nivel_anp  = "Brasil"
+
+    resultado = []
+    for pk, grp in df_pf.groupby("combustivel_pk"):
+        # Correspondência com chave ANP (match exato → parcial)
+        preco_anp = precos_anp.get(pk)
+        if preco_anp is None:
+            for anp_pk, anp_p in precos_anp.items():
+                if pk in anp_pk or anp_pk in pk:
+                    preco_anp = anp_p
+                    break
+        if preco_anp is None:
+            continue
+
+        preco_pf_med = grp["preco"].mean()
+        preco_pf_min = grp["preco"].min()
+        preco_pf_max = grp["preco"].max()
+        n_postos     = int(grp["cnpj_norm"].nunique())
+        label        = PRODUTO_CURTO.get(pk, grp["combustivel_label"].iloc[0].title())
+        data_atz     = ""
+        datas = grp["data_atualizacao"].dropna()
+        if not datas.empty:
+            data_atz = datas.iloc[0]
+
+        delta_abs    = preco_pf_med - preco_anp
+        delta_pct    = (delta_abs / preco_anp) * 100 if preco_anp else 0
+        economia_100 = (preco_anp - preco_pf_med) * 100   # economia em 100 L
+
+        resultado.append({
+            "combustivel_label": label,
+            "combustivel_pk":    pk,
+            "preco_pf_med":      round(preco_pf_med, 3),
+            "preco_pf_min":      round(preco_pf_min, 3),
+            "preco_pf_max":      round(preco_pf_max, 3),
+            "n_postos_pf":       n_postos,
+            "preco_anp":         round(preco_anp, 3),
+            "nivel_anp":         nivel_anp,
+            "delta_abs":         round(delta_abs, 3),
+            "delta_pct":         round(delta_pct, 1),
+            "economia_100l":     round(economia_100, 2),
+            "data_atualizacao":  data_atz,
+        })
+
+    resultado.sort(key=lambda x: x["combustivel_label"])
+    return resultado
+
+
+def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
+    """Renderiza cards de comparativo Pró-Frotas vs ANP."""
+    if not comparativo:
+        st.info("ℹ️ Sem dados suficientes para o comparativo. "
+                "Carregue a planilha **Preço Posto** e a planilha **ANP** em ⚙️ Configurações.")
+        return
+
+    st.markdown(
+        f"<div style='background:linear-gradient(135deg,#0d1b4b 0%,#1565c0 100%);"
+        f"border-radius:12px;padding:16px 20px 12px;margin-bottom:16px'>"
+        f"<div style='color:#fff;font-size:16px;font-weight:700'>📊 Preços Pró-Frotas vs ANP</div>"
+        f"<div style='color:rgba(255,255,255,.75);font-size:12px;margin-top:2px'>"
+        f"{subtitulo or 'Comparativo por combustível — preço médio dos postos credenciados'}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    n_cols = min(len(comparativo), 3)
+    cols   = st.columns(n_cols)
+    for i, item in enumerate(comparativo):
+        cheaper   = item["delta_abs"] < 0
+        cor_brd   = "#43a047" if cheaper else "#e53935"
+        cor_bg    = "#f1f8e9" if cheaper else "#ffebee"
+        cor_delta = "#2e7d32" if cheaper else "#b71c1c"
+        sinal     = "▼" if cheaper else "▲"
+        eco_html  = (
+            f"<div style='font-size:10px;color:#2e7d32;text-align:center;margin-top:4px'>"
+            f"💚 Economia R$ {_brl(abs(item['economia_100l']))}/100 L"
+            f"</div>"
+        ) if cheaper else (
+            f"<div style='font-size:10px;color:#b71c1c;text-align:center;margin-top:4px'>"
+            f"🔴 Custo adicional R$ {_brl(abs(item['economia_100l']))}/100 L"
+            f"</div>"
+        )
+        data_html = (
+            f"<div style='font-size:9px;color:#999;text-align:right;margin-top:6px'>"
+            f"{item['n_postos_pf']} postos PF"
+            f"{' · ' + item['data_atualizacao'] if item['data_atualizacao'] else ''}"
+            f"</div>"
+        )
+        with cols[i % n_cols]:
+            st.markdown(
+                f"<div style='border:2px solid {cor_brd};border-radius:12px;"
+                f"padding:14px 16px;margin-bottom:10px'>"
+                f"<div style='font-size:13px;font-weight:700;margin-bottom:10px'>"
+                f"{item['combustivel_label']}</div>"
+                f"<div style='display:flex;justify-content:space-between;margin-bottom:4px'>"
+                f"<span style='font-size:11px;color:#666'>⭐ Pró-Frotas (médio)</span>"
+                f"<b style='font-size:13px'>R$ {_brl(item['preco_pf_med'], 3)}</b>"
+                f"</div>"
+                f"<div style='display:flex;justify-content:space-between;margin-bottom:10px'>"
+                f"<span style='font-size:11px;color:#666'>📊 ANP — {item['nivel_anp']}</span>"
+                f"<span style='font-size:12px'>R$ {_brl(item['preco_anp'], 3)}</span>"
+                f"</div>"
+                f"<div style='background:{cor_bg};border-radius:8px;padding:8px 12px;text-align:center'>"
+                f"<span style='color:{cor_delta};font-weight:800;font-size:16px'>"
+                f"{sinal} R$ {_brl(abs(item['delta_abs']), 3)}"
+                f"</span>"
+                f"<span style='color:{cor_delta};font-size:12px;margin-left:6px'>"
+                f"({abs(item['delta_pct']):.1f}%)</span>"
+                f"</div>"
+                f"{eco_html}"
+                f"{data_html}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+
 def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     """Renderiza aba de preços ANP.
 
@@ -1892,6 +2183,21 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     pass
 
     st.divider()
+
+    # ══════════════════════════════════════════════════════════════
+    # COMPARATIVO PF vs ANP (dentro da aba Preços ANP)
+    # ══════════════════════════════════════════════════════════════
+    _pp_df_anp    = st.session_state.get("_pp_df")
+    _cnpjs_pf_anp = st.session_state.get("cnpjs_pro_frotas", set())
+    if _pp_df_anp is not None and _cnpjs_pf_anp:
+        _ufs_comp = list(ufs_multiplas) if ufs_multiplas else ([uf] if uf else None)
+        _comp_anp = _calcular_comparativo_pf_anp(
+            _pp_df_anp, _cnpjs_pf_anp, sheets, ufs=_ufs_comp
+        )
+        _sub_comp = (f"Estados da rota — {', '.join(_ufs_comp)}" if ufs_multiplas
+                     else f"{UF_NOME.get(uf, uf)}" if uf else "Brasil")
+        _renderizar_comparativo_pf_anp(_comp_anp, subtitulo=_sub_comp)
+        st.divider()
 
     # ══════════════════════════════════════════════════════════════
     # MODO 2 — Rota: cards por combustível + referências
@@ -2055,6 +2361,58 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-custo'>R$ {_brl(custo_med_val)}</div>"
                     f"</div></div>"
                 )
+
+            # ── Card Pró-Frotas (Preço Posto real) ───────────────────
+            _pp_df_calc    = st.session_state.get("_pp_df")
+            _cnpjs_pf_calc = st.session_state.get("cnpjs_pro_frotas", set())
+            if _pp_df_calc is not None and _cnpjs_pf_calc:
+                _df_pf_calc = _pp_df_calc[_pp_df_calc["cnpj_norm"].isin(_cnpjs_pf_calc)]
+                # Filtra pelo pk do combustível selecionado (match exato ou parcial)
+                _pk_mask = _df_pf_calc["combustivel_pk"].apply(
+                    lambda x: x == pk_sel or pk_sel in x or x in pk_sel)
+                _df_pf_fuel = _df_pf_calc[_pk_mask]
+                if not _df_pf_fuel.empty:
+                    _p_pf_real   = _df_pf_fuel["preco"].mean()
+                    _n_pf_real   = _df_pf_fuel["cnpj_norm"].nunique()
+                    _custo_pf    = _custo(_p_pf_real)
+                    _data_pf     = _df_pf_fuel["data_atualizacao"].dropna().iloc[0] \
+                                   if not _df_pf_fuel["data_atualizacao"].dropna().empty else ""
+                    # Delta vs ANP médio da rota
+                    _delta_pf    = _p_pf_real - p_med_rota if p_med_rota else None
+                    _delta_pct   = (_delta_pf / p_med_rota * 100) if p_med_rota and _delta_pf is not None else None
+                    _delta_html  = ""
+                    if _delta_pf is not None:
+                        _d_cor   = "#2e7d32" if _delta_pf < 0 else "#c62828"
+                        _d_sinal = "▼" if _delta_pf < 0 else "▲"
+                        _d_txt   = "abaixo" if _delta_pf < 0 else "acima"
+                        _delta_html = (
+                            f"<div style='font-size:10px;color:{_d_cor};"
+                            f"background:{'#e8f5e9' if _delta_pf<0 else '#ffebee'};"
+                            f"border-radius:4px;padding:3px 6px;margin-top:6px;text-align:center'>"
+                            f"{_d_sinal} R$ {_brl(abs(_delta_pf), 3)} "
+                            f"({abs(_delta_pct):.1f}%) {_d_txt} da média ANP</div>"
+                        )
+                    _pf_dest = (_custo_pf is not None and
+                                all(v is None or _custo_pf <= v
+                                    for v in [custo_orig, custo_dest, custo_min, custo_med_val]))
+                    _pf_best_cls   = " cc-best-card" if _pf_dest else ""
+                    _pf_best_badge = "<span class='cc-best'>✦ MAIS BARATO</span>" if _pf_dest else ""
+                    _pf_data_html  = f" · {_data_pf}" if _data_pf else ""
+                    cards_html += (
+                        f"<div class='cc-card{_pf_best_cls}'>"
+                        f"<div class='cc-head' style='background:#0d47a1'>"
+                        f"<div class='cc-titulo'>⭐ Pró-Frotas{_pf_best_badge}</div>"
+                        f"<div class='cc-sub'>{_n_pf_real} postos{_pf_data_html}</div></div>"
+                        f"<div class='cc-body'>"
+                        f"<div class='cc-preco-label'>Preço médio real</div>"
+                        f"<div class='cc-preco'>R$ {_brl(_p_pf_real, 3)}"
+                        f"<span class='cc-unidade'>/L</span></div>"
+                        f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                        f"<div class='cc-custo-label'>Custo estimado</div>"
+                        f"<div class='cc-custo'>R$ {_brl(_custo_pf)}</div>"
+                        f"{_delta_html}"
+                        f"</div></div>"
+                    )
 
             st.markdown(f"""
 <style>
@@ -2687,6 +3045,15 @@ with st.sidebar:
             st.session_state["_cercados_fonte"]         = "repo"
             st.session_state["_cercados_carregado_em"]  = _agora()
 
+    # Auto-load Preço Posto (ttl=1h — dados de preço atualizam com frequência)
+    if st.session_state.get("_pp_df") is None and not st.session_state.get("_pp_tentado"):
+        st.session_state["_pp_tentado"] = True
+        _pp_df_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
+        if _pp_df_tmp is not None:
+            st.session_state["_pp_df"]         = _pp_df_tmp
+            st.session_state["_pp_fonte"]       = "repo"
+            st.session_state["_pp_carregado_em"] = _agora()
+
     # ── Modo de consulta — toggle buttons ─────────────────────
     st.markdown("<div class='sb-label'>Modo de Consulta</div>", unsafe_allow_html=True)
     if "modo_selecionado" not in st.session_state:
@@ -2800,7 +3167,7 @@ with st.sidebar:
                 "Bandeiras", st.session_state["distribuidoras_rota"],
                 placeholder="Todas as bandeiras", label_visibility="collapsed")
 
-    # ── Configurações (Pró-Frotas · Cercados · Base · Exportar) ──
+    # ── Configurações (Pró-Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
     _pf_fonte  = st.session_state.get("_pf_fonte",  "manual")
     _pf_set    = st.session_state.get("cnpjs_pro_frotas", set())
@@ -2808,6 +3175,9 @@ with st.sidebar:
     _cer_set   = st.session_state.get("cnpjs_cercados",   set())
     _cer_fonte = st.session_state.get("_cercados_fonte",  "manual")
     _cer_ts    = st.session_state.get("_cercados_carregado_em", "")
+    _pp_df_sb  = st.session_state.get("_pp_df")
+    _pp_fonte  = st.session_state.get("_pp_fonte",  "manual")
+    _pp_ts     = st.session_state.get("_pp_carregado_em", "")
 
     # Mini-badges compactos acima do expander
     _col_b1, _col_b2 = st.columns(2)
@@ -2848,9 +3218,28 @@ with st.sidebar:
                 unsafe_allow_html=True,
             )
 
+    # Terceiro badge — Preços PP
+    if _pp_df_sb is not None:
+        _pp_n = len(_pp_df_sb["cnpj_norm"].unique()) if "cnpj_norm" in _pp_df_sb.columns else 0
+        st.markdown(
+            f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
+            f"border-radius:8px;padding:6px 10px;font-size:10px;color:#1565c0;"
+            f"text-align:center;margin-bottom:6px'>"
+            f"💲 <b>Preços PP</b><br>{_pp_n:,} postos</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div style='background:#f5f5f5;border:1px solid #ddd;"
+            "border-radius:8px;padding:6px 10px;font-size:10px;color:#999;"
+            "text-align:center;margin-bottom:6px'>"
+            "💲 <b>Preços PP</b><br>não carregado</div>",
+            unsafe_allow_html=True,
+        )
+
     with st.expander("⚙️  Configurações", expanded=False):
-        tab_pf, tab_cer, tab_base, tab_exp = st.tabs(
-            ["⭐ Pró-Frotas", "⚠️ Cercados", "🗃️ Base", "📥 Exportar"]
+        tab_pf, tab_cer, tab_pp, tab_base, tab_exp = st.tabs(
+            ["⭐ Pró-Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base", "📥 Exportar"]
         )
 
         # ── Tab Pró-Frotas ────────────────────────────────────
@@ -2996,6 +3385,75 @@ with st.sidebar:
                     st.session_state.pop("_cercados_carregado_em", None)
                     st.rerun()
 
+        # ── Tab Preços PP ─────────────────────────────────────
+        with tab_pp:
+            _pp_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_pp_ts}</span>"
+                           if _pp_ts else "")
+            if _pp_df_sb is not None:
+                _pp_n2 = _pp_df_sb["cnpj_norm"].nunique() if "cnpj_norm" in _pp_df_sb.columns else 0
+                _pp_c  = _pp_df_sb["combustivel_pk"].nunique() if "combustivel_pk" in _pp_df_sb.columns else 0
+                _pp_src = (f"<span style='font-size:10px;opacity:.8'>Fonte: <code>{ARQUIVO_PP_REPO}</code></span>"
+                           if _pp_fonte == "repo" else
+                           "<span style='font-size:10px;opacity:.8'>Carregado manualmente</span>")
+                st.markdown(
+                    f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#1565c0'>"
+                    f"💲 <b>{_pp_n2:,} postos</b> · {_pp_c} combustíveis"
+                    f"{_pp_ts_html}<br>{_pp_src}</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"<div style='background:#f5f5f5;border:1px solid #ddd;"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
+                    f"Planilha não carregada.<br>"
+                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_PP_REPO}</code> "
+                    f"ao repositório ou faça upload manual.</span></div>",
+                    unsafe_allow_html=True,
+                )
+            st.markdown("")
+            if st.button("🔄 Recarregar do repositório", use_container_width=True,
+                         help=f"Força nova leitura de '{ARQUIVO_PP_REPO}' (cache 1 h)",
+                         key="btn_reload_pp"):
+                _auto_carregar_precos_postos_repo.clear()
+                st.session_state["_pp_tentado"] = False
+                with st.spinner(f"Lendo `{ARQUIVO_PP_REPO}`…"):
+                    _pp_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
+                if _pp_tmp is not None:
+                    st.session_state["_pp_df"]          = _pp_tmp
+                    st.session_state["_pp_fonte"]        = "repo"
+                    st.session_state["_pp_carregado_em"] = _agora()
+                    st.success(f"✅ {_pp_msg_tmp}")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(_pp_msg_tmp or f"❌ `{ARQUIVO_PP_REPO}` não encontrado.")
+            st.markdown("<small><b>Upload manual</b> — substitui nesta sessão:</small>",
+                        unsafe_allow_html=True)
+            arquivo_pp = st.file_uploader(
+                "Planilha Preço Posto", type=["xlsx","xls","csv"],
+                key="upload_pp", label_visibility="collapsed",
+            )
+            if arquivo_pp is not None:
+                with st.spinner("Lendo planilha…"):
+                    _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
+                if _pp_up is not None:
+                    st.session_state["_pp_df"]          = _pp_up
+                    st.session_state["_pp_fonte"]        = "manual"
+                    st.session_state["_pp_carregado_em"] = _agora()
+                    st.success(_pp_msg_up)
+                    st.rerun()
+                else:
+                    st.error(_pp_msg_up)
+            if _pp_df_sb is not None:
+                if st.button("🗑️ Remover Preços PP", use_container_width=True,
+                             key="btn_rm_pp"):
+                    st.session_state.pop("_pp_df", None)
+                    st.session_state.pop("_pp_fonte", None)
+                    st.session_state.pop("_pp_carregado_em", None)
+                    st.session_state["_pp_tentado"] = False
+                    st.rerun()
+
         # ── Tab Base Nacional ─────────────────────────────────
         with tab_base:
             st.markdown(
@@ -3135,6 +3593,21 @@ if modo == "📍 Por Estado/Município":
         c2.metric("⭐ Credenciados PF",  _n(n_pf(df_show)))
         c3.metric("🏷️ Bandeiras",       _n(df_show['distribuidora'].nunique()) if not df_show.empty else "0")
         c4.metric("📍 Estado",          uf)
+
+        # ── Cards comparativo PF vs ANP (quando dados disponíveis) ────
+        _pp_df_m1    = st.session_state.get("_pp_df")
+        _cnpjs_pf_m1 = st.session_state.get("cnpjs_pro_frotas", set())
+        _cache_m1    = st.session_state.get("_precos_anp_cache", {})
+        _sheets_m1   = _cache_m1.get("sheets")
+        if _pp_df_m1 is not None and _sheets_m1 is not None and _cnpjs_pf_m1:
+            _comp_m1 = _calcular_comparativo_pf_anp(
+                _pp_df_m1, _cnpjs_pf_m1, _sheets_m1, ufs=[uf] if uf else None
+            )
+            if _comp_m1:
+                _renderizar_comparativo_pf_anp(
+                    _comp_m1,
+                    subtitulo=f"Postos Pró-Frotas vs preço médio ANP — {UF_NOME.get(uf, uf)}"
+                )
 
         tab_mapa, tab_dados, tab_analise, tab_precos = st.tabs([
             "🗺️  Mapa Interativo", "📋  Dados Tabulares",
@@ -3444,6 +3917,23 @@ else:
         c4.metric("⭐ Pró-Frotas",      _n(n_pf(df_show_r)))
 
         st.success(f"✅ **{label_orig}** → **{label_dest}** | {_n(len(df_show_r))} postos a até {raio_usado} m")
+
+        # ── Cards comparativo PF vs ANP para a rota ───────────────────
+        _pp_df_m2    = st.session_state.get("_pp_df")
+        _cnpjs_pf_m2 = st.session_state.get("cnpjs_pro_frotas", set())
+        _cache_m2    = st.session_state.get("_precos_anp_cache", {})
+        _sheets_m2   = _cache_m2.get("sheets")
+        _ufs_rota_m2 = list(st.session_state.get("_ufs_rota_atual", []))
+        if _pp_df_m2 is not None and _sheets_m2 is not None and _cnpjs_pf_m2:
+            _comp_m2 = _calcular_comparativo_pf_anp(
+                _pp_df_m2, _cnpjs_pf_m2, _sheets_m2,
+                ufs=_ufs_rota_m2 if _ufs_rota_m2 else None
+            )
+            if _comp_m2:
+                _renderizar_comparativo_pf_anp(
+                    _comp_m2,
+                    subtitulo=f"Postos Pró-Frotas vs preço médio ANP — estados da rota"
+                )
 
         tab_m, tab_d, tab_preco_r = st.tabs([
             "🗺️  Mapa da Rota", "📋  Postos na Rota", "💰  Preços ANP"])
