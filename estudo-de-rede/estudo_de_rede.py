@@ -829,18 +829,41 @@ def ler_planilha_precos_postos(arquivo):
         return None, f"Erro: {type(e).__name__} — {e}", None
 
 
+def _normalizar_nome_arquivo(nome: str) -> str:
+    """Remove acentos e normaliza nome de arquivo para comparação tolerante."""
+    sem_acento = unicodedata.normalize("NFD", nome)
+    sem_acento = "".join(c for c in sem_acento
+                         if unicodedata.category(c) != "Mn")
+    return sem_acento.lower().replace(" ", "_").replace("-", "_")
+
+
 @st.cache_data(show_spinner=False, ttl=3600)   # 1 h — preços atualizam com frequência
 def _auto_carregar_precos_postos_repo():
-    """Tenta carregar planilha de Preços Posto do repositório GitHub."""
-    candidatos = [
-        ARQUIVO_PP_REPO,           # "Preço Posto.xlsx"
+    """
+    Tenta carregar a planilha de Preços Posto do diretório do repositório.
+    Usa comparação tolerante a acentos e maiúsculas/minúsculas para encontrar
+    o arquivo mesmo quando o nome contém caracteres especiais (ex: ç em 'Preço').
+    """
+    # Fragmentos-chave que o arquivo deve conter (normalizados)
+    fragmentos_chave = ["preco", "posto"]
+
+    try:
+        arquivos_dir = os.listdir(_DIR)
+    except Exception:
+        arquivos_dir = []
+
+    # 1ª tentativa: comparação exata (rápida)
+    candidatos_exatos = [
+        ARQUIVO_PP_REPO,       # "Preço Posto.xlsx"
         "Preco Posto.xlsx",
         "preco_posto.xlsx",
         "precos_postos.xlsx",
         "precos_posto.xlsx",
         "Preco_Posto.xlsx",
+        "Preços Posto.xlsx",
+        "Precos Posto.xlsx",
     ]
-    for nome in candidatos:
+    for nome in candidatos_exatos:
         caminho = os.path.join(_DIR, nome)
         if os.path.exists(caminho):
             try:
@@ -851,6 +874,23 @@ def _auto_carregar_precos_postos_repo():
                     return df, msg, None
             except Exception as e:
                 return None, f"Erro ao ler {nome}: {e}", None
+
+    # 2ª tentativa: varredura tolerante a acentos sobre os arquivos reais do diretório
+    for arq in arquivos_dir:
+        if not arq.lower().endswith((".xlsx", ".xls")):
+            continue
+        arq_norm = _normalizar_nome_arquivo(arq)
+        if all(frag in arq_norm for frag in fragmentos_chave):
+            caminho = os.path.join(_DIR, arq)
+            try:
+                with open(caminho, "rb") as f:
+                    conteudo = f.read()
+                df, msg, _ = _processar_bytes_precos_postos(arq, conteudo)
+                if df is not None:
+                    return df, msg, None
+            except Exception as e:
+                return None, f"Erro ao ler {arq}: {e}", None
+
     return None, f"Arquivo `{ARQUIVO_PP_REPO}` não encontrado em: {_DIR}", None
 
 
@@ -1923,6 +1963,15 @@ def _anp_precos_por_fuel_ufs(sheets, ufs):
     return {pk: sum(v) / len(v) for pk, v in acum.items()}
 
 
+def _anp_precos_por_fuel_por_uf(sheets, ufs):
+    """Retorna dict {fuel_pk: {uf: preco_medio}} para cada estado."""
+    result: dict = {}
+    for uf in ufs:
+        for r in _anp_extrair_precos(sheets, uf=uf):
+            result.setdefault(r["_pk"], {})[uf] = r["Preço Médio"]
+    return result
+
+
 def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
     """
     Calcula comparativo Pró-Frotas (Preço Posto) vs ANP.
@@ -1975,6 +2024,23 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
         delta_pct    = (delta_abs / preco_anp) * 100 if preco_anp else 0
         economia_100 = (preco_anp - preco_pf_med) * 100   # economia em 100 L
 
+        # Detalhamento por estado (só quando há múltiplos UFs)
+        por_uf = []
+        if ufs and len(ufs) > 1:
+            _pp_uf = _anp_precos_por_fuel_por_uf(sheets_anp, ufs)
+            for uf_i in ufs:
+                p_uf = _pp_uf.get(pk, {}).get(uf_i)
+                if p_uf is not None:
+                    d_abs_i = preco_pf_med - p_uf
+                    d_pct_i = (d_abs_i / p_uf) * 100 if p_uf else 0
+                    por_uf.append({
+                        "uf":        uf_i,
+                        "nome":      UF_NOME.get(uf_i, uf_i),
+                        "preco_anp": round(p_uf, 3),
+                        "delta_abs": round(d_abs_i, 3),
+                        "delta_pct": round(d_pct_i, 1),
+                    })
+
         resultado.append({
             "combustivel_label": label,
             "combustivel_pk":    pk,
@@ -1988,6 +2054,7 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
             "delta_pct":         round(delta_pct, 1),
             "economia_100l":     round(economia_100, 2),
             "data_atualizacao":  data_atz,
+            "por_uf":            por_uf,
         })
 
     resultado.sort(key=lambda x: x["combustivel_label"])
@@ -1995,69 +2062,136 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
 
 
 def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
-    """Renderiza cards de comparativo Pró-Frotas vs ANP."""
+    """Renderiza cards de comparativo Pró-Frotas vs ANP — visual aprimorado."""
     if not comparativo:
         st.info("ℹ️ Sem dados suficientes para o comparativo. "
                 "Carregue a planilha **Preço Posto** e a planilha **ANP** em ⚙️ Configurações.")
         return
 
+    # ── Cabeçalho ─────────────────────────────────────────────────────────
     st.markdown(
         f"<div style='background:linear-gradient(135deg,#0d1b4b 0%,#1565c0 100%);"
-        f"border-radius:12px;padding:16px 20px 12px;margin-bottom:16px'>"
-        f"<div style='color:#fff;font-size:16px;font-weight:700'>📊 Preços Pró-Frotas vs ANP</div>"
-        f"<div style='color:rgba(255,255,255,.75);font-size:12px;margin-top:2px'>"
-        f"{subtitulo or 'Comparativo por combustível — preço médio dos postos credenciados'}</div>"
+        f"border-radius:14px;padding:18px 24px 14px;margin-bottom:20px'>"
+        f"<div style='color:#fff;font-size:18px;font-weight:800;letter-spacing:.3px'>"
+        f"📊 Preços Pró-Frotas vs ANP</div>"
+        f"<div style='color:rgba(255,255,255,.8);font-size:13px;margin-top:4px'>"
+        f"{subtitulo or 'Comparativo por combustível — preço médio dos postos credenciados'}"
+        f"</div>"
         f"</div>",
         unsafe_allow_html=True,
     )
 
+    # ── Grade de cards — 3 colunas (máx 6 combustíveis → 2 linhas × 3) ───
     n_cols = min(len(comparativo), 3)
     cols   = st.columns(n_cols)
+
     for i, item in enumerate(comparativo):
         cheaper   = item["delta_abs"] < 0
-        cor_brd   = "#43a047" if cheaper else "#e53935"
-        cor_bg    = "#f1f8e9" if cheaper else "#ffebee"
-        cor_delta = "#2e7d32" if cheaper else "#b71c1c"
+        cor_brd   = "#2e7d32" if cheaper else "#c62828"
+        cor_hd    = "#2e7d32" if cheaper else "#c62828"
+        cor_bg    = "#e8f5e9" if cheaper else "#ffebee"
+        cor_delta = "#1b5e20" if cheaper else "#b71c1c"
         sinal     = "▼" if cheaper else "▲"
-        eco_html  = (
-            f"<div style='font-size:10px;color:#2e7d32;text-align:center;margin-top:4px'>"
-            f"💚 Economia R$ {_brl(abs(item['economia_100l']))}/100 L"
-            f"</div>"
-        ) if cheaper else (
-            f"<div style='font-size:10px;color:#b71c1c;text-align:center;margin-top:4px'>"
-            f"🔴 Custo adicional R$ {_brl(abs(item['economia_100l']))}/100 L"
+        icone_eco = "💚" if cheaper else "🔴"
+        txt_eco   = (f"Economia de R$ {_brl(abs(item['economia_100l']))}/100 L"
+                     if cheaper
+                     else f"Custo adicional de R$ {_brl(abs(item['economia_100l']))}/100 L")
+
+        # ── Breakdown por estado (só rota com múltiplos UFs) ──────────────
+        por_uf = item.get("por_uf", [])
+        if por_uf:
+            linhas_uf = ""
+            for pu in por_uf:
+                c_uf  = "#1b5e20" if pu["delta_abs"] < 0 else "#b71c1c"
+                s_uf  = "▼" if pu["delta_abs"] < 0 else "▲"
+                linhas_uf += (
+                    f"<tr style='border-top:1px solid #e8e8e8'>"
+                    f"<td style='padding:4px 6px;color:#333'>{pu['nome']}</td>"
+                    f"<td style='padding:4px 6px;text-align:right;color:#555'>"
+                    f"R$ {_brl(pu['preco_anp'], 3)}</td>"
+                    f"<td style='padding:4px 6px;text-align:right;font-weight:700;color:{c_uf}'>"
+                    f"{s_uf} {abs(pu['delta_pct']):.1f}%</td>"
+                    f"</tr>"
+                )
+            tabela_uf_html = (
+                f"<div style='margin-top:12px;border-top:1px solid #ddd;padding-top:10px'>"
+                f"<div style='font-size:10px;font-weight:700;color:#888;letter-spacing:.8px;"
+                f"margin-bottom:6px'>PREÇO ANP POR ESTADO</div>"
+                f"<table style='width:100%;font-size:11px;border-collapse:collapse'>"
+                f"<thead><tr style='color:#999'>"
+                f"<th style='text-align:left;padding:2px 6px;font-weight:600'>Estado</th>"
+                f"<th style='text-align:right;padding:2px 6px;font-weight:600'>ANP</th>"
+                f"<th style='text-align:right;padding:2px 6px;font-weight:600'>vs PF</th>"
+                f"</tr></thead>"
+                f"<tbody>{linhas_uf}</tbody>"
+                f"</table>"
+                f"</div>"
+            )
+        else:
+            tabela_uf_html = ""
+
+        data_footer = (
+            f"<div style='font-size:10px;color:#aaa;text-align:right;margin-top:8px'>"
+            f"{item['n_postos_pf']} posto{'s' if item['n_postos_pf'] != 1 else ''} PF"
+            f"{' · atualizado ' + item['data_atualizacao'] if item['data_atualizacao'] else ''}"
             f"</div>"
         )
-        data_html = (
-            f"<div style='font-size:9px;color:#999;text-align:right;margin-top:6px'>"
-            f"{item['n_postos_pf']} postos PF"
-            f"{' · ' + item['data_atualizacao'] if item['data_atualizacao'] else ''}"
-            f"</div>"
-        )
+
         with cols[i % n_cols]:
             st.markdown(
-                f"<div style='border:2px solid {cor_brd};border-radius:12px;"
-                f"padding:14px 16px;margin-bottom:10px'>"
-                f"<div style='font-size:13px;font-weight:700;margin-bottom:10px'>"
-                f"{item['combustivel_label']}</div>"
-                f"<div style='display:flex;justify-content:space-between;margin-bottom:4px'>"
-                f"<span style='font-size:11px;color:#666'>⭐ Pró-Frotas (médio)</span>"
-                f"<b style='font-size:13px'>R$ {_brl(item['preco_pf_med'], 3)}</b>"
+                # Card container
+                f"<div style='border:2px solid {cor_brd};border-radius:14px;"
+                f"overflow:hidden;margin-bottom:14px;"
+                f"box-shadow:0 3px 10px rgba(0,0,0,.1)'>"
+                # Header: fuel name
+                f"<div style='background:{cor_hd};padding:10px 16px;"
+                f"display:flex;justify-content:space-between;align-items:center'>"
+                f"<span style='color:#fff;font-weight:800;font-size:15px'>"
+                f"⛽ {item['combustivel_label']}</span>"
+                f"<span style='color:rgba(255,255,255,.85);font-size:11px'>"
+                f"ref. ANP: {item['nivel_anp']}</span>"
                 f"</div>"
-                f"<div style='display:flex;justify-content:space-between;margin-bottom:10px'>"
-                f"<span style='font-size:11px;color:#666'>📊 ANP — {item['nivel_anp']}</span>"
-                f"<span style='font-size:12px'>R$ {_brl(item['preco_anp'], 3)}</span>"
+                # Body
+                f"<div style='padding:14px 16px'>"
+                # PF price (hero left) vs ANP (secondary right)
+                f"<div style='display:flex;justify-content:space-between;"
+                f"align-items:baseline;margin-bottom:6px'>"
+                f"<div>"
+                f"<div style='font-size:10px;color:#888;margin-bottom:2px'>⭐ Pró-Frotas médio</div>"
+                f"<div style='font-size:24px;font-weight:900;color:#1565c0;line-height:1'>"
+                f"R$ {_brl(item['preco_pf_med'], 3)}</div>"
                 f"</div>"
-                f"<div style='background:{cor_bg};border-radius:8px;padding:8px 12px;text-align:center'>"
-                f"<span style='color:{cor_delta};font-weight:800;font-size:16px'>"
-                f"{sinal} R$ {_brl(abs(item['delta_abs']), 3)}"
-                f"</span>"
-                f"<span style='color:{cor_delta};font-size:12px;margin-left:6px'>"
-                f"({abs(item['delta_pct']):.1f}%)</span>"
+                f"<div style='text-align:right'>"
+                f"<div style='font-size:10px;color:#888;margin-bottom:2px'>📊 Ref. ANP</div>"
+                f"<div style='font-size:18px;font-weight:700;color:#555;line-height:1'>"
+                f"R$ {_brl(item['preco_anp'], 3)}</div>"
                 f"</div>"
-                f"{eco_html}"
-                f"{data_html}"
-                f"</div>",
+                f"</div>"
+                # Delta badge (hero)
+                f"<div style='background:{cor_bg};border-radius:10px;"
+                f"padding:10px 14px;margin-top:10px;"
+                f"display:flex;justify-content:space-between;align-items:center'>"
+                f"<div style='color:{cor_delta};font-size:28px;font-weight:900;line-height:1'>"
+                f"{sinal} {abs(item['delta_pct']):.1f}%</div>"
+                f"<div style='text-align:right'>"
+                f"<div style='color:{cor_delta};font-size:16px;font-weight:800'>"
+                f"{sinal} R$ {_brl(abs(item['delta_abs']), 3)}/L</div>"
+                f"<div style='color:{cor_delta};font-size:11px;margin-top:2px'>"
+                f"{icone_eco} {txt_eco}</div>"
+                f"</div>"
+                f"</div>"
+                # Intervalo min/max PF
+                f"<div style='display:flex;justify-content:space-between;"
+                f"font-size:10px;color:#999;margin-top:8px'>"
+                f"<span>PF mín: R$ {_brl(item['preco_pf_min'], 3)}</span>"
+                f"<span>PF máx: R$ {_brl(item['preco_pf_max'], 3)}</span>"
+                f"</div>"
+                # Per-state table (rota)
+                f"{tabela_uf_html}"
+                # Footer
+                f"{data_footer}"
+                f"</div>"  # end body
+                f"</div>",  # end card
                 unsafe_allow_html=True,
             )
 
@@ -2183,21 +2317,6 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     pass
 
     st.divider()
-
-    # ══════════════════════════════════════════════════════════════
-    # COMPARATIVO PF vs ANP (dentro da aba Preços ANP)
-    # ══════════════════════════════════════════════════════════════
-    _pp_df_anp    = st.session_state.get("_pp_df")
-    _cnpjs_pf_anp = st.session_state.get("cnpjs_pro_frotas", set())
-    if _pp_df_anp is not None and _cnpjs_pf_anp:
-        _ufs_comp = list(ufs_multiplas) if ufs_multiplas else ([uf] if uf else None)
-        _comp_anp = _calcular_comparativo_pf_anp(
-            _pp_df_anp, _cnpjs_pf_anp, sheets, ufs=_ufs_comp
-        )
-        _sub_comp = (f"Estados da rota — {', '.join(_ufs_comp)}" if ufs_multiplas
-                     else f"{UF_NOME.get(uf, uf)}" if uf else "Brasil")
-        _renderizar_comparativo_pf_anp(_comp_anp, subtitulo=_sub_comp)
-        st.divider()
 
     # ══════════════════════════════════════════════════════════════
     # MODO 2 — Rota: cards por combustível + referências
@@ -3290,19 +3409,22 @@ with st.sidebar:
                 key="upload_pf", label_visibility="collapsed",
             )
             if arquivo_pf is not None:
-                with st.spinner("Lendo planilha…"):
-                    cnpjs_pf, msg_pf, preview_pf = ler_planilha_pro_frotas(arquivo_pf)
-                if cnpjs_pf is not None:
-                    st.session_state["cnpjs_pro_frotas"] = cnpjs_pf
-                    st.session_state["_pf_fonte"]        = "manual"
-                    st.session_state["_pf_carregado_em"] = _agora()
-                    st.success(msg_pf)
-                    if preview_pf is not None:
-                        with st.expander("Ver amostra dos CNPJs"):
-                            st.dataframe(preview_pf, use_container_width=True)
-                    st.rerun()
-                else:
-                    st.error(msg_pf)
+                _pf_file_id = f"{arquivo_pf.name}_{arquivo_pf.size}"
+                if st.session_state.get("_pf_last_upload_id") != _pf_file_id:
+                    with st.spinner("Lendo planilha…"):
+                        cnpjs_pf, msg_pf, preview_pf = ler_planilha_pro_frotas(arquivo_pf)
+                    if cnpjs_pf is not None:
+                        st.session_state["cnpjs_pro_frotas"]    = cnpjs_pf
+                        st.session_state["_pf_fonte"]            = "manual"
+                        st.session_state["_pf_carregado_em"]     = _agora()
+                        st.session_state["_pf_last_upload_id"]   = _pf_file_id
+                        st.success(msg_pf)
+                        if preview_pf is not None:
+                            with st.expander("Ver amostra dos CNPJs"):
+                                st.dataframe(preview_pf, use_container_width=True)
+                        st.rerun()
+                    else:
+                        st.error(msg_pf)
             if _pf_set:
                 if st.button("🗑️ Remover Pró-Frotas", use_container_width=True,
                              key="btn_rm_pf_cfg"):
@@ -3363,19 +3485,22 @@ with st.sidebar:
                 key="upload_cercados", label_visibility="collapsed",
             )
             if arquivo_cer is not None:
-                with st.spinner("Lendo planilha…"):
-                    cnpjs_cer_up, msg_cer_up, prev_cer = ler_planilha_cercados(arquivo_cer)
-                if cnpjs_cer_up is not None:
-                    st.session_state["cnpjs_cercados"]          = cnpjs_cer_up
-                    st.session_state["_cercados_fonte"]         = "manual"
-                    st.session_state["_cercados_carregado_em"]  = _agora()
-                    st.success(msg_cer_up)
-                    if prev_cer is not None:
-                        with st.expander("Ver amostra"):
-                            st.dataframe(prev_cer, use_container_width=True)
-                    st.rerun()
-                else:
-                    st.error(msg_cer_up)
+                _cer_file_id = f"{arquivo_cer.name}_{arquivo_cer.size}"
+                if st.session_state.get("_cer_last_upload_id") != _cer_file_id:
+                    with st.spinner("Lendo planilha…"):
+                        cnpjs_cer_up, msg_cer_up, prev_cer = ler_planilha_cercados(arquivo_cer)
+                    if cnpjs_cer_up is not None:
+                        st.session_state["cnpjs_cercados"]          = cnpjs_cer_up
+                        st.session_state["_cercados_fonte"]         = "manual"
+                        st.session_state["_cercados_carregado_em"]  = _agora()
+                        st.session_state["_cer_last_upload_id"]     = _cer_file_id
+                        st.success(msg_cer_up)
+                        if prev_cer is not None:
+                            with st.expander("Ver amostra"):
+                                st.dataframe(prev_cer, use_container_width=True)
+                        st.rerun()
+                    else:
+                        st.error(msg_cer_up)
 
             if _cer_set:
                 if st.button("🗑️ Remover Cercados", use_container_width=True,
@@ -3435,16 +3560,20 @@ with st.sidebar:
                 key="upload_pp", label_visibility="collapsed",
             )
             if arquivo_pp is not None:
-                with st.spinner("Lendo planilha…"):
-                    _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
-                if _pp_up is not None:
-                    st.session_state["_pp_df"]          = _pp_up
-                    st.session_state["_pp_fonte"]        = "manual"
-                    st.session_state["_pp_carregado_em"] = _agora()
-                    st.success(_pp_msg_up)
-                    st.rerun()
-                else:
-                    st.error(_pp_msg_up)
+                # Evita loop infinito: só processa se for um arquivo novo
+                _pp_file_id = f"{arquivo_pp.name}_{arquivo_pp.size}"
+                if st.session_state.get("_pp_last_upload_id") != _pp_file_id:
+                    with st.spinner("Lendo planilha…"):
+                        _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
+                    if _pp_up is not None:
+                        st.session_state["_pp_df"]             = _pp_up
+                        st.session_state["_pp_fonte"]           = "manual"
+                        st.session_state["_pp_carregado_em"]    = _agora()
+                        st.session_state["_pp_last_upload_id"]  = _pp_file_id
+                        st.success(_pp_msg_up)
+                        st.rerun()
+                    else:
+                        st.error(_pp_msg_up)
             if _pp_df_sb is not None:
                 if st.button("🗑️ Remover Preços PP", use_container_width=True,
                              key="btn_rm_pp"):
