@@ -443,48 +443,76 @@ PRODUTO_CURTO = {
     # Variantes comuns em planilhas de clientes (Preço Posto)
     "GASOLINA":                          "⛽ Gasolina",
     "GASOLINA C":                        "⛽ Gasolina",
+    "GASOLINA ALTA OCTANAGEM":           "⛽ Gasolina Aditivada",
+    "GASOLINA PREMIUM":                  "⛽ Gasolina Aditivada",
     "DIESEL":                            "🛢️ Diesel Comum",
     "DIESEL COMUM":                      "🛢️ Diesel Comum",
+    "DIESEL S500":                       "🛢️ Diesel Comum",
+    "DIESEL S-500":                      "🛢️ Diesel Comum",
+    "DIESEL S-500 COMUM":               "🛢️ Diesel Comum",
+    "DIESEL S-500 ADITIVADO":           "🛢️ Diesel Comum",
     "DIESEL S10":                        "🛢️ Diesel S10",
     "DIESEL S-10":                       "🛢️ Diesel S10",
+    "DIESEL S-10 COMUM":                "🛢️ Diesel S10",
+    "DIESEL S-10 ADITIVADO":            "🛢️ Diesel S10",
     "OLEO DIESEL S-10":                  "🛢️ Diesel S10",
     "ETANOL":                            "🌿 Etanol",
+    "ETANOL COMUM":                      "🌿 Etanol",
+    "ETANOL ADITIVADO":                  "🌿 Etanol",
     "ALCOOL":                            "🌿 Etanol",
     "ALCOOL HIDRATADO":                  "🌿 Etanol",
 }
 
 # Mapeamento PK da planilha "Preço Posto" → PK canônico ANP
-# Resolve casos onde o nome do cliente difere completamente do nome ANP
-# (ex: "DIESEL COMUM" → "OLEO DIESEL",  "DIESEL S-10" → "OLEO DIESEL S10")
+# Resolve casos onde o nome do cliente difere completamente do nome ANP.
+# Variantes do mesmo tipo são consolidadas no mesmo PK canônico para agrupamento.
 _PP_PARA_ANP_PK: dict = {
-    # Gasolina
+    # ── Gasolina ──────────────────────────────────────────────────────
     "GASOLINA":                          "GASOLINA COMUM",
     "GASOLINA COMUM":                    "GASOLINA COMUM",
     "GASOLINA C":                        "GASOLINA COMUM",
     "GASOLINA ADITIVADA":                "GASOLINA ADITIVADA",
     "GASOLINA PREMIUM":                  "GASOLINA ADITIVADA",
-    # Etanol / Álcool
+    "GASOLINA ALTA OCTANAGEM":           "GASOLINA ADITIVADA",
+    "GASOLINA PODIUM":                   "GASOLINA ADITIVADA",
+    "GASOLINA FORMULA":                  "GASOLINA ADITIVADA",
+    # ── Etanol / Álcool ───────────────────────────────────────────────
     "ETANOL":                            "ETANOL HIDRATADO COMBUSTIVEL",
+    "ETANOL COMUM":                      "ETANOL HIDRATADO COMBUSTIVEL",
+    "ETANOL ADITIVADO":                  "ETANOL HIDRATADO COMBUSTIVEL",
     "ETANOL HIDRATADO":                  "ETANOL HIDRATADO COMBUSTIVEL",
     "ETANOL HIDRATADO COMBUSTIVEL":      "ETANOL HIDRATADO COMBUSTIVEL",
     "ALCOOL":                            "ETANOL HIDRATADO COMBUSTIVEL",
     "ALCOOL HIDRATADO":                  "ETANOL HIDRATADO COMBUSTIVEL",
-    # Diesel Comum
+    # ── Diesel S500 (= Óleo Diesel / Diesel Comum) ────────────────────
     "DIESEL":                            "OLEO DIESEL",
     "DIESEL COMUM":                      "OLEO DIESEL",
     "OLEO DIESEL":                       "OLEO DIESEL",
-    # Diesel S10
+    "DIESEL S500":                       "OLEO DIESEL",
+    "DIESEL S-500":                      "OLEO DIESEL",
+    "DIESEL S 500":                      "OLEO DIESEL",
+    "DIESEL S-500 COMUM":               "OLEO DIESEL",
+    "DIESEL S-500 ADITIVADO":           "OLEO DIESEL",
+    "DIESEL S500 COMUM":                "OLEO DIESEL",
+    "DIESEL S500 ADITIVADO":            "OLEO DIESEL",
+    "OLEO DIESEL S500":                  "OLEO DIESEL",
+    "OLEO DIESEL S-500":                 "OLEO DIESEL",
+    # ── Diesel S10 ────────────────────────────────────────────────────
     "DIESEL S10":                        "OLEO DIESEL S10",
     "DIESEL S-10":                       "OLEO DIESEL S10",
     "DIESEL S 10":                       "OLEO DIESEL S10",
+    "DIESEL S-10 COMUM":                "OLEO DIESEL S10",
+    "DIESEL S-10 ADITIVADO":            "OLEO DIESEL S10",
+    "DIESEL S10 COMUM":                  "OLEO DIESEL S10",
+    "DIESEL S10 ADITIVADO":              "OLEO DIESEL S10",
     "OLEO DIESEL S10":                   "OLEO DIESEL S10",
     "OLEO DIESEL S-10":                  "OLEO DIESEL S10",
     "OLEO DIESEL S 10":                  "OLEO DIESEL S10",
-    # GNV
+    # ── GNV ───────────────────────────────────────────────────────────
     "GNV":                               "GNV",
     "GAS NATURAL VEICULAR":              "GNV",
     "GAS NATURAL COMPRIMIDO":            "GNV",
-    # GLP
+    # ── GLP ───────────────────────────────────────────────────────────
     "GLP":                               "GLP",
     "GAS LIQUEFEITO DE PETROLEO":        "GLP",
     "GAS LIQUEFEITO DO PETROLEO":        "GLP",
@@ -595,6 +623,7 @@ ARQUIVO_CERCADOS_REPO = "Postos Cercados.xlsx"
 COR_CERCADO_FILL      = "#FF8F00"   # laranja âmbar — alerta visual
 COR_CERCADO_BORDA     = "#E65100"   # laranja escuro
 ARQUIVO_PP_REPO       = "Preço Posto.xlsx"   # planilha de preços por posto
+_PP_PARSER_VERSION    = "v5"                 # incrementar aqui força re-parse automático
 
 
 def normalizar_cnpj(valor):
@@ -2101,6 +2130,13 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
     if df_pf.empty:
         return []
 
+    # Normaliza os PKs da planilha PP → PKs canônicos ANP
+    # Isso consolida variantes como "DIESEL S-10 COMUM" + "DIESEL S-10 ADITIVADO"
+    # em um único grupo "OLEO DIESEL S10" para gerar um card por tipo de combustível.
+    df_pf["combustivel_pk"] = df_pf["combustivel_pk"].map(
+        lambda pk: _PP_PARA_ANP_PK.get(pk, pk)
+    )
+
     # Preços ANP de referência
     if ufs:
         precos_anp = _anp_precos_por_fuel_ufs(sheets_anp, ufs)
@@ -3292,7 +3328,15 @@ with st.sidebar:
             st.session_state["_cercados_fonte"]         = "repo"
             st.session_state["_cercados_carregado_em"]  = _agora()
 
-    # Auto-load Preço Posto (ttl=1h — dados de preço atualizam com frequência)
+    # Auto-load Preço Posto — re-parseia se a versão do parser mudou
+    _pp_ver_atual = st.session_state.get("_pp_parser_ver")
+    if _pp_ver_atual != _PP_PARSER_VERSION:
+        # Parser foi atualizado: descarta dado antigo e re-parseia
+        st.session_state.pop("_pp_df", None)
+        st.session_state.pop("_pp_tentado", None)
+        _auto_carregar_precos_postos_repo.clear()
+        st.session_state["_pp_parser_ver"] = _PP_PARSER_VERSION
+
     if st.session_state.get("_pp_df") is None and not st.session_state.get("_pp_tentado"):
         st.session_state["_pp_tentado"] = True
         _pp_df_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
@@ -3659,8 +3703,18 @@ with st.sidebar:
                 if "combustivel_pk" in _pp_df_sb.columns:
                     _pks_pp = sorted(_pp_df_sb["combustivel_pk"].dropna().unique().tolist())
                     _cnpjs_pf_diag = st.session_state.get("cnpjs_pro_frotas", set())
-                    with st.expander("🔍 Combustíveis detectados na planilha", expanded=False):
-                        st.caption("PKs lidos da planilha (após normalização):")
+                    # Abre automaticamente se detectou menos de 4 combustíveis
+                    _diag_auto = len(_pks_pp) < 4
+                    with st.expander(
+                        f"🔍 Combustíveis detectados: {len(_pks_pp)}",
+                        expanded=_diag_auto,
+                    ):
+                        if _diag_auto:
+                            st.warning(
+                                "⚠️ Menos de 4 combustíveis detectados. "
+                                "Verifique os nomes abaixo e os nomes das colunas da planilha."
+                            )
+                        st.caption("PKs lidos (após normalização) → mapeamento ANP:")
                         for _pk_d in _pks_pp:
                             _lbl_d = PRODUTO_CURTO.get(_pk_d) or PRODUTO_CURTO.get(
                                 _PP_PARA_ANP_PK.get(_pk_d, ""), "—")
@@ -3673,17 +3727,25 @@ with st.sidebar:
                                         (_pp_df_sb["cnpj_norm"].isin(_cnpjs_pf_diag))
                                     ]["cnpj_norm"].nunique()
                                 )
-                            _match_anp = _PP_PARA_ANP_PK.get(_pk_d, "❌ sem match")
+                            _match_anp = _PP_PARA_ANP_PK.get(_pk_d, "❌ SEM MATCH")
+                            _cor_match = "#2e7d32" if "❌" not in _match_anp else "#c62828"
                             st.markdown(
-                                f"<div style='font-size:11px;padding:3px 0;"
+                                f"<div style='font-size:11px;padding:4px 0;"
                                 f"border-bottom:1px solid #eee'>"
-                                f"<code>{_pk_d}</code> → {_lbl_d} "
-                                f"<span style='color:#888'>({_n_rows} linhas, {_n_pf_d} PF)</span>"
-                                f"<br><span style='color:#aaa;font-size:10px'>"
-                                f"ANP match: <code>{_match_anp}</code></span>"
+                                f"<b><code>{_pk_d}</code></b> → {_lbl_d} "
+                                f"<span style='color:#888'>({_n_rows} linhas · {_n_pf_d} postos PF)</span>"
+                                f"<br><span style='font-size:10px;color:{_cor_match}'>"
+                                f"ANP: <code>{_match_anp}</code></span>"
                                 f"</div>",
                                 unsafe_allow_html=True,
                             )
+                        # Nomes brutos dos labels (para identificar variantes)
+                        if "combustivel_label" in _pp_df_sb.columns:
+                            _labels_raw = sorted(
+                                _pp_df_sb["combustivel_label"].dropna().unique().tolist()
+                            )
+                            st.caption(f"Nomes originais na planilha ({len(_labels_raw)}):")
+                            st.code(", ".join(_labels_raw), language=None)
             else:
                 st.markdown(
                     f"<div style='background:#f5f5f5;border:1px solid #ddd;"
