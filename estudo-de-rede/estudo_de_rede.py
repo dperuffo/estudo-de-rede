@@ -115,6 +115,33 @@ header[data-testid="stHeader"] {
     max-width: 100% !important;
 }
 
+/* ══ SIDEBAR REDESIGN ══════════════════════════════════════════════ */
+/* Label de seção */
+[data-testid="stSidebar"] .sb-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #90a4ae;
+    margin: 14px 0 6px;
+}
+/* Botões de modo — mais altos e com quebra de linha */
+[data-testid="stSidebar"] .modo-toggle [data-testid="stButton"] > button {
+    height: 62px !important;
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+    white-space: pre-wrap !important;
+    padding: 6px 4px !important;
+}
+/* Badge de status Pró-Frotas compacto */
+[data-testid="stSidebar"] .pf-badge {
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-size: 11px;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
 /* ══ TOPBAR ════════════════════════════════════════════════════════ */
 .topbar {
     background: linear-gradient(135deg, #0d1b4b 0%, #1565c0 60%, #0288d1 100%);
@@ -2511,210 +2538,37 @@ with st.sidebar:
             st.session_state["_pf_fonte"]         = "repo"
             st.session_state["_pf_carregado_em"]  = _agora()
 
-    # ── Pró-Frotas ────────────────────────────────────────────
-    _pf_fonte = st.session_state.get("_pf_fonte", "manual")
-    _pf_set   = st.session_state.get("cnpjs_pro_frotas", set())
-
-    # Badge de status acima do expander
-    _pf_ts = st.session_state.get("_pf_carregado_em", "")
-    _pf_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 Carregado em: {_pf_ts}</span>"
-                   if _pf_ts else "")
-    if _pf_set:
-        if _pf_fonte == "repo":
-            st.markdown(
-                f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;"
-                f"padding:8px 12px;font-size:12px;color:#2e7d32;margin-bottom:8px'>"
-                f"✅ <b>Pró-Frotas carregado automaticamente</b><br>"
-                f"📋 {_n(len(_pf_set))} CNPJs · atualiza a cada 24 h"
-                f"{_pf_ts_html}<br>"
-                f"<span style='font-size:10px;opacity:.8'>Fonte: <code>{ARQUIVO_PF_REPO}</code> no repositório</span>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                f"<div style='background:#fff8e1;border:1px solid #ffe082;border-radius:8px;"
-                f"padding:8px 12px;font-size:12px;color:#f57f17;margin-bottom:8px'>"
-                f"⭐ <b>Pró-Frotas carregado manualmente</b><br>"
-                f"📋 {_n(len(_pf_set))} CNPJs ativos nesta sessão"
-                f"{_pf_ts_html}"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-    else:
-        st.markdown(
-            "<div style='background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;"
-            "padding:8px 12px;font-size:12px;color:#e65100;margin-bottom:8px'>"
-            "⚠️ <b>Pró-Frotas não carregado</b><br>"
-            f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_PF_REPO}</code> ao repositório<br>"
-            "ou faça upload manual abaixo.</span>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
-    with st.expander("⭐  Gerenciar Pró-Frotas", expanded=not bool(_pf_set)):
-        if st.button("🔄 Recarregar do repositório", use_container_width=True,
-                     help="Força nova leitura do pro_frotas.xlsx no GitHub"):
-            _auto_carregar_pro_frotas_repo.clear()
-            with st.spinner(f"Lendo `{ARQUIVO_PF_REPO}` do repositório…"):
-                _cnpjs_r, _msg_r, _prev_r = _auto_carregar_pro_frotas_repo()
-            if _cnpjs_r:
-                st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
-                st.session_state["_pf_fonte"]        = "repo"
-                st.session_state["_pf_carregado_em"] = _agora()
-                st.success(f"✅ {_msg_r}")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error(_msg_r or f"❌ `{ARQUIVO_PF_REPO}` não encontrado no repositório.")
-
-        st.divider()
-        st.markdown(
-            "<small><b>Upload manual</b> — substitui os dados do repositório nesta sessão:</small>",
-            unsafe_allow_html=True,
-        )
-        st.markdown("")
-        arquivo_pf = st.file_uploader(
-            "Selecionar planilha", type=["xlsx","xls","csv"],
-            key="upload_pf", label_visibility="collapsed",
-        )
-        if arquivo_pf is not None:
-            with st.spinner("Lendo planilha…"):
-                cnpjs_pf, msg_pf, preview_pf = ler_planilha_pro_frotas(arquivo_pf)
-            if cnpjs_pf is not None:
-                st.session_state["cnpjs_pro_frotas"] = cnpjs_pf
-                st.session_state["_pf_fonte"]        = "manual"
-                st.session_state["_pf_carregado_em"] = _agora()
-                st.success(msg_pf)
-                if preview_pf is not None:
-                    with st.expander("Ver amostra dos CNPJs"):
-                        st.dataframe(preview_pf, use_container_width=True)
-                st.rerun()
-            else:
-                st.error(msg_pf)
-
-        if _pf_set:
-            st.divider()
-            if st.button("🗑️ Remover Pró-Frotas", use_container_width=True):
-                st.session_state.pop("cnpjs_pro_frotas", None)
-                st.session_state.pop("_pf_fonte", None)
-                st.rerun()
-
-    st.divider()
-
-    # ── Pré-carregar Base Nacional ────────────────────────────
-    with st.expander("🗃️  Pré-carregar Base Nacional", expanded=False):
-        st.markdown(
-            "<small>Carrega postos de <b>todos os 27 estados</b> antecipadamente "
-            "e mantém em cache por <b>24 horas</b>.<br>"
-            "Após isso, qualquer busca por rota fica <b>instantânea</b> "
-            "sem aguardar a API.</small>",
-            unsafe_allow_html=True,
-        )
-        # Exibe info da última carga se existir
-        _preload_ts  = st.session_state.get("_preload_brasil_em", "")
-        _preload_ok  = st.session_state.get("_preload_brasil_ok", 0)
-        _preload_err = st.session_state.get("_preload_brasil_err", [])
-        if _preload_ts:
-            _cor_card = "#e8f5e9" if not _preload_err else "#fff8e1"
-            _brd_card = "#a5d6a7" if not _preload_err else "#ffe082"
-            _txt_cor  = "#2e7d32" if not _preload_err else "#f57f17"
-            _ic       = "✅" if not _preload_err else "⚠️"
-            _err_txt  = (f"<br><span style='font-size:10px'>Falha em: {', '.join(_preload_err)}</span>"
-                         if _preload_err else "")
-            st.markdown(
-                f"<div style='background:{_cor_card};border:1px solid {_brd_card};"
-                f"border-radius:8px;padding:8px 12px;font-size:12px;color:{_txt_cor};margin:8px 0'>"
-                f"{_ic} <b>{_preload_ok} estado(s) carregado(s)</b>{_err_txt}<br>"
-                f"<span style='font-size:10px;opacity:.8'>🕐 Última carga: {_preload_ts}</span>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-        st.markdown("")
-        if st.button("⚡ Recarregar todos os estados agora",
-                     use_container_width=True, key="btn_preload"):
-            buscar_postos.clear()   # limpa cache para forçar nova leitura da API
-            with st.spinner("📡 Recarregando base em paralelo…"):
-                carregados_pl, erros_pl = _precarregar_estados_paralelo(max_workers=5)
-            st.session_state["_estados_precarregados"] = carregados_pl
-            st.session_state["_preload_brasil_em"]     = _agora()
-            st.session_state["_preload_brasil_ok"]     = len(carregados_pl)
-            st.session_state["_preload_brasil_err"]    = erros_pl
-            st.session_state["_base_auto_ok"]          = True
-            if erros_pl:
-                st.warning(f"✅ {len(carregados_pl)} estados carregados. "
-                           f"⚠️ Falha em: {', '.join(erros_pl)}")
-            else:
-                st.success(f"✅ Todos os {len(UFS)} estados carregados! "
-                           "Buscas por cidade, nome e CNPJ são instantâneas por 24 h.")
+    # ── Modo de consulta — toggle buttons ─────────────────────
+    st.markdown("<div class='sb-label'>Modo de Consulta</div>", unsafe_allow_html=True)
+    if "modo_selecionado" not in st.session_state:
+        st.session_state["modo_selecionado"] = "📍 Por Estado/Município"
+    _modo_atual = st.session_state["modo_selecionado"]
+    _col_m1, _col_m2 = st.columns(2)
+    with _col_m1:
+        if st.button(
+            "📍\nEstado",
+            use_container_width=True,
+            type="primary" if _modo_atual == "📍 Por Estado/Município" else "secondary",
+            key="btn_modo_estado",
+        ):
+            st.session_state["modo_selecionado"] = "📍 Por Estado/Município"
             st.rerun()
-
-    st.divider()
-
-    # ── Exportar Base Nacional ────────────────────────────────
-    with st.expander("📥  Exportar Base Nacional", expanded=False):
-        _n_est_exp = len(st.session_state.get("_estados_precarregados", []))
-        st.markdown(
-            "<small>Gera um arquivo <b>Excel (.xlsx)</b> com todos os postos "
-            "dos estados já carregados, identificando os <b>Pró-Frotas</b> "
-            "com destaque em azul.</small>",
-            unsafe_allow_html=True,
-        )
-        st.markdown("")
-        if _n_est_exp == 0:
-            st.warning(
-                "⚠️ Carregue a base primeiro usando "
-                "**⚡ Recarregar todos os estados agora** acima.",
-                icon=None,
-            )
-        else:
-            st.markdown(
-                f"<div style='font-size:12px;color:#555;margin-bottom:8px'>"
-                f"📦 <b>{_n_est_exp} estado(s)</b> disponíveis para exportação</div>",
-                unsafe_allow_html=True,
-            )
-            if st.button("📊 Gerar arquivo Excel",
-                         use_container_width=True,
-                         key="btn_export_base"):
-                with st.spinner(f"⏳ Consolidando {_n_est_exp} estado(s)…"):
-                    _exp_bytes, _exp_msg = _gerar_excel_base_brasil()
-                if _exp_bytes:
-                    st.session_state["_base_export_bytes"] = _exp_bytes
-                    st.session_state["_base_export_msg"]   = _exp_msg
-                else:
-                    st.error(_exp_msg)
-
-        # Download button persiste após geração (sobrevive ao rerun)
-        if st.session_state.get("_base_export_bytes"):
-            st.download_button(
-                label="⬇️  Baixar Excel",
-                data=st.session_state["_base_export_bytes"],
-                file_name=f"postos_anp_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                key="btn_download_base",
-            )
-            st.success(st.session_state.get("_base_export_msg", ""))
-            if st.button("🗑️ Limpar exportação", use_container_width=True,
-                         key="btn_clear_export"):
-                st.session_state.pop("_base_export_bytes", None)
-                st.session_state.pop("_base_export_msg", None)
-                st.rerun()
-
-    st.divider()
-
-    # ── Modo de exibição ──────────────────────────────────────
-    st.markdown("<div style='font-weight:700;font-size:13px;margin-bottom:8px'>🧭 Modo de exibição</div>",
-                unsafe_allow_html=True)
-    modo = st.radio("Modo", ["📍 Por Estado/Município", "🗺️ Por Rota"],
-                    label_visibility="collapsed")
+    with _col_m2:
+        if st.button(
+            "🗺️\nRota",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🗺️ Por Rota" else "secondary",
+            key="btn_modo_rota",
+        ):
+            st.session_state["modo_selecionado"] = "🗺️ Por Rota"
+            st.rerun()
+    modo = _modo_atual
     st.divider()
 
     # ── Modo 1 ────────────────────────────────────────────────
     if modo == "📍 Por Estado/Município":
         _fk_m1 = st.session_state.get("_form_key_m1", 0)
-        st.markdown("<div style='font-weight:700;font-size:13px;margin-bottom:6px'>🗺️ Localização</div>",
-                    unsafe_allow_html=True)
+        st.markdown("<div class='sb-label'>Localização</div>", unsafe_allow_html=True)
         uf = st.selectbox("Estado (UF)", ["— Selecione —"] + UFS, index=0,
                           key=f"sel_uf_{_fk_m1}",
                           help="Selecione o estado para carregar os postos")
@@ -2735,8 +2589,7 @@ with st.sidebar:
 
         distribuidoras_filtro = []
         if st.session_state.get("distribuidoras_disponiveis"):
-            st.markdown("<div style='font-weight:700;font-size:13px;margin:10px 0 6px'>🏷️ Filtrar por Bandeira</div>",
-                        unsafe_allow_html=True)
+            st.markdown("<div class='sb-label'>Filtrar por Bandeira</div>", unsafe_allow_html=True)
             distribuidoras_filtro = st.multiselect(
                 "Bandeiras", st.session_state["distribuidoras_disponiveis"],
                 placeholder="Todas as bandeiras", label_visibility="collapsed",
@@ -2765,8 +2618,7 @@ with st.sidebar:
         )
         st.divider()
 
-        st.markdown("<div style='font-weight:700;font-size:13px;margin-bottom:6px'>📏 Raio da rota</div>",
-                    unsafe_allow_html=True)
+        st.markdown("<div class='sb-label'>Raio da rota</div>", unsafe_allow_html=True)
         raio = st.slider("Raio (m)", min_value=200, max_value=2000, value=500, step=100,
                          label_visibility="collapsed",
                          help="Postos dentro deste raio ao redor da rota serão exibidos")
@@ -2794,11 +2646,192 @@ with st.sidebar:
         distribuidoras_filtro = []
         if st.session_state.get("distribuidoras_rota"):
             st.divider()
-            st.markdown("<div style='font-weight:700;font-size:13px;margin-bottom:6px'>🏷️ Filtrar por Bandeira</div>",
-                        unsafe_allow_html=True)
+            st.markdown("<div class='sb-label'>Filtrar por Bandeira</div>", unsafe_allow_html=True)
             distribuidoras_filtro = st.multiselect(
                 "Bandeiras", st.session_state["distribuidoras_rota"],
                 placeholder="Todas as bandeiras", label_visibility="collapsed")
+
+    # ── Configurações (Pró-Frotas · Base · Exportar) ──────────
+    st.markdown("---")
+    _pf_fonte = st.session_state.get("_pf_fonte", "manual")
+    _pf_set   = st.session_state.get("cnpjs_pro_frotas", set())
+    _pf_ts    = st.session_state.get("_pf_carregado_em", "")
+
+    # Mini-badge compacto acima do expander
+    if _pf_set:
+        _pf_cor, _pf_brd, _pf_txt, _pf_ic = (
+            ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "repo"
+            else ("#fff8e1","#ffe082","#f57f17","⭐")
+        )
+        st.markdown(
+            f"<div style='background:{_pf_cor};border:1px solid {_pf_brd};"
+            f"border-radius:8px;padding:6px 10px;font-size:11px;color:{_pf_txt};margin-bottom:6px'>"
+            f"{_pf_ic} <b>Pró-Frotas</b> · {len(_pf_set):,} CNPJs</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f"<div style='background:#fff3e0;border:1px solid #ffcc80;"
+            f"border-radius:8px;padding:6px 10px;font-size:11px;color:#e65100;margin-bottom:6px'>"
+            f"⚠️ <b>Pró-Frotas não carregado</b></div>",
+            unsafe_allow_html=True,
+        )
+
+    with st.expander("⚙️  Configurações", expanded=False):
+        tab_pf, tab_base, tab_exp = st.tabs(["⭐ Pró-Frotas", "🗃️ Base", "📥 Exportar"])
+
+        # ── Tab Pró-Frotas ────────────────────────────────────
+        with tab_pf:
+            _pf_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_pf_ts}</span>"
+                           if _pf_ts else "")
+            if _pf_set:
+                _c = ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "repo" \
+                     else ("#fff8e1","#ffe082","#f57f17","⭐")
+                _src = (f"<span style='font-size:10px;opacity:.8'>"
+                        f"Fonte: <code>{ARQUIVO_PF_REPO}</code></span>"
+                        if _pf_fonte == "repo" else "")
+                st.markdown(
+                    f"<div style='background:{_c[0]};border:1px solid {_c[1]};"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_c[2]}'>"
+                    f"{_c[3]} <b>{len(_pf_set):,} CNPJs</b> carregados"
+                    f"{_pf_ts_html}<br>{_src}</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"<div style='background:#fff3e0;border:1px solid #ffcc80;"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
+                    f"⚠️ <b>Não carregado</b><br>"
+                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_PF_REPO}</code> "
+                    f"ou faça upload.</span></div>",
+                    unsafe_allow_html=True,
+                )
+            st.markdown("")
+            if st.button("🔄 Recarregar do repositório", use_container_width=True,
+                         help="Força nova leitura do pro_frotas.xlsx no GitHub",
+                         key="btn_reload_pf_cfg"):
+                _auto_carregar_pro_frotas_repo.clear()
+                with st.spinner(f"Lendo `{ARQUIVO_PF_REPO}`…"):
+                    _cnpjs_r, _msg_r, _prev_r = _auto_carregar_pro_frotas_repo()
+                if _cnpjs_r:
+                    st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
+                    st.session_state["_pf_fonte"]        = "repo"
+                    st.session_state["_pf_carregado_em"] = _agora()
+                    st.success(f"✅ {_msg_r}")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(_msg_r or f"❌ `{ARQUIVO_PF_REPO}` não encontrado.")
+            st.markdown("<small><b>Upload manual</b></small>", unsafe_allow_html=True)
+            arquivo_pf = st.file_uploader(
+                "Planilha Pró-Frotas", type=["xlsx","xls","csv"],
+                key="upload_pf", label_visibility="collapsed",
+            )
+            if arquivo_pf is not None:
+                with st.spinner("Lendo planilha…"):
+                    cnpjs_pf, msg_pf, preview_pf = ler_planilha_pro_frotas(arquivo_pf)
+                if cnpjs_pf is not None:
+                    st.session_state["cnpjs_pro_frotas"] = cnpjs_pf
+                    st.session_state["_pf_fonte"]        = "manual"
+                    st.session_state["_pf_carregado_em"] = _agora()
+                    st.success(msg_pf)
+                    if preview_pf is not None:
+                        with st.expander("Ver amostra dos CNPJs"):
+                            st.dataframe(preview_pf, use_container_width=True)
+                    st.rerun()
+                else:
+                    st.error(msg_pf)
+            if _pf_set:
+                if st.button("🗑️ Remover Pró-Frotas", use_container_width=True,
+                             key="btn_rm_pf_cfg"):
+                    st.session_state.pop("cnpjs_pro_frotas", None)
+                    st.session_state.pop("_pf_fonte", None)
+                    st.rerun()
+
+        # ── Tab Base Nacional ─────────────────────────────────
+        with tab_base:
+            st.markdown(
+                "<small>Carrega postos de <b>todos os 27 estados</b> antecipadamente "
+                "e mantém em cache por <b>24 h</b>. "
+                "Após isso, buscas por rota ficam <b>instantâneas</b>.</small>",
+                unsafe_allow_html=True,
+            )
+            _preload_ts  = st.session_state.get("_preload_brasil_em", "")
+            _preload_ok  = st.session_state.get("_preload_brasil_ok", 0)
+            _preload_err = st.session_state.get("_preload_brasil_err", [])
+            if _preload_ts:
+                _cor_b = "#e8f5e9" if not _preload_err else "#fff8e1"
+                _brd_b = "#a5d6a7" if not _preload_err else "#ffe082"
+                _txt_b = "#2e7d32" if not _preload_err else "#f57f17"
+                _ic_b  = "✅" if not _preload_err else "⚠️"
+                _err_b = (f"<br><span style='font-size:10px'>Falha: {', '.join(_preload_err)}</span>"
+                          if _preload_err else "")
+                st.markdown(
+                    f"<div style='background:{_cor_b};border:1px solid {_brd_b};"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_txt_b};margin:6px 0'>"
+                    f"{_ic_b} <b>{_preload_ok} estado(s)</b>{_err_b}<br>"
+                    f"<span style='font-size:10px;opacity:.8'>🕐 {_preload_ts}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            st.markdown("")
+            if st.button("⚡ Carregar todos os estados",
+                         use_container_width=True, key="btn_preload"):
+                buscar_postos.clear()
+                with st.spinner("📡 Recarregando base em paralelo…"):
+                    carregados_pl, erros_pl = _precarregar_estados_paralelo(max_workers=5)
+                st.session_state["_estados_precarregados"] = carregados_pl
+                st.session_state["_preload_brasil_em"]     = _agora()
+                st.session_state["_preload_brasil_ok"]     = len(carregados_pl)
+                st.session_state["_preload_brasil_err"]    = erros_pl
+                st.session_state["_base_auto_ok"]          = True
+                if erros_pl:
+                    st.warning(f"✅ {len(carregados_pl)} estados. ⚠️ Falha: {', '.join(erros_pl)}")
+                else:
+                    st.success(f"✅ Todos os {len(UFS)} estados carregados!")
+                st.rerun()
+
+        # ── Tab Exportar ──────────────────────────────────────
+        with tab_exp:
+            _n_est_exp = len(st.session_state.get("_estados_precarregados", []))
+            st.markdown(
+                "<small>Gera <b>Excel (.xlsx)</b> com todos os postos "
+                "dos estados carregados, com destaque para <b>Pró-Frotas</b>.</small>",
+                unsafe_allow_html=True,
+            )
+            st.markdown("")
+            if _n_est_exp == 0:
+                st.warning("⚠️ Carregue a base primeiro na aba **Base**.")
+            else:
+                st.markdown(
+                    f"<div style='font-size:11px;color:#555;margin-bottom:6px'>"
+                    f"📦 <b>{_n_est_exp} estado(s)</b> disponíveis</div>",
+                    unsafe_allow_html=True,
+                )
+                if st.button("📊 Gerar arquivo Excel",
+                             use_container_width=True, key="btn_export_base"):
+                    with st.spinner(f"⏳ Consolidando {_n_est_exp} estado(s)…"):
+                        _exp_bytes, _exp_msg = _gerar_excel_base_brasil()
+                    if _exp_bytes:
+                        st.session_state["_base_export_bytes"] = _exp_bytes
+                        st.session_state["_base_export_msg"]   = _exp_msg
+                    else:
+                        st.error(_exp_msg)
+            if st.session_state.get("_base_export_bytes"):
+                st.download_button(
+                    label="⬇️  Baixar Excel",
+                    data=st.session_state["_base_export_bytes"],
+                    file_name=f"postos_anp_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_download_base",
+                )
+                st.success(st.session_state.get("_base_export_msg", ""))
+                if st.button("🗑️ Limpar exportação", use_container_width=True,
+                             key="btn_clear_export"):
+                    st.session_state.pop("_base_export_bytes", None)
+                    st.session_state.pop("_base_export_msg", None)
+                    st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════
