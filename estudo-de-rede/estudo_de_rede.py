@@ -1596,19 +1596,62 @@ def _marcador_cercado(lat, lon, popup, tooltip):
     )
 
 
+@st.cache_data(show_spinner=False)
+def _img_pro_frotas_b64() -> str:
+    """
+    Carrega logo_profrotas.jpg do repositório e retorna data-URL base64.
+    Tenta variações de nome e extensão. Retorna "" se não encontrado.
+    """
+    for nome in ["logo_profrotas.jpg", "logo_profrotas.jpeg", "logo_profrotas.png",
+                 "Logo_profrotas.jpg", "Logo_Profrotas.jpg", "logo_ProFrotas.jpg",
+                 "profrotas.jpg", "profrotas.png"]:
+        caminho = os.path.join(_DIR, nome)
+        if os.path.exists(caminho):
+            ext = nome.rsplit(".", 1)[-1].lower()
+            mime = "image/jpeg" if ext in ("jpg", "jpeg") else "image/png"
+            with open(caminho, "rb") as f:
+                dados = base64.b64encode(f.read()).decode()
+            return f"data:{mime};base64,{dados}"
+    return ""
+
+
 def _marcador_pf(lat, lon, popup, tooltip):
-    """CircleMarker azul maior para postos Pró-Frotas — destaca o credenciamento."""
-    return folium.CircleMarker(
-        location=[lat, lon],
-        radius=14,             # maior que o marcador regular (7)
-        color=COR_PF_BORDA,    # borda azul escuro
-        weight=2.5,
-        fill=True,
-        fill_color=COR_PF_FILL,  # interior azul
-        fill_opacity=0.92,
-        popup=popup,
-        tooltip=tooltip,
-    )
+    """Marcador Pró-Frotas: usa logo_profrotas.jpg se disponível, senão círculo azul."""
+    img_b64 = _img_pro_frotas_b64()
+
+    if img_b64:
+        html_icon = (
+            f"<div style='"
+            f"width:36px;height:36px;"
+            f"border-radius:50%;"
+            f"border:3px solid {COR_PF_BORDA};"
+            f"box-shadow:0 2px 8px rgba(0,0,0,.5);"
+            f"overflow:hidden;"
+            f"background:#fff;'>"
+            f"<img src='{img_b64}' "
+            f"style='width:100%;height:100%;object-fit:cover;display:block;'/>"
+            f"</div>"
+        )
+        icon = folium.DivIcon(html=html_icon, icon_size=(36, 36), icon_anchor=(18, 18))
+        return folium.Marker(
+            location=[lat, lon],
+            icon=icon,
+            popup=popup,
+            tooltip=tooltip,
+        )
+    else:
+        # Fallback: círculo azul original
+        return folium.CircleMarker(
+            location=[lat, lon],
+            radius=14,
+            color=COR_PF_BORDA,
+            weight=2.5,
+            fill=True,
+            fill_color=COR_PF_FILL,
+            fill_opacity=0.92,
+            popup=popup,
+            tooltip=tooltip,
+        )
 
 
 @st.cache_data(show_spinner=False)
@@ -1802,6 +1845,40 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             f'width:11px;height:11px;border-radius:50%;margin-right:5px"></span>{d}</li>'
             for d,cor in list(mapa_cores.items())[:22]
         )
+        # Item Pró-Frotas: usa logo_profrotas.jpg se disponível, senão círculo azul
+        _pf_img_b64 = _img_pro_frotas_b64()
+        if _pf_img_b64:
+            _pf_icon_html = (
+                f"<span style='display:inline-block;width:22px;height:22px;"
+                f"border-radius:50%;border:2px solid {COR_PF_BORDA};"
+                f"overflow:hidden;vertical-align:middle;margin-right:5px;background:#fff;'>"
+                f"<img src='{_pf_img_b64}' style='width:100%;height:100%;object-fit:cover;display:block;'/>"
+                f"</span>"
+            )
+        else:
+            _pf_icon_html = (
+                f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
+                f"background:{COR_PF_FILL};border:2px solid {COR_PF_BORDA};"
+                f"vertical-align:middle;margin-right:5px'></span>"
+            )
+
+        # Item Rodo Rede: usa a imagem se disponível, senão emoji fallback
+        _rr_img_b64 = _img_rodo_rede_b64()
+        if _rr_img_b64:
+            _rr_icon_html = (
+                f"<span style='display:inline-block;width:22px;height:22px;"
+                f"border-radius:50%;border:2px solid {COR_RR_BORDA};"
+                f"overflow:hidden;vertical-align:middle;margin-right:5px;background:#fff;'>"
+                f"<img src='{_rr_img_b64}' style='width:100%;height:100%;object-fit:cover;display:block;'/>"
+                f"</span>"
+            )
+        else:
+            _rr_icon_html = (
+                f"<span style='display:inline-block;width:20px;height:20px;border-radius:50%;"
+                f"background:{COR_RR_FILL};border:2px solid {COR_RR_BORDA};"
+                f"vertical-align:middle;margin-right:5px;text-align:center;"
+                f"font-size:11px;line-height:20px'>🚛</span>"
+            )
         m.get_root().html.add_child(folium.Element(
             "<div style='position:fixed;bottom:30px;right:10px;z-index:1000;"
             "background:white;padding:10px 14px;border-radius:10px;"
@@ -1809,15 +1886,9 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             f"<b style='font-size:12px'>Distribuidoras</b>"
             f"<ul style='list-style:none;padding:0;margin:6px 0 0'>{items}"
             "<li style='margin-top:6px;padding-top:6px;border-top:1px solid #eee'>"
-            f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
-            f"background:{COR_PF_FILL};border:2px solid {COR_PF_BORDA};"
-            f"vertical-align:middle;margin-right:5px'></span>"
-            "<b>Pró-Frotas</b> ● maior</li>"
-            "<li style='margin-top:4px'>"
-            f"<span style='display:inline-block;width:18px;height:18px;border-radius:50%;"
-            f"background:{COR_RR_FILL};border:2px solid {COR_RR_BORDA};"
-            f"vertical-align:middle;margin-right:5px;text-align:center;font-size:10px;line-height:18px'>🚛</span>"
-            "<b>Rodo Rede</b></li>"
+            f"{_pf_icon_html}"
+            "<b>Pró-Frotas</b></li>"
+            f"<li style='margin-top:4px'>{_rr_icon_html}<b>Rodo Rede</b></li>"
             "<li style='margin-top:4px'>"
             f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
             f"background:{COR_CERCADO_FILL};border:2px solid {COR_CERCADO_BORDA};"
