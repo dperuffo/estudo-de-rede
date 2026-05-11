@@ -3759,8 +3759,8 @@ with st.sidebar:
         )
 
     with st.expander("⚙️  Configurações", expanded=False):
-        tab_pf, tab_cer, tab_pp, tab_base, tab_exp = st.tabs(
-            ["⭐ Pró-Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base", "📥 Exportar"]
+        tab_pf, tab_cer, tab_pp, tab_base = st.tabs(
+            ["⭐ Pró-Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base"]
         )
 
         # ── Tab Pró-Frotas ────────────────────────────────────
@@ -4081,17 +4081,17 @@ with st.sidebar:
                     st.success(f"✅ Todos os {len(UFS)} estados carregados!")
                 st.rerun()
 
-        # ── Tab Exportar ──────────────────────────────────────
-        with tab_exp:
-            _n_est_exp = len(st.session_state.get("_estados_precarregados", []))
+            # ── Exportar (abaixo do botão Carregar) ──────────────
+            st.markdown("---")
             st.markdown(
-                "<small>Gera <b>Excel (.xlsx)</b> com todos os postos "
+                "<small>📥 <b>Exportar:</b> gera <b>Excel (.xlsx)</b> com todos os postos "
                 "dos estados carregados, com destaque para <b>Pró-Frotas</b>.</small>",
                 unsafe_allow_html=True,
             )
             st.markdown("")
+            _n_est_exp = len(st.session_state.get("_estados_precarregados", []))
             if _n_est_exp == 0:
-                st.warning("⚠️ Carregue a base primeiro na aba **Base**.")
+                st.warning("⚠️ Carregue a base primeiro (botão acima).")
             else:
                 st.markdown(
                     f"<div style='font-size:11px;color:#555;margin-bottom:6px'>"
