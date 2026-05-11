@@ -798,9 +798,32 @@ def _detectar_col_data_pp(df):
     return None
 
 
+def _colunas_combustivel_wide(df):
+    """
+    Detecta colunas que sejam nomes de combustíveis (formato wide).
+    Retorna lista de (col_original, pk_normalizado) ou [] se não for wide.
+    """
+    # Conjunto de tokens que indicam que a coluna É um combustível
+    tokens_comb = {
+        "GASOLINA", "DIESEL", "ETANOL", "ALCOOL", "GNV", "GLP",
+        "OLEO", "GAS NATURAL", "GAS LIQUEFEITO",
+    }
+    cols_comb = []
+    for col in df.columns:
+        pk = _anp_norm(str(col))
+        if any(tok in pk for tok in tokens_comb):
+            cols_comb.append((col, pk))
+    return cols_comb
+
+
 def _processar_bytes_precos_postos(nome: str, conteudo: bytes):
     """
     Lê planilha de Preços por Posto.
+    Aceita dois formatos:
+      • Long  — colunas: CNPJ | Produto/Combustível | Preço | Data
+      • Wide  — colunas: CNPJ | Gasolina | Diesel | Diesel S10 | ... | Data
+                (uma coluna por combustível, valor = preço)
+
     Retorna (df_normalizado, msg, None) ou (None, msg_erro, None).
     df tem colunas: cnpj_norm, combustivel_pk, combustivel_label, preco, data_atualizacao
     """
@@ -820,54 +843,92 @@ def _processar_bytes_precos_postos(nome: str, conteudo: bytes):
     if df.empty:
         return None, "A planilha está vazia.", None
 
-    col_cnpj  = detectar_coluna_cnpj(df)
-    col_comb  = _detectar_col_combustivel_pp(df)
-    col_preco = _detectar_col_preco_pp(df)
-    col_data  = _detectar_col_data_pp(df)
-
-    erros = []
-    if col_cnpj  is None: erros.append("CNPJ")
-    if col_comb  is None: erros.append("Combustível/Produto")
-    if col_preco is None: erros.append("Preço")
-    if erros:
-        cols = ", ".join(df.columns.tolist())
+    col_cnpj = detectar_coluna_cnpj(df)
+    if col_cnpj is None:
         return None, (
-            f"Colunas não encontradas: **{', '.join(erros)}**. "
-            f"Disponíveis: {cols}"
+            f"Coluna CNPJ não encontrada. Disponíveis: {', '.join(df.columns.tolist())}"
         ), None
 
+    col_data = _detectar_col_data_pp(df)
+
+    # ── Detecção automática de formato ────────────────────────────────
+    col_comb  = _detectar_col_combustivel_pp(df)
+    col_preco = _detectar_col_preco_pp(df)
+
+    # Formato WIDE: sem coluna "Produto/Combustível" mas com colunas de combustíveis
+    cols_wide = _colunas_combustivel_wide(df)
+    usar_wide = (col_comb is None or col_preco is None) and len(cols_wide) >= 2
+
     result = []
-    for _, row in df.iterrows():
-        cnpj_n = normalizar_cnpj(row.get(col_cnpj, ""))
-        if len(cnpj_n) != 14:
-            continue
-        comb_raw = str(row.get(col_comb, "")).strip()
-        comb_pk  = _anp_norm(comb_raw)
-        if not comb_pk:
-            continue
-        try:
-            preco_str = str(row.get(col_preco, "")).replace(",", ".").strip()
-            preco = float(preco_str)
-            if preco <= 0:
+
+    if usar_wide:
+        # ── Formato Wide ──────────────────────────────────────────────
+        for _, row in df.iterrows():
+            cnpj_n = normalizar_cnpj(row.get(col_cnpj, ""))
+            if len(cnpj_n) != 14:
                 continue
-        except (ValueError, TypeError):
-            continue
-        data_str = str(row.get(col_data, "")).strip() if col_data else ""
-        result.append({
-            "cnpj_norm":         cnpj_n,
-            "combustivel_pk":    comb_pk,
-            "combustivel_label": comb_raw,
-            "preco":             preco,
-            "data_atualizacao":  data_str,
-        })
+            data_str = str(row.get(col_data, "")).strip() if col_data else ""
+            for col_orig, pk in cols_wide:
+                raw_val = str(row.get(col_orig, "")).strip()
+                if not raw_val or raw_val.upper() in ("NAN", "NONE", "", "-", "N/A"):
+                    continue
+                try:
+                    preco = float(raw_val.replace(",", "."))
+                    if preco <= 0:
+                        continue
+                except (ValueError, TypeError):
+                    continue
+                result.append({
+                    "cnpj_norm":         cnpj_n,
+                    "combustivel_pk":    pk,
+                    "combustivel_label": str(col_orig).strip(),
+                    "preco":             preco,
+                    "data_atualizacao":  data_str,
+                })
+    else:
+        # ── Formato Long ──────────────────────────────────────────────
+        if col_comb is None or col_preco is None:
+            faltando = []
+            if col_comb  is None: faltando.append("Combustível/Produto")
+            if col_preco is None: faltando.append("Preço")
+            return None, (
+                f"Colunas não encontradas: **{', '.join(faltando)}**. "
+                f"Disponíveis: {', '.join(df.columns.tolist())}"
+            ), None
+
+        for _, row in df.iterrows():
+            cnpj_n = normalizar_cnpj(row.get(col_cnpj, ""))
+            if len(cnpj_n) != 14:
+                continue
+            comb_raw = str(row.get(col_comb, "")).strip()
+            comb_pk  = _anp_norm(comb_raw)
+            if not comb_pk:
+                continue
+            try:
+                preco_str = str(row.get(col_preco, "")).replace(",", ".").strip()
+                preco = float(preco_str)
+                if preco <= 0:
+                    continue
+            except (ValueError, TypeError):
+                continue
+            data_str = str(row.get(col_data, "")).strip() if col_data else ""
+            result.append({
+                "cnpj_norm":         cnpj_n,
+                "combustivel_pk":    comb_pk,
+                "combustivel_label": comb_raw,
+                "preco":             preco,
+                "data_atualizacao":  data_str,
+            })
 
     if not result:
         return None, "Nenhuma linha válida encontrada (verifique CNPJ e preço).", None
 
     df_out = pd.DataFrame(result)
+    fmt = "wide" if usar_wide else "long"
     msg = (f"{len(df_out)} registros · "
            f"{df_out['cnpj_norm'].nunique()} postos · "
-           f"{df_out['combustivel_pk'].nunique()} combustíveis")
+           f"{df_out['combustivel_pk'].nunique()} combustíveis "
+           f"[formato {fmt}]")
     return df_out, msg, None
 
 
@@ -3594,6 +3655,35 @@ with st.sidebar:
                     f"{_pp_ts_html}<br>{_pp_src}</div>",
                     unsafe_allow_html=True,
                 )
+                # ── Diagnóstico de combustíveis detectados ──────────
+                if "combustivel_pk" in _pp_df_sb.columns:
+                    _pks_pp = sorted(_pp_df_sb["combustivel_pk"].dropna().unique().tolist())
+                    _cnpjs_pf_diag = st.session_state.get("cnpjs_pro_frotas", set())
+                    with st.expander("🔍 Combustíveis detectados na planilha", expanded=False):
+                        st.caption("PKs lidos da planilha (após normalização):")
+                        for _pk_d in _pks_pp:
+                            _lbl_d = PRODUTO_CURTO.get(_pk_d) or PRODUTO_CURTO.get(
+                                _PP_PARA_ANP_PK.get(_pk_d, ""), "—")
+                            _n_rows = int((_pp_df_sb["combustivel_pk"] == _pk_d).sum())
+                            _n_pf_d = 0
+                            if _cnpjs_pf_diag:
+                                _n_pf_d = int(
+                                    _pp_df_sb[
+                                        (_pp_df_sb["combustivel_pk"] == _pk_d) &
+                                        (_pp_df_sb["cnpj_norm"].isin(_cnpjs_pf_diag))
+                                    ]["cnpj_norm"].nunique()
+                                )
+                            _match_anp = _PP_PARA_ANP_PK.get(_pk_d, "❌ sem match")
+                            st.markdown(
+                                f"<div style='font-size:11px;padding:3px 0;"
+                                f"border-bottom:1px solid #eee'>"
+                                f"<code>{_pk_d}</code> → {_lbl_d} "
+                                f"<span style='color:#888'>({_n_rows} linhas, {_n_pf_d} PF)</span>"
+                                f"<br><span style='color:#aaa;font-size:10px'>"
+                                f"ANP match: <code>{_match_anp}</code></span>"
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
             else:
                 st.markdown(
                     f"<div style='background:#f5f5f5;border:1px solid #ddd;"
