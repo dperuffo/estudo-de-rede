@@ -1970,6 +1970,10 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         df = pd.concat([df_prio, df_reg], ignore_index=True)
     # Popup compacto quando o dataset é grande (>300) mesmo sem cap
     usar_popup_simples = (n_total > 300)
+    # Marcadores leves (CircleMarker) para estados com muitos postos.
+    # DivIcon com logos gera HTML pesado: para SP (4 000+ postos) trava o browser.
+    # Limiar 800: abaixo disso usa logos; acima usa círculos diferenciados por cor/tamanho.
+    usar_marcador_leve = (n_total > 800)
 
     if not df.empty:
         clat, clon, zoom = df["_lat"].mean(), df["_lon"].mean(), 7
@@ -2078,17 +2082,24 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             lat_, lon_ = row["_lat"], row["_lon"]
 
             if is_cer:
-                # Cercado: círculo laranja com ⚠
+                # Cercados: sempre CircleMarker (leve)
                 folium.CircleMarker(
-                    [lat_, lon_], radius=9,
+                    [lat_, lon_], radius=10,
                     color=COR_CERCADO_BORDA, fill=True,
-                    fill_color=COR_CERCADO_FILL, fill_opacity=0.9,
+                    fill_color=COR_CERCADO_FILL, fill_opacity=0.92,
                     popup=pop, tooltip=tip,
                 ).add_to(c_cer)
 
             elif is_rr:
-                # Rodo Rede: usa CSS class (imagem definida uma vez no <style>)
-                if _rr_css:
+                if usar_marcador_leve:
+                    # Estado grande: CircleMarker roxo maior para Rodo Rede
+                    folium.CircleMarker(
+                        [lat_, lon_], radius=11,
+                        color=COR_RR_BORDA, fill=True,
+                        fill_color=COR_RR_FILL, fill_opacity=0.95,
+                        popup=pop, tooltip=tip,
+                    ).add_to(c_rr)
+                elif _rr_css:
                     _html_rr = _mk_pin_css(
                         _rr_css, 40,
                         f"border:3px solid {COR_RR_BORDA};box-shadow:0 2px 8px rgba(0,0,0,.6);",
@@ -2096,38 +2107,49 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                     _marker_from_css(lat_, lon_, pop, tip, _html_rr, 40).add_to(c_rr)
                 else:
                     folium.CircleMarker(
-                        [lat_, lon_], radius=9,
+                        [lat_, lon_], radius=11,
                         color=COR_RR_BORDA, fill=True,
-                        fill_color=COR_RR_FILL, fill_opacity=0.9,
+                        fill_color=COR_RR_FILL, fill_opacity=0.95,
                         popup=pop, tooltip=tip,
                     ).add_to(c_rr)
 
             elif is_pf:
-                # Pró-Frotas: usa CSS class da bandeira (se existir) ou da logo PF
-                _cls_pf = _band_css_para(row.get("distribuidora", ""))
-                if _cls_pf:
-                    # PF com bandeira reconhecida: logo da bandeira + borda azul PF + anel dourado
-                    _html_pf = _mk_pin_css(
-                        _cls_pf, 36,
-                        f"border:3px solid {COR_PF_BORDA};box-shadow:0 0 0 2px #FFD700,0 3px 8px rgba(0,0,0,.55);",
-                    )
-                elif _pf_css:
-                    # Logo ProFrotas genérica
-                    _html_pf = _mk_pin_css(
-                        _pf_css, 36,
-                        f"border:3px solid {COR_PF_BORDA};box-shadow:0 2px 8px rgba(0,0,0,.6);",
-                    )
+                if usar_marcador_leve:
+                    # Estado grande: CircleMarker diferenciado por cor da bandeira PF
+                    # PF Ipiranga → círculo amarelo âmbar com borda azul
+                    # PF genérico  → círculo azul com borda dourada
+                    _cls_pf_band = _band_css_para(row.get("distribuidora", ""))
+                    _cor_fill_pf = _cor_marca(row.get("distribuidora", "")) if _cls_pf_band else COR_PF_FILL
+                    _cor_bord_pf = COR_PF_BORDA
+                    folium.CircleMarker(
+                        [lat_, lon_], radius=11,
+                        color=_cor_bord_pf, weight=3,
+                        fill=True, fill_color=_cor_fill_pf, fill_opacity=0.95,
+                        popup=pop, tooltip=tip,
+                    ).add_to(c_pf)
                 else:
-                    # Fallback: círculo azul sólido
-                    _html_pf = (
-                        f"<div style='width:32px;height:32px;border-radius:50%;"
-                        f"background:{COR_PF_FILL};border:3px solid {COR_PF_BORDA};"
-                        f"box-shadow:0 2px 6px rgba(0,0,0,.5)'></div>"
-                    )
-                _marker_from_css(lat_, lon_, pop, tip, _html_pf, 36).add_to(c_pf)
+                    # Estado pequeno: usa CSS class da bandeira (logo real)
+                    _cls_pf = _band_css_para(row.get("distribuidora", ""))
+                    if _cls_pf:
+                        _html_pf = _mk_pin_css(
+                            _cls_pf, 36,
+                            f"border:3px solid {COR_PF_BORDA};box-shadow:0 0 0 2px #FFD700,0 3px 8px rgba(0,0,0,.55);",
+                        )
+                    elif _pf_css:
+                        _html_pf = _mk_pin_css(
+                            _pf_css, 36,
+                            f"border:3px solid {COR_PF_BORDA};box-shadow:0 2px 8px rgba(0,0,0,.6);",
+                        )
+                    else:
+                        _html_pf = (
+                            f"<div style='width:32px;height:32px;border-radius:50%;"
+                            f"background:{COR_PF_FILL};border:3px solid {COR_PF_BORDA};"
+                            f"box-shadow:0 2px 6px rgba(0,0,0,.5)'></div>"
+                        )
+                    _marker_from_css(lat_, lon_, pop, tip, _html_pf, 36).add_to(c_pf)
 
             else:
-                # Postos regulares: círculo colorido por bandeira (leve, sem imagem)
+                # Postos regulares: sempre CircleMarker (leve)
                 folium.CircleMarker(
                     [lat_, lon_], radius=7,
                     color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
