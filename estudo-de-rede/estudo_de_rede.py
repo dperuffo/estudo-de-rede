@@ -2006,13 +2006,11 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             elif is_pf:
                 _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
             else:
-                _logo_band = _logo_para_distribuidora(row.get("distribuidora", ""), _logos_band)
-                if _logo_band:
-                    _marcador_logo_bandeira(
-                        row["_lat"], row["_lon"], pop, tip, _logo_band, cor
-                    ).add_to(c_reg)
-                else:
-                    folium.CircleMarker([row["_lat"],row["_lon"]], radius=7,
+                # Pins regulares sempre como círculo colorido.
+                # Logos de bandeira NÃO são embutidas nos pins do mapa para evitar
+                # que o HTML do Folium fique enorme (50+ MB para estados grandes como SP).
+                # As logos aparecem apenas na legenda.
+                folium.CircleMarker([row["_lat"],row["_lon"]], radius=7,
                                         color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
                                         popup=pop, tooltip=tip).add_to(c_reg)
 
