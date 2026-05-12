@@ -1519,6 +1519,106 @@ def buscar_posto_por_cnpj(cnpj_norm: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+@st.cache_data(show_spinner=False, ttl=3600)
+def buscar_postos_por_nome(termo: str, uf: str = "") -> pd.DataFrame:
+    """Busca postos na API ANP por razão social (parcial) + UF opcional."""
+    params: dict = {"numeropagina": 1, "razaoSocial": termo}
+    if uf:
+        params["uf"] = uf
+    try:
+        resp = _get(f"{API_BASE_URL}{ENDPOINT}", params)
+        data = resp.json()
+        registros = data.get("data", data) if isinstance(data, dict) else data
+        if not registros:
+            return pd.DataFrame()
+        lst = registros if isinstance(registros, list) else [registros]
+        df = pd.DataFrame(lst)
+        df["_lat"] = pd.to_numeric(df.get("latitude"),  errors="coerce")
+        df["_lon"] = pd.to_numeric(df.get("longitude"), errors="coerce")
+        df = df.dropna(subset=["_lat", "_lon"])
+        df = df[df["_lat"].between(-33.8, 5.3) & df["_lon"].between(-73.9, -34.7)]
+        return df.reset_index(drop=True)
+    except Exception:
+        return pd.DataFrame()
+
+
+def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]:
+    """
+    Ponto único de busca para o Modo 3 — Consulta por Posto.
+
+    Estratégia:
+      1. Detecta CNPJ (14 dígitos) → busca direta na API ANP por CNPJ.
+      2. Texto curto / nome → busca por razão social na API ANP (com UF opcional).
+      3. Enriquece com flag _pro_frotas / _cercado / _rodo_rede das listas locais.
+
+    Retorna (DataFrame, mensagem_fonte).
+    """
+    termo = termo.strip()
+    if not termo:
+        return pd.DataFrame(), ""
+
+    cnpjs_pf      = st.session_state.get("cnpjs_pro_frotas", set())
+    cnpjs_cercados = st.session_state.get("cnpjs_cercados",  set())
+    perfil_map    = st.session_state.get("perfil_venda_map", {})
+
+    # ── Detecta se parece CNPJ ──────────────────────────────────────
+    _digits = re.sub(r"\D", "", termo)
+    is_cnpj = len(_digits) == 14
+
+    if is_cnpj:
+        df = buscar_posto_por_cnpj(_digits)
+        fonte = f"CNPJ {_digits[:2]}.{_digits[2:5]}.{_digits[5:8]}/{_digits[8:12]}-{_digits[12:]}"
+    else:
+        df = buscar_postos_por_nome(termo, uf=uf)
+        fonte = f'Razão social "{termo}"' + (f" · UF {uf}" if uf else "")
+
+    if df.empty:
+        # Fallback: busca local na planilha Pró-Frotas
+        pf_df = st.session_state.get("pf_coords_df", pd.DataFrame())
+        if not pf_df.empty:
+            _t = termo.upper()
+            _mask = pd.Series(False, index=pf_df.index)
+            for _col in ["razaoSocial", "nome", "nomeFantasia", "cnpj"]:
+                if _col in pf_df.columns:
+                    if _col == "cnpj" and is_cnpj:
+                        _mask |= pf_df[_col].fillna("").str.replace(r"\D","",regex=True) == _digits
+                    else:
+                        _mask |= pf_df[_col].fillna("").str.upper().str.contains(_t, na=False)
+            if uf:
+                _mask &= pf_df.get("uf", pd.Series("", index=pf_df.index)).fillna("").str.upper() == uf.upper()
+            df = pf_df[_mask].copy()
+            if not df.empty:
+                fonte += " (planilha Pró-Frotas)"
+
+    if df.empty:
+        return pd.DataFrame(), fonte
+
+    # ── Normaliza CNPJ e injeta flags ──────────────────────────────
+    if "cnpj" in df.columns:
+        df["_cnpj_norm"] = df["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+    else:
+        df["_cnpj_norm"] = ""
+
+    df["_pro_frotas"] = df["_cnpj_norm"].isin(cnpjs_pf)
+    df["_cercado"]    = df["_cnpj_norm"].isin(cnpjs_cercados)
+
+    if perfil_map and "_cnpj_norm" in df.columns:
+        df["_perfil_venda"] = df["_cnpj_norm"].map(perfil_map).fillna("")
+        df["_rodo_rede"] = df["_perfil_venda"].str.upper().str.strip() == PERFIL_RODO_REDE
+    else:
+        df["_perfil_venda"] = ""
+        df["_rodo_rede"] = False
+
+    # Garante colunas de coordenadas
+    if "_lat" not in df.columns and "latitude" in df.columns:
+        df["_lat"] = pd.to_numeric(df["latitude"], errors="coerce")
+    if "_lon" not in df.columns and "longitude" in df.columns:
+        df["_lon"] = pd.to_numeric(df["longitude"], errors="coerce")
+
+    df = df.dropna(subset=["_lat", "_lon"])
+    return df.reset_index(drop=True), fonte
+
+
 def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set,
                          uf_atual: str = "", ufs_permitidas: set = None) -> pd.DataFrame:
     """
@@ -3895,7 +3995,7 @@ with st.sidebar:
     if "modo_selecionado" not in st.session_state:
         st.session_state["modo_selecionado"] = "📍 Por Estado/Município"
     _modo_atual = st.session_state["modo_selecionado"]
-    _col_m1, _col_m2 = st.columns(2)
+    _col_m1, _col_m2, _col_m3 = st.columns(3)
     with _col_m1:
         if st.button(
             "📍\nEstado",
@@ -3914,11 +4014,20 @@ with st.sidebar:
         ):
             st.session_state["modo_selecionado"] = "🗺️ Por Rota"
             st.rerun()
+    with _col_m3:
+        if st.button(
+            "🔍\nConsulta",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🔍 Consulta por Posto" else "secondary",
+            key="btn_modo_consulta",
+        ):
+            st.session_state["modo_selecionado"] = "🔍 Consulta por Posto"
+            st.rerun()
     modo = _modo_atual
     st.divider()
 
     # ── Modo 1 ────────────────────────────────────────────────
-    if modo == "📍 Por Estado/Município":
+    if modo == "📍 Por Estado/Município":  # noqa: E501
         _fk_m1 = st.session_state.get("_form_key_m1", 0)
         st.markdown("<div class='sb-label'>Localização</div>", unsafe_allow_html=True)
         uf = st.selectbox("Estado (UF)", ["— Selecione —"] + UFS, index=0,
@@ -3958,6 +4067,50 @@ with st.sidebar:
                 key=f"mult_perfil_{_fk_m1}",
                 help="Filtra os postos Pró-Frotas pelo perfil de venda. Postos não-PF sempre exibidos.",
             )
+
+    # ── Modo 3 ────────────────────────────────────────────────
+    elif modo == "🔍 Consulta por Posto":
+        st.markdown(
+            "<div style='background:#e8f5e9;border-radius:8px;padding:10px 12px;"
+            "font-size:12px;color:#2e7d32;margin-bottom:12px'>"
+            "🔍 Busque por <b>nome do posto</b>, <b>razão social</b> ou <b>CNPJ</b>."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        _fk_m3 = st.session_state.get("_form_key_m3", 0)
+        _termo_m3 = st.text_input(
+            "Nome, razão social ou CNPJ",
+            placeholder="Ex: Auto Posto Silva  ·  12.345.678/0001-99",
+            key=f"txt_consulta_{_fk_m3}",
+            help="Digite ao menos 3 caracteres do nome ou o CNPJ completo",
+        )
+        _uf_m3_sel = st.selectbox(
+            "Estado (opcional)",
+            ["Todos os estados"] + UFS,
+            index=0,
+            key=f"sel_uf_m3_{_fk_m3}",
+            help="Filtre por estado para resultados mais rápidos",
+        )
+        _uf_m3 = "" if _uf_m3_sel == "Todos os estados" else _uf_m3_sel
+
+        _buscar_m3 = st.button(
+            "🔍 Buscar Posto",
+            use_container_width=True,
+            type="primary",
+            key=f"btn_buscar_m3_{_fk_m3}",
+            disabled=len(_termo_m3.strip()) < 3,
+        )
+        if _buscar_m3:
+            st.session_state["_m3_termo"]     = _termo_m3.strip()
+            st.session_state["_m3_uf"]        = _uf_m3
+            st.session_state["_m3_resultado"] = None   # força nova busca
+            st.rerun()
+
+        if st.button("🗑️ Limpar", use_container_width=True, key="btn_limpar_m3"):
+            for _k in ["_m3_termo", "_m3_uf", "_m3_resultado"]:
+                st.session_state.pop(_k, None)
+            st.session_state["_form_key_m3"] = _fk_m3 + 1
+            st.rerun()
 
     # ── Modo 2 ────────────────────────────────────────────────
     else:
@@ -4754,7 +4907,7 @@ if modo == "📍 Por Estado/Município":
 #  MODO 2 — Por Rota
 # ═══════════════════════════════════════════════════════════════════
 
-else:
+elif modo == "🗺️ Por Rota":
 
     if buscar_rota_btn:
         orig_sel = st.session_state.get("orig_sel")
@@ -4981,3 +5134,180 @@ else:
         st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
                         config={"scrollZoom": True}, height=680)
         st.info("👈 Preencha Origem e Destino na barra lateral e clique em Traçar Rota")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO 3 — Consulta por Posto (CNPJ / Razão Social / Nome)
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "🔍 Consulta por Posto":
+
+    _m3_termo = st.session_state.get("_m3_termo", "")
+    _m3_uf    = st.session_state.get("_m3_uf", "")
+
+    # ── Cabeçalho ─────────────────────────────────────────────────
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;color:#1565c0'>"
+        "🔍 Consulta por Posto</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Busque por nome, razão social ou CNPJ do estabelecimento.</p>",
+        unsafe_allow_html=True,
+    )
+
+    if not _m3_termo:
+        # Estado inicial — mapa do Brasil + dica
+        st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
+                        config={"scrollZoom": True}, height=560)
+        st.info("👈 Digite o nome do posto, razão social ou CNPJ na barra lateral e clique em **Buscar Posto**.")
+
+    else:
+        # ── Executa busca (cacheada no session_state) ──────────────
+        if st.session_state.get("_m3_resultado") is None:
+            with st.spinner(f"🔍 Buscando **{_m3_termo}**…"):
+                _df_m3, _fonte_m3 = _buscar_posto_completo(_m3_termo, uf=_m3_uf)
+                st.session_state["_m3_resultado"] = (_df_m3, _fonte_m3)
+        else:
+            _df_m3, _fonte_m3 = st.session_state["_m3_resultado"]
+
+        # ── Sem resultados ─────────────────────────────────────────
+        if _df_m3 is None or _df_m3.empty:
+            st.warning(
+                f"⚠️ Nenhum posto encontrado para **{_m3_termo}**"
+                + (f" no estado **{_m3_uf}**" if _m3_uf else "")
+                + ".\n\nDicas: verifique a ortografia, tente um trecho menor do nome, "
+                "ou selecione outro estado."
+            )
+            st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
+                            config={"scrollZoom": True}, height=500)
+
+        else:
+            n_res = len(_df_m3)
+            n_pf  = int(_df_m3["_pro_frotas"].sum()) if "_pro_frotas" in _df_m3.columns else 0
+            n_cer = int(_df_m3["_cercado"].sum())    if "_cercado"    in _df_m3.columns else 0
+
+            # ── Métricas resumo ────────────────────────────────────
+            _ca, _cb, _cc, _cd = st.columns(4)
+            _ca.metric("⛽ Postos encontrados", n_res)
+            _cb.metric("⭐ Pró-Frotas",         n_pf)
+            _cc.metric("⚠️ Cercados",           n_cer)
+            _cd.metric("📍 Estado(s)",
+                       _df_m3["uf"].nunique() if "uf" in _df_m3.columns else "—")
+            st.caption(f"Fonte: {_fonte_m3}")
+
+            # ── Abas: Mapa · Detalhes · Preços ────────────────────
+            _tab_map_m3, _tab_det_m3, _tab_preco_m3 = st.tabs([
+                "🗺️  Mapa", "📋  Detalhes", "💰  Preços ANP"
+            ])
+
+            with _tab_map_m3:
+                # Zoom adaptativo: 1 posto = zoom 15, vários estados = zoom 5
+                _mapa_m3 = criar_mapa(_df_m3)
+                if n_res == 1:
+                    # Zoom máximo para posto único
+                    _mapa_m3.update_layout(
+                        mapbox=dict(
+                            zoom=15,
+                            center=dict(
+                                lat=float(_df_m3["_lat"].iloc[0]),
+                                lon=float(_df_m3["_lon"].iloc[0]),
+                            ),
+                        )
+                    )
+                elif "uf" in _df_m3.columns and _df_m3["uf"].nunique() == 1:
+                    _mapa_m3.update_layout(mapbox=dict(zoom=8))
+
+                st.plotly_chart(_mapa_m3, use_container_width=True,
+                                config={"scrollZoom": True}, height=560)
+
+                # ── Botões de ação para posto único ───────────────
+                if n_res == 1:
+                    _row_m3 = _df_m3.iloc[0]
+                    _sel_m3 = {
+                        "lat":   float(_row_m3["_lat"]),
+                        "lon":   float(_row_m3["_lon"]),
+                        "label": str(_row_m3.get("razaoSocial", "Posto")),
+                    }
+                    st.markdown("**Usar este posto como:**")
+                    _ba, _bb = st.columns(2)
+                    if _ba.button("🟢 Definir como Origem", use_container_width=True):
+                        st.session_state["orig_sel"]        = _sel_m3
+                        st.session_state["modo_selecionado"] = "🗺️ Por Rota"
+                        st.session_state["_form_key"]        = st.session_state.get("_form_key", 0) + 1
+                        st.rerun()
+                    if _bb.button("🔴 Definir como Destino", use_container_width=True):
+                        st.session_state["dest_sel"]         = _sel_m3
+                        st.session_state["modo_selecionado"] = "🗺️ Por Rota"
+                        st.session_state["_form_key"]        = st.session_state.get("_form_key", 0) + 1
+                        st.rerun()
+
+            with _tab_det_m3:
+                # Card detalhado para posto único
+                if n_res == 1:
+                    _r = _df_m3.iloc[0]
+                    _is_pf_r  = bool(_r.get("_pro_frotas"))
+                    _is_cer_r = bool(_r.get("_cercado"))
+                    _is_rr_r  = bool(_r.get("_rodo_rede"))
+                    _badges = ""
+                    if _is_pf_r:  _badges += "<span style='background:#1565c0;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>⭐ PRÓ-FROTAS</span>"
+                    if _is_rr_r:  _badges += "<span style='background:#FFB300;color:#333;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>🚛 RODO REDE</span>"
+                    if _is_cer_r: _badges += "<span style='background:#FF8F00;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>⚠️ CERCADO</span>"
+
+                    _td = "color:#888;padding:3px 8px 3px 0"
+                    _perfil_row = (
+                        f"<tr><td style='{_td}'>🏷️ Perfil Venda</td>"
+                        f"<td>{_r.get('_perfil_venda','')}</td></tr>"
+                        if _r.get("_perfil_venda") else ""
+                    )
+                    _autor_row = (
+                        f"<tr><td style='{_td}'>🔑 Autorização</td>"
+                        f"<td>{_r.get('autorizacao','')}</td></tr>"
+                        if _r.get("autorizacao") else ""
+                    )
+                    st.markdown(
+                        f"<div style='background:#f8f9fa;border-radius:12px;padding:18px 22px;"
+                        f"border:1px solid #e0e0e0;margin-bottom:12px'>"
+                        f"<div style='font-size:1.1rem;font-weight:700;color:#1565c0;margin-bottom:6px'>"
+                        f"{_r.get('razaoSocial','—')}</div>"
+                        f"{_badges}"
+                        f"<table style='margin-top:10px;font-size:13px;width:100%;border-collapse:collapse'>"
+                        f"<tr><td style='{_td};width:130px'>⛽ Distribuidora</td>"
+                        f"<td><b>{_r.get('distribuidora','—')}</b></td></tr>"
+                        f"<tr><td style='{_td}'>📋 CNPJ</td>"
+                        f"<td>{_r.get('cnpj','—')}</td></tr>"
+                        f"<tr><td style='{_td}'>📍 Endereço</td>"
+                        f"<td>{_r.get('endereco','—')}, {_r.get('bairro','')} — "
+                        f"{_r.get('municipio','—')}/{_r.get('uf','—')} "
+                        f"CEP {_r.get('cep','—')}</td></tr>"
+                        f"<tr><td style='{_td}'>🗺️ Coordenadas</td>"
+                        f"<td>{float(_r['_lat']):.5f}, {float(_r['_lon']):.5f}</td></tr>"
+                        f"{_perfil_row}{_autor_row}"
+                        f"</table></div>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    # Tabela para múltiplos resultados
+                    _cols_m3 = [c for c in [
+                        "razaoSocial", "cnpj", "distribuidora",
+                        "_pro_frotas", "_cercado",
+                        "municipio", "uf", "endereco", "cep",
+                    ] if c in _df_m3.columns]
+                    _df_exib_m3 = _df_m3[_cols_m3].copy()
+                    if "_pro_frotas" in _df_exib_m3.columns:
+                        _df_exib_m3 = _df_exib_m3.rename(columns={"_pro_frotas": "Pró-Frotas ⭐"})
+                    if "_cercado" in _df_exib_m3.columns:
+                        _df_exib_m3 = _df_exib_m3.rename(columns={"_cercado": "Cercado ⚠️"})
+                    st.dataframe(_df_exib_m3, use_container_width=True, height=450)
+                    st.download_button(
+                        "⬇️ Baixar resultados em CSV",
+                        _df_m3.to_csv(index=False).encode("utf-8"),
+                        f"consulta_{_m3_termo[:20].replace(' ','_')}.csv",
+                        "text/csv",
+                        use_container_width=True,
+                    )
+
+            with _tab_preco_m3:
+                _ufs_m3 = list(_df_m3["uf"].dropna().unique()) if "uf" in _df_m3.columns else []
+                if _ufs_m3:
+                    _renderizar_precos_anp(None, ufs_multiplas=_ufs_m3)
+                else:
+                    st.info("Selecione um estado para ver os preços ANP.")
