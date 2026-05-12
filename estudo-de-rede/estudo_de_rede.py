@@ -2951,14 +2951,53 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
         unsafe_allow_html=True,
     )
 
-    # ── Grade de cards — 3 colunas (máx 6 combustíveis → 2 linhas × 3) ───
-    n_cols = min(len(comparativo), 3)
-    cols   = st.columns(n_cols)
+    # ── CSS + grid de cards em um único bloco HTML ────────────────────────
+    # Emitido como bloco único para que CSS grid controle altura uniforme
+    # (align-items:stretch + flex-direction:column por card)
 
-    for i, item in enumerate(comparativo):
+    css = """
+<style>
+.cmp-grid{display:grid;grid-template-columns:repeat(3,1fr);
+          gap:14px;margin-bottom:20px;align-items:stretch}
+.cmp-card{border-radius:14px;overflow:hidden;
+          box-shadow:0 3px 10px rgba(0,0,0,.1);
+          display:flex;flex-direction:column}
+.cmp-head{padding:10px 16px;display:flex;
+          justify-content:space-between;align-items:center}
+.cmp-head-nome{color:#fff;font-weight:800;font-size:15px}
+.cmp-head-nivel{color:rgba(255,255,255,.85);font-size:11px}
+.cmp-body{padding:14px 16px;display:flex;flex-direction:column;flex:1}
+.cmp-prices{display:flex;justify-content:space-between;
+            align-items:baseline;margin-bottom:6px}
+.cmp-lbl{font-size:10px;color:#888;margin-bottom:2px}
+.cmp-pf{font-size:24px;font-weight:900;color:#1565c0;line-height:1}
+.cmp-anp{font-size:18px;font-weight:700;color:#555;line-height:1}
+.cmp-delta{border-radius:10px;padding:10px 14px;margin-top:10px;
+           display:flex;justify-content:space-between;align-items:center}
+.cmp-pct{font-size:28px;font-weight:900;line-height:1}
+.cmp-abs{font-size:16px;font-weight:800}
+.cmp-eco{font-size:11px;margin-top:2px}
+.cmp-minmax{display:flex;justify-content:space-between;
+            font-size:10px;color:#999;margin-top:8px}
+.cmp-uf-wrap{margin-top:12px;border-top:1px solid #e0e0e0;
+             padding-top:10px;flex:1}
+.cmp-uf-titulo{font-size:10px;font-weight:700;color:#888;
+               letter-spacing:.8px;margin-bottom:6px}
+.cmp-uf-table{width:100%;font-size:11px;border-collapse:collapse}
+.cmp-uf-table th{text-align:left;padding:2px 6px;font-weight:600;color:#999}
+.cmp-uf-table th:not(:first-child){text-align:right}
+.cmp-uf-table td{padding:4px 6px;color:#333;border-top:1px solid #f0f0f0}
+.cmp-uf-table td:not(:first-child){text-align:right}
+.cmp-footer{font-size:10px;color:#aaa;text-align:right;margin-top:auto;
+            padding-top:8px}
+@media(max-width:720px){.cmp-grid{grid-template-columns:1fr}}
+</style>
+"""
+
+    cards_html = ""
+    for item in comparativo:
         cheaper   = item["delta_abs"] < 0
         cor_brd   = "#2e7d32" if cheaper else "#c62828"
-        cor_hd    = "#2e7d32" if cheaper else "#c62828"
         cor_bg    = "#e8f5e9" if cheaper else "#ffebee"
         cor_delta = "#1b5e20" if cheaper else "#b71c1c"
         sinal     = "▼" if cheaper else "▲"
@@ -2967,103 +3006,71 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
                      if cheaper
                      else f"Custo adicional de R$ {_brl(abs(item['economia_100l']))}/100 L")
 
-        # ── Breakdown por estado (só rota com múltiplos UFs) ──────────────
+        # Tabela por estado (só rota com múltiplos UFs)
         por_uf = item.get("por_uf", [])
         if por_uf:
-            linhas_uf = ""
-            for pu in por_uf:
-                c_uf  = "#1b5e20" if pu["delta_abs"] < 0 else "#b71c1c"
-                s_uf  = "▼" if pu["delta_abs"] < 0 else "▲"
-                linhas_uf += (
-                    f"<tr style='border-top:1px solid #e8e8e8'>"
-                    f"<td style='padding:4px 6px;color:#333'>{pu['nome']}</td>"
-                    f"<td style='padding:4px 6px;text-align:right;color:#555'>"
-                    f"R$ {_brl(pu['preco_anp'], 3)}</td>"
-                    f"<td style='padding:4px 6px;text-align:right;font-weight:700;color:{c_uf}'>"
-                    f"{s_uf} {abs(pu['delta_pct']):.1f}%</td>"
-                    f"</tr>"
-                )
+            linhas_uf = "".join(
+                f"<tr>"
+                f"<td>{pu['nome']}</td>"
+                f"<td>R$ {_brl(pu['preco_anp'], 3)}</td>"
+                f"<td style='font-weight:700;color:{'#1b5e20' if pu['delta_abs']<0 else '#b71c1c'}'>"
+                f"{'▼' if pu['delta_abs']<0 else '▲'} {abs(pu['delta_pct']):.1f}%</td>"
+                f"</tr>"
+                for pu in por_uf
+            )
             tabela_uf_html = (
-                f"<div style='margin-top:12px;border-top:1px solid #ddd;padding-top:10px'>"
-                f"<div style='font-size:10px;font-weight:700;color:#888;letter-spacing:.8px;"
-                f"margin-bottom:6px'>PREÇO ANP POR ESTADO</div>"
-                f"<table style='width:100%;font-size:11px;border-collapse:collapse'>"
-                f"<thead><tr style='color:#999'>"
-                f"<th style='text-align:left;padding:2px 6px;font-weight:600'>Estado</th>"
-                f"<th style='text-align:right;padding:2px 6px;font-weight:600'>ANP</th>"
-                f"<th style='text-align:right;padding:2px 6px;font-weight:600'>vs PF</th>"
-                f"</tr></thead>"
+                "<div class='cmp-uf-wrap'>"
+                "<div class='cmp-uf-titulo'>PREÇO ANP POR ESTADO</div>"
+                "<table class='cmp-uf-table'>"
+                "<thead><tr><th>Estado</th><th>ANP</th><th>vs PF</th></tr></thead>"
                 f"<tbody>{linhas_uf}</tbody>"
-                f"</table>"
-                f"</div>"
+                "</table></div>"
             )
         else:
             tabela_uf_html = ""
 
-        data_footer = (
-            f"<div style='font-size:10px;color:#aaa;text-align:right;margin-top:8px'>"
-            f"{item['n_postos_pf']} posto{'s' if item['n_postos_pf'] != 1 else ''} PF"
-            f"{' · atualizado ' + item['data_atualizacao'] if item['data_atualizacao'] else ''}"
+        n_p   = item['n_postos_pf']
+        data_ = item['data_atualizacao']
+        footer = (
+            f"<div class='cmp-footer'>"
+            f"{n_p} posto{'s' if n_p != 1 else ''} PF"
+            f"{' · atualizado ' + data_ if data_ else ''}"
             f"</div>"
         )
 
-        with cols[i % n_cols]:
-            st.markdown(
-                # Card container
-                f"<div style='border:2px solid {cor_brd};border-radius:14px;"
-                f"overflow:hidden;margin-bottom:14px;"
-                f"box-shadow:0 3px 10px rgba(0,0,0,.1)'>"
-                # Header: fuel name
-                f"<div style='background:{cor_hd};padding:10px 16px;"
-                f"display:flex;justify-content:space-between;align-items:center'>"
-                f"<span style='color:#fff;font-weight:800;font-size:15px'>"
-                f"⛽ {item['combustivel_label']}</span>"
-                f"<span style='color:rgba(255,255,255,.85);font-size:11px'>"
-                f"ref. ANP: {item['nivel_anp']}</span>"
-                f"</div>"
-                # Body
-                f"<div style='padding:14px 16px'>"
-                # PF price (hero left) vs ANP (secondary right)
-                f"<div style='display:flex;justify-content:space-between;"
-                f"align-items:baseline;margin-bottom:6px'>"
-                f"<div>"
-                f"<div style='font-size:10px;color:#888;margin-bottom:2px'>⭐ Pró-Frotas médio</div>"
-                f"<div style='font-size:24px;font-weight:900;color:#1565c0;line-height:1'>"
-                f"R$ {_brl(item['preco_pf_med'], 3)}</div>"
-                f"</div>"
-                f"<div style='text-align:right'>"
-                f"<div style='font-size:10px;color:#888;margin-bottom:2px'>📊 Ref. ANP</div>"
-                f"<div style='font-size:18px;font-weight:700;color:#555;line-height:1'>"
-                f"R$ {_brl(item['preco_anp'], 3)}</div>"
-                f"</div>"
-                f"</div>"
-                # Delta badge (hero)
-                f"<div style='background:{cor_bg};border-radius:10px;"
-                f"padding:10px 14px;margin-top:10px;"
-                f"display:flex;justify-content:space-between;align-items:center'>"
-                f"<div style='color:{cor_delta};font-size:28px;font-weight:900;line-height:1'>"
-                f"{sinal} {abs(item['delta_pct']):.1f}%</div>"
-                f"<div style='text-align:right'>"
-                f"<div style='color:{cor_delta};font-size:16px;font-weight:800'>"
-                f"{sinal} R$ {_brl(abs(item['delta_abs']), 3)}/L</div>"
-                f"<div style='color:{cor_delta};font-size:11px;margin-top:2px'>"
-                f"{icone_eco} {txt_eco}</div>"
-                f"</div>"
-                f"</div>"
-                # Intervalo min/max PF
-                f"<div style='display:flex;justify-content:space-between;"
-                f"font-size:10px;color:#999;margin-top:8px'>"
-                f"<span>PF mín: R$ {_brl(item['preco_pf_min'], 3)}</span>"
-                f"<span>PF máx: R$ {_brl(item['preco_pf_max'], 3)}</span>"
-                f"</div>"
-                # Per-state table (rota)
-                f"{tabela_uf_html}"
-                # Footer
-                f"{data_footer}"
-                f"</div>"  # end body
-                f"</div>",  # end card
-                unsafe_allow_html=True,
-            )
+        cards_html += (
+            f"<div class='cmp-card' style='border:2px solid {cor_brd}'>"
+            f"<div class='cmp-head' style='background:{cor_brd}'>"
+            f"<span class='cmp-head-nome'>⛽ {item['combustivel_label']}</span>"
+            f"<span class='cmp-head-nivel'>ref. ANP: {item['nivel_anp']}</span>"
+            f"</div>"
+            f"<div class='cmp-body'>"
+            f"<div class='cmp-prices'>"
+            f"<div><div class='cmp-lbl'>⭐ Pró-Frotas médio</div>"
+            f"<div class='cmp-pf'>R$ {_brl(item['preco_pf_med'], 3)}</div></div>"
+            f"<div style='text-align:right'><div class='cmp-lbl'>📊 Ref. ANP</div>"
+            f"<div class='cmp-anp'>R$ {_brl(item['preco_anp'], 3)}</div></div>"
+            f"</div>"
+            f"<div class='cmp-delta' style='background:{cor_bg}'>"
+            f"<div class='cmp-pct' style='color:{cor_delta}'>{sinal} {abs(item['delta_pct']):.1f}%</div>"
+            f"<div style='text-align:right'>"
+            f"<div class='cmp-abs' style='color:{cor_delta}'>{sinal} R$ {_brl(abs(item['delta_abs']),3)}/L</div>"
+            f"<div class='cmp-eco' style='color:{cor_delta}'>{icone_eco} {txt_eco}</div>"
+            f"</div></div>"
+            f"<div class='cmp-minmax'>"
+            f"<span>PF mín: R$ {_brl(item['preco_pf_min'], 3)}</span>"
+            f"<span>PF máx: R$ {_brl(item['preco_pf_max'], 3)}</span>"
+            f"</div>"
+            f"{tabela_uf_html}"
+            f"{footer}"
+            f"</div>"  # end body
+            f"</div>"  # end card
+        )
+
+    st.markdown(
+        css + f"<div class='cmp-grid'>{cards_html}</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
