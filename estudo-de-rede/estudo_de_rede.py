@@ -2022,6 +2022,61 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         ))
 
     if mapa_cores:
+        # ── Legenda: apenas marcas reconhecidas (de CORES_MARCAS) presentes ──
+        # Nomes brutos da API (códigos, razões sociais longas) ficam em "Outras".
+        # Nomes canônicos mais legíveis para exibição na legenda.
+        _NOMES_EXIB = {
+            "IPIRANGA":         "Ipiranga",
+            "ULTRAPAR":         "Ipiranga",
+            "VIBRA":            "Vibra / BR",
+            "BR DISTRIBUIDORA": "Vibra / BR",
+            "PETROBRAS DIST":   "Vibra / BR",
+            "RAIZEN":           "Shell / Raízen",
+            "RAÍZEN":           "Shell / Raízen",
+            "SHELL":            "Shell / Raízen",
+            "BANDEIRA BRANCA":  "Bandeira Branca",
+            "SEM BANDEIRA":     "Sem Bandeira",
+            "ALESAT":           "Ale / Alesat",
+            "ALE COMB":         "Ale / Alesat",
+            "SABBA":            "Sabbá",
+            "SABBÁ":            "Sabbá",
+            "DISLUB":           "Dislub",
+            "PETRONIT":         "Petronit",
+            "PLURAL":           "Plural",
+            "REPSOL":           "Repsol",
+            "TEXACO":           "Texaco",
+            "NACIONAL GAS":     "Nacional Gás",
+            "NACIONAL GÁS":     "Nacional Gás",
+            "COSAN":            "Cosan",
+            "PETRO RIO":        "PetroRio",
+            "PETROIL":          "Petroil",
+            "COMFORGAS":        "Comforgas",
+            "TERPASTOS":        "Terpastos",
+            "GLP":              "GLP",
+            "LIQUIGAS":         "Liquigás",
+            "ULTRAGAZ":         "Ultragaz",
+            "COPAGAZ":          "Copagaz",
+            "SUPERGASB":        "Supergasbras",
+            "NACIONAL":         "Nacional",
+            "PLURAL":           "Plural",
+        }
+        _nomes_dist = {str(d).upper().strip() for d in distribuidoras}
+        _legenda: dict = {}           # nome_exib → cor
+        _cores_leg_usadas: set = set()
+        for _mk, _mk_cor in CORES_MARCAS.items():
+            if _mk_cor in _cores_leg_usadas:
+                continue              # mesma cor já representada → pula alias
+            if any(_mk in _nd for _nd in _nomes_dist):
+                _nome_exib = _NOMES_EXIB.get(_mk, _mk.title())
+                if _nome_exib not in _legenda:   # evita duplicar nomes canônicos
+                    _legenda[_nome_exib] = _mk_cor
+                    _cores_leg_usadas.add(_mk_cor)
+        # Verifica se há distribuidoras não reconhecidas nos dados
+        _tem_outras_leg = any(
+            not any(mk in _nd for mk in CORES_MARCAS)
+            for _nd in _nomes_dist
+        )
+
         def _leg_icon(marca: str, cor: str) -> str:
             """Ícone da legenda: logo se disponível, senão círculo colorido."""
             _url = _logo_para_distribuidora(marca, _logos_band)
@@ -2041,9 +2096,17 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
 
         items = "".join(
             f'<li style="display:flex;align-items:center;margin-bottom:2px">'
-            f'{_leg_icon(d, cor)}{d.title()}</li>'
-            for d, cor in list(mapa_cores.items())[:22]
+            f'{_leg_icon(d, cor)}{d}</li>'
+            for d, cor in _legenda.items()
         )
+        if _tem_outras_leg:
+            _cor_out = "#9E9E9E"
+            items += (
+                f'<li style="display:flex;align-items:center;margin-bottom:2px">'
+                f'<span style="background:{_cor_out};display:inline-block;'
+                f'width:11px;height:11px;border-radius:50%;'
+                f'vertical-align:middle;margin-right:5px"></span>Outras</li>'
+            )
         # Item Pró-Frotas: usa logo_profrotas.jpg se disponível, senão círculo azul
         _pf_img_b64 = _img_pro_frotas_b64()
         if _pf_img_b64:
