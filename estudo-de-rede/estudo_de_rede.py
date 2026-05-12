@@ -1965,10 +1965,11 @@ def marcar_perfil_venda(df: pd.DataFrame, perfil_map: dict) -> pd.DataFrame:
 
 def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino"):
-    # ── Cap de marcadores — evita travar estados grandes como SP (4 000+ postos) ──
-    # Acima de MAX_MAPA_POSTOS: amostra postos regulares preservando todos os PF.
-    # Usa popup compacto (~250 B/marcador) em vez do completo (~1.2 KB/marcador),
-    # reduzindo o HTML serializado de ~5 MB para ~400 KB.
+    # ── Cap de marcadores — evita travar browser em estados grandes (SP, MG…) ──
+    # Prioridade absoluta: Pró-Frotas > Cercados/Rodo Rede > Postos regulares ANP.
+    # PF são SEMPRE preservados integralmente (até MAX_PF_MAPA postos PF).
+    # Postos regulares ANP completam o espaço restante até MAX_MAPA_POSTOS.
+    MAX_PF_MAPA  = 1500   # máximo de PF no mapa (evita travar browser)
     n_total = len(df)
     foi_limitado = False
     if not df.empty and n_total > MAX_MAPA_POSTOS:
@@ -1976,7 +1977,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         tem_pf_col  = "_pro_frotas" in df.columns
         tem_cer_col = "_cercado"    in df.columns
         tem_rr_col  = "_rodo_rede"  in df.columns
-        # Preserva Pró-Frotas, Rodo Rede e Cercados no cap
+
+        # Máscara prioridade: PF + Cercados + Rodo Rede
         _mask_prio = pd.Series(False, index=df.index)
         if tem_pf_col:
             _mask_prio |= df["_pro_frotas"].fillna(False)
@@ -1984,11 +1986,20 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             _mask_prio |= df["_cercado"].fillna(False)
         if tem_rr_col:
             _mask_prio |= df["_rodo_rede"].fillna(False)
+
         df_prio = df[_mask_prio]
         df_reg  = df[~_mask_prio]
+
+        # Se PF sozinho excede MAX_PF_MAPA, amostra dentro dos PF
+        # (raro: só ocorre em rota longa com muitos PF de vários estados)
+        if len(df_prio) > MAX_PF_MAPA:
+            df_prio = df_prio.sample(n=MAX_PF_MAPA, random_state=42)
+
+        # Postos regulares ANP: completam até MAX_MAPA_POSTOS
         n_reg_max = max(0, MAX_MAPA_POSTOS - len(df_prio))
         if len(df_reg) > n_reg_max:
             df_reg = df_reg.sample(n=n_reg_max, random_state=42)
+
         df = pd.concat([df_prio, df_reg], ignore_index=True)
     # Popup compacto quando o dataset é grande (>300) mesmo sem cap
     usar_popup_simples = (n_total > 300)
