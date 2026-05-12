@@ -871,7 +871,7 @@ def marcar_cercados(df: pd.DataFrame, cnpjs_cercados: set) -> pd.DataFrame:
     df = df.copy()
     if cnpjs_cercados and "cnpj" in df.columns:
         if "_cnpj_norm" not in df.columns:
-            df["_cnpj_norm"] = df["cnpj"].fillna("").apply(normalizar_cnpj)
+            df["_cnpj_norm"] = df["cnpj"].fillna("").str.replace(r'\D', '', regex=True)
         df["_cercado"] = df["_cnpj_norm"].isin(cnpjs_cercados)
     else:
         df["_cercado"] = False
@@ -1111,7 +1111,7 @@ def _auto_carregar_precos_postos_repo():
 def marcar_pro_frotas(df: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
     df = df.copy()
     if cnpjs_pf and "cnpj" in df.columns:
-        df["_cnpj_norm"] = df["cnpj"].fillna("").apply(normalizar_cnpj)
+        df["_cnpj_norm"] = df["cnpj"].fillna("").str.replace(r'\D', '', regex=True)
         df["_pro_frotas"] = df["_cnpj_norm"].isin(cnpjs_pf)
     else:
         df["_pro_frotas"] = False
@@ -1525,9 +1525,9 @@ def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
     if df_coords.empty or not cnpjs_pf:
         return df_raw
 
-    # CNPJs já presentes no dataset do estado
+    # CNPJs já presentes no dataset do estado (vetorizado)
     if not df_raw.empty and "cnpj" in df_raw.columns:
-        cnpjs_presentes = set(df_raw["cnpj"].fillna("").apply(normalizar_cnpj))
+        cnpjs_presentes = set(df_raw["cnpj"].fillna("").str.replace(r'\D', '', regex=True))
     else:
         cnpjs_presentes = set()
 
@@ -1897,12 +1897,10 @@ def marcar_perfil_venda(df: pd.DataFrame, perfil_map: dict) -> pd.DataFrame:
     df = df.copy()
     # Garante que _cnpj_norm existe mesmo que marcar_pro_frotas não tenha criado
     if "_cnpj_norm" not in df.columns and "cnpj" in df.columns:
-        df["_cnpj_norm"] = df["cnpj"].fillna("").apply(normalizar_cnpj)
+        df["_cnpj_norm"] = df["cnpj"].fillna("").str.replace(r'\D', '', regex=True)
     if perfil_map and "_cnpj_norm" in df.columns:
         df["_perfil_venda"] = df["_cnpj_norm"].map(perfil_map).fillna("")
-        df["_rodo_rede"] = df["_perfil_venda"].apply(
-            lambda p: _anp_norm(p) == PERFIL_RODO_REDE
-        )
+        df["_rodo_rede"] = df["_perfil_venda"].str.upper().str.strip() == PERFIL_RODO_REDE
     else:
         df["_perfil_venda"] = ""
         df["_rodo_rede"] = False
@@ -3583,16 +3581,74 @@ def _gerar_excel_base_brasil() -> tuple:
 #  HELPER
 # ═══════════════════════════════════════════════════════════════════
 
+def _marcar_df_completo(df_raw: pd.DataFrame) -> pd.DataFrame:
+    """
+    Aplica todas as marcações (pro_frotas, cercados, perfil_venda) em UMA ÚNICA cópia
+    do DataFrame, usando operações vetorizadas (str.replace em vez de apply).
+    Resultado é guardado em session_state para evitar reprocessamento a cada rerun.
+    """
+    cnpjs_pf   = st.session_state.get("cnpjs_pro_frotas", set())
+    cnpjs_cer  = st.session_state.get("cnpjs_cercados",   set())
+    perfil_map = st.session_state.get("perfil_venda_map", {})
+
+    df = df_raw.copy()   # ← única cópia
+
+    # ── CNPJ normalizado (vetorizado, C-level) ───────────────────────
+    if "cnpj" in df.columns:
+        df["_cnpj_norm"] = df["cnpj"].fillna("").str.replace(r'\D', '', regex=True)
+    else:
+        df["_cnpj_norm"] = ""
+
+    # ── Pró-Frotas ───────────────────────────────────────────────────
+    df["_pro_frotas"] = (
+        df["_cnpj_norm"].isin(cnpjs_pf) if cnpjs_pf else False
+    )
+
+    # ── Cercados ─────────────────────────────────────────────────────
+    df["_cercado"] = (
+        df["_cnpj_norm"].isin(cnpjs_cer) if cnpjs_cer else False
+    )
+
+    # ── Perfil de Venda / Rodo Rede ──────────────────────────────────
+    if perfil_map:
+        df["_perfil_venda"] = df["_cnpj_norm"].map(perfil_map).fillna("")
+        df["_rodo_rede"] = df["_perfil_venda"].str.upper().str.strip() == PERFIL_RODO_REDE
+    else:
+        df["_perfil_venda"] = ""
+        df["_rodo_rede"] = False
+
+    return df
+
+
 def preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=None):
-    cnpjs_pf    = st.session_state.get("cnpjs_pro_frotas", set())
-    cnpjs_cer   = st.session_state.get("cnpjs_cercados",   set())
-    perfil_map  = st.session_state.get("perfil_venda_map", {})
-    df = marcar_pro_frotas(df_raw, cnpjs_pf)
-    df = marcar_cercados(df, cnpjs_cer)
-    df = marcar_perfil_venda(df, perfil_map)
+    """
+    Retorna df filtrado e marcado.
+    A etapa de marcação (cara) é cacheada em session_state:
+    só reprocessa quando df_raw ou os conjuntos PF/cercados/perfis mudam.
+    """
+    cnpjs_pf   = st.session_state.get("cnpjs_pro_frotas", set())
+    cnpjs_cer  = st.session_state.get("cnpjs_cercados",   set())
+    perfil_map = st.session_state.get("perfil_venda_map", {})
+
+    # Chave de cache: muda só quando os dados ou marcadores mudam
+    _mark_key = (
+        id(df_raw),          # mesmo objeto Python → mesma chave
+        len(df_raw),         # detecta injeção de novos postos PF
+        len(cnpjs_pf),
+        len(cnpjs_cer),
+        len(perfil_map),
+    )
+
+    if st.session_state.get("_df_marcado_key") == _mark_key:
+        df = st.session_state["_df_marcado"]
+    else:
+        df = _marcar_df_completo(df_raw)
+        st.session_state["_df_marcado"]     = df
+        st.session_state["_df_marcado_key"] = _mark_key
+
+    # Filtros leves (indexação booleana — sem cópia extra desnecessária)
     if distribuidoras_filtro:
         df = df[df["distribuidora"].isin(distribuidoras_filtro)]
-    # Filtro de Perfil de Venda: exibe APENAS postos com o perfil selecionado
     if perfis_filtro and "_perfil_venda" in df.columns:
         df = df[df["_perfil_venda"].isin(perfis_filtro)]
     return df
@@ -4423,7 +4479,9 @@ if modo == "📍 Por Estado/Município":
             precar = st.session_state.get("_estados_precarregados", [])
             if uf not in precar:
                 st.session_state["_estados_precarregados"] = precar + [uf]
-            # Nova UF: marca para reinjetar PF
+            # Nova UF: invalida cache de marcação e marca para reinjetar PF
+            st.session_state.pop("_df_marcado",     None)
+            st.session_state.pop("_df_marcado_key", None)
             st.session_state.pop("_pf_injetados_uf", None)
 
         # ── Passo 2: injeta PF ausentes (via planilha) se ainda não feito nesta UF ──
@@ -4433,6 +4491,9 @@ if modo == "📍 Por Estado/Município":
                 _df_injetado = _injetar_pf_ausentes(_df_base, _cnpjs_pf_atual)
             if len(_df_injetado) > len(_df_base):
                 st.session_state["df_raw_full"] = _df_injetado
+                # Novos postos adicionados → invalida cache de marcação
+                st.session_state.pop("_df_marcado",     None)
+                st.session_state.pop("_df_marcado_key", None)
                 if "distribuidora" in _df_injetado.columns:
                     st.session_state["distribuidoras_disponiveis"] = sorted(
                         _df_injetado["distribuidora"].dropna().unique().tolist())
