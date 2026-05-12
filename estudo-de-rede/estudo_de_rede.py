@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════
 #  Estudo de Rede – Pró-Frotas
-#  Versão 5.0  |  NumPy vetorizado + cache 24h + pré-carga de estados
+#  Versão 5.1  |  Plotly WebGL map + NumPy vetorizado + cache 24h
 # ═══════════════════════════════════════════════════════════════════
 
 import base64
@@ -16,10 +16,9 @@ import unicodedata
 import requests
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 import folium
-from folium.plugins import MarkerCluster
-from streamlit_folium import st_folium
 
 # Diretório onde este script está — usado para localizar arquivos do repo
 _DIR = os.path.dirname(os.path.abspath(__file__))
@@ -621,7 +620,7 @@ def _cor_marca(distribuidora: str) -> str:
 # Limite de marcadores no mapa. Acima disso os postos são amostrados
 # (Pró-Frotas têm prioridade) e o popup é simplificado.
 # → evita serializar 5-6 MB de HTML para estados como SP (4 000+ postos).
-MAX_MAPA_POSTOS = 600   # cap seguro: evita travar browser em estados grandes (SP, MG…)
+MAX_MAPA_POSTOS = 5000  # Plotly WebGL suporta 10 000+ marcadores sem travar
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1970,11 +1969,9 @@ def marcar_perfil_venda(df: pd.DataFrame, perfil_map: dict) -> pd.DataFrame:
 
 def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino"):
-    # ── Cap de marcadores — evita travar browser em estados grandes (SP, MG…) ──
-    # Prioridade absoluta: Pró-Frotas > Cercados/Rodo Rede > Postos regulares ANP.
-    # PF são SEMPRE preservados integralmente (até MAX_PF_MAPA postos PF).
-    # Postos regulares ANP completam o espaço restante até MAX_MAPA_POSTOS.
-    MAX_PF_MAPA  = 1500   # máximo de PF no mapa (evita travar browser)
+    """Retorna go.Figure (Plotly Scattermapbox) — WebGL, suporta 10 000+ marcadores."""
+    # ── Cap de marcadores — Pró-Frotas sempre priorizados ──────────────────────
+    MAX_PF_MAPA = 5000
     n_total = len(df)
     foi_limitado = False
     if not df.empty and n_total > MAX_MAPA_POSTOS:
@@ -1983,7 +1980,6 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         tem_cer_col = "_cercado"    in df.columns
         tem_rr_col  = "_rodo_rede"  in df.columns
 
-        # Máscara prioridade: PF + Cercados + Rodo Rede
         _mask_prio = pd.Series(False, index=df.index)
         if tem_pf_col:
             _mask_prio |= df["_pro_frotas"].fillna(False)
@@ -1995,263 +1991,190 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         df_prio = df[_mask_prio]
         df_reg  = df[~_mask_prio]
 
-        # Se PF sozinho excede MAX_PF_MAPA, amostra dentro dos PF
-        # (raro: só ocorre em rota longa com muitos PF de vários estados)
         if len(df_prio) > MAX_PF_MAPA:
             df_prio = df_prio.sample(n=MAX_PF_MAPA, random_state=42)
 
-        # Postos regulares ANP: completam até MAX_MAPA_POSTOS
         n_reg_max = max(0, MAX_MAPA_POSTOS - len(df_prio))
         if len(df_reg) > n_reg_max:
             df_reg = df_reg.sample(n=n_reg_max, random_state=42)
 
         df = pd.concat([df_prio, df_reg], ignore_index=True)
-    # Popup compacto quando o dataset é grande (>300) mesmo sem cap
-    usar_popup_simples = (n_total > 300)
-    # Todos os marcadores usam CircleMarker (sem logos/imagens):
-    # mais rápido, sem risco de travar browser em estados grandes (SP, MG…)
 
+    # ── Centro e zoom do mapa ──────────────────────────────────────────────────
     if not df.empty:
-        clat, clon, zoom = df["_lat"].mean(), df["_lon"].mean(), 7
+        clat = float(df["_lat"].mean())
+        clon = float(df["_lon"].mean())
+        zoom = 6
     elif coords_rota:
-        lats = [c[0] for c in coords_rota]; lons = [c[1] for c in coords_rota]
-        clat = (min(lats)+max(lats))/2; clon = (min(lons)+max(lons))/2; zoom = 6
+        lats = [c[0] for c in coords_rota]
+        lons = [c[1] for c in coords_rota]
+        clat = (min(lats) + max(lats)) / 2
+        clon = (min(lons) + max(lons)) / 2
+        zoom = 5
     else:
         clat, clon, zoom = -15.0, -47.0, 4
 
-    m = folium.Map(location=[clat,clon], zoom_start=zoom, tiles="CartoDB positron")
+    traces = []
 
-    distribuidoras = sorted(df["distribuidora"].dropna().unique()) if not df.empty else []
-    # _cor_marca garante cor fixa por marca — usada também para montar a legenda
-    mapa_cores = {d.upper().strip(): _cor_marca(d) for d in distribuidoras}
-
+    # ── Linha da rota ──────────────────────────────────────────────────────────
     if coords_rota and len(coords_rota) >= 2:
-        coords_poly = _downsample(coords_rota, 300)
-        folium.PolyLine(coords_poly, color="#1565C0", weight=5,
-                        opacity=0.85, tooltip="🗺️ Rota").add_to(m)
-    if lat_orig is not None:
-        folium.Marker([lat_orig,lon_orig],
-                      icon=folium.Icon(color="green",icon="play",prefix="fa"),
-                      tooltip=f"🟢 {label_orig}",
-                      popup=folium.Popup(f"<b>Origem</b><br>{label_orig}",max_width=200)).add_to(m)
-    if lat_dest is not None:
-        folium.Marker([lat_dest,lon_dest],
-                      icon=folium.Icon(color="red",icon="flag",prefix="fa"),
-                      tooltip=f"🔴 {label_dest}",
-                      popup=folium.Popup(f"<b>Destino</b><br>{label_dest}",max_width=200)).add_to(m)
+        coords_poly = _downsample(coords_rota, 500)
+        traces.append(go.Scattermapbox(
+            lat=[c[0] for c in coords_poly],
+            lon=[c[1] for c in coords_poly],
+            mode="lines",
+            line=dict(width=4, color="#1565C0"),
+            hoverinfo="skip",
+            name="Rota",
+            showlegend=False,
+        ))
 
+    # ── Marcadores origem / destino ────────────────────────────────────────────
+    if lat_orig is not None:
+        traces.append(go.Scattermapbox(
+            lat=[lat_orig], lon=[lon_orig],
+            mode="markers",
+            marker=dict(size=16, color="#2E7D32"),
+            text=[f"🟢 Origem: {label_orig}"],
+            hoverinfo="text",
+            name=f"Origem",
+            showlegend=False,
+        ))
+    if lat_dest is not None:
+        traces.append(go.Scattermapbox(
+            lat=[lat_dest], lon=[lon_dest],
+            mode="markers",
+            marker=dict(size=16, color="#C62828"),
+            text=[f"🔴 Destino: {label_dest}"],
+            hoverinfo="text",
+            name=f"Destino",
+            showlegend=False,
+        ))
+
+    # ── Postos ─────────────────────────────────────────────────────────────────
     if not df.empty:
-        c_reg = MarkerCluster(name="⛽ Postos").add_to(m)
-        c_pf  = MarkerCluster(name="⭐ Pró-Frotas").add_to(m)
-        c_rr  = MarkerCluster(name="🚛 Rodo Rede").add_to(m)
-        c_cer = MarkerCluster(name="⚠️ Postos Cercados").add_to(m)
+        distribuidoras = sorted(df["distribuidora"].dropna().unique())
+        mapa_cores = {d.upper().strip(): _cor_marca(d) for d in distribuidoras}
+
         tem_pf  = "_pro_frotas" in df.columns
         tem_cer = "_cercado"    in df.columns
         tem_rr  = "_rodo_rede"  in df.columns
-        _fn_popup = _popup_simples if usar_popup_simples else _popup
-        for _, row in df.iterrows():
-            cor    = _cor(row.get("distribuidora",""), mapa_cores)
-            is_pf  = tem_pf  and bool(row.get("_pro_frotas"))
-            is_cer = tem_cer and bool(row.get("_cercado"))
-            is_rr  = tem_rr  and bool(row.get("_rodo_rede"))
-            perfil = str(row.get("_perfil_venda", "")).strip()
-            tip    = (
-                f"{'⚠️ CERCADO | ' if is_cer else ''}"
-                f"{'🚛 RODO REDE | ' if is_rr else ('⭐ PRÓ-FROTAS | ' if is_pf else '')}"
-                f"⛽ {row.get('razaoSocial','?')} ({row.get('distribuidora','?')})"
-                f"{(' | ' + perfil) if perfil and is_pf else ''}"
-            )
-            pop = _fn_popup(row)
-            lat_, lon_ = row["_lat"], row["_lon"]
 
-            if is_cer:
-                # ── Postos Cercados: laranja ──────────────────────────
-                folium.CircleMarker(
-                    [lat_, lon_], radius=10,
-                    color=COR_CERCADO_BORDA, weight=2.5,
-                    fill=True, fill_color=COR_CERCADO_FILL, fill_opacity=0.92,
-                    popup=pop, tooltip=tip,
-                ).add_to(c_cer)
+        # Máscaras de grupo (mutuamente exclusivas; cercado > rr > pf > regular)
+        mask_cer     = df["_cercado"].fillna(False)    if tem_cer else pd.Series(False, index=df.index)
+        mask_rr      = (df["_rodo_rede"].fillna(False) if tem_rr  else pd.Series(False, index=df.index)) & ~mask_cer
+        _pf_base     = (df["_pro_frotas"].fillna(False) if tem_pf else pd.Series(False, index=df.index)) & ~mask_cer & ~mask_rr
+        mask_pf_ipi  = _pf_base & df["distribuidora"].fillna("").apply(_is_ipiranga)
+        mask_pf_out  = _pf_base & ~mask_pf_ipi
+        mask_reg     = ~mask_cer & ~mask_rr & ~_pf_base
 
-            elif is_rr:
-                # ── Rodo Rede: amarelo maior com borda azul ───────────
-                folium.CircleMarker(
-                    [lat_, lon_], radius=13,
-                    color=COR_RR_BORDA, weight=3,
-                    fill=True, fill_color=COR_RR_FILL, fill_opacity=0.95,
-                    popup=pop, tooltip=tip,
-                ).add_to(c_rr)
+        def _hover_txt(row):
+            nome = str(row.get("razaoSocial", "?"))[:40]
+            dist = str(row.get("distribuidora", "?"))
+            mun  = str(row.get("municipio", ""))
+            uf_  = str(row.get("uf", ""))
+            geo  = f"{mun}/{uf_}" if mun and uf_ else mun or uf_
+            pf_  = " ⭐ Pró-Frotas" if row.get("_pro_frotas") else ""
+            rr_  = " 🚛 Rodo Rede" if row.get("_rodo_rede") else ""
+            cer_ = " ⚠️ Cercado"   if row.get("_cercado")   else ""
+            return f"<b>{nome}</b>{pf_}{rr_}{cer_}<br>{dist}<br>{geo}"
 
-            elif is_pf:
-                _dist_pf = row.get("distribuidora", "")
-                if _is_ipiranga(_dist_pf):
-                    # ── PF Ipiranga: amarelo com borda azul ───────────
-                    folium.CircleMarker(
-                        [lat_, lon_], radius=12,
-                        color=COR_PF_BORDA, weight=3,
-                        fill=True, fill_color="#FFB300", fill_opacity=0.95,
-                        popup=pop, tooltip=tip,
-                    ).add_to(c_pf)
-                else:
-                    # ── PF demais bandeiras: azul maior ───────────────
-                    folium.CircleMarker(
-                        [lat_, lon_], radius=12,
-                        color=COR_PF_BORDA, weight=3,
-                        fill=True, fill_color=COR_PF_FILL, fill_opacity=0.95,
-                        popup=pop, tooltip=tip,
-                    ).add_to(c_pf)
+        # Postos Cercados — laranja
+        if mask_cer.any():
+            dfc = df[mask_cer]
+            traces.append(go.Scattermapbox(
+                lat=dfc["_lat"].tolist(), lon=dfc["_lon"].tolist(),
+                mode="markers",
+                marker=dict(size=13, color=COR_CERCADO_FILL, opacity=0.92),
+                text=dfc.apply(_hover_txt, axis=1).tolist(),
+                hoverinfo="text",
+                name="⚠️ Postos Cercados",
+            ))
 
-            else:
-                # ── Posto regular: cor da distribuidora ───────────────
-                folium.CircleMarker(
-                    [lat_, lon_], radius=7,
-                    color=cor, weight=1.5,
-                    fill=True, fill_color=cor, fill_opacity=0.85,
-                    popup=pop, tooltip=tip,
-                ).add_to(c_reg)
+        # Rodo Rede — amarelo com destaque
+        if mask_rr.any():
+            dfr = df[mask_rr]
+            traces.append(go.Scattermapbox(
+                lat=dfr["_lat"].tolist(), lon=dfr["_lon"].tolist(),
+                mode="markers",
+                marker=dict(size=15, color=COR_RR_FILL, opacity=0.95),
+                text=dfr.apply(_hover_txt, axis=1).tolist(),
+                hoverinfo="text",
+                name="🚛 Rodo Rede",
+            ))
 
-    # Aviso de limitação (overlay flutuante no mapa)
+        # Pró-Frotas Ipiranga — amarelo
+        if mask_pf_ipi.any():
+            dfi = df[mask_pf_ipi]
+            traces.append(go.Scattermapbox(
+                lat=dfi["_lat"].tolist(), lon=dfi["_lon"].tolist(),
+                mode="markers",
+                marker=dict(size=14, color="#FFB300", opacity=0.95),
+                text=dfi.apply(_hover_txt, axis=1).tolist(),
+                hoverinfo="text",
+                name="⭐ PF Ipiranga",
+            ))
+
+        # Pró-Frotas demais bandeiras — azul
+        if mask_pf_out.any():
+            dfp = df[mask_pf_out]
+            traces.append(go.Scattermapbox(
+                lat=dfp["_lat"].tolist(), lon=dfp["_lon"].tolist(),
+                mode="markers",
+                marker=dict(size=14, color=COR_PF_FILL, opacity=0.95),
+                text=dfp.apply(_hover_txt, axis=1).tolist(),
+                hoverinfo="text",
+                name="⭐ Pró-Frotas",
+            ))
+
+        # Postos regulares ANP — cor por marca
+        if mask_reg.any():
+            dfg = df[mask_reg].copy()
+            dfg["_cor_plot"] = dfg["distribuidora"].apply(lambda d: _cor(d, mapa_cores))
+            traces.append(go.Scattermapbox(
+                lat=dfg["_lat"].tolist(), lon=dfg["_lon"].tolist(),
+                mode="markers",
+                marker=dict(size=8, color=dfg["_cor_plot"].tolist(), opacity=0.85),
+                text=dfg.apply(_hover_txt, axis=1).tolist(),
+                hoverinfo="text",
+                name="⛽ Postos ANP",
+            ))
+
+    # ── Anotação de limitação ──────────────────────────────────────────────────
+    layout_annotations = []
     if foi_limitado:
-        m.get_root().html.add_child(folium.Element(
-            f"<div style='position:fixed;top:10px;left:50%;transform:translateX(-50%);"
-            f"z-index:9999;background:#fff3e0;border:1px solid #ff9800;border-radius:8px;"
-            f"padding:8px 18px;font-size:12px;color:#e65100;text-align:center;"
-            f"box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none'>"
-            f"⚠️ Mapa exibindo <b>{MAX_MAPA_POSTOS:,}</b> de <b>{n_total:,}</b> postos "
-            f"(Pró-Frotas priorizados). Use a aba <b>Dados Tabulares</b> para ver todos."
-            f"</div>"
+        layout_annotations.append(dict(
+            text=(f"⚠️ Exibindo {MAX_MAPA_POSTOS:,} de {n_total:,} postos "
+                  f"(Pró-Frotas priorizados). Veja todos na aba Dados Tabulares."),
+            x=0.5, y=0.02, xref="paper", yref="paper",
+            showarrow=False, align="center",
+            font=dict(size=11, color="#E65100"),
+            bgcolor="rgba(255,243,224,0.92)",
+            bordercolor="#FF9800", borderwidth=1,
         ))
 
-    if mapa_cores:
-        # ── Legenda: apenas marcas reconhecidas (de CORES_MARCAS) presentes ──
-        # Nomes brutos da API (códigos, razões sociais longas) ficam em "Outras".
-        # Nomes canônicos mais legíveis para exibição na legenda.
-        _NOMES_EXIB = {
-            "IPIRANGA":         "Ipiranga",
-            "ULTRAPAR":         "Ipiranga",
-            "VIBRA":            "Vibra / BR",
-            "BR DISTRIBUIDORA": "Vibra / BR",
-            "PETROBRAS DIST":   "Vibra / BR",
-            "RAIZEN":           "Shell / Raízen",
-            "RAÍZEN":           "Shell / Raízen",
-            "SHELL":            "Shell / Raízen",
-            "BANDEIRA BRANCA":  "Bandeira Branca",
-            "SEM BANDEIRA":     "Sem Bandeira",
-            "ALESAT":           "Ale / Alesat",
-            "ALE COMB":         "Ale / Alesat",
-            "SABBA":            "Sabbá",
-            "SABBÁ":            "Sabbá",
-            "DISLUB":           "Dislub",
-            "PETRONIT":         "Petronit",
-            "PLURAL":           "Plural",
-            "REPSOL":           "Repsol",
-            "TEXACO":           "Texaco",
-            "NACIONAL GAS":     "Nacional Gás",
-            "NACIONAL GÁS":     "Nacional Gás",
-            "COSAN":            "Cosan",
-            "PETRO RIO":        "PetroRio",
-            "PETROIL":          "Petroil",
-            "COMFORGAS":        "Comforgas",
-            "TERPASTOS":        "Terpastos",
-            "GLP":              "GLP",
-            "LIQUIGAS":         "Liquigás",
-            "ULTRAGAZ":         "Ultragaz",
-            "COPAGAZ":          "Copagaz",
-            "SUPERGASB":        "Supergasbras",
-            "NACIONAL":         "Nacional",
-            "PLURAL":           "Plural",
-        }
-        _nomes_dist = {str(d).upper().strip() for d in distribuidoras}
-        _legenda: dict = {}           # nome_exib → cor
-        _cores_leg_usadas: set = set()
-        for _mk, _mk_cor in CORES_MARCAS.items():
-            if _mk_cor in _cores_leg_usadas:
-                continue              # mesma cor já representada → pula alias
-            if any(_mk in _nd for _nd in _nomes_dist):
-                _nome_exib = _NOMES_EXIB.get(_mk, _mk.title())
-                if _nome_exib not in _legenda:   # evita duplicar nomes canônicos
-                    _legenda[_nome_exib] = _mk_cor
-                    _cores_leg_usadas.add(_mk_cor)
-        # Verifica se há distribuidoras não reconhecidas nos dados
-        _tem_outras_leg = any(
-            not any(mk in _nd for mk in CORES_MARCAS)
-            for _nd in _nomes_dist
-        )
-
-        def _leg_icon(marca: str, cor: str) -> str:
-            """Ícone da legenda: círculo colorido com a cor da distribuidora."""
-            return (
-                f'<span style="background:{cor};display:inline-block;'
-                f'width:11px;height:11px;border-radius:50%;'
-                f'vertical-align:middle;margin-right:5px"></span>'
-            )
-
-        items = "".join(
-            f'<li style="display:flex;align-items:center;margin-bottom:2px">'
-            f'{_leg_icon(d, cor)}{d}</li>'
-            for d, cor in _legenda.items()
-        )
-        if _tem_outras_leg:
-            _cor_out = "#9E9E9E"
-            items += (
-                f'<li style="display:flex;align-items:center;margin-bottom:2px">'
-                f'<span style="background:{_cor_out};display:inline-block;'
-                f'width:11px;height:11px;border-radius:50%;'
-                f'vertical-align:middle;margin-right:5px"></span>Outras</li>'
-            )
-        # ── Ícones da legenda: círculos coloridos (sem imagens) ─────
-        # PF genérico: círculo azul maior
-        _pf_icon_html = (
-            f"<span style='display:inline-block;width:16px;height:16px;border-radius:50%;"
-            f"background:{COR_PF_FILL};border:2.5px solid {COR_PF_BORDA};"
-            f"vertical-align:middle;margin-right:5px'></span>"
-        )
-        # PF Ipiranga: círculo amarelo com borda azul
-        _pf_ipi_icon = (
-            f"<span style='display:inline-block;width:16px;height:16px;border-radius:50%;"
-            f"background:#FFB300;border:2.5px solid {COR_PF_BORDA};"
-            f"vertical-align:middle;margin-right:5px'></span>"
-        )
-        # Rodo Rede: círculo amarelo maior com borda azul
-        _rr_icon_html = (
-            f"<span style='display:inline-block;width:18px;height:18px;border-radius:50%;"
-            f"background:{COR_RR_FILL};border:2.5px solid {COR_RR_BORDA};"
-            f"vertical-align:middle;margin-right:5px'></span>"
-        )
-        # Verifica se há postos PF Ipiranga no dataset atual
-        _tem_pf_ipi = False
-        _cnpjs_pf_leg = st.session_state.get("cnpjs_pro_frotas", set())
-        if _cnpjs_pf_leg and not df.empty and "_pro_frotas" in df.columns:
-            _df_pf_leg = df[df["_pro_frotas"].fillna(False)]
-            if not _df_pf_leg.empty and "distribuidora" in _df_pf_leg.columns:
-                _tem_pf_ipi = _df_pf_leg["distribuidora"].fillna("").apply(_is_ipiranga).any()
-
-        _pf_ipi_item = (
-            f"<li style='margin-top:4px;display:flex;align-items:center'>"
-            f"{_pf_ipi_icon}<b>PF Ipiranga</b></li>"
-        ) if _tem_pf_ipi else ""
-
-        m.get_root().html.add_child(folium.Element(
-            "<div style='position:fixed;bottom:30px;right:10px;z-index:1000;"
-            "background:white;padding:10px 14px;border-radius:10px;"
-            "box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:11px;max-height:320px;overflow-y:auto'>"
-            f"<b style='font-size:12px'>Distribuidoras</b>"
-            f"<ul style='list-style:none;padding:0;margin:6px 0 0'>{items}"
-            "<li style='margin-top:6px;padding-top:6px;border-top:1px solid #eee;"
-            "display:flex;align-items:center'>"
-            f"{_pf_icon_html}<b>Pró-Frotas</b></li>"
-            f"{_pf_ipi_item}"
-            f"<li style='margin-top:4px;display:flex;align-items:center'>"
-            f"{_rr_icon_html}<b>Rodo Rede</b></li>"
-            "<li style='margin-top:4px;display:flex;align-items:center'>"
-            f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
-            f"background:{COR_CERCADO_FILL};border:2px solid {COR_CERCADO_BORDA};"
-            f"vertical-align:middle;margin-right:5px'></span>"
-            "<b>Posto Cercado</b></li>"
-            "</ul></div>"
-        ))
-    folium.LayerControl().add_to(m)
-    return m
+    fig = go.Figure(
+        data=traces,
+        layout=go.Layout(
+            mapbox=dict(
+                style="carto-positron",
+                center=dict(lat=clat, lon=clon),
+                zoom=zoom,
+            ),
+            margin=dict(l=0, r=0, t=0, b=0),
+            legend=dict(
+                bgcolor="rgba(255,255,255,0.92)",
+                bordercolor="#ccc",
+                borderwidth=1,
+                font=dict(size=11),
+                x=0.01, y=0.99,
+                xanchor="left", yanchor="top",
+            ),
+            annotations=layout_annotations,
+            uirevision="mapa_estudo_rede",
+        ),
+    )
+    return fig
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -4643,11 +4566,8 @@ if modo == "📍 Por Estado/Município":
             with st.spinner(f"🗺️ Carregando mapa — {_n(len(df_show))} postos…"):
                 try:
                     _mapa_obj = criar_mapa(df_show)
-                    # Renderiza via HTML direto — evita o wrapper React do st_folium
-                    # que trava para mapas grandes (SP, MG…).
-                    st.components.v1.html(
-                        _mapa_obj._repr_html_(), height=660, scrolling=False
-                    )
+                    st.plotly_chart(_mapa_obj, use_container_width=True,
+                                    config={"scrollZoom": True}, height=660)
                 except Exception as _mapa_err:
                     st.error(
                         f"❌ Erro ao gerar o mapa para **{uf}**.\n\n"
@@ -4793,7 +4713,8 @@ if modo == "📍 Por Estado/Município":
                         lat_dest=_rr["dest"]["lat"], lon_dest=_rr["dest"]["lon"],
                         label_orig=_rr["orig"]["label"], label_dest=_rr["dest"]["label"],
                     )
-                    st.components.v1.html(_mapa_rota._repr_html_(), height=580, scrolling=False)
+                    st.plotly_chart(_mapa_rota, use_container_width=True,
+                                        config={"scrollZoom": True}, height=580)
 
         with tab_dados:
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
@@ -4823,17 +4744,10 @@ if modo == "📍 Por Estado/Município":
             _renderizar_precos_anp(uf, municipio_input.strip() or None)
 
     else:
-        # Instrução como overlay dentro do mapa — sem desperdiçar área acima
-        _mapa_vazio_m1 = criar_mapa(pd.DataFrame())
-        _mapa_vazio_m1.get_root().html.add_child(folium.Element(
-            "<div style='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);"
-            "z-index:1000;background:rgba(13,27,75,0.88);color:#fff;border-radius:24px;"
-            "padding:10px 24px;font-size:13px;font-weight:600;pointer-events:none;"
-            "box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap'>"
-            "👈 Selecione um Estado na barra lateral para carregar os postos"
-            "</div>"
-        ))
-        st.components.v1.html(_mapa_vazio_m1._repr_html_(), height=680, scrolling=False)
+        # Mapa vazio centrado no Brasil + instrução informativa
+        st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
+                        config={"scrollZoom": True}, height=680)
+        st.info("👈 Selecione um Estado na barra lateral para carregar os postos")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -4990,7 +4904,8 @@ else:
                                lat_orig=lat_orig, lon_orig=lon_orig,
                                lat_dest=lat_dest, lon_dest=lon_dest,
                                label_orig=label_orig, label_dest=label_dest)
-                st.components.v1.html(m._repr_html_(), height=660, scrolling=False)
+                st.plotly_chart(m, use_container_width=True,
+                                    config={"scrollZoom": True}, height=660)
 
             # ── Busca rápida — refinar Origem/Destino com posto da rota ─
             if not df_show_r.empty:
@@ -5062,14 +4977,7 @@ else:
             _renderizar_precos_anp(None, ufs_multiplas=_ufs_rota)
 
     else:
-        # Instrução como overlay dentro do mapa — sem desperdiçar área acima
-        _mapa_vazio_m2 = criar_mapa(pd.DataFrame())
-        _mapa_vazio_m2.get_root().html.add_child(folium.Element(
-            "<div style='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);"
-            "z-index:1000;background:rgba(13,27,75,0.88);color:#fff;border-radius:24px;"
-            "padding:10px 24px;font-size:13px;font-weight:600;pointer-events:none;"
-            "box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap'>"
-            "👈 Preencha Origem e Destino na barra lateral e clique em Traçar Rota"
-            "</div>"
-        ))
-        st.components.v1.html(_mapa_vazio_m2._repr_html_(), height=680, scrolling=False)
+        # Mapa vazio centrado no Brasil + instrução informativa
+        st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
+                        config={"scrollZoom": True}, height=680)
+        st.info("👈 Preencha Origem e Destino na barra lateral e clique em Traçar Rota")
