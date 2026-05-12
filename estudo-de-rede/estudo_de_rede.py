@@ -1984,8 +1984,59 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     distribuidoras = sorted(df["distribuidora"].dropna().unique()) if not df.empty else []
     # _cor_marca garante cor fixa por marca — usada também para montar a legenda
     mapa_cores = {d.upper().strip(): _cor_marca(d) for d in distribuidoras}
-    # Logos de bandeiras (Ipiranga, etc.) — carregadas uma vez por sessão (cache)
-    _logos_band = _logos_bandeiras_b64()
+    # Logos de bandeiras — carregadas uma vez por sessão (cache)
+    _logos_band   = _logos_bandeiras_b64()
+    _pf_img_b64   = _img_pro_frotas_b64()
+    _rr_img_b64   = _img_rodo_rede_b64()
+
+    # ── CSS injetado uma única vez no HTML do mapa ────────────────────────────
+    # Cada imagem é definida como classe CSS → marcadores referenciam a classe
+    # sem repetir os ~50 KB de base64 por marcador.
+    # SP tem ~375 PF: sem CSS = ~18 MB; com CSS = ~2 KB de HTML de marcadores.
+    _css = "<style>"
+    _pf_css  = "mpin-pf" if _pf_img_b64 else ""
+    _rr_css  = "mpin-rr" if _rr_img_b64 else ""
+    _band_css: dict = {}   # marca → css class name
+    if _pf_img_b64:
+        _css += (f".mpin-pf{{background-image:url('{_pf_img_b64}');"
+                 f"background-size:cover;background-position:center;}}")
+    if _rr_img_b64:
+        _css += (f".mpin-rr{{background-image:url('{_rr_img_b64}');"
+                 f"background-size:cover;background-position:center;}}")
+    for _mk, _url in _logos_band.items():
+        _cls = "mpin-b-" + _mk.lower().replace(" ", "-")
+        _css += (f".{_cls}{{background-image:url('{_url}');"
+                 f"background-size:cover;background-position:center;}}")
+        _band_css[_mk] = _cls
+    _css += "</style>"
+    m.get_root().html.add_child(folium.Element(_css))
+
+    def _band_css_para(distribuidora: str) -> str:
+        """Retorna a classe CSS da logo de bandeira, ou '' se não houver."""
+        d = str(distribuidora).upper().strip()
+        for mk, cls in _band_css.items():
+            if mk in d:
+                return cls
+        return ""
+
+    def _mk_pin_css(css_class: str, size: int, border_css: str, extra_style: str = "") -> str:
+        """Gera HTML de um pin circular usando classe CSS (imagem via background-image)."""
+        half = size // 2
+        return (
+            f"<div class='{css_class}' style='"
+            f"width:{size}px;height:{size}px;"
+            f"border-radius:50%;"
+            f"{border_css}"
+            f"background-color:#fff;"   # fallback enquanto imagem carrega
+            f"{extra_style}"
+            f"'></div>"
+        )
+
+    def _marker_from_css(lat, lon, popup, tooltip, html: str, size: int):
+        half = size // 2
+        icon = folium.DivIcon(html=html, icon_size=(size, size), icon_anchor=(half, half))
+        return folium.Marker(location=[lat, lon], icon=icon,
+                             popup=popup, tooltip=tooltip)
 
     if coords_rota and len(coords_rota) >= 2:
         coords_poly = _downsample(coords_rota, 300)
@@ -2024,27 +2075,64 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 f"{(' | ' + perfil) if perfil and is_pf else ''}"
             )
             pop = _fn_popup(row)
+            lat_, lon_ = row["_lat"], row["_lon"]
+
             if is_cer:
-                _marcador_cercado(row["_lat"], row["_lon"], pop, tip).add_to(c_cer)
+                # Cercado: círculo laranja com ⚠
+                folium.CircleMarker(
+                    [lat_, lon_], radius=9,
+                    color=COR_CERCADO_BORDA, fill=True,
+                    fill_color=COR_CERCADO_FILL, fill_opacity=0.9,
+                    popup=pop, tooltip=tip,
+                ).add_to(c_cer)
+
             elif is_rr:
-                _marcador_rodo_rede(row["_lat"], row["_lon"], pop, tip).add_to(c_rr)
-            elif is_pf:
-                # PF com bandeira reconhecida → logo da bandeira + borda PF azul/dourada
-                _logo_pf = _logo_para_distribuidora(row.get("distribuidora", ""), _logos_band)
-                if _logo_pf:
-                    _marcador_pf_bandeira(
-                        row["_lat"], row["_lon"], pop, tip, _logo_pf
-                    ).add_to(c_pf)
+                # Rodo Rede: usa CSS class (imagem definida uma vez no <style>)
+                if _rr_css:
+                    _html_rr = _mk_pin_css(
+                        _rr_css, 40,
+                        f"border:3px solid {COR_RR_BORDA};box-shadow:0 2px 8px rgba(0,0,0,.6);",
+                    )
+                    _marker_from_css(lat_, lon_, pop, tip, _html_rr, 40).add_to(c_rr)
                 else:
-                    _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
+                    folium.CircleMarker(
+                        [lat_, lon_], radius=9,
+                        color=COR_RR_BORDA, fill=True,
+                        fill_color=COR_RR_FILL, fill_opacity=0.9,
+                        popup=pop, tooltip=tip,
+                    ).add_to(c_rr)
+
+            elif is_pf:
+                # Pró-Frotas: usa CSS class da bandeira (se existir) ou da logo PF
+                _cls_pf = _band_css_para(row.get("distribuidora", ""))
+                if _cls_pf:
+                    # PF com bandeira reconhecida: logo da bandeira + borda azul PF + anel dourado
+                    _html_pf = _mk_pin_css(
+                        _cls_pf, 36,
+                        f"border:3px solid {COR_PF_BORDA};box-shadow:0 0 0 2px #FFD700,0 3px 8px rgba(0,0,0,.55);",
+                    )
+                elif _pf_css:
+                    # Logo ProFrotas genérica
+                    _html_pf = _mk_pin_css(
+                        _pf_css, 36,
+                        f"border:3px solid {COR_PF_BORDA};box-shadow:0 2px 8px rgba(0,0,0,.6);",
+                    )
+                else:
+                    # Fallback: círculo azul sólido
+                    _html_pf = (
+                        f"<div style='width:32px;height:32px;border-radius:50%;"
+                        f"background:{COR_PF_FILL};border:3px solid {COR_PF_BORDA};"
+                        f"box-shadow:0 2px 6px rgba(0,0,0,.5)'></div>"
+                    )
+                _marker_from_css(lat_, lon_, pop, tip, _html_pf, 36).add_to(c_pf)
+
             else:
-                # Pins regulares sempre como círculo colorido.
-                # Logos de bandeira NÃO são embutidas nos pins do mapa para evitar
-                # que o HTML do Folium fique enorme (50+ MB para estados grandes como SP).
-                # As logos aparecem apenas na legenda.
-                folium.CircleMarker([row["_lat"],row["_lon"]], radius=7,
-                                        color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
-                                        popup=pop, tooltip=tip).add_to(c_reg)
+                # Postos regulares: círculo colorido por bandeira (leve, sem imagem)
+                folium.CircleMarker(
+                    [lat_, lon_], radius=7,
+                    color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
+                    popup=pop, tooltip=tip,
+                ).add_to(c_reg)
 
     # Aviso de limitação (overlay flutuante no mapa)
     if foi_limitado:
