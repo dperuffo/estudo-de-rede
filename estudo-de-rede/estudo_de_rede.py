@@ -1709,37 +1709,53 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
     pf_df = st.session_state.get("pf_coords_df", pd.DataFrame())
 
     if is_cnpj:
+        # ── Busca por CNPJ ──────────────────────────────────────────────
         fonte = cnpj_fmt_label
-        # ── Prioridade 1: planilha local (mais precisa para CNPJ exato) ──
         df = pd.DataFrame()
+        # Prioridade 1: planilha local Pró-Frotas (mais precisa, sem API)
         if not pf_df.empty and "cnpj" in pf_df.columns:
             _mask_cnpj = pf_df["cnpj"].fillna("").str.replace(r"\D", "", regex=True) == _digits
             df = pf_df[_mask_cnpj].copy()
             if not df.empty:
                 fonte += " (planilha Pró-Frotas)"
-
-        # ── Prioridade 2: API ANP (com pós-filtro de CNPJ exato) ──────────
+        # Prioridade 2: API ANP (com pós-filtro de CNPJ exato)
         if df.empty:
             df = buscar_posto_por_cnpj(_digits)
             if not df.empty:
                 fonte += " (API ANP)"
     else:
-        df = buscar_postos_por_nome(termo, uf=uf)
+        # ── Busca por nome / razão social ────────────────────────────────
+        # Prioridade 1: planilha local Pró-Frotas (sem chamada à API ANP)
         fonte = f'Razão social "{termo}"' + (f" · UF {uf}" if uf else "")
-
-    if df.empty and not is_cnpj:
-        # Fallback por nome: busca na planilha local
+        df = pd.DataFrame()
         if not pf_df.empty:
-            _t = termo.upper()
+            _t_norm = _anp_norm(termo)
             _mask = pd.Series(False, index=pf_df.index)
             for _col in ["razaoSocial", "nome", "nomeFantasia"]:
                 if _col in pf_df.columns:
-                    _mask |= pf_df[_col].fillna("").str.upper().str.contains(_t, na=False)
+                    _mask |= (
+                        pf_df[_col].fillna("")
+                        .apply(_anp_norm)
+                        .str.contains(_t_norm, regex=False, na=False)
+                    )
             if uf:
-                _mask &= pf_df.get("uf", pd.Series("", index=pf_df.index)).fillna("").str.upper() == uf.upper()
+                _mask &= (
+                    pf_df["uf"].fillna("").str.upper().str.strip() == uf.upper()
+                )
             df = pf_df[_mask].copy()
             if not df.empty:
                 fonte += " (planilha Pró-Frotas)"
+
+        # Prioridade 2: API ANP como fallback — filtra somente postos PF
+        if df.empty:
+            _df_api = buscar_postos_por_nome(termo, uf=uf)
+            if not _df_api.empty:
+                if cnpjs_pf and "cnpj" in _df_api.columns:
+                    _cnpjs_api = _df_api["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+                    _df_api = _df_api[_cnpjs_api.isin(cnpjs_pf)].reset_index(drop=True)
+                if not _df_api.empty:
+                    df = _df_api
+                    fonte += " (API ANP)"
 
     if df.empty:
         return pd.DataFrame(), fonte
