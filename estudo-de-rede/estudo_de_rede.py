@@ -1492,31 +1492,57 @@ def buscar_postos(uf=None):
 @st.cache_data(show_spinner=False, ttl=86400)   # 24 horas — resultado por CNPJ
 def buscar_posto_por_cnpj(cnpj_norm: str) -> pd.DataFrame:
     """
-    Consulta a API ANP pelo CNPJ do posto (sem filtro de UF).
-    Usado para encontrar postos Pró-Frotas ausentes na base do estado consultado.
+    Consulta a API ANP pelo CNPJ do posto individual (sem filtro de UF).
+    Tenta dois parâmetros: 'cnpj' (estabelecimento) e 'cnpjRevenda' (bandeira).
+    Aplica pós-filtro para garantir que só o CNPJ exato seja retornado.
     Retorna DataFrame com o posto (ou vazio se não encontrado / erro).
     """
     if len(cnpj_norm) != 14:
         return pd.DataFrame()
-    # Formata CNPJ no padrão esperado pela API: XX.XXX.XXX/XXXX-XX
     cf = cnpj_norm
     cnpj_fmt = f"{cf[:2]}.{cf[2:5]}.{cf[5:8]}/{cf[8:12]}-{cf[12:]}"
-    try:
-        resp = _get(f"{API_BASE_URL}{ENDPOINT}",
-                    {"numeropagina": 1, "cnpjRevenda": cnpj_fmt})
-        data = resp.json()
-        registros = data.get("data", data) if isinstance(data, dict) else data
-        if not registros:
+
+    def _filtrar_cnpj(df: pd.DataFrame) -> pd.DataFrame:
+        """Mantém apenas linhas com o CNPJ exato pesquisado."""
+        if df.empty or "cnpj" not in df.columns:
+            return df
+        mask = df["cnpj"].fillna("").str.replace(r"\D", "", regex=True) == cnpj_norm
+        return df[mask].reset_index(drop=True)
+
+    def _normalizar(lst) -> pd.DataFrame:
+        if not lst:
             return pd.DataFrame()
-        lst = registros if isinstance(registros, list) else [registros]
-        df = pd.DataFrame(lst)
+        df = pd.DataFrame(lst if isinstance(lst, list) else [lst])
         df["_lat"] = pd.to_numeric(df.get("latitude"),  errors="coerce")
         df["_lon"] = pd.to_numeric(df.get("longitude"), errors="coerce")
         df = df.dropna(subset=["_lat", "_lon"])
         df = df[df["_lat"].between(-33.8, 5.3) & df["_lon"].between(-73.9, -34.7)]
         return df.reset_index(drop=True)
+
+    # Tentativa 1: parâmetro 'cnpj' (CNPJ do estabelecimento/posto)
+    try:
+        resp = _get(f"{API_BASE_URL}{ENDPOINT}", {"numeropagina": 1, "cnpj": cnpj_fmt})
+        data = resp.json()
+        registros = data.get("data", data) if isinstance(data, dict) else data
+        df = _filtrar_cnpj(_normalizar(registros))
+        if not df.empty:
+            return df
     except Exception:
-        return pd.DataFrame()
+        pass
+
+    # Tentativa 2: parâmetro 'cnpjRevenda' + pós-filtro obrigatório
+    try:
+        resp = _get(f"{API_BASE_URL}{ENDPOINT}",
+                    {"numeropagina": 1, "cnpjRevenda": cnpj_fmt})
+        data = resp.json()
+        registros = data.get("data", data) if isinstance(data, dict) else data
+        df = _filtrar_cnpj(_normalizar(registros))
+        if not df.empty:
+            return df
+    except Exception:
+        pass
+
+    return pd.DataFrame()
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
@@ -1564,26 +1590,38 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
     # ── Detecta se parece CNPJ ──────────────────────────────────────
     _digits = re.sub(r"\D", "", termo)
     is_cnpj = len(_digits) == 14
+    cnpj_fmt_label = (f"CNPJ {_digits[:2]}.{_digits[2:5]}.{_digits[5:8]}"
+                      f"/{_digits[8:12]}-{_digits[12:]}" if is_cnpj else "")
+
+    pf_df = st.session_state.get("pf_coords_df", pd.DataFrame())
 
     if is_cnpj:
-        df = buscar_posto_por_cnpj(_digits)
-        fonte = f"CNPJ {_digits[:2]}.{_digits[2:5]}.{_digits[5:8]}/{_digits[8:12]}-{_digits[12:]}"
+        fonte = cnpj_fmt_label
+        # ── Prioridade 1: planilha local (mais precisa para CNPJ exato) ──
+        df = pd.DataFrame()
+        if not pf_df.empty and "cnpj" in pf_df.columns:
+            _mask_cnpj = pf_df["cnpj"].fillna("").str.replace(r"\D", "", regex=True) == _digits
+            df = pf_df[_mask_cnpj].copy()
+            if not df.empty:
+                fonte += " (planilha Pró-Frotas)"
+
+        # ── Prioridade 2: API ANP (com pós-filtro de CNPJ exato) ──────────
+        if df.empty:
+            df = buscar_posto_por_cnpj(_digits)
+            if not df.empty:
+                fonte += " (API ANP)"
     else:
         df = buscar_postos_por_nome(termo, uf=uf)
         fonte = f'Razão social "{termo}"' + (f" · UF {uf}" if uf else "")
 
-    if df.empty:
-        # Fallback: busca local na planilha Pró-Frotas
-        pf_df = st.session_state.get("pf_coords_df", pd.DataFrame())
+    if df.empty and not is_cnpj:
+        # Fallback por nome: busca na planilha local
         if not pf_df.empty:
             _t = termo.upper()
             _mask = pd.Series(False, index=pf_df.index)
-            for _col in ["razaoSocial", "nome", "nomeFantasia", "cnpj"]:
+            for _col in ["razaoSocial", "nome", "nomeFantasia"]:
                 if _col in pf_df.columns:
-                    if _col == "cnpj" and is_cnpj:
-                        _mask |= pf_df[_col].fillna("").str.replace(r"\D","",regex=True) == _digits
-                    else:
-                        _mask |= pf_df[_col].fillna("").str.upper().str.contains(_t, na=False)
+                    _mask |= pf_df[_col].fillna("").str.upper().str.contains(_t, na=False)
             if uf:
                 _mask &= pf_df.get("uf", pd.Series("", index=pf_df.index)).fillna("").str.upper() == uf.upper()
             df = pf_df[_mask].copy()
