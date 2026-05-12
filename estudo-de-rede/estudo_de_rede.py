@@ -762,6 +762,94 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
             df_coords)
 
 
+def _processar_bytes_anp_postos(nome: str, conteudo: bytes):
+    """
+    Lê o arquivo XLSX de postos ANP baixado manualmente do site da ANP.
+    Detecta automaticamente as colunas de CNPJ, lat/lon, nome, bandeira, município e UF.
+    Retorna (DataFrame, msg) ou (None, msg_erro).
+    O DataFrame terá colunas: cnpj, _lat, _lon, razaoSocial, distribuidora, municipio, uf
+    """
+    try:
+        buf = io.BytesIO(conteudo)
+        nome_l = nome.lower()
+        if nome_l.endswith(".xls"):
+            df = pd.read_excel(buf, dtype=str, engine="xlrd")
+        else:
+            df = pd.read_excel(buf, dtype=str, engine="openpyxl")
+    except Exception as e:
+        return None, f"Erro ao ler o arquivo: {type(e).__name__} — {e}"
+
+    if df.empty:
+        return None, "O arquivo está vazio."
+
+    # Normaliza nomes de colunas para detecção
+    df.columns = [str(c).strip().upper() for c in df.columns]
+
+    col_cnpj = _detectar_col(df, [
+        "CNPJ DA REVENDA", "CNPJ REVENDA", "CNPJ_REVENDA",
+        "CNPJ DO ESTABELECIMENTO", "CNPJ ESTABELECIMENTO", "CNPJ",
+    ])
+    col_lat  = _detectar_col(df, ["LATITUDE", "LAT"])
+    col_lon  = _detectar_col(df, ["LONGITUDE", "LON", "LNG", "LONG"])
+    col_nome = _detectar_col(df, [
+        "RAZÃO SOCIAL", "RAZAO SOCIAL", "RAZÃO", "RAZAO",
+        "NOME FANTASIA", "NOMEFANTASIA", "NOME",
+    ])
+    col_dist = _detectar_col(df, ["BANDEIRA", "DISTRIBUIDORA", "REDE", "BRAND"])
+    col_mun  = _detectar_col(df, ["MUNICÍPIO", "MUNICIPIO", "CIDADE", "CITY"])
+    col_uf   = _detectar_col(df, ["UF", "ESTADO", "ESTADO (UF)"])
+
+    if col_cnpj is None:
+        colunas = ", ".join(df.columns.tolist()[:20])
+        return None, (
+            f"Coluna CNPJ não encontrada. Colunas disponíveis: {colunas}. "
+            "Verifique se o arquivo correto (postos ANP) foi selecionado."
+        )
+
+    rows = []
+    for _, row in df.iterrows():
+        cnpj_n = re.sub(r"\D", "", str(row.get(col_cnpj, "") or ""))
+        if len(cnpj_n) != 14:
+            continue
+        try:
+            lat = float(str(row[col_lat]).replace(",", ".")) if col_lat else float("nan")
+            lon = float(str(row[col_lon]).replace(",", ".")) if col_lon else float("nan")
+        except (ValueError, TypeError):
+            lat, lon = float("nan"), float("nan")
+
+        # Rejeita coordenadas fora do Brasil
+        if col_lat and col_lon and not (math.isnan(lat) or math.isnan(lon)):
+            if not (-33.8 <= lat <= 5.3 and -73.9 <= lon <= -34.7):
+                continue
+
+        rows.append({
+            "cnpj":          cnpj_n,
+            "_lat":          lat if col_lat else None,
+            "_lon":          lon if col_lon else None,
+            "razaoSocial":   str(row.get(col_nome, "")).strip() if col_nome else "",
+            "distribuidora": str(row.get(col_dist, "")).strip() if col_dist else "",
+            "municipio":     str(row.get(col_mun,  "")).strip() if col_mun  else "",
+            "uf":            str(row.get(col_uf,   "")).strip().upper() if col_uf else "",
+        })
+
+    if not rows:
+        return None, "Nenhum CNPJ válido (14 dígitos) encontrado no arquivo."
+
+    result_df = pd.DataFrame(rows)
+    for _c in ["razaoSocial", "distribuidora", "municipio", "uf"]:
+        result_df[_c] = result_df[_c].replace({"nan": "", "None": "", "NaN": ""})
+
+    # Remove linhas sem coordenadas válidas (necessário para o mapa)
+    _n_total = len(result_df)
+    if col_lat and col_lon:
+        result_df = result_df.dropna(subset=["_lat", "_lon"]).reset_index(drop=True)
+
+    _n_com_coord = len(result_df)
+    _sem_coord   = _n_total - _n_com_coord
+    sem_msg = f" ({_sem_coord} sem coordenadas ignorados)" if _sem_coord else ""
+    return result_df, f"{_n_com_coord} postos ANP carregados{sem_msg}"
+
+
 def ler_planilha_pro_frotas(arquivo):
     """Lê UploadedFile do Streamlit. Sem @st.cache_data (upload não é cacheável)."""
     try:
@@ -4295,6 +4383,55 @@ with st.sidebar:
             st.session_state["_form_key_m1"] = _fk_m1 + 1
             st.rerun()
 
+        # ── Postos ANP — overlay opcional ────────────────────────────
+        st.divider()
+        st.markdown("<div class='sb-label'>Postos ANP (opcional)</div>", unsafe_allow_html=True)
+        _anp_df_sb_m1 = st.session_state.get("_anp_df_raw")
+        _anp_ativo_m1 = _anp_df_sb_m1 is not None
+        if not _anp_ativo_m1:
+            st.caption("Apenas postos Pró-Frotas são exibidos no mapa.")
+            if st.button("➕ Inserir postos ANP", use_container_width=True,
+                          key="btn_anp_ins_m1",
+                          help="Carregue o XLSX baixado do site da ANP para incluir postos como overlay"):
+                st.session_state["_anp_upload_open"] = True
+                st.rerun()
+        else:
+            _n_anp_sb = len(_anp_df_sb_m1)
+            st.markdown(
+                f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
+                f"border-radius:8px;padding:7px 10px;font-size:11px;"
+                f"color:#1565c0;margin-bottom:6px'>"
+                f"🔵 <b>{_n_anp_sb:,} postos ANP</b> ativos como overlay</div>",
+                unsafe_allow_html=True,
+            )
+            if st.button("✕ Remover postos ANP", use_container_width=True, key="btn_anp_rm_m1"):
+                st.session_state.pop("_anp_df_raw",       None)
+                st.session_state.pop("_anp_upload_open",  None)
+                st.session_state.pop("_uf_carregada",     None)   # força recarregamento
+                st.rerun()
+
+        if not _anp_ativo_m1 and st.session_state.get("_anp_upload_open"):
+            _anp_up_m1 = st.file_uploader(
+                "Arquivo XLSX da ANP",
+                type=["xlsx", "xls"],
+                key="anp_uploader_m1",
+                label_visibility="collapsed",
+                help="Baixe o arquivo de postos no site da ANP e carregue aqui",
+            )
+            if _anp_up_m1 is not None:
+                with st.spinner("📂 Processando arquivo ANP…"):
+                    _anp_r_m1, _anp_msg_m1 = _processar_bytes_anp_postos(
+                        _anp_up_m1.name, _anp_up_m1.read()
+                    )
+                if _anp_r_m1 is not None:
+                    st.session_state["_anp_df_raw"]      = _anp_r_m1
+                    st.session_state["_anp_upload_open"] = False
+                    st.session_state.pop("_uf_carregada", None)   # força recarregamento
+                    st.success(f"✅ {_anp_msg_m1}")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {_anp_msg_m1}")
+
         distribuidoras_filtro = []
         if st.session_state.get("distribuidoras_disponiveis"):
             st.markdown("<div class='sb-label'>Filtrar por Bandeira</div>", unsafe_allow_html=True)
@@ -4463,6 +4600,53 @@ with st.sidebar:
             # Incrementa o sufixo dos widgets — força criação de novos campos em branco
             st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
             st.rerun()
+
+        # ── Postos ANP — overlay opcional (Modo Rota) ─────────────────
+        st.divider()
+        st.markdown("<div class='sb-label'>Postos ANP (opcional)</div>", unsafe_allow_html=True)
+        _anp_df_sb_m2 = st.session_state.get("_anp_df_raw")
+        _anp_ativo_m2 = _anp_df_sb_m2 is not None
+        if not _anp_ativo_m2:
+            st.caption("Apenas postos Pró-Frotas são incluídos na rota.")
+            if st.button("➕ Inserir postos ANP", use_container_width=True,
+                          key="btn_anp_ins_m2",
+                          help="Carregue o XLSX baixado do site da ANP para incluir postos como overlay"):
+                st.session_state["_anp_upload_open"] = True
+                st.rerun()
+        else:
+            _n_anp_sb_m2 = len(_anp_df_sb_m2)
+            st.markdown(
+                f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
+                f"border-radius:8px;padding:7px 10px;font-size:11px;"
+                f"color:#1565c0;margin-bottom:6px'>"
+                f"🔵 <b>{_n_anp_sb_m2:,} postos ANP</b> ativos como overlay</div>",
+                unsafe_allow_html=True,
+            )
+            if st.button("✕ Remover postos ANP", use_container_width=True, key="btn_anp_rm_m2"):
+                st.session_state.pop("_anp_df_raw",      None)
+                st.session_state.pop("_anp_upload_open", None)
+                st.rerun()
+
+        if not _anp_ativo_m2 and st.session_state.get("_anp_upload_open"):
+            _anp_up_m2 = st.file_uploader(
+                "Arquivo XLSX da ANP",
+                type=["xlsx", "xls"],
+                key="anp_uploader_m2",
+                label_visibility="collapsed",
+                help="Baixe o arquivo de postos no site da ANP e carregue aqui",
+            )
+            if _anp_up_m2 is not None:
+                with st.spinner("📂 Processando arquivo ANP…"):
+                    _anp_r_m2, _anp_msg_m2 = _processar_bytes_anp_postos(
+                        _anp_up_m2.name, _anp_up_m2.read()
+                    )
+                if _anp_r_m2 is not None:
+                    st.session_state["_anp_df_raw"]      = _anp_r_m2
+                    st.session_state["_anp_upload_open"] = False
+                    st.success(f"✅ {_anp_msg_m2}")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {_anp_msg_m2}")
 
         distribuidoras_filtro = []
         if st.session_state.get("distribuidoras_rota"):
@@ -4931,49 +5115,60 @@ with st.sidebar:
 if modo == "📍 Por Estado/Município":
 
     if uf:
-        _cnpjs_pf_atual = st.session_state.get("cnpjs_pro_frotas", set())
+        # ── Passo 1: carrega postos PF do estado (planilha local) ──────
+        # Chave de carregamento inclui o estado do overlay ANP para forçar
+        # recarregamento quando o usuário insere/remove o arquivo ANP.
+        _anp_overlay_m1 = st.session_state.get("_anp_df_raw")
+        _anp_key_m1     = str(id(_anp_overlay_m1))   # muda quando ANP é trocado
+        _load_key_m1    = f"{uf}|{_anp_key_m1}"
 
-        # ── Passo 1: carrega estado se mudou (aproveita cache 24h) ──
-        if uf != st.session_state.get("_uf_carregada"):
-            with st.spinner(f"⏳ Carregando postos de **{uf}**…"):
-                try:
-                    df_raw_full = buscar_postos(uf=uf)
-                except Exception as _api_err:
-                    st.error(
-                        f"❌ A API ANP retornou um erro ao buscar postos de **{uf}**.\n\n"
-                        f"Isso costuma ser temporário — tente novamente em alguns instantes.\n\n"
-                        f"Detalhe técnico: `{type(_api_err).__name__}`"
-                    )
-                    st.stop()
+        if _load_key_m1 != st.session_state.get("_uf_carregada"):
+            _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
+            if not _pf_df_m1.empty:
+                df_raw_full = _pf_df_m1[
+                    _pf_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
+                ].copy().reset_index(drop=True)
+            else:
+                df_raw_full = pd.DataFrame()
+                st.warning(
+                    "⚠️ Planilha Pró-Frotas não carregada. "
+                    "Configure-a na seção **Configurações** na barra lateral."
+                )
+
+            # ── Overlay ANP opcional: adiciona postos não-PF da ANP ──
+            if _anp_overlay_m1 is not None:
+                _anp_uf_m1 = _anp_overlay_m1[
+                    _anp_overlay_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
+                ].copy()
+                if not _anp_uf_m1.empty:
+                    # Postos PF têm prioridade — remove duplicatas ANP
+                    _pf_cnpjs_m1 = set(
+                        df_raw_full["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+                    ) if not df_raw_full.empty else set()
+                    _anp_uf_m1 = _anp_uf_m1[
+                        ~_anp_uf_m1["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+                         .isin(_pf_cnpjs_m1)
+                    ]
+                    if not _anp_uf_m1.empty:
+                        # Alinha colunas
+                        for _col in df_raw_full.columns:
+                            if _col not in _anp_uf_m1.columns:
+                                _anp_uf_m1[_col] = pd.NA
+                        df_raw_full = pd.concat(
+                            [df_raw_full, _anp_uf_m1], ignore_index=True
+                        )
+
             st.session_state["df_raw_full"]  = df_raw_full
-            st.session_state["_uf_carregada"] = uf
+            st.session_state["_uf_carregada"] = _load_key_m1
             if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
                 st.session_state["distribuidoras_disponiveis"] = sorted(
                     df_raw_full["distribuidora"].dropna().unique().tolist())
-            precar = st.session_state.get("_estados_precarregados", [])
-            if uf not in precar:
-                st.session_state["_estados_precarregados"] = precar + [uf]
-            # Nova UF: invalida cache de marcação e marca para reinjetar PF
-            st.session_state.pop("_df_marcado",     None)
-            st.session_state.pop("_df_marcado_key", None)
+            # Invalida cache de marcação ao trocar dados
+            st.session_state.pop("_df_marcado",      None)
+            st.session_state.pop("_df_marcado_key",  None)
             st.session_state.pop("_pf_injetados_uf", None)
 
-        # ── Passo 2: injeta PF ausentes (via planilha) se ainda não feito nesta UF ──
-        if _cnpjs_pf_atual and uf != st.session_state.get("_pf_injetados_uf"):
-            _df_base = st.session_state.get("df_raw_full", pd.DataFrame())
-            with st.spinner("🔍 Verificando postos Pró-Frotas ausentes na base ANP…"):
-                _df_injetado = _injetar_pf_ausentes(_df_base, _cnpjs_pf_atual, uf_atual=uf)
-            if len(_df_injetado) > len(_df_base):
-                st.session_state["df_raw_full"] = _df_injetado
-                # Novos postos adicionados → invalida cache de marcação
-                st.session_state.pop("_df_marcado",     None)
-                st.session_state.pop("_df_marcado_key", None)
-                if "distribuidora" in _df_injetado.columns:
-                    st.session_state["distribuidoras_disponiveis"] = sorted(
-                        _df_injetado["distribuidora"].dropna().unique().tolist())
-            st.session_state["_pf_injetados_uf"] = uf
-
-        # ── Passo 3: sempre lê df_raw_full do session_state ──────────
+        # ── Passo 2: lê df_raw_full do session_state ──────────────────
         df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
 
         # Filtra por município localmente (instantâneo, sem nova chamada à API)
@@ -5246,32 +5441,45 @@ elif modo == "🗺️ Por Rota":
                 st.error("❌ Não foi possível detectar estados ao longo da rota. Verifique os pontos de origem e destino.")
                 ufs_rota = []
 
-            frames = []
-            erros_uf = []
             if ufs_rota:
                 st.info(f"🗺️ Estados detectados na rota: **{', '.join(ufs_rota)}**")
-                prog = st.progress(0, text="Buscando postos nos estados da rota…")
-                for idx_uf, uf_b in enumerate(ufs_rota):
-                    prog.progress((idx_uf) / len(ufs_rota), text=f"⛽ Carregando postos de **{uf_b}**…")
-                    try:
-                        df_uf = buscar_postos(uf=uf_b)
-                        if not df_uf.empty:
-                            frames.append(df_uf)
-                            # Registra UF como disponível para busca por nome/CNPJ
-                            precar = st.session_state.get("_estados_precarregados", [])
-                            if uf_b not in precar:
-                                st.session_state["_estados_precarregados"] = precar + [uf_b]
-                    except Exception as e:
-                        erros_uf.append(f"**{uf_b}**: {type(e).__name__} — {e}")
-                    time.sleep(0.5)  # pausa entre UFs para não sobrecarregar a API
-                prog.progress(1.0, text="✅ Busca concluída!")
-                time.sleep(0.5)
-                prog.empty()
 
-            # erros de API (ex: 403) são silenciosos para o usuário final
-            # — os estados com cache já resolvem a maioria dos casos
+            # ── Carrega postos Pró-Frotas dos estados da rota (planilha local) ─
+            _pf_df_m2   = st.session_state.get("pf_coords_df", pd.DataFrame())
+            _ufs_set_m2 = {u.upper() for u in ufs_rota}
+            if not _pf_df_m2.empty:
+                df_todos = _pf_df_m2[
+                    _pf_df_m2["uf"].fillna("").str.upper().str.strip().isin(_ufs_set_m2)
+                ].copy().reset_index(drop=True)
+            else:
+                df_todos = pd.DataFrame()
+                st.warning(
+                    "⚠️ Planilha Pró-Frotas não carregada. "
+                    "Configure-a na seção **Configurações** na barra lateral."
+                )
 
-            df_todos = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+            # ── Overlay ANP opcional: adiciona postos não-PF da ANP ───
+            _anp_overlay_m2 = st.session_state.get("_anp_df_raw")
+            if _anp_overlay_m2 is not None:
+                _anp_ufs_m2 = _anp_overlay_m2[
+                    _anp_overlay_m2["uf"].fillna("").str.upper().str.strip().isin(_ufs_set_m2)
+                ].copy()
+                if not _anp_ufs_m2.empty:
+                    # Postos PF têm prioridade — remove duplicatas ANP
+                    _pf_cnpjs_m2 = set(
+                        df_todos["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+                    ) if not df_todos.empty else set()
+                    _anp_ufs_m2 = _anp_ufs_m2[
+                        ~_anp_ufs_m2["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+                         .isin(_pf_cnpjs_m2)
+                    ]
+                    if not _anp_ufs_m2.empty:
+                        if not df_todos.empty:
+                            for _col in df_todos.columns:
+                                if _col not in _anp_ufs_m2.columns:
+                                    _anp_ufs_m2[_col] = pd.NA
+                        df_todos = pd.concat([df_todos, _anp_ufs_m2], ignore_index=True)
+
             if not df_todos.empty:
                 with st.spinner("📏 Calculando distâncias…"):
                     # NumPy vetorizado: calcula todas as distâncias de uma vez (~100× mais rápido)
@@ -5288,28 +5496,7 @@ elif modo == "🗺️ Por Rota":
                         f"dentro de **{raio} m** da rota. Tente aumentar o raio na barra lateral."
                     )
             else:
-                if not erros_uf:
-                    st.error(
-                        "❌ Nenhum posto retornado pela API ANP para os estados da rota. "
-                        "Verifique se a API está acessível: https://revendedoresapi.anp.gov.br"
-                    )
                 df_rota = pd.DataFrame()
-            # Injeta postos Pró-Frotas ausentes (podem estar em outros estados)
-            _cnpjs_pf_r = st.session_state.get("cnpjs_pro_frotas", set())
-            if _cnpjs_pf_r and not df_rota.empty:
-                with st.spinner("🔍 Verificando postos Pró-Frotas ausentes na rota…"):
-                    _df_rota_enr = _injetar_pf_ausentes(
-                        df_rota, _cnpjs_pf_r, ufs_permitidas=set(ufs_rota))
-                if len(_df_rota_enr) > len(df_rota):
-                    # Recalcula distância para os postos injetados (sem coordenadas de rota)
-                    _novos = _df_rota_enr.iloc[len(df_rota):]
-                    _dists_n = dist_minima_rota_np(
-                        _novos["_lat"].values, _novos["_lon"].values, coords_rota)
-                    _df_rota_enr.loc[_novos.index, "_dist_rota"] = _dists_n
-                    # Filtra por raio: descarta injetados fora do corredor da rota
-                    df_rota = _df_rota_enr[
-                        _df_rota_enr["_dist_rota"] <= raio
-                    ].copy().reset_index(drop=True)
 
             st.session_state.update({
                 "df_rota": df_rota, "coords_rota": coords_rota,
