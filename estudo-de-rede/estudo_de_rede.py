@@ -4643,10 +4643,10 @@ if modo == "📍 Por Estado/Município":
             with st.spinner(f"🗺️ Carregando mapa — {_n(len(df_show))} postos…"):
                 try:
                     _mapa_obj = criar_mapa(df_show)
-                    st_folium(
-                        _mapa_obj, use_container_width=True, height=660,
-                        returned_objects=["last_object_clicked"],
-                        key="mapa_m1",
+                    # Renderiza via HTML direto — evita o wrapper React do st_folium
+                    # que trava para mapas grandes (SP, MG…).
+                    st.components.v1.html(
+                        _mapa_obj._repr_html_(), height=660, scrolling=False
                     )
                 except Exception as _mapa_err:
                     st.error(
@@ -4793,8 +4793,7 @@ if modo == "📍 Por Estado/Município":
                         lat_dest=_rr["dest"]["lat"], lon_dest=_rr["dest"]["lon"],
                         label_orig=_rr["orig"]["label"], label_dest=_rr["dest"]["label"],
                     )
-                    st_folium(_mapa_rota, use_container_width=True, height=580,
-                              returned_objects=["last_object_clicked"], key="mapa_rota_estado")
+                    st.components.v1.html(_mapa_rota._repr_html_(), height=580, scrolling=False)
 
         with tab_dados:
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
@@ -4834,8 +4833,7 @@ if modo == "📍 Por Estado/Município":
             "👈 Selecione um Estado na barra lateral para carregar os postos"
             "</div>"
         ))
-        st_folium(_mapa_vazio_m1, use_container_width=True, height=680,
-                  returned_objects=["last_object_clicked"], key="mapa_m1_vazio")
+        st.components.v1.html(_mapa_vazio_m1._repr_html_(), height=680, scrolling=False)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -4992,9 +4990,7 @@ else:
                                lat_orig=lat_orig, lon_orig=lon_orig,
                                lat_dest=lat_dest, lon_dest=lon_dest,
                                label_orig=label_orig, label_dest=label_dest)
-                st_folium(m, use_container_width=True, height=660,
-                          returned_objects=["last_object_clicked"],
-                          key="mapa_rota")
+                st.components.v1.html(m._repr_html_(), height=660, scrolling=False)
 
             # ── Busca rápida — refinar Origem/Destino com posto da rota ─
             if not df_show_r.empty:
@@ -5076,5 +5072,4 @@ else:
             "👈 Preencha Origem e Destino na barra lateral e clique em Traçar Rota"
             "</div>"
         ))
-        st_folium(_mapa_vazio_m2, use_container_width=True, height=680,
-                  returned_objects=["last_object_clicked"], key="mapa_m2_vazio")
+        st.components.v1.html(_mapa_vazio_m2._repr_html_(), height=680, scrolling=False)
