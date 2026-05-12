@@ -621,7 +621,7 @@ def _cor_marca(distribuidora: str) -> str:
 # Limite de marcadores no mapa. Acima disso os postos são amostrados
 # (Pró-Frotas têm prioridade) e o popup é simplificado.
 # → evita serializar 5-6 MB de HTML para estados como SP (4 000+ postos).
-MAX_MAPA_POSTOS = 1500
+MAX_MAPA_POSTOS = 600   # cap seguro: evita travar browser em estados grandes (SP, MG…)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1560,15 +1560,20 @@ def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set,
 
     # ── FILTRO POR UF ────────────────────────────────────────────────
     # Evita injetar postos de estados que não fazem parte da consulta.
-    if "uf" in df_novos.columns:
+    # SEGURANÇA: se uf_atual ou ufs_permitidas foram informados mas a planilha
+    # não tem coluna UF preenchida, NÃO injeta (evita flood de todos os PF em 1 estado).
+    _tem_uf_col = "uf" in df_novos.columns and df_novos["uf"].fillna("").str.strip().ne("").any()
+
+    if uf_atual or ufs_permitidas:
+        if not _tem_uf_col:
+            # Planilha sem UF → não é possível filtrar → não injeta para evitar dados errados
+            return df_raw
         if ufs_permitidas:
-            # Rota: aceita qualquer UF que esteja na lista de estados da rota
             _ufs_upper = {u.upper().strip() for u in ufs_permitidas}
             df_novos = df_novos[
                 df_novos["uf"].fillna("").str.upper().str.strip().isin(_ufs_upper)
             ]
-        elif uf_atual:
-            # Estado único: só injeta postos desse estado
+        else:
             df_novos = df_novos[
                 df_novos["uf"].fillna("").str.upper().str.strip() == uf_atual.upper().strip()
             ]
@@ -4635,17 +4640,22 @@ if modo == "📍 Por Estado/Município":
             "📊  Análise por Bandeira", "💰  Preços ANP"])
 
         with tab_mapa:
-            # Chave ESTÁVEL "mapa_m1" — nunca muda entre reruns.
-            # Chave dinâmica (ex: mapa_estado_SP) faz o React desmontar/remontar
-            # o componente a cada troca de UF, deixando o iframe em branco.
-            # Com chave fixa, o componente é reutilizado; o HTML do mapa (prop)
-            # muda normalmente quando os dados mudam, e o iframe re-renderiza.
             with st.spinner(f"🗺️ Carregando mapa — {_n(len(df_show))} postos…"):
-                st_folium(
-                    criar_mapa(df_show), use_container_width=True, height=660,
-                    returned_objects=["last_object_clicked"],
-                    key="mapa_m1",
-                )
+                try:
+                    _mapa_obj = criar_mapa(df_show)
+                    st_folium(
+                        _mapa_obj, use_container_width=True, height=660,
+                        returned_objects=["last_object_clicked"],
+                        key="mapa_m1",
+                    )
+                except Exception as _mapa_err:
+                    st.error(
+                        f"❌ Erro ao gerar o mapa para **{uf}**.\n\n"
+                        f"**Detalhe:** `{type(_mapa_err).__name__}: {_mapa_err}`\n\n"
+                        "Tente recarregar a página ou selecionar outro estado."
+                    )
+                    import traceback
+                    st.code(traceback.format_exc(), language="python")
 
             # ── Busca rápida — selecionar posto como Origem / Destino ─
             # Filtra o DataFrame local: sem rerender do mapa, sem round-trip JS
