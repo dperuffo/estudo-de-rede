@@ -3601,115 +3601,125 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
         municipio if nivel in ("Município", "Capital")
         else UF_NOME.get(uf or "", uf or "")
     )
-    uf_label = f" ({uf})" if uf else ""
-
-    # ── Rótulos de coluna de referência ───────────────────────────
-    col_est = UF_NOME.get(uf or "", uf or "")
-    col_reg = nome_regiao.title() if nome_regiao else "Região"
-    col_br  = "Brasil"
+    uf_label    = f" ({uf})" if uf else ""
+    col_est     = UF_NOME.get(uf or "", uf or "")
+    col_reg     = nome_regiao.title() if nome_regiao else "Região"
     mostrar_est = nivel in ("Município", "Capital")
+    semana_str  = semana or "—"
 
-    # ── Monta linhas da tabela ────────────────────────────────────
-    def _badge(diff):
-        """Retorna HTML de badge verde/vermelho para variação."""
-        if diff is None:
-            return "<span style='color:#bbb'>—</span>"
-        cor    = "#2e7d32" if diff <= 0 else "#c62828"
-        bg     = "#e8f5e9" if diff <= 0 else "#ffebee"
-        seta   = "▼" if diff < 0 else ("▲" if diff > 0 else "●")
-        return (
-            f"<span style='background:{bg};color:{cor};font-size:11px;"
-            f"font-weight:700;padding:2px 7px;border-radius:20px;"
-            f"white-space:nowrap'>"
-            f"{seta} R$&nbsp;{_brl(abs(diff), 3)}</span>"
-        )
+    # ── Cabeçalho compacto ────────────────────────────────────────
+    _b_branco  = "<b style='color:#fff'>"
+    _reg_trecho = f" &nbsp;·&nbsp; Região: {_b_branco}{col_reg}</b>" if nome_regiao else ""
+    _cab_html = (
+        "<div style='background:linear-gradient(90deg,#0d1b4b 0%,#1565c0 100%);"
+        "border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;"
+        "align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px'>"
+        f"<span style='color:#fff;font-size:16px;font-weight:700'>"
+        f"💰 Preços ANP — {scope_label}{uf_label}</span>"
+        f"<span style='color:rgba(255,255,255,.75);font-size:12px'>"
+        f"Semana: {_b_branco}{semana_str}</b>"
+        f"{_reg_trecho}"
+        f" &nbsp;·&nbsp; Nível: {nivel}</span>"
+        "</div>"
+    )
+    st.markdown(_cab_html, unsafe_allow_html=True)
 
-    tbody = ""
-    for i, r in enumerate(rows):
-        pm     = r["Preço Médio"]
-        r_est  = r.get("Ref. Estado")
-        r_reg  = r.get("Ref. Região")
-        r_br   = r.get("Ref. Brasil")
-        uni    = r.get("Unidade", "R$/L")
-        postos = r.get("Postos") or "?"
-        bg_row = "#f9fbff" if i % 2 == 0 else "#ffffff"
-
-        # Referência principal para destaque de cor da linha de preço
-        ref_principal = r_br or r_reg
-        diff_br   = round(pm - r_br,  3) if r_br  is not None else None
-        diff_reg  = round(pm - r_reg, 3) if r_reg is not None else None
-        diff_est  = round(pm - r_est, 3) if r_est is not None else None
-
-        # Cor do preço local: verde se abaixo da média nacional, vermelho se acima
-        if ref_principal is not None:
-            diff_main = pm - ref_principal
-            preco_cor = "#1b5e20" if diff_main < -0.005 else ("#b71c1c" if diff_main > 0.005 else "#333")
-        else:
-            preco_cor = "#0d1b4b"
-
-        est_cell = (
-            f"<td style='text-align:center'>{_badge(diff_est)}</td>"
-            if mostrar_est else ""
-        )
-
-        tbody += (
-            f"<tr style='background:{bg_row}'>"
-            f"<td style='font-weight:600;color:#0d1b4b'>{r['Combustível']}</td>"
-            f"<td style='text-align:right'>"
-            f"  <span style='font-size:17px;font-weight:800;color:{preco_cor}'>"
-            f"  R$ {_brl(pm, 3)}</span>"
-            f"  <span style='font-size:10px;color:#999;margin-left:2px'>{uni}</span>"
-            f"</td>"
-            f"{est_cell}"
-            f"<td style='text-align:center'>{_badge(diff_reg)}</td>"
-            f"<td style='text-align:center'>{_badge(diff_br)}</td>"
-            f"<td style='text-align:center;color:#aaa;font-size:11px'>{postos}</td>"
-            f"</tr>"
-        )
-
-    est_th = f"<th>vs {col_est}</th>" if mostrar_est else ""
-    semana_str = semana or "—"
-    reg_str    = f"Região: <b>{col_reg}</b>  ·  " if nome_regiao else ""
-
-    st.markdown(f"""
+    # ── CSS dos cards (injetado uma vez) ─────────────────────────
+    st.markdown("""
 <style>
-.pt-wrap{{border-radius:12px;overflow:hidden;
-          box-shadow:0 2px 12px rgba(0,0,0,.10);margin-bottom:16px}}
-.pt-table{{width:100%;border-collapse:collapse;font-size:13px}}
-.pt-table thead tr{{background:linear-gradient(90deg,#0d1b4b 0%,#1565c0 100%)}}
-.pt-table th{{color:#fff;padding:10px 14px;font-weight:600;
-              white-space:nowrap;text-align:left}}
-.pt-table th:not(:first-child){{text-align:center}}
-.pt-table td{{padding:9px 14px;border-bottom:1px solid #eef0f8;
-              vertical-align:middle}}
-.pt-table tr:last-child td{{border-bottom:none}}
-.pt-table tr:hover td{{background:#f0f4ff!important}}
-.pt-caption{{font-size:11px;color:#888;margin-top:4px;text-align:right}}
-</style>
-<div class='pt-wrap'>
-<table class='pt-table'>
-<thead>
-  <tr>
-    <th style='min-width:160px'>⛽ Combustível</th>
-    <th style='min-width:110px;text-align:right'>Preço local</th>
-    {est_th}
-    <th>vs {col_reg}</th>
-    <th>vs {col_br}</th>
-    <th>Postos</th>
-  </tr>
-</thead>
-<tbody>
-{tbody}
-</tbody>
-</table>
-</div>
-<p class='pt-caption'>
-  💰 {scope_label}{uf_label}
-  &nbsp;·&nbsp; {reg_str}Nível: <i>{nivel}</i>
-  &nbsp;·&nbsp; Semana ANP: <b>{semana_str}</b>
-  &nbsp;·&nbsp; Variações: ▼ abaixo da média &nbsp; ▲ acima da média
-</p>
-""", unsafe_allow_html=True)
+.fc{background:#fff;border-radius:12px;padding:16px 18px 12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    border-left:5px solid #ddd;margin-bottom:4px;
+    transition:box-shadow .15s}
+.fc:hover{box-shadow:0 4px 18px rgba(0,0,0,.13)}
+.fc-nome{font-size:12px;font-weight:700;color:#555;
+         letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px}
+.fc-preco{font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.fc-uni{font-size:11px;font-weight:400;color:#999;margin-left:3px}
+.fc-refs{margin-top:10px;border-top:1px solid #f0f0f0;padding-top:8px}
+.fc-ref{display:flex;justify-content:space-between;align-items:center;
+        padding:3px 0;font-size:12px}
+.fc-ref-label{color:#888}
+.fc-ref-val{font-weight:600;color:#333;display:flex;align-items:center;gap:5px}
+.fc-delta-up{background:#ffebee;color:#c62828;font-size:10px;font-weight:700;
+             padding:1px 6px;border-radius:20px;white-space:nowrap}
+.fc-delta-dn{background:#e8f5e9;color:#2e7d32;font-size:10px;font-weight:700;
+             padding:1px 6px;border-radius:20px;white-space:nowrap}
+.fc-delta-eq{background:#f3f4f6;color:#666;font-size:10px;font-weight:700;
+             padding:1px 6px;border-radius:20px;white-space:nowrap}
+.fc-postos{font-size:10px;color:#bbb;margin-top:6px;text-align:right}
+</style>""", unsafe_allow_html=True)
+
+    # ── Helper: badge de variação ─────────────────────────────────
+    def _ref_row_html(label, ref, pm):
+        if ref is None:
+            return (
+                f"<div class='fc-ref'>"
+                f"<span class='fc-ref-label'>{label}</span>"
+                f"<span class='fc-ref-val'><span style='color:#ccc'>—</span></span>"
+                f"</div>"
+            )
+        diff = round(pm - ref, 3)
+        val_str = f"R$ {_brl(ref, 3)}"
+        if abs(diff) < 0.001:
+            delta_html = f"<span class='fc-delta-eq'>= igual</span>"
+        elif diff > 0:
+            delta_html = f"<span class='fc-delta-up'>▲ {_brl(diff, 3)}</span>"
+        else:
+            delta_html = f"<span class='fc-delta-dn'>▼ {_brl(abs(diff), 3)}</span>"
+        return (
+            f"<div class='fc-ref'>"
+            f"<span class='fc-ref-label'>{label}</span>"
+            f"<span class='fc-ref-val'>{val_str} {delta_html}</span>"
+            f"</div>"
+        )
+
+    # ── Grid 3 colunas ────────────────────────────────────────────
+    n_cols = 3
+    for chunk_start in range(0, len(rows), n_cols):
+        chunk = rows[chunk_start: chunk_start + n_cols]
+        cols  = st.columns(n_cols)
+        for j, r in enumerate(chunk):
+            pm     = r["Preço Médio"]
+            r_est  = r.get("Ref. Estado")
+            r_reg  = r.get("Ref. Região")
+            r_br   = r.get("Ref. Brasil")
+            uni    = r.get("Unidade", "R$/L")
+            postos = r.get("Postos") or "?"
+
+            # Cor da borda e do preço: verde=abaixo do nacional, vermelho=acima
+            ref_main = r_br if r_br is not None else r_reg
+            if ref_main is not None:
+                d = pm - ref_main
+                borda = "#2e7d32" if d < -0.005 else ("#e53935" if d > 0.005 else "#1565c0")
+                preco_cor = "#1b5e20" if d < -0.005 else ("#b71c1c" if d > 0.005 else "#0d1b4b")
+            else:
+                borda, preco_cor = "#1565c0", "#0d1b4b"
+
+            # Monta referências
+            refs = ""
+            if mostrar_est:
+                refs += _ref_row_html(f"vs {col_est}", r_est, pm)
+            refs += _ref_row_html(f"vs {col_reg}", r_reg, pm)
+            refs += _ref_row_html("vs Brasil", r_br, pm)
+
+            card = (
+                f"<div class='fc' style='border-left-color:{borda}'>"
+                f"<div class='fc-nome'>{r['Combustível']}</div>"
+                f"<div><span class='fc-preco' style='color:{preco_cor}'>"
+                f"R$ {_brl(pm, 3)}</span>"
+                f"<span class='fc-uni'>{uni}</span></div>"
+                f"<div class='fc-refs'>{refs}</div>"
+                f"<div class='fc-postos'>{postos} postos pesquisados</div>"
+                f"</div>"
+            )
+            with cols[j]:
+                st.markdown(card, unsafe_allow_html=True)
+
+    st.caption(
+        f"Legenda de borda: 🟢 abaixo da média nacional · "
+        f"🔴 acima · 🔵 igual  |  Semana ANP: {semana_str}"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════
