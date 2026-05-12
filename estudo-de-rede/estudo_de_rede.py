@@ -2169,15 +2169,38 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         mask_reg     = ~mask_cer & ~mask_rr & ~_pf_base
 
         def _hover_txt(row):
+            """Texto do tooltip: nome, bandeira, cidade/UF, CNPJ."""
             nome = str(row.get("razaoSocial", "?"))[:40]
             dist = str(row.get("distribuidora", "?"))
             mun  = str(row.get("municipio", ""))
             uf_  = str(row.get("uf", ""))
+            cnpj = str(row.get("cnpj", ""))
             geo  = f"{mun}/{uf_}" if mun and uf_ else mun or uf_
-            pf_  = " ⭐ Pró-Frotas" if row.get("_pro_frotas") else ""
-            rr_  = " 🚛 Rodo Rede" if row.get("_rodo_rede") else ""
-            cer_ = " ⚠️ Cercado"   if row.get("_cercado")   else ""
-            return f"<b>{nome}</b>{pf_}{rr_}{cer_}<br>{dist}<br>{geo}"
+            pf_  = " ⭐" if row.get("_pro_frotas") else ""
+            rr_  = " 🚛" if row.get("_rodo_rede")  else ""
+            cer_ = " ⚠️" if row.get("_cercado")    else ""
+            cnpj_str = f"<br>📋 {cnpj}" if cnpj else ""
+            return f"<b>{nome}</b>{pf_}{rr_}{cer_}<br>{dist}<br>{geo}{cnpj_str}"
+
+        def _customdata(sub_df: pd.DataFrame) -> list:
+            """customdata por ponto: [cnpj, nome, distribuidora, municipio/uf, lat, lon]"""
+            rows = []
+            for _, r in sub_df.iterrows():
+                mun = str(r.get("municipio", ""))
+                uf_ = str(r.get("uf", ""))
+                geo = f"{mun}/{uf_}" if mun and uf_ else mun or uf_
+                rows.append([
+                    str(r.get("cnpj", "")),
+                    str(r.get("razaoSocial", "")),
+                    str(r.get("distribuidora", "")),
+                    geo,
+                    float(r["_lat"]),
+                    float(r["_lon"]),
+                    "1" if r.get("_pro_frotas") else "",
+                    "1" if r.get("_cercado")    else "",
+                    "1" if r.get("_rodo_rede")  else "",
+                ])
+            return rows
 
         # Postos Cercados — laranja
         if mask_cer.any():
@@ -2187,6 +2210,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 mode="markers",
                 marker=dict(size=13, color=COR_CERCADO_FILL, opacity=0.92),
                 text=dfc.apply(_hover_txt, axis=1).tolist(),
+                customdata=_customdata(dfc),
                 hoverinfo="text",
                 name="⚠️ Postos Cercados",
             ))
@@ -2199,6 +2223,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 mode="markers",
                 marker=dict(size=15, color=COR_RR_FILL, opacity=0.95),
                 text=dfr.apply(_hover_txt, axis=1).tolist(),
+                customdata=_customdata(dfr),
                 hoverinfo="text",
                 name="🚛 Rodo Rede",
             ))
@@ -2211,6 +2236,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 mode="markers",
                 marker=dict(size=14, color="#FFB300", opacity=0.95),
                 text=dfi.apply(_hover_txt, axis=1).tolist(),
+                customdata=_customdata(dfi),
                 hoverinfo="text",
                 name="⭐ PF Ipiranga",
             ))
@@ -2223,6 +2249,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 mode="markers",
                 marker=dict(size=14, color=COR_PF_FILL, opacity=0.95),
                 text=dfp.apply(_hover_txt, axis=1).tolist(),
+                customdata=_customdata(dfp),
                 hoverinfo="text",
                 name="⭐ Pró-Frotas",
             ))
@@ -2236,6 +2263,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 mode="markers",
                 marker=dict(size=8, color=dfg["_cor_plot"].tolist(), opacity=0.85),
                 text=dfg.apply(_hover_txt, axis=1).tolist(),
+                customdata=_customdata(dfg),
                 hoverinfo="text",
                 name="⛽ Postos ANP",
             ))
@@ -2275,6 +2303,79 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         ),
     )
     return fig
+
+
+def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") -> None:
+    """
+    Renderiza o mapa Plotly e exibe painel de detalhe ao clicar num posto.
+
+    — CNPJ já aparece no tooltip (hover) via _hover_txt.
+    — Ao clicar num marcador, exibe card com link clicável para Google Maps.
+    — Sem custo de performance: customdata é gerado 1× na criação da figura,
+      o evento só dispara quando o usuário clica (sem polling).
+    """
+    try:
+        evt = st.plotly_chart(
+            fig,
+            use_container_width=True,
+            config={"scrollZoom": True},
+            height=height,
+            on_select="rerun",
+            key=key,
+        )
+    except TypeError:
+        # Fallback para versões antigas do Streamlit sem on_select
+        st.plotly_chart(fig, use_container_width=True,
+                        config={"scrollZoom": True}, height=height)
+        return
+
+    # ── Painel de detalhe ao clicar ────────────────────────────────────────────
+    pts = (evt or {}).get("selection", {}).get("points", [])
+    if not pts:
+        return
+
+    pt = pts[0]
+    cd = pt.get("customdata") or []
+
+    # customdata = [cnpj, nome, distribuidora, geo, lat, lon, pf, cercado, rr]
+    _cnpj = cd[0] if len(cd) > 0 else ""
+    _nome = cd[1] if len(cd) > 1 else pt.get("text", "Posto")
+    _dist = cd[2] if len(cd) > 2 else ""
+    _geo  = cd[3] if len(cd) > 3 else ""
+    _lat  = cd[4] if len(cd) > 4 else pt.get("lat")
+    _lon  = cd[5] if len(cd) > 5 else pt.get("lon")
+    _pf   = bool(cd[6]) if len(cd) > 6 else False
+    _cer  = bool(cd[7]) if len(cd) > 7 else False
+    _rr   = bool(cd[8]) if len(cd) > 8 else False
+
+    if _lat is None or _lon is None:
+        return
+
+    _maps_url = f"https://maps.google.com/?q={_lat:.6f},{_lon:.6f}"
+
+    _badges_html = ""
+    if _pf:  _badges_html += "<span style='background:#1565c0;color:#fff;border-radius:3px;padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Pró-Frotas</span>"
+    if _rr:  _badges_html += "<span style='background:#FFB300;color:#333;border-radius:3px;padding:1px 7px;font-size:11px;margin-right:4px'>🚛 Rodo Rede</span>"
+    if _cer: _badges_html += "<span style='background:#FF8F00;color:#fff;border-radius:3px;padding:1px 7px;font-size:11px;margin-right:4px'>⚠️ Cercado</span>"
+
+    _cnpj_html = f"<span style='color:#555'>📋 {_cnpj}</span>  " if _cnpj else ""
+    _geo_html  = f"<span style='color:#555'>📍 {_geo}</span>" if _geo else ""
+
+    col_info, col_btn = st.columns([5, 1])
+    with col_info:
+        st.markdown(
+            f"<div style='background:#e3f2fd;border-left:4px solid #1565c0;"
+            f"border-radius:6px;padding:9px 14px;font-size:13px;line-height:1.6'>"
+            f"<b style='font-size:14px'>{_nome}</b>"
+            f"{'  ·  ' + _dist if _dist else ''}<br>"
+            f"{_badges_html}"
+            f"<br style='margin:2px'>"
+            f"{_cnpj_html}{_geo_html}"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    with col_btn:
+        st.link_button("📍 Maps", _maps_url, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -3464,85 +3565,113 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     )
     uf_label = f" ({uf})" if uf else ""
 
-    # ── Cabeçalho visual ──────────────────────────────────────────
-    st.markdown(
-        f"<h3 style='margin:0 0 2px 0;font-size:20px;color:#0d1b4b'>💰 Preços em {scope_label}{uf_label}</h3>"
-        + (f"<p style='margin:0 0 18px 0;font-size:13px;color:#555'>"
-           f"Região: <b>{nome_regiao.title()}</b>  ·  Nível: <i>{nivel}</i>"
-           f"  ·  Semana: <b>{semana or '—'}</b></p>" if nome_regiao else
-           f"<p style='margin:0 0 18px 0;font-size:13px;color:#555'>"
-           f"Nível: <i>{nivel}</i>  ·  Semana: <b>{semana or '—'}</b></p>"),
-        unsafe_allow_html=True,
-    )
+    # ── Rótulos de coluna de referência ───────────────────────────
+    col_est = UF_NOME.get(uf or "", uf or "")
+    col_reg = nome_regiao.title() if nome_regiao else "Região"
+    col_br  = "Brasil"
+    mostrar_est = nivel in ("Município", "Capital")
 
-    # ── Cards de combustível com comparativo hierárquico ──────────
-    col_est = f"Estado ({UF_NOME.get(uf or '', uf or '')})"
-    col_reg = f"Região ({nome_regiao.title()})" if nome_regiao else "Região"
-    col_br  = "Base Nacional"
+    # ── Monta linhas da tabela ────────────────────────────────────
+    def _badge(diff):
+        """Retorna HTML de badge verde/vermelho para variação."""
+        if diff is None:
+            return "<span style='color:#bbb'>—</span>"
+        cor    = "#2e7d32" if diff <= 0 else "#c62828"
+        bg     = "#e8f5e9" if diff <= 0 else "#ffebee"
+        seta   = "▼" if diff < 0 else ("▲" if diff > 0 else "●")
+        return (
+            f"<span style='background:{bg};color:{cor};font-size:11px;"
+            f"font-weight:700;padding:2px 7px;border-radius:20px;"
+            f"white-space:nowrap'>"
+            f"{seta} R$&nbsp;{_brl(abs(diff), 3)}</span>"
+        )
 
-    # Cabeçalho de níveis
-    st.markdown(f"""
-<style>
-.pr-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px}}
-.pr-card{{border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.10);background:#fff}}
-.pr-card-head{{padding:10px 14px 8px;background:#0d1b4b;color:#fff}}
-.pr-card-head .pr-nome{{font-size:13px;font-weight:700}}
-.pr-card-head .pr-preco{{font-size:24px;font-weight:800;letter-spacing:-.3px;margin:2px 0}}
-.pr-card-head .pr-uni{{font-size:10px;opacity:.75}}
-.pr-card-body{{padding:10px 14px}}
-.pr-ref-row{{display:flex;justify-content:space-between;align-items:center;
-             padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:12px}}
-.pr-ref-row:last-child{{border-bottom:none}}
-.pr-ref-label{{color:#777;font-weight:500}}
-.pr-ref-val{{font-weight:700;color:#333}}
-.pr-delta-up{{color:#c62828;font-size:10px;margin-left:4px}}
-.pr-delta-dn{{color:#2e7d32;font-size:10px;margin-left:4px}}
-.pr-postos{{font-size:10px;color:#aaa;margin-top:6px;text-align:right}}
-</style>
-<div class='pr-grid'>""", unsafe_allow_html=True)
-
-    for r in rows:
+    tbody = ""
+    for i, r in enumerate(rows):
         pm     = r["Preço Médio"]
         r_est  = r.get("Ref. Estado")
         r_reg  = r.get("Ref. Região")
         r_br   = r.get("Ref. Brasil")
         uni    = r.get("Unidade", "R$/L")
         postos = r.get("Postos") or "?"
+        bg_row = "#f9fbff" if i % 2 == 0 else "#ffffff"
 
-        def _delta_html(ref, label):
-            if ref is None:
-                return (f"<div class='pr-ref-row'>"
-                        f"<span class='pr-ref-label'>{label}</span>"
-                        f"<span class='pr-ref-val'>—</span></div>")
-            diff = pm - ref
-            cls  = "pr-delta-up" if diff > 0 else "pr-delta-dn"
-            seta = "▲" if diff > 0 else "▼"
-            arrow = f"<span class='{cls}'>{seta} {_brl(abs(diff), 3)}</span>"
-            return (f"<div class='pr-ref-row'>"
-                    f"<span class='pr-ref-label'>{label}</span>"
-                    f"<span class='pr-ref-val'>R$ {_brl(ref, 3)}{arrow}</span>"
-                    f"</div>")
+        # Referência principal para destaque de cor da linha de preço
+        ref_principal = r_br or r_reg
+        diff_br   = round(pm - r_br,  3) if r_br  is not None else None
+        diff_reg  = round(pm - r_reg, 3) if r_reg is not None else None
+        diff_est  = round(pm - r_est, 3) if r_est is not None else None
 
-        refs_html = ""
-        if nivel in ("Município", "Capital"):
-            refs_html += _delta_html(r_est, col_est)
-        refs_html += _delta_html(r_reg, col_reg)
-        refs_html += _delta_html(r_br,  col_br)
+        # Cor do preço local: verde se abaixo da média nacional, vermelho se acima
+        if ref_principal is not None:
+            diff_main = pm - ref_principal
+            preco_cor = "#1b5e20" if diff_main < -0.005 else ("#b71c1c" if diff_main > 0.005 else "#333")
+        else:
+            preco_cor = "#0d1b4b"
 
-        st.markdown(f"""
-<div class='pr-card'>
-  <div class='pr-card-head'>
-    <div class='pr-nome'>{r['Combustível']}</div>
-    <div class='pr-preco'>R$ {_brl(pm, 3)}</div>
-    <div class='pr-uni'>{uni}</div>
-  </div>
-  <div class='pr-card-body'>
-    {refs_html}
-    <div class='pr-postos'>{postos} postos pesquisados</div>
-  </div>
-</div>""", unsafe_allow_html=True)
+        est_cell = (
+            f"<td style='text-align:center'>{_badge(diff_est)}</td>"
+            if mostrar_est else ""
+        )
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        tbody += (
+            f"<tr style='background:{bg_row}'>"
+            f"<td style='font-weight:600;color:#0d1b4b'>{r['Combustível']}</td>"
+            f"<td style='text-align:right'>"
+            f"  <span style='font-size:17px;font-weight:800;color:{preco_cor}'>"
+            f"  R$ {_brl(pm, 3)}</span>"
+            f"  <span style='font-size:10px;color:#999;margin-left:2px'>{uni}</span>"
+            f"</td>"
+            f"{est_cell}"
+            f"<td style='text-align:center'>{_badge(diff_reg)}</td>"
+            f"<td style='text-align:center'>{_badge(diff_br)}</td>"
+            f"<td style='text-align:center;color:#aaa;font-size:11px'>{postos}</td>"
+            f"</tr>"
+        )
+
+    est_th = f"<th>vs {col_est}</th>" if mostrar_est else ""
+    semana_str = semana or "—"
+    reg_str    = f"Região: <b>{col_reg}</b>  ·  " if nome_regiao else ""
+
+    st.markdown(f"""
+<style>
+.pt-wrap{{border-radius:12px;overflow:hidden;
+          box-shadow:0 2px 12px rgba(0,0,0,.10);margin-bottom:16px}}
+.pt-table{{width:100%;border-collapse:collapse;font-size:13px}}
+.pt-table thead tr{{background:linear-gradient(90deg,#0d1b4b 0%,#1565c0 100%)}}
+.pt-table th{{color:#fff;padding:10px 14px;font-weight:600;
+              white-space:nowrap;text-align:left}}
+.pt-table th:not(:first-child){{text-align:center}}
+.pt-table td{{padding:9px 14px;border-bottom:1px solid #eef0f8;
+              vertical-align:middle}}
+.pt-table tr:last-child td{{border-bottom:none}}
+.pt-table tr:hover td{{background:#f0f4ff!important}}
+.pt-caption{{font-size:11px;color:#888;margin-top:4px;text-align:right}}
+</style>
+<div class='pt-wrap'>
+<table class='pt-table'>
+<thead>
+  <tr>
+    <th style='min-width:160px'>⛽ Combustível</th>
+    <th style='min-width:110px;text-align:right'>Preço local</th>
+    {est_th}
+    <th>vs {col_reg}</th>
+    <th>vs {col_br}</th>
+    <th>Postos</th>
+  </tr>
+</thead>
+<tbody>
+{tbody}
+</tbody>
+</table>
+</div>
+<p class='pt-caption'>
+  💰 {scope_label}{uf_label}
+  &nbsp;·&nbsp; {reg_str}Nível: <i>{nivel}</i>
+  &nbsp;·&nbsp; Semana ANP: <b>{semana_str}</b>
+  &nbsp;·&nbsp; Variações: ▼ abaixo da média &nbsp; ▲ acima da média
+</p>
+""", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -3998,7 +4127,7 @@ with st.sidebar:
     _col_m1, _col_m2, _col_m3 = st.columns(3)
     with _col_m1:
         if st.button(
-            "📍\nEstado",
+            "📍 Estado",
             use_container_width=True,
             type="primary" if _modo_atual == "📍 Por Estado/Município" else "secondary",
             key="btn_modo_estado",
@@ -4007,7 +4136,7 @@ with st.sidebar:
             st.rerun()
     with _col_m2:
         if st.button(
-            "🗺️\nRota",
+            "🗺️ Rota",
             use_container_width=True,
             type="primary" if _modo_atual == "🗺️ Por Rota" else "secondary",
             key="btn_modo_rota",
@@ -4016,7 +4145,7 @@ with st.sidebar:
             st.rerun()
     with _col_m3:
         if st.button(
-            "🔍\nConsulta",
+            "🔍 Busca",
             use_container_width=True,
             type="primary" if _modo_atual == "🔍 Consulta por Posto" else "secondary",
             key="btn_modo_consulta",
@@ -4719,8 +4848,7 @@ if modo == "📍 Por Estado/Município":
             with st.spinner(f"🗺️ Carregando mapa — {_n(len(df_show))} postos…"):
                 try:
                     _mapa_obj = criar_mapa(df_show)
-                    st.plotly_chart(_mapa_obj, use_container_width=True,
-                                    config={"scrollZoom": True}, height=660)
+                    _renderizar_mapa(_mapa_obj, height=660, key="mapa_m1_main")
                 except Exception as _mapa_err:
                     st.error(
                         f"❌ Erro ao gerar o mapa para **{uf}**.\n\n"
@@ -4866,8 +4994,7 @@ if modo == "📍 Por Estado/Município":
                         lat_dest=_rr["dest"]["lat"], lon_dest=_rr["dest"]["lon"],
                         label_orig=_rr["orig"]["label"], label_dest=_rr["dest"]["label"],
                     )
-                    st.plotly_chart(_mapa_rota, use_container_width=True,
-                                        config={"scrollZoom": True}, height=580)
+                    _renderizar_mapa(_mapa_rota, height=580, key="mapa_m1_rota")
 
         with tab_dados:
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
@@ -4898,8 +5025,7 @@ if modo == "📍 Por Estado/Município":
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
-        st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
-                        config={"scrollZoom": True}, height=680)
+        _renderizar_mapa(criar_mapa(pd.DataFrame()), height=680, key="mapa_m1_vazio")
         st.info("👈 Selecione um Estado na barra lateral para carregar os postos")
 
 
@@ -5057,8 +5183,7 @@ elif modo == "🗺️ Por Rota":
                                lat_orig=lat_orig, lon_orig=lon_orig,
                                lat_dest=lat_dest, lon_dest=lon_dest,
                                label_orig=label_orig, label_dest=label_dest)
-                st.plotly_chart(m, use_container_width=True,
-                                    config={"scrollZoom": True}, height=660)
+                _renderizar_mapa(m, height=660, key="mapa_m2_rota")
 
             # ── Busca rápida — refinar Origem/Destino com posto da rota ─
             if not df_show_r.empty:
@@ -5131,8 +5256,7 @@ elif modo == "🗺️ Por Rota":
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
-        st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
-                        config={"scrollZoom": True}, height=680)
+        _renderizar_mapa(criar_mapa(pd.DataFrame()), height=680, key="mapa_m2_vazio")
         st.info("👈 Preencha Origem e Destino na barra lateral e clique em Traçar Rota")
 
 
@@ -5156,8 +5280,7 @@ elif modo == "🔍 Consulta por Posto":
 
     if not _m3_termo:
         # Estado inicial — mapa do Brasil + dica
-        st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
-                        config={"scrollZoom": True}, height=560)
+        _renderizar_mapa(criar_mapa(pd.DataFrame()), height=560, key="mapa_m3_vazio")
         st.info("👈 Digite o nome do posto, razão social ou CNPJ na barra lateral e clique em **Buscar Posto**.")
 
     else:
@@ -5177,8 +5300,7 @@ elif modo == "🔍 Consulta por Posto":
                 + ".\n\nDicas: verifique a ortografia, tente um trecho menor do nome, "
                 "ou selecione outro estado."
             )
-            st.plotly_chart(criar_mapa(pd.DataFrame()), use_container_width=True,
-                            config={"scrollZoom": True}, height=500)
+            _renderizar_mapa(criar_mapa(pd.DataFrame()), height=500, key="mapa_m3_sem_res")
 
         else:
             n_res = len(_df_m3)
@@ -5216,8 +5338,7 @@ elif modo == "🔍 Consulta por Posto":
                 elif "uf" in _df_m3.columns and _df_m3["uf"].nunique() == 1:
                     _mapa_m3.update_layout(mapbox=dict(zoom=8))
 
-                st.plotly_chart(_mapa_m3, use_container_width=True,
-                                config={"scrollZoom": True}, height=560)
+                _renderizar_mapa(_mapa_m3, height=560, key="mapa_m3_res")
 
                 # ── Botões de ação para posto único ───────────────
                 if n_res == 1:
