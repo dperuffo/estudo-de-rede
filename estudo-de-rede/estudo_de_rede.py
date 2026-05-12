@@ -1423,26 +1423,51 @@ _OSRM_SERVIDORES = [
 ]
 
 
-def _tentar_osrm(srv, lon1, lat1, lon2, lat2):
-    r = requests.get(f"{srv}/{lon1},{lat1};{lon2},{lat2}",
-                     params={"overview":"full","geometries":"geojson"}, timeout=15)
+def _tentar_osrm(srv, pontos: list):
+    """pontos = [[lat, lon], ...] — suporta origem, N paradas e destino."""
+    coords_str = ";".join(f"{lon},{lat}" for lat, lon in pontos)
+    r = requests.get(f"{srv}/{coords_str}",
+                     params={"overview": "full", "geometries": "geojson"}, timeout=15)
     d = r.json()
     if d.get("code") == "Ok":
         geo = d["routes"][0]["geometry"]["coordinates"]
-        return [[c[1],c[0]] for c in geo], d["routes"][0]["distance"]/1000, d["routes"][0]["duration"]/60
+        return (
+            [[c[1], c[0]] for c in geo],
+            d["routes"][0]["distance"] / 1000,
+            d["routes"][0]["duration"] / 60,
+        )
     return None
 
 
-def calcular_rota(lat1, lon1, lat2, lon2):
+def calcular_rota(lat1, lon1, lat2, lon2, waypoints=None):
+    """
+    Calcula rota entre origem e destino com paradas intermediárias opcionais.
+
+    waypoints: list of [lat, lon] — paradas na ordem desejada (até 10).
+    Retorna (coords_rota, dist_km, dur_min, linha_reta).
+    """
+    pontos = [[lat1, lon1]] + (waypoints or []) + [[lat2, lon2]]
     for srv in _OSRM_SERVIDORES:
         try:
-            res = _tentar_osrm(srv, lon1, lat1, lon2, lat2)
-            if res: return res[0], res[1], res[2], False
-        except Exception: continue
-    n = 60
-    coords = [[lat1+(lat2-lat1)*i/(n-1), lon1+(lon2-lon1)*i/(n-1)] for i in range(n)]
-    d = _haversine(lat1, lon1, lat2, lon2)/1000
-    return coords, d, (d/80)*60, True
+            res = _tentar_osrm(srv, pontos)
+            if res:
+                return res[0], res[1], res[2], False
+        except Exception:
+            continue
+    # Fallback: segmentos de linha reta entre todos os pontos
+    coords, n_seg = [], max(20, 15 * len(pontos))
+    segs_por_trecho = max(10, n_seg // (len(pontos) - 1))
+    for i in range(len(pontos) - 1):
+        la1, lo1 = pontos[i]; la2, lo2 = pontos[i + 1]
+        for j in range(segs_por_trecho):
+            t = j / segs_por_trecho
+            coords.append([la1 + (la2 - la1) * t, lo1 + (lo2 - lo1) * t])
+    coords.append(pontos[-1])
+    d = sum(
+        _haversine(pontos[i][0], pontos[i][1], pontos[i+1][0], pontos[i+1][1])
+        for i in range(len(pontos) - 1)
+    ) / 1000
+    return coords, d, (d / 80) * 60, True
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -2106,7 +2131,8 @@ def marcar_perfil_venda(df: pd.DataFrame, perfil_map: dict) -> pd.DataFrame:
 
 
 def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
-               lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino"):
+               lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino",
+               waypoints=None):
     """Retorna go.Figure (Plotly Scattermapbox) — WebGL, suporta 10 000+ marcadores."""
     # ── Cap de marcadores — Pró-Frotas sempre priorizados ──────────────────────
     MAX_PF_MAPA = 5000
@@ -2167,7 +2193,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             showlegend=False,
         ))
 
-    # ── Marcadores origem / destino ────────────────────────────────────────────
+    # ── Marcadores origem / paradas / destino ─────────────────────────────────
     if lat_orig is not None:
         traces.append(go.Scattermapbox(
             lat=[lat_orig], lon=[lon_orig],
@@ -2175,9 +2201,21 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             marker=dict(size=16, color="#2E7D32"),
             text=[f"🟢 Origem: {label_orig}"],
             hoverinfo="text",
-            name=f"Origem",
+            name="Origem",
             showlegend=False,
         ))
+    # Paradas intermediárias (lista de dicts com lat, lon, label)
+    if waypoints:
+        for idx_wp, wp in enumerate(waypoints, start=1):
+            traces.append(go.Scattermapbox(
+                lat=[wp["lat"]], lon=[wp["lon"]],
+                mode="markers",
+                marker=dict(size=14, color="#FF8F00"),
+                text=[f"📍 Parada {idx_wp}: {wp['label']}"],
+                hoverinfo="text",
+                name=f"Parada {idx_wp}",
+                showlegend=False,
+            ))
     if lat_dest is not None:
         traces.append(go.Scattermapbox(
             lat=[lat_dest], lon=[lon_dest],
@@ -2185,7 +2223,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             marker=dict(size=16, color="#C62828"),
             text=[f"🔴 Destino: {label_dest}"],
             hoverinfo="text",
-            name=f"Destino",
+            name="Destino",
             showlegend=False,
         ))
 
@@ -4330,6 +4368,56 @@ with st.sidebar:
             "Ex: SP  ·  Ribeirão Preto  ·  Rudnick  ·  12.345.678/0001-99",
             "txt_origem", "orig_sel",
         )
+
+        # ── Paradas intermediárias (até 10) ───────────────────────
+        _n_paradas = st.session_state.get("_paradas_count", 0)
+
+        _col_add, _col_cnt = st.columns([3, 1])
+        with _col_add:
+            if st.button(
+                "➕ Adicionar Parada",
+                use_container_width=True,
+                disabled=_n_paradas >= 10,
+                key="btn_add_parada",
+                help="Adicione até 10 paradas entre a origem e o destino",
+            ):
+                st.session_state["_paradas_count"] = _n_paradas + 1
+                st.rerun()
+        with _col_cnt:
+            if _n_paradas > 0:
+                st.markdown(
+                    f"<div style='text-align:center;font-size:11px;"
+                    f"color:#1565c0;font-weight:700;padding-top:10px'>"
+                    f"{_n_paradas}/10</div>",
+                    unsafe_allow_html=True,
+                )
+
+        for _p_idx in range(1, _n_paradas + 1):
+            _col_lbl, _col_del = st.columns([5, 1])
+            with _col_lbl:
+                st.markdown(
+                    f"<div style='font-size:11px;font-weight:700;"
+                    f"color:#FF8F00;margin:6px 0 2px'>📍 Parada {_p_idx}</div>",
+                    unsafe_allow_html=True,
+                )
+            with _col_del:
+                if st.button("✕", key=f"btn_del_parada_{_p_idx}",
+                             help=f"Remover parada {_p_idx}"):
+                    # Desloca paradas posteriores para cima
+                    for _j in range(_p_idx, _n_paradas):
+                        st.session_state[f"parada_sel_{_j}"] = st.session_state.get(f"parada_sel_{_j+1}")
+                        st.session_state[f"txt_parada_{_j}"] = st.session_state.get(f"txt_parada_{_j+1}", "")
+                    st.session_state.pop(f"parada_sel_{_n_paradas}", None)
+                    st.session_state.pop(f"txt_parada_{_n_paradas}", None)
+                    st.session_state["_paradas_count"] = _n_paradas - 1
+                    st.rerun()
+            campo_autocomplete(
+                "",
+                "UF · Cidade · Razão social · CNPJ",
+                f"txt_parada_{_p_idx}",
+                f"parada_sel_{_p_idx}",
+            )
+
         st.markdown("")
         dest_sel = campo_autocomplete(
             "🔴 Destino — UF, cidade, razão social ou CNPJ",
@@ -4357,8 +4445,15 @@ with st.sidebar:
                 "distribuidoras_rota",
                 "orig_sel", "dest_sel",
                 "_orig_sel_txt_ant", "_dest_sel_txt_ant",
+                "_paradas_data", "_ufs_rota_atual",
             ]:
                 st.session_state.pop(_k, None)
+            # Limpa paradas intermediárias
+            _n_p_clr = st.session_state.get("_paradas_count", 0)
+            for _pi in range(1, _n_p_clr + 1):
+                st.session_state.pop(f"parada_sel_{_pi}", None)
+                st.session_state.pop(f"txt_parada_{_pi}", None)
+            st.session_state["_paradas_count"] = 0
             # Incrementa o sufixo dos widgets — força criação de novos campos em branco
             st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
             st.rerun()
@@ -5112,6 +5207,13 @@ elif modo == "🗺️ Por Rota":
     if buscar_rota_btn:
         orig_sel = st.session_state.get("orig_sel")
         dest_sel = st.session_state.get("dest_sel")
+        # Coleta paradas intermediárias selecionadas (ignora as não preenchidas)
+        _n_par_main = st.session_state.get("_paradas_count", 0)
+        _paradas_data_main = [
+            st.session_state[f"parada_sel_{_pi}"]
+            for _pi in range(1, _n_par_main + 1)
+            if st.session_state.get(f"parada_sel_{_pi}")
+        ]
         if not orig_sel:
             st.warning("⚠️ Confirme o **ponto de Origem** selecionando uma sugestão.")
         elif not dest_sel:
@@ -5120,9 +5222,17 @@ elif modo == "🗺️ Por Rota":
             st.warning("⚠️ Origem e Destino não podem ser o mesmo ponto.")
         else:
             lo, ld = orig_sel, dest_sel
-            with st.spinner("🗺️ Calculando rota…"):
+            _wp_ll = [[wp["lat"], wp["lon"]] for wp in _paradas_data_main]
+            _n_wp  = len(_paradas_data_main)
+            _spinner_txt = (
+                f"🗺️ Calculando rota com {_n_wp} parada{'s' if _n_wp != 1 else ''}…"
+                if _n_wp else "🗺️ Calculando rota…"
+            )
+            with st.spinner(_spinner_txt):
                 coords_rota, dist_km, dur_min, linha_reta = calcular_rota(
-                    lo["lat"], lo["lon"], ld["lat"], ld["lon"])
+                    lo["lat"], lo["lon"], ld["lat"], ld["lon"],
+                    waypoints=_wp_ll if _wp_ll else None
+                )
             if linha_reta:
                 st.warning("⚠️ Servidor de roteamento indisponível. Usando **linha reta** como aproximação.")
             ufs_rota = ufs_ao_longo_rota(coords_rota)
@@ -5200,7 +5310,8 @@ elif modo == "🗺️ Por Rota":
                 "lat_orig": lo["lat"], "lon_orig": lo["lon"], "label_orig": lo["label"],
                 "lat_dest": ld["lat"], "lon_dest": ld["lon"], "label_dest": ld["label"],
                 "dist_km": dist_km, "dur_min": dur_min, "raio_usado": raio, "linha_reta": linha_reta,
-                "_ufs_rota_atual": ufs_rota,   # para aba de preços
+                "_ufs_rota_atual": ufs_rota,        # para aba de preços
+                "_paradas_data": _paradas_data_main, # paradas intermediárias (lista de dicts)
             })
             if not df_rota.empty and "distribuidora" in df_rota.columns:
                 st.session_state["distribuidoras_rota"] = sorted(df_rota["distribuidora"].dropna().unique().tolist())
@@ -5208,28 +5319,33 @@ elif modo == "🗺️ Por Rota":
                 st.session_state.pop("distribuidoras_rota", None)
 
     if "df_rota" in st.session_state:
-        df_rota    = st.session_state["df_rota"]
-        coords_rota= st.session_state.get("coords_rota",[])
-        lat_orig   = st.session_state.get("lat_orig"); lon_orig = st.session_state.get("lon_orig")
-        lat_dest   = st.session_state.get("lat_dest"); lon_dest = st.session_state.get("lon_dest")
-        label_orig = st.session_state.get("label_orig","Origem")
-        label_dest = st.session_state.get("label_dest","Destino")
-        dist_km    = st.session_state.get("dist_km",0)
-        dur_min    = st.session_state.get("dur_min",0)
-        raio_usado = st.session_state.get("raio_usado",500)
+        df_rota      = st.session_state["df_rota"]
+        coords_rota  = st.session_state.get("coords_rota", [])
+        lat_orig     = st.session_state.get("lat_orig"); lon_orig = st.session_state.get("lon_orig")
+        lat_dest     = st.session_state.get("lat_dest"); lon_dest = st.session_state.get("lon_dest")
+        label_orig   = st.session_state.get("label_orig", "Origem")
+        label_dest   = st.session_state.get("label_dest", "Destino")
+        dist_km      = st.session_state.get("dist_km", 0)
+        dur_min      = st.session_state.get("dur_min", 0)
+        raio_usado   = st.session_state.get("raio_usado", 500)
+        _paradas_vis = st.session_state.get("_paradas_data", [])
 
         if st.session_state.get("linha_reta"):
             st.warning("⚠️ Rota exibida como **linha reta** (OSRM indisponível).")
 
         df_show_r = preparar_df(df_rota, distribuidoras_filtro, perfis_filtro=perfis_filtro_m2)
 
-        c1,c2,c3,c4 = st.columns(4)
-        c1.metric("🛣️ Distância",       f"{_n(dist_km)} km")
-        c2.metric("⏱️ Tempo estimado",  f"{int(dur_min//60)}h {int(dur_min%60)}min")
-        c3.metric("⛽ Postos na rota",  _n(len(df_show_r)))
-        c4.metric("⭐ Pró-Frotas",      _n(n_pf(df_show_r)))
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("🛣️ Distância",      f"{_n(dist_km)} km")
+        c2.metric("⏱️ Tempo estimado", f"{int(dur_min//60)}h {int(dur_min%60)}min")
+        c3.metric("📍 Paradas",        str(len(_paradas_vis)) if _paradas_vis else "—")
+        c4.metric("⛽ Postos na rota", _n(len(df_show_r)))
+        c5.metric("⭐ Pró-Frotas",     _n(n_pf(df_show_r)))
 
-        st.success(f"✅ **{label_orig}** → **{label_dest}** | {_n(len(df_show_r))} postos a até {raio_usado} m")
+        # Resumo visual da rota com todas as paradas
+        _all_labels = [label_orig] + [wp["label"] for wp in _paradas_vis] + [label_dest]
+        _rota_str   = " → ".join(f"**{lb}**" for lb in _all_labels)
+        st.success(f"✅ {_rota_str} | {_n(len(df_show_r))} postos a até {raio_usado} m")
 
         # ── Cards comparativo PF vs ANP para a rota ───────────────────
         _pp_df_m2    = st.session_state.get("_pp_df")
@@ -5256,7 +5372,8 @@ elif modo == "🗺️ Por Rota":
                 m = criar_mapa(df_show_r, coords_rota=coords_rota,
                                lat_orig=lat_orig, lon_orig=lon_orig,
                                lat_dest=lat_dest, lon_dest=lon_dest,
-                               label_orig=label_orig, label_dest=label_dest)
+                               label_orig=label_orig, label_dest=label_dest,
+                               waypoints=_paradas_vis if _paradas_vis else None)
                 _renderizar_mapa(m, height=660, key="mapa_m2_rota")
 
             # ── Busca rápida — refinar Origem/Destino com posto da rota ─
