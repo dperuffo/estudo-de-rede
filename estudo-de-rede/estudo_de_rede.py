@@ -1514,10 +1514,11 @@ def buscar_posto_por_cnpj(cnpj_norm: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
+def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set, uf_atual: str = "") -> pd.DataFrame:
     """
-    Verifica quais CNPJs Pró-Frotas estão ausentes em df_raw e os injeta
-    usando as coordenadas armazenadas em pf_coords_df (lidas da planilha).
+    Verifica quais CNPJs Pró-Frotas estão ausentes em df_raw E pertencem ao
+    estado uf_atual, e os injeta usando as coordenadas da planilha (pf_coords_df).
+    Filtra por UF para evitar injetar postos de outros estados.
     Não faz chamadas à API ANP — usa exclusivamente os dados da planilha.
     Retorna df_raw enriquecido com os postos encontrados.
     """
@@ -1540,11 +1541,19 @@ def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
     if df_novos.empty:
         return df_raw
 
+    # ── FILTRO POR UF — só injeta postos do estado atual ─────────────
+    # Sem isso, postos de SP/PR/GO que não existem no MT seriam injetados
+    # no dataset do MT (porque "ausentes" = todos os PF - CNPJs do MT).
+    if uf_atual and "uf" in df_novos.columns:
+        df_novos = df_novos[
+            df_novos["uf"].fillna("").str.upper().str.strip() == uf_atual.upper().strip()
+        ]
+        if df_novos.empty:
+            return df_raw
+
     # Constrói linhas compatíveis com a estrutura do df_raw da API ANP
     # Colunas obrigatórias para o mapa: cnpj, _lat, _lon, razaoSocial, distribuidora, municipio, uf
     # Demais colunas do df_raw ficam como NaN (não afetam o funcionamento)
-    df_novos = df_novos.rename(columns={"cnpj": "cnpj"})  # já está normalizado
-    # Garante que todas as colunas do df_raw existam nos novos registros
     for _col in df_raw.columns if not df_raw.empty else []:
         if _col not in df_novos.columns:
             df_novos[_col] = pd.NA
@@ -4488,7 +4497,7 @@ if modo == "📍 Por Estado/Município":
         if _cnpjs_pf_atual and uf != st.session_state.get("_pf_injetados_uf"):
             _df_base = st.session_state.get("df_raw_full", pd.DataFrame())
             with st.spinner("🔍 Verificando postos Pró-Frotas ausentes na base ANP…"):
-                _df_injetado = _injetar_pf_ausentes(_df_base, _cnpjs_pf_atual)
+                _df_injetado = _injetar_pf_ausentes(_df_base, _cnpjs_pf_atual, uf_atual=uf)
             if len(_df_injetado) > len(_df_base):
                 st.session_state["df_raw_full"] = _df_injetado
                 # Novos postos adicionados → invalida cache de marcação
