@@ -590,9 +590,15 @@ COR_PF_FILL  = "#1565C0"   # azul — identificação visual do credenciamento
 COR_PF_BORDA = "#0D47A1"   # azul escuro
 
 # Cor e estilo do marcador Rodo Rede (perfil de venda especial)
-COR_RR_FILL  = "#6A1B9A"   # roxo/púrpura — identifica Rodo Rede
-COR_RR_BORDA = "#4A148C"   # roxo escuro
+# Amarelo maior com anel azul — mesmo padrão visual do PF Ipiranga, tamanho diferenciado
+COR_RR_FILL  = "#FFB300"   # amarelo — destaque Rodo Rede
+COR_RR_BORDA = "#1565C0"   # azul — círculo azul Pró-Frotas
 PERFIL_RODO_REDE = "RODO REDE"  # valor normalizado para comparação
+
+# Helper: verifica se a distribuidora é Ipiranga (ou grupo Ultrapar)
+def _is_ipiranga(distribuidora: str) -> bool:
+    d = str(distribuidora).upper().strip()
+    return "IPIRANGA" in d or "ULTRAPAR" in d
 
 
 def _cor_marca(distribuidora: str) -> str:
@@ -1514,19 +1520,31 @@ def buscar_posto_por_cnpj(cnpj_norm: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set, uf_atual: str = "") -> pd.DataFrame:
+def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set,
+                         uf_atual: str = "", ufs_permitidas: set = None) -> pd.DataFrame:
     """
-    Verifica quais CNPJs Pró-Frotas estão ausentes em df_raw E pertencem ao
-    estado uf_atual, e os injeta usando as coordenadas da planilha (pf_coords_df).
-    Filtra por UF para evitar injetar postos de outros estados.
-    Não faz chamadas à API ANP — usa exclusivamente os dados da planilha.
-    Retorna df_raw enriquecido com os postos encontrados.
+    ARQUITETURA EM CAMADAS:
+    ─ Camada 1 (primária):  Postos Pró-Frotas — planilha pro_frotas.xlsx do GitHub.
+    ─ Camada 2 (complementar): API ANP — enriquece brand/dados dos postos PF em comum
+                                e acrescenta postos não-PF da região selecionada.
+
+    Esta função garante que postos PF da Camada 1 que não aparecem na API ANP
+    (Camada 2) sejam injetados no dataset, usando as coordenadas da planilha.
+
+    Resultado final (df_raw + injetados):
+    • Postos PF ∩ ANP  → dados ANP (mais completos) + flag _pro_frotas=True
+    • Postos PF - ANP  → dados da planilha + flag _pro_frotas=True  [esta função]
+    • Postos ANP - PF  → dados ANP + flag _pro_frotas=False
+
+    Filtro de UF:
+      - uf_atual:      UF única (Modo 1 — Por Estado).
+      - ufs_permitidas: conjunto de UFs (Modo 2 — Rota).
     """
     df_coords = st.session_state.get("pf_coords_df", pd.DataFrame())
     if df_coords.empty or not cnpjs_pf:
         return df_raw
 
-    # CNPJs já presentes no dataset do estado (vetorizado)
+    # CNPJs já presentes no dataset (vetorizado)
     if not df_raw.empty and "cnpj" in df_raw.columns:
         cnpjs_presentes = set(df_raw["cnpj"].fillna("").str.replace(r'\D', '', regex=True))
     else:
@@ -1536,25 +1554,29 @@ def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set, uf_atual: str = ""
     if not ausentes:
         return df_raw
 
-    # Filtra df_coords para os ausentes
     df_novos = df_coords[df_coords["cnpj"].isin(ausentes)].copy()
     if df_novos.empty:
         return df_raw
 
-    # ── FILTRO POR UF — só injeta postos do estado atual ─────────────
-    # Sem isso, postos de SP/PR/GO que não existem no MT seriam injetados
-    # no dataset do MT (porque "ausentes" = todos os PF - CNPJs do MT).
-    if uf_atual and "uf" in df_novos.columns:
-        df_novos = df_novos[
-            df_novos["uf"].fillna("").str.upper().str.strip() == uf_atual.upper().strip()
-        ]
+    # ── FILTRO POR UF ────────────────────────────────────────────────
+    # Evita injetar postos de estados que não fazem parte da consulta.
+    if "uf" in df_novos.columns:
+        if ufs_permitidas:
+            # Rota: aceita qualquer UF que esteja na lista de estados da rota
+            _ufs_upper = {u.upper().strip() for u in ufs_permitidas}
+            df_novos = df_novos[
+                df_novos["uf"].fillna("").str.upper().str.strip().isin(_ufs_upper)
+            ]
+        elif uf_atual:
+            # Estado único: só injeta postos desse estado
+            df_novos = df_novos[
+                df_novos["uf"].fillna("").str.upper().str.strip() == uf_atual.upper().strip()
+            ]
         if df_novos.empty:
             return df_raw
 
-    # Constrói linhas compatíveis com a estrutura do df_raw da API ANP
-    # Colunas obrigatórias para o mapa: cnpj, _lat, _lon, razaoSocial, distribuidora, municipio, uf
-    # Demais colunas do df_raw ficam como NaN (não afetam o funcionamento)
-    for _col in df_raw.columns if not df_raw.empty else []:
+    # Garante compatibilidade de colunas com df_raw
+    for _col in (df_raw.columns if not df_raw.empty else []):
         if _col not in df_novos.columns:
             df_novos[_col] = pd.NA
 
@@ -1970,10 +1992,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         df = pd.concat([df_prio, df_reg], ignore_index=True)
     # Popup compacto quando o dataset é grande (>300) mesmo sem cap
     usar_popup_simples = (n_total > 300)
-    # Marcadores leves (CircleMarker) para estados com muitos postos.
-    # DivIcon com logos gera HTML pesado: para SP (4 000+ postos) trava o browser.
-    # Limiar 800: abaixo disso usa logos; acima usa círculos diferenciados por cor/tamanho.
-    usar_marcador_leve = (n_total > 800)
+    # Todos os marcadores usam CircleMarker (sem logos/imagens):
+    # mais rápido, sem risco de travar browser em estados grandes (SP, MG…)
 
     if not df.empty:
         clat, clon, zoom = df["_lat"].mean(), df["_lon"].mean(), 7
@@ -1988,59 +2008,6 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     distribuidoras = sorted(df["distribuidora"].dropna().unique()) if not df.empty else []
     # _cor_marca garante cor fixa por marca — usada também para montar a legenda
     mapa_cores = {d.upper().strip(): _cor_marca(d) for d in distribuidoras}
-    # Logos de bandeiras — carregadas uma vez por sessão (cache)
-    _logos_band   = _logos_bandeiras_b64()
-    _pf_img_b64   = _img_pro_frotas_b64()
-    _rr_img_b64   = _img_rodo_rede_b64()
-
-    # ── CSS injetado uma única vez no HTML do mapa ────────────────────────────
-    # Cada imagem é definida como classe CSS → marcadores referenciam a classe
-    # sem repetir os ~50 KB de base64 por marcador.
-    # SP tem ~375 PF: sem CSS = ~18 MB; com CSS = ~2 KB de HTML de marcadores.
-    _css = "<style>"
-    _pf_css  = "mpin-pf" if _pf_img_b64 else ""
-    _rr_css  = "mpin-rr" if _rr_img_b64 else ""
-    _band_css: dict = {}   # marca → css class name
-    if _pf_img_b64:
-        _css += (f".mpin-pf{{background-image:url('{_pf_img_b64}');"
-                 f"background-size:cover;background-position:center;}}")
-    if _rr_img_b64:
-        _css += (f".mpin-rr{{background-image:url('{_rr_img_b64}');"
-                 f"background-size:cover;background-position:center;}}")
-    for _mk, _url in _logos_band.items():
-        _cls = "mpin-b-" + _mk.lower().replace(" ", "-")
-        _css += (f".{_cls}{{background-image:url('{_url}');"
-                 f"background-size:cover;background-position:center;}}")
-        _band_css[_mk] = _cls
-    _css += "</style>"
-    m.get_root().html.add_child(folium.Element(_css))
-
-    def _band_css_para(distribuidora: str) -> str:
-        """Retorna a classe CSS da logo de bandeira, ou '' se não houver."""
-        d = str(distribuidora).upper().strip()
-        for mk, cls in _band_css.items():
-            if mk in d:
-                return cls
-        return ""
-
-    def _mk_pin_css(css_class: str, size: int, border_css: str, extra_style: str = "") -> str:
-        """Gera HTML de um pin circular usando classe CSS (imagem via background-image)."""
-        half = size // 2
-        return (
-            f"<div class='{css_class}' style='"
-            f"width:{size}px;height:{size}px;"
-            f"border-radius:50%;"
-            f"{border_css}"
-            f"background-color:#fff;"   # fallback enquanto imagem carrega
-            f"{extra_style}"
-            f"'></div>"
-        )
-
-    def _marker_from_css(lat, lon, popup, tooltip, html: str, size: int):
-        half = size // 2
-        icon = folium.DivIcon(html=html, icon_size=(size, size), icon_anchor=(half, half))
-        return folium.Marker(location=[lat, lon], icon=icon,
-                             popup=popup, tooltip=tooltip)
 
     if coords_rota and len(coords_rota) >= 2:
         coords_poly = _downsample(coords_rota, 300)
@@ -2082,77 +2049,48 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             lat_, lon_ = row["_lat"], row["_lon"]
 
             if is_cer:
-                # Cercados: sempre CircleMarker (leve)
+                # ── Postos Cercados: laranja ──────────────────────────
                 folium.CircleMarker(
                     [lat_, lon_], radius=10,
-                    color=COR_CERCADO_BORDA, fill=True,
-                    fill_color=COR_CERCADO_FILL, fill_opacity=0.92,
+                    color=COR_CERCADO_BORDA, weight=2.5,
+                    fill=True, fill_color=COR_CERCADO_FILL, fill_opacity=0.92,
                     popup=pop, tooltip=tip,
                 ).add_to(c_cer)
 
             elif is_rr:
-                if usar_marcador_leve:
-                    # Estado grande: CircleMarker roxo maior para Rodo Rede
-                    folium.CircleMarker(
-                        [lat_, lon_], radius=11,
-                        color=COR_RR_BORDA, fill=True,
-                        fill_color=COR_RR_FILL, fill_opacity=0.95,
-                        popup=pop, tooltip=tip,
-                    ).add_to(c_rr)
-                elif _rr_css:
-                    _html_rr = _mk_pin_css(
-                        _rr_css, 40,
-                        f"border:3px solid {COR_RR_BORDA};box-shadow:0 2px 8px rgba(0,0,0,.6);",
-                    )
-                    _marker_from_css(lat_, lon_, pop, tip, _html_rr, 40).add_to(c_rr)
-                else:
-                    folium.CircleMarker(
-                        [lat_, lon_], radius=11,
-                        color=COR_RR_BORDA, fill=True,
-                        fill_color=COR_RR_FILL, fill_opacity=0.95,
-                        popup=pop, tooltip=tip,
-                    ).add_to(c_rr)
+                # ── Rodo Rede: amarelo maior com borda azul ───────────
+                folium.CircleMarker(
+                    [lat_, lon_], radius=13,
+                    color=COR_RR_BORDA, weight=3,
+                    fill=True, fill_color=COR_RR_FILL, fill_opacity=0.95,
+                    popup=pop, tooltip=tip,
+                ).add_to(c_rr)
 
             elif is_pf:
-                if usar_marcador_leve:
-                    # Estado grande: CircleMarker diferenciado por cor da bandeira PF
-                    # PF Ipiranga → círculo amarelo âmbar com borda azul
-                    # PF genérico  → círculo azul com borda dourada
-                    _cls_pf_band = _band_css_para(row.get("distribuidora", ""))
-                    _cor_fill_pf = _cor_marca(row.get("distribuidora", "")) if _cls_pf_band else COR_PF_FILL
-                    _cor_bord_pf = COR_PF_BORDA
+                _dist_pf = row.get("distribuidora", "")
+                if _is_ipiranga(_dist_pf):
+                    # ── PF Ipiranga: amarelo com borda azul ───────────
                     folium.CircleMarker(
-                        [lat_, lon_], radius=11,
-                        color=_cor_bord_pf, weight=3,
-                        fill=True, fill_color=_cor_fill_pf, fill_opacity=0.95,
+                        [lat_, lon_], radius=12,
+                        color=COR_PF_BORDA, weight=3,
+                        fill=True, fill_color="#FFB300", fill_opacity=0.95,
                         popup=pop, tooltip=tip,
                     ).add_to(c_pf)
                 else:
-                    # Estado pequeno: usa CSS class da bandeira (logo real)
-                    _cls_pf = _band_css_para(row.get("distribuidora", ""))
-                    if _cls_pf:
-                        _html_pf = _mk_pin_css(
-                            _cls_pf, 36,
-                            f"border:3px solid {COR_PF_BORDA};box-shadow:0 0 0 2px #FFD700,0 3px 8px rgba(0,0,0,.55);",
-                        )
-                    elif _pf_css:
-                        _html_pf = _mk_pin_css(
-                            _pf_css, 36,
-                            f"border:3px solid {COR_PF_BORDA};box-shadow:0 2px 8px rgba(0,0,0,.6);",
-                        )
-                    else:
-                        _html_pf = (
-                            f"<div style='width:32px;height:32px;border-radius:50%;"
-                            f"background:{COR_PF_FILL};border:3px solid {COR_PF_BORDA};"
-                            f"box-shadow:0 2px 6px rgba(0,0,0,.5)'></div>"
-                        )
-                    _marker_from_css(lat_, lon_, pop, tip, _html_pf, 36).add_to(c_pf)
+                    # ── PF demais bandeiras: azul maior ───────────────
+                    folium.CircleMarker(
+                        [lat_, lon_], radius=12,
+                        color=COR_PF_BORDA, weight=3,
+                        fill=True, fill_color=COR_PF_FILL, fill_opacity=0.95,
+                        popup=pop, tooltip=tip,
+                    ).add_to(c_pf)
 
             else:
-                # Postos regulares: sempre CircleMarker (leve)
+                # ── Posto regular: cor da distribuidora ───────────────
                 folium.CircleMarker(
                     [lat_, lon_], radius=7,
-                    color=cor, fill=True, fill_color=cor, fill_opacity=0.85,
+                    color=cor, weight=1.5,
+                    fill=True, fill_color=cor, fill_opacity=0.85,
                     popup=pop, tooltip=tip,
                 ).add_to(c_reg)
 
@@ -2225,16 +2163,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         )
 
         def _leg_icon(marca: str, cor: str) -> str:
-            """Ícone da legenda: logo se disponível, senão círculo colorido."""
-            _url = _logo_para_distribuidora(marca, _logos_band)
-            if _url:
-                return (
-                    f"<span style='display:inline-block;width:16px;height:16px;"
-                    f"border-radius:50%;border:1.5px solid {cor};"
-                    f"overflow:hidden;vertical-align:middle;margin-right:5px;background:#fff;'>"
-                    f"<img src='{_url}' style='width:100%;height:100%;object-fit:cover;display:block;'/>"
-                    f"</span>"
-                )
+            """Ícone da legenda: círculo colorido com a cor da distribuidora."""
             return (
                 f'<span style="background:{cor};display:inline-block;'
                 f'width:11px;height:11px;border-radius:50%;'
@@ -2254,63 +2183,37 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 f'width:11px;height:11px;border-radius:50%;'
                 f'vertical-align:middle;margin-right:5px"></span>Outras</li>'
             )
-        # Item Pró-Frotas: usa logo_profrotas.jpg se disponível, senão círculo azul
-        _pf_img_b64 = _img_pro_frotas_b64()
-        if _pf_img_b64:
-            _pf_icon_html = (
-                f"<span style='display:inline-block;width:22px;height:22px;"
-                f"border-radius:50%;border:2px solid {COR_PF_BORDA};"
-                f"overflow:hidden;vertical-align:middle;margin-right:5px;background:#fff;'>"
-                f"<img src='{_pf_img_b64}' style='width:100%;height:100%;object-fit:cover;display:block;'/>"
-                f"</span>"
-            )
-        else:
-            _pf_icon_html = (
-                f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
-                f"background:{COR_PF_FILL};border:2px solid {COR_PF_BORDA};"
-                f"vertical-align:middle;margin-right:5px'></span>"
-            )
-
-        # Item Rodo Rede: usa a imagem se disponível, senão emoji fallback
-        _rr_img_b64 = _img_rodo_rede_b64()
-        if _rr_img_b64:
-            _rr_icon_html = (
-                f"<span style='display:inline-block;width:22px;height:22px;"
-                f"border-radius:50%;border:2px solid {COR_RR_BORDA};"
-                f"overflow:hidden;vertical-align:middle;margin-right:5px;background:#fff;'>"
-                f"<img src='{_rr_img_b64}' style='width:100%;height:100%;object-fit:cover;display:block;'/>"
-                f"</span>"
-            )
-        else:
-            _rr_icon_html = (
-                f"<span style='display:inline-block;width:20px;height:20px;border-radius:50%;"
-                f"background:{COR_RR_FILL};border:2px solid {COR_RR_BORDA};"
-                f"vertical-align:middle;margin-right:5px;text-align:center;"
-                f"font-size:11px;line-height:20px'>🚛</span>"
-            )
-        # ── Entradas PF com bandeira na legenda ─────────────────────
-        # Para cada bandeira com logo que tiver postos PF, exibe ícone diferenciado
-        _pf_band_items = ""
+        # ── Ícones da legenda: círculos coloridos (sem imagens) ─────
+        # PF genérico: círculo azul maior
+        _pf_icon_html = (
+            f"<span style='display:inline-block;width:16px;height:16px;border-radius:50%;"
+            f"background:{COR_PF_FILL};border:2.5px solid {COR_PF_BORDA};"
+            f"vertical-align:middle;margin-right:5px'></span>"
+        )
+        # PF Ipiranga: círculo amarelo com borda azul
+        _pf_ipi_icon = (
+            f"<span style='display:inline-block;width:16px;height:16px;border-radius:50%;"
+            f"background:#FFB300;border:2.5px solid {COR_PF_BORDA};"
+            f"vertical-align:middle;margin-right:5px'></span>"
+        )
+        # Rodo Rede: círculo amarelo maior com borda azul
+        _rr_icon_html = (
+            f"<span style='display:inline-block;width:18px;height:18px;border-radius:50%;"
+            f"background:{COR_RR_FILL};border:2.5px solid {COR_RR_BORDA};"
+            f"vertical-align:middle;margin-right:5px'></span>"
+        )
+        # Verifica se há postos PF Ipiranga no dataset atual
+        _tem_pf_ipi = False
         _cnpjs_pf_leg = st.session_state.get("cnpjs_pro_frotas", set())
-        if _cnpjs_pf_leg and not df.empty and "_pro_frotas" in df.columns and "_cnpj_norm" in df.columns:
+        if _cnpjs_pf_leg and not df.empty and "_pro_frotas" in df.columns:
             _df_pf_leg = df[df["_pro_frotas"].fillna(False)]
-            for _mk_leg, _url_leg in _logos_band.items():
-                _tem_pf_marca = (
-                    not _df_pf_leg.empty
-                    and "distribuidora" in _df_pf_leg.columns
-                    and _df_pf_leg["distribuidora"].fillna("").str.upper().str.contains(_mk_leg, regex=False).any()
-                )
-                if _tem_pf_marca:
-                    _pf_band_items += (
-                        f"<li style='margin-top:4px;display:flex;align-items:center'>"
-                        f"<span style='display:inline-block;width:20px;height:20px;"
-                        f"border-radius:50%;border:2px solid {COR_PF_BORDA};"
-                        f"box-shadow:0 0 0 1.5px #FFD700;"
-                        f"overflow:hidden;vertical-align:middle;margin-right:5px;background:#fff;'>"
-                        f"<img src='{_url_leg}' style='width:100%;height:100%;object-fit:cover;display:block;'/>"
-                        f"</span>"
-                        f"<b>PF {_mk_leg.title()}</b></li>"
-                    )
+            if not _df_pf_leg.empty and "distribuidora" in _df_pf_leg.columns:
+                _tem_pf_ipi = _df_pf_leg["distribuidora"].fillna("").apply(_is_ipiranga).any()
+
+        _pf_ipi_item = (
+            f"<li style='margin-top:4px;display:flex;align-items:center'>"
+            f"{_pf_ipi_icon}<b>PF Ipiranga</b></li>"
+        ) if _tem_pf_ipi else ""
 
         m.get_root().html.add_child(folium.Element(
             "<div style='position:fixed;bottom:30px;right:10px;z-index:1000;"
@@ -2318,15 +2221,16 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             "box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:11px;max-height:320px;overflow-y:auto'>"
             f"<b style='font-size:12px'>Distribuidoras</b>"
             f"<ul style='list-style:none;padding:0;margin:6px 0 0'>{items}"
-            "<li style='margin-top:6px;padding-top:6px;border-top:1px solid #eee'>"
-            f"{_pf_icon_html}"
-            "<b>Pró-Frotas</b></li>"
-            f"{_pf_band_items}"
-            f"<li style='margin-top:4px'>{_rr_icon_html}<b>Rodo Rede</b></li>"
-            "<li style='margin-top:4px'>"
+            "<li style='margin-top:6px;padding-top:6px;border-top:1px solid #eee;"
+            "display:flex;align-items:center'>"
+            f"{_pf_icon_html}<b>Pró-Frotas</b></li>"
+            f"{_pf_ipi_item}"
+            f"<li style='margin-top:4px;display:flex;align-items:center'>"
+            f"{_rr_icon_html}<b>Rodo Rede</b></li>"
+            "<li style='margin-top:4px;display:flex;align-items:center'>"
             f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
             f"background:{COR_CERCADO_FILL};border:2px solid {COR_CERCADO_BORDA};"
-            f"vertical-align:middle;margin-right:5px;text-align:center;font-size:9px;line-height:14px'>⚠</span>"
+            f"vertical-align:middle;margin-right:5px'></span>"
             "<b>Posto Cercado</b></li>"
             "</ul></div>"
         ))
@@ -4992,14 +4896,18 @@ else:
             _cnpjs_pf_r = st.session_state.get("cnpjs_pro_frotas", set())
             if _cnpjs_pf_r and not df_rota.empty:
                 with st.spinner("🔍 Verificando postos Pró-Frotas ausentes na rota…"):
-                    _df_rota_enr = _injetar_pf_ausentes(df_rota, _cnpjs_pf_r)
+                    _df_rota_enr = _injetar_pf_ausentes(
+                        df_rota, _cnpjs_pf_r, ufs_permitidas=set(ufs_rota))
                 if len(_df_rota_enr) > len(df_rota):
                     # Recalcula distância para os postos injetados (sem coordenadas de rota)
                     _novos = _df_rota_enr.iloc[len(df_rota):]
                     _dists_n = dist_minima_rota_np(
                         _novos["_lat"].values, _novos["_lon"].values, coords_rota)
                     _df_rota_enr.loc[_novos.index, "_dist_rota"] = _dists_n
-                    df_rota = _df_rota_enr
+                    # Filtra por raio: descarta injetados fora do corredor da rota
+                    df_rota = _df_rota_enr[
+                        _df_rota_enr["_dist_rota"] <= raio
+                    ].copy().reset_index(drop=True)
 
             st.session_state.update({
                 "df_rota": df_rota, "coords_rota": coords_rota,
