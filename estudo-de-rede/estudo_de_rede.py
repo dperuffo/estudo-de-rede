@@ -2343,15 +2343,135 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     return fig
 
 
+def _injetar_hover_maps_js() -> None:
+    """
+    Injeta JavaScript via componente HTML que:
+    • Aguarda os gráficos Plotly no frame pai carregarem.
+    • Ao passar o mouse sobre um marcador (plotly_hover), exibe um tooltip
+      flutuante com link clicável para o Google Maps.
+    • Ao tirar o mouse (plotly_unhover), esconde o tooltip.
+    • Usa apenas os dados já presentes em customdata[4..5] (lat/lon).
+    • Zero chamadas de rede. Zero impacto de performance.
+    """
+    import streamlit.components.v1 as _cv1
+    _cv1.html("""
+<script>
+(function () {
+  /* Tenta acessar o documento pai (mesma origem no Streamlit) */
+  var pd;
+  try { pd = window.parent.document; } catch (e) { return; }
+
+  /* Cria (ou reutiliza) o tooltip flutuante */
+  function getTip() {
+    var t = pd.getElementById('_gm_hover_tip');
+    if (!t) {
+      t = pd.createElement('div');
+      t.id = '_gm_hover_tip';
+      t.style.cssText = [
+        'position:fixed',
+        'z-index:99999',
+        'background:#fff',
+        'border:1px solid #c5d8f5',
+        'border-radius:8px',
+        'box-shadow:0 4px 18px rgba(0,0,0,.18)',
+        'padding:7px 13px',
+        'font-size:12px',
+        'font-family:sans-serif',
+        'pointer-events:auto',
+        'display:none',
+        'max-width:280px',
+        'line-height:1.4',
+        'transition:opacity .1s'
+      ].join(';');
+      pd.body.appendChild(t);
+    }
+    return t;
+  }
+
+  var moveHandler = null;
+
+  function attachToPlots() {
+    var plots = pd.querySelectorAll('.js-plotly-plot');
+    if (!plots.length) { setTimeout(attachToPlots, 900); return; }
+
+    plots.forEach(function (plot) {
+      if (plot._gmHoverOk) return;
+      plot._gmHoverOk = true;
+
+      plot.on('plotly_hover', function (data) {
+        var pt = data.points && data.points[0];
+        if (!pt) return;
+        var cd = pt.customdata;
+        if (!cd || cd.length < 6) return;
+
+        var lat  = parseFloat(cd[4]);
+        var lon  = parseFloat(cd[5]);
+        var nome = String(cd[1] || '').substring(0, 35);
+        var cnpj = String(cd[0] || '');
+        var geo  = String(cd[3] || '');
+        var url  = 'https://maps.google.com/?q=' + lat.toFixed(6) + ',' + lon.toFixed(6);
+
+        var cnpjLine = cnpj
+          ? '<div style="color:#888;font-size:11px;margin-top:2px">📋 ' + cnpj + '</div>'
+          : '';
+        var geoLine = geo
+          ? '<div style="color:#888;font-size:11px">' + geo + '</div>'
+          : '';
+
+        var tip = getTip();
+        tip.innerHTML =
+          '<div style="font-weight:700;color:#0d1b4b;margin-bottom:3px">' + nome + '</div>'
+          + geoLine
+          + cnpjLine
+          + '<a href="' + url + '" target="_blank" '
+          + 'style="display:inline-flex;align-items:center;gap:5px;margin-top:6px;'
+          + 'background:#1565c0;color:#fff;text-decoration:none;'
+          + 'padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600">'
+          + '📍 Ver no Google Maps ↗</a>';
+        tip.style.display = 'block';
+
+        if (!moveHandler) {
+          moveHandler = function (e) {
+            tip.style.left = (e.clientX + 16) + 'px';
+            tip.style.top  = (e.clientY - 56) + 'px';
+          };
+          pd.addEventListener('mousemove', moveHandler);
+        }
+      });
+
+      plot.on('plotly_unhover', function () {
+        var tip = pd.getElementById('_gm_hover_tip');
+        if (tip) tip.style.display = 'none';
+        if (moveHandler) {
+          pd.removeEventListener('mousemove', moveHandler);
+          moveHandler = null;
+        }
+      });
+    });
+  }
+
+  /* Observa o DOM para re-anexar quando o Streamlit re-renderiza o chart */
+  var obs = new MutationObserver(function () { attachToPlots(); });
+  obs.observe(pd.body, { childList: true, subtree: true });
+
+  setTimeout(attachToPlots, 1200);
+})();
+</script>
+""", height=0, scrolling=False)
+
+
 def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") -> None:
     """
     Renderiza o mapa Plotly e exibe painel de detalhe ao clicar num posto.
 
-    — CNPJ já aparece no tooltip (hover) via _hover_txt.
-    — Ao clicar num marcador, exibe card com link clicável para Google Maps.
-    — Sem custo de performance: customdata é gerado 1× na criação da figura,
-      o evento só dispara quando o usuário clica (sem polling).
+    — CNPJ + localização aparecem no tooltip (hover) nativo do Plotly.
+    — Ao passar o mouse, tooltip flutuante com link clicável para Google Maps
+      (via JS injetado em _injetar_hover_maps_js — zero chamada de rede).
+    — Ao clicar num marcador, exibe card adicional com botão Maps abaixo do mapa.
+    — Sem custo de performance: customdata é gerado 1× na criação da figura.
     """
+    _injetar_hover_maps_js()
+
     try:
         evt = st.plotly_chart(
             fig,
