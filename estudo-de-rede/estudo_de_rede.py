@@ -2204,15 +2204,21 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             name="Origem",
             showlegend=False,
         ))
-    # Paradas intermediárias (lista de dicts com lat, lon, label)
+    # Paradas intermediárias — PIN laranja grande com número da parada
     if waypoints:
         for idx_wp, wp in enumerate(waypoints, start=1):
             traces.append(go.Scattermapbox(
                 lat=[wp["lat"]], lon=[wp["lon"]],
-                mode="markers",
-                marker=dict(size=14, color="#FF8F00"),
-                text=[f"📍 Parada {idx_wp}: {wp['label']}"],
-                hoverinfo="text",
+                mode="markers+text",
+                marker=dict(size=22, color="#FF8F00"),
+                text=[str(idx_wp)],
+                textfont=dict(size=12, color="#fff", family="Arial Black, sans-serif"),
+                textposition="middle center",
+                customdata=[[wp["label"], idx_wp]],
+                hovertemplate=(
+                    f"<b>📍 Parada {idx_wp}</b><br>"
+                    f"{wp['label']}<extra></extra>"
+                ),
                 name=f"Parada {idx_wp}",
                 showlegend=False,
             ))
