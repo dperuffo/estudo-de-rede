@@ -4169,6 +4169,25 @@ with st.sidebar:
 
     # ── Modo de consulta — toggle buttons ─────────────────────
     st.markdown("<div class='sb-label'>Modo de Consulta</div>", unsafe_allow_html=True)
+
+    # CSS: força altura igual e texto em uma linha para os 3 botões de modo
+    st.markdown("""
+<style>
+[data-testid="stSidebar"] div.stButton button {
+    height: 44px !important;
+    min-height: 44px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+[data-testid="stSidebar"] div.stButton button p {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin: 0 !important;
+    font-size: 13px !important;
+}
+</style>""", unsafe_allow_html=True)
+
     if "modo_selecionado" not in st.session_state:
         st.session_state["modo_selecionado"] = "📍 Por Estado/Município"
     _modo_atual = st.session_state["modo_selecionado"]
