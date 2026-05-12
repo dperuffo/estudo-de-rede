@@ -1855,6 +1855,31 @@ def _marcador_logo_bandeira(lat, lon, popup, tooltip, img_b64: str, cor_borda: s
     return folium.Marker(location=[lat, lon], icon=icon, popup=popup, tooltip=tooltip)
 
 
+def _marcador_pf_bandeira(lat, lon, popup, tooltip, img_b64: str):
+    """
+    Marcador para posto Pró-Frotas que tem logo de bandeira reconhecida (ex: Ipiranga).
+    Usa a logo da bandeira com borda azul PF + anel dourado externo para diferenciar
+    de postos regulares da mesma bandeira.
+    Tamanho maior (36px) que o pin regular (28px) para destacar o credenciamento PF.
+    """
+    html_icon = (
+        f"<div style='"
+        f"width:36px;height:36px;"
+        f"border-radius:50%;"
+        # Borda interna azul PF + sombra dourada = indicação visual de credenciado
+        f"border:3px solid {COR_PF_BORDA};"
+        f"box-shadow:0 0 0 2px #FFD700, 0 3px 8px rgba(0,0,0,.55);"
+        f"overflow:hidden;"
+        f"background:#fff;"
+        f"'>"
+        f"<img src='{img_b64}' "
+        f"style='width:100%;height:100%;object-fit:cover;display:block;'/>"
+        f"</div>"
+    )
+    icon = folium.DivIcon(html=html_icon, icon_size=(36, 36), icon_anchor=(18, 18))
+    return folium.Marker(location=[lat, lon], icon=icon, popup=popup, tooltip=tooltip)
+
+
 def _marcador_rodo_rede(lat, lon, popup, tooltip):
     """Marcador com logo Rodo Rede para postos Pró-Frotas com Perfil de Venda = Rodo Rede."""
     img_b64 = _img_rodo_rede_b64()
@@ -2004,7 +2029,14 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             elif is_rr:
                 _marcador_rodo_rede(row["_lat"], row["_lon"], pop, tip).add_to(c_rr)
             elif is_pf:
-                _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
+                # PF com bandeira reconhecida → logo da bandeira + borda PF azul/dourada
+                _logo_pf = _logo_para_distribuidora(row.get("distribuidora", ""), _logos_band)
+                if _logo_pf:
+                    _marcador_pf_bandeira(
+                        row["_lat"], row["_lon"], pop, tip, _logo_pf
+                    ).add_to(c_pf)
+                else:
+                    _marcador_pf(row["_lat"], row["_lon"], pop, tip).add_to(c_pf)
             else:
                 # Pins regulares sempre como círculo colorido.
                 # Logos de bandeira NÃO são embutidas nos pins do mapa para evitar
@@ -2146,6 +2178,30 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 f"vertical-align:middle;margin-right:5px;text-align:center;"
                 f"font-size:11px;line-height:20px'>🚛</span>"
             )
+        # ── Entradas PF com bandeira na legenda ─────────────────────
+        # Para cada bandeira com logo que tiver postos PF, exibe ícone diferenciado
+        _pf_band_items = ""
+        _cnpjs_pf_leg = st.session_state.get("cnpjs_pro_frotas", set())
+        if _cnpjs_pf_leg and not df.empty and "_pro_frotas" in df.columns and "_cnpj_norm" in df.columns:
+            _df_pf_leg = df[df["_pro_frotas"].fillna(False)]
+            for _mk_leg, _url_leg in _logos_band.items():
+                _tem_pf_marca = (
+                    not _df_pf_leg.empty
+                    and "distribuidora" in _df_pf_leg.columns
+                    and _df_pf_leg["distribuidora"].fillna("").str.upper().str.contains(_mk_leg, regex=False).any()
+                )
+                if _tem_pf_marca:
+                    _pf_band_items += (
+                        f"<li style='margin-top:4px;display:flex;align-items:center'>"
+                        f"<span style='display:inline-block;width:20px;height:20px;"
+                        f"border-radius:50%;border:2px solid {COR_PF_BORDA};"
+                        f"box-shadow:0 0 0 1.5px #FFD700;"
+                        f"overflow:hidden;vertical-align:middle;margin-right:5px;background:#fff;'>"
+                        f"<img src='{_url_leg}' style='width:100%;height:100%;object-fit:cover;display:block;'/>"
+                        f"</span>"
+                        f"<b>PF {_mk_leg.title()}</b></li>"
+                    )
+
         m.get_root().html.add_child(folium.Element(
             "<div style='position:fixed;bottom:30px;right:10px;z-index:1000;"
             "background:white;padding:10px 14px;border-radius:10px;"
@@ -2155,6 +2211,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             "<li style='margin-top:6px;padding-top:6px;border-top:1px solid #eee'>"
             f"{_pf_icon_html}"
             "<b>Pró-Frotas</b></li>"
+            f"{_pf_band_items}"
             f"<li style='margin-top:4px'>{_rr_icon_html}<b>Rodo Rede</b></li>"
             "<li style='margin-top:4px'>"
             f"<span style='display:inline-block;width:14px;height:14px;border-radius:50%;"
