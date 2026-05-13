@@ -589,9 +589,9 @@ COR_PF_FILL  = "#1565C0"   # azul — identificação visual do credenciamento
 COR_PF_BORDA = "#0D47A1"   # azul escuro
 
 # Cor e estilo do marcador Rodo Rede (perfil de venda especial)
-# Amarelo maior com anel azul — mesmo padrão visual do PF Ipiranga, tamanho diferenciado
-COR_RR_FILL  = "#FFB300"   # amarelo — destaque Rodo Rede
-COR_RR_BORDA = "#1565C0"   # azul — círculo azul Pró-Frotas
+# Deep Orange — distinto do amarelo-âmbar #FFB300 (Ipiranga) e do #FF8F00 (Cercados)
+COR_RR_FILL  = "#E64A19"   # deep orange — identidade visual Rodo Rede
+COR_RR_BORDA = "#BF360C"   # deep orange escuro — borda do marcador
 PERFIL_RODO_REDE = "RODO REDE"  # valor normalizado para comparação
 
 # Helper: verifica se a distribuidora é Ipiranga (ou grupo Ultrapar)
@@ -2530,7 +2530,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
             cnpj = str(row.get("cnpj", ""))
             geo  = f"{mun}/{uf_}" if mun and uf_ else mun or uf_
             pf_  = " ⭐" if row.get("_pro_frotas") else ""
-            rr_  = " 🚛" if row.get("_rodo_rede")  else ""
+            rr_  = " · Rodo Rede" if row.get("_rodo_rede")  else ""
             cer_ = " ⚠️" if row.get("_cercado")    else ""
             cnpj_str = f"<br>📋 {cnpj}" if cnpj else ""
             return f"<b>{nome}</b>{pf_}{rr_}{cer_}<br>{dist}<br>{geo}{cnpj_str}"
@@ -2578,7 +2578,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 text=dfr.apply(_hover_txt, axis=1).tolist(),
                 customdata=_customdata(dfr),
                 hoverinfo="text",
-                name="🚛 Rodo Rede",
+                name="Rodo Rede",
             ))
 
         # Pró-Frotas Ipiranga — amarelo
@@ -2707,9 +2707,31 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
     _maps_url = f"https://maps.google.com/?q={_lat:.6f},{_lon:.6f}"
 
     _badges_html = ""
-    if _pf:  _badges_html += "<span style='background:#1565c0;color:#fff;border-radius:3px;padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Pró-Frotas</span>"
-    if _rr:  _badges_html += "<span style='background:#FFB300;color:#333;border-radius:3px;padding:1px 7px;font-size:11px;margin-right:4px'>🚛 Rodo Rede</span>"
-    if _cer: _badges_html += "<span style='background:#FF8F00;color:#fff;border-radius:3px;padding:1px 7px;font-size:11px;margin-right:4px'>⚠️ Cercado</span>"
+    if _pf:
+        _badges_html += (
+            "<span style='background:#1565c0;color:#fff;border-radius:3px;"
+            "padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Pró-Frotas</span>"
+        )
+    if _rr:
+        _rr_img = _img_rodo_rede_b64()
+        if _rr_img:
+            _badges_html += (
+                f"<span style='display:inline-flex;align-items:center;gap:4px;"
+                f"background:#fff3e0;border:1px solid {COR_RR_FILL};"
+                f"border-radius:3px;padding:1px 6px;font-size:11px;margin-right:4px'>"
+                f"<img src='{_rr_img}' style='height:14px;width:auto;object-fit:contain;"
+                f"vertical-align:middle;border-radius:2px'> Rodo Rede</span>"
+            )
+        else:
+            _badges_html += (
+                f"<span style='background:{COR_RR_FILL};color:#fff;border-radius:3px;"
+                f"padding:1px 7px;font-size:11px;margin-right:4px'>Rodo Rede</span>"
+            )
+    if _cer:
+        _badges_html += (
+            "<span style='background:#FF8F00;color:#fff;border-radius:3px;"
+            "padding:1px 7px;font-size:11px;margin-right:4px'>⚠️ Cercado</span>"
+        )
 
     _cnpj_html = f"<span style='color:#555'>📋 {_cnpj}</span>  " if _cnpj else ""
     _geo_html  = f"<span style='color:#555'>📍 {_geo}</span>" if _geo else ""
