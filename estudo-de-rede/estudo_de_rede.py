@@ -24,8 +24,30 @@ import folium
 # Diretório onde este script está — usado para localizar arquivos do repo
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ─── Logo Pró-Frotas ───────────────────────────────────────────────
-# Aceita qualquer variação de nome/extensão que possa estar no repositório
+# ─── Imagem Menu.jpg (header sidebar) ────────────────────────────
+# Usa Menu.jpg como banner do sidebar — tem prioridade sobre a logo
+for _menu_nome in ["Menu.jpg", "menu.jpg", "Menu.png", "menu.png"]:
+    _menu_candidato = os.path.join(_DIR, _menu_nome)
+    if os.path.exists(_menu_candidato):
+        _MENU_PATH = _menu_candidato
+        break
+else:
+    _MENU_PATH = ""
+
+if os.path.exists(_MENU_PATH):
+    with open(_MENU_PATH, "rb") as _f:
+        _menu_bytes = _f.read()
+    _menu_mime = "image/jpeg" if _MENU_PATH.lower().endswith(".jpg") else "image/png"
+    _MENU_B64  = base64.b64encode(_menu_bytes).decode()
+    _MENU_IMG  = (
+        f'<img src="data:{_menu_mime};base64,{_MENU_B64}" '
+        f'style="width:100%;display:block;object-fit:cover;">'
+    )
+else:
+    _MENU_B64  = None
+    _MENU_IMG  = ""
+
+# ─── Logo Pró-Frotas (topbar + fallback sidebar) ──────────────────
 for _logo_nome in ["Logo_profrotas.jpg", "logo_profrotas.jpg",
                    "Logo_profrotas.png", "logo_profrotas.png"]:
     _logo_candidato = os.path.join(_DIR, _logo_nome)
@@ -40,14 +62,13 @@ if os.path.exists(_LOGO_PATH):
         _logo_bytes = _f.read()
     _logo_mime = "image/jpeg" if _LOGO_PATH.lower().endswith(".jpg") else "image/png"
     _LOGO_B64 = base64.b64encode(_logo_bytes).decode()
-    # Topbar azul: mix-blend-mode screen funde o fundo azul da logo com o gradiente,
-    # deixando apenas o texto branco e o ícone laranja visíveis
+    # Topbar azul: mix-blend-mode screen funde o fundo azul da logo com o gradiente
     _LOGO_TOPBAR  = (
         f'<img src="data:{_logo_mime};base64,{_LOGO_B64}" '
         f'style="height:46px;object-fit:contain;mix-blend-mode:screen;'
         f'filter:brightness(1.15) contrast(1.05)">'
     )
-    # Sidebar: logo natural sobre fundo branco (sem blend-mode)
+    # Sidebar: logo natural sobre fundo branco (fallback quando Menu.jpg ausente)
     _LOGO_SIDEBAR = (
         f'<img src="data:{_logo_mime};base64,{_LOGO_B64}" '
         f'style="height:78px;object-fit:contain;display:block;margin:0 auto">'
@@ -4610,30 +4631,67 @@ if not st.session_state.get("_base_auto_ok"):
 
 with st.sidebar:
 
-    # ── Logo / título lateral ─────────────────────────────────
-    st.markdown(f"""
-    <div style='
-        margin: -1rem -1rem 0 -1rem;
-        background: #ffffff;
-        padding: 22px 16px 14px;
-        text-align: center;
-        border-bottom: 4px solid transparent;
-        border-image: linear-gradient(90deg, #0d1b4b 0%, #1565c0 55%, #0288d1 100%) 1;
-        box-shadow: 0 4px 14px rgba(13,27,75,0.10);
-        margin-bottom: 14px;
-    '>
-      {_LOGO_SIDEBAR}
-      <div style='
-          font-size: 10px;
-          color: #1565c0;
-          margin-top: 9px;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-          font-weight: 700;
-          opacity: 0.75;
-      '>Estudo de Rede · ANP</div>
-    </div>
-    """, unsafe_allow_html=True)
+    # ── Header do Sidebar — Menu.jpg ou fallback logo ─────────────
+    if _MENU_B64:
+        # ── Usa Menu.jpg como banner full-width com overlay e pill de status ──
+        _n_pf_sb  = len(st.session_state.get("cnpjs_pro_frotas", set()))
+        _status_pill = (
+            f"<div style='display:inline-flex;align-items:center;gap:5px;"
+            f"background:rgba(255,255,255,0.18);backdrop-filter:blur(6px);"
+            f"border:1px solid rgba(255,255,255,0.35);border-radius:20px;"
+            f"padding:3px 10px;font-size:10px;color:#fff;font-weight:600;"
+            f"letter-spacing:0.5px;margin-top:6px'>"
+            f"<span style='width:6px;height:6px;border-radius:50%;"
+            f"background:#69f0ae;display:inline-block'></span>"
+            f"{'⭐ ' + str(_n_pf_sb) + ' postos PF' if _n_pf_sb else '⚙️ Carregando…'}"
+            f"</div>"
+        )
+        st.markdown(
+            f"<div style='margin:-1rem -1rem 0 -1rem;position:relative;"
+            f"overflow:hidden;border-radius:0 0 0 0'>"
+            # ── Imagem Menu.jpg ──────────────────────────────────────────
+            f"<img src='data:{_menu_mime};base64,{_MENU_B64}' "
+            f"style='width:100%;display:block;object-fit:cover;"
+            f"max-height:180px;'>"
+            # ── Overlay gradiente sutil na base (legibilidade dos pills) ─
+            f"<div style='position:absolute;bottom:0;left:0;right:0;"
+            f"height:60%;background:linear-gradient(to top,"
+            f"rgba(13,71,161,0.65) 0%,transparent 100%)'></div>"
+            # ── Pill de status sobreposto ────────────────────────────────
+            f"<div style='position:absolute;bottom:10px;left:0;right:0;"
+            f"text-align:center'>{_status_pill}</div>"
+            f"</div>"
+            # ── Linha separadora gradiente azul/laranja ──────────────────
+            f"<div style='height:3px;margin:-1px -1rem 14px -1rem;"
+            f"background:linear-gradient(90deg,#0D47A1 0%,#1565C0 50%,#E65100 100%)'>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        # ── Fallback: logo Pró-Frotas + subtítulo ─────────────────────
+        st.markdown(f"""
+        <div style='
+            margin: -1rem -1rem 0 -1rem;
+            background: #ffffff;
+            padding: 22px 16px 14px;
+            text-align: center;
+            border-bottom: 4px solid transparent;
+            border-image: linear-gradient(90deg, #0d1b4b 0%, #1565c0 55%, #0288d1 100%) 1;
+            box-shadow: 0 4px 14px rgba(13,27,75,0.10);
+            margin-bottom: 14px;
+        '>
+          {_LOGO_SIDEBAR}
+          <div style='
+              font-size: 10px;
+              color: #1565c0;
+              margin-top: 9px;
+              letter-spacing: 1px;
+              text-transform: uppercase;
+              font-weight: 700;
+              opacity: 0.75;
+          '>Estudo de Rede · ANP</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # ── Auto-carregamento do repositório ─────────────────────
     # Tenta UMA VEZ por sessão — usa flag para não repetir
@@ -4699,18 +4757,32 @@ with st.sidebar:
             st.session_state["_pp_carregado_em"] = _agora()
 
     # ── Modo de consulta — toggle buttons ─────────────────────
-    # Banner superior com gradiente Pró-Frotas
-    st.markdown(
-        "<div style='"
-        "background:linear-gradient(135deg,#0D47A1 0%,#1565C0 45%,#E65100 100%);"
-        "border-radius:12px;padding:10px 14px 8px;margin-bottom:10px'>"
-        "<div style='color:rgba(255,255,255,.65);font-size:9px;font-weight:600;"
-        "letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px'>Modo de Consulta</div>"
-        "<div style='color:#fff;font-size:13px;font-weight:700;line-height:1.2'>"
-        "Selecione como deseja buscar</div>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    # Banner: sutil quando Menu.jpg existe, com gradiente quando não existe
+    if _MENU_B64:
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'>"
+            "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
+            "#0D47A1,#E65100)'></div>"
+            "<div style='font-size:9px;font-weight:700;color:#1565c0;"
+            "letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap'>"
+            "Modo de Consulta</div>"
+            "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
+            "#E65100,#0D47A1)'></div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div style='"
+            "background:linear-gradient(135deg,#0D47A1 0%,#1565C0 45%,#E65100 100%);"
+            "border-radius:12px;padding:10px 14px 8px;margin-bottom:10px'>"
+            "<div style='color:rgba(255,255,255,.65);font-size:9px;font-weight:600;"
+            "letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px'>Modo de Consulta</div>"
+            "<div style='color:#fff;font-size:13px;font-weight:700;line-height:1.2'>"
+            "Selecione como deseja buscar</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
     # CSS exclusivo para os 3 botões de modo (seletores st-key-* + data-testid)
     st.markdown("""
