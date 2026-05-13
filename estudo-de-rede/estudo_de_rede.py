@@ -143,28 +143,54 @@ header[data-testid="stHeader"] {
 
 /* ══ TOPBAR ════════════════════════════════════════════════════════ */
 .topbar {
-    background: linear-gradient(135deg, #0d1b4b 0%, #1565c0 60%, #0288d1 100%);
+    background: linear-gradient(100deg, #0D47A1 0%, #1565C0 35%, #1976D2 55%, #E65100 100%);
     color: white;
-    padding: 9px 24px;
-    border-radius: 0 0 10px 10px;
-    margin-bottom: 10px;
+    padding: 12px 28px;
+    border-radius: 0 0 14px 14px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    gap: 16px;
+    box-shadow: 0 4px 18px rgba(13,71,161,0.35), 0 2px 6px rgba(230,81,0,0.20);
     flex-wrap: wrap;
+    position: relative;
+    overflow: hidden;
 }
-.topbar-title { font-size: 22px; font-weight: 800; letter-spacing: 0.4px; }
-.topbar-sub   { font-size: 11px; opacity: 0.75; margin-top: 2px; }
-.topbar-badge {
-    margin-left: auto;
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 20px;
-    padding: 4px 12px;
+/* reflexo sutil no topo */
+.topbar::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, transparent 100%);
+    pointer-events: none;
+}
+.topbar-title {
+    font-size: 23px;
+    font-weight: 900;
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.30);
+}
+.topbar-sub {
     font-size: 12px;
     font-weight: 600;
+    opacity: 0.88;
+    margin-top: 2px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.topbar-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.18);
+    border: 1.5px solid rgba(255,255,255,0.45);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 700;
     white-space: nowrap;
+    backdrop-filter: blur(4px);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.20);
 }
 
 /* ══ SIDEBAR ═══════════════════════════════════════════════════════ */
