@@ -654,7 +654,22 @@ def detectar_coluna_cnpj(df: pd.DataFrame):
 
 
 def _detectar_col(df: pd.DataFrame, termos: list) -> str | None:
-    """Retorna o nome da primeira coluna cujo nome normalizado contenha algum dos termos."""
+    """Retorna o nome da coluna que melhor bate com os termos.
+
+    Estratégia em 2 passos:
+      1. Match EXATO por ordem de termos (prioridade): varre todos os termos em
+         sequência e, para cada um, percorre as colunas buscando correspondência
+         exata. Isso garante que, p.ex., 'BANDEIRA' seja encontrado antes que
+         'REDE' (substring de 'CREDENCIADO') cause uma falsa detecção.
+      2. Match SUBSTRING por ordem de colunas (fallback): mantém comportamento
+         original para planilhas com nomes de coluna compostos.
+    """
+    # 1ª passagem — match exato, prioridade determinada pela ordem dos termos
+    for _t in termos:
+        for _c in df.columns:
+            if _anp_norm(_c) == _t:
+                return _c
+    # 2ª passagem — substring como fallback
     for _c in df.columns:
         _cn = _anp_norm(_c)
         if any(t in _cn for t in termos):
@@ -717,8 +732,8 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
     # ── Detecta colunas de coordenadas e dados complementares ──────
     col_lat  = _detectar_col(df, ["LATITUDE", "LAT"])
     col_lon  = _detectar_col(df, ["LONGITUDE", "LON", "LNG", "LONG"])
-    col_nome = _detectar_col(df, ["RAZAO SOCIAL", "RAZAO", "NOME FANTASIA", "NOME FANTASIA", "NOME"])
-    col_dist = _detectar_col(df, ["DISTRIBUIDORA", "BANDEIRA", "REDE"])
+    col_nome = _detectar_col(df, ["RAZAO SOCIAL", "NOME FANTASIA", "RAZAO", "NOME"])
+    col_dist = _detectar_col(df, ["BANDEIRA", "DISTRIBUIDORA", "REDE"])   # BANDEIRA primeiro — prioridade exata
     col_mun  = _detectar_col(df, ["MUNICIPIO", "CIDADE"])
     col_uf   = _detectar_col(df, ["UF", "ESTADO"])
 
