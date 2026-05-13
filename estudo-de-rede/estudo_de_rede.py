@@ -6241,8 +6241,120 @@ elif modo == "🔍 Consulta por Posto":
                     )
 
             with _tab_preco_m3:
-                _ufs_m3 = list(_df_m3["uf"].dropna().unique()) if "uf" in _df_m3.columns else []
-                if _ufs_m3:
-                    _renderizar_precos_anp(None, ufs_multiplas=_ufs_m3)
+                # ── Determina UF e município do(s) posto(s) encontrado(s) ──────
+                _ufs_m3   = list(_df_m3["uf"].dropna().unique()) if "uf" in _df_m3.columns else []
+                _uf_m3    = _ufs_m3[0] if len(_ufs_m3) == 1 else None
+                _mun_m3   = (str(_df_m3.iloc[0].get("municipio", "")) or None) if n_res == 1 else None
+
+                # ── Seção 1: Preços reais do posto (Planilha PP) ─────────────
+                _pp_df_m3      = st.session_state.get("_pp_df")
+                _cnpjs_pf_m3   = st.session_state.get("cnpjs_pro_frotas", set())
+                _cache_anp_m3  = st.session_state.get("_precos_anp_cache", {})
+                _sheets_m3     = _cache_anp_m3.get("sheets")
+                _semana_m3     = _cache_anp_m3.get("semana", "")
+
+                if n_res == 1 and _pp_df_m3 is not None:
+                    _r0       = _df_m3.iloc[0]
+                    _cnpj_raw = str(_r0.get("cnpj", ""))
+                    _cnpj_n   = "".join(c for c in _cnpj_raw if c.isdigit())
+                    _df_pp_posto = (
+                        _pp_df_m3[_pp_df_m3["cnpj_norm"] == _cnpj_n]
+                        if "cnpj_norm" in _pp_df_m3.columns else pd.DataFrame()
+                    )
+
+                    if not _df_pp_posto.empty:
+                        st.markdown(
+                            "<div style='font-size:14px;font-weight:700;color:#1565c0;"
+                            "margin-bottom:10px'>💲 Preços do Posto vs Referência ANP</div>",
+                            unsafe_allow_html=True,
+                        )
+                        # Para cada combustível presente na planilha PP
+                        _fuels_pp = (
+                            _df_pp_posto["combustivel_pk"].dropna().unique().tolist()
+                            if "combustivel_pk" in _df_pp_posto.columns else []
+                        )
+                        _cards_posto_html = ""
+                        for _fp in sorted(_fuels_pp):
+                            _rows_fp = _df_pp_posto[_df_pp_posto["combustivel_pk"] == _fp]
+                            _p_posto = float(_rows_fp["preco"].mean()) if "preco" in _rows_fp.columns else None
+                            _data_fp = ""
+                            if "data_atualizacao" in _rows_fp.columns:
+                                _d_fp = _rows_fp["data_atualizacao"].dropna()
+                                _data_fp = str(_d_fp.iloc[0]) if not _d_fp.empty else ""
+
+                            # Referências ANP (município → estado → Brasil)
+                            _p_mun = _p_uf = _p_br = None
+                            if _sheets_m3:
+                                if _mun_m3:
+                                    _p_mun, _, _ = _anp_preco_ponto(_sheets_m3, _mun_m3, _fp)
+                                if _uf_m3:
+                                    _p_uf,  _, _ = _anp_preco_ponto(_sheets_m3, _uf_m3,  _fp)
+                                _p_br,  _, _ = _anp_preco_ponto(_sheets_m3, "brasil", _fp)
+
+                            # Calcula delta vs estado
+                            _delta_html = ""
+                            _ref = _p_uf or _p_br
+                            if _p_posto and _ref:
+                                _d = _p_posto - _ref
+                                _dpct = _d / _ref * 100
+                                _d_cor = "#2e7d32" if _d < 0 else "#c62828"
+                                _d_sinal = "▼" if _d < 0 else "▲"
+                                _d_txt   = "abaixo" if _d < 0 else "acima"
+                                _delta_html = (
+                                    f"<div style='font-size:10px;color:{_d_cor};"
+                                    f"background:{'#e8f5e9' if _d<0 else '#ffebee'};"
+                                    f"border-radius:4px;padding:3px 6px;margin-top:4px;text-align:center'>"
+                                    f"{_d_sinal} R$ {_brl(abs(_d),3)} ({abs(_dpct):.1f}%) "
+                                    f"{_d_txt} do estado</div>"
+                                )
+
+                            _nome_comb = PRODUTO_CURTO.get(_fp, _fp)
+                            _data_html = f"<div style='font-size:10px;color:#aaa;margin-top:2px'>{_data_fp}</div>" if _data_fp else ""
+                            _refs_html = ""
+                            if _p_mun:
+                                _refs_html += f"<tr><td style='font-size:11px;color:#555;padding:2px 0'>Município</td><td style='font-size:11px;font-weight:600;text-align:right'>R$ {_brl(_p_mun,3)}</td></tr>"
+                            if _p_uf:
+                                _refs_html += f"<tr><td style='font-size:11px;color:#555;padding:2px 0'>Estado ({_uf_m3})</td><td style='font-size:11px;font-weight:600;text-align:right'>R$ {_brl(_p_uf,3)}</td></tr>"
+                            if _p_br:
+                                _refs_html += f"<tr><td style='font-size:11px;color:#555;padding:2px 0'>Brasil</td><td style='font-size:11px;font-weight:600;text-align:right'>R$ {_brl(_p_br,3)}</td></tr>"
+                            if _refs_html:
+                                _refs_html = (
+                                    "<div style='border-top:1px solid #eee;margin-top:8px;padding-top:6px'>"
+                                    "<div style='font-size:10px;color:#888;margin-bottom:4px'>Referência ANP</div>"
+                                    f"<table style='width:100%;border-collapse:collapse'>{_refs_html}</table></div>"
+                                )
+
+                            _p_str = f"R$ {_brl(_p_posto, 3)}/L" if _p_posto else "—"
+                            _cards_posto_html += (
+                                f"<div style='border-radius:10px;border:1px solid #e0e0e0;"
+                                f"padding:14px 16px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.07)'>"
+                                f"<div style='font-size:12px;font-weight:700;color:#1565c0;margin-bottom:2px'>{_nome_comb}</div>"
+                                f"<div style='font-size:20px;font-weight:800;color:#212121'>{_p_str}</div>"
+                                f"{_data_html}{_delta_html}{_refs_html}"
+                                f"</div>"
+                            )
+
+                        if _cards_posto_html:
+                            st.markdown(
+                                f"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));"
+                                f"gap:12px;margin-bottom:20px'>{_cards_posto_html}</div>",
+                                unsafe_allow_html=True,
+                            )
+                            if _semana_m3:
+                                st.caption(f"Referência ANP: {_semana_m3}")
+                        st.divider()
+
+                # ── Seção 2: Tabela ANP completa (Modo 1 — sem calculadora) ──
+                if _uf_m3:
+                    _renderizar_precos_anp(_uf_m3, municipio=_mun_m3)
+                elif _ufs_m3:
+                    # Múltiplos estados: mostra cada um
+                    for _u in _ufs_m3[:3]:  # limita a 3 estados para não poluir
+                        st.markdown(
+                            f"<div style='font-weight:700;font-size:13px;color:#1565c0;"
+                            f"margin:8px 0 4px'>📍 {UF_NOME.get(_u, _u)}</div>",
+                            unsafe_allow_html=True,
+                        )
+                        _renderizar_precos_anp(_u)
                 else:
-                    st.info("Selecione um estado para ver os preços ANP.")
+                    st.info("ℹ️ Estado não identificado para este posto. Preços ANP indisponíveis.")
