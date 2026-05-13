@@ -4558,53 +4558,80 @@ with st.sidebar:
     # ── Modo 2 ────────────────────────────────────────────────
     else:
         st.markdown(
-            "<div style='background:#e3f2fd;border-radius:8px;padding:10px 12px;"
-            "font-size:12px;color:#1565c0;margin-bottom:12px'>"
-            "💡 Busque por <b>UF</b> (ex: SP), <b>cidade</b> (ex: Ribeirão Preto), "
-            "<b>razão social</b> (ex: Rudnick) ou <b>CNPJ</b> (dígitos) "
-            "e selecione nas sugestões.</div>",
+            "<div style='background:#e3f2fd;border-radius:8px;padding:8px 10px;"
+            "font-size:11px;color:#1565c0;margin-bottom:10px;line-height:1.5'>"
+            "💡 <b>UF</b> (ex: SP) · <b>Cidade</b> · <b>Razão social</b> · <b>CNPJ</b> "
+            "— selecione a sugestão.</div>",
             unsafe_allow_html=True,
         )
+
+        _n_paradas = st.session_state.get("_paradas_count", 0)
+
+        # ── helpers visuais ────────────────────────────────────────
+        def _rail(color: str = "#90CAF9", height: int = 10):
+            """Linha pontilhada vertical que conecta os nós da rota."""
+            st.markdown(
+                f"<div style='margin:0 0 0 6px;border-left:2px dashed {color};"
+                f"height:{height}px'></div>",
+                unsafe_allow_html=True,
+            )
+
+        def _stop_header(bg: str, txt_color: str, label: str, number: str = ""):
+            """Cabeçalho de um ponto da rota (ícone circular + texto)."""
+            inner = (
+                f"<span style='font-size:9px;font-weight:800;color:#fff'>{number}</span>"
+                if number else ""
+            )
+            st.markdown(
+                f"<div style='display:flex;align-items:center;gap:7px;margin:2px 0 1px'>"
+                f"<div style='min-width:16px;height:16px;border-radius:50%;background:{bg};"
+                f"display:flex;align-items:center;justify-content:center;flex-shrink:0'>"
+                f"{inner}</div>"
+                f"<span style='font-size:11px;font-weight:700;color:{txt_color};"
+                f"text-transform:uppercase;letter-spacing:.4px'>{label}</span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+        def _confirmed_chip(key_estado: str):
+            """Mostra chip verde quando o ponto já está confirmado."""
+            _sel = st.session_state.get(key_estado)
+            if _sel:
+                _lbl = str(_sel.get("label", ""))[:38]
+                st.markdown(
+                    f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;"
+                    f"border-radius:6px;padding:2px 7px;font-size:10px;color:#2e7d32;"
+                    f"margin:1px 0 2px;overflow:hidden;white-space:nowrap;"
+                    f"text-overflow:ellipsis'>✓ {_lbl}</div>",
+                    unsafe_allow_html=True,
+                )
+
+        # ══ ORIGEM ══════════════════════════════════════════════════
+        _stop_header("#2E7D32", "#1b5e20", "Origem")
+        _confirmed_chip("orig_sel")
         orig_sel = campo_autocomplete(
-            "🟢 Origem — UF, cidade, razão social ou CNPJ",
-            "Ex: SP  ·  Ribeirão Preto  ·  Rudnick  ·  12.345.678/0001-99",
+            "",
+            "Ex: SP  ·  Ribeirão Preto  ·  Rudnick",
             "txt_origem", "orig_sel",
         )
 
-        # ── Paradas intermediárias (até 10) ───────────────────────
-        _n_paradas = st.session_state.get("_paradas_count", 0)
-
-        _col_add, _col_cnt = st.columns([3, 1])
-        with _col_add:
-            if st.button(
-                "➕ Adicionar Parada",
-                use_container_width=True,
-                disabled=_n_paradas >= 10,
-                key="btn_add_parada",
-                help="Adicione até 10 paradas entre a origem e o destino",
-            ):
-                st.session_state["_paradas_count"] = _n_paradas + 1
-                st.rerun()
-        with _col_cnt:
-            if _n_paradas > 0:
-                st.markdown(
-                    f"<div style='text-align:center;font-size:11px;"
-                    f"color:#1565c0;font-weight:700;padding-top:10px'>"
-                    f"{_n_paradas}/10</div>",
-                    unsafe_allow_html=True,
-                )
-
+        # ══ PARADAS ═════════════════════════════════════════════════
         for _p_idx in range(1, _n_paradas + 1):
+            _rail(color="#FF8F00", height=8)
             _col_lbl, _col_del = st.columns([5, 1])
             with _col_lbl:
-                st.markdown(
-                    f"<div style='font-size:11px;font-weight:700;"
-                    f"color:#FF8F00;margin:6px 0 2px'>📍 Parada {_p_idx}</div>",
-                    unsafe_allow_html=True,
+                _stop_header(
+                    bg="#FF8F00", txt_color="#E65100",
+                    label=f"Parada {_p_idx}", number=str(_p_idx)
                 )
+                _confirmed_chip(f"parada_sel_{_p_idx}")
             with _col_del:
-                if st.button("✕", key=f"btn_del_parada_{_p_idx}",
-                             help=f"Remover parada {_p_idx}"):
+                st.markdown("<div style='padding-top:2px'></div>",
+                            unsafe_allow_html=True)
+                if st.button(
+                    "✕", key=f"btn_del_parada_{_p_idx}",
+                    help=f"Remover parada {_p_idx}",
+                ):
                     # Desloca paradas posteriores para cima
                     for _j in range(_p_idx, _n_paradas):
                         st.session_state[f"parada_sel_{_j}"] = st.session_state.get(f"parada_sel_{_j+1}")
@@ -4620,10 +4647,34 @@ with st.sidebar:
                 f"parada_sel_{_p_idx}",
             )
 
-        st.markdown("")
+        # ══ BOTÃO + PARADA (integrado na cadeia) ════════════════════
+        _rail(color="#BBDEFB", height=6)
+        if _n_paradas < 10:
+            _col_btn, _col_cnt2 = st.columns([3, 1])
+            with _col_btn:
+                if st.button(
+                    "＋ Parada",
+                    key="btn_add_parada",
+                    use_container_width=True,
+                    help=f"Adicionar parada intermediária ({_n_paradas}/10 usadas)",
+                ):
+                    st.session_state["_paradas_count"] = _n_paradas + 1
+                    st.rerun()
+            with _col_cnt2:
+                if _n_paradas > 0:
+                    st.markdown(
+                        f"<div style='padding-top:9px;font-size:10px;"
+                        f"color:#90a4ae;text-align:center'>{_n_paradas}/10</div>",
+                        unsafe_allow_html=True,
+                    )
+        _rail(color="#BBDEFB", height=6)
+
+        # ══ DESTINO ══════════════════════════════════════════════════
+        _stop_header("#C62828", "#b71c1c", "Destino")
+        _confirmed_chip("dest_sel")
         dest_sel = campo_autocomplete(
-            "🔴 Destino — UF, cidade, razão social ou CNPJ",
-            "Ex: RJ  ·  Campinas  ·  Auto Posto  ·  98.765.432/0001-00",
+            "",
+            "Ex: RJ  ·  Campinas  ·  Auto Posto",
             "txt_destino", "dest_sel",
         )
         st.divider()
