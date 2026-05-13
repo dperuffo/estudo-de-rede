@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import hashlib
 import io
+import json as _json_mod
 import math
 import os
 import re
@@ -4504,6 +4505,63 @@ def _buscar_cidades_cache(texto: str, max_results: int = 6) -> list:
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  ROTAS SALVAS — persistência em arquivo JSON local
+# ═══════════════════════════════════════════════════════════════════
+
+_ROTAS_FILE = os.path.join(_DIR, "rotas_salvas.json")
+
+
+def _carregar_rotas_salvas() -> list:
+    """Lê rotas_salvas.json. Retorna lista vazia se não existir ou houver erro."""
+    try:
+        if os.path.exists(_ROTAS_FILE):
+            with open(_ROTAS_FILE, "r", encoding="utf-8") as _f:
+                _data = _json_mod.load(_f)
+                return _data if isinstance(_data, list) else []
+    except Exception:
+        pass
+    return []
+
+
+def _gravar_rotas_salvas(rotas: list) -> bool:
+    """Persiste a lista no arquivo JSON. Retorna True se gravou com sucesso."""
+    try:
+        with open(_ROTAS_FILE, "w", encoding="utf-8") as _f:
+            _json_mod.dump(rotas, _f, ensure_ascii=False, indent=2, default=str)
+        return True
+    except Exception:
+        return False
+
+
+def _salvar_rota_nova(nome: str, tipo: str, dados: dict) -> bool:
+    """Adiciona uma nova rota salva ao arquivo."""
+    rotas = _carregar_rotas_salvas()
+    _id   = f"{int(time.time())}_{len(rotas)}"
+    rotas.append({
+        "id":         _id,
+        "nome":       nome.strip() or f"Rota {len(rotas)+1}",
+        "tipo":       tipo,
+        "criado_em":  _agora(),
+        **dados,
+    })
+    return _gravar_rotas_salvas(rotas)
+
+
+def _deletar_rota(rota_id: str) -> bool:
+    """Remove uma rota pelo id."""
+    rotas = _carregar_rotas_salvas()
+    antes = len(rotas)
+    rotas = [r for r in rotas if r.get("id") != rota_id]
+    if len(rotas) < antes:
+        return _gravar_rotas_salvas(rotas)
+    return False
+
+
+def _icone_tipo(tipo: str) -> str:
+    return {"estado": "📍", "rota": "🗺️", "busca": "🔍"}.get(tipo, "📌")
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  INTERFACE — BARRA SUPERIOR
 # ═══════════════════════════════════════════════════════════════════
 
@@ -4724,6 +4782,38 @@ with st.sidebar:
 .st-key-btn_modo_consulta  [data-testid="stBaseButton-secondary"] p {
     color: inherit !important;
 }
+
+/* ── Botão Rotas Salvas ── */
+.st-key-btn_rotas_salvas button {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+    transition: all .2s ease !important;
+}
+.st-key-btn_rotas_salvas button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #F57F17 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(27,94,32,.40) !important;
+}
+.st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #2E7D32 0%, #388E3C 50%, #F9A825 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_rotas_salvas [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #2E7D32 !important;
+    color: #2E7D32 !important;
+    box-shadow: none !important;
+}
+.st-key-btn_rotas_salvas [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #F57F17 !important; color: #F57F17 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_rotas_salvas [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
@@ -4757,19 +4847,40 @@ with st.sidebar:
         ):
             st.session_state["modo_selecionado"] = "🔍 Consulta por Posto"
             st.rerun()
+
+    # ── Botão Rotas Salvas (largura total, abaixo dos modos) ──────
+    _n_rotas_sb = len(_carregar_rotas_salvas())
+    _label_rotas = f"📋 Rotas Salvas{f'  ({_n_rotas_sb})' if _n_rotas_sb else ''}"
+    if st.button(
+        _label_rotas,
+        use_container_width=True,
+        type="primary" if _modo_atual == "📋 Rotas Salvas" else "secondary",
+        key="btn_rotas_salvas",
+        help="Ver e restaurar consultas salvas anteriormente",
+    ):
+        st.session_state["modo_selecionado"] = "📋 Rotas Salvas"
+        st.rerun()
+
     modo = _modo_atual
     st.divider()
 
     # ── Modo 1 ────────────────────────────────────────────────
     if modo == "📍 Por Estado/Município":  # noqa: E501
         _fk_m1 = st.session_state.get("_form_key_m1", 0)
+        # Pré-preenche com valores restaurados (de Rotas Salvas), se presentes
+        _restore_uf  = st.session_state.pop("_restore_uf",  None)
+        _restore_mun = st.session_state.pop("_restore_mun", None)
+        _uf_default_idx = 0
+        if _restore_uf and _restore_uf in UFS:
+            _uf_default_idx = UFS.index(_restore_uf) + 1  # +1 por "— Selecione —"
         st.markdown("<div class='sb-label'>Localização</div>", unsafe_allow_html=True)
-        uf = st.selectbox("Estado (UF)", ["— Selecione —"] + UFS, index=0,
+        uf = st.selectbox("Estado (UF)", ["— Selecione —"] + UFS, index=_uf_default_idx,
                           key=f"sel_uf_{_fk_m1}",
                           help="Selecione o estado para carregar os postos")
         uf = "" if uf == "— Selecione —" else uf
 
         municipio_input = st.text_input("🏙️ Município (opcional)",
+                                         value=_restore_mun or "",
                                          placeholder="Ex: Teresina",
                                          key=f"txt_mun_{_fk_m1}",
                                          help="Filtra os postos por município dentro do estado")
@@ -4896,7 +5007,7 @@ with st.sidebar:
             st.rerun()
 
     # ── Modo 2 ────────────────────────────────────────────────
-    else:
+    elif modo == "🗺️ Por Rota":
         st.markdown(
             "<div style='background:#e3f2fd;border-radius:8px;padding:8px 10px;"
             "font-size:11px;color:#1565c0;margin-bottom:10px;line-height:1.5'>"
@@ -5081,6 +5192,19 @@ with st.sidebar:
                 key="mult_perfil_m2",
                 help="Filtra os postos Pró-Frotas pelo perfil de venda.",
             )
+
+    # ── Defaults para variáveis do Modo 2 quando outro modo está ativo ────────
+    # Evita NameError quando o bloco elif "🗺️ Por Rota" não executou
+    if "buscar_rota_btn" not in dir():
+        buscar_rota_btn    = False
+    if "raio" not in dir():
+        raio               = 500
+    if "distribuidoras_filtro" not in dir():
+        distribuidoras_filtro = []
+    if "perfis_filtro_m2" not in dir():
+        perfis_filtro_m2   = []
+    if "perfis_filtro_m1" not in dir():
+        perfis_filtro_m1   = []
 
     # ── Configurações (Pró-Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
@@ -5607,6 +5731,36 @@ if modo == "📍 Por Estado/Município":
                     subtitulo=f"Postos Pró-Frotas vs preço médio ANP — {UF_NOME.get(uf, uf)}"
                 )
 
+        # ── Botão Salvar (Modo 1) ─────────────────────────────────────
+        _col_sv1, _col_sv2 = st.columns([3, 1])
+        with _col_sv1:
+            _nome_sugerido_m1 = f"Estado {uf}" + (f" — {municipio_input.strip()}" if municipio_input.strip() else "")
+            _nome_salvar_m1 = st.text_input(
+                "Nome da consulta",
+                value=_nome_sugerido_m1,
+                key="nome_salvar_m1",
+                label_visibility="collapsed",
+                placeholder="Nome para identificar esta consulta…",
+            )
+        with _col_sv2:
+            if st.button("💾 Salvar", use_container_width=True, key="btn_salvar_m1",
+                         help="Salvar esta consulta para acessar depois"):
+                _dados_m1 = {
+                    "uf": uf,
+                    "municipio": municipio_input.strip(),
+                    "_map_orig": st.session_state.get("_map_orig"),
+                    "_map_dest": st.session_state.get("_map_dest"),
+                    "_map_rota_result": (
+                        {k: v for k, v in st.session_state.get("_map_rota_result", {}).items()
+                         if k != "coords"}  # coords pode ser grande; recalcula ao restaurar
+                        if st.session_state.get("_map_rota_result") else None
+                    ),
+                }
+                if _salvar_rota_nova(_nome_salvar_m1 or _nome_sugerido_m1, "estado", _dados_m1):
+                    st.toast(f"✅ Consulta **{_nome_salvar_m1 or _nome_sugerido_m1}** salva!", icon="💾")
+                else:
+                    st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
+
         tab_mapa, tab_dados, tab_analise, tab_precos = st.tabs([
             "🗺️  Mapa Interativo", "📋  Dados Tabulares",
             "📊  Análise por Bandeira", "💰  Preços ANP"])
@@ -5984,6 +6138,39 @@ elif modo == "🗺️ Por Rota":
         _rota_str   = " → ".join(f"**{lb}**" for lb in _all_labels)
         st.success(f"✅ {_rota_str} | {_n(len(df_show_r))} postos a até {raio_usado} m")
 
+        # ── Botão Salvar (Modo 2) ─────────────────────────────────────
+        _nome_sugerido_m2 = f"{label_orig[:30]} → {label_dest[:30]}"
+        _col_sv2a, _col_sv2b = st.columns([3, 1])
+        with _col_sv2a:
+            _nome_salvar_m2 = st.text_input(
+                "Nome da rota",
+                value=_nome_sugerido_m2,
+                key="nome_salvar_m2",
+                label_visibility="collapsed",
+                placeholder="Nome para identificar esta rota…",
+            )
+        with _col_sv2b:
+            if st.button("💾 Salvar", use_container_width=True, key="btn_salvar_m2",
+                         help="Salvar esta rota para acessar depois"):
+                _dados_m2 = {
+                    "orig_sel":     st.session_state.get("orig_sel"),
+                    "dest_sel":     st.session_state.get("dest_sel"),
+                    "paradas_data": st.session_state.get("_paradas_data", []),
+                    "raio":         raio_usado,
+                    "dist_km":      dist_km,
+                    "dur_min":      dur_min,
+                    "label_orig":   label_orig,
+                    "label_dest":   label_dest,
+                    "lat_orig":     lat_orig,
+                    "lon_orig":     lon_orig,
+                    "lat_dest":     lat_dest,
+                    "lon_dest":     lon_dest,
+                }
+                if _salvar_rota_nova(_nome_salvar_m2 or _nome_sugerido_m2, "rota", _dados_m2):
+                    st.toast(f"✅ Rota **{_nome_salvar_m2 or _nome_sugerido_m2}** salva!", icon="💾")
+                else:
+                    st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
+
         # ── Cards comparativo PF vs ANP para a rota ───────────────────
         _pp_df_m2    = st.session_state.get("_pp_df")
         _cnpjs_pf_m2 = st.session_state.get("cnpjs_pro_frotas", set())
@@ -6173,6 +6360,29 @@ elif modo == "🔍 Consulta por Posto":
             _cd.metric("📍 Estado(s)",
                        _df_m3["uf"].nunique() if "uf" in _df_m3.columns else "—")
             st.caption(f"Fonte: {_fonte_m3}")
+
+            # ── Botão Salvar (Modo 3) ─────────────────────────────
+            _nome_sugerido_m3 = f"Busca: {_m3_termo[:40]}"
+            _col_sv3a, _col_sv3b = st.columns([3, 1])
+            with _col_sv3a:
+                _nome_salvar_m3 = st.text_input(
+                    "Nome da busca",
+                    value=_nome_sugerido_m3,
+                    key="nome_salvar_m3",
+                    label_visibility="collapsed",
+                    placeholder="Nome para identificar esta busca…",
+                )
+            with _col_sv3b:
+                if st.button("💾 Salvar", use_container_width=True, key="btn_salvar_m3",
+                             help="Salvar esta busca para acessar depois"):
+                    _dados_m3 = {
+                        "_m3_termo": _m3_termo,
+                        "_m3_uf":    _m3_uf,
+                    }
+                    if _salvar_rota_nova(_nome_salvar_m3 or _nome_sugerido_m3, "busca", _dados_m3):
+                        st.toast(f"✅ Busca **{_nome_salvar_m3 or _nome_sugerido_m3}** salva!", icon="💾")
+                    else:
+                        st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
 
             # ── Abas: Mapa · Detalhes · Preços ────────────────────
             _tab_map_m3, _tab_det_m3, _tab_preco_m3 = st.tabs([
@@ -6403,3 +6613,214 @@ elif modo == "🔍 Consulta por Posto":
                     _renderizar_precos_anp(_uf_code_m3)
                 else:
                     st.info("ℹ️ Estado não identificado para este posto. Preços ANP indisponíveis.")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO 4 — Rotas Salvas
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "📋 Rotas Salvas":
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;color:#2E7D32'>"
+        "📋 Rotas Salvas</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Consultas e rotas salvas anteriormente. Clique em <b>Restaurar</b> para "
+        "recarregar a visualização completa.</p>",
+        unsafe_allow_html=True,
+    )
+
+    _rotas_list = _carregar_rotas_salvas()
+
+    if not _rotas_list:
+        st.info(
+            "📭 Nenhuma consulta salva ainda.\n\n"
+            "Use o botão **💾 Salvar** que aparece ao visualizar resultados em qualquer modo "
+            "(Estado, Rota ou Busca) para guardar uma consulta aqui."
+        )
+        _renderizar_mapa(criar_mapa(pd.DataFrame()), height=480, key="mapa_m4_vazio")
+
+    else:
+        # ── Filtros rápidos ───────────────────────────────────────────
+        _tipos_disp = sorted({r.get("tipo", "outro") for r in _rotas_list})
+        _tipo_labels = {"estado": "📍 Estado", "rota": "🗺️ Rota", "busca": "🔍 Busca"}
+        _filtro_tipo = st.multiselect(
+            "Filtrar por tipo",
+            options=_tipos_disp,
+            format_func=lambda t: _tipo_labels.get(t, t),
+            default=_tipos_disp,
+            key="filtro_tipo_rotas",
+            label_visibility="collapsed",
+        )
+        _rotas_filtradas = [r for r in _rotas_list if r.get("tipo") in _filtro_tipo]
+
+        if not _rotas_filtradas:
+            st.warning("⚠️ Nenhuma consulta corresponde ao filtro selecionado.")
+        else:
+            st.caption(f"{len(_rotas_filtradas)} consulta(s) encontrada(s) — mais recente primeiro")
+
+        # ── Cards de rotas (ordem reversa — mais recente primeiro) ────
+        for _rv in reversed(_rotas_filtradas):
+            _rv_id    = _rv.get("id", "")
+            _rv_nome  = _rv.get("nome", "—")
+            _rv_tipo  = _rv.get("tipo", "outro")
+            _rv_data  = _rv.get("criado_em", "")
+            _rv_ic    = _icone_tipo(_rv_tipo)
+            _tipo_lbl = _tipo_labels.get(_rv_tipo, _rv_tipo)
+
+            # Subtítulo específico por tipo
+            if _rv_tipo == "estado":
+                _rv_uf  = _rv.get("uf", "")
+                _rv_mun = _rv.get("municipio", "")
+                _rv_sub = f"{UF_NOME.get(_rv_uf, _rv_uf)}" + (f" — {_rv_mun}" if _rv_mun else "")
+                _rv_tag = "📍 Estado"
+                _rv_cor = "#1565c0"
+                _rv_bg  = "#e3f2fd"
+            elif _rv_tipo == "rota":
+                _rv_orig = _rv.get("label_orig", "?")[:35]
+                _rv_dest = _rv.get("label_dest", "?")[:35]
+                _rv_km   = _rv.get("dist_km", 0)
+                _rv_sub  = f"{_rv_orig} → {_rv_dest}"
+                _rv_sub += f" · {_n(_rv_km)} km" if _rv_km else ""
+                _rv_tag  = "🗺️ Rota"
+                _rv_cor  = "#2E7D32"
+                _rv_bg   = "#e8f5e9"
+            else:  # busca
+                _rv_term = _rv.get("_m3_termo", "")
+                _rv_uf_b = _rv.get("_m3_uf", "")
+                _rv_sub  = f'"{_rv_term}"' + (f" — {_rv_uf_b}" if _rv_uf_b else "")
+                _rv_tag  = "🔍 Busca"
+                _rv_cor  = "#6A1B9A"
+                _rv_bg   = "#f3e5f5"
+
+            # Card visual
+            st.markdown(
+                f"<div style='border-left:4px solid {_rv_cor};background:{_rv_bg};"
+                f"border-radius:0 10px 10px 0;padding:12px 16px;margin-bottom:4px'>"
+                f"<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap'>"
+                f"<span style='font-size:1rem;font-weight:700;color:#1a1a1a'>{_rv_ic} {_rv_nome}</span>"
+                f"<span style='background:{_rv_cor};color:#fff;border-radius:4px;padding:1px 7px;"
+                f"font-size:10px;font-weight:600'>{_rv_tag}</span>"
+                f"</div>"
+                f"<div style='font-size:12px;color:#555;margin-top:4px'>{_rv_sub}</div>"
+                f"<div style='font-size:10px;color:#999;margin-top:3px'>🕐 {_rv_data}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+            # Botões de ação
+            _btn_key_rest = f"rest_{_rv_id}"
+            _btn_key_del  = f"del_{_rv_id}"
+            _col_r, _col_d = st.columns([4, 1])
+
+            with _col_r:
+                if st.button(
+                    f"🔄 Restaurar — {_rv_nome[:40]}",
+                    key=_btn_key_rest,
+                    use_container_width=True,
+                    type="primary",
+                    help="Restaurar esta consulta e visualizar os resultados",
+                ):
+                    # ── Restaura o session_state conforme o tipo ──────────────
+                    if _rv_tipo == "estado":
+                        # Limpa estado anterior
+                        for _k in ["df_raw_full", "_uf_carregada", "_map_orig",
+                                   "_map_dest", "_map_rota_result",
+                                   "distribuidoras_disponiveis"]:
+                            st.session_state.pop(_k, None)
+                        st.session_state["_form_key_m1"] = st.session_state.get("_form_key_m1", 0) + 1
+                        # Restaura campos específicos do modo estado via flags
+                        st.session_state["_restore_uf"]  = _rv.get("uf", "")
+                        st.session_state["_restore_mun"] = _rv.get("municipio", "")
+                        st.session_state["_map_orig"]    = _rv.get("_map_orig")
+                        st.session_state["_map_dest"]    = _rv.get("_map_dest")
+                        if _rv.get("_map_orig") and _rv.get("_map_dest"):
+                            # Recalcula a rota ao restaurar
+                            st.session_state["_restore_recalc_rota_m1"] = True
+                        st.session_state["modo_selecionado"] = "📍 Por Estado/Município"
+
+                    elif _rv_tipo == "rota":
+                        # Limpa rotas anteriores
+                        for _k in ["df_rota", "coords_rota",
+                                   "lat_orig", "lon_orig", "label_orig",
+                                   "lat_dest", "lon_dest", "label_dest",
+                                   "dist_km", "dur_min", "raio_usado", "linha_reta",
+                                   "distribuidoras_rota", "_ufs_rota_atual", "_paradas_data"]:
+                            st.session_state.pop(_k, None)
+                        _n_p_old = st.session_state.get("_paradas_count", 0)
+                        for _pi in range(1, _n_p_old + 1):
+                            st.session_state.pop(f"parada_sel_{_pi}", None)
+                            st.session_state.pop(f"txt_parada_{_pi}", None)
+                        # Restaura origem, destino, paradas
+                        st.session_state["orig_sel"]      = _rv.get("orig_sel")
+                        st.session_state["dest_sel"]      = _rv.get("dest_sel")
+                        _paradas_rest = _rv.get("paradas_data", [])
+                        st.session_state["_paradas_count"] = len(_paradas_rest)
+                        for _pi, _pw in enumerate(_paradas_rest, 1):
+                            st.session_state[f"parada_sel_{_pi}"] = _pw
+                        # Dispara recálculo automático
+                        st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
+                        st.session_state["_auto_buscar_rota"] = True
+                        st.session_state["modo_selecionado"]  = "🗺️ Por Rota"
+
+                    else:  # busca
+                        for _k in ["_m3_termo", "_m3_uf", "_m3_resultado"]:
+                            st.session_state.pop(_k, None)
+                        st.session_state["_m3_termo"]         = _rv.get("_m3_termo", "")
+                        st.session_state["_m3_uf"]            = _rv.get("_m3_uf", "")
+                        st.session_state["_form_key_m3"]      = st.session_state.get("_form_key_m3", 0) + 1
+                        st.session_state["modo_selecionado"]  = "🔍 Consulta por Posto"
+
+                    st.toast(f"✅ Restaurando **{_rv_nome}**…", icon="🔄")
+                    st.rerun()
+
+            with _col_d:
+                if st.button("🗑️", key=_btn_key_del, use_container_width=True,
+                             help=f"Excluir '{_rv_nome}'"):
+                    if _deletar_rota(_rv_id):
+                        st.toast(f"🗑️ **{_rv_nome}** excluída.", icon="✅")
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao excluir.")
+
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+        # ── Ação global ───────────────────────────────────────────────
+        st.markdown("---")
+        _col_clr_all, _ = st.columns([2, 3])
+        with _col_clr_all:
+            if st.button("🗑️ Excluir todas as consultas", use_container_width=True,
+                         key="btn_del_todas",
+                         help="Remove permanentemente todas as rotas salvas"):
+                if _gravar_rotas_salvas([]):
+                    st.toast("🗑️ Todas as consultas foram excluídas.", icon="✅")
+                    st.rerun()
+                else:
+                    st.error("❌ Erro ao excluir.")
+
+
+# ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
+# Este bloco roda APÓS o rerun causado pelo botão Restaurar (Modo 1 com rota).
+# Nesse momento o modo já está em "📍 Por Estado/Município" e os flags existem.
+if (
+    st.session_state.get("modo_selecionado") == "📍 Por Estado/Município"
+    and st.session_state.get("_restore_recalc_rota_m1")
+):
+    _o_rest = st.session_state.get("_map_orig")
+    _d_rest = st.session_state.get("_map_dest")
+    if _o_rest and _d_rest:
+        with st.spinner("🗺️ Recalculando rota restaurada…"):
+            _cr_rest, _dk_rest, _dm_rest, _lr_rest = calcular_rota(
+                _o_rest["lat"], _o_rest["lon"],
+                _d_rest["lat"], _d_rest["lon"]
+            )
+        st.session_state["_map_rota_result"] = {
+            "coords":   _cr_rest,
+            "dist_km":  _dk_rest,
+            "dur_min":  _dm_rest,
+            "linha_reta": _lr_rest,
+            "orig":     _o_rest,
+            "dest":     _d_rest,
+        }
+    st.session_state.pop("_restore_recalc_rota_m1", None)
+    st.rerun()
