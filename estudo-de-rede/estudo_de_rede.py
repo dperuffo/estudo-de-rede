@@ -4480,8 +4480,8 @@ pf_badge_html = (
 st.markdown(f"""
 <div class="topbar">
   <div>
-    <div class="topbar-title">Estudo de Rede – Pró-Frotas</div>
-    <div class="topbar-sub">ANP · Agência Nacional do Petróleo, Gás Natural e Biocombustíveis</div>
+    <div class="topbar-title">Estudo de Rede</div>
+    <div class="topbar-sub">Pró-Frotas</div>
   </div>
   {pf_badge_html}
 </div>
