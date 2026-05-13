@@ -5050,12 +5050,50 @@ with st.sidebar:
         )
 
     with st.expander("⚙️  Configurações", expanded=False):
-        tab_pf, tab_cer, tab_pp, tab_base = st.tabs(
-            ["⭐ Pró-Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base"]
-        )
+        # ── Proteção por senha ────────────────────────────────────────────────
+        if not st.session_state.get("_cfg_autenticado", False):
+            _c1_lk, _c2_lk, _c3_lk = st.columns([1, 6, 1])
+            with _c2_lk:
+                st.markdown(
+                    "<div style='text-align:center;padding:10px 0 6px'>"
+                    "🔐 <b>Acesso restrito</b><br>"
+                    "<span style='font-size:11px;color:#666'>"
+                    "Informe a senha para acessar as configurações</span></div>",
+                    unsafe_allow_html=True,
+                )
+                _senha_cfg = st.text_input(
+                    "Senha de acesso",
+                    type="password",
+                    key="cfg_senha_input",
+                    placeholder="Digite a senha…",
+                    label_visibility="collapsed",
+                )
+                if st.button("🔓 Confirmar acesso", key="btn_cfg_entrar",
+                             use_container_width=True):
+                    if _senha_cfg == "Prototipo@2026":
+                        st.session_state["_cfg_autenticado"] = True
+                        st.session_state.pop("_cfg_senha_errada", None)
+                        st.rerun()
+                    else:
+                        st.session_state["_cfg_senha_errada"] = True
+                if st.session_state.get("_cfg_senha_errada", False):
+                    st.error("❌ Senha incorreta. Tente novamente.")
+            tab_pf = tab_cer = tab_pp = tab_base = None
+        else:
+            _col_cfg_lock, _ = st.columns([1, 5])
+            with _col_cfg_lock:
+                if st.button("🔒", key="btn_cfg_bloquear",
+                             help="Bloquear Configurações", use_container_width=True):
+                    st.session_state["_cfg_autenticado"] = False
+                    st.session_state.pop("_cfg_senha_errada", None)
+                    st.rerun()
+            tab_pf, tab_cer, tab_pp, tab_base = st.tabs(
+                ["⭐ Pró-Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base"]
+            )
 
         # ── Tab Pró-Frotas ────────────────────────────────────
-        with tab_pf:
+        if tab_pf is not None:
+         with tab_pf:
             _pf_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_pf_ts}</span>"
                            if _pf_ts else "")
             if _pf_set:
@@ -5136,7 +5174,8 @@ with st.sidebar:
                     st.rerun()
 
         # ── Tab Postos Cercados ───────────────────────────────
-        with tab_cer:
+        if tab_cer is not None:
+         with tab_cer:
             _cer_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_cer_ts}</span>"
                             if _cer_ts else "")
             if _cer_set:
@@ -5214,7 +5253,8 @@ with st.sidebar:
                     st.rerun()
 
         # ── Tab Preços PP ─────────────────────────────────────
-        with tab_pp:
+        if tab_pp is not None:
+         with tab_pp:
             _pp_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_pp_ts}</span>"
                            if _pp_ts else "")
             if _pp_df_sb is not None:
@@ -5334,7 +5374,8 @@ with st.sidebar:
                     st.rerun()
 
         # ── Tab Base Nacional ─────────────────────────────────
-        with tab_base:
+        if tab_base is not None:
+         with tab_base:
             st.markdown(
                 "<small>Carrega postos de <b>todos os 27 estados</b> antecipadamente "
                 "e mantém em cache por <b>24 h</b>. "
