@@ -4618,19 +4618,27 @@ with st.sidebar:
         # ══ PARADAS ═════════════════════════════════════════════════
         for _p_idx in range(1, _n_paradas + 1):
             _rail(color="#FF8F00", height=8)
-            _col_lbl, _col_del = st.columns([5, 1])
-            with _col_lbl:
-                _stop_header(
-                    bg="#FF8F00", txt_color="#E65100",
-                    label=f"Parada {_p_idx}", number=str(_p_idx)
+
+            # Cabeçalho + botão ✕ numa única linha HTML + widget botão em coluna estreita
+            _col_hdr, _col_del = st.columns([5, 1])
+            with _col_hdr:
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;gap:6px;"
+                    f"margin:0;padding:0'>"
+                    f"<div style='width:18px;height:18px;border-radius:50%;"
+                    f"background:#FF8F00;display:flex;align-items:center;"
+                    f"justify-content:center;font-size:9px;font-weight:800;"
+                    f"color:#fff;flex-shrink:0'>{_p_idx}</div>"
+                    f"<span style='font-size:11px;font-weight:700;color:#E65100;"
+                    f"text-transform:uppercase;letter-spacing:.4px'>"
+                    f"Parada {_p_idx}</span></div>",
+                    unsafe_allow_html=True,
                 )
-                _confirmed_chip(f"parada_sel_{_p_idx}")
             with _col_del:
-                st.markdown("<div style='padding-top:2px'></div>",
-                            unsafe_allow_html=True)
                 if st.button(
                     "✕", key=f"btn_del_parada_{_p_idx}",
                     help=f"Remover parada {_p_idx}",
+                    use_container_width=True,
                 ):
                     # Desloca paradas posteriores para cima
                     for _j in range(_p_idx, _n_paradas):
@@ -4640,6 +4648,10 @@ with st.sidebar:
                     st.session_state.pop(f"txt_parada_{_n_paradas}", None)
                     st.session_state["_paradas_count"] = _n_paradas - 1
                     st.rerun()
+
+            # Chip de confirmação (fora das colunas — sem distorcer altura do ✕)
+            _confirmed_chip(f"parada_sel_{_p_idx}")
+
             campo_autocomplete(
                 "",
                 "UF · Cidade · Razão social · CNPJ",
