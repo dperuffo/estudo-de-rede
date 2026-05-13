@@ -5863,7 +5863,7 @@ elif modo == "🗺️ Por Rota":
                             _dist_r = int(_row_rr["_dist_rota"]) if pd.notna(_row_rr.get("_dist_rota")) else 0
                             _lbl_r2 = (f"{str(_row_rr.get('razaoSocial','?'))[:45]}"
                                        f" — {_row_rr.get('municipio','')}/{_row_rr.get('uf','')} | {_dist_r} m da rota")
-                            _c1rr, _c2rr, _c3rr = st.columns([5, 1, 1])
+                            _c1rr, _c2rr, _c3rr, _c4rr = st.columns([5, 1, 1, 1])
                             _c1rr.markdown(f"{_ic_r} {_lbl_r2}")
                             _sel_r = {
                                 "lat":   float(_row_rr["_lat"]),
@@ -5878,6 +5878,12 @@ elif modo == "🗺️ Por Rota":
                                 st.session_state["dest_sel"] = _sel_r
                                 st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
                                 st.rerun()
+                            _maps_url_rr = (
+                                f"https://maps.google.com/?q={_sel_r['lat']:.6f},{_sel_r['lon']:.6f}"
+                            )
+                            _c4rr.link_button("📍", _maps_url_rr,
+                                              help="Ver posto no Google Maps",
+                                              use_container_width=True)
                     else:
                         st.caption("⚠️ Nenhum posto encontrado na rota com esse nome.")
 
@@ -5891,7 +5897,28 @@ elif modo == "🗺️ Por Rota":
             if "_dist_rota" in df_exib.columns:
                 df_exib = df_exib.rename(columns={"_dist_rota":"Dist. da Rota (m)"})
                 df_exib["Dist. da Rota (m)"] = df_exib["Dist. da Rota (m)"].round(0).astype(int)
-            st.dataframe(df_exib, use_container_width=True, height=450)
+
+            # Coluna de link Google Maps — usa lat/lon do df_show_r original
+            if "_lat" in df_show_r.columns and "_lon" in df_show_r.columns:
+                df_exib["🗺️ Maps"] = df_show_r["_lat"].combine(
+                    df_show_r["_lon"],
+                    lambda la, lo: (
+                        f"https://maps.google.com/?q={la:.6f},{lo:.6f}"
+                        if pd.notna(la) and pd.notna(lo) else None
+                    ),
+                )
+                _col_cfg = {
+                    "🗺️ Maps": st.column_config.LinkColumn(
+                        "🗺️ Maps",
+                        display_text="Ver no Maps",
+                        help="Abrir posto no Google Maps",
+                    )
+                }
+            else:
+                _col_cfg = {}
+
+            st.dataframe(df_exib, use_container_width=True, height=450,
+                         column_config=_col_cfg if _col_cfg else None)
             st.download_button("⬇️ Baixar dados em CSV",
                                df_show_r.to_csv(index=False).encode("utf-8"),
                                "postos_rota.csv","text/csv", use_container_width=True)
