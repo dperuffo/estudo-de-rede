@@ -4604,23 +4604,88 @@ with st.sidebar:
             st.session_state["_pp_carregado_em"] = _agora()
 
     # ── Modo de consulta — toggle buttons ─────────────────────
-    st.markdown("<div class='sb-label'>Modo de Consulta</div>", unsafe_allow_html=True)
+    # Banner superior com gradiente Pró-Frotas
+    st.markdown(
+        "<div style='"
+        "background:linear-gradient(135deg,#0D47A1 0%,#1565C0 45%,#E65100 100%);"
+        "border-radius:12px;padding:10px 14px 8px;margin-bottom:10px'>"
+        "<div style='color:rgba(255,255,255,.65);font-size:9px;font-weight:600;"
+        "letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px'>Modo de Consulta</div>"
+        "<div style='color:#fff;font-size:13px;font-weight:700;line-height:1.2'>"
+        "Selecione como deseja buscar</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    # CSS: força altura igual e texto em uma linha para os 3 botões de modo
+    # CSS exclusivo para os 3 botões de modo (seletores st-key-* + data-testid)
     st.markdown("""
 <style>
-[data-testid="stSidebar"] div.stButton button {
-    height: 44px !important;
-    min-height: 44px !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-}
-[data-testid="stSidebar"] div.stButton button p {
+/* ── base: altura e texto para os 3 botões de modo ── */
+.st-key-btn_modo_estado button,
+.st-key-btn_modo_rota    button,
+.st-key-btn_modo_consulta button {
+    height: 48px !important;
+    min-height: 48px !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+    transition: all .2s ease !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    padding: 0 6px !important;
+}
+.st-key-btn_modo_estado button p,
+.st-key-btn_modo_rota    button p,
+.st-key-btn_modo_consulta button p {
+    font-size: 12px !important;
     margin: 0 !important;
-    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+
+/* ── ATIVO: gradiente azul → laranja ── */
+.st-key-btn_modo_estado    [data-testid="stBaseButton-primary"],
+.st-key-btn_modo_rota      [data-testid="stBaseButton-primary"],
+.st-key-btn_modo_consulta  [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #0D47A1 0%, #1565C0 50%, #E65100 100%) !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: 0 3px 10px rgba(13,71,161,.40), 0 1px 3px rgba(230,81,0,.30) !important;
+}
+.st-key-btn_modo_estado    [data-testid="stBaseButton-primary"]:hover,
+.st-key-btn_modo_rota      [data-testid="stBaseButton-primary"]:hover,
+.st-key-btn_modo_consulta  [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #1565C0 0%, #1976D2 50%, #F57C00 100%) !important;
+    box-shadow: 0 5px 14px rgba(13,71,161,.50) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_modo_estado    [data-testid="stBaseButton-primary"] p,
+.st-key-btn_modo_rota      [data-testid="stBaseButton-primary"] p,
+.st-key-btn_modo_consulta  [data-testid="stBaseButton-primary"] p {
+    color: #fff !important;
+}
+
+/* ── INATIVO: outline azul, hover com leve gradiente ── */
+.st-key-btn_modo_estado    [data-testid="stBaseButton-secondary"],
+.st-key-btn_modo_rota      [data-testid="stBaseButton-secondary"],
+.st-key-btn_modo_consulta  [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #1565C0 !important;
+    color: #1565C0 !important;
+    box-shadow: none !important;
+}
+.st-key-btn_modo_estado    [data-testid="stBaseButton-secondary"]:hover,
+.st-key-btn_modo_rota      [data-testid="stBaseButton-secondary"]:hover,
+.st-key-btn_modo_consulta  [data-testid="stBaseButton-secondary"]:hover {
+    background: linear-gradient(135deg,rgba(13,71,161,.07) 0%,rgba(230,81,0,.07) 100%) !important;
+    border-color: #E65100 !important;
+    color: #E65100 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_modo_estado    [data-testid="stBaseButton-secondary"] p,
+.st-key-btn_modo_rota      [data-testid="stBaseButton-secondary"] p,
+.st-key-btn_modo_consulta  [data-testid="stBaseButton-secondary"] p {
+    color: inherit !important;
 }
 </style>""", unsafe_allow_html=True)
 
@@ -4630,7 +4695,7 @@ with st.sidebar:
     _col_m1, _col_m2, _col_m3 = st.columns(3)
     with _col_m1:
         if st.button(
-            "📍 Estado",
+            "📍 Esta...",
             use_container_width=True,
             type="primary" if _modo_atual == "📍 Por Estado/Município" else "secondary",
             key="btn_modo_estado",
