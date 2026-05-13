@@ -26,7 +26,9 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ─── Imagem Menu.jpg (header sidebar) ────────────────────────────
 # Usa Menu.jpg como banner do sidebar — tem prioridade sobre a logo
-for _menu_nome in ["Menu.jpg", "menu.jpg", "Menu.png", "menu.png"]:
+for _menu_nome in ["Menu_rincipal.jpg", "Menu_principal.jpg", "menu_principal.jpg",
+                   "Menu_rincipal.png", "Menu_principal.png",
+                   "Menu.jpg", "menu.jpg", "Menu.png", "menu.png"]:
     _menu_candidato = os.path.join(_DIR, _menu_nome)
     if os.path.exists(_menu_candidato):
         _MENU_PATH = _menu_candidato
