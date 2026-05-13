@@ -4302,13 +4302,16 @@ with st.sidebar:
         if _coords_repo is not None and not _coords_repo.empty:
             st.session_state["pf_coords_df"] = _coords_repo
 
-    # Fallback: CNPJs já carregados mas perfil_venda_map ou pf_coords_df ainda ausentes
-    # (ocorre quando a sessão foi iniciada antes desta funcionalidade ser adicionada,
-    #  ou quando o cache antigo não incluía lat/lon)
+    # Fallback: CNPJs já carregados mas perfil_venda_map ou pf_coords_df ainda ausentes/vazio
+    # (ocorre quando o cache antigo não incluía lat/lon ou pf_coords_df foi armazenado vazio)
+    _pf_coords_ok = (
+        "pf_coords_df" in st.session_state
+        and not st.session_state["pf_coords_df"].empty
+    )
     _needs_reload = (
         st.session_state.get("cnpjs_pro_frotas") and (
             not st.session_state.get("perfil_venda_map") or
-            "pf_coords_df" not in st.session_state
+            not _pf_coords_ok
         )
     )
     if _needs_reload and not st.session_state.get("_pf_coords_reload_feito"):
@@ -5478,16 +5481,34 @@ elif modo == "🗺️ Por Rota":
             # ── Carrega postos PF dos estados da rota (planilha local — sem API ANP) ──
             _pf_df_m2   = st.session_state.get("pf_coords_df", pd.DataFrame())
             _ufs_set_m2 = {u.upper() for u in ufs_rota}
+            _n_pf_total_m2 = len(_pf_df_m2)
+
             if not _pf_df_m2.empty:
                 df_todos = _pf_df_m2[
                     _pf_df_m2["uf"].fillna("").str.upper().str.strip().isin(_ufs_set_m2)
                 ].copy().reset_index(drop=True)
+                if df_todos.empty:
+                    # pf_coords_df tem dados mas nenhum para os estados da rota
+                    _ufs_disp = sorted(_pf_df_m2["uf"].fillna("").str.upper().str.strip().unique().tolist())
+                    st.warning(
+                        f"⚠️ A planilha Pró-Frotas tem **{_n(_n_pf_total_m2)}** postos com coordenadas, "
+                        f"mas **nenhum** nos estados **{', '.join(sorted(_ufs_set_m2))}**. "
+                        f"Estados disponíveis na planilha: {', '.join(_ufs_disp) or '—'}. "
+                        "Verifique se a planilha está completa ou recarregue em **Configurações**."
+                    )
             else:
                 df_todos = pd.DataFrame()
                 st.warning(
                     "⚠️ Planilha Pró-Frotas não carregada ou sem coordenadas. "
                     "Verifique a seção **Configurações** na barra lateral."
                 )
+
+            # Guarda diagnóstico para aviso persistente após re-render
+            st.session_state["_m2_diag"] = {
+                "n_pf_total":  _n_pf_total_m2,
+                "n_df_todos":  len(df_todos),
+                "ufs_rota":    sorted(_ufs_set_m2),
+            }
 
             if not df_todos.empty:
                 with st.spinner("📏 Calculando distâncias…"):
@@ -5559,6 +5580,31 @@ elif modo == "🗺️ Por Rota":
 
         if st.session_state.get("linha_reta"):
             st.warning("⚠️ Rota exibida como **linha reta** (OSRM indisponível).")
+
+        # ── Aviso persistente quando df_rota é vazio ─────────────────
+        if df_rota.empty:
+            _diag = st.session_state.get("_m2_diag", {})
+            _n_tot  = _diag.get("n_pf_total", -1)
+            _n_est  = _diag.get("n_df_todos",  -1)
+            _ufs_r  = _diag.get("ufs_rota",    [])
+            if _n_tot == 0:
+                st.error(
+                    "❌ Planilha Pró-Frotas sem coordenadas (lat/lon). "
+                    "Acesse **Configurações** → **🔄 Recarregar planilha** e verifique se a planilha "
+                    "no repositório contém colunas **Latitude** e **Longitude**."
+                )
+            elif _n_est == 0 and _n_tot > 0:
+                st.warning(
+                    f"⚠️ A planilha tem **{_n(_n_tot)}** postos com coordenadas, "
+                    f"mas **nenhum** nos estados **{', '.join(_ufs_r)}**. "
+                    "Acesse **Configurações** → **🔄 Recarregar planilha** ou verifique a planilha."
+                )
+            elif _n_est > 0:
+                st.warning(
+                    f"⚠️ {_n(_n_est)} postos encontrados nos estados, "
+                    f"mas nenhum dentro de **{raio_usado} m** da rota. "
+                    "Aumente o **Raio da rota** na barra lateral."
+                )
 
         df_show_r = preparar_df(df_rota, distribuidoras_filtro, perfis_filtro=perfis_filtro_m2)
 
