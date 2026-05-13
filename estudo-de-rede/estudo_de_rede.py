@@ -3636,10 +3636,11 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
             def _custo(p):
                 return round(p * litros, 2) if p else None
 
-            custo_orig  = _custo(p_orig)
-            custo_dest  = _custo(p_dest)
-            custo_med   = _custo(p_med_rota)
-            custo_min   = _custo(p_min_rota)
+            custo_orig    = _custo(p_orig)
+            custo_dest    = _custo(p_dest)
+            custo_med     = _custo(p_med_rota)
+            custo_min     = _custo(p_min_rota)
+            custo_med_val = custo_med   # garante que a variável existe mesmo quando o card de média não é renderizado
 
             # Montagem do HTML dos cards de custo
             def _card_custo(titulo, subtitulo, preco, custo, nivel, cor_header="#1565c0", destaque=False):
