@@ -5057,64 +5057,6 @@ with st.sidebar:
     _pp_fonte  = st.session_state.get("_pp_fonte",  "manual")
     _pp_ts     = st.session_state.get("_pp_carregado_em", "")
 
-    # Mini-badges compactos acima do expander
-    _col_b1, _col_b2 = st.columns(2)
-    with _col_b1:
-        if _pf_set:
-            _pf_cor, _pf_brd, _pf_txt, _pf_ic = (
-                ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "repo"
-                else ("#fff8e1","#ffe082","#f57f17","⭐")
-            )
-            st.markdown(
-                f"<div style='background:{_pf_cor};border:1px solid {_pf_brd};"
-                f"border-radius:8px;padding:6px 8px;font-size:10px;color:{_pf_txt};text-align:center'>"
-                f"{_pf_ic} <b>Pró-Frotas</b><br>{len(_pf_set):,} CNPJs</div>",
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                "<div style='background:#fff3e0;border:1px solid #ffcc80;"
-                "border-radius:8px;padding:6px 8px;font-size:10px;color:#e65100;text-align:center'>"
-                "⚠️ <b>Pró-Frotas</b><br>não carregado</div>",
-                unsafe_allow_html=True,
-            )
-    with _col_b2:
-        if _cer_set:
-            _cer_cor = "#fff8e1" if _cer_fonte == "manual" else "#fff3e0"
-            _cer_brd = "#ffe082" if _cer_fonte == "manual" else "#ffcc80"
-            st.markdown(
-                f"<div style='background:{_cer_cor};border:1px solid {_cer_brd};"
-                f"border-radius:8px;padding:6px 8px;font-size:10px;color:#e65100;text-align:center'>"
-                f"⚠️ <b>Cercados</b><br>{len(_cer_set):,} postos</div>",
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                "<div style='background:#f5f5f5;border:1px solid #ddd;"
-                "border-radius:8px;padding:6px 8px;font-size:10px;color:#999;text-align:center'>"
-                "⚠️ <b>Cercados</b><br>não carregado</div>",
-                unsafe_allow_html=True,
-            )
-
-    # Terceiro badge — Preços PP
-    if _pp_df_sb is not None:
-        _pp_n = len(_pp_df_sb["cnpj_norm"].unique()) if "cnpj_norm" in _pp_df_sb.columns else 0
-        st.markdown(
-            f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
-            f"border-radius:8px;padding:6px 10px;font-size:10px;color:#1565c0;"
-            f"text-align:center;margin-bottom:6px'>"
-            f"💲 <b>Preços PP</b><br>{_pp_n:,} postos</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            "<div style='background:#f5f5f5;border:1px solid #ddd;"
-            "border-radius:8px;padding:6px 10px;font-size:10px;color:#999;"
-            "text-align:center;margin-bottom:6px'>"
-            "💲 <b>Preços PP</b><br>não carregado</div>",
-            unsafe_allow_html=True,
-        )
-
     with st.expander("⚙️  Configurações", expanded=False):
         # ── Proteção por senha ────────────────────────────────────────────────
         if not st.session_state.get("_cfg_autenticado", False):
