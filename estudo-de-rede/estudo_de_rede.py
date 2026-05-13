@@ -2625,6 +2625,17 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 name="⛽ Postos ANP",
             ))
 
+    # ── Garante ao menos 1 trace Scattermapbox para ativar tiles mesmo sem dados ──
+    # Sem isso, Plotly cai no modo cartesiano quando traces=[] e exibe eixos vazios.
+    if not traces:
+        traces.append(go.Scattermapbox(
+            lat=[], lon=[],
+            mode="markers",
+            marker=dict(size=1, opacity=0),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
     # ── Anotação de limitação ──────────────────────────────────────────────────
     layout_annotations = []
     if foi_limitado:
