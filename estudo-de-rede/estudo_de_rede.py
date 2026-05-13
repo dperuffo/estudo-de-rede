@@ -766,6 +766,8 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
             for _c in ["razaoSocial","distribuidora","municipio","uf"]:
                 df_coords[_c] = df_coords[_c].replace(
                     {"nan": "", "None": "", "NaN": ""})
+            # Normaliza distribuidora para Title Case uniforme
+            df_coords["distribuidora"] = _normalizar_distribuidora(df_coords["distribuidora"])
 
     preview = df[[col]].rename(columns={col: "CNPJ (original)"}).head(10)
     perfil_info  = f" · {len(set(perfil_map.values()))} perfis" if perfil_map else ""
@@ -853,6 +855,8 @@ def _processar_bytes_anp_postos(nome: str, conteudo: bytes):
     result_df = pd.DataFrame(rows)
     for _c in ["razaoSocial", "distribuidora", "municipio", "uf"]:
         result_df[_c] = result_df[_c].replace({"nan": "", "None": "", "NaN": ""})
+    # Normaliza distribuidora para Title Case uniforme
+    result_df["distribuidora"] = _normalizar_distribuidora(result_df["distribuidora"])
 
     # Remove linhas sem coordenadas válidas (necessário para o mapa)
     _n_total = len(result_df)
@@ -4235,6 +4239,29 @@ def _gerar_excel_base_brasil() -> tuple:
 #  HELPER
 # ═══════════════════════════════════════════════════════════════════
 
+def _normalizar_distribuidora(serie: "pd.Series") -> "pd.Series":
+    """Normaliza a coluna distribuidora para Title Case sem acentos alterados.
+
+    Garante que 'IPIRANGA', 'ipiranga' e 'Ipiranga' virem todos 'Ipiranga',
+    eliminando duplicatas em filtros, gráficos e tabelas.
+
+    Regras:
+    • strip de espaços externos
+    • Title Case (cada palavra com inicial maiúscula)
+    • Palavras-chave que devem ficar em maiúsculas preservadas: SA, LTDA, ME, EPP, BR, ANP, SBP
+    """
+    _upper_always = {"Sa", "Ltda", "Me", "Epp", "Br", "Anp", "Sbp", "S/A", "S.A"}
+
+    def _fmt(val: str) -> str:
+        v = str(val).strip()
+        if not v or v.lower() in ("nan", "none", ""):
+            return ""
+        words = v.title().split()
+        return " ".join(w.upper() if w in _upper_always else w for w in words)
+
+    return serie.fillna("").apply(_fmt)
+
+
 def _marcar_df_completo(df_raw: pd.DataFrame) -> pd.DataFrame:
     """
     Aplica todas as marcações (pro_frotas, cercados, perfil_venda) em UMA ÚNICA cópia
@@ -4246,6 +4273,10 @@ def _marcar_df_completo(df_raw: pd.DataFrame) -> pd.DataFrame:
     perfil_map = st.session_state.get("perfil_venda_map", {})
 
     df = df_raw.copy()   # ← única cópia
+
+    # ── Normaliza distribuidora — elimina duplicatas por diferença de case ──
+    if "distribuidora" in df.columns:
+        df["distribuidora"] = _normalizar_distribuidora(df["distribuidora"])
 
     # ── CNPJ normalizado (vetorizado, C-level) ───────────────────────
     if "cnpj" in df.columns:
@@ -4360,21 +4391,47 @@ def _precarregar_estados_paralelo(max_workers: int = 5):
 
 
 def _buscar_cidades_cache(texto: str, max_results: int = 6) -> list:
-    """Busca municípios diretamente no cache ANP — sem depender do Nominatim.
-    Normaliza acentos, então 'Ribeirao Preto' encontra 'RIBEIRÃO PRETO'.
+    """Busca municípios em duas fontes (Pró-Frotas e ANP) — sem depender do Nominatim.
+    Normaliza acentos: 'Ribeirao Preto' encontra 'RIBEIRÃO PRETO', 'Vitoria' → 'VITÓRIA'.
+
+    Ordem de prioridade:
+      1. pf_coords_df (planilha Pró-Frotas local) — sempre disponível e sem limite de API.
+      2. Cache ANP por UF (buscar_postos) — complementa cidades não cobertas pela planilha.
+
     Retorna lista de dicts {label, lat, lon, tipo='cidade'}.
     """
     texto_norm = _sem_acento(texto.strip())
     if len(texto_norm) < 2:
         return []
 
-    estados = st.session_state.get("_estados_precarregados", [])
-    if not estados:
-        return []
-
-    vistos: set = set()
+    vistos: set   = set()
     resultados: list = []
 
+    # ── 1. Planilha Pró-Frotas (pf_coords_df) ─────────────────────────────────
+    _pf_df = st.session_state.get("pf_coords_df", pd.DataFrame())
+    if not _pf_df.empty and "municipio" in _pf_df.columns and "uf" in _pf_df.columns:
+        _mask_pf = _pf_df["municipio"].fillna("").apply(
+            lambda x: texto_norm in _sem_acento(x)
+        )
+        for (mun, uf_), grupo in _pf_df[_mask_pf].groupby(["municipio", "uf"]):
+            chave = f"{mun}|{uf_}"
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            resultados.append({
+                "label": f"{mun} – {uf_}",
+                "lat":   float(grupo["_lat"].mean()),
+                "lon":   float(grupo["_lon"].mean()),
+                "tipo":  "cidade",
+            })
+            if len(resultados) >= max_results:
+                return resultados
+
+    if len(resultados) >= max_results:
+        return resultados
+
+    # ── 2. Cache ANP (complemento quando planilha não cobre) ──────────────────
+    estados = st.session_state.get("_estados_precarregados", [])
     for uf in estados:
         try:
             df = buscar_postos(uf=uf)
@@ -5390,11 +5447,13 @@ if modo == "📍 Por Estado/Município":
         df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
 
         # Filtra por município localmente (instantâneo, sem nova chamada à API)
+        # Usa _sem_acento para que "Vitoria" encontre "VITÓRIA", "Ribeirao" → "RIBEIRÃO" etc.
         mun = municipio_input.strip()
         if mun:
+            _mun_norm = _sem_acento(mun)
             df_raw = df_raw_full[
-                df_raw_full["municipio"].fillna("").str.upper().str.contains(
-                    mun.upper(), regex=False, na=False
+                df_raw_full["municipio"].fillna("").apply(
+                    lambda x: _mun_norm in _sem_acento(x)
                 )
             ].copy()
         else:
