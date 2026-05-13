@@ -5881,9 +5881,10 @@ elif modo == "🗺️ Por Rota":
                             _maps_url_rr = (
                                 f"https://maps.google.com/?q={_sel_r['lat']:.6f},{_sel_r['lon']:.6f}"
                             )
-                            _c4rr.link_button("📍", _maps_url_rr,
-                                              help="Ver posto no Google Maps",
-                                              use_container_width=True)
+                            with _c4rr:
+                                st.link_button("📍", _maps_url_rr,
+                                               help="Ver posto no Google Maps",
+                                               use_container_width=True)
                     else:
                         st.caption("⚠️ Nenhum posto encontrado na rota com esse nome.")
 
