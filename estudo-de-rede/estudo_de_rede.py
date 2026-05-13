@@ -1430,6 +1430,158 @@ def campo_autocomplete(titulo, placeholder, key_texto, key_estado):
     return st.session_state.get(key_estado)
 
 
+def _campo_rota_compacto(
+    placeholder: str,
+    key_texto: str,
+    key_estado: str,
+    icon_bg: str = "#2E7D32",
+    icon_number: str = "",
+    always_show_action: bool = False,
+    action_key: str | None = None,
+    action_help: str = "Limpar seleção",
+) -> bool:
+    """Campo compacto para seleção de ponto de rota.
+
+    Confirmado → linha única: [ícone] [chip ✓ Local] [✕]
+    Digitando  → linha única: [ícone] [text_input] + sugestões abaixo
+
+    Parâmetros
+    ----------
+    always_show_action : bool
+        True → mostra botão ✕ mesmo sem seleção (para paradas intermediárias,
+        onde ✕ remove a parada inteira).
+    action_key : str | None
+        Chave Streamlit do botão ✕ (gerada automaticamente se None).
+    action_help : str
+        Tooltip do botão ✕.
+
+    Retorna
+    -------
+    bool – True se o botão ✕ foi clicado (chamador decide o que fazer).
+    """
+    fk             = st.session_state.get("_form_key", 0)
+    key_txt_widget = f"{key_texto}_{fk}"
+    key_sel_widget = f"_sel_{key_estado}_{fk}"
+    _act_key       = action_key or f"_act_{key_estado}_{fk}"
+
+    # ── ícone circular ─────────────────────────────────────────────
+    _inner = (
+        f"<span style='font-size:9px;font-weight:800;color:#fff'>{icon_number}</span>"
+        if icon_number else ""
+    )
+    _icon_html = (
+        f"<div style='min-width:18px;height:18px;border-radius:50%;background:{icon_bg};"
+        f"display:flex;align-items:center;justify-content:center;flex-shrink:0;"
+        f"margin-top:6px'>{_inner}</div>"
+    )
+
+    _sel = st.session_state.get(key_estado)
+
+    # ══ Estado CONFIRMADO ══════════════════════════════════════════
+    if _sel:
+        _lbl  = str(_sel.get("label", ""))[:40]
+        _tipo = _sel.get("tipo", "")
+        _ico  = {"estado": "🗺️", "cidade": "📍", "posto": "⛽"}.get(_tipo, "📍")
+
+        _c_ic, _c_chip, _c_act = st.columns([1, 8, 1])
+        with _c_ic:
+            st.markdown(_icon_html, unsafe_allow_html=True)
+        with _c_chip:
+            st.markdown(
+                f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;"
+                f"border-radius:6px;padding:5px 8px;font-size:11px;color:#2e7d32;"
+                f"overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"
+                f"line-height:1.5'>{_ico} {_lbl}</div>",
+                unsafe_allow_html=True,
+            )
+        with _c_act:
+            if st.button("✕", key=_act_key, help=action_help,
+                         use_container_width=True):
+                # Limpa seleção interna (caller pode fazer cleanup adicional)
+                st.session_state.pop(key_estado, None)
+                st.session_state.pop(f"_{key_estado}_txt_ant", None)
+                st.session_state[key_txt_widget] = ""
+                return True
+        return False
+
+    # ══ Estado DIGITANDO ═══════════════════════════════════════════
+    if always_show_action:
+        _c_ic2, _c_inp, _c_act2 = st.columns([1, 8, 1])
+    else:
+        _c_ic2, _c_inp = st.columns([1, 9])
+
+    with _c_ic2:
+        st.markdown(_icon_html, unsafe_allow_html=True)
+    with _c_inp:
+        texto = st.text_input(
+            "", placeholder=placeholder,
+            key=key_txt_widget, label_visibility="collapsed",
+        )
+
+    if always_show_action:
+        with _c_act2:
+            if st.button("✕", key=_act_key, help=action_help,
+                         use_container_width=True):
+                return True  # caller deleta a parada
+
+    # ── Lógica de sugestões (idêntica a campo_autocomplete) ────────
+    _ultimo = st.session_state.get(f"_{key_estado}_txt_ant", "")
+    if texto != _ultimo:
+        st.session_state[f"_{key_estado}_txt_ant"] = texto
+        if len(texto) < 2:
+            st.session_state.pop(key_estado, None)
+
+    _ts = texto.strip()
+    _tu = _ts.upper()
+    _sugestoes: list = []
+
+    if len(_ts) >= 2:
+        _digits = "".join(c for c in _ts if c.isdigit())
+        _is_cnpj = (
+            len(_digits) >= 6
+            and len(_digits) / max(len(_ts.replace(" ", "")), 1) > 0.65
+        )
+        if _tu in UFS:
+            _bbox  = BBOX_UFS.get(_tu, (-15.8, -47.9, -15.7, -47.8))
+            _lat_c = (_bbox[0] + _bbox[2]) / 2
+            _lon_c = (_bbox[1] + _bbox[3]) / 2
+            _sugestoes = [{"label": f"🗺️ Estado {_tu}",
+                           "lat": _lat_c, "lon": _lon_c, "tipo": "estado"}]
+        elif _is_cnpj:
+            _sugestoes = buscar_posto_por_texto(_ts)
+            if not _sugestoes:
+                _n_est = len(st.session_state.get("_estados_precarregados", []))
+                _msg = (
+                    "⚠️ Base ainda carregando — tente novamente em instantes."
+                    if _n_est == 0 else
+                    f"⚠️ CNPJ não encontrado nos {_n_est} estado(s) carregado(s)."
+                )
+                st.markdown(f"<small style='color:#e65100'>{_msg}</small>",
+                            unsafe_allow_html=True)
+        elif len(_ts) >= 3:
+            _sug_cid = _buscar_cidades_cache(_ts)
+            if not _sug_cid:
+                _sug_cid = [dict(s, tipo="cidade") for s in sugestoes_nominatim(_ts)]
+            _sug_pos   = buscar_posto_por_texto(_ts)
+            _sugestoes = _sug_cid[:4] + _sug_pos[:4]
+
+    if _sugestoes:
+        _labels = [s["label"] for s in _sugestoes]
+        _idx = st.selectbox(
+            "", range(len(_labels)),
+            format_func=lambda i: _labels[i],
+            key=key_sel_widget,
+            index=None,
+            placeholder="↑ selecione uma sugestão…",
+            label_visibility="collapsed",
+        )
+        if _idx is not None:
+            st.session_state[key_estado] = _sugestoes[_idx]
+            st.rerun()
+
+    return False
+
+
 # ═══════════════════════════════════════════════════════════════════
 #  DISTÂNCIA / GEOMETRIA
 # ═══════════════════════════════════════════════════════════════════
@@ -4567,97 +4719,49 @@ with st.sidebar:
 
         _n_paradas = st.session_state.get("_paradas_count", 0)
 
-        # ── helpers visuais ────────────────────────────────────────
+        # ── rail pontilhado vertical ───────────────────────────────
         def _rail(color: str = "#90CAF9", height: int = 10):
-            """Linha pontilhada vertical que conecta os nós da rota."""
             st.markdown(
                 f"<div style='margin:0 0 0 6px;border-left:2px dashed {color};"
                 f"height:{height}px'></div>",
                 unsafe_allow_html=True,
             )
 
-        def _stop_header(bg: str, txt_color: str, label: str, number: str = ""):
-            """Cabeçalho de um ponto da rota (ícone circular + texto)."""
-            inner = (
-                f"<span style='font-size:9px;font-weight:800;color:#fff'>{number}</span>"
-                if number else ""
-            )
-            st.markdown(
-                f"<div style='display:flex;align-items:center;gap:7px;margin:2px 0 1px'>"
-                f"<div style='min-width:16px;height:16px;border-radius:50%;background:{bg};"
-                f"display:flex;align-items:center;justify-content:center;flex-shrink:0'>"
-                f"{inner}</div>"
-                f"<span style='font-size:11px;font-weight:700;color:{txt_color};"
-                f"text-transform:uppercase;letter-spacing:.4px'>{label}</span>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-
-        def _confirmed_chip(key_estado: str):
-            """Mostra chip verde quando o ponto já está confirmado."""
-            _sel = st.session_state.get(key_estado)
-            if _sel:
-                _lbl = str(_sel.get("label", ""))[:38]
-                st.markdown(
-                    f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;"
-                    f"border-radius:6px;padding:2px 7px;font-size:10px;color:#2e7d32;"
-                    f"margin:1px 0 2px;overflow:hidden;white-space:nowrap;"
-                    f"text-overflow:ellipsis'>✓ {_lbl}</div>",
-                    unsafe_allow_html=True,
-                )
-
         # ══ ORIGEM ══════════════════════════════════════════════════
-        _stop_header("#2E7D32", "#1b5e20", "Origem")
-        _confirmed_chip("orig_sel")
-        orig_sel = campo_autocomplete(
-            "",
+        _campo_rota_compacto(
             "Ex: SP  ·  Ribeirão Preto  ·  Rudnick",
             "txt_origem", "orig_sel",
+            icon_bg="#2E7D32",
+            action_help="Limpar origem",
         )
+        orig_sel = st.session_state.get("orig_sel")
 
         # ══ PARADAS ═════════════════════════════════════════════════
         for _p_idx in range(1, _n_paradas + 1):
             _rail(color="#FF8F00", height=8)
-
-            # Cabeçalho + botão ✕ numa única linha HTML + widget botão em coluna estreita
-            _col_hdr, _col_del = st.columns([5, 1])
-            with _col_hdr:
-                st.markdown(
-                    f"<div style='display:flex;align-items:center;gap:6px;"
-                    f"margin:0;padding:0'>"
-                    f"<div style='width:18px;height:18px;border-radius:50%;"
-                    f"background:#FF8F00;display:flex;align-items:center;"
-                    f"justify-content:center;font-size:9px;font-weight:800;"
-                    f"color:#fff;flex-shrink:0'>{_p_idx}</div>"
-                    f"<span style='font-size:11px;font-weight:700;color:#E65100;"
-                    f"text-transform:uppercase;letter-spacing:.4px'>"
-                    f"Parada {_p_idx}</span></div>",
-                    unsafe_allow_html=True,
-                )
-            with _col_del:
-                if st.button(
-                    "✕", key=f"btn_del_parada_{_p_idx}",
-                    help=f"Remover parada {_p_idx}",
-                    use_container_width=True,
-                ):
-                    # Desloca paradas posteriores para cima
-                    for _j in range(_p_idx, _n_paradas):
-                        st.session_state[f"parada_sel_{_j}"] = st.session_state.get(f"parada_sel_{_j+1}")
-                        st.session_state[f"txt_parada_{_j}"] = st.session_state.get(f"txt_parada_{_j+1}", "")
-                    st.session_state.pop(f"parada_sel_{_n_paradas}", None)
-                    st.session_state.pop(f"txt_parada_{_n_paradas}", None)
-                    st.session_state["_paradas_count"] = _n_paradas - 1
-                    st.rerun()
-
-            # Chip de confirmação (fora das colunas — sem distorcer altura do ✕)
-            _confirmed_chip(f"parada_sel_{_p_idx}")
-
-            campo_autocomplete(
-                "",
+            _deleted = _campo_rota_compacto(
                 "UF · Cidade · Razão social · CNPJ",
                 f"txt_parada_{_p_idx}",
                 f"parada_sel_{_p_idx}",
+                icon_bg="#FF8F00",
+                icon_number=str(_p_idx),
+                always_show_action=True,
+                action_key=f"btn_del_parada_{_p_idx}",
+                action_help=f"Remover parada {_p_idx}",
             )
+            if _deleted:
+                # Desloca paradas posteriores para cima
+                for _j in range(_p_idx, _n_paradas):
+                    st.session_state[f"parada_sel_{_j}"] = st.session_state.get(
+                        f"parada_sel_{_j+1}"
+                    )
+                    st.session_state[f"txt_parada_{_j}"] = st.session_state.get(
+                        f"txt_parada_{_j+1}", ""
+                    )
+                st.session_state.pop(f"parada_sel_{_n_paradas}", None)
+                st.session_state.pop(f"txt_parada_{_n_paradas}", None)
+                st.session_state["_paradas_count"] = _n_paradas - 1
+                st.rerun()
 
         # ══ BOTÃO + PARADA (integrado na cadeia) ════════════════════
         _rail(color="#BBDEFB", height=6)
@@ -4681,14 +4785,14 @@ with st.sidebar:
                     )
         _rail(color="#BBDEFB", height=6)
 
-        # ══ DESTINO ══════════════════════════════════════════════════
-        _stop_header("#C62828", "#b71c1c", "Destino")
-        _confirmed_chip("dest_sel")
-        dest_sel = campo_autocomplete(
-            "",
+        # ══ DESTINO ═════════════════════════════════════════════════
+        _campo_rota_compacto(
             "Ex: RJ  ·  Campinas  ·  Auto Posto",
             "txt_destino", "dest_sel",
+            icon_bg="#C62828",
+            action_help="Limpar destino",
         )
+        dest_sel = st.session_state.get("dest_sel")
         st.divider()
 
         st.markdown("<div class='sb-label'>Raio da rota</div>", unsafe_allow_html=True)
