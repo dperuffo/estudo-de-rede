@@ -2582,7 +2582,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 text=dfr.apply(_hover_txt, axis=1).tolist(),
                 customdata=_customdata(dfr),
                 hoverinfo="text",
-                name="Rodo Rede",
+                name="⭐ Rodo Rede",
             ))
 
         # Pró-Frotas Ipiranga — amarelo
@@ -2724,12 +2724,12 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
                 f"background:#fff3e0;border:1px solid {COR_RR_FILL};"
                 f"border-radius:3px;padding:1px 6px;font-size:11px;margin-right:4px'>"
                 f"<img src='{_rr_img}' style='height:14px;width:auto;object-fit:contain;"
-                f"vertical-align:middle;border-radius:2px'> Rodo Rede</span>"
+                f"vertical-align:middle;border-radius:2px'> ⭐ Rodo Rede</span>"
             )
         else:
             _badges_html += (
                 f"<span style='background:{COR_RR_FILL};color:#fff;border-radius:3px;"
-                f"padding:1px 7px;font-size:11px;margin-right:4px'>Rodo Rede</span>"
+                f"padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Rodo Rede</span>"
             )
     if _cer:
         _badges_html += (
@@ -4315,10 +4315,16 @@ def preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=None):
     cnpjs_cer  = st.session_state.get("cnpjs_cercados",   set())
     perfil_map = st.session_state.get("perfil_venda_map", {})
 
-    # Chave de cache: muda só quando os dados ou marcadores mudam
+    # Chave de cache: muda só quando os dados ou marcadores mudam.
+    # Usa id() + len() + hash das primeiras/últimas linhas para evitar
+    # colisões por reuso de endereço de memória do Python.
+    _first_cnpj = df_raw["cnpj"].iloc[0]  if (not df_raw.empty and "cnpj" in df_raw.columns) else ""
+    _last_cnpj  = df_raw["cnpj"].iloc[-1] if (not df_raw.empty and "cnpj" in df_raw.columns) else ""
     _mark_key = (
-        id(df_raw),          # mesmo objeto Python → mesma chave
-        len(df_raw),         # detecta injeção de novos postos PF
+        id(df_raw),
+        len(df_raw),
+        _first_cnpj,
+        _last_cnpj,
         len(cnpjs_pf),
         len(cnpjs_cer),
         len(perfil_map),
@@ -5469,6 +5475,14 @@ if modo == "📍 Por Estado/Município":
             _anp_uf_view1 = _anp_view_m1[
                 _anp_view_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
             ].copy()
+            # Aplica filtro de município no overlay ANP, igual ao filtro dos postos PF
+            if mun and not _anp_uf_view1.empty:
+                _mun_norm_anp = _sem_acento(mun)
+                _anp_uf_view1 = _anp_uf_view1[
+                    _anp_uf_view1["municipio"].fillna("").apply(
+                        lambda x: _mun_norm_anp in _sem_acento(x)
+                    )
+                ]
             if not _anp_uf_view1.empty:
                 _pf_cnpjs_view1 = set(
                     df_show["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
