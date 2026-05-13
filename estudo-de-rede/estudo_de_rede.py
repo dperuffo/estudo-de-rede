@@ -5757,7 +5757,8 @@ if modo == "📍 Por Estado/Município":
 
 elif modo == "🗺️ Por Rota":
 
-    if buscar_rota_btn:
+    _auto_rota = st.session_state.pop("_auto_buscar_rota", False)
+    if buscar_rota_btn or _auto_rota:
         orig_sel = st.session_state.get("orig_sel")
         dest_sel = st.session_state.get("dest_sel")
         # Coleta paradas intermediárias selecionadas (ignora as não preenchidas)
@@ -6007,12 +6008,14 @@ elif modo == "🗺️ Por Rota":
                                 "label": str(_row_rr.get("razaoSocial", "Posto")),
                             }
                             if _c2rr.button("🟢", key=f"rota_orig_{_idx_rr}", help="Nova Origem"):
-                                st.session_state["orig_sel"] = _sel_r
-                                st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
+                                st.session_state["orig_sel"]          = _sel_r
+                                st.session_state["_form_key"]         = st.session_state.get("_form_key", 0) + 1
+                                st.session_state["_auto_buscar_rota"] = True
                                 st.rerun()
                             if _c3rr.button("🔴", key=f"rota_dest_{_idx_rr}", help="Novo Destino"):
-                                st.session_state["dest_sel"] = _sel_r
-                                st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
+                                st.session_state["dest_sel"]          = _sel_r
+                                st.session_state["_form_key"]         = st.session_state.get("_form_key", 0) + 1
+                                st.session_state["_auto_buscar_rota"] = True
                                 st.rerun()
                             _maps_url_rr = (
                                 f"https://maps.google.com/?q={_sel_r['lat']:.6f},{_sel_r['lon']:.6f}"
