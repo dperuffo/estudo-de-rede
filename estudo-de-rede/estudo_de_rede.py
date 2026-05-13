@@ -6348,13 +6348,14 @@ elif modo == "🔍 Consulta por Posto":
                 if _uf_m3:
                     _renderizar_precos_anp(_uf_m3, municipio=_mun_m3)
                 elif _ufs_m3:
-                    # Múltiplos estados: mostra cada um
-                    for _u in _ufs_m3[:3]:  # limita a 3 estados para não poluir
-                        st.markdown(
-                            f"<div style='font-weight:700;font-size:13px;color:#1565c0;"
-                            f"margin:8px 0 4px'>📍 {UF_NOME.get(_u, _u)}</div>",
-                            unsafe_allow_html=True,
-                        )
-                        _renderizar_precos_anp(_u)
+                    # Múltiplos estados: selectbox para evitar chaves duplicadas
+                    _nomes_m3 = [f"{_u} — {UF_NOME.get(_u, _u)}" for _u in _ufs_m3]
+                    _uf_sel_m3 = st.selectbox(
+                        "Estado", _nomes_m3,
+                        key="preco_m3_uf_sel",
+                        label_visibility="collapsed",
+                    )
+                    _uf_code_m3 = _uf_sel_m3.split(" — ")[0] if _uf_sel_m3 else _ufs_m3[0]
+                    _renderizar_precos_anp(_uf_code_m3)
                 else:
                     st.info("ℹ️ Estado não identificado para este posto. Preços ANP indisponíveis.")
