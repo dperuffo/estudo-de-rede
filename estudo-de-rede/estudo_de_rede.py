@@ -95,33 +95,21 @@ st.set_page_config(
 st.markdown("""
 <style>
 /* ══ OCULTAR ELEMENTOS STREAMLIT ══════════════════════════════════ */
-/* toolbarMode="viewer" no config.toml oculta a toolbar no servidor.
-   CSS abaixo cobre elementos residuais.                              */
-
-/* Menu hambúrguer */
 #MainMenu                                         { display: none !important; }
-/* Rodapé */
 footer                                            { display: none !important; }
-/* Botão Deploy */
 .stDeployButton                                   { display: none !important; }
-/* Manage app / Community Cloud */
 [data-testid="manage-app-button"]                 { display: none !important; }
-/* Status Running/Error */
 [data-testid="stStatusWidget"]                    { display: none !important; }
-/* Badge Streamlit */
 [class*="viewerBadge"]                            { display: none !important; }
 [class*="ViewerBadge"]                            { display: none !important; }
-/* Decoração colorida do topo */
 [data-testid="stDecoration"]                      { display: none !important; }
-/* Links externos */
 a[href*="streamlit.io"]                           { display: none !important; }
 a[href*="github.com"]                             { display: none !important; }
-/* Ícone e imagens do GitHub */
 svg[data-icon="mark-github"]                      { display: none !important; }
 img[alt*="github" i]                              { display: none !important; }
 img[src*="github" i]                              { display: none !important; }
 
-/* ── Seta recolher/expandir sidebar — OCULTA (menu sempre aberto) ── */
+/* ── Seta recolher/expandir — OCULTA no desktop ── */
 [data-testid="collapsedControl"]                  { display: none !important; }
 [data-testid="stSidebarCollapseButton"]           { display: none !important; }
 [data-testid="stSidebarNavCollapseButton"]        { display: none !important; }
@@ -140,7 +128,6 @@ header[data-testid="stHeader"] {
 }
 
 /* ══ SIDEBAR REDESIGN ══════════════════════════════════════════════ */
-/* Label de seção */
 [data-testid="stSidebar"] .sb-label {
     font-size: 10px;
     font-weight: 700;
@@ -149,7 +136,6 @@ header[data-testid="stHeader"] {
     color: #90a4ae;
     margin: 14px 0 6px;
 }
-/* Botões de modo — mais altos e com quebra de linha */
 [data-testid="stSidebar"] .modo-toggle [data-testid="stButton"] > button {
     height: 62px !important;
     font-size: 13px !important;
@@ -157,7 +143,6 @@ header[data-testid="stHeader"] {
     white-space: pre-wrap !important;
     padding: 6px 4px !important;
 }
-/* Badge de status Gestão de Frotas compacto */
 [data-testid="stSidebar"] .pf-badge {
     border-radius: 8px;
     padding: 7px 11px;
@@ -177,11 +162,10 @@ header[data-testid="stHeader"] {
     align-items: center;
     gap: 16px;
     box-shadow: 0 4px 18px rgba(13,71,161,0.35), 0 2px 6px rgba(230,81,0,0.20);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     position: relative;
     overflow: hidden;
 }
-/* reflexo sutil no topo */
 .topbar::before {
     content: "";
     position: absolute;
@@ -195,6 +179,7 @@ header[data-testid="stHeader"] {
     font-weight: 900;
     letter-spacing: 0.3px;
     text-shadow: 0 1px 4px rgba(0,0,0,0.30);
+    white-space: nowrap;
 }
 .topbar-sub {
     font-size: 12px;
@@ -216,9 +201,45 @@ header[data-testid="stHeader"] {
     white-space: nowrap;
     backdrop-filter: blur(4px);
     text-shadow: 0 1px 2px rgba(0,0,0,0.20);
+    flex-shrink: 0;
 }
 
-/* ══ SIDEBAR ═══════════════════════════════════════════════════════ */
+/* ── Botão hambúrguer (visível só no mobile) ── */
+.topbar-menu-btn {
+    display: none;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.20);
+    border: 1.5px solid rgba(255,255,255,0.45);
+    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.18s ease, transform 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    line-height: 1;
+}
+.topbar-menu-btn:active {
+    background: rgba(255,255,255,0.38);
+    transform: scale(0.93);
+}
+
+/* ══ OVERLAY (fecha drawer ao tocar fora) ══════════════════════════ */
+.gf-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.48);
+    z-index: 1099;
+    -webkit-tap-highlight-color: transparent;
+}
+.gf-overlay.ativo { display: block; }
+
+/* ══ SIDEBAR — desktop (sempre visível) ═══════════════════════════ */
 section[data-testid="stSidebar"] > div:first-child {
     background: linear-gradient(180deg, #e6edf8 0%, #f2f6fc 60%, #f7f9fd 100%);
     border-right: 1px solid #c2d3e8;
@@ -268,15 +289,11 @@ hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
 }
 
 /* ══ LOADING / ANIMAÇÕES ═══════════════════════════════════════════ */
-/* Fade-in suave quando o iframe do mapa aparece */
-iframe {
-    animation: mapFadeIn 0.45s ease-in;
-}
+iframe { animation: mapFadeIn 0.45s ease-in; }
 @keyframes mapFadeIn {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0);   }
 }
-/* Spinner do Streamlit — aumenta levemente e centraliza */
 [data-testid="stSpinner"] {
     padding: 18px 0 !important;
     text-align: center !important;
@@ -288,7 +305,6 @@ iframe {
     font-weight: 600 !important;
     gap: 10px !important;
 }
-/* Barra de progresso — cor da marca */
 [data-testid="stProgress"] > div > div {
     background: linear-gradient(90deg, #0d1b4b, #1565c0, #0288d1) !important;
     border-radius: 4px !important;
@@ -317,28 +333,58 @@ iframe {
 
 /* ══ RESPONSIVO — MOBILE (≤ 768px) ════════════════════════════════ */
 @media (max-width: 768px) {
-    /* Layout */
+    /* Mostrar botão hambúrguer */
+    .topbar-menu-btn { display: flex !important; }
+
+    /* Layout principal sem deslocamento do drawer */
     .main .block-container { padding: 0.25rem 0.5rem 2rem !important; }
+    [data-testid="stAppViewContainer"] > section.main,
+    [data-testid="stMain"] {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
 
     /* Topbar compacto */
     .topbar {
-        padding: 10px 12px;
-        border-radius: 0 0 8px 8px;
-        margin-bottom: 12px;
-        gap: 6px;
+        padding: 9px 10px;
+        border-radius: 0 0 10px 10px;
+        margin-bottom: 10px;
+        gap: 8px;
+        align-items: center;
     }
     .topbar-title { font-size: 15px; letter-spacing: 0; }
-    .topbar-sub   { font-size: 9px; }
+    .topbar-sub   { font-size: 9px; margin-top: 1px; }
     .topbar-badge {
-        margin-left: 0;
         font-size: 10px;
-        padding: 3px 8px;
-        width: 100%;
-        text-align: center;
-        box-sizing: border-box;
+        padding: 3px 9px;
     }
 
-    /* Métricas: 2 colunas no mobile */
+    /* ── Sidebar: drawer deslizante sobre o conteúdo ── */
+    section[data-testid="stSidebar"] {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        height: 100dvh !important;
+        width: 83vw !important;
+        min-width: 270px !important;
+        max-width: 330px !important;
+        z-index: 1100 !important;
+        transform: translateX(-110%) !important;
+        transition: transform 0.30s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 6px 0 32px rgba(0,0,0,0.30) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+    section[data-testid="stSidebar"].gf-open {
+        transform: translateX(0) !important;
+    }
+    /* Conteúdo dentro do drawer ocupa tudo */
+    section[data-testid="stSidebar"] > div:first-child {
+        min-height: 100dvh !important;
+        padding-bottom: 40px !important;
+    }
+
+    /* Métricas: 2 colunas */
     [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
     [data-testid="stHorizontalBlock"] > [data-testid="column"] {
         flex: 0 0 48% !important;
@@ -352,29 +398,21 @@ iframe {
     /* Tabs menores */
     button[data-baseweb="tab"] {
         font-size: 11px !important;
-        padding: 8px 6px !important;
+        padding: 8px 5px !important;
     }
 
-    /* Inputs — font-size 16px evita zoom automático no iOS */
-    input, select, textarea {
-        font-size: 16px !important;
-    }
+    /* Inputs — font-size 16px evita zoom iOS */
+    input, select, textarea { font-size: 16px !important; }
     [data-testid="stTextInput"] input  { min-height: 44px !important; }
     [data-testid="stSelectbox"] select { min-height: 44px !important; }
 
     /* Botões touch-friendly */
     .stButton > button { min-height: 48px !important; font-size: 14px !important; }
 
-    /* Mapa: altura menor no mobile */
+    /* Mapa menor no mobile */
     iframe { max-height: 380px !important; }
 
-    /* Sidebar full-width quando aberta no mobile */
-    section[data-testid="stSidebar"] {
-        width: 100% !important;
-        min-width: 100% !important;
-    }
-
-    /* Empty state menor */
+    /* Empty state compacto */
     .empty-state       { padding: 30px 16px; }
     .empty-state-icon  { font-size: 40px; }
     .empty-state-title { font-size: 16px; }
@@ -383,43 +421,159 @@ iframe {
     /* Slider touch */
     [data-testid="stSlider"] { padding: 12px 0 !important; }
 
-    /* Sucesso / info / aviso com texto menor */
     .stAlert { font-size: 13px !important; }
 }
 
 /* ══ RESPONSIVO — SMARTPHONE PEQUENO (≤ 480px) ════════════════════ */
 @media (max-width: 480px) {
+    .topbar { padding: 8px 8px; gap: 6px; }
     .topbar-title { font-size: 13px; }
     .topbar-sub   { display: none; }
+    .topbar-badge { display: none; }
+    .topbar-menu-btn { width: 38px !important; height: 38px !important; font-size: 20px !important; }
     [data-testid="stMetricValue"] { font-size: 16px !important; }
-    button[data-baseweb="tab"]    { font-size: 10px !important; }
+    button[data-baseweb="tab"]    { font-size: 10px !important; padding: 7px 4px !important; }
     iframe                        { max-height: 300px !important; }
+}
+
+/* ══ RESPONSIVO — TELA MUITO PEQUENA (≤ 360px) ═══════════════════ */
+@media (max-width: 360px) {
+    .topbar-title { font-size: 12px; }
+    section[data-testid="stSidebar"] {
+        width: 90vw !important;
+        max-width: 300px !important;
+    }
 }
 </style>
 <script>
-// Oculta elementos do GitHub/Streamlit injetados dinamicamente.
-// A seta da sidebar é intencionalmente ocultada (menu sempre fixo aberto).
-(function() {
-    const OCULTAR = [
-        'button[title*="GitHub"]',
-        'button[title*="github"]',
-        'a[href*="github.com"]',
-        'svg[data-icon="mark-github"]',
+(function () {
+    /* ── 1. Elementos a ocultar sempre ─────────────────────────────── */
+    var OCULTAR = [
+        'button[title*="GitHub"]', 'button[title*="github"]',
+        'a[href*="github.com"]', 'svg[data-icon="mark-github"]',
         '[data-testid="collapsedControl"]',
         '[data-testid="stSidebarCollapseButton"]',
+        '[data-testid="stSidebarNavCollapseButton"]',
         'button[data-testid="baseButton-headerNoPadding"]',
-        '.stDeployButton',
-        '#MainMenu',
+        '.stDeployButton', '#MainMenu',
     ];
-    function aplicar() {
-        OCULTAR.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => {
+    function ocultarEls() {
+        OCULTAR.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
                 el.style.setProperty('display', 'none', 'important');
             });
         });
     }
-    aplicar();
-    new MutationObserver(aplicar).observe(document.body, { childList: true, subtree: true });
+
+    /* ── 2. Estado do drawer ────────────────────────────────────────── */
+    var drawerAberto = false;
+    var overlay = null;
+
+    function isMobile() { return window.innerWidth <= 768; }
+    function getSidebar() { return document.querySelector('section[data-testid="stSidebar"]'); }
+    function getBtn()     { return document.querySelector('.topbar-menu-btn'); }
+
+    function sincronizarIcone() {
+        var btn = getBtn();
+        if (!btn) return;
+        btn.innerHTML = drawerAberto ? '&#10005;' : '&#9776;';
+        btn.title = drawerAberto ? 'Fechar menu' : 'Abrir menu';
+    }
+
+    function abrirDrawer() {
+        var sb = getSidebar();
+        if (sb) sb.classList.add('gf-open');
+        if (overlay) overlay.classList.add('ativo');
+        drawerAberto = true;
+        sincronizarIcone();
+        document.body.style.overflow = 'hidden'; /* evita scroll do fundo */
+    }
+
+    function fecharDrawer() {
+        var sb = getSidebar();
+        if (sb) sb.classList.remove('gf-open');
+        if (overlay) overlay.classList.remove('ativo');
+        drawerAberto = false;
+        sincronizarIcone();
+        document.body.style.overflow = '';
+    }
+
+    function toggleDrawer() {
+        if (drawerAberto) fecharDrawer(); else abrirDrawer();
+    }
+
+    /* ── 3. Overlay ─────────────────────────────────────────────────── */
+    function garantirOverlay() {
+        if (document.getElementById('gf-overlay')) {
+            overlay = document.getElementById('gf-overlay');
+            return;
+        }
+        overlay = document.createElement('div');
+        overlay.className = 'gf-overlay';
+        overlay.id = 'gf-overlay';
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.addEventListener('click', fecharDrawer);
+        /* fechar ao deslizar para a esquerda no overlay */
+        overlay.addEventListener('touchstart', function(e) {
+            overlay._tsX = e.touches[0].clientX;
+        }, {passive: true});
+        overlay.addEventListener('touchend', function(e) {
+            if (overlay._tsX - e.changedTouches[0].clientX > 40) fecharDrawer();
+        }, {passive: true});
+        document.body.appendChild(overlay);
+    }
+
+    /* ── 4. Vincular botão hambúrguer ───────────────────────────────── */
+    function vincularBotao() {
+        var btn = getBtn();
+        if (!btn || btn.dataset.gfOk) return;
+        btn.dataset.gfOk = '1';
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleDrawer();
+        });
+        sincronizarIcone();
+    }
+
+    /* Swipe para fechar o drawer (arrasta para a esquerda no sidebar) */
+    function vincularSwipe() {
+        var sb = getSidebar();
+        if (!sb || sb.dataset.gfSwipe) return;
+        sb.dataset.gfSwipe = '1';
+        var tsX = 0;
+        sb.addEventListener('touchstart', function(e) { tsX = e.touches[0].clientX; }, {passive: true});
+        sb.addEventListener('touchend',   function(e) {
+            if (tsX - e.changedTouches[0].clientX > 60) fecharDrawer();
+        }, {passive: true});
+    }
+
+    /* ── 5. Inicialização ────────────────────────────────────────────── */
+    function inicializar() {
+        ocultarEls();
+        garantirOverlay();
+        vincularBotao();
+        vincularSwipe();
+        if (!isMobile() && drawerAberto) fecharDrawer();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inicializar);
+    } else {
+        inicializar();
+    }
+
+    /* Observa mudanças do DOM (re-renders do Streamlit) */
+    new MutationObserver(function() {
+        ocultarEls();
+        garantirOverlay();
+        vincularBotao();
+        vincularSwipe();
+    }).observe(document.body, { childList: true, subtree: true });
+
+    /* Fechar drawer ao girar para landscape / aumentar tela */
+    window.addEventListener('resize', function() {
+        if (!isMobile() && drawerAberto) fecharDrawer();
+    });
 })();
 </script>
 """, unsafe_allow_html=True)
@@ -4588,7 +4742,8 @@ pf_badge_html = (
 
 st.markdown(f"""
 <div class="topbar">
-  <div>
+  <span class="topbar-menu-btn" role="button" aria-label="Abrir menu" title="Abrir menu">&#9776;</span>
+  <div style="min-width:0;">
     <div class="topbar-title">Estudo de Rede</div>
     <div class="topbar-sub">Gestão de Frotas</div>
   </div>
