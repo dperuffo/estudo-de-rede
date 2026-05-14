@@ -375,7 +375,8 @@ iframe { animation: mapFadeIn 0.45s ease-in; }
         overflow-y: auto !important;
         overflow-x: hidden !important;
     }
-    section[data-testid="stSidebar"].gf-open {
+    /* Estado aberto — controlado pela classe no <html> */
+    html.gf-open section[data-testid="stSidebar"] {
         transform: translateX(0) !important;
     }
     /* Conteúdo dentro do drawer ocupa tudo */
@@ -447,7 +448,12 @@ iframe { animation: mapFadeIn 0.45s ease-in; }
 </style>
 <script>
 (function () {
-    /* ── 1. Elementos a ocultar sempre ─────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════
+       ABORDAGEM: event delegation no document (capture phase)
+       + estado salvo no <html> classList → sobrevive a re-renders React
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* ── 1. Ocultar elementos Streamlit ─────────────────────────────── */
     var OCULTAR = [
         'button[title*="GitHub"]', 'button[title*="github"]',
         'a[href*="github.com"]', 'svg[data-icon="mark-github"]',
@@ -465,114 +471,108 @@ iframe { animation: mapFadeIn 0.45s ease-in; }
         });
     }
 
-    /* ── 2. Estado do drawer ────────────────────────────────────────── */
-    var drawerAberto = false;
-    var overlay = null;
+    /* ── 2. Helpers de estado ────────────────────────────────────────── */
+    var H = document.documentElement; /* <html> */
+    function isOpen()    { return H.classList.contains('gf-open'); }
+    function isMobile()  { return window.innerWidth <= 768; }
 
-    function isMobile() { return window.innerWidth <= 768; }
-    function getSidebar() { return document.querySelector('section[data-testid="stSidebar"]'); }
-    function getBtn()     { return document.querySelector('.topbar-menu-btn'); }
-
-    function sincronizarIcone() {
-        var btn = getBtn();
+    function atualizarIcone() {
+        var btn = document.querySelector('.topbar-menu-btn');
         if (!btn) return;
-        btn.innerHTML = drawerAberto ? '&#10005;' : '&#9776;';
-        btn.title = drawerAberto ? 'Fechar menu' : 'Abrir menu';
+        btn.textContent = isOpen() ? '✕' : '☰'; /* ✕ ou ☰ */
     }
 
-    function abrirDrawer() {
-        var sb = getSidebar();
-        if (sb) sb.classList.add('gf-open');
-        if (overlay) overlay.classList.add('ativo');
-        drawerAberto = true;
-        sincronizarIcone();
-        document.body.style.overflow = 'hidden'; /* evita scroll do fundo */
+    function getOverlay() { return document.getElementById('gf-overlay'); }
+
+    /* ── 3. Abrir / fechar ───────────────────────────────────────────── */
+    function abrir() {
+        H.classList.add('gf-open');
+        var ol = getOverlay();
+        if (ol) ol.classList.add('ativo');
+        document.body.style.overflow = 'hidden';
+        atualizarIcone();
     }
 
-    function fecharDrawer() {
-        var sb = getSidebar();
-        if (sb) sb.classList.remove('gf-open');
-        if (overlay) overlay.classList.remove('ativo');
-        drawerAberto = false;
-        sincronizarIcone();
+    function fechar() {
+        H.classList.remove('gf-open');
+        var ol = getOverlay();
+        if (ol) ol.classList.remove('ativo');
         document.body.style.overflow = '';
+        atualizarIcone();
     }
 
-    function toggleDrawer() {
-        if (drawerAberto) fecharDrawer(); else abrirDrawer();
-    }
+    function toggle() { if (isOpen()) fechar(); else abrir(); }
 
-    /* ── 3. Overlay ─────────────────────────────────────────────────── */
-    function garantirOverlay() {
-        if (document.getElementById('gf-overlay')) {
-            overlay = document.getElementById('gf-overlay');
-            return;
-        }
-        overlay = document.createElement('div');
-        overlay.className = 'gf-overlay';
-        overlay.id = 'gf-overlay';
-        overlay.setAttribute('aria-hidden', 'true');
-        overlay.addEventListener('click', fecharDrawer);
-        /* fechar ao deslizar para a esquerda no overlay */
-        overlay.addEventListener('touchstart', function(e) {
-            overlay._tsX = e.touches[0].clientX;
-        }, {passive: true});
-        overlay.addEventListener('touchend', function(e) {
-            if (overlay._tsX - e.changedTouches[0].clientX > 40) fecharDrawer();
-        }, {passive: true});
-        document.body.appendChild(overlay);
-    }
-
-    /* ── 4. Vincular botão hambúrguer ───────────────────────────────── */
-    function vincularBotao() {
-        var btn = getBtn();
-        if (!btn || btn.dataset.gfOk) return;
-        btn.dataset.gfOk = '1';
-        btn.addEventListener('click', function(e) {
+    /* ── 4. Event delegation — captura clique no hambúrguer ────────────
+       Registrado UMA VEZ no document (capture: true).
+       Funciona mesmo que o elemento seja recriado pelo React.          */
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.closest && e.target.closest('.topbar-menu-btn')) {
+            e.preventDefault();
             e.stopPropagation();
-            toggleDrawer();
-        });
-        sincronizarIcone();
+            toggle();
+        }
+    }, true /* capture */);
+
+    /* Suporte a touchend para iOS (garante resposta rápida) */
+    document.addEventListener('touchend', function(e) {
+        if (e.target && e.target.closest && e.target.closest('.topbar-menu-btn')) {
+            e.preventDefault();
+            toggle();
+        }
+    }, true);
+
+    /* ── 5. Overlay ──────────────────────────────────────────────────── */
+    function garantirOverlay() {
+        if (getOverlay()) return;
+        var ol = document.createElement('div');
+        ol.className = 'gf-overlay';
+        ol.id = 'gf-overlay';
+        ol.setAttribute('aria-hidden', 'true');
+        ol.addEventListener('click', fechar);
+        /* swipe esquerda no overlay também fecha */
+        var tsX = 0;
+        ol.addEventListener('touchstart', function(e) {
+            tsX = e.touches[0].clientX;
+        }, {passive: true});
+        ol.addEventListener('touchend', function(e) {
+            if (tsX - e.changedTouches[0].clientX > 40) fechar();
+        }, {passive: true});
+        document.body.appendChild(ol);
     }
 
-    /* Swipe para fechar o drawer (arrasta para a esquerda no sidebar) */
-    function vincularSwipe() {
-        var sb = getSidebar();
-        if (!sb || sb.dataset.gfSwipe) return;
-        sb.dataset.gfSwipe = '1';
+    /* ── 6. Swipe p/ fechar dentro do sidebar ───────────────────────── */
+    function vincularSwipeSidebar() {
+        var sb = document.querySelector('section[data-testid="stSidebar"]');
+        if (!sb || sb._gfSwipe) return;
+        sb._gfSwipe = true;
         var tsX = 0;
-        sb.addEventListener('touchstart', function(e) { tsX = e.touches[0].clientX; }, {passive: true});
-        sb.addEventListener('touchend',   function(e) {
-            if (tsX - e.changedTouches[0].clientX > 60) fecharDrawer();
+        sb.addEventListener('touchstart', function(e) {
+            tsX = e.touches[0].clientX;
+        }, {passive: true});
+        sb.addEventListener('touchend', function(e) {
+            if (tsX - e.changedTouches[0].clientX > 55) fechar();
         }, {passive: true});
     }
 
-    /* ── 5. Inicialização ────────────────────────────────────────────── */
-    function inicializar() {
+    /* ── 7. Inicialização e observer ─────────────────────────────────── */
+    function tick() {
         ocultarEls();
         garantirOverlay();
-        vincularBotao();
-        vincularSwipe();
-        if (!isMobile() && drawerAberto) fecharDrawer();
+        vincularSwipeSidebar();
+        atualizarIcone();
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', inicializar);
+        document.addEventListener('DOMContentLoaded', tick);
     } else {
-        inicializar();
+        tick();
     }
 
-    /* Observa mudanças do DOM (re-renders do Streamlit) */
-    new MutationObserver(function() {
-        ocultarEls();
-        garantirOverlay();
-        vincularBotao();
-        vincularSwipe();
-    }).observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(tick).observe(document.body, {childList: true, subtree: true});
 
-    /* Fechar drawer ao girar para landscape / aumentar tela */
     window.addEventListener('resize', function() {
-        if (!isMobile() && drawerAberto) fecharDrawer();
+        if (!isMobile() && isOpen()) fechar();
     });
 })();
 </script>
