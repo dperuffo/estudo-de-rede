@@ -276,6 +276,10 @@ hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
     min-height: 44px;
     border-radius: 8px;
     font-weight: 600;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
 }
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #1565c0, #0d47a1);
