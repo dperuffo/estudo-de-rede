@@ -6127,21 +6127,31 @@ if modo == "📍 Por Estado/Município":
             if _rr:
                 if _rr.get("linha_reta"):
                     st.warning("⚠️ OSRM indisponível — rota exibida como linha reta.")
+
+                # Banner cabeçalho da rota
                 st.markdown(
                     f"<div style='background:linear-gradient(90deg,#e8f5e9,#f1f8e9);"
                     f"border:1px solid #a5d6a7;border-radius:10px;padding:12px 16px;"
-                    f"margin:10px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap'>"
+                    f"margin:6px 0 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap'>"
                     f"<span style='font-size:20px'>✅</span>"
                     f"<div style='flex:1'>"
                     f"<div style='font-size:13px;font-weight:700;color:#1b5e20'>"
-                    f"{_rr['orig']['label'][:35]} → {_rr['dest']['label'][:35]}</div>"
-                    f"<div style='font-size:11px;color:#388e3c;margin-top:2px'>"
-                    f"🛣️ {_n(_rr['dist_km'])} km &nbsp;·&nbsp; "
-                    f"⏱️ {int(_rr['dur_min']//60)}h {int(_rr['dur_min']%60)}min</div>"
-                    f"</div>"
-                    f"</div>",
+                    f"{_rr['orig']['label'][:40]} → {_rr['dest']['label'][:40]}</div>"
+                    f"</div></div>",
                     unsafe_allow_html=True,
                 )
+
+                # Métricas da rota — cards grandes
+                _dist_rr  = _rr["dist_km"]
+                _dur_rr   = _rr["dur_min"]
+                _h_rr     = int(_dur_rr // 60)
+                _min_rr   = int(_dur_rr % 60)
+                _vel_rr   = round(_dist_rr / (_dur_rr / 60), 0) if _dur_rr > 0 else 0
+                _tempo_rr = (f"{_h_rr}h {_min_rr}min" if _h_rr > 0 else f"{_min_rr} min")
+                _rc1, _rc2, _rc3 = st.columns(3)
+                _rc1.metric("🛣️ Distância", f"{_n(_dist_rr)} km")
+                _rc2.metric("⏱️ Tempo estimado", _tempo_rr)
+                _rc3.metric("🚗 Vel. média", f"{int(_vel_rr)} km/h")
                 with st.spinner("🗺️ Atualizando mapa com a rota…"):
                     _mapa_rota = criar_mapa(
                         df_show, coords_rota=_rr["coords"],
@@ -6794,20 +6804,32 @@ elif modo == "🔍 Consulta por Posto":
     if _m3_rr:
         if _m3_rr.get("linha_reta"):
             st.warning("⚠️ OSRM indisponível — rota exibida como linha reta.")
+
+        # Banner cabeçalho da rota
         st.markdown(
             f"<div style='background:linear-gradient(90deg,#e8f5e9,#f1f8e9);"
             f"border:1px solid #a5d6a7;border-radius:10px;padding:12px 16px;"
-            f"margin:10px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap'>"
+            f"margin:6px 0 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap'>"
             f"<span style='font-size:20px'>✅</span>"
             f"<div style='flex:1'>"
             f"<div style='font-size:13px;font-weight:700;color:#1b5e20'>"
-            f"{_m3_rr['orig']['label'][:35]} → {_m3_rr['dest']['label'][:35]}</div>"
-            f"<div style='font-size:11px;color:#388e3c;margin-top:2px'>"
-            f"🛣️ {_n(_m3_rr['dist_km'])} km &nbsp;·&nbsp; "
-            f"⏱️ {int(_m3_rr['dur_min']//60)}h {int(_m3_rr['dur_min']%60)}min</div>"
+            f"{_m3_rr['orig']['label'][:40]} → {_m3_rr['dest']['label'][:40]}</div>"
             f"</div></div>",
             unsafe_allow_html=True,
         )
+
+        # ── Métricas da rota — cards grandes ─────────────────────
+        _dist_m3  = _m3_rr["dist_km"]
+        _dur_m3   = _m3_rr["dur_min"]
+        _h_m3     = int(_dur_m3 // 60)
+        _min_m3   = int(_dur_m3 % 60)
+        _vel_m3   = round(_dist_m3 / (_dur_m3 / 60), 0) if _dur_m3 > 0 else 0
+        _tempo_str = (f"{_h_m3}h {_min_m3}min" if _h_m3 > 0 else f"{_min_m3} min")
+
+        _mc1, _mc2, _mc3 = st.columns(3)
+        _mc1.metric("🛣️ Distância", f"{_n(_dist_m3)} km")
+        _mc2.metric("⏱️ Tempo estimado", _tempo_str)
+        _mc3.metric("🚗 Vel. média", f"{int(_vel_m3)} km/h")
 
     st.divider()
 
