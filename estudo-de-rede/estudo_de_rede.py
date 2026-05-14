@@ -3506,110 +3506,100 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     sheets = _cache.get("sheets")
     semana = _cache.get("semana")
 
-    # ── 1. Auto-fetch na primeira abertura da aba (uma vez por sessão) ──
-    if sheets is None and not st.session_state.get("_anp_fetch_tentado"):
-        st.session_state["_anp_fetch_tentado"] = True
-        with st.spinner("📡 Buscando planilha de preços ANP automaticamente…"):
-            _raw, _sem, _err = buscar_precos_anp()
-        if _raw:
-            _sheets = _anp_processar_arquivo(io.BytesIO(_raw))
-            if _sheets:
-                st.session_state["_precos_anp_cache"] = {"sheets": _sheets, "semana": _sem}
-                sheets  = _sheets
-                semana  = _sem
-                st.session_state["_anp_fetch_erro"] = None
-
-    # ── 2. Se ainda sem dados → UI de carregamento prominente ──────────
+    # ── 1. Se não há dados → UI de upload amigável ─────────────────────
     if sheets is None:
         st.markdown(
-            "<div style='font-size:15px;font-weight:600;margin-bottom:8px'>"
+            "<div style='font-size:15px;font-weight:700;color:#1565c0;margin-bottom:14px'>"
             "💰 Preços Médios ANP</div>",
             unsafe_allow_html=True,
         )
 
-        # Botão de retry (tenta de novo sem esperar próxima sessão)
-        col_btn, col_link = st.columns([1, 2])
-        with col_btn:
-            if st.button("🔄 Tentar buscar automaticamente", use_container_width=True,
-                         key="btn_buscar_precos"):
-                with st.spinner("📡 Baixando planilha da ANP…"):
-                    _raw, _sem, _err = buscar_precos_anp()
-                if _raw:
-                    _sheets = _anp_processar_arquivo(io.BytesIO(_raw))
-                    if _sheets:
-                        st.session_state["_precos_anp_cache"] = {"sheets": _sheets, "semana": _sem}
-                        st.session_state["_anp_fetch_erro"] = None
-                        st.rerun()
-                    else:
-                        st.session_state["_anp_fetch_erro"] = "Planilha baixada mas não reconhecida."
-                else:
-                    st.session_state["_anp_fetch_erro"] = _err
-        with col_link:
-            st.markdown(
-                "<div style='margin-top:8px;font-size:12px;color:#555'>"
-                "Ou baixe manualmente em "
-                "<a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia"
-                "/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas' "
-                "target='_blank'>gov.br/anp → Levantamento de Preços</a> "
-                "e faça upload abaixo.</div>",
-                unsafe_allow_html=True,
-            )
+        # Card de instrução — link + passos visuais
+        st.markdown(
+            "<div style='background:#e3f2fd;border-radius:12px;padding:16px 20px;"
+            "border:1px solid #90caf9;margin-bottom:16px'>"
+            "<div style='font-size:14px;font-weight:700;color:#1565c0;margin-bottom:10px'>"
+            "📥 Como carregar os preços de referência</div>"
+            "<div style='display:flex;flex-direction:column;gap:8px'>"
+            # Passo 1
+            "<div style='display:flex;align-items:flex-start;gap:10px'>"
+            "<div style='min-width:24px;height:24px;background:#1565c0;color:#fff;"
+            "border-radius:50%;font-size:12px;font-weight:700;"
+            "display:flex;align-items:center;justify-content:center'>1</div>"
+            "<div style='font-size:13px;color:#1a1a1a;line-height:1.5'>"
+            "Acesse o site da ANP: "
+            "<a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia"
+            "/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas' "
+            "target='_blank' style='color:#1565c0;font-weight:600'>"
+            "gov.br/anp → Levantamento de Preços</a>"
+            "</div></div>"
+            # Passo 2
+            "<div style='display:flex;align-items:flex-start;gap:10px'>"
+            "<div style='min-width:24px;height:24px;background:#1565c0;color:#fff;"
+            "border-radius:50%;font-size:12px;font-weight:700;"
+            "display:flex;align-items:center;justify-content:center'>2</div>"
+            "<div style='font-size:13px;color:#1a1a1a;line-height:1.5'>"
+            "Baixe o arquivo <b>resumo_semanal_lpc_*.xlsx</b> da última semana disponível."
+            "</div></div>"
+            # Passo 3
+            "<div style='display:flex;align-items:flex-start;gap:10px'>"
+            "<div style='min-width:24px;height:24px;background:#1565c0;color:#fff;"
+            "border-radius:50%;font-size:12px;font-weight:700;"
+            "display:flex;align-items:center;justify-content:center'>3</div>"
+            "<div style='font-size:13px;color:#1a1a1a;line-height:1.5'>"
+            "Faça o upload do arquivo aqui embaixo — ele fica disponível durante toda a sessão."
+            "</div></div>"
+            "</div></div>",
+            unsafe_allow_html=True,
+        )
 
-        _erro = st.session_state.get("_anp_fetch_erro")
-        if _erro:
-            st.warning(
-                f"⚠️ Busca automática indisponível neste momento "
-                f"(o site da ANP bloqueou o acesso direto).  \n"
-                f"**Faça upload manual** da planilha abaixo — "
-                f"ela fica salva durante toda a sessão."
-            )
-
-        # Upload direto (sem expander)
-        st.markdown("**📎 Upload da planilha ANP (.xlsx)**")
         arq = st.file_uploader(
-            "Selecione o arquivo resumo_semanal_lpc_*.xlsx",
+            "📎 Selecione o arquivo baixado (resumo_semanal_lpc_*.xlsx)",
             type=["xlsx", "xls"],
             key="upload_precos_anp",
+            help="Planilha da ANP com preços médios semanais de combustíveis por município/estado",
         )
         if arq:
             with st.spinner("🔍 Processando planilha…"):
                 try:
                     _sheets = _anp_processar_arquivo(io.BytesIO(arq.read()))
                     if not _sheets:
-                        st.error("❌ Nenhuma aba reconhecida. Verifique se é a planilha correta.")
+                        st.error("❌ Nenhuma aba reconhecida. Verifique se é a planilha correta da ANP.")
                     else:
                         _sem = arq.name.replace(".xlsx", "").replace(".xls", "")
                         st.session_state["_precos_anp_cache"] = {"sheets": _sheets, "semana": _sem}
-                        st.session_state["_anp_fetch_erro"] = None
                         st.rerun()
                 except Exception as ex:
                     st.error(f"❌ Erro ao ler arquivo: {ex}")
         return
 
-    # ── 3. Dados disponíveis ── cabeçalho compacto com opção de trocar ──
-    with st.expander(f"✅ Planilha carregada: **{semana}** · {', '.join(sheets.keys())}",
-                     expanded=False):
-        col_re, col_up2 = st.columns([1, 2])
-        with col_re:
-            if st.button("🔄 Recarregar da ANP", key="btn_reload_precos",
-                         use_container_width=True):
-                st.session_state.pop("_anp_fetch_tentado", None)
-                st.session_state.pop("_precos_anp_cache", None)
-                st.rerun()
-        with col_up2:
-            arq2 = st.file_uploader(
-                "Substituir por outro arquivo", type=["xlsx", "xls"],
-                key="upload_precos_anp_sub", label_visibility="collapsed",
-            )
-            if arq2:
-                try:
-                    _sh2 = _anp_processar_arquivo(io.BytesIO(arq2.read()))
-                    if _sh2:
-                        _sem2 = arq2.name.replace(".xlsx", "")
-                        st.session_state["_precos_anp_cache"] = {"sheets": _sh2, "semana": _sem2}
-                        st.rerun()
-                except Exception:
-                    pass
+    # ── 2. Dados disponíveis ── cabeçalho compacto com opção de substituir ──
+    with st.expander(f"✅ Planilha carregada: **{semana}** · Clique para trocar", expanded=False):
+        st.markdown(
+            "<div style='font-size:12px;color:#555;margin-bottom:8px'>"
+            "Para atualizar, baixe a planilha mais recente em "
+            "<a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia"
+            "/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas' "
+            "target='_blank'>gov.br/anp → Levantamento de Preços</a> "
+            "e faça upload abaixo.</div>",
+            unsafe_allow_html=True,
+        )
+        arq2 = st.file_uploader(
+            "📎 Substituir por arquivo mais recente",
+            type=["xlsx", "xls"],
+            key="upload_precos_anp_sub",
+        )
+        if arq2:
+            try:
+                _sh2 = _anp_processar_arquivo(io.BytesIO(arq2.read()))
+                if _sh2:
+                    _sem2 = arq2.name.replace(".xlsx", "")
+                    st.session_state["_precos_anp_cache"] = {"sheets": _sh2, "semana": _sem2}
+                    st.rerun()
+                else:
+                    st.error("❌ Arquivo não reconhecido. Verifique se é a planilha correta da ANP.")
+            except Exception as _ex2:
+                st.error(f"❌ Erro ao ler arquivo: {_ex2}")
 
     st.divider()
 
