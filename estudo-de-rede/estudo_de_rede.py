@@ -5059,15 +5059,46 @@ with st.sidebar:
 
     # ── Modo 2 ────────────────────────────────────────────────
     elif modo == "🗺️ Por Rota":
+
+        _n_paradas  = st.session_state.get("_paradas_count", 0)
+        _orig_pronto = bool(st.session_state.get("orig_sel"))
+        _dest_pronto = bool(st.session_state.get("dest_sel"))
+
+        # ── Mini barra de progresso ─────────────────────────────────
+        def _prog_pill(label, ok, ativo):
+            if ok:
+                _bg, _brd, _c = "#e8f5e9","#a5d6a7","#2e7d32"
+                _ic = "✔"
+            elif ativo:
+                _bg, _brd, _c = "#e3f2fd","#90caf9","#1565c0"
+                _ic = "●"
+            else:
+                _bg, _brd, _c = "#f5f5f5","#e0e0e0","#bdbdbd"
+                _ic = "○"
+            return (
+                f"<div style='flex:1;background:{_bg};border:1px solid {_brd};"
+                f"border-radius:8px;padding:5px 6px;text-align:center'>"
+                f"<div style='font-size:10px;color:{_c};font-weight:700'>{_ic}</div>"
+                f"<div style='font-size:9px;color:{_c};line-height:1.2'>{label}</div>"
+                f"</div>"
+            )
         st.markdown(
-            "<div style='background:#e3f2fd;border-radius:8px;padding:8px 10px;"
-            "font-size:11px;color:#1565c0;margin-bottom:10px;line-height:1.5'>"
-            "💡 <b>UF</b> (ex: SP) · <b>Cidade</b> · <b>Razão social</b> · <b>CNPJ</b> "
-            "— selecione a sugestão.</div>",
+            f"<div style='display:flex;gap:4px;margin-bottom:10px'>"
+            f"{_prog_pill('Origem', _orig_pronto, not _orig_pronto)}"
+            f"{_prog_pill('Destino', _dest_pronto, _orig_pronto and not _dest_pronto)}"
+            f"{_prog_pill('Traçar', False, _orig_pronto and _dest_pronto)}"
+            f"</div>",
             unsafe_allow_html=True,
         )
 
-        _n_paradas = st.session_state.get("_paradas_count", 0)
+        # ── Dica de preenchimento ───────────────────────────────────
+        st.markdown(
+            "<div style='background:#e3f2fd;border-radius:8px;padding:7px 10px;"
+            "font-size:10px;color:#1565c0;margin-bottom:8px;line-height:1.5'>"
+            "💡 Digite <b>UF</b> (ex: SP), <b>cidade</b>, <b>nome do posto</b> ou "
+            "<b>CNPJ</b> e selecione a sugestão.</div>",
+            unsafe_allow_html=True,
+        )
 
         # ── rail pontilhado vertical ───────────────────────────────
         def _rail(color: str = "#90CAF9", height: int = 10):
@@ -5078,8 +5109,19 @@ with st.sidebar:
             )
 
         # ══ ORIGEM ══════════════════════════════════════════════════
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
+            "<span style='width:10px;height:10px;border-radius:50%;"
+            "background:#2E7D32;display:inline-block;flex-shrink:0'></span>"
+            "<span style='font-size:10px;font-weight:700;color:#2E7D32;"
+            "text-transform:uppercase;letter-spacing:0.8px'>Ponto de Origem</span>"
+            + (" <span style='font-size:10px;color:#2E7D32'>✔</span>" if _orig_pronto else
+               " <span style='font-size:9px;color:#aaa;font-style:italic'>— informe abaixo</span>")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
         _campo_rota_compacto(
-            "Ex: SP  ·  Ribeirão Preto  ·  Rudnick",
+            "UF · Cidade · Nome do posto · CNPJ",
             "txt_origem", "orig_sel",
             icon_bg="#2E7D32",
             action_help="Limpar origem",
@@ -5089,8 +5131,19 @@ with st.sidebar:
         # ══ PARADAS ═════════════════════════════════════════════════
         for _p_idx in range(1, _n_paradas + 1):
             _rail(color="#FF8F00", height=8)
+            _parada_ok = bool(st.session_state.get(f"parada_sel_{_p_idx}"))
+            st.markdown(
+                f"<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
+                f"<span style='width:10px;height:10px;border-radius:50%;"
+                f"background:#FF8F00;display:inline-block;flex-shrink:0'></span>"
+                f"<span style='font-size:10px;font-weight:700;color:#E65100;"
+                f"text-transform:uppercase;letter-spacing:0.8px'>Parada {_p_idx}</span>"
+                + (f" <span style='font-size:10px;color:#E65100'>✔</span>" if _parada_ok else "")
+                + "</div>",
+                unsafe_allow_html=True,
+            )
             _deleted = _campo_rota_compacto(
-                "UF · Cidade · Razão social · CNPJ",
+                "UF · Cidade · Nome do posto · CNPJ",
                 f"txt_parada_{_p_idx}",
                 f"parada_sel_{_p_idx}",
                 icon_bg="#FF8F00",
@@ -5100,29 +5153,26 @@ with st.sidebar:
                 action_help=f"Remover parada {_p_idx}",
             )
             if _deleted:
-                # Desloca paradas posteriores para cima
                 for _j in range(_p_idx, _n_paradas):
                     st.session_state[f"parada_sel_{_j}"] = st.session_state.get(
-                        f"parada_sel_{_j+1}"
-                    )
+                        f"parada_sel_{_j+1}")
                     st.session_state[f"txt_parada_{_j}"] = st.session_state.get(
-                        f"txt_parada_{_j+1}", ""
-                    )
+                        f"txt_parada_{_j+1}", "")
                 st.session_state.pop(f"parada_sel_{_n_paradas}", None)
                 st.session_state.pop(f"txt_parada_{_n_paradas}", None)
                 st.session_state["_paradas_count"] = _n_paradas - 1
                 st.rerun()
 
-        # ══ BOTÃO + PARADA (integrado na cadeia) ════════════════════
+        # ══ + PARADA ════════════════════════════════════════════════
         _rail(color="#BBDEFB", height=6)
         if _n_paradas < 10:
             _col_btn, _col_cnt2 = st.columns([3, 1])
             with _col_btn:
                 if st.button(
-                    "＋ Parada",
+                    "＋ Adicionar Parada",
                     key="btn_add_parada",
                     use_container_width=True,
-                    help=f"Adicionar parada intermediária ({_n_paradas}/10 usadas)",
+                    help=f"Adicionar ponto intermediário ({_n_paradas}/10 usados)",
                 ):
                     st.session_state["_paradas_count"] = _n_paradas + 1
                     st.rerun()
@@ -5136,8 +5186,19 @@ with st.sidebar:
         _rail(color="#BBDEFB", height=6)
 
         # ══ DESTINO ═════════════════════════════════════════════════
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
+            "<span style='width:10px;height:10px;border-radius:50%;"
+            "background:#C62828;display:inline-block;flex-shrink:0'></span>"
+            "<span style='font-size:10px;font-weight:700;color:#C62828;"
+            "text-transform:uppercase;letter-spacing:0.8px'>Ponto de Destino</span>"
+            + (" <span style='font-size:10px;color:#C62828'>✔</span>" if _dest_pronto else
+               " <span style='font-size:9px;color:#aaa;font-style:italic'>— informe abaixo</span>")
+            + "</div>",
+            unsafe_allow_html=True,
+        )
         _campo_rota_compacto(
-            "Ex: RJ  ·  Campinas  ·  Auto Posto",
+            "UF · Cidade · Nome do posto · CNPJ",
             "txt_destino", "dest_sel",
             icon_bg="#C62828",
             action_help="Limpar destino",
@@ -5145,17 +5206,47 @@ with st.sidebar:
         dest_sel = st.session_state.get("dest_sel")
         st.divider()
 
-        st.markdown("<div class='sb-label'>Raio da rota</div>", unsafe_allow_html=True)
+        # ── Raio ────────────────────────────────────────────────────
+        st.markdown(
+            "<div style='font-size:10px;font-weight:700;color:#555;"
+            "text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px'>"
+            "📏 Raio de busca ao longo da rota</div>",
+            unsafe_allow_html=True,
+        )
         raio = st.slider("Raio (m)", min_value=200, max_value=2000, value=500, step=100,
                          label_visibility="collapsed",
                          help="Postos dentro deste raio ao redor da rota serão exibidos")
-        st.caption(f"Mostrando postos a até **{raio} m** da rota")
+        st.caption(f"Buscando postos a até **{raio} m** da rota")
 
-        buscar_rota_btn = st.button("🗺️ Traçar Rota e Buscar Postos",
-                                    use_container_width=True, type="primary")
+        # ── Botão Traçar Rota (com contexto) ───────────────────────
+        if _orig_pronto and _dest_pronto:
+            _o_lbl = str(st.session_state["orig_sel"].get("label",""))[:18]
+            _d_lbl = str(st.session_state["dest_sel"].get("label",""))[:18]
+            buscar_rota_btn = st.button(
+                f"🗺️  {_o_lbl}  →  {_d_lbl}",
+                use_container_width=True, type="primary",
+                help="Calcular rota e exibir postos próximos",
+            )
+        elif not _orig_pronto:
+            st.markdown(
+                "<div style='background:#fff8e1;border:1px solid #ffe082;"
+                "border-radius:8px;padding:8px 10px;font-size:11px;color:#f57f17;"
+                "text-align:center'>⚠️ Informe o <b>Ponto de Origem</b> acima</div>",
+                unsafe_allow_html=True,
+            )
+            buscar_rota_btn = False
+        else:
+            st.markdown(
+                "<div style='background:#fff8e1;border:1px solid #ffe082;"
+                "border-radius:8px;padding:8px 10px;font-size:11px;color:#f57f17;"
+                "text-align:center'>⚠️ Informe o <b>Ponto de Destino</b> acima</div>",
+                unsafe_allow_html=True,
+            )
+            buscar_rota_btn = False
 
-        if st.button("🗑️ Limpar Consulta", use_container_width=True,
-                     help="Remove os resultados e limpa os campos de origem e destino"):
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        if st.button("🗑️ Limpar tudo e recomeçar", use_container_width=True,
+                     help="Remove os resultados e limpa todos os campos"):
             for _k in [
                 "df_rota", "coords_rota",
                 "lat_orig", "lon_orig", "label_orig",
@@ -5167,13 +5258,11 @@ with st.sidebar:
                 "_paradas_data", "_ufs_rota_atual",
             ]:
                 st.session_state.pop(_k, None)
-            # Limpa paradas intermediárias
             _n_p_clr = st.session_state.get("_paradas_count", 0)
             for _pi in range(1, _n_p_clr + 1):
                 st.session_state.pop(f"parada_sel_{_pi}", None)
                 st.session_state.pop(f"txt_parada_{_pi}", None)
             st.session_state["_paradas_count"] = 0
-            # Incrementa o sufixo dos widgets — força criação de novos campos em branco
             st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
             st.rerun()
 
