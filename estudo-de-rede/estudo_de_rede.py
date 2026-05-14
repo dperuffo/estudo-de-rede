@@ -24,9 +24,10 @@ import folium
 # Diretório onde este script está — usado para localizar arquivos do repo
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ─── Imagem Menu.jpg (header sidebar) ────────────────────────────
-# Usa Menu.jpg como banner do sidebar — tem prioridade sobre a logo
-for _menu_nome in ["Menu.jpg", "menu.jpg", "Menu.png", "menu.png",
+# ─── Imagem banner do sidebar (header) ───────────────────────────
+# Designer.jpg tem prioridade máxima; fallback para versões anteriores
+for _menu_nome in ["Designer.jpg", "designer.jpg", "Designer.png", "designer.png",
+                   "Menu.jpg", "menu.jpg", "Menu.png", "menu.png",
                    "Menu_rincipal.jpg", "Menu_principal.jpg", "menu_principal.jpg",
                    "Menu_rincipal.png", "Menu_principal.png"]:
     _menu_candidato = os.path.join(_DIR, _menu_nome)
@@ -1967,7 +1968,7 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
             if not df.empty:
                 fonte += " (planilha Gestão de Frotas)"
 
-        # Prioridade 2: API ANP como fallback — filtra somente postos PF
+        # Prioridade 2: API ANP como fallback — filtra somente postos GF
         if df.empty:
             _df_api = buscar_postos_por_nome(termo, uf=uf)
             if not _df_api.empty:
@@ -2012,16 +2013,16 @@ def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set,
     """
     ARQUITETURA EM CAMADAS:
     ─ Camada 1 (primária):  Postos Gestão de Frotas — planilha pro_frotas.xlsx do GitHub.
-    ─ Camada 2 (complementar): API ANP — enriquece brand/dados dos postos PF em comum
-                                e acrescenta postos não-PF da região selecionada.
+    ─ Camada 2 (complementar): API ANP — enriquece brand/dados dos postos GF em comum
+                                e acrescenta postos não-GF da região selecionada.
 
-    Esta função garante que postos PF da Camada 1 que não aparecem na API ANP
+    Esta função garante que postos GF da Camada 1 que não aparecem na API ANP
     (Camada 2) sejam injetados no dataset, usando as coordenadas da planilha.
 
     Resultado final (df_raw + injetados):
-    • Postos PF ∩ ANP  → dados ANP (mais completos) + flag _pro_frotas=True
-    • Postos PF - ANP  → dados da planilha + flag _pro_frotas=True  [esta função]
-    • Postos ANP - PF  → dados ANP + flag _pro_frotas=False
+    • Postos GF ∩ ANP  → dados ANP (mais completos) + flag _pro_frotas=True
+    • Postos GF - ANP  → dados da planilha + flag _pro_frotas=True  [esta função]
+    • Postos ANP - GF  → dados ANP + flag _pro_frotas=False
 
     Filtro de UF:
       - uf_atual:      UF única (Modo 1 — Por Estado).
@@ -2048,7 +2049,7 @@ def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set,
     # ── FILTRO POR UF ────────────────────────────────────────────────
     # Evita injetar postos de estados que não fazem parte da consulta.
     # SEGURANÇA: se uf_atual ou ufs_permitidas foram informados mas a planilha
-    # não tem coluna UF preenchida, NÃO injeta (evita flood de todos os PF em 1 estado).
+    # não tem coluna UF preenchida, NÃO injeta (evita flood de todos os GF em 1 estado).
     _tem_uf_col = "uf" in df_novos.columns and df_novos["uf"].fillna("").str.strip().ne("").any()
 
     if uf_atual or ufs_permitidas:
@@ -2372,15 +2373,15 @@ def _marcador_logo_bandeira(lat, lon, popup, tooltip, img_b64: str, cor_borda: s
 def _marcador_pf_bandeira(lat, lon, popup, tooltip, img_b64: str):
     """
     Marcador para posto Gestão de Frotas que tem logo de bandeira reconhecida (ex: Ipiranga).
-    Usa a logo da bandeira com borda azul PF + anel dourado externo para diferenciar
+    Usa a logo da bandeira com borda azul GF + anel dourado externo para diferenciar
     de postos regulares da mesma bandeira.
-    Tamanho maior (36px) que o pin regular (28px) para destacar o credenciamento PF.
+    Tamanho maior (36px) que o pin regular (28px) para destacar o credenciamento GF.
     """
     html_icon = (
         f"<div style='"
         f"width:36px;height:36px;"
         f"border-radius:50%;"
-        # Borda interna azul PF + sombra dourada = indicação visual de credenciado
+        # Borda interna azul GF + sombra dourada = indicação visual de credenciado
         f"border:3px solid {COR_PF_BORDA};"
         f"box-shadow:0 0 0 2px #FFD700, 0 3px 8px rgba(0,0,0,.55);"
         f"overflow:hidden;"
@@ -2645,7 +2646,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 text=dfi.apply(_hover_txt, axis=1).tolist(),
                 customdata=_customdata(dfi),
                 hoverinfo="text",
-                name="⭐ PF Ipiranga",
+                name="⭐ GF Ipiranga",
             ))
 
         # Gestão de Frotas demais bandeiras — azul
@@ -3440,7 +3441,7 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
                 "<div class='cmp-uf-wrap'>"
                 "<div class='cmp-uf-titulo'>PREÇO ANP POR ESTADO</div>"
                 "<table class='cmp-uf-table'>"
-                "<thead><tr><th>Estado</th><th>ANP</th><th>vs PF</th></tr></thead>"
+                "<thead><tr><th>Estado</th><th>ANP</th><th>vs GF</th></tr></thead>"
                 f"<tbody>{linhas_uf}</tbody>"
                 "</table></div>"
             )
@@ -3451,7 +3452,7 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
         data_ = item['data_atualizacao']
         footer = (
             f"<div class='cmp-footer'>"
-            f"{n_p} posto{'s' if n_p != 1 else ''} PF"
+            f"{n_p} posto{'s' if n_p != 1 else ''} GF"
             f"{' · atualizado ' + data_ if data_ else ''}"
             f"</div>"
         )
@@ -4250,7 +4251,7 @@ def _gerar_excel_base_brasil() -> tuple:
             last_cell     = f"{get_column_letter(n_cols)}{n_rows}"
             pf_fill       = PatternFill("solid", fgColor="DBEAFE")
             pf_font       = Font(bold=True, size=10)
-            # A fórmula usa referência absoluta na coluna PF e relativa na linha
+            # A fórmula usa referência absoluta na coluna GF e relativa na linha
             formula = [f'${pf_col_letter}2="SIM"']
             ws.conditional_formatting.add(
                 f"A2:{last_cell}",
@@ -4361,7 +4362,7 @@ def preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=None):
     """
     Retorna df filtrado e marcado.
     A etapa de marcação (cara) é cacheada em session_state:
-    só reprocessa quando df_raw ou os conjuntos PF/cercados/perfis mudam.
+    só reprocessa quando df_raw ou os conjuntos GF/cercados/perfis mudam.
     """
     cnpjs_pf   = st.session_state.get("cnpjs_pro_frotas", set())
     cnpjs_cer  = st.session_state.get("cnpjs_cercados",   set())
@@ -4623,20 +4624,18 @@ if not st.session_state.get("_base_auto_ok"):
 
 with st.sidebar:
 
-    # ── Header do Sidebar — Menu.jpg ou fallback logo ─────────────
+    # ── Header do Sidebar — imagem banner ─────────────────────────
     if _MENU_B64:
-        # ── Usa Menu.jpg como banner full-width, sem sobreposições ──────
         st.markdown(
-            f"<div style='margin:-1rem -1rem 0 -1rem;overflow:hidden;position:relative'>"
+            # Imagem full-width sem margens, bordas arredondadas suaves
+            f"<div style='margin:-1rem -1rem 0 -1rem;overflow:hidden'>"
             f"<img src='data:{_menu_mime};base64,{_MENU_B64}' "
-            f"style='width:100%;display:block;object-fit:cover'>"
-            # Overlay para ocultar o logo da imagem
-            f"<div style='position:absolute;top:34%;left:4%;width:36%;height:7%;"
-            f"backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);"
-            f"border-radius:6px'></div>"
+            f"style='width:100%;display:block;object-fit:cover;"
+            f"border-radius:0 0 8px 8px'>"
             f"</div>"
-            f"<div style='height:3px;margin:0 -1rem 14px -1rem;"
-            f"background:linear-gradient(90deg,#0D47A1 0%,#1565C0 50%,#E65100 100%)'>"
+            # Barra separadora com gradiente alinhado ao tema azul/laranja dos botões
+            f"<div style='height:4px;margin:0 -1rem 12px -1rem;"
+            f"background:linear-gradient(90deg,#0D47A1 0%,#1565C0 40%,#1976D2 70%,#E65100 100%)'>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -5004,7 +5003,7 @@ with st.sidebar:
                 "Perfil de Venda", _perfis_lista_m1,
                 placeholder="Todos os perfis", label_visibility="collapsed",
                 key=f"mult_perfil_{_fk_m1}",
-                help="Filtra os postos Gestão de Frotas pelo perfil de venda. Postos não-PF sempre exibidos.",
+                help="Filtra os postos Gestão de Frotas pelo perfil de venda. Postos não-GF sempre exibidos.",
             )
 
     # ── Modo 3 ────────────────────────────────────────────────
@@ -5681,7 +5680,7 @@ with st.sidebar:
                                 f"<div style='font-size:11px;padding:4px 0;"
                                 f"border-bottom:1px solid #eee'>"
                                 f"<b><code>{_pk_d}</code></b> → {_lbl_d} "
-                                f"<span style='color:#888'>({_n_rows} linhas · {_n_pf_d} postos PF)</span>"
+                                f"<span style='color:#888'>({_n_rows} linhas · {_n_pf_d} postos GF)</span>"
                                 f"<br><span style='font-size:10px;color:{_cor_match}'>"
                                 f"ANP: <code>{_match_anp}</code></span>"
                                 f"</div>",
@@ -5844,7 +5843,7 @@ with st.sidebar:
 if modo == "📍 Por UF/Município":
 
     if uf:
-        # ── Carrega postos PF do estado diretamente da planilha (sem chamada à API ANP) ──
+        # ── Carrega postos GF do estado diretamente da planilha (sem chamada à API ANP) ──
         if uf != st.session_state.get("_uf_carregada"):
             _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
             if not _pf_df_m1.empty:
@@ -5886,14 +5885,14 @@ if modo == "📍 Por UF/Município":
         df_show = preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=perfis_filtro_m1)
 
         # ── Overlay ANP: adiciona postos do arquivo carregado pelo usuário ──
-        # O mapa já contém apenas postos PF (da planilha). O overlay acrescenta
-        # postos não-PF do arquivo ANP, somente quando o usuário o inseriu.
+        # O mapa já contém apenas postos GF (da planilha). O overlay acrescenta
+        # postos não-GF do arquivo ANP, somente quando o usuário o inseriu.
         _anp_view_m1 = st.session_state.get("_anp_df_raw")
         if _anp_view_m1 is not None:
             _anp_uf_view1 = _anp_view_m1[
                 _anp_view_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
             ].copy()
-            # Aplica filtro de município no overlay ANP, igual ao filtro dos postos PF
+            # Aplica filtro de município no overlay ANP, igual ao filtro dos postos GF
             if mun and not _anp_uf_view1.empty:
                 _mun_norm_anp = _sem_acento(mun)
                 _anp_uf_view1 = _anp_uf_view1[
@@ -5924,7 +5923,7 @@ if modo == "📍 Por UF/Município":
         c3.metric("🏷️ Bandeiras",       _n(df_show['distribuidora'].nunique()) if not df_show.empty else "0")
         c4.metric("📍 Estado",          uf)
 
-        # ── Cards comparativo PF vs ANP (quando dados disponíveis) ────
+        # ── Cards comparativo GF vs ANP (quando dados disponíveis) ────
         _pp_df_m1    = st.session_state.get("_pp_df")
         _cnpjs_pf_m1 = st.session_state.get("cnpjs_pro_frotas", set())
         _cache_m1    = st.session_state.get("_precos_anp_cache", {})
@@ -6325,7 +6324,7 @@ elif modo == "🗺️ Por Rota":
             if ufs_rota:
                 st.info(f"🗺️ Estados detectados na rota: **{', '.join(ufs_rota)}**")
 
-            # ── Carrega postos PF dos estados da rota (planilha local — sem API ANP) ──
+            # ── Carrega postos GF dos estados da rota (planilha local — sem API ANP) ──
             _pf_df_m2   = st.session_state.get("pf_coords_df", pd.DataFrame())
             _ufs_set_m2 = {u.upper() for u in ufs_rota}
             _n_pf_total_m2 = len(_pf_df_m2)
@@ -6500,7 +6499,7 @@ elif modo == "🗺️ Por Rota":
                 else:
                     st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
 
-        # ── Cards comparativo PF vs ANP para a rota ───────────────────
+        # ── Cards comparativo GF vs ANP para a rota ───────────────────
         _pp_df_m2    = st.session_state.get("_pp_df")
         _cnpjs_pf_m2 = st.session_state.get("cnpjs_pro_frotas", set())
         _cache_m2    = st.session_state.get("_precos_anp_cache", {})
