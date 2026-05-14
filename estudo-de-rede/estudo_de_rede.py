@@ -6088,20 +6088,30 @@ if modo == "📍 Por Estado/Município":
 
             # ── Botão Traçar Rota (destacado quando os dois estão prontos) ──
             if _map_o and _map_d:
+                _mesmo_ponto_m1 = (
+                    abs(_map_o["lat"] - _map_d["lat"]) < 0.0002 and
+                    abs(_map_o["lon"] - _map_d["lon"]) < 0.0002
+                )
                 _col_btn, _col_clr = st.columns([4, 1])
-                if _col_btn.button(
-                    f"🗺️  Traçar Rota  ·  {_map_o['label'][:22]} → {_map_d['label'][:22]}",
-                    use_container_width=True, type="primary", key="btn_tracar_mapa",
-                ):
-                    with st.spinner("🗺️ Calculando rota…"):
-                        _cr, _dk, _dm, _lr = calcular_rota(
-                            _map_o["lat"], _map_o["lon"],
-                            _map_d["lat"], _map_d["lon"])
-                    st.session_state["_map_rota_result"] = {
-                        "coords": _cr, "dist_km": _dk, "dur_min": _dm,
-                        "linha_reta": _lr, "orig": _map_o, "dest": _map_d,
-                    }
-                    st.rerun()
+                if _mesmo_ponto_m1:
+                    _col_btn.warning(
+                        "⚠️ Origem e Destino são o **mesmo posto**. "
+                        "Busque e selecione postos diferentes abaixo."
+                    )
+                else:
+                    if _col_btn.button(
+                        f"🗺️  Traçar Rota  ·  {_map_o['label'][:22]} → {_map_d['label'][:22]}",
+                        use_container_width=True, type="primary", key="btn_tracar_mapa",
+                    ):
+                        with st.spinner("🗺️ Calculando rota…"):
+                            _cr, _dk, _dm, _lr = calcular_rota(
+                                _map_o["lat"], _map_o["lon"],
+                                _map_d["lat"], _map_d["lon"])
+                        st.session_state["_map_rota_result"] = {
+                            "coords": _cr, "dist_km": _dk, "dur_min": _dm,
+                            "linha_reta": _lr, "orig": _map_o, "dest": _map_d,
+                        }
+                        st.rerun()
                 if _col_clr.button("↺ Reiniciar", use_container_width=True,
                                    key="btn_clr_mapa_sel",
                                    help="Limpar origem, destino e rota calculada"):
@@ -6746,20 +6756,31 @@ elif modo == "🔍 Consulta por Posto":
 
     # ── Botão Traçar Rota (CTA) ───────────────────────────────────
     if _m3_o_ok and _m3_d_ok:
+        # Verifica se Origem e Destino são o mesmo ponto
+        _m3_mesmo_ponto = (
+            abs(_m3_map_o["lat"] - _m3_map_d["lat"]) < 0.0002 and
+            abs(_m3_map_o["lon"] - _m3_map_d["lon"]) < 0.0002
+        )
         _col_cta_m3, _col_clr_m3 = st.columns([4, 1])
-        if _col_cta_m3.button(
-            f"🗺️  Traçar Rota  ·  {_m3_map_o['label'][:22]} → {_m3_map_d['label'][:22]}",
-            use_container_width=True, type="primary", key="btn_tracar_m3",
-        ):
-            with st.spinner("🗺️ Calculando rota…"):
-                _cr_m3, _dk_m3, _dm_m3, _lr_m3 = calcular_rota(
-                    _m3_map_o["lat"], _m3_map_o["lon"],
-                    _m3_map_d["lat"], _m3_map_d["lon"])
-            st.session_state["_map_rota_result"] = {
-                "coords": _cr_m3, "dist_km": _dk_m3, "dur_min": _dm_m3,
-                "linha_reta": _lr_m3, "orig": _m3_map_o, "dest": _m3_map_d,
-            }
-            st.rerun()
+        if _m3_mesmo_ponto:
+            _col_cta_m3.warning(
+                "⚠️ Origem e Destino são o **mesmo posto**. "
+                "Use os botões 🟢 / 🔴 abaixo para selecionar postos diferentes."
+            )
+        else:
+            if _col_cta_m3.button(
+                f"🗺️  Traçar Rota  ·  {_m3_map_o['label'][:22]} → {_m3_map_d['label'][:22]}",
+                use_container_width=True, type="primary", key="btn_tracar_m3",
+            ):
+                with st.spinner("🗺️ Calculando rota…"):
+                    _cr_m3, _dk_m3, _dm_m3, _lr_m3 = calcular_rota(
+                        _m3_map_o["lat"], _m3_map_o["lon"],
+                        _m3_map_d["lat"], _m3_map_d["lon"])
+                st.session_state["_map_rota_result"] = {
+                    "coords": _cr_m3, "dist_km": _dk_m3, "dur_min": _dm_m3,
+                    "linha_reta": _lr_m3, "orig": _m3_map_o, "dest": _m3_map_d,
+                }
+                st.rerun()
         if _col_clr_m3.button("↺", use_container_width=True, key="btn_clr_m3_od",
                               help="Limpar origem, destino e rota"):
             for _k in ["_map_orig", "_map_dest", "_map_rota_result"]:
