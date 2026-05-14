@@ -2633,7 +2633,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 text=dfr.apply(_hover_txt, axis=1).tolist(),
                 customdata=_customdata(dfr),
                 hoverinfo="text",
-                name="⭐ Rodo Rede",
+                name="⭐ Ipiranga RodoRede",
             ))
 
         # Gestão de Frotas Ipiranga — amarelo
@@ -2786,12 +2786,12 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
                 f"background:#fff3e0;border:1px solid {COR_RR_FILL};"
                 f"border-radius:3px;padding:1px 6px;font-size:11px;margin-right:4px'>"
                 f"<img src='{_rr_img}' style='height:14px;width:auto;object-fit:contain;"
-                f"vertical-align:middle;border-radius:2px'> ⭐ Rodo Rede</span>"
+                f"vertical-align:middle;border-radius:2px'> ⭐ Ipiranga RodoRede</span>"
             )
         else:
             _badges_html += (
                 f"<span style='background:{COR_RR_FILL};color:#fff;border-radius:3px;"
-                f"padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Rodo Rede</span>"
+                f"padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Ipiranga RodoRede</span>"
             )
     if _cer:
         _badges_html += (
@@ -7007,7 +7007,7 @@ elif modo == "🔍 Consulta por Posto":
                     _is_rr_r  = bool(_r.get("_rodo_rede"))
                     _badges = ""
                     if _is_pf_r:  _badges += "<span style='background:#1565c0;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>⭐ GESTÃO DE FROTAS</span>"
-                    if _is_rr_r:  _badges += "<span style='background:#FFB300;color:#333;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>🚛 RODO REDE</span>"
+                    if _is_rr_r:  _badges += "<span style='background:#FFB300;color:#333;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>🚛 IPIRANGA RODOREDE</span>"
                     if _is_cer_r: _badges += "<span style='background:#FF8F00;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>⚠️ CERCADO</span>"
 
                     _td = "color:#888;padding:3px 8px 3px 0"
