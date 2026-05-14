@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════
-#  Estudo de Rede – Gestão de Frota
+#  Estudo de Rede – Gestão de Frotas
 #  Versão 5.1  |  Plotly WebGL map + NumPy vetorizado + cache 24h
 # ═══════════════════════════════════════════════════════════════════
 
@@ -49,7 +49,7 @@ else:
     _MENU_B64  = None
     _MENU_IMG  = ""
 
-# ─── Logo Gestão de Frota (topbar + fallback sidebar) ──────────────────
+# ─── Logo Gestão de Frotas (topbar + fallback sidebar) ──────────────────
 for _logo_nome in ["Logo_profrotas.jpg", "logo_profrotas.jpg",
                    "Logo_profrotas.png", "logo_profrotas.png"]:
     _logo_candidato = os.path.join(_DIR, _logo_nome)
@@ -84,7 +84,7 @@ else:
 
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
-    page_title="Estudo de Rede – Gestão de Frota",
+    page_title="Estudo de Rede – Gestão de Frotas",
     page_icon=_LOGO_PAGE_ICON,
     layout="wide",
     initial_sidebar_state="expanded",  # sempre aberta
@@ -156,7 +156,7 @@ header[data-testid="stHeader"] {
     white-space: pre-wrap !important;
     padding: 6px 4px !important;
 }
-/* Badge de status Gestão de Frota compacto */
+/* Badge de status Gestão de Frotas compacto */
 [data-testid="stSidebar"] .pf-badge {
     border-radius: 8px;
     padding: 7px 11px;
@@ -634,7 +634,7 @@ CORES_MARCAS = {
     "NACIONAL":          "#4E342E",  # marrom escuro — Nacional (genérico)
 }
 
-# Cor e estilo do marcador Gestão de Frota
+# Cor e estilo do marcador Gestão de Frotas
 COR_PF_FILL  = "#1565C0"   # azul — identificação visual do credenciamento
 COR_PF_BORDA = "#0D47A1"   # azul escuro
 
@@ -668,13 +668,13 @@ def _cor_marca(distribuidora: str) -> str:
 
 
 # Limite de marcadores no mapa. Acima disso os postos são amostrados
-# (Gestão de Frota têm prioridade) e o popup é simplificado.
+# (Gestão de Frotas têm prioridade) e o popup é simplificado.
 # → evita serializar 5-6 MB de HTML para estados como SP (4 000+ postos).
 MAX_MAPA_POSTOS = 5000  # Plotly WebGL suporta 10 000+ marcadores sem travar
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  GESTÃO DE FROTA — Upload e comparação de CNPJs
+#  GESTÃO DE FROTAS — Upload e comparação de CNPJs
 # ═══════════════════════════════════════════════════════════════════
 
 # Nome do arquivo fixo esperado na raiz do repositório
@@ -729,7 +729,7 @@ def _detectar_col(df: pd.DataFrame, termos: list) -> str | None:
 
 def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
     """
-    Núcleo de leitura da planilha Gestão de Frota.
+    Núcleo de leitura da planilha Gestão de Frotas.
     Aceita o nome do arquivo e seus bytes brutos.
     Retorna (set_cnpjs, msg, df_preview, perfil_map, df_coords) ou (None, msg, None, None, None).
 
@@ -932,7 +932,7 @@ def ler_planilha_pro_frotas(arquivo):
 @st.cache_data(show_spinner=False, ttl=86400)   # 24 horas — lê o arquivo do repo uma vez por dia
 def _auto_carregar_pro_frotas_repo():
     """
-    Tenta carregar automaticamente a planilha Gestão de Frota do repositório.
+    Tenta carregar automaticamente a planilha Gestão de Frotas do repositório.
     Aceita: pro_frotas.xlsx / pro_frotas.xls / pro_frotas.csv
     Retorna (set_cnpjs, msg, df_preview, perfil_map, df_coords) ou (None, msg, None, None, None).
     """
@@ -1268,7 +1268,7 @@ def _auto_carregar_precos_postos_repo():
     return None, f"Arquivo `{ARQUIVO_PP_REPO}` não encontrado em: {_DIR}", None
 
 
-# ── Gestão de Frota ───────────────────────────────────────────────────────
+# ── Gestão de Frotas ───────────────────────────────────────────────────────
 
 def marcar_pro_frotas(df: pd.DataFrame, cnpjs_pf: set) -> pd.DataFrame:
     df = df.copy()
@@ -1933,12 +1933,12 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
         # ── Busca por CNPJ ──────────────────────────────────────────────
         fonte = cnpj_fmt_label
         df = pd.DataFrame()
-        # Prioridade 1: planilha local Gestão de Frota (mais precisa, sem API)
+        # Prioridade 1: planilha local Gestão de Frotas (mais precisa, sem API)
         if not pf_df.empty and "cnpj" in pf_df.columns:
             _mask_cnpj = pf_df["cnpj"].fillna("").str.replace(r"\D", "", regex=True) == _digits
             df = pf_df[_mask_cnpj].copy()
             if not df.empty:
-                fonte += " (planilha Gestão de Frota)"
+                fonte += " (planilha Gestão de Frotas)"
         # Prioridade 2: API ANP (com pós-filtro de CNPJ exato)
         if df.empty:
             df = buscar_posto_por_cnpj(_digits)
@@ -1946,7 +1946,7 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
                 fonte += " (API ANP)"
     else:
         # ── Busca por nome / razão social ────────────────────────────────
-        # Prioridade 1: planilha local Gestão de Frota (sem chamada à API ANP)
+        # Prioridade 1: planilha local Gestão de Frotas (sem chamada à API ANP)
         fonte = f'Razão social "{termo}"' + (f" · UF {uf}" if uf else "")
         df = pd.DataFrame()
         if not pf_df.empty:
@@ -1965,7 +1965,7 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
                 )
             df = pf_df[_mask].copy()
             if not df.empty:
-                fonte += " (planilha Gestão de Frota)"
+                fonte += " (planilha Gestão de Frotas)"
 
         # Prioridade 2: API ANP como fallback — filtra somente postos PF
         if df.empty:
@@ -2011,7 +2011,7 @@ def _injetar_pf_ausentes(df_raw: pd.DataFrame, cnpjs_pf: set,
                          uf_atual: str = "", ufs_permitidas: set = None) -> pd.DataFrame:
     """
     ARQUITETURA EM CAMADAS:
-    ─ Camada 1 (primária):  Postos Gestão de Frota — planilha pro_frotas.xlsx do GitHub.
+    ─ Camada 1 (primária):  Postos Gestão de Frotas — planilha pro_frotas.xlsx do GitHub.
     ─ Camada 2 (complementar): API ANP — enriquece brand/dados dos postos PF em comum
                                 e acrescenta postos não-PF da região selecionada.
 
@@ -2094,7 +2094,7 @@ def _popup(row):
             "<div style='background:#FFF9C4;border:2px solid #FFD700;border-radius:6px;"
             "padding:5px 10px;margin-bottom:8px;font-weight:700;color:#7B5E00;"
             "display:flex;align-items:center;gap:6px;font-size:12px'>"
-            "⭐ CREDENCIADO GESTÃO DE FROTA</div>"
+            "⭐ CREDENCIADO GESTÃO DE FROTAS</div>"
         )
     produtos_html = ""
     try:
@@ -2182,7 +2182,7 @@ def _popup_simples(row):
     lat = row.get("_lat", ""); lon = row.get("_lon", "")
     maps_url = f"https://www.google.com/maps?q={lat},{lon}"
     pf_txt = ("<div style='color:#7B5E00;font-weight:700;font-size:11px;"
-              "margin-bottom:4px'>⭐ GESTÃO DE FROTA</div>"
+              "margin-bottom:4px'>⭐ GESTÃO DE FROTAS</div>"
               if row.get("_pro_frotas") else "")
 
     return folium.Popup(
@@ -2259,7 +2259,7 @@ def _img_pro_frotas_b64() -> str:
 
 
 def _marcador_pf(lat, lon, popup, tooltip):
-    """Marcador Gestão de Frota: usa logo_profrotas.jpg se disponível, senão círculo azul."""
+    """Marcador Gestão de Frotas: usa logo_profrotas.jpg se disponível, senão círculo azul."""
     img_b64 = _img_pro_frotas_b64()
 
     if img_b64:
@@ -2371,7 +2371,7 @@ def _marcador_logo_bandeira(lat, lon, popup, tooltip, img_b64: str, cor_borda: s
 
 def _marcador_pf_bandeira(lat, lon, popup, tooltip, img_b64: str):
     """
-    Marcador para posto Gestão de Frota que tem logo de bandeira reconhecida (ex: Ipiranga).
+    Marcador para posto Gestão de Frotas que tem logo de bandeira reconhecida (ex: Ipiranga).
     Usa a logo da bandeira com borda azul PF + anel dourado externo para diferenciar
     de postos regulares da mesma bandeira.
     Tamanho maior (36px) que o pin regular (28px) para destacar o credenciamento PF.
@@ -2395,7 +2395,7 @@ def _marcador_pf_bandeira(lat, lon, popup, tooltip, img_b64: str):
 
 
 def _marcador_rodo_rede(lat, lon, popup, tooltip):
-    """Marcador com logo Rodo Rede para postos Gestão de Frota com Perfil de Venda = Rodo Rede."""
+    """Marcador com logo Rodo Rede para postos Gestão de Frotas com Perfil de Venda = Rodo Rede."""
     img_b64 = _img_rodo_rede_b64()
 
     if img_b64:
@@ -2459,7 +2459,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino",
                waypoints=None):
     """Retorna go.Figure (Plotly Scattermapbox) — WebGL, suporta 10 000+ marcadores."""
-    # ── Cap de marcadores — Gestão de Frota sempre priorizados ──────────────────────
+    # ── Cap de marcadores — Gestão de Frotas sempre priorizados ──────────────────────
     MAX_PF_MAPA = 5000
     n_total = len(df)
     foi_limitado = False
@@ -2635,7 +2635,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 name="⭐ Rodo Rede",
             ))
 
-        # Gestão de Frota Ipiranga — amarelo
+        # Gestão de Frotas Ipiranga — amarelo
         if mask_pf_ipi.any():
             dfi = df[mask_pf_ipi]
             traces.append(go.Scattermapbox(
@@ -2648,7 +2648,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 name="⭐ PF Ipiranga",
             ))
 
-        # Gestão de Frota demais bandeiras — azul
+        # Gestão de Frotas demais bandeiras — azul
         if mask_pf_out.any():
             dfp = df[mask_pf_out]
             traces.append(go.Scattermapbox(
@@ -2658,7 +2658,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 text=dfp.apply(_hover_txt, axis=1).tolist(),
                 customdata=_customdata(dfp),
                 hoverinfo="text",
-                name="⭐ Gestão de Frota",
+                name="⭐ Gestão de Frotas",
             ))
 
         # Postos regulares ANP — cor por marca
@@ -2691,7 +2691,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     if foi_limitado:
         layout_annotations.append(dict(
             text=(f"⚠️ Exibindo {MAX_MAPA_POSTOS:,} de {n_total:,} postos "
-                  f"(Gestão de Frota priorizados). Veja todos na aba Dados Tabulares."),
+                  f"(Gestão de Frotas priorizados). Veja todos na aba Dados Tabulares."),
             x=0.5, y=0.02, xref="paper", yref="paper",
             showarrow=False, align="center",
             font=dict(size=11, color="#E65100"),
@@ -2775,7 +2775,7 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
     if _pf:
         _badges_html += (
             "<span style='background:#1565c0;color:#fff;border-radius:3px;"
-            "padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Gestão de Frota</span>"
+            "padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Gestão de Frotas</span>"
         )
     if _rr:
         _rr_img = _img_rodo_rede_b64()
@@ -3238,7 +3238,7 @@ def _anp_precos_por_fuel_por_uf(sheets, ufs):
 
 def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
     """
-    Calcula comparativo Gestão de Frota (Preço Posto) vs ANP.
+    Calcula comparativo Gestão de Frotas (Preço Posto) vs ANP.
 
     Retorna lista de dicts com:
       combustivel_label, combustivel_pk,
@@ -3249,7 +3249,7 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
     if df_pp is None or df_pp.empty or not cnpjs_pf or sheets_anp is None:
         return []
 
-    # Filtra só postos Gestão de Frota
+    # Filtra só postos Gestão de Frotas
     df_pf = df_pp[df_pp["cnpj_norm"].isin(cnpjs_pf)].copy()
     if df_pf.empty:
         return []
@@ -3350,7 +3350,7 @@ def _calcular_comparativo_pf_anp(df_pp, cnpjs_pf, sheets_anp, ufs=None):
 
 
 def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
-    """Renderiza cards de comparativo Gestão de Frota vs ANP — visual aprimorado."""
+    """Renderiza cards de comparativo Gestão de Frotas vs ANP — visual aprimorado."""
     if not comparativo:
         st.info("ℹ️ Sem dados suficientes para o comparativo. "
                 "Carregue a planilha **Preço Posto** e a planilha **ANP** em ⚙️ Configurações.")
@@ -3361,7 +3361,7 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
         f"<div style='background:linear-gradient(135deg,#0d1b4b 0%,#1565c0 100%);"
         f"border-radius:14px;padding:18px 24px 14px;margin-bottom:20px'>"
         f"<div style='color:#fff;font-size:18px;font-weight:800;letter-spacing:.3px'>"
-        f"📊 Preços Gestão de Frota vs ANP</div>"
+        f"📊 Preços Gestão de Frotas vs ANP</div>"
         f"<div style='color:rgba(255,255,255,.8);font-size:13px;margin-top:4px'>"
         f"{subtitulo or 'Comparativo por combustível — preço médio dos postos credenciados'}"
         f"</div>"
@@ -3464,7 +3464,7 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
             f"</div>"
             f"<div class='cmp-body'>"
             f"<div class='cmp-prices'>"
-            f"<div><div class='cmp-lbl'>⭐ Gestão de Frota médio</div>"
+            f"<div><div class='cmp-lbl'>⭐ Gestão de Frotas médio</div>"
             f"<div class='cmp-pf'>R$ {_brl(item['preco_pf_med'], 3)}</div></div>"
             f"<div style='text-align:right'><div class='cmp-lbl'>📊 Ref. ANP</div>"
             f"<div class='cmp-anp'>R$ {_brl(item['preco_anp'], 3)}</div></div>"
@@ -3767,7 +3767,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"</div></div>"
                 )
 
-            # ── Card Gestão de Frota (Preço Posto real) ───────────────────
+            # ── Card Gestão de Frotas (Preço Posto real) ───────────────────
             _pp_df_calc    = st.session_state.get("_pp_df")
             _cnpjs_pf_calc = st.session_state.get("cnpjs_pro_frotas", set())
             if _pp_df_calc is not None and _cnpjs_pf_calc:
@@ -3806,7 +3806,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     cards_html += (
                         f"<div class='cc-card{_pf_best_cls}'>"
                         f"<div class='cc-head' style='background:#0d47a1'>"
-                        f"<div class='cc-titulo'>⭐ Gestão de Frota{_pf_best_badge}</div>"
+                        f"<div class='cc-titulo'>⭐ Gestão de Frotas{_pf_best_badge}</div>"
                         f"<div class='cc-sub'>{_n_pf_real} postos{_pf_data_html}</div></div>"
                         f"<div class='cc-body'>"
                         f"<div class='cc-preco-label'>Preço médio real</div>"
@@ -4143,16 +4143,16 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 # ═══════════════════════════════════════════════════════════════════
 
 def _gerar_excel_base_brasil() -> tuple:
-    """Consolida todos os estados em cache, marca Gestão de Frota e gera um .xlsx.
+    """Consolida todos os estados em cache, marca Gestão de Frotas e gera um .xlsx.
 
     Retorna (bytes_do_arquivo | None, mensagem_str).
 
     Estrutura do arquivo:
       • Aba "Postos ANP"  — todos os postos, ordenados por UF > Município > Razão Social
       • Cabeçalho azul escuro (#0D47A1) com texto branco
-      • Linhas Gestão de Frota destacadas em azul claro via formatação condicional
+      • Linhas Gestão de Frotas destacadas em azul claro via formatação condicional
         (avaliado pelo Excel, sem loop Python linha-a-linha — suporta 60 000+ linhas)
-      • Coluna "Gestão de Frota" com valor "SIM" nos postos credenciados
+      • Coluna "Gestão de Frotas" com valor "SIM" nos postos credenciados
     """
     from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
     from openpyxl.formatting.rule import FormulaRule
@@ -4177,7 +4177,7 @@ def _gerar_excel_base_brasil() -> tuple:
 
     df_all = pd.concat(frames, ignore_index=True)
 
-    # ── Marca Gestão de Frota ──────────────────────────────────────────
+    # ── Marca Gestão de Frotas ──────────────────────────────────────────
     cnpjs_pf = st.session_state.get("cnpjs_pro_frotas", set())
     df_all   = marcar_pro_frotas(df_all, cnpjs_pf)
 
@@ -4186,7 +4186,7 @@ def _gerar_excel_base_brasil() -> tuple:
         df_all["cnpj"] = df_all["cnpj"].fillna("").apply(
             lambda x: _formatar_cnpj(str(x)) if x else "")
 
-    # Coluna legível para Gestão de Frota
+    # Coluna legível para Gestão de Frotas
     df_all["_pf_txt"] = df_all["_pro_frotas"].map({True: "SIM", False: ""})
 
     # ── Seleciona e renomeia colunas ──────────────────────────────
@@ -4196,7 +4196,7 @@ def _gerar_excel_base_brasil() -> tuple:
         ("razaoSocial",       "Razão Social"),
         ("cnpj",              "CNPJ"),
         ("distribuidora",     "Distribuidora / Bandeira"),
-        ("_pf_txt",           "Gestão de Frota"),
+        ("_pf_txt",           "Gestão de Frotas"),
         ("endereco",          "Endereço"),
         ("bairro",            "Bairro"),
         ("cep",               "CEP"),
@@ -4215,7 +4215,7 @@ def _gerar_excel_base_brasil() -> tuple:
               .reset_index(drop=True))
 
     n_total = len(df_exp)
-    n_pf_exp = int(df_exp["Gestão de Frota"].eq("SIM").sum()) if "Gestão de Frota" in df_exp.columns else 0
+    n_pf_exp = int(df_exp["Gestão de Frotas"].eq("SIM").sum()) if "Gestão de Frotas" in df_exp.columns else 0
 
     # ── Gera Excel em memória ─────────────────────────────────────
     buf = io.BytesIO()
@@ -4242,10 +4242,10 @@ def _gerar_excel_base_brasil() -> tuple:
             cell.alignment = hdr_align
             cell.border    = thin_brd
 
-        # Formatação condicional — linhas Gestão de Frota em azul claro
+        # Formatação condicional — linhas Gestão de Frotas em azul claro
         # Usa fórmula Excel avaliada pelo próprio app (rápido para 60 000+ linhas)
-        if "Gestão de Frota" in df_exp.columns:
-            pf_col_idx    = df_exp.columns.get_loc("Gestão de Frota") + 1   # 1-based
+        if "Gestão de Frotas" in df_exp.columns:
+            pf_col_idx    = df_exp.columns.get_loc("Gestão de Frotas") + 1   # 1-based
             pf_col_letter = get_column_letter(pf_col_idx)
             last_cell     = f"{get_column_letter(n_cols)}{n_rows}"
             pf_fill       = PatternFill("solid", fgColor="DBEAFE")
@@ -4263,7 +4263,7 @@ def _gerar_excel_base_brasil() -> tuple:
                 f"Gerado em: {_agora()}  |  "
                 f"{_n(n_total)} postos  |  "
                 f"{_n(len(estados))} estados  |  "
-                f"{_n(n_pf_exp)} Gestão de Frota  |  "
+                f"{_n(n_pf_exp)} Gestão de Frotas  |  "
                 f"Fonte: API ANP — revendedoresapi.anp.gov.br"
                 ).font = Font(italic=True, color="757575", size=9)
 
@@ -4283,7 +4283,7 @@ def _gerar_excel_base_brasil() -> tuple:
     data = buf.read()
     msg  = (f"✅ {_n(n_total)} postos exportados "
             f"({_n(len(estados))} estados)  |  "
-            f"⭐ {_n(n_pf_exp)} Gestão de Frota identificados")
+            f"⭐ {_n(n_pf_exp)} Gestão de Frotas identificados")
     return data, msg
 
 
@@ -4336,7 +4336,7 @@ def _marcar_df_completo(df_raw: pd.DataFrame) -> pd.DataFrame:
     else:
         df["_cnpj_norm"] = ""
 
-    # ── Gestão de Frota ───────────────────────────────────────────────────
+    # ── Gestão de Frotas ───────────────────────────────────────────────────
     df["_pro_frotas"] = (
         df["_cnpj_norm"].isin(cnpjs_pf) if cnpjs_pf else False
     )
@@ -4449,11 +4449,11 @@ def _precarregar_estados_paralelo(max_workers: int = 5):
 
 
 def _buscar_cidades_cache(texto: str, max_results: int = 6) -> list:
-    """Busca municípios em duas fontes (Gestão de Frota e ANP) — sem depender do Nominatim.
+    """Busca municípios em duas fontes (Gestão de Frotas e ANP) — sem depender do Nominatim.
     Normaliza acentos: 'Ribeirao Preto' encontra 'RIBEIRÃO PRETO', 'Vitoria' → 'VITÓRIA'.
 
     Ordem de prioridade:
-      1. pf_coords_df (planilha Gestão de Frota local) — sempre disponível e sem limite de API.
+      1. pf_coords_df (planilha Gestão de Frotas local) — sempre disponível e sem limite de API.
       2. Cache ANP por UF (buscar_postos) — complementa cidades não cobertas pela planilha.
 
     Retorna lista de dicts {label, lat, lon, tipo='cidade'}.
@@ -4465,7 +4465,7 @@ def _buscar_cidades_cache(texto: str, max_results: int = 6) -> list:
     vistos: set   = set()
     resultados: list = []
 
-    # ── 1. Planilha Gestão de Frota (pf_coords_df) ─────────────────────────────────
+    # ── 1. Planilha Gestão de Frotas (pf_coords_df) ─────────────────────────────────
     _pf_df = st.session_state.get("pf_coords_df", pd.DataFrame())
     if not _pf_df.empty and "municipio" in _pf_df.columns and "uf" in _pf_df.columns:
         _mask_pf = _pf_df["municipio"].fillna("").apply(
@@ -4580,16 +4580,16 @@ def _icone_tipo(tipo: str) -> str:
 
 cnpjs_pf_ativos = st.session_state.get("cnpjs_pro_frotas", set())
 pf_badge_html = (
-    f'<span class="topbar-badge">⭐ Gestão de Frota: {len(cnpjs_pf_ativos)} CNPJs ativos</span>'
+    f'<span class="topbar-badge">⭐ Gestão de Frotas: {len(cnpjs_pf_ativos)} CNPJs ativos</span>'
     if cnpjs_pf_ativos else
-    '<span class="topbar-badge">⭐ Gestão de Frota não carregado</span>'
+    '<span class="topbar-badge">⭐ Gestão de Frotas não carregado</span>'
 )
 
 st.markdown(f"""
 <div class="topbar">
   <div>
     <div class="topbar-title">Estudo de Rede</div>
-    <div class="topbar-sub">Gestão de Frota</div>
+    <div class="topbar-sub">Gestão de Frotas</div>
   </div>
   {pf_badge_html}
 </div>
@@ -4630,7 +4630,7 @@ with st.sidebar:
             f"<div style='margin:-1rem -1rem 0 -1rem;overflow:hidden;position:relative'>"
             f"<img src='data:{_menu_mime};base64,{_MENU_B64}' "
             f"style='width:100%;display:block;object-fit:cover'>"
-            # Overlay para ocultar o logo Pró-Frotas da imagem
+            # Overlay para ocultar o logo da imagem
             f"<div style='position:absolute;top:34%;left:4%;width:36%;height:7%;"
             f"backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);"
             f"border-radius:6px'></div>"
@@ -4641,7 +4641,7 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
     else:
-        # ── Fallback: logo Gestão de Frota + subtítulo ─────────────────────
+        # ── Fallback: logo Gestão de Frotas + subtítulo ─────────────────────
         st.markdown(f"""
         <div style='
             margin: -1rem -1rem 0 -1rem;
@@ -4944,7 +4944,7 @@ with st.sidebar:
         _anp_df_sb_m1 = st.session_state.get("_anp_df_raw")
         _anp_ativo_m1 = _anp_df_sb_m1 is not None
         if not _anp_ativo_m1:
-            st.caption("Apenas postos Gestão de Frota são exibidos no mapa.")
+            st.caption("Apenas postos Gestão de Frotas são exibidos no mapa.")
             if st.button("➕ Inserir postos ANP", use_container_width=True,
                           key="btn_anp_ins_m1",
                           help="Carregue o XLSX baixado do site da ANP para incluir postos como overlay"):
@@ -4995,7 +4995,7 @@ with st.sidebar:
                 placeholder="Todas as bandeiras", label_visibility="collapsed",
                 key=f"mult_dist_{_fk_m1}")
 
-        # Filtro de Perfil de Venda (Gestão de Frota)
+        # Filtro de Perfil de Venda (Gestão de Frotas)
         perfis_filtro_m1 = []
         _perfis_lista_m1 = st.session_state.get("perfis_pf_lista", [])
         if _perfis_lista_m1:
@@ -5004,7 +5004,7 @@ with st.sidebar:
                 "Perfil de Venda", _perfis_lista_m1,
                 placeholder="Todos os perfis", label_visibility="collapsed",
                 key=f"mult_perfil_{_fk_m1}",
-                help="Filtra os postos Gestão de Frota pelo perfil de venda. Postos não-PF sempre exibidos.",
+                help="Filtra os postos Gestão de Frotas pelo perfil de venda. Postos não-PF sempre exibidos.",
             )
 
     # ── Modo 3 ────────────────────────────────────────────────
@@ -5340,7 +5340,7 @@ with st.sidebar:
         _anp_df_sb_m2 = st.session_state.get("_anp_df_raw")
         _anp_ativo_m2 = _anp_df_sb_m2 is not None
         if not _anp_ativo_m2:
-            st.caption("Apenas postos Gestão de Frota são incluídos na rota.")
+            st.caption("Apenas postos Gestão de Frotas são incluídos na rota.")
             if st.button("➕ Inserir postos ANP", use_container_width=True,
                           key="btn_anp_ins_m2",
                           help="Carregue o XLSX baixado do site da ANP para incluir postos como overlay"):
@@ -5398,7 +5398,7 @@ with st.sidebar:
                 "Perfil de Venda", _perfis_lista_m2,
                 placeholder="Todos os perfis", label_visibility="collapsed",
                 key="mult_perfil_m2",
-                help="Filtra os postos Gestão de Frota pelo perfil de venda.",
+                help="Filtra os postos Gestão de Frotas pelo perfil de venda.",
             )
 
     # ── Defaults para variáveis do Modo 2 quando outro modo está ativo ────────
@@ -5414,7 +5414,7 @@ with st.sidebar:
     if "perfis_filtro_m1" not in dir():
         perfis_filtro_m1   = []
 
-    # ── Configurações (Gestão de Frota · Cercados · Preços PP · Base · Exportar) ──
+    # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
     _pf_fonte  = st.session_state.get("_pf_fonte",  "manual")
     _pf_set    = st.session_state.get("cnpjs_pro_frotas", set())
@@ -5465,10 +5465,10 @@ with st.sidebar:
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
             tab_pf, tab_cer, tab_pp, tab_base = st.tabs(
-                ["⭐ Gestão de Frota", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base"]
+                ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base"]
             )
 
-        # ── Tab Gestão de Frota ────────────────────────────────────
+        # ── Tab Gestão de Frotas ────────────────────────────────────
         if tab_pf is not None:
          with tab_pf:
             _pf_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_pf_ts}</span>"
@@ -5518,7 +5518,7 @@ with st.sidebar:
                     st.error(_msg_r or f"❌ `{ARQUIVO_PF_REPO}` não encontrado.")
             st.markdown("<small><b>Upload manual</b></small>", unsafe_allow_html=True)
             arquivo_pf = st.file_uploader(
-                "Planilha Gestão de Frota", type=["xlsx","xls","csv"],
+                "Planilha Gestão de Frotas", type=["xlsx","xls","csv"],
                 key="upload_pf", label_visibility="collapsed",
             )
             if arquivo_pf is not None:
@@ -5544,7 +5544,7 @@ with st.sidebar:
                     else:
                         st.error(msg_pf)
             if _pf_set:
-                if st.button("🗑️ Remover Gestão de Frota", use_container_width=True,
+                if st.button("🗑️ Remover Gestão de Frotas", use_container_width=True,
                              key="btn_rm_pf_cfg"):
                     st.session_state.pop("cnpjs_pro_frotas", None)
                     st.session_state.pop("_pf_fonte", None)
@@ -5798,7 +5798,7 @@ with st.sidebar:
             st.markdown("---")
             st.markdown(
                 "<small>📥 <b>Exportar:</b> gera <b>Excel (.xlsx)</b> com todos os postos "
-                "dos estados carregados, com destaque para <b>Gestão de Frota</b>.</small>",
+                "dos estados carregados, com destaque para <b>Gestão de Frotas</b>.</small>",
                 unsafe_allow_html=True,
             )
             st.markdown("")
@@ -5854,7 +5854,7 @@ if modo == "📍 Por UF/Município":
             else:
                 df_raw_full = pd.DataFrame()
                 st.warning(
-                    "⚠️ Planilha Gestão de Frota não carregada ou sem coordenadas. "
+                    "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
                     "Verifique a seção **Configurações** na barra lateral."
                 )
 
@@ -5936,7 +5936,7 @@ if modo == "📍 Por UF/Município":
             if _comp_m1:
                 _renderizar_comparativo_pf_anp(
                     _comp_m1,
-                    subtitulo=f"Postos Gestão de Frota vs preço médio ANP — {UF_NOME.get(uf, uf)}"
+                    subtitulo=f"Postos Gestão de Frotas vs preço médio ANP — {UF_NOME.get(uf, uf)}"
                 )
 
         # ── Botão Salvar (Modo 1) ─────────────────────────────────────
@@ -6252,7 +6252,7 @@ if modo == "📍 Por UF/Município":
                     if c in df_show.columns]
             df_exib = df_show[cols].copy()
             if "_pro_frotas" in df_exib.columns:
-                df_exib = df_exib.rename(columns={"_pro_frotas":"Gestão de Frota ⭐"})
+                df_exib = df_exib.rename(columns={"_pro_frotas":"Gestão de Frotas ⭐"})
             st.dataframe(df_exib, use_container_width=True, height=450)
             st.download_button("⬇️ Baixar dados em CSV",
                                df_show.to_csv(index=False).encode("utf-8"),
@@ -6265,9 +6265,9 @@ if modo == "📍 Por UF/Município":
                 st.markdown("**Distribuição de postos por bandeira**")
                 st.bar_chart(contagem.set_index("Distribuidora"), height=400)
                 if n_pf(df_show) > 0:
-                    st.markdown("**Postos Gestão de Frota por bandeira**")
+                    st.markdown("**Postos Gestão de Frotas por bandeira**")
                     pf_dist = df_show[df_show["_pro_frotas"]]["distribuidora"].value_counts().reset_index()
-                    pf_dist.columns = ["Distribuidora","Gestão de Frota"]
+                    pf_dist.columns = ["Distribuidora","Gestão de Frotas"]
                     st.bar_chart(pf_dist.set_index("Distribuidora"), height=300)
 
         with tab_precos:
@@ -6338,7 +6338,7 @@ elif modo == "🗺️ Por Rota":
                     # pf_coords_df tem dados mas nenhum para os estados da rota
                     _ufs_disp = sorted(_pf_df_m2["uf"].fillna("").str.upper().str.strip().unique().tolist())
                     st.warning(
-                        f"⚠️ A planilha Gestão de Frota tem **{_n(_n_pf_total_m2)}** postos com coordenadas, "
+                        f"⚠️ A planilha Gestão de Frotas tem **{_n(_n_pf_total_m2)}** postos com coordenadas, "
                         f"mas **nenhum** nos estados **{', '.join(sorted(_ufs_set_m2))}**. "
                         f"Estados disponíveis na planilha: {', '.join(_ufs_disp) or '—'}. "
                         "Verifique se a planilha está completa ou recarregue em **Configurações**."
@@ -6346,7 +6346,7 @@ elif modo == "🗺️ Por Rota":
             else:
                 df_todos = pd.DataFrame()
                 st.warning(
-                    "⚠️ Planilha Gestão de Frota não carregada ou sem coordenadas. "
+                    "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
                     "Verifique a seção **Configurações** na barra lateral."
                 )
 
@@ -6368,7 +6368,7 @@ elif modo == "🗺️ Por Rota":
                 df_rota = df_todos[df_todos["_dist_rota"] <= raio].copy().sort_values("_dist_rota").reset_index(drop=True)
                 if df_rota.empty:
                     st.warning(
-                        f"⚠️ Foram encontrados **{_n(len(df_todos))}** postos Gestão de Frota nos estados, "
+                        f"⚠️ Foram encontrados **{_n(len(df_todos))}** postos Gestão de Frotas nos estados, "
                         f"mas nenhum está dentro de **{raio} m** da rota. "
                         "Tente aumentar o raio na barra lateral."
                     )
@@ -6436,7 +6436,7 @@ elif modo == "🗺️ Por Rota":
             _ufs_r  = _diag.get("ufs_rota",    [])
             if _n_tot == 0:
                 st.error(
-                    "❌ Planilha Gestão de Frota sem coordenadas (lat/lon). "
+                    "❌ Planilha Gestão de Frotas sem coordenadas (lat/lon). "
                     "Acesse **Configurações** → **🔄 Recarregar planilha** e verifique se a planilha "
                     "no repositório contém colunas **Latitude** e **Longitude**."
                 )
@@ -6460,7 +6460,7 @@ elif modo == "🗺️ Por Rota":
         c2.metric("⏱️ Tempo estimado", f"{int(dur_min//60)}h {int(dur_min%60)}min")
         c3.metric("📍 Paradas",        str(len(_paradas_vis)) if _paradas_vis else "—")
         c4.metric("⛽ Postos na rota", _n(len(df_show_r)))
-        c5.metric("⭐ Gestão de Frota",     _n(n_pf(df_show_r)))
+        c5.metric("⭐ Gestão de Frotas",     _n(n_pf(df_show_r)))
 
         # Resumo visual da rota com todas as paradas
         _all_labels = [label_orig] + [wp["label"] for wp in _paradas_vis] + [label_dest]
@@ -6514,7 +6514,7 @@ elif modo == "🗺️ Por Rota":
             if _comp_m2:
                 _renderizar_comparativo_pf_anp(
                     _comp_m2,
-                    subtitulo=f"Postos Gestão de Frota vs preço médio ANP — estados da rota"
+                    subtitulo=f"Postos Gestão de Frotas vs preço médio ANP — estados da rota"
                 )
 
         tab_m, tab_d, tab_preco_r = st.tabs([
@@ -6614,7 +6614,7 @@ elif modo == "🗺️ Por Rota":
                       if c in df_show_r.columns]
             df_exib = df_show_r[cols_r].copy()
             if "_pro_frotas" in df_exib.columns:
-                df_exib = df_exib.rename(columns={"_pro_frotas":"Gestão de Frota ⭐"})
+                df_exib = df_exib.rename(columns={"_pro_frotas":"Gestão de Frotas ⭐"})
             if "_dist_rota" in df_exib.columns:
                 df_exib = df_exib.rename(columns={"_dist_rota":"Dist. da Rota (m)"})
                 df_exib["Dist. da Rota (m)"] = df_exib["Dist. da Rota (m)"].round(0).astype(int)
@@ -6870,7 +6870,7 @@ elif modo == "🔍 Consulta por Posto":
             # ── Métricas resumo ────────────────────────────────────
             _ca, _cb, _cc, _cd = st.columns(4)
             _ca.metric("⛽ Postos encontrados", n_res)
-            _cb.metric("⭐ Gestão de Frota",         n_pf)
+            _cb.metric("⭐ Gestão de Frotas",         n_pf)
             _cc.metric("⚠️ Cercados",           n_cer)
             _cd.metric("📍 Estado(s)",
                        _df_m3["uf"].nunique() if "uf" in _df_m3.columns else "—")
@@ -7007,7 +7007,7 @@ elif modo == "🔍 Consulta por Posto":
                     _is_cer_r = bool(_r.get("_cercado"))
                     _is_rr_r  = bool(_r.get("_rodo_rede"))
                     _badges = ""
-                    if _is_pf_r:  _badges += "<span style='background:#1565c0;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>⭐ GESTÃO DE FROTA</span>"
+                    if _is_pf_r:  _badges += "<span style='background:#1565c0;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>⭐ GESTÃO DE FROTAS</span>"
                     if _is_rr_r:  _badges += "<span style='background:#FFB300;color:#333;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>🚛 RODO REDE</span>"
                     if _is_cer_r: _badges += "<span style='background:#FF8F00;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;margin-right:4px'>⚠️ CERCADO</span>"
 
@@ -7052,7 +7052,7 @@ elif modo == "🔍 Consulta por Posto":
                     ] if c in _df_m3.columns]
                     _df_exib_m3 = _df_m3[_cols_m3].copy()
                     if "_pro_frotas" in _df_exib_m3.columns:
-                        _df_exib_m3 = _df_exib_m3.rename(columns={"_pro_frotas": "Gestão de Frota ⭐"})
+                        _df_exib_m3 = _df_exib_m3.rename(columns={"_pro_frotas": "Gestão de Frotas ⭐"})
                     if "_cercado" in _df_exib_m3.columns:
                         _df_exib_m3 = _df_exib_m3.rename(columns={"_cercado": "Cercado ⚠️"})
                     st.dataframe(_df_exib_m3, use_container_width=True, height=450)
