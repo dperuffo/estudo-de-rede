@@ -4937,55 +4937,6 @@ with st.sidebar:
             st.session_state["_form_key_m1"] = _fk_m1 + 1
             st.rerun()
 
-        # ── Postos ANP — overlay opcional ────────────────────────────
-        st.divider()
-        st.markdown("<div class='sb-label'>Postos ANP (opcional)</div>", unsafe_allow_html=True)
-        _anp_df_sb_m1 = st.session_state.get("_anp_df_raw")
-        _anp_ativo_m1 = _anp_df_sb_m1 is not None
-        if not _anp_ativo_m1:
-            st.caption("Apenas postos Gestão de Frotas são exibidos no mapa.")
-            if st.button("➕ Inserir postos ANP", use_container_width=True,
-                          key="btn_anp_ins_m1",
-                          help="Carregue o XLSX baixado do site da ANP para incluir postos como overlay"):
-                st.session_state["_anp_upload_open"] = True
-                st.rerun()
-        else:
-            _n_anp_sb = len(_anp_df_sb_m1)
-            st.markdown(
-                f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
-                f"border-radius:8px;padding:7px 10px;font-size:11px;"
-                f"color:#1565c0;margin-bottom:6px'>"
-                f"🔵 <b>{_n_anp_sb:,} postos ANP</b> ativos como overlay</div>",
-                unsafe_allow_html=True,
-            )
-            if st.button("✕ Remover postos ANP", use_container_width=True, key="btn_anp_rm_m1"):
-                st.session_state.pop("_anp_df_raw",       None)
-                st.session_state.pop("_anp_upload_open",  None)
-                st.session_state.pop("_uf_carregada",     None)   # força recarregamento
-                st.rerun()
-
-        if not _anp_ativo_m1 and st.session_state.get("_anp_upload_open"):
-            _anp_up_m1 = st.file_uploader(
-                "Arquivo XLSX da ANP",
-                type=["xlsx", "xls"],
-                key="anp_uploader_m1",
-                label_visibility="collapsed",
-                help="Baixe o arquivo de postos no site da ANP e carregue aqui",
-            )
-            if _anp_up_m1 is not None:
-                with st.spinner("📂 Processando arquivo ANP…"):
-                    _anp_r_m1, _anp_msg_m1 = _processar_bytes_anp_postos(
-                        _anp_up_m1.name, _anp_up_m1.read()
-                    )
-                if _anp_r_m1 is not None:
-                    st.session_state["_anp_df_raw"]      = _anp_r_m1
-                    st.session_state["_anp_upload_open"] = False
-                    st.session_state.pop("_uf_carregada", None)   # força recarregamento
-                    st.success(f"✅ {_anp_msg_m1}")
-                    st.rerun()
-                else:
-                    st.error(f"❌ {_anp_msg_m1}")
-
         distribuidoras_filtro = []
         if st.session_state.get("distribuidoras_disponiveis"):
             st.markdown("<div class='sb-label'>Filtrar por Bandeira</div>", unsafe_allow_html=True)
@@ -5333,53 +5284,6 @@ with st.sidebar:
             st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
             st.rerun()
 
-        # ── Postos ANP — overlay opcional (Modo Rota) ─────────────────
-        st.divider()
-        st.markdown("<div class='sb-label'>Postos ANP (opcional)</div>", unsafe_allow_html=True)
-        _anp_df_sb_m2 = st.session_state.get("_anp_df_raw")
-        _anp_ativo_m2 = _anp_df_sb_m2 is not None
-        if not _anp_ativo_m2:
-            st.caption("Apenas postos Gestão de Frotas são incluídos na rota.")
-            if st.button("➕ Inserir postos ANP", use_container_width=True,
-                          key="btn_anp_ins_m2",
-                          help="Carregue o XLSX baixado do site da ANP para incluir postos como overlay"):
-                st.session_state["_anp_upload_open"] = True
-                st.rerun()
-        else:
-            _n_anp_sb_m2 = len(_anp_df_sb_m2)
-            st.markdown(
-                f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
-                f"border-radius:8px;padding:7px 10px;font-size:11px;"
-                f"color:#1565c0;margin-bottom:6px'>"
-                f"🔵 <b>{_n_anp_sb_m2:,} postos ANP</b> ativos como overlay</div>",
-                unsafe_allow_html=True,
-            )
-            if st.button("✕ Remover postos ANP", use_container_width=True, key="btn_anp_rm_m2"):
-                st.session_state.pop("_anp_df_raw",      None)
-                st.session_state.pop("_anp_upload_open", None)
-                st.rerun()
-
-        if not _anp_ativo_m2 and st.session_state.get("_anp_upload_open"):
-            _anp_up_m2 = st.file_uploader(
-                "Arquivo XLSX da ANP",
-                type=["xlsx", "xls"],
-                key="anp_uploader_m2",
-                label_visibility="collapsed",
-                help="Baixe o arquivo de postos no site da ANP e carregue aqui",
-            )
-            if _anp_up_m2 is not None:
-                with st.spinner("📂 Processando arquivo ANP…"):
-                    _anp_r_m2, _anp_msg_m2 = _processar_bytes_anp_postos(
-                        _anp_up_m2.name, _anp_up_m2.read()
-                    )
-                if _anp_r_m2 is not None:
-                    st.session_state["_anp_df_raw"]      = _anp_r_m2
-                    st.session_state["_anp_upload_open"] = False
-                    st.success(f"✅ {_anp_msg_m2}")
-                    st.rerun()
-                else:
-                    st.error(f"❌ {_anp_msg_m2}")
-
         distribuidoras_filtro = []
         if st.session_state.get("distribuidoras_rota"):
             st.divider()
@@ -5454,7 +5358,7 @@ with st.sidebar:
                         st.session_state["_cfg_senha_errada"] = True
                 if st.session_state.get("_cfg_senha_errada", False):
                     st.error("❌ Senha incorreta. Tente novamente.")
-            tab_pf = tab_cer = tab_pp = tab_base = None
+            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = None
         else:
             _col_cfg_lock, _ = st.columns([1, 5])
             with _col_cfg_lock:
@@ -5463,8 +5367,8 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf, tab_cer, tab_pp, tab_base = st.tabs(
-                ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base"]
+            tab_pf, tab_cer, tab_pp, tab_base, tab_anp = st.tabs(
+                ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base", "🔵 Postos ANP"]
             )
 
         # ── Tab Gestão de Frotas ────────────────────────────────────
@@ -5835,6 +5739,68 @@ with st.sidebar:
                     st.session_state.pop("_base_export_msg", None)
                     st.rerun()
 
+
+        # ── Tab Postos ANP ──────────────────────────────────────────
+        if tab_anp is not None:
+         with tab_anp:
+            _anp_df_cfg = st.session_state.get("_anp_df_raw")
+            _anp_ativo_cfg = _anp_df_cfg is not None
+            if _anp_ativo_cfg:
+                _n_anp_cfg = len(_anp_df_cfg)
+                st.markdown(
+                    f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;"
+                    f"color:#1565c0;margin-bottom:8px'>"
+                    f"🔵 <b>{_n_anp_cfg:,} postos ANP</b> ativos como overlay em todos os modos"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+                if st.button("✕ Remover postos ANP", use_container_width=True,
+                             key="btn_anp_rm_cfg"):
+                    st.session_state.pop("_anp_df_raw",      None)
+                    st.session_state.pop("_anp_upload_open", None)
+                    st.session_state.pop("_uf_carregada",    None)
+                    st.rerun()
+            else:
+                st.markdown(
+                    "<div style='background:#fff3e0;border:1px solid #ffcc80;"
+                    "border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100;"
+                    "margin-bottom:8px'>"
+                    "⚠️ <b>Nenhum posto ANP carregado.</b><br>"
+                    "<span style='font-size:10px'>Faça o upload do arquivo XLSX da ANP "
+                    "para exibi-los como overlay no mapa.</span></div>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    "<div style='background:#e3f2fd;border:1px solid #90caf9;"
+                    "border-radius:8px;padding:10px 12px;font-size:11px;color:#0d47a1;"
+                    "margin-bottom:10px'>"
+                    "📥 <b>Como carregar os postos ANP:</b><br>"
+                    "① Acesse <a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/"
+                    "precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos' "
+                    "target='_blank' style='color:#1565c0'>gov.br/anp</a> e baixe o arquivo XLSX<br>"
+                    "② Extraia o arquivo da pasta ZIP, se necessário<br>"
+                    "③ Faça o upload abaixo</div>",
+                    unsafe_allow_html=True,
+                )
+                _anp_up_cfg = st.file_uploader(
+                    "📎 Selecione o arquivo XLSX baixado da ANP",
+                    type=["xlsx", "xls"],
+                    key="anp_uploader_cfg",
+                    help="Arquivo de postos revendedores da ANP (.xlsx)",
+                )
+                if _anp_up_cfg is not None:
+                    with st.spinner("📂 Processando arquivo ANP…"):
+                        _anp_r_cfg, _anp_msg_cfg = _processar_bytes_anp_postos(
+                            _anp_up_cfg.name, _anp_up_cfg.read()
+                        )
+                    if _anp_r_cfg is not None:
+                        st.session_state["_anp_df_raw"]   = _anp_r_cfg
+                        st.session_state.pop("_uf_carregada", None)
+                        st.success(f"✅ {_anp_msg_cfg}")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {_anp_msg_cfg}")
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO 1 — Por Estado / Município
