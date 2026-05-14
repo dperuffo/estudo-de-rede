@@ -4873,7 +4873,7 @@ with st.sidebar:
     _col_m1, _col_m2, _col_m3 = st.columns(3)
     with _col_m1:
         if st.button(
-            "📍 Esta...",
+            "📍 Por UF",
             use_container_width=True,
             type="primary" if _modo_atual == "📍 Por UF/Município" else "secondary",
             key="btn_modo_estado",
