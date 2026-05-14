@@ -333,57 +333,53 @@ iframe { animation: mapFadeIn 0.45s ease-in; }
 
 /* ══ RESPONSIVO — MOBILE (≤ 768px) ════════════════════════════════ */
 @media (max-width: 768px) {
-    /* Mostrar botão hambúrguer */
-    .topbar-menu-btn { display: flex !important; }
-
-    /* Layout principal sem deslocamento do drawer */
+    /* Layout principal — sem deslocamento pelo sidebar */
     .main .block-container { padding: 0.25rem 0.5rem 2rem !important; }
-    [data-testid="stAppViewContainer"] > section.main,
-    [data-testid="stMain"] {
+    .main, [data-testid="stMain"] {
         margin-left: 0 !important;
         width: 100% !important;
     }
 
-    /* Topbar compacto */
+    /* Topbar: recua à esquerda para dar espaço ao FAB (54px) */
     .topbar {
-        padding: 9px 10px;
+        padding: 9px 10px 9px 60px;
         border-radius: 0 0 10px 10px;
         margin-bottom: 10px;
         gap: 8px;
         align-items: center;
+        flex-wrap: nowrap;
     }
+    .topbar-menu-btn { display: none !important; } /* visual desativado; FAB cuida de tudo */
     .topbar-title { font-size: 15px; letter-spacing: 0; }
     .topbar-sub   { font-size: 9px; margin-top: 1px; }
-    .topbar-badge {
-        font-size: 10px;
-        padding: 3px 9px;
-    }
+    .topbar-badge { font-size: 10px; padding: 3px 9px; }
 
-    /* ── Sidebar: drawer deslizante sobre o conteúdo ── */
+    /* ── Sidebar: drawer fixo fora da tela por padrão ── */
     section[data-testid="stSidebar"] {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
+        height: 100% !important;
         height: 100dvh !important;
         width: 83vw !important;
-        min-width: 270px !important;
-        max-width: 330px !important;
-        z-index: 1100 !important;
-        transform: translateX(-110%) !important;
-        transition: transform 0.30s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 6px 0 32px rgba(0,0,0,0.30) !important;
+        min-width: 260px !important;
+        max-width: 320px !important;
+        z-index: 9000 !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
+        transition: transform 0.30s cubic-bezier(0.4,0,0.2,1),
+                    box-shadow  0.30s ease !important;
     }
-    /* Estado aberto — controlado pela classe no <html> */
-    html.gf-open section[data-testid="stSidebar"] {
-        transform: translateX(0) !important;
-    }
-    /* Conteúdo dentro do drawer ocupa tudo */
+    /* Conteúdo interno do drawer ocupa altura toda */
     section[data-testid="stSidebar"] > div:first-child {
-        min-height: 100dvh !important;
-        padding-bottom: 40px !important;
+        min-height: 100% !important;
+        padding-bottom: 48px !important;
     }
+    /* Ocultar seta nativa de fechar sidebar */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarNavCollapseButton"]  { display: none !important; }
+    /* Ocultar >> nativo (FAB substitui) */
+    [data-testid="collapsedControl"]             { display: none !important; }
 
     /* Métricas: 2 colunas */
     [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
@@ -397,41 +393,35 @@ iframe { animation: mapFadeIn 0.45s ease-in; }
     [data-testid="stMetricLabel"] { font-size: 10px !important; }
 
     /* Tabs menores */
-    button[data-baseweb="tab"] {
-        font-size: 11px !important;
-        padding: 8px 5px !important;
-    }
+    button[data-baseweb="tab"] { font-size: 11px !important; padding: 8px 5px !important; }
 
-    /* Inputs — font-size 16px evita zoom iOS */
+    /* Inputs — font 16px evita zoom iOS */
     input, select, textarea { font-size: 16px !important; }
     [data-testid="stTextInput"] input  { min-height: 44px !important; }
     [data-testid="stSelectbox"] select { min-height: 44px !important; }
 
-    /* Botões touch-friendly */
+    /* Botões touch */
     .stButton > button { min-height: 48px !important; font-size: 14px !important; }
 
-    /* Mapa menor no mobile */
+    /* Mapa */
     iframe { max-height: 380px !important; }
 
-    /* Empty state compacto */
+    /* Empty state */
     .empty-state       { padding: 30px 16px; }
     .empty-state-icon  { font-size: 40px; }
     .empty-state-title { font-size: 16px; }
     .empty-state-desc  { font-size: 12px; }
 
-    /* Slider touch */
     [data-testid="stSlider"] { padding: 12px 0 !important; }
-
     .stAlert { font-size: 13px !important; }
 }
 
 /* ══ RESPONSIVO — SMARTPHONE PEQUENO (≤ 480px) ════════════════════ */
 @media (max-width: 480px) {
-    .topbar { padding: 8px 8px; gap: 6px; }
+    .topbar { padding-left: 56px; }
     .topbar-title { font-size: 13px; }
     .topbar-sub   { display: none; }
     .topbar-badge { display: none; }
-    .topbar-menu-btn { width: 38px !important; height: 38px !important; font-size: 20px !important; }
     [data-testid="stMetricValue"] { font-size: 16px !important; }
     button[data-baseweb="tab"]    { font-size: 10px !important; padding: 7px 4px !important; }
     iframe                        { max-height: 300px !important; }
@@ -440,139 +430,181 @@ iframe { animation: mapFadeIn 0.45s ease-in; }
 /* ══ RESPONSIVO — TELA MUITO PEQUENA (≤ 360px) ═══════════════════ */
 @media (max-width: 360px) {
     .topbar-title { font-size: 12px; }
-    section[data-testid="stSidebar"] {
-        width: 90vw !important;
-        max-width: 300px !important;
-    }
+    section[data-testid="stSidebar"] { width: 90vw !important; max-width: 300px !important; }
 }
 </style>
 <script>
 (function () {
-    /* ═══════════════════════════════════════════════════════════════
-       ABORDAGEM: event delegation no document (capture phase)
-       + estado salvo no <html> classList → sobrevive a re-renders React
-       ═══════════════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════════════════════════
+       ESTRATÉGIA DEFINITIVA
+       ─ Botão FAB criado no <body> via JS (fora do React)
+       ─ Click/touch direto no elemento real (sem delegation)
+       ─ Sidebar controlada por inline style com !important
+         (mais forte que qualquer CSS externo ou do Streamlit)
+       ─ Overlay escuro fecha o drawer ao toque
+       ═══════════════════════════════════════════════════════════════════ */
 
     /* ── 1. Ocultar elementos Streamlit ─────────────────────────────── */
-    var OCULTAR = [
-        'button[title*="GitHub"]', 'button[title*="github"]',
-        'a[href*="github.com"]', 'svg[data-icon="mark-github"]',
+    var HIDE_SELS = [
+        'button[title*="GitHub"]','button[title*="github"]',
+        'a[href*="github.com"]','svg[data-icon="mark-github"]',
         '[data-testid="collapsedControl"]',
         '[data-testid="stSidebarCollapseButton"]',
         '[data-testid="stSidebarNavCollapseButton"]',
         'button[data-testid="baseButton-headerNoPadding"]',
-        '.stDeployButton', '#MainMenu',
+        '.stDeployButton','#MainMenu',
     ];
     function ocultarEls() {
-        OCULTAR.forEach(function(sel) {
-            document.querySelectorAll(sel).forEach(function(el) {
-                el.style.setProperty('display', 'none', 'important');
+        HIDE_SELS.forEach(function(s) {
+            document.querySelectorAll(s).forEach(function(el) {
+                el.style.setProperty('display','none','important');
             });
         });
     }
 
-    /* ── 2. Helpers de estado ────────────────────────────────────────── */
-    var H = document.documentElement; /* <html> */
-    function isOpen()    { return H.classList.contains('gf-open'); }
-    function isMobile()  { return window.innerWidth <= 768; }
+    /* ── 2. Helpers ─────────────────────────────────────────────────── */
+    var _aberto   = false;
+    var _fab      = null;
+    var _overlay  = null;
 
-    function atualizarIcone() {
-        var btn = document.querySelector('.topbar-menu-btn');
-        if (!btn) return;
-        btn.textContent = isOpen() ? '✕' : '☰'; /* ✕ ou ☰ */
+    function isMobile() { return window.innerWidth <= 768; }
+
+    function getSidebar() {
+        return document.querySelector('section[data-testid="stSidebar"]');
     }
 
-    function getOverlay() { return document.getElementById('gf-overlay'); }
+    /* Inline style com !important sobrepõe qualquer regra CSS */
+    function setSidebarTransform(val) {
+        var sb = getSidebar();
+        if (!sb) return;
+        sb.style.setProperty('transform', val, 'important');
+        sb.style.setProperty('display',   'block', 'important');
+        sb.style.setProperty('visibility','visible','important');
+        if (val === 'translateX(0px)' || val === 'translateX(0)') {
+            sb.style.setProperty('box-shadow','6px 0 32px rgba(0,0,0,0.32)','important');
+        } else {
+            sb.style.setProperty('box-shadow','none','important');
+        }
+    }
 
-    /* ── 3. Abrir / fechar ───────────────────────────────────────────── */
+    /* ── 3. Abrir / fechar ──────────────────────────────────────────── */
     function abrir() {
-        H.classList.add('gf-open');
-        var ol = getOverlay();
-        if (ol) ol.classList.add('ativo');
+        if (!isMobile()) return;
+        setSidebarTransform('translateX(0)');
+        if (_overlay) _overlay.style.display = 'block';
         document.body.style.overflow = 'hidden';
-        atualizarIcone();
+        if (_fab) _fab.textContent = '✕';
+        _aberto = true;
     }
 
     function fechar() {
-        H.classList.remove('gf-open');
-        var ol = getOverlay();
-        if (ol) ol.classList.remove('ativo');
+        setSidebarTransform('translateX(-110%)');
+        if (_overlay) _overlay.style.display = 'none';
         document.body.style.overflow = '';
-        atualizarIcone();
+        if (_fab) _fab.textContent = '☰';
+        _aberto = false;
     }
 
-    function toggle() { if (isOpen()) fechar(); else abrir(); }
+    function toggle(e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (_aberto) fechar(); else abrir();
+    }
 
-    /* ── 4. Event delegation — captura clique no hambúrguer ────────────
-       Registrado UMA VEZ no document (capture: true).
-       Funciona mesmo que o elemento seja recriado pelo React.          */
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.closest && e.target.closest('.topbar-menu-btn')) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggle();
+    /* ── 4. Criar FAB (botão flutuante real no <body>) ──────────────── */
+    function criarFAB() {
+        if (document.getElementById('gf-fab')) {
+            _fab = document.getElementById('gf-fab');
+            return;
         }
-    }, true /* capture */);
+        _fab = document.createElement('button');
+        _fab.id = 'gf-fab';
+        _fab.textContent = '☰';
+        _fab.setAttribute('aria-label','Abrir menu de navegação');
+        _fab.setAttribute('type','button');
+        /* Inline styles — nunca sobrescritos por React */
+        _fab.style.cssText = [
+            'position:fixed','top:8px','left:10px','z-index:99999',
+            'width:44px','height:44px','border-radius:12px',
+            'background:linear-gradient(135deg,#0D47A1,#1565C0)',
+            'color:white','border:none','font-size:22px',
+            'cursor:pointer','touch-action:manipulation',
+            '-webkit-tap-highlight-color:transparent',
+            'display:none',                /* começa oculto; tick() decide */
+            'align-items:center','justify-content:center',
+            'box-shadow:0 3px 14px rgba(13,71,161,0.55)',
+            'line-height:1','padding:0',
+        ].join(';');
 
-    /* Suporte a touchend para iOS (garante resposta rápida) */
-    document.addEventListener('touchend', function(e) {
-        if (e.target && e.target.closest && e.target.closest('.topbar-menu-btn')) {
-            e.preventDefault();
-            toggle();
+        _fab.addEventListener('click',   toggle);
+        _fab.addEventListener('touchend',toggle);
+        document.body.appendChild(_fab);
+    }
+
+    /* ── 5. Criar Overlay ───────────────────────────────────────────── */
+    function criarOverlay() {
+        if (document.getElementById('gf-overlay')) {
+            _overlay = document.getElementById('gf-overlay');
+            return;
         }
-    }, true);
-
-    /* ── 5. Overlay ──────────────────────────────────────────────────── */
-    function garantirOverlay() {
-        if (getOverlay()) return;
-        var ol = document.createElement('div');
-        ol.className = 'gf-overlay';
-        ol.id = 'gf-overlay';
-        ol.setAttribute('aria-hidden', 'true');
-        ol.addEventListener('click', fechar);
-        /* swipe esquerda no overlay também fecha */
-        var tsX = 0;
-        ol.addEventListener('touchstart', function(e) {
-            tsX = e.touches[0].clientX;
-        }, {passive: true});
-        ol.addEventListener('touchend', function(e) {
-            if (tsX - e.changedTouches[0].clientX > 40) fechar();
-        }, {passive: true});
-        document.body.appendChild(ol);
+        _overlay = document.createElement('div');
+        _overlay.id = 'gf-overlay';
+        _overlay.style.cssText = [
+            'display:none','position:fixed','inset:0',
+            'background:rgba(0,0,0,0.48)','z-index:9500',
+        ].join(';');
+        _overlay.addEventListener('click',   fechar);
+        _overlay.addEventListener('touchend',function(e){ e.preventDefault(); fechar(); });
+        /* swipe esquerda no overlay fecha */
+        var _tsX = 0;
+        _overlay.addEventListener('touchstart',function(e){ _tsX=e.touches[0].clientX; },{passive:true});
+        _overlay.addEventListener('touchend',function(e){
+            if (_tsX - e.changedTouches[0].clientX > 40) fechar();
+        },{passive:true});
+        document.body.appendChild(_overlay);
     }
 
     /* ── 6. Swipe p/ fechar dentro do sidebar ───────────────────────── */
-    function vincularSwipeSidebar() {
-        var sb = document.querySelector('section[data-testid="stSidebar"]');
+    function vincularSwipe() {
+        var sb = getSidebar();
         if (!sb || sb._gfSwipe) return;
         sb._gfSwipe = true;
-        var tsX = 0;
-        sb.addEventListener('touchstart', function(e) {
-            tsX = e.touches[0].clientX;
-        }, {passive: true});
-        sb.addEventListener('touchend', function(e) {
-            if (tsX - e.changedTouches[0].clientX > 55) fechar();
-        }, {passive: true});
+        var _tX = 0;
+        sb.addEventListener('touchstart',function(e){ _tX=e.touches[0].clientX; },{passive:true});
+        sb.addEventListener('touchend',function(e){
+            if (_tX - e.changedTouches[0].clientX > 55) fechar();
+        },{passive:true});
     }
 
-    /* ── 7. Inicialização e observer ─────────────────────────────────── */
+    /* ── 7. Tick: chamado no carregamento e a cada mutação do DOM ───── */
     function tick() {
         ocultarEls();
-        garantirOverlay();
-        vincularSwipeSidebar();
-        atualizarIcone();
+        criarFAB();
+        criarOverlay();
+        vincularSwipe();
+        /* mostrar/ocultar FAB conforme largura da tela */
+        if (_fab) _fab.style.display = isMobile() ? 'flex' : 'none';
+        /* garantir sidebar off-screen no mobile quando fechado */
+        if (isMobile() && !_aberto) setSidebarTransform('translateX(-110%)');
     }
 
+    /* ── 8. Boot ────────────────────────────────────────────────────── */
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', tick);
     } else {
         tick();
     }
 
-    new MutationObserver(tick).observe(document.body, {childList: true, subtree: true});
+    /* Re-aplica a cada re-render do Streamlit */
+    new MutationObserver(function() {
+        tick();
+        /* Se estava aberto, manter aberto após re-render */
+        if (_aberto) setSidebarTransform('translateX(0)');
+    }).observe(document.body, { childList:true, subtree:true });
 
+    /* Fechar ao girar p/ landscape */
     window.addEventListener('resize', function() {
-        if (!isMobile() && isOpen()) fechar();
+        if (_fab) _fab.style.display = isMobile() ? 'flex' : 'none';
+        if (!isMobile() && _aberto) fechar();
     });
 })();
 </script>
@@ -4742,7 +4774,6 @@ pf_badge_html = (
 
 st.markdown(f"""
 <div class="topbar">
-  <span class="topbar-menu-btn" role="button" aria-label="Abrir menu" title="Abrir menu">&#9776;</span>
   <div style="min-width:0;">
     <div class="topbar-title">Estudo de Rede</div>
     <div class="topbar-sub">Gestão de Frotas</div>
