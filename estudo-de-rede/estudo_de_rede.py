@@ -5015,10 +5015,84 @@ with st.sidebar:
 
     # ── Modo 3 ────────────────────────────────────────────────
     elif modo == "🔍 Consulta por Posto":
+
+        # ── Status Origem / Destino ─────────────────────────────
+        _m3sb_map_o = st.session_state.get("_map_orig")
+        _m3sb_map_d = st.session_state.get("_map_dest")
+        _m3sb_o_ok  = bool(_m3sb_map_o)
+        _m3sb_d_ok  = bool(_m3sb_map_d)
+
+        # Pílulas de progresso
+        def _prog_pill_m3(label, ok, ativo):
+            if ok:
+                _bg, _brd, _c, _ic = "#e8f5e9","#a5d6a7","#2e7d32","✔"
+            elif ativo:
+                _bg, _brd, _c, _ic = "#e3f2fd","#90caf9","#1565c0","●"
+            else:
+                _bg, _brd, _c, _ic = "#f5f5f5","#e0e0e0","#bdbdbd","○"
+            return (
+                f"<div style='flex:1;background:{_bg};border:1px solid {_brd};"
+                f"border-radius:8px;padding:5px 6px;text-align:center'>"
+                f"<div style='font-size:10px;color:{_c};font-weight:700'>{_ic}</div>"
+                f"<div style='font-size:9px;color:{_c};line-height:1.2'>{label}</div>"
+                f"</div>"
+            )
+        st.markdown(
+            f"<div style='display:flex;gap:4px;margin-bottom:10px'>"
+            f"{_prog_pill_m3('Origem', _m3sb_o_ok, not _m3sb_o_ok)}"
+            f"{_prog_pill_m3('Destino', _m3sb_d_ok, _m3sb_o_ok and not _m3sb_d_ok)}"
+            f"{_prog_pill_m3('Traçar', False, _m3sb_o_ok and _m3sb_d_ok)}"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+        # Mini-cards mostrando seleções atuais
+        if _m3sb_o_ok or _m3sb_d_ok:
+            def _mini_card_m3sb(label, cor, sel):
+                if sel:
+                    nm = sel.get("label", "?")[:34]
+                    lc = f"{sel.get('municipio','')}/{sel.get('uf','')}"
+                    return (
+                        f"<div style='border-left:3px solid {cor};background:#fafafa;"
+                        f"border-radius:0 8px 8px 0;padding:6px 10px;margin-bottom:4px'>"
+                        f"<div style='font-size:9px;font-weight:700;color:{cor};"
+                        f"text-transform:uppercase;letter-spacing:0.6px'>{label} ✔</div>"
+                        f"<div style='font-size:11px;font-weight:600;color:#1a1a1a;"
+                        f"line-height:1.3;margin-top:2px'>{nm}</div>"
+                        f"<div style='font-size:10px;color:#666'>📍 {lc}</div>"
+                        f"</div>"
+                    )
+                else:
+                    return (
+                        f"<div style='border-left:3px dashed #d0d0d0;background:#f9f9f9;"
+                        f"border-radius:0 8px 8px 0;padding:6px 10px;margin-bottom:4px'>"
+                        f"<div style='font-size:9px;font-weight:700;color:#bbb;"
+                        f"text-transform:uppercase;letter-spacing:0.6px'>{label}</div>"
+                        f"<div style='font-size:10px;color:#aaa;font-style:italic'>Não definido</div>"
+                        f"</div>"
+                    )
+            st.markdown(
+                _mini_card_m3sb("🟢 Origem", "#2E7D32", _m3sb_map_o)
+                + _mini_card_m3sb("🔴 Destino", "#C62828", _m3sb_map_d),
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                "🗑️ Limpar Origem / Destino",
+                use_container_width=True,
+                key="btn_limpar_od_m3",
+                help="Limpar pontos de origem e destino selecionados",
+            ):
+                for _k in ["_map_orig", "_map_dest", "_map_rota_result"]:
+                    st.session_state.pop(_k, None)
+                st.rerun()
+            st.divider()
+
+        # ── Dica de busca ─────────────────────────────────────────
         st.markdown(
             "<div style='background:#e8f5e9;border-radius:8px;padding:10px 12px;"
             "font-size:12px;color:#2e7d32;margin-bottom:12px'>"
-            "🔍 Busque por <b>nome do posto</b>, <b>razão social</b> ou <b>CNPJ</b>."
+            "🔍 Busque por <b>nome do posto</b>, <b>razão social</b> ou <b>CNPJ</b> "
+            "e selecione como <b>Origem</b> ou <b>Destino</b>."
             "</div>",
             unsafe_allow_html=True,
         )
@@ -5048,10 +5122,10 @@ with st.sidebar:
         if _buscar_m3:
             st.session_state["_m3_termo"]     = _termo_m3.strip()
             st.session_state["_m3_uf"]        = _uf_m3
-            st.session_state["_m3_resultado"] = None   # força nova busca
+            st.session_state["_m3_resultado"] = None
             st.rerun()
 
-        if st.button("🗑️ Limpar", use_container_width=True, key="btn_limpar_m3"):
+        if st.button("🗑️ Limpar Busca", use_container_width=True, key="btn_limpar_m3"):
             for _k in ["_m3_termo", "_m3_uf", "_m3_resultado"]:
                 st.session_state.pop(_k, None)
             st.session_state["_form_key_m3"] = _fk_m3 + 1
@@ -6572,22 +6646,165 @@ elif modo == "🗺️ Por Rota":
 
 elif modo == "🔍 Consulta por Posto":
 
-    _m3_termo = st.session_state.get("_m3_termo", "")
-    _m3_uf    = st.session_state.get("_m3_uf", "")
+    _m3_termo  = st.session_state.get("_m3_termo", "")
+    _m3_uf     = st.session_state.get("_m3_uf", "")
+    _m3_map_o  = st.session_state.get("_map_orig")
+    _m3_map_d  = st.session_state.get("_map_dest")
+    _m3_o_ok   = bool(_m3_map_o)
+    _m3_d_ok   = bool(_m3_map_d)
+    _m3_rr     = st.session_state.get("_map_rota_result")
 
     # ── Cabeçalho ─────────────────────────────────────────────────
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;color:#1565c0'>"
         "🔍 Consulta por Posto</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
-        "Busque por nome, razão social ou CNPJ do estabelecimento.</p>",
+        "Busque por nome, razão social ou CNPJ — selecione como Origem ou Destino.</p>",
         unsafe_allow_html=True,
     )
 
+    # ── Guia de passos ────────────────────────────────────────────
+    def _passo_html_m3(num, titulo, desc, ok, ativo):
+        if ok:
+            _bg, _brd, _num_bg, _num_c, _title_c = (
+                "#e8f5e9", "#a5d6a7", "#43a047", "#fff", "#2e7d32")
+            _check = "✔"
+        elif ativo:
+            _bg, _brd, _num_bg, _num_c, _title_c = (
+                "#e3f2fd", "#90caf9", "#1565c0", "#fff", "#1565c0")
+            _check = str(num)
+        else:
+            _bg, _brd, _num_bg, _num_c, _title_c = (
+                "#fafafa", "#e0e0e0", "#bdbdbd", "#fff", "#9e9e9e")
+            _check = str(num)
+        return (
+            f"<div style='display:flex;align-items:flex-start;gap:10px;"
+            f"background:{_bg};border:1px solid {_brd};border-radius:10px;"
+            f"padding:10px 14px;flex:1'>"
+            f"<div style='width:24px;height:24px;border-radius:50%;"
+            f"background:{_num_bg};color:{_num_c};font-size:12px;font-weight:700;"
+            f"display:flex;align-items:center;justify-content:center;flex-shrink:0'>"
+            f"{_check}</div>"
+            f"<div><div style='font-size:12px;font-weight:700;color:{_title_c}'>{titulo}</div>"
+            f"<div style='font-size:11px;color:#666;margin-top:1px'>{desc}</div></div>"
+            f"</div>"
+        )
+    _p1_ok_m3 = bool(_m3_termo)
+    _p2_ok_m3 = _m3_o_ok and _m3_d_ok
+    _p3_ok_m3 = bool(_m3_rr)
+    st.markdown(
+        f"<div style='display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap'>"
+        f"{_passo_html_m3(1,'Buscar Posto','Pesquise por nome, razão social ou CNPJ',_p1_ok_m3,not _p1_ok_m3)}"
+        f"{_passo_html_m3(2,'Definir Origem / Destino','Clique nos botões ao lado de cada resultado',_p2_ok_m3,_p1_ok_m3 and not _p2_ok_m3)}"
+        f"{_passo_html_m3(3,'Traçar Rota','Com os dois pontos definidos, calcule a rota',_p3_ok_m3,_p2_ok_m3)}"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Cards Origem / Destino — sempre visíveis ──────────────────
+    def _card_od_m3(titulo, cor_brd, cor_bg, cor_txt, sel, icone_vazio, msg_vazio):
+        if sel:
+            nome = sel.get("label", "?")[:55]
+            loc  = f"{sel.get('municipio','')} / {sel.get('uf','')}"
+            cnpj = sel.get("cnpj", "—")
+            return (
+                f"<div style='border:2px solid {cor_brd};border-radius:10px;"
+                f"background:{cor_bg};padding:12px 14px'>"
+                f"<div style='font-size:10px;font-weight:700;color:{cor_txt};"
+                f"letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px'>"
+                f"{titulo}</div>"
+                f"<div style='font-size:13px;font-weight:700;color:#1a1a1a;"
+                f"line-height:1.3;margin-bottom:4px'>{nome}</div>"
+                f"<div style='font-size:11px;color:#555'>📍 {loc}</div>"
+                f"<div style='font-size:11px;color:#555'>🪪 {cnpj}</div>"
+                f"</div>"
+            )
+        else:
+            return (
+                f"<div style='border:2px dashed #d0d0d0;border-radius:10px;"
+                f"background:#fafafa;padding:12px 14px;text-align:center'>"
+                f"<div style='font-size:10px;font-weight:700;color:#bbb;"
+                f"letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px'>"
+                f"{titulo}</div>"
+                f"<div style='font-size:22px;margin-bottom:4px'>{icone_vazio}</div>"
+                f"<div style='font-size:11px;color:#aaa'>{msg_vazio}</div>"
+                f"</div>"
+            )
+
+    _co3, _cd3 = st.columns(2)
+    _co3.markdown(
+        _card_od_m3("🟢 Ponto de Origem","#43a047","#f1f8e9","#2e7d32",
+                    _m3_map_o,"📍","Busque e clique em\n'Definir como Origem'"),
+        unsafe_allow_html=True,
+    )
+    _cd3.markdown(
+        _card_od_m3("🔴 Ponto de Destino","#e53935","#fff8f8","#c62828",
+                    _m3_map_d,"🏁","Busque e clique em\n'Definir como Destino'"),
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    # ── Botão Traçar Rota (CTA) ───────────────────────────────────
+    if _m3_o_ok and _m3_d_ok:
+        _col_cta_m3, _col_clr_m3 = st.columns([4, 1])
+        if _col_cta_m3.button(
+            f"🗺️  Traçar Rota  ·  {_m3_map_o['label'][:22]} → {_m3_map_d['label'][:22]}",
+            use_container_width=True, type="primary", key="btn_tracar_m3",
+        ):
+            with st.spinner("🗺️ Calculando rota…"):
+                _cr_m3, _dk_m3, _dm_m3, _lr_m3 = calcular_rota(
+                    _m3_map_o["lat"], _m3_map_o["lon"],
+                    _m3_map_d["lat"], _m3_map_d["lon"])
+            st.session_state["_map_rota_result"] = {
+                "coords": _cr_m3, "dist_km": _dk_m3, "dur_min": _dm_m3,
+                "linha_reta": _lr_m3, "orig": _m3_map_o, "dest": _m3_map_d,
+            }
+            st.rerun()
+        if _col_clr_m3.button("↺", use_container_width=True, key="btn_clr_m3_od",
+                              help="Limpar origem, destino e rota"):
+            for _k in ["_map_orig", "_map_dest", "_map_rota_result"]:
+                st.session_state.pop(_k, None)
+            st.rerun()
+    elif _m3_o_ok or _m3_d_ok:
+        _falta_m3 = "Destino" if _m3_o_ok else "Origem"
+        st.info(f"👆 Busque abaixo e defina o **{_falta_m3}** para liberar o botão de rota.")
+
+    # ── Resultado da rota traçada ─────────────────────────────────
+    if _m3_rr:
+        if _m3_rr.get("linha_reta"):
+            st.warning("⚠️ OSRM indisponível — rota exibida como linha reta.")
+        st.markdown(
+            f"<div style='background:linear-gradient(90deg,#e8f5e9,#f1f8e9);"
+            f"border:1px solid #a5d6a7;border-radius:10px;padding:12px 16px;"
+            f"margin:10px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap'>"
+            f"<span style='font-size:20px'>✅</span>"
+            f"<div style='flex:1'>"
+            f"<div style='font-size:13px;font-weight:700;color:#1b5e20'>"
+            f"{_m3_rr['orig']['label'][:35]} → {_m3_rr['dest']['label'][:35]}</div>"
+            f"<div style='font-size:11px;color:#388e3c;margin-top:2px'>"
+            f"🛣️ {_n(_m3_rr['dist_km'])} km &nbsp;·&nbsp; "
+            f"⏱️ {int(_m3_rr['dur_min']//60)}h {int(_m3_rr['dur_min']%60)}min</div>"
+            f"</div></div>",
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+
     if not _m3_termo:
         # Estado inicial — mapa do Brasil + dica
-        _renderizar_mapa(criar_mapa(pd.DataFrame()), height=560, key="mapa_m3_vazio")
-        st.info("👈 Digite o nome do posto, razão social ou CNPJ na barra lateral e clique em **Buscar Posto**.")
+        if _m3_rr:
+            # Já tem rota traçada — exibe com rota
+            _mapa_m3_vazio = criar_mapa(
+                pd.DataFrame(),
+                coords_rota=_m3_rr["coords"],
+                lat_orig=_m3_rr["orig"]["lat"], lon_orig=_m3_rr["orig"]["lon"],
+                lat_dest=_m3_rr["dest"]["lat"], lon_dest=_m3_rr["dest"]["lon"],
+                label_orig=_m3_rr["orig"]["label"], label_dest=_m3_rr["dest"]["label"],
+            )
+            _renderizar_mapa(_mapa_m3_vazio, height=560, key="mapa_m3_vazio_rota")
+        else:
+            _renderizar_mapa(criar_mapa(pd.DataFrame()), height=560, key="mapa_m3_vazio")
+            st.info("👈 Digite o nome do posto, razão social ou CNPJ na barra lateral e clique em **Buscar Posto**.")
 
     else:
         # ── Executa busca (cacheada no session_state) ──────────────
@@ -6652,43 +6869,98 @@ elif modo == "🔍 Consulta por Posto":
 
             with _tab_map_m3:
                 # Zoom adaptativo: 1 posto = zoom 15, vários estados = zoom 5
-                _mapa_m3 = criar_mapa(_df_m3)
-                if n_res == 1:
-                    # Zoom máximo para posto único
-                    _mapa_m3.update_layout(
-                        mapbox=dict(
-                            zoom=15,
-                            center=dict(
-                                lat=float(_df_m3["_lat"].iloc[0]),
-                                lon=float(_df_m3["_lon"].iloc[0]),
-                            ),
-                        )
+                if _m3_rr:
+                    # Exibe mapa com rota traçada sobreposta aos postos encontrados
+                    _mapa_m3 = criar_mapa(
+                        _df_m3,
+                        coords_rota=_m3_rr["coords"],
+                        lat_orig=_m3_rr["orig"]["lat"], lon_orig=_m3_rr["orig"]["lon"],
+                        lat_dest=_m3_rr["dest"]["lat"], lon_dest=_m3_rr["dest"]["lon"],
+                        label_orig=_m3_rr["orig"]["label"], label_dest=_m3_rr["dest"]["label"],
                     )
-                elif "uf" in _df_m3.columns and _df_m3["uf"].nunique() == 1:
-                    _mapa_m3.update_layout(mapbox=dict(zoom=8))
+                else:
+                    _mapa_m3 = criar_mapa(_df_m3)
+                    if n_res == 1:
+                        # Zoom máximo para posto único
+                        _mapa_m3.update_layout(
+                            mapbox=dict(
+                                zoom=15,
+                                center=dict(
+                                    lat=float(_df_m3["_lat"].iloc[0]),
+                                    lon=float(_df_m3["_lon"].iloc[0]),
+                                ),
+                            )
+                        )
+                    elif "uf" in _df_m3.columns and _df_m3["uf"].nunique() == 1:
+                        _mapa_m3.update_layout(mapbox=dict(zoom=8))
 
                 _renderizar_mapa(_mapa_m3, height=560, key="mapa_m3_res")
 
-                # ── Botões de ação para posto único ───────────────
-                if n_res == 1:
-                    _row_m3 = _df_m3.iloc[0]
-                    _sel_m3 = {
-                        "lat":   float(_row_m3["_lat"]),
-                        "lon":   float(_row_m3["_lon"]),
-                        "label": str(_row_m3.get("razaoSocial", "Posto")),
+                # ── Botões de O/D para os resultados ──────────────
+                _df_m3_od = _df_m3.head(8)
+                st.markdown(
+                    "<div style='background:#f8f9fa;border:1px solid #e3e8f0;"
+                    "border-radius:10px;padding:12px 14px;margin-top:10px'>"
+                    "<div style='font-size:13px;font-weight:700;color:#1565c0;"
+                    "margin-bottom:6px'>📍 Usar posto como Origem ou Destino</div>"
+                    "<div style='font-size:11px;color:#666'>"
+                    "Clique nos botões ao lado de cada posto para defini-lo na rota.</div>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+                for _idx_od, _row_od in _df_m3_od.iterrows():
+                    _ic_od  = "⭐" if bool(_row_od.get("_pro_frotas")) else "⛽"
+                    _nm_od  = str(_row_od.get("razaoSocial", "?"))[:50]
+                    _loc_od = f"{_row_od.get('municipio','')}/{_row_od.get('uf','')}"
+                    _cn_od  = str(_row_od.get("cnpj", "—"))
+                    _sel_od = {
+                        "lat":       float(_row_od["_lat"]),
+                        "lon":       float(_row_od["_lon"]),
+                        "label":     str(_row_od.get("razaoSocial", "Posto")),
+                        "municipio": str(_row_od.get("municipio", "")),
+                        "uf":        str(_row_od.get("uf", "")),
+                        "cnpj":      _cn_od,
                     }
-                    st.markdown("**Usar este posto como:**")
-                    _ba, _bb = st.columns(2)
-                    if _ba.button("🟢 Definir como Origem", use_container_width=True):
-                        st.session_state["orig_sel"]        = _sel_m3
-                        st.session_state["modo_selecionado"] = "🗺️ Por Rota"
-                        st.session_state["_form_key"]        = st.session_state.get("_form_key", 0) + 1
+                    # Destaca quando já selecionado
+                    _is_orig_od = (_m3_map_o or {}).get("cnpj") == _cn_od and _cn_od != "—"
+                    _is_dest_od = (_m3_map_d or {}).get("cnpj") == _cn_od and _cn_od != "—"
+                    _brd_od = ("#43a047" if _is_orig_od else
+                               "#e53935" if _is_dest_od else "#e0e0e0")
+                    _bg_od  = ("#f1f8e9" if _is_orig_od else
+                               "#fff8f8" if _is_dest_od else "#fff")
+                    st.markdown(
+                        f"<div style='background:{_bg_od};border:1px solid {_brd_od};"
+                        f"border-radius:8px;padding:8px 12px;margin-bottom:4px;"
+                        f"display:flex;align-items:center;gap:8px'>"
+                        f"<span style='font-size:16px'>{_ic_od}</span>"
+                        f"<div style='flex:1'>"
+                        f"<div style='font-size:12px;font-weight:600;color:#1a1a1a'>{_nm_od}</div>"
+                        f"<div style='font-size:10px;color:#888'>📍 {_loc_od}</div>"
+                        f"</div></div>",
+                        unsafe_allow_html=True,
+                    )
+                    _c1_od, _c2_od = st.columns(2)
+                    if _c1_od.button(
+                        "🟢 Definir Origem" + (" ✔" if _is_orig_od else ""),
+                        key=f"m3_set_orig_{_idx_od}",
+                        use_container_width=True,
+                        type="primary" if not _m3_o_ok else "secondary",
+                        help="Marcar como ponto de partida da rota",
+                    ):
+                        st.session_state["_map_orig"] = _sel_od
                         st.rerun()
-                    if _bb.button("🔴 Definir como Destino", use_container_width=True):
-                        st.session_state["dest_sel"]         = _sel_m3
-                        st.session_state["modo_selecionado"] = "🗺️ Por Rota"
-                        st.session_state["_form_key"]        = st.session_state.get("_form_key", 0) + 1
+                    if _c2_od.button(
+                        "🔴 Definir Destino" + (" ✔" if _is_dest_od else ""),
+                        key=f"m3_set_dest_{_idx_od}",
+                        use_container_width=True,
+                        type="primary" if not _m3_d_ok else "secondary",
+                        help="Marcar como ponto de chegada da rota",
+                    ):
+                        st.session_state["_map_dest"] = _sel_od
                         st.rerun()
+                if len(_df_m3) > 8:
+                    st.caption(f"Exibindo 8 de {len(_df_m3)} resultados. Refine a busca para ver mais.")
 
             with _tab_det_m3:
                 # Card detalhado para posto único
