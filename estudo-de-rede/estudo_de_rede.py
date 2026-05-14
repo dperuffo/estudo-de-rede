@@ -4868,17 +4868,17 @@ with st.sidebar:
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
-        st.session_state["modo_selecionado"] = "📍 Por Estado/Município"
+        st.session_state["modo_selecionado"] = "📍 Por UF/Município"
     _modo_atual = st.session_state["modo_selecionado"]
     _col_m1, _col_m2, _col_m3 = st.columns(3)
     with _col_m1:
         if st.button(
             "📍 Esta...",
             use_container_width=True,
-            type="primary" if _modo_atual == "📍 Por Estado/Município" else "secondary",
+            type="primary" if _modo_atual == "📍 Por UF/Município" else "secondary",
             key="btn_modo_estado",
         ):
-            st.session_state["modo_selecionado"] = "📍 Por Estado/Município"
+            st.session_state["modo_selecionado"] = "📍 Por UF/Município"
             st.rerun()
     with _col_m2:
         if st.button(
@@ -4916,7 +4916,7 @@ with st.sidebar:
     st.divider()
 
     # ── Modo 1 ────────────────────────────────────────────────
-    if modo == "📍 Por Estado/Município":  # noqa: E501
+    if modo == "📍 Por UF/Município":  # noqa: E501
         _fk_m1 = st.session_state.get("_form_key_m1", 0)
         # Pré-preenche com valores restaurados (de Rotas Salvas), se presentes
         _restore_uf  = st.session_state.pop("_restore_uf",  None)
@@ -5847,7 +5847,7 @@ with st.sidebar:
 #  MODO 1 — Por Estado / Município
 # ═══════════════════════════════════════════════════════════════════
 
-if modo == "📍 Por Estado/Município":
+if modo == "📍 Por UF/Município":
 
     if uf:
         # ── Carrega postos PF do estado diretamente da planilha (sem chamada à API ANP) ──
@@ -7313,7 +7313,7 @@ elif modo == "📋 Rotas Salvas":
                         if _rv.get("_map_orig") and _rv.get("_map_dest"):
                             # Recalcula a rota ao restaurar
                             st.session_state["_restore_recalc_rota_m1"] = True
-                        st.session_state["modo_selecionado"] = "📍 Por Estado/Município"
+                        st.session_state["modo_selecionado"] = "📍 Por UF/Município"
 
                     elif _rv_tipo == "rota":
                         # Limpa rotas anteriores
@@ -7377,9 +7377,9 @@ elif modo == "📋 Rotas Salvas":
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 # Este bloco roda APÓS o rerun causado pelo botão Restaurar (Modo 1 com rota).
-# Nesse momento o modo já está em "📍 Por Estado/Município" e os flags existem.
+# Nesse momento o modo já está em "📍 Por UF/Município" e os flags existem.
 if (
-    st.session_state.get("modo_selecionado") == "📍 Por Estado/Município"
+    st.session_state.get("modo_selecionado") == "📍 Por UF/Município"
     and st.session_state.get("_restore_recalc_rota_m1")
 ):
     _o_rest = st.session_state.get("_map_orig")
