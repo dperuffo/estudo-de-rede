@@ -8577,6 +8577,53 @@ elif modo == "📋 Rotas Salvas":
                         st.session_state["_auto_buscar_rota"] = True
                         st.session_state["modo_selecionado"]  = "🗺️ Por Rota"
 
+                    elif _rv_tipo == "roteirizacao":
+                        # 1. Limpa estado de roteirização anterior
+                        _old_np = st.session_state.get("_rot_np", 0)
+                        for _pi in range(1, _old_np + 1):
+                            st.session_state.pop(f"rot_parada_sel_{_pi}", None)
+                            st.session_state.pop(f"rot_txt_parada_{_pi}", None)
+                        st.session_state.pop("_rot_result", None)
+                        # 2. Restaura dados do veículo na sidebar
+                        if _rv.get("placa"):
+                            st.session_state["rot_placa"]      = _rv["placa"]
+                        if _rv.get("combustivel"):
+                            st.session_state["rot_combustivel"] = _rv["combustivel"]
+                        if _rv.get("capacidade") is not None:
+                            st.session_state["rot_capacidade"] = float(_rv["capacidade"])
+                        if _rv.get("autonomia") is not None:
+                            st.session_state["rot_autonomia"]  = float(_rv["autonomia"])
+                        # 3. Restaura origem e destino
+                        _orig_r = _rv.get("orig") or {
+                            "label": _rv.get("label_orig", ""),
+                            "lat":   _rv.get("lat_orig"),
+                            "lon":   _rv.get("lon_orig"),
+                            "tipo":  "cidade",
+                        }
+                        _dest_r = _rv.get("dest") or {
+                            "label": _rv.get("label_dest", ""),
+                            "lat":   _rv.get("lat_dest"),
+                            "lon":   _rv.get("lon_dest"),
+                            "tipo":  "cidade",
+                        }
+                        st.session_state["rot_orig_sel"] = _orig_r
+                        st.session_state["rot_dest_sel"] = _dest_r
+                        st.session_state["rot_txt_orig"] = _orig_r.get("label", "")
+                        st.session_state["rot_txt_dest"] = _dest_r.get("label", "")
+                        # 4. Restaura paradas (waypoints)
+                        _par_r = _rv.get("paradas", [])
+                        st.session_state["_rot_np"] = len(_par_r)
+                        for _pi, _pw in enumerate(_par_r, 1):
+                            st.session_state[f"rot_parada_sel_{_pi}"] = _pw
+                            st.session_state[f"rot_txt_parada_{_pi}"] = _pw.get("label", "")
+                        # 5. Restaura resultado da rota diretamente (sem recalcular)
+                        _rr_saved = _rv.get("rot_result")
+                        if _rr_saved:
+                            st.session_state["_rot_result"] = _rr_saved
+                        # 6. Força re-render do formulário e navega para o modo
+                        st.session_state["_rot_fk"] = st.session_state.get("_rot_fk", 0) + 1
+                        st.session_state["modo_selecionado"] = "🛣️ Roteirização"
+
                     else:  # busca
                         for _k in ["_m3_termo", "_m3_uf", "_m3_resultado"]:
                             st.session_state.pop(_k, None)
@@ -10064,13 +10111,39 @@ elif modo == "🛣️ Roteirização":
             st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
             if st.button("💾 Salvar", key="rot_salvar"):
                 if _salvar_rota_nova(_nome_in or _nome_sug, "roteirizacao", {
-                    "label_orig":_ro.get("label",""), "label_dest":_rt.get("label",""),
-                    "lat_orig":_ro.get("lat"), "lon_orig":_ro.get("lon"),
-                    "lat_dest":_rt.get("lat"), "lon_dest":_rt.get("lon"),
-                    "paradas":_rp, "dist_km":_rd, "dur_min":_rm,
-                    "placa":_rot_placa, "combustivel":_rcomb,
-                    "capacidade":_rcap, "autonomia":_raut,
-                    "abastecimentos":_sugest,
+                    # ── Campos de exibição (lista de Rotas Salvas) ──
+                    "label_orig":  _ro.get("label", ""),
+                    "label_dest":  _rt.get("label", ""),
+                    "lat_orig":    _ro.get("lat"),
+                    "lon_orig":    _ro.get("lon"),
+                    "lat_dest":    _rt.get("lat"),
+                    "lon_dest":    _rt.get("lon"),
+                    "dist_km":     _rd,
+                    "dur_min":     _rm,
+                    "placa":       _rot_placa,
+                    "combustivel": _rcomb,
+                    "capacidade":  _rcap,
+                    "autonomia":   _raut,
+                    # ── Objetos completos para restauração do formulário ──
+                    "orig":        _ro,   # dict completo → rot_orig_sel
+                    "dest":        _rt,   # dict completo → rot_dest_sel
+                    "paradas":     _rp,   # lista de waypoints → rot_parada_sel_*
+                    # ── Resultado calculado (restaura sem recalcular) ──
+                    "rot_result": {
+                        "coords":      _rc,
+                        "dist_km":     _rd,
+                        "dur_min":     _rm,
+                        "linha_reta":  _rlr,
+                        "orig":        _ro,
+                        "dest":        _rt,
+                        "paradas":     _rp,
+                        "placa":       _rot_placa,
+                        "combustivel": _rcomb,
+                        "capacidade":  _rcap,
+                        "autonomia":   _raut,
+                    },
+                    # ── Sugestões de abastecimento ──
+                    "abastecimentos": _sugest,
                 }):
                     st.toast("✅ Roteirização salva!", icon="💾")
                 else:
