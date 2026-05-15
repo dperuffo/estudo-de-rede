@@ -2429,11 +2429,12 @@ def gerar_gpx_roteirizacao(rot_res: dict, sugest: list) -> bytes:
                               {"lat": f"{_lat:.6f}", "lon": f"{_lon:.6f}"})
 
     # Serializa para bytes UTF-8
+    # encoding="unicode" escreve str → usa StringIO; depois codifica para bytes
     tree = ET.ElementTree(gpx)
-    _buf = io.BytesIO()
-    _buf.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
-    tree.write(_buf, encoding="unicode", xml_declaration=False)
-    return _buf.getvalue().encode("utf-8")
+    _sbuf = io.StringIO()
+    tree.write(_sbuf, encoding="unicode", xml_declaration=False)
+    _xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n' + _sbuf.getvalue()
+    return _xml_str.encode("utf-8")
 
 
 # ═══════════════════════════════════════════════════════════════════
