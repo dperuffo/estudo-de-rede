@@ -8647,10 +8647,10 @@ if modo == "📊 Dashboard":
                 st.dataframe(_comb_df.reset_index(drop=True), use_container_width=True)
 
         # ──────────────────────────────────────────────────────────────────
-        # TAB 5 — Alertas de Preço
+        # TAB 5 — Alertas de Preço  (comparação por município via ANP)
         # ──────────────────────────────────────────────────────────────────
         with _dt5:
-            # ── Referência ANP por UF ──────────────────────────────────────
+            # ── Referência ANP por UF (fallback hardcoded — mantido para compatibilidade) ──
             _ANP_REF_COMB = {
                 "GASOLINA COMUM":    {"SP": 6.29, "RJ": 6.48, "MG": 6.22, "RS": 6.15,
                                       "PR": 6.08, "SC": 6.05, "BA": 6.35, "GO": 6.18,
@@ -8690,209 +8690,334 @@ if modo == "📊 Dashboard":
             }
             _ALERT_THRESH = 0.05  # 5% acima da média ANP
 
-            # Verifica se há coluna de preço
-            _price_col = None
-            for _pc in ["preco", "preco_revenda", "price", "valor", "vl_unit"]:
-                if _pc in _df_valid.columns:
-                    _price_col = _pc
-                    break
+            # ── Fontes de dados necessárias ────────────────────────────────
+            _pp_alert   = st.session_state.get("_pp_df")
+            _anp_cache  = st.session_state.get("_precos_anp_cache", {})
+            _sheets_alert = _anp_cache.get("sheets")
 
-            if _price_col is None:
-                st.info("ℹ️ Nenhuma coluna de preço identificada na base. "
-                        "Para ativar os alertas, a base de postos deve conter uma coluna "
-                        "com nome 'preco', 'preco_revenda' ou similar.")
-            else:
-                # Normaliza coluna de combustível
-                _comb_col = None
-                for _cc in ["combustivel", "produto", "fuel", "tipo_combustivel"]:
-                    if _cc in _df_valid.columns:
-                        _comb_col = _cc
-                        break
+            _sem_pp   = _pp_alert is None or _pp_alert.empty
+            _sem_anp  = _sheets_alert is None
 
-                _alert_df = _df_valid[[
-                    _price_col, "uf",
-                    *([_comb_col] if _comb_col else []),
-                    *([c for c in ["nome", "razao_social", "municipio", "lat", "lon"] if c in _df_valid.columns])
-                ]].copy()
-                _alert_df[_price_col] = pd.to_numeric(_alert_df[_price_col], errors="coerce")
-                _alert_df = _alert_df.dropna(subset=[_price_col])
-                _alert_df = _alert_df[_alert_df[_price_col] > 0]
-
-                # Calcula referência ANP por posto
-                def _get_anp_ref(row):
-                    if _comb_col and row.get(_comb_col):
-                        _comb_norm = str(row[_comb_col]).upper().strip()
-                        for _key, _refs in _ANP_REF_COMB.items():
-                            if _key in _comb_norm or _comb_norm in _key:
-                                return _refs.get(str(row["uf"]).upper(), None)
-                    # fallback: diesel S10 como padrão
-                    return _ANP_REF_COMB["DIESEL S10"].get(str(row["uf"]).upper(), None)
-
-                _alert_df["_anp_ref"] = _alert_df.apply(_get_anp_ref, axis=1)
-                _alert_df["_diff_pct"] = (
-                    (_alert_df[_price_col] - _alert_df["_anp_ref"]) /
-                    _alert_df["_anp_ref"].replace(0, np.nan)
+            if _sem_pp and _sem_anp:
+                st.info(
+                    "ℹ️ Para ativar os alertas de preço, carregue:\n\n"
+                    "- **Planilha de Preços por Posto** (em Configurações → Preços dos Postos GF)\n"
+                    "- **Planilha ANP de Preços Semanais** (em Configurações → Preços ANP)"
                 )
-                _alert_df["_alerta"] = _alert_df["_diff_pct"] > _ALERT_THRESH
-                _alert_df["_diff_rs"] = _alert_df[_price_col] - _alert_df["_anp_ref"]
+            elif _sem_pp:
+                st.info(
+                    "ℹ️ Carregue a **Planilha de Preços por Posto** em "
+                    "Configurações → Preços dos Postos GF para ativar os alertas."
+                )
+            else:
+                # ── 1. Cruzar preços GF com dados do posto (municipio/uf) ──
+                # _pp_alert colunas: cnpj_norm, combustivel_pk, combustivel_label, preco
+                # _pf_dash   colunas: cnpj, municipio, uf, razaoSocial, distribuidora
+                _pf_info = _pf_dash[["cnpj", "municipio", "uf", "razaoSocial"]].copy() \
+                    if "cnpj" in _pf_dash.columns else pd.DataFrame()
 
-                _n_total   = len(_alert_df)
-                _n_alertas = int(_alert_df["_alerta"].sum())
-                _n_ok      = _n_total - _n_alertas
-                _pct_alert = (_n_alertas / _n_total * 100) if _n_total > 0 else 0
-                _pior_diff = _alert_df.loc[_alert_df["_alerta"], "_diff_pct"].max() if _n_alertas > 0 else 0
-                _media_diff = _alert_df.loc[_alert_df["_alerta"], "_diff_pct"].mean() if _n_alertas > 0 else 0
-
-                # KPIs
-                _ac1, _ac2, _ac3, _ac4 = st.columns(4)
-                _ac1.metric("⚠️ Postos em Alerta", f"{_n_alertas:,}",
-                            delta=f"{_pct_alert:.1f}% da base",
-                            delta_color="inverse")
-                _ac2.metric("✅ Postos Dentro da Média", f"{_n_ok:,}",
-                            delta=f"{100-_pct_alert:.1f}% da base")
-                _ac3.metric("📈 Pior Desvio", f"+{_pior_diff*100:.1f}%" if _n_alertas > 0 else "—")
-                _ac4.metric("📊 Desvio Médio (alertas)", f"+{_media_diff*100:.1f}%" if _n_alertas > 0 else "—")
-
-                st.markdown("---")
-
-                if _n_alertas == 0:
-                    st.success("✅ Nenhum posto GF com preço acima de 5% da média ANP. "
-                               "Todos os preços estão dentro do parâmetro de referência.")
+                if _pf_info.empty:
+                    st.warning("⚠️ Sem dados de localização dos postos GF (municipio/uf). "
+                               "Reimporte a planilha de postos.")
                 else:
-                    # ── Alertas por UF ────────────────────────────────────────
-                    _alerta_uf = (
-                        _alert_df[_alert_df["_alerta"]]
-                        .groupby("uf")
-                        .agg(
-                            postos_alerta=(_price_col, "count"),
-                            preco_medio=(_price_col, "mean"),
-                            pior_desvio=("_diff_pct", "max"),
-                        )
-                        .reset_index()
-                        .sort_values("postos_alerta", ascending=False)
+                    _merged = _pp_alert.merge(
+                        _pf_info, left_on="cnpj_norm", right_on="cnpj", how="inner"
                     )
-                    _alerta_uf["uf_nome"] = _alerta_uf["uf"].map(_UF_NOME_DASH).fillna(_alerta_uf["uf"])
-                    _alerta_uf["_anp_med"] = _alerta_uf["uf"].map(
-                        lambda u: _ANP_REF_COMB["DIESEL S10"].get(u.upper(), None)
-                    )
+                    _merged["municipio"] = _merged["municipio"].fillna("").str.strip()
+                    _merged["uf"]        = _merged["uf"].fillna("").str.strip().str.upper()
+                    _merged = _merged[_merged["preco"] > 0]
 
-                    st.markdown("#### ⚠️ Alertas por Estado")
-                    _col_g1, _col_g2 = st.columns([2, 1])
+                    if _merged.empty:
+                        st.warning("⚠️ Nenhum posto GF com preço e localização encontrado. "
+                                   "Verifique se os CNPJs da planilha de preços correspondem "
+                                   "aos CNPJs da planilha de postos.")
+                    else:
+                        # ── 2. Construir lookup ANP por (uf_norm, mun_norm, pk) ──
+                        # Nível 1: municipios   → {(uf_n, mun_n, pk): preco}
+                        # Nível 2: estados      → {(uf_n, pk): preco}
+                        # Nível 3: hardcoded    → _ANP_REF_COMB
+                        _anp_by_mun   = {}   # (uf_n, mun_n, pk) → float
+                        _anp_by_state = {}   # (uf_n, pk) → float
 
-                    with _col_g1:
-                        _fig_alerta = go.Figure()
-                        _color_alert = [
-                            "#B71C1C" if v > 0.10 else
-                            "#E53935" if v > 0.07 else
-                            "#EF9A9A"
-                            for v in _alerta_uf["pior_desvio"]
-                        ]
-                        _fig_alerta.add_trace(go.Bar(
-                            y=_alerta_uf["uf_nome"],
-                            x=_alerta_uf["postos_alerta"],
-                            orientation="h",
-                            marker_color=_color_alert,
-                            text=_alerta_uf["postos_alerta"].astype(str),
-                            textposition="outside",
-                            hovertemplate=(
-                                "<b>%{y}</b><br>"
-                                "Postos em alerta: %{x}<br>"
-                                "<extra></extra>"
-                            ),
-                        ))
-                        _fig_alerta.update_layout(
-                            title="Postos em Alerta por Estado (preço > ANP + 5%)",
-                            xaxis_title="Quantidade de Postos",
-                            yaxis=dict(autorange="reversed"),
-                            height=max(300, len(_alerta_uf) * 24 + 80),
-                            margin=dict(l=10, r=60, t=45, b=30),
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            font=dict(size=11),
+                        def _build_anp_lookup(sheets):
+                            """Extrai lookup ANP de municipios e estados."""
+                            def _extract_sheet(df):
+                                c_est  = _anp_col(df, "estado", "estados")
+                                c_mun  = _anp_col(df, "munic")
+                                c_prod = _anp_col(df, "produto")
+                                c_med  = _anp_col(df, "medio revenda", "media revenda", "preco medio")
+                                return c_est, c_mun, c_prod, c_med
+
+                            # Municipios
+                            if "municipios" in sheets:
+                                _df_m = sheets["municipios"]
+                                _ce, _cm, _cp, _cmed = _extract_sheet(_df_m)
+                                if _ce and _cp and _cmed and _cm:
+                                    for _, _r in _df_m.iterrows():
+                                        _uf_n  = _anp_norm(str(_r.get(_ce, "")))
+                                        _mn_n  = _anp_norm(str(_r.get(_cm, "")))
+                                        _pk    = _anp_norm(str(_r.get(_cp, "")))
+                                        try:
+                                            _v = float(str(_r.get(_cmed, "")).replace(",", "."))
+                                            if _v > 0:
+                                                _anp_by_mun[(_uf_n, _mn_n, _pk)] = _v
+                                        except (ValueError, TypeError):
+                                            pass
+
+                            # Estados
+                            if "estados" in sheets:
+                                _df_e = sheets["estados"]
+                                _ce, _, _cp, _cmed = _extract_sheet(_df_e)
+                                if _ce and _cp and _cmed:
+                                    for _, _r in _df_e.iterrows():
+                                        _uf_n = _anp_norm(str(_r.get(_ce, "")))
+                                        _pk   = _anp_norm(str(_r.get(_cp, "")))
+                                        try:
+                                            _v = float(str(_r.get(_cmed, "")).replace(",", "."))
+                                            if _v > 0:
+                                                _anp_by_state[(_uf_n, _pk)] = _v
+                                        except (ValueError, TypeError):
+                                            pass
+
+                        if _sheets_alert:
+                            _build_anp_lookup(_sheets_alert)
+
+                        # ── 3. Mapeamento UF sigla → nome normalizado ANP ──
+                        _UF_NOME_ANP = {k: _anp_norm(v) for k, v in UF_NOME.items()}
+
+                        def _get_anp_by_municipio(row):
+                            """Busca preço ANP: município → estado → hardcoded."""
+                            _pk_raw = str(row.get("combustivel_pk", ""))
+                            _pk_can = _PP_PARA_ANP_PK.get(_pk_raw, _pk_raw)
+                            _uf_sig = str(row.get("uf", "")).upper().strip()
+                            _uf_n   = _UF_NOME_ANP.get(_uf_sig, _anp_norm(_uf_sig))
+                            _mn_n   = _anp_norm(str(row.get("municipio", "")))
+
+                            # Nível 1 — municipio (match exato)
+                            for _pk_try in [_pk_raw, _pk_can]:
+                                _v = _anp_by_mun.get((_uf_n, _mn_n, _pk_try))
+                                if _v: return _v, "Município"
+                            # Nível 1 — municipio (match por substring)
+                            if _mn_n:
+                                for (_u, _m, _p), _v in _anp_by_mun.items():
+                                    if _u == _uf_n and (_mn_n in _m or _m in _mn_n):
+                                        if _pk_raw in _p or _p in _pk_raw or \
+                                           _pk_can in _p or _p in _pk_can:
+                                            return _v, "Município (aprox.)"
+
+                            # Nível 2 — estado
+                            for _pk_try in [_pk_raw, _pk_can]:
+                                _v = _anp_by_state.get((_uf_n, _pk_try))
+                                if _v: return _v, "Estado"
+                            # Nível 2 — estado por substring de produto
+                            for (_u, _p), _v in _anp_by_state.items():
+                                if _u == _uf_n:
+                                    if _pk_raw in _p or _p in _pk_raw or \
+                                       _pk_can in _p or _p in _pk_can:
+                                        return _v, "Estado (aprox.)"
+
+                            # Nível 3 — fallback hardcoded
+                            for _key, _refs in _ANP_REF_COMB.items():
+                                if _anp_norm(_key) in _pk_raw or _pk_raw in _anp_norm(_key) or \
+                                   _anp_norm(_key) in _pk_can or _pk_can in _anp_norm(_key):
+                                    _v = _refs.get(_uf_sig)
+                                    if _v: return _v, "Referência (fixo)"
+                            return None, None
+
+                        # ── 4. Calcular média GF por posto e obter ref ANP ──
+                        # Agrupa por (cnpj_norm, combustivel_pk) → preco médio GF
+                        _grp = (
+                            _merged.groupby(["cnpj_norm", "combustivel_pk", "combustivel_label",
+                                             "municipio", "uf", "razaoSocial"])
+                            ["preco"].mean()
+                            .reset_index()
+                            .rename(columns={"preco": "preco_gf"})
                         )
-                        _fig_alerta.update_xaxes(showgrid=True, gridcolor="#FFEBEE")
-                        st.plotly_chart(_fig_alerta, use_container_width=True)
 
-                    with _col_g2:
-                        st.markdown("##### Desvio Médio por UF")
-                        _alerta_uf_disp = _alerta_uf[["uf_nome", "postos_alerta", "pior_desvio"]].copy()
-                        _alerta_uf_disp.columns = ["Estado", "Postos", "Pior Desvio"]
-                        _alerta_uf_disp["Pior Desvio"] = _alerta_uf_disp["Pior Desvio"].apply(
-                            lambda v: f"+{v*100:.1f}%"
+                        _refs   = _grp.apply(_get_anp_by_municipio, axis=1, result_type="expand")
+                        _grp["_anp_ref"]   = _refs[0]
+                        _grp["_nivel_anp"] = _refs[1]
+                        _grp = _grp.dropna(subset=["_anp_ref"])
+                        _grp["_diff_pct"] = (_grp["preco_gf"] - _grp["_anp_ref"]) / _grp["_anp_ref"]
+                        _grp["_diff_rs"]  = _grp["preco_gf"] - _grp["_anp_ref"]
+                        _grp["_alerta"]   = _grp["_diff_pct"] > _ALERT_THRESH
+
+                        _alert_df = _grp  # alias para compatibilidade com restante do bloco
+
+                        # Colunas para exibição posterior
+                        _price_col = "preco_gf"
+                        _comb_col  = "combustivel_label"
+
+                        def _get_anp_ref(row):  # mantido para compatibilidade de reutilização
+                            return row.get("_anp_ref")
+
+                        # ── 5. KPIs e visualizações ────────────────────────
+                        _n_total    = len(_alert_df)
+                        _n_alertas  = int(_alert_df["_alerta"].sum())
+                        _n_ok       = _n_total - _n_alertas
+                        _pct_alert  = (_n_alertas / _n_total * 100) if _n_total > 0 else 0
+                        _pior_diff  = _alert_df.loc[_alert_df["_alerta"], "_diff_pct"].max() if _n_alertas > 0 else 0
+                        _media_diff = _alert_df.loc[_alert_df["_alerta"], "_diff_pct"].mean() if _n_alertas > 0 else 0
+                        _nivel_info = (
+                            _alert_df["_nivel_anp"].value_counts().idxmax()
+                            if "_nivel_anp" in _alert_df.columns and not _alert_df["_nivel_anp"].isna().all()
+                            else "Referência (fixo)"
                         )
-                        st.dataframe(_alerta_uf_disp, use_container_width=True, hide_index=True)
 
-                    # ── Top piores postos ─────────────────────────────────────
-                    st.markdown("#### 🏆 Top 20 Postos com Maior Desvio")
-                    _top_piores = (
-                        _alert_df[_alert_df["_alerta"]]
-                        .nlargest(20, "_diff_pct")
-                        .copy()
-                    )
-                    _disp_cols = []
-                    for _c in ["nome", "razao_social", "municipio", "uf", _price_col, "_anp_ref", "_diff_pct", "_diff_rs"]:
-                        if _c in _top_piores.columns:
-                            _disp_cols.append(_c)
-                    _top_piores_disp = _top_piores[_disp_cols].copy()
+                        # KPIs
+                        _ac1, _ac2, _ac3, _ac4 = st.columns(4)
+                        _ac1.metric("⚠️ Postos em Alerta", f"{_n_alertas:,}",
+                                    delta=f"{_pct_alert:.1f}% da base",
+                                    delta_color="inverse")
+                        _ac2.metric("✅ Dentro da Média", f"{_n_ok:,}",
+                                    delta=f"{100-_pct_alert:.1f}% da base")
+                        _ac3.metric("📈 Pior Desvio", f"+{_pior_diff*100:.1f}%" if _n_alertas > 0 else "—")
+                        _ac4.metric("📊 Desvio Médio", f"+{_media_diff*100:.1f}%" if _n_alertas > 0 else "—")
 
-                    # Renomeia colunas legíveis
-                    _rename_map = {
-                        _price_col: "Preço GF (R$/L)",
-                        "_anp_ref": "Ref. ANP (R$/L)",
-                        "_diff_pct": "Desvio %",
-                        "_diff_rs": "Desvio R$/L",
-                    }
-                    if "nome" in _top_piores_disp.columns:
-                        _rename_map["nome"] = "Nome"
-                    if "razao_social" in _top_piores_disp.columns:
-                        _rename_map["razao_social"] = "Razão Social"
-                    if "municipio" in _top_piores_disp.columns:
-                        _rename_map["municipio"] = "Município"
-                    if "uf" in _top_piores_disp.columns:
-                        _rename_map["uf"] = "UF"
-                    _top_piores_disp = _top_piores_disp.rename(columns=_rename_map)
+                        if not _sem_anp:
+                            st.caption(f"🔍 Referência ANP utilizada principalmente: **{_nivel_info}**")
+                        else:
+                            st.caption("ℹ️ Usando referência fixa (ANP não carregada). "
+                                       "Carregue a planilha ANP em Configurações para comparação por município.")
 
-                    if "Desvio %" in _top_piores_disp.columns:
-                        _top_piores_disp["Desvio %"] = _top_piores_disp["Desvio %"].apply(
-                            lambda v: f"+{v*100:.1f}%" if pd.notna(v) else "—"
-                        )
-                    if "Desvio R$/L" in _top_piores_disp.columns:
-                        _top_piores_disp["Desvio R$/L"] = _top_piores_disp["Desvio R$/L"].apply(
-                            lambda v: f"+R$ {v:.3f}".replace(".", ",") if pd.notna(v) and v > 0 else "—"
-                        )
-                    for _fc in ["Preço GF (R$/L)", "Ref. ANP (R$/L)"]:
-                        if _fc in _top_piores_disp.columns:
-                            _top_piores_disp[_fc] = _top_piores_disp[_fc].apply(
-                                lambda v: f"R$ {v:.3f}".replace(".", ",") if pd.notna(v) else "—"
+                        st.markdown("---")
+
+                        if _n_alertas == 0:
+                            st.success("✅ Nenhum posto GF com preço acima de 5% da média ANP. "
+                                       "Todos os preços estão dentro do parâmetro de referência.")
+                        else:
+                            # ── Alertas por UF ────────────────────────────────────
+                            _alerta_uf = (
+                                _alert_df[_alert_df["_alerta"]]
+                                .groupby("uf")
+                                .agg(
+                                    postos_alerta=(_price_col, "count"),
+                                    preco_medio=(_price_col, "mean"),
+                                    pior_desvio=("_diff_pct", "max"),
+                                )
+                                .reset_index()
+                                .sort_values("postos_alerta", ascending=False)
+                            )
+                            _alerta_uf["uf_nome"] = _alerta_uf["uf"].map(_UF_NOME_DASH).fillna(_alerta_uf["uf"])
+
+                            st.markdown("#### ⚠️ Alertas por Estado")
+                            _col_g1, _col_g2 = st.columns([2, 1])
+
+                            with _col_g1:
+                                _fig_alerta = go.Figure()
+                                _color_alert = [
+                                    "#B71C1C" if v > 0.10 else
+                                    "#E53935" if v > 0.07 else
+                                    "#EF9A9A"
+                                    for v in _alerta_uf["pior_desvio"]
+                                ]
+                                _fig_alerta.add_trace(go.Bar(
+                                    y=_alerta_uf["uf_nome"],
+                                    x=_alerta_uf["postos_alerta"],
+                                    orientation="h",
+                                    marker_color=_color_alert,
+                                    text=_alerta_uf["postos_alerta"].astype(str),
+                                    textposition="outside",
+                                    hovertemplate=(
+                                        "<b>%{y}</b><br>"
+                                        "Postos em alerta: %{x}<br>"
+                                        "<extra></extra>"
+                                    ),
+                                ))
+                                _fig_alerta.update_layout(
+                                    title="Postos em Alerta por Estado (preço > ANP + 5%)",
+                                    xaxis_title="Quantidade de Postos",
+                                    yaxis=dict(autorange="reversed"),
+                                    height=max(300, len(_alerta_uf) * 24 + 80),
+                                    margin=dict(l=10, r=60, t=45, b=30),
+                                    plot_bgcolor="rgba(0,0,0,0)",
+                                    paper_bgcolor="rgba(0,0,0,0)",
+                                    font=dict(size=11),
+                                )
+                                _fig_alerta.update_xaxes(showgrid=True, gridcolor="#FFEBEE")
+                                st.plotly_chart(_fig_alerta, use_container_width=True)
+
+                            with _col_g2:
+                                st.markdown("##### Resumo por Estado")
+                                _alerta_uf_disp = _alerta_uf[["uf_nome", "postos_alerta", "pior_desvio"]].copy()
+                                _alerta_uf_disp.columns = ["Estado", "Postos", "Pior Desvio"]
+                                _alerta_uf_disp["Pior Desvio"] = _alerta_uf_disp["Pior Desvio"].apply(
+                                    lambda v: f"+{v*100:.1f}%"
+                                )
+                                st.dataframe(_alerta_uf_disp, use_container_width=True, hide_index=True)
+
+                            # ── Top piores postos ─────────────────────────────────
+                            st.markdown("#### 🏆 Top 20 Postos com Maior Desvio")
+                            _top_piores = (
+                                _alert_df[_alert_df["_alerta"]]
+                                .nlargest(20, "_diff_pct")
+                                .copy()
+                            )
+                            _disp_cols_tp = []
+                            for _c in ["razaoSocial", "municipio", "uf",
+                                       "combustivel_label", _price_col,
+                                       "_anp_ref", "_nivel_anp", "_diff_pct", "_diff_rs"]:
+                                if _c in _top_piores.columns:
+                                    _disp_cols_tp.append(_c)
+                            _top_piores_disp = _top_piores[_disp_cols_tp].copy()
+
+                            _rename_tp = {
+                                "razaoSocial":       "Posto",
+                                "municipio":         "Município",
+                                "uf":                "UF",
+                                "combustivel_label": "Combustível",
+                                _price_col:          "Preço GF (R$/L)",
+                                "_anp_ref":          "Ref. ANP (R$/L)",
+                                "_nivel_anp":        "Base ANP",
+                                "_diff_pct":         "Desvio %",
+                                "_diff_rs":          "Desvio R$/L",
+                            }
+                            _top_piores_disp = _top_piores_disp.rename(columns=_rename_tp)
+
+                            if "Desvio %" in _top_piores_disp.columns:
+                                _top_piores_disp["Desvio %"] = _top_piores_disp["Desvio %"].apply(
+                                    lambda v: f"+{v*100:.1f}%" if pd.notna(v) else "—"
+                                )
+                            if "Desvio R$/L" in _top_piores_disp.columns:
+                                _top_piores_disp["Desvio R$/L"] = _top_piores_disp["Desvio R$/L"].apply(
+                                    lambda v: f"+R$ {v:.3f}".replace(".", ",") if pd.notna(v) and v > 0 else "—"
+                                )
+                            for _fc in ["Preço GF (R$/L)", "Ref. ANP (R$/L)"]:
+                                if _fc in _top_piores_disp.columns:
+                                    _top_piores_disp[_fc] = _top_piores_disp[_fc].apply(
+                                        lambda v: f"R$ {v:.3f}".replace(".", ",") if pd.notna(v) else "—"
+                                    )
+
+                            st.dataframe(
+                                _top_piores_disp.reset_index(drop=True),
+                                use_container_width=True,
+                                hide_index=True,
                             )
 
-                    st.dataframe(
-                        _top_piores_disp.reset_index(drop=True),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-
-                    # ── Exportar lista de alertas ─────────────────────────────
-                    st.markdown("---")
-                    _exp_alert_cols = st.columns([3, 1])
-                    with _exp_alert_cols[1]:
-                        _all_alertas = _alert_df[_alert_df["_alerta"]].copy()
-                        _all_alertas["Desvio_pct"] = (_all_alertas["_diff_pct"] * 100).round(2)
-                        _all_alertas["Desvio_RS"] = _all_alertas["_diff_rs"].round(3)
-                        _all_alertas = _all_alertas.drop(columns=["_anp_ref", "_diff_pct", "_diff_rs", "_alerta"], errors="ignore")
-                        _csv_alertas = _all_alertas.to_csv(index=False).encode("utf-8-sig")
-                        st.download_button(
-                            label="📥 Exportar Alertas (CSV)",
-                            data=_csv_alertas,
-                            file_name=f"alertas_preco_gf_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
-                            mime="text/csv",
-                            use_container_width=True,
-                        )
-                    with _exp_alert_cols[0]:
-                        st.caption(
-                            f"⚠️ **{_n_alertas} postos** com preço acima de 5% da referência ANP. "
-                            f"Exporte a lista completa para análise detalhada."
-                        )
+                            # ── Exportar lista de alertas ─────────────────────────
+                            st.markdown("---")
+                            _exp_alert_cols = st.columns([3, 1])
+                            with _exp_alert_cols[1]:
+                                _all_alertas = _alert_df[_alert_df["_alerta"]].copy()
+                                _all_alertas["Desvio_pct"] = (_all_alertas["_diff_pct"] * 100).round(2)
+                                _all_alertas["Desvio_RS"]  = _all_alertas["_diff_rs"].round(3)
+                                _all_alertas = _all_alertas.drop(
+                                    columns=["_anp_ref","_diff_pct","_diff_rs","_alerta","_nivel_anp"],
+                                    errors="ignore"
+                                )
+                                _csv_alertas = _all_alertas.to_csv(index=False).encode("utf-8-sig")
+                                st.download_button(
+                                    label="📥 Exportar Alertas (CSV)",
+                                    data=_csv_alertas,
+                                    file_name=f"alertas_preco_gf_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
+                                    mime="text/csv",
+                                    use_container_width=True,
+                                )
+                            with _exp_alert_cols[0]:
+                                st.caption(
+                                    f"⚠️ **{_n_alertas} postos** com preço acima de 5% da referência ANP. "
+                                    f"Exporte a lista completa para análise detalhada."
+                                )
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
