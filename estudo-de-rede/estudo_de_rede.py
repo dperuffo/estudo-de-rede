@@ -7759,28 +7759,30 @@ if (
     st.session_state.pop("_restore_recalc_rota_m1", None)
     st.rerun()
 
+
 # ═══════════════════════════════════════════════════════════════════
 #  MODO 5 — Roteirização
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🛣️ Roteirização":
 
-    # ── Lê dados do veículo do sidebar ──────────────────────────────
-    _rot_placa = st.session_state.get("rot_placa", "")
+    # ── Dados do veículo (definidos no sidebar) ─────────────────────
+    _rot_placa = str(st.session_state.get("rot_placa") or "")
     _rot_comb  = str(st.session_state.get("rot_combustivel") or "")
     _rot_cap   = float(st.session_state.get("rot_capacidade") or 80.0)
     _rot_aut   = float(st.session_state.get("rot_autonomia")  or 10.0)
     _rot_min   = _rot_cap * 0.25
     _rot_fk    = st.session_state.get("_rot_fk", 0)
-    _rot_np    = int(st.session_state.get("_rot_np", 0))  # paradas intermediárias
+    _rot_np    = int(st.session_state.get("_rot_np", 0))
 
     # ── Cabeçalho ────────────────────────────────────────────────────
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
-        "background:linear-gradient(135deg,#004D40,#00796B);-webkit-background-clip:text;"
-        "-webkit-text-fill-color:transparent'>🛣️ Roteirização</h2>"
-        "<p style='color:#555;font-size:13px;margin:0 0 14px'>"
-        "Informe os pontos da rota — a aplicação sugere os melhores postos GF para abastecimento.</p>",
+        "background:linear-gradient(135deg,#004D40,#00796B);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🛣️ Roteirização</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 12px'>"
+        "Informe os pontos da rota — a aplicação sugere os melhores postos GF.</p>",
         unsafe_allow_html=True,
     )
 
@@ -7791,24 +7793,23 @@ elif modo == "🛣️ Roteirização":
         if _rot_comb:  _v_parts.append(f"⛽ {_rot_comb}")
         if _rot_cap:   _v_parts.append(f"🛢 {_rot_cap:.0f} L")
         if _rot_aut:   _v_parts.append(f"📏 {_rot_aut:.1f} km/L")
-        _range_badge = (_rot_cap - _rot_min) * _rot_aut
-        _v_parts.append(f"🔋 alcance ~{_range_badge:.0f} km")
+        _v_parts.append(f"🔋 alcance ~{(_rot_cap - _rot_min) * _rot_aut:.0f} km")
         st.markdown(
             "<div style='background:linear-gradient(90deg,#e0f7fa,#f1f8e9);"
-            "border:1px solid #80deea;border-radius:8px;padding:8px 14px;"
-            "font-size:12px;color:#004D40;margin-bottom:16px'>"
+            "border:1px solid #80deea;border-radius:8px;padding:7px 14px;"
+            "font-size:12px;color:#004D40;margin-bottom:14px'>"
             + " · ".join(_v_parts) + "</div>",
             unsafe_allow_html=True,
         )
     else:
-        st.info("💡 Configure os dados do veículo no **menu lateral** antes de calcular a rota.")
+        st.info("💡 Configure os dados do veículo no **menu lateral** antes de calcular.")
 
     # ════════════════════════════════════════════════════════════════
-    #  Helper — campo de ponto com autocomplete (inline)
+    #  Helper — autocomplete de ponto (inline, sem st.rerun em loop)
     # ════════════════════════════════════════════════════════════════
-    def _ponto_rot(label, key_sel, key_txt, icon="📍", cor="#1565C0", deletavel=False, del_key=None):
-        """Campo autocomplete para pontos da Roteirização.
-        Retorna True se o botão ✕ de deleção (parada) foi clicado."""
+    def _ponto_rot(label, key_sel, key_txt, icon="📍", cor="#1565C0",
+                   deletavel=False, del_key=None):
+        """Retorna True se botão de deleção foi clicado."""
         sel = st.session_state.get(key_sel)
         if sel:
             if deletavel and del_key:
@@ -7821,204 +7822,186 @@ elif modo == "🛣️ Roteirização":
                 st.markdown(
                     f"<div style='background:linear-gradient(90deg,{cor}18,transparent);"
                     f"border-left:3px solid {cor};border-radius:0 8px 8px 0;"
-                    f"padding:7px 10px;font-size:12px;margin-bottom:2px;line-height:1.5'>"
+                    f"padding:6px 10px;font-size:12px;margin-bottom:2px'>"
                     f"<span style='color:{cor};font-weight:700;font-size:10px;"
                     f"text-transform:uppercase;letter-spacing:.6px'>{icon} {label}</span><br>"
                     f"<span style='color:#1a1a1a'>{_ico_s} {sel['label'][:55]}</span></div>",
                     unsafe_allow_html=True,
                 )
-            if _c2 is not None:
+            if _c2:
                 with _c2:
-                    if st.button("✕", key=del_key, help=f"Remover {label}", use_container_width=True):
+                    if st.button("✕", key=del_key, use_container_width=True):
                         st.session_state.pop(key_sel, None)
-                        st.session_state.pop(f"_rota_{key_sel}_ant", None)
                         return True
             else:
-                # limpar por botão inline abaixo do chip quando não deletável
-                if st.button(f"✕ Limpar {label}", key=f"_rot_clr_{key_sel}_{_rot_fk}",
-                             help=f"Limpar {label}"):
+                if st.button(f"✕ Limpar {label}",
+                             key=f"_rot_clr_{key_sel}_{_rot_fk}", help=f"Limpar {label}"):
                     st.session_state.pop(key_sel, None)
-                    st.session_state.pop(f"_rota_{key_sel}_ant", None)
                     st.rerun()
             return False
 
-        # ── Estado digitando ─────────────────────────────────────
+        # ── Digitando ───────────────────────────────────────────────
         if deletavel and del_key:
             _ci, _cd = st.columns([10, 1])
         else:
             _ci = st.container(); _cd = None
 
         with _ci:
-            _txt_inp = st.text_input(
-                f"{icon} {label}",
-                placeholder="Cidade, UF, CNPJ ou Nome do Posto",
+            _txt = st.text_input(
+                f"{icon} {label}", placeholder="Cidade, UF, CNPJ ou Nome do Posto",
                 key=f"{key_txt}_{_rot_fk}",
             )
-        if _cd is not None:
+        if _cd:
             with _cd:
-                if st.button("✕", key=del_key, help=f"Remover {label}", use_container_width=True):
+                if st.button("✕", key=del_key, use_container_width=True):
                     return True
 
-        _ant = st.session_state.get(f"_rota_{key_sel}_ant", "")
-        if _txt_inp != _ant:
-            st.session_state[f"_rota_{key_sel}_ant"] = _txt_inp
+        _ant = st.session_state.get(f"_ra_{key_sel}", "")
+        if _txt != _ant:
+            st.session_state[f"_ra_{key_sel}"] = _txt
 
-        if len(_txt_inp.strip()) >= 2:
-            _ts_r = _txt_inp.strip()
-            _tu_r = _ts_r.upper()
-            _sug_r: list = []
-            if _tu_r in UFS:
-                _bb_r = BBOX_UFS.get(_tu_r, (-15.8, -47.9, -15.7, -47.8))
-                _sug_r = [{"label": f"🗺️ Estado {_tu_r}",
-                           "lat": (_bb_r[0] + _bb_r[2]) / 2,
-                           "lon": (_bb_r[1] + _bb_r[3]) / 2,
-                           "tipo": "estado"}]
-            elif len(_ts_r) >= 3:
-                _sc_r = _buscar_cidades_cache(_ts_r) or [
-                    dict(s, tipo="cidade") for s in sugestoes_nominatim(_ts_r)
+        if len(_txt.strip()) >= 2:
+            _ts = _txt.strip(); _tu = _ts.upper()
+            _sg: list = []
+            if _tu in UFS:
+                _bb = BBOX_UFS.get(_tu, (-15.8, -47.9, -15.7, -47.8))
+                _sg = [{"label": f"🗺️ Estado {_tu}",
+                        "lat": (_bb[0]+_bb[2])/2, "lon": (_bb[1]+_bb[3])/2,
+                        "tipo": "estado"}]
+            elif len(_ts) >= 3:
+                _sc = _buscar_cidades_cache(_ts) or [
+                    dict(s, tipo="cidade") for s in sugestoes_nominatim(_ts)
                 ]
-                _sp_r = buscar_posto_por_texto(_ts_r)
-                _sug_r = _sc_r[:4] + _sp_r[:3]
-
-            if _sug_r:
-                _lbs_r = [s["label"] for s in _sug_r]
-                _idx_r = st.selectbox(
-                    "", range(len(_lbs_r)),
-                    format_func=lambda i: _lbs_r[i],
-                    key=f"_rot_sg_{key_sel}_{_rot_fk}",
-                    index=None, placeholder="↑ selecione uma sugestão…",
-                    label_visibility="collapsed",
-                )
-                if _idx_r is not None:
-                    st.session_state[key_sel] = _sug_r[_idx_r]
+                _sp = buscar_posto_por_texto(_ts)
+                _sg = _sc[:4] + _sp[:3]
+            if _sg:
+                _lbs = [s["label"] for s in _sg]
+                _ix = st.selectbox("", range(len(_lbs)),
+                    format_func=lambda i: _lbs[i],
+                    key=f"_rs_{key_sel}_{_rot_fk}",
+                    index=None, placeholder="↑ selecione…",
+                    label_visibility="collapsed")
+                if _ix is not None:
+                    st.session_state[key_sel] = _sg[_ix]
                     st.rerun()
         return False
 
-    # ── Rail visual dashed ───────────────────────────────────────────
     def _rail_r(cor="#90CAF9", h=8):
         st.markdown(
-            f"<div style='margin:0 0 0 8px;border-left:2px dashed {cor};"
-            f"height:{h}px'></div>",
-            unsafe_allow_html=True,
-        )
+            f"<div style='margin:2px 0 2px 8px;border-left:2px dashed {cor};"
+            f"height:{h}px'></div>", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════════════
-    #  Seção: Pontos da Rota
+    #  FORMULÁRIO DA ROTA
     # ════════════════════════════════════════════════════════════════
-    st.markdown(
-        "<div style='font-size:12px;font-weight:700;color:#004D40;"
-        "text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px'>"
-        "📍 Pontos da Rota</div>",
-        unsafe_allow_html=True,
-    )
-
-    # Origem
-    _ponto_rot("Ponto de Origem", "rot_orig_sel", "rot_txt_orig", "🟢", "#2E7D32")
     _rot_orig = st.session_state.get("rot_orig_sel")
-
-    # Paradas intermediárias
-    _dels_rot = []
-    for _ri in range(1, _rot_np + 1):
-        _rail_r("#FF8F00", 8)
-        _deleted_ri = _ponto_rot(
-            f"Parada {_ri}", f"rot_parada_sel_{_ri}", f"rot_txt_parada_{_ri}",
-            "🟠", "#E65100",
-            deletavel=True, del_key=f"_rot_del_{_ri}_{_rot_fk}",
-        )
-        if _deleted_ri:
-            _dels_rot.append(_ri)
-
-    # Processar deleções
-    if _dels_rot:
-        for _di in sorted(_dels_rot, reverse=True):
-            for _dj in range(_di, _rot_np):
-                _nxt = st.session_state.get(f"rot_parada_sel_{_dj + 1}")
-                if _nxt:
-                    st.session_state[f"rot_parada_sel_{_dj}"] = _nxt
-                else:
-                    st.session_state.pop(f"rot_parada_sel_{_dj}", None)
-                for _kk in [f"rot_txt_parada_{_dj}_{_rot_fk}",
-                             f"_rota_rot_parada_sel_{_dj}_ant",
-                             f"_rot_sg_rot_parada_sel_{_dj}_{_rot_fk}"]:
-                    st.session_state.pop(_kk, None)
-            st.session_state.pop(f"rot_parada_sel_{_rot_np}", None)
-        st.session_state["_rot_np"] = max(0, _rot_np - len(_dels_rot))
-        st.rerun()
-
-    # Botão adicionar parada
-    _rail_r("#BDBDBD", 6)
-    _c_add, _c_info_add = st.columns([2, 3])
-    with _c_add:
-        if _rot_np < 10:
-            if st.button("➕ Adicionar Parada", use_container_width=True,
-                         key=f"rot_add_{_rot_fk}"):
-                st.session_state["_rot_np"] = _rot_np + 1
-                st.rerun()
-    with _c_info_add:
-        if _rot_np > 0:
-            st.caption(f"{_rot_np}/10 parada(s)")
-
-    # Destino
-    _rail_r("#C62828", 10)
-    _ponto_rot("Ponto de Destino", "rot_dest_sel", "rot_txt_dest", "🔴", "#C62828")
     _rot_dest = st.session_state.get("rot_dest_sel")
+    _rot_res  = st.session_state.get("_rot_result")
 
-    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+    # Se há resultado, colapsa o formulário num expander
+    _form_expanded = (_rot_res is None)
 
-    # ════════════════════════════════════════════════════════════════
-    #  Botões de ação
-    # ════════════════════════════════════════════════════════════════
-    _rot_pronto = bool(_rot_orig) and bool(_rot_dest)
-    if not _rot_pronto:
+    with st.expander("📍 Pontos da Rota", expanded=_form_expanded):
+
         st.markdown(
-            "<div style='background:#fff3e0;border-radius:8px;padding:7px 12px;"
-            "font-size:11px;color:#e65100;text-align:center;margin-bottom:8px'>"
-            "⚠️ Informe <b>Origem</b> e <b>Destino</b> para calcular a rota</div>",
-            unsafe_allow_html=True,
-        )
+            "<div style='font-size:11px;color:#555;margin-bottom:8px'>"
+            "💡 Digite cidade, UF, CNPJ ou nome do posto e selecione a sugestão.</div>",
+            unsafe_allow_html=True)
 
-    _c_calc_btn, _c_clr_btn = st.columns([3, 1])
-    with _c_calc_btn:
-        _rot_calcular = st.button(
-            "🛣️ Calcular Roteirização",
-            use_container_width=True,
-            disabled=not _rot_pronto,
-            key=f"rot_btn_calc_{_rot_fk}",
-            type="primary",
-        )
-    with _c_clr_btn:
-        if st.button("🗑️", use_container_width=True, key=f"rot_btn_clr_{_rot_fk}",
-                     help="Limpar todos os campos e resultados da Roteirização"):
-            _rot_clear_keys = [k for k in list(st.session_state.keys())
-                               if k.startswith("rot_") or k.startswith("_rot_")
-                               or k.startswith("_rota_rot")]
-            for _k in _rot_clear_keys:
-                st.session_state.pop(_k, None)
+        _ponto_rot("Ponto de Origem", "rot_orig_sel", "rot_txt_orig", "🟢", "#2E7D32")
+        _rot_orig = st.session_state.get("rot_orig_sel")
+
+        _dels_rot = []
+        for _ri in range(1, _rot_np + 1):
+            _rail_r("#FF8F00", 6)
+            _del = _ponto_rot(
+                f"Parada {_ri}", f"rot_parada_sel_{_ri}", f"rot_txt_parada_{_ri}",
+                "🟠", "#E65100", deletavel=True, del_key=f"_rd_{_ri}_{_rot_fk}")
+            if _del:
+                _dels_rot.append(_ri)
+
+        if _dels_rot:
+            for _di in sorted(_dels_rot, reverse=True):
+                for _dj in range(_di, _rot_np):
+                    _nxt = st.session_state.get(f"rot_parada_sel_{_dj+1}")
+                    st.session_state[f"rot_parada_sel_{_dj}"] = _nxt if _nxt else None
+                    if not _nxt:
+                        st.session_state.pop(f"rot_parada_sel_{_dj}", None)
+                st.session_state.pop(f"rot_parada_sel_{_rot_np}", None)
+            st.session_state["_rot_np"] = max(0, _rot_np - len(_dels_rot))
             st.rerun()
 
+        _rail_r("#BDBDBD", 5)
+        _ca, _cb = st.columns([2, 3])
+        with _ca:
+            if _rot_np < 10:
+                if st.button("➕ Adicionar Parada", key=f"rot_add_{_rot_fk}",
+                             use_container_width=True):
+                    st.session_state["_rot_np"] = _rot_np + 1
+                    st.rerun()
+        with _cb:
+            if _rot_np:
+                st.caption(f"{_rot_np}/10 parada(s)")
+
+        _rail_r("#C62828", 8)
+        _ponto_rot("Ponto de Destino", "rot_dest_sel", "rot_txt_dest", "🔴", "#C62828")
+        _rot_dest = st.session_state.get("rot_dest_sel")
+
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+        _rot_pronto = bool(_rot_orig) and bool(_rot_dest)
+        if not _rot_pronto:
+            st.markdown(
+                "<div style='background:#fff3e0;border-radius:8px;padding:6px 10px;"
+                "font-size:11px;color:#e65100;text-align:center'>"
+                "⚠️ Informe <b>Origem</b> e <b>Destino</b></div>",
+                unsafe_allow_html=True)
+
+        _cc, _ccl = st.columns([4, 1])
+        with _cc:
+            _rot_calcular = st.button(
+                "🛣️ Calcular Roteirização",
+                use_container_width=True,
+                disabled=not _rot_pronto,
+                key=f"rot_calc_{_rot_fk}",
+                type="primary",
+            )
+        with _ccl:
+            if st.button("🗑️", use_container_width=True,
+                         key=f"rot_lmp_{_rot_fk}", help="Limpar tudo"):
+                for _k in [k for k in list(st.session_state.keys())
+                           if k.startswith("rot_") or k.startswith("_rot_")
+                           or k.startswith("_ra_") or k.startswith("_rs_")
+                           or k.startswith("_rd_")]:
+                    st.session_state.pop(_k, None)
+                st.rerun()
+
     # ════════════════════════════════════════════════════════════════
-    #  Cálculo da rota ao clicar
+    #  CÁLCULO (roda no mesmo pass — sem st.rerun após armazenar)
     # ════════════════════════════════════════════════════════════════
     if _rot_calcular and _rot_pronto:
         _wps_calc = []
         for _ri in range(1, _rot_np + 1):
             _ws = st.session_state.get(f"rot_parada_sel_{_ri}")
-            if _ws and "lat" in _ws and "lon" in _ws:
+            if _ws and "lat" in _ws:
                 _wps_calc.append([float(_ws["lat"]), float(_ws["lon"])])
 
         with st.spinner("🗺️ Calculando rota…"):
-            _rc_c, _rd_c, _rm_c, _rlr_c = calcular_rota(
-                float(_rot_orig["lat"]), float(_rot_orig["lon"]),
-                float(_rot_dest["lat"]), float(_rot_dest["lon"]),
-                waypoints=_wps_calc or None,
-            )
+            try:
+                _rc_c, _rd_c, _rm_c, _rlr_c = calcular_rota(
+                    float(_rot_orig["lat"]), float(_rot_orig["lon"]),
+                    float(_rot_dest["lat"]), float(_rot_dest["lon"]),
+                    waypoints=_wps_calc or None,
+                )
+            except Exception as _e_calc:
+                st.error(f"❌ Erro ao calcular rota: {_e_calc}")
+                st.stop()
 
-        _paradas_salvas = []
-        for _ri in range(1, _rot_np + 1):
-            _ps = st.session_state.get(f"rot_parada_sel_{_ri}")
-            if _ps:
-                _paradas_salvas.append(_ps)
-
+        _paradas_salvas = [
+            st.session_state.get(f"rot_parada_sel_{_ri}")
+            for _ri in range(1, _rot_np + 1)
+            if st.session_state.get(f"rot_parada_sel_{_ri}")
+        ]
         st.session_state["_rot_result"] = {
             "coords":     _rc_c,
             "dist_km":    _rd_c,
@@ -8032,355 +8015,254 @@ elif modo == "🛣️ Roteirização":
             "capacidade": _rot_cap,
             "autonomia":  _rot_aut,
         }
-        st.rerun()
+        _rot_res = st.session_state["_rot_result"]   # usa na mesma passagem
 
     # ════════════════════════════════════════════════════════════════
-    #  Exibição de resultados
+    #  RESULTADOS
     # ════════════════════════════════════════════════════════════════
-    _rot_res = st.session_state.get("_rot_result")
-
     if _rot_res:
-        _rc   = _rot_res["coords"]
-        _rd   = float(_rot_res["dist_km"])
-        _rm   = float(_rot_res["dur_min"])
-        _rlr  = _rot_res.get("linha_reta", False)
-        _ro   = _rot_res["orig"]
-        _rt   = _rot_res["dest"]
-        _rp   = _rot_res.get("paradas", [])
+        _rc    = _rot_res["coords"]
+        _rd    = float(_rot_res["dist_km"])
+        _rm    = float(_rot_res["dur_min"])
+        _rlr   = bool(_rot_res.get("linha_reta", False))
+        _ro    = _rot_res["orig"]
+        _rt    = _rot_res["dest"]
+        _rp    = _rot_res.get("paradas", [])
         _rcomb = _rot_res.get("combustivel", _rot_comb)
         _rcap  = float(_rot_res.get("capacidade", _rot_cap))
-        _raut  = float(_rot_res.get("autonomia", _rot_aut))
+        _raut  = float(_rot_res.get("autonomia",  _rot_aut))
         _rmin  = _rcap * 0.25
 
-        # ── Métricas ───────────────────────────────────────────────────
-        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        # ── Métricas ──────────────────────────────────────────────
         _mc1, _mc2, _mc3, _mc4 = st.columns(4)
-        _mc1.metric("📏 Distância", f"{_rd:,.0f} km".replace(",", "."))
-        _dur_h  = int(_rm // 60)
-        _dur_m  = int(_rm  % 60)
-        _mc2.metric("⏱️ Tempo est.", f"{_dur_h}h {_dur_m:02d}min")
-        _litros_total = _rd / _raut if _raut else 0
-        _mc3.metric("🛢 Consumo total", f"{_litros_total:.0f} L")
-        _paradas_count = len(_rp)
-        _mc4.metric("📍 Paradas na rota", str(_paradas_count + 2))  # origem + paradas + destino
-
+        _mc1.metric("📏 Distância",     f"{_rd:,.0f} km".replace(",", "."))
+        _mc2.metric("⏱️ Tempo est.",    f"{int(_rm//60)}h {int(_rm%60):02d}min")
+        _mc3.metric("🛢 Consumo",       f"{_rd/_raut:.0f} L" if _raut else "—")
+        _mc4.metric("📍 Pontos rota",   str(len(_rp) + 2))
         if _rlr:
-            st.caption("⚠️ Rota calculada em linha reta (servidores OSRM indisponíveis).")
+            st.caption("⚠️ Rota calculada em linha reta (OSRM indisponível).")
 
-        # ════════════════════════════════════════════════════════════
-        #  Otimização de abastecimento
-        # ════════════════════════════════════════════════════════════
-        _pp_df_rot     = st.session_state.get("_pp_df")
-        _pf_df_rot     = st.session_state.get("pf_coords_df", pd.DataFrame())
-        _sugestoes_abast: list = []
-        _postos_cand: list     = []
-        _range_avail_r = (_rcap - _rmin) * _raut  # km disponíveis entre cheio e reserva
+        # ── Otimização de abastecimento ───────────────────────────
+        _pp_df_r  = st.session_state.get("_pp_df")
+        _pf_df_r  = st.session_state.get("pf_coords_df", pd.DataFrame())
+        _sugest: list = []
+        _cands:  list = []
+        _range_avail = (_rcap - _rmin) * _raut
 
-        if _pp_df_rot is not None and not _pf_df_rot.empty and _rcomb:
-            # Busca tipo de combustível correspondente
-            _comb_match = _pp_df_rot[
-                _pp_df_rot["combustivel_label"].str.upper().str.strip()
+        if _pp_df_r is not None and not _pf_df_r.empty and _rcomb:
+            _cm = _pp_df_r[
+                _pp_df_r["combustivel_label"].str.upper().str.strip()
                 == _rcomb.upper().strip()
             ]
-            if not _comb_match.empty:
-                _cpk_rot = _comb_match["combustivel_pk"].iloc[0]
-                _prices_rot = (
-                    _pp_df_rot[_pp_df_rot["combustivel_pk"] == _cpk_rot]
-                    [["cnpj_norm", "preco"]].copy()
-                )
-                _pf_copy = _pf_df_rot.copy()
-                _pf_copy["_cnpj_n"] = (
-                    _pf_copy["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
-                )
-                _merged_rot = _pf_copy.merge(
-                    _prices_rot, left_on="_cnpj_n", right_on="cnpj_norm", how="inner"
-                )
-                for _, _pr in _merged_rot.iterrows():
-                    if pd.notna(_pr.get("_lat")) and pd.notna(_pr.get("_lon")):
-                        _postos_cand.append({
-                            "label":     str(_pr.get("razaoSocial") or _pr.get("nome") or "Posto GF")[:45],
-                            "cnpj":      str(_pr["_cnpj_n"]),
-                            "lat":       float(_pr["_lat"]),
-                            "lon":       float(_pr["_lon"]),
-                            "preco":     float(_pr["preco"]),
-                            "municipio": str(_pr.get("municipio", "")),
-                            "uf":        str(_pr.get("uf", "")),
+            if not _cm.empty:
+                _cpk = _cm["combustivel_pk"].iloc[0]
+                _pr  = (_pp_df_r[_pp_df_r["combustivel_pk"] == _cpk]
+                        [["cnpj_norm", "preco"]].copy())
+                _pfc = _pf_df_r.copy()
+                _pfc["_cn"] = _pfc["cnpj"].fillna("").str.replace(r"\D","",regex=True)
+                _mg  = _pfc.merge(_pr, left_on="_cn", right_on="cnpj_norm", how="inner")
+                for _, _row in _mg.iterrows():
+                    if pd.notna(_row.get("_lat")) and pd.notna(_row.get("_lon")):
+                        _cands.append({
+                            "label":     str(_row.get("razaoSocial") or "Posto GF")[:45],
+                            "cnpj":      str(_row["_cn"]),
+                            "lat":       float(_row["_lat"]),
+                            "lon":       float(_row["_lon"]),
+                            "preco":     float(_row["preco"]),
+                            "municipio": str(_row.get("municipio", "")),
+                            "uf":        str(_row.get("uf", "")),
                         })
 
-        if _postos_cand and _rc and _raut > 0:
-            _range_full_r  = _rcap * _raut
-            _range_avail_r = (_rcap - _rmin) * _raut
-            _MAX_DESVIO    = 5.0   # km do corredor da rota
+        if _cands and _rc and _raut > 0:
+            _MAX_DEV = 5.0   # km do corredor
 
-            def _proj_km_r(lat_s, lon_s, coords):
-                """Retorna (desvio_km, km_ao_longo_da_rota) para uma estação."""
+            def _proj(lat_s, lon_s):
+                """Distância perpendicular e km ao longo da rota para uma estação."""
                 _mp = float("inf"); _bk = 0.0; _cum = 0.0
-                for _ii in range(len(coords) - 1):
-                    _la1, _lo1 = coords[_ii]; _la2, _lo2 = coords[_ii + 1]
+                for _ii in range(len(_rc) - 1):
+                    _la1, _lo1 = _rc[_ii]; _la2, _lo2 = _rc[_ii+1]
                     _d1 = _haversine(lat_s, lon_s, _la1, _lo1) / 1000
-                    if _d1 < _mp:
-                        _mp = _d1; _bk = _cum
+                    if _d1 < _mp: _mp = _d1; _bk = _cum
                     _cum += _haversine(_la1, _lo1, _la2, _lo2) / 1000
                 return _mp, _bk
 
-            # Filtra estações no corredor da rota
-            _estacoes_rot: list = []
-            for _pc in _postos_cand:
-                _perp_r, _km_a_r = _proj_km_r(_pc["lat"], _pc["lon"], _rc)
-                if _perp_r <= _MAX_DESVIO and 0 <= _km_a_r <= _rd:
-                    _estacoes_rot.append({**_pc, "_km_rota": _km_a_r, "_desvio_km": _perp_r})
-            _estacoes_rot.sort(key=lambda x: x["_km_rota"])
+            _ests = []
+            for _pc in _cands:
+                _perp, _kma = _proj(_pc["lat"], _pc["lon"])
+                if _perp <= _MAX_DEV and 0 <= _kma <= _rd:
+                    _ests.append({**_pc, "_km": _kma, "_dev": _perp})
+            _ests.sort(key=lambda x: x["_km"])
 
-            # Algoritmo guloso de otimização
-            _pos_km_r = 0.0
-            _fuel_r   = _rcap      # começa com tanque cheio
-            _visitados: set = set()
-            _iter_max = 50
-
-            for _ in range(_iter_max):
-                if _pos_km_r >= _rd:
-                    break
-                _fuel_disp = _fuel_r - _rmin
-                _can_go_r  = _fuel_disp * _raut
-                _must_by_r = _pos_km_r + _can_go_r
-
-                if _must_by_r >= _rd:
-                    break  # chega ao destino sem precisar abastecer
-
-                # Candidatos dentro do alcance atual
-                _cands_now = [
-                    e for e in _estacoes_rot
-                    if _pos_km_r < e["_km_rota"] <= _must_by_r
-                    and e["cnpj"] not in _visitados
-                ]
-                if _cands_now:
-                    _best_r = min(_cands_now, key=lambda x: x.get("preco", 9999.0))
-                    _best_r = dict(_best_r); _best_r["motivo"] = "mais_barato"
+            _pos = 0.0; _fuel = _rcap; _seen: set = set()
+            for _ in range(50):
+                if _pos >= _rd: break
+                _can_go = (_fuel - _rmin) * _raut
+                _must   = _pos + _can_go
+                if _must >= _rd: break
+                _ok = [e for e in _ests
+                       if _pos < e["_km"] <= _must and e["cnpj"] not in _seen]
+                if _ok:
+                    _best = dict(min(_ok, key=lambda x: x.get("preco", 9999)))
+                    _best["motivo"] = "mais_barato"
                 else:
-                    # Nenhum posto no alcance — pega o mais próximo disponível
-                    _prox_r = [
-                        e for e in _estacoes_rot
-                        if e["_km_rota"] > _pos_km_r and e["cnpj"] not in _visitados
-                    ]
-                    if not _prox_r:
-                        break
-                    _best_r = dict(min(_prox_r, key=lambda x: x["_km_rota"]))
-                    _best_r["motivo"] = "mais_proximo"
+                    _prox = [e for e in _ests if e["_km"] > _pos and e["cnpj"] not in _seen]
+                    if not _prox: break
+                    _best = dict(min(_prox, key=lambda x: x["_km"]))
+                    _best["motivo"] = "mais_proximo"
+                _seen.add(_best["cnpj"])
+                _sugest.append(_best)
+                _fuel = _rcap
+                _pos  = _best["_km"]
 
-                _visitados.add(_best_r["cnpj"])
-                _sugestoes_abast.append(_best_r)
-                _dist_tr = _best_r["_km_rota"] - _pos_km_r
-                _fuel_r  = _rcap   # abastece tanque cheio
-                _pos_km_r = _best_r["_km_rota"]
-
-        # ════════════════════════════════════════════════════════════
-        #  Tabs: Mapa | Postos Sugeridos | Resumo
-        # ════════════════════════════════════════════════════════════
-        _tab_mapa_r, _tab_abast_r, _tab_res_r = st.tabs(
+        # ── Tabs ─────────────────────────────────────────────────
+        _t_mapa, _t_abast, _t_res = st.tabs(
             ["🗺️  Mapa da Rota", "⛽  Abastecimento", "📋  Resumo"]
         )
 
-        with _tab_mapa_r:
-            # Mapa com os postos sugeridos destacados
-            # criar_mapa espera waypoints como dicts {"lat", "lon", "label"}
-            _wps_map_r = [
-                {
-                    "lat":   float(p["lat"]),
-                    "lon":   float(p["lon"]),
-                    "label": str(p.get("label", f"Parada {_wi + 1}")),
-                }
-                for _wi, p in enumerate(_rp)
-                if "lat" in p and "lon" in p
-            ] or None
+        with _t_mapa:
+            try:
+                _wps_mapa = [
+                    {"lat": float(p["lat"]), "lon": float(p["lon"]),
+                     "label": str(p.get("label", f"Parada {_wi+1}"))}
+                    for _wi, p in enumerate(_rp) if "lat" in p and "lon" in p
+                ] or None
 
-            _cnpjs_sug_r = {s["cnpj"] for s in _sugestoes_abast}
-            if _cnpjs_sug_r and not _pf_df_rot.empty:
-                _df_mapa_rot = _pf_df_rot.copy()
-                _df_mapa_rot["_cnpj_n2"] = (
-                    _df_mapa_rot["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+                _cnpjs_sg = {s["cnpj"] for s in _sugest}
+                if _cnpjs_sg and not _pf_df_r.empty:
+                    _dfm = _pf_df_r.copy()
+                    _dfm["_cn2"] = _dfm["cnpj"].fillna("").str.replace(r"\D","",regex=True)
+                    _dfm = preparar_df(_dfm[_dfm["_cn2"].isin(_cnpjs_sg)], [])
+                else:
+                    _dfm = pd.DataFrame()
+
+                _fig_r = criar_mapa(
+                    _dfm,
+                    coords_rota=_rc,
+                    lat_orig=float(_ro["lat"]),  lon_orig=float(_ro["lon"]),
+                    lat_dest=float(_rt["lat"]),  lon_dest=float(_rt["lon"]),
+                    label_orig=str(_ro.get("label","Origem"))[:30],
+                    label_dest=str(_rt.get("label","Destino"))[:30],
+                    waypoints=_wps_mapa,
                 )
-                _df_mapa_rot = _df_mapa_rot[_df_mapa_rot["_cnpj_n2"].isin(_cnpjs_sug_r)]
-                _df_mapa_rot = preparar_df(_df_mapa_rot, [])
-            elif _sugestoes_abast:
-                _df_mapa_rot = pd.DataFrame([
-                    {"_lat": s["lat"], "_lon": s["lon"],
-                     "razaoSocial": s["label"], "municipio": s.get("municipio", ""),
-                     "uf": s.get("uf", ""), "_pro_frotas": True, "_cercado": False,
-                     "cnpj": s["cnpj"]}
-                    for s in _sugestoes_abast
-                ])
-            else:
-                _df_mapa_rot = pd.DataFrame()
+                _renderizar_mapa(_fig_r, height=560, key="mapa_rot_v2")
+            except Exception as _e_mapa:
+                st.error(f"❌ Erro ao renderizar mapa: {_e_mapa}")
 
-            _fig_rot = criar_mapa(
-                _df_mapa_rot,
-                coords_rota=_rc,
-                lat_orig=float(_ro["lat"]), lon_orig=float(_ro["lon"]),
-                lat_dest=float(_rt["lat"]), lon_dest=float(_rt["lon"]),
-                label_orig=str(_ro.get("label", "Origem"))[:30],
-                label_dest=str(_rt.get("label", "Destino"))[:30],
-                waypoints=_wps_map_r,
-            )
-            _renderizar_mapa(_fig_rot, height=560, key="mapa_roteirizacao")
-
-        with _tab_abast_r:
+        with _t_abast:
             if not _rcomb:
-                st.info("Configure o **combustível** no menu lateral para ver sugestões de abastecimento.")
-            elif not _postos_cand:
+                st.info("Configure o **combustível** no menu lateral.")
+            elif not _cands:
                 st.warning(
-                    "⚠️ Nenhum posto GF com preço cadastrado encontrado para "
-                    f"**{_rcomb}**. Verifique se a planilha de preços foi carregada "
-                    "em **Configurações**."
-                )
-            elif not _sugestoes_abast:
+                    f"⚠️ Nenhum posto GF com preço de **{_rcomb}** encontrado. "
+                    "Verifique se a planilha de preços foi carregada em **Configurações**.")
+            elif not _sugest:
                 st.success(
-                    f"✅ **Nenhuma parada necessária!** Com tanque cheio ({_rcap:.0f} L) "
-                    f"e autonomia de {_raut:.1f} km/L, o veículo percorre até "
-                    f"{_range_avail_r:.0f} km sem atingir a reserva — suficiente para "
-                    f"os {_rd:.0f} km desta rota."
-                )
+                    f"✅ Nenhuma parada necessária — alcance (~{_range_avail:.0f} km) "
+                    f"suficiente para os {_rd:.0f} km desta rota.")
             else:
-                _n_paradas_ab = len(_sugestoes_abast)
-                _custo_total  = sum(
-                    (_rd / _n_paradas_ab) / _raut * s.get("preco", 0.0)
-                    for s in _sugestoes_abast
-                ) if _n_paradas_ab else 0.0
-
+                _n_ab = len(_sugest)
+                _custo = (sum(s.get("preco",0) for s in _sugest) / _n_ab) * (_rd/_raut) if _raut else 0
                 st.markdown(
                     f"<div style='background:linear-gradient(90deg,#e0f7fa,#f1f8e9);"
-                    f"border-radius:8px;padding:10px 16px;margin-bottom:12px;"
+                    f"border-radius:8px;padding:9px 14px;margin-bottom:10px;"
                     f"font-size:12px;color:#004D40'>"
-                    f"⛽ <b>{_n_paradas_ab} parada(s) de abastecimento</b> sugerida(s) · "
-                    f"Custo estimado: <b>R$ {_custo_total:,.2f}</b></div>",
-                    unsafe_allow_html=True,
-                )
-
-                for _idx_ab, _ab in enumerate(_sugestoes_abast, 1):
-                    _ab_preco  = _ab.get("preco", 0.0)
-                    _ab_km     = _ab.get("_km_rota", 0.0)
-                    _ab_desvio = _ab.get("_desvio_km", 0.0)
-                    _ab_motivo = _ab.get("motivo", "")
-                    _ab_tag    = "🏆 Melhor preço" if _ab_motivo == "mais_barato" else "📍 Mais próximo"
-                    _ab_cor    = "#1B5E20" if _ab_motivo == "mais_barato" else "#E65100"
-                    _ab_bg     = "#f1f8e9" if _ab_motivo == "mais_barato" else "#fff3e0"
-                    _ab_mun    = f"{_ab.get('municipio','')} / {_ab.get('uf','')}"
-
-                    # Litros a abastecer (diferença entre tanque cheio e reserva na chegada)
-                    _litros_ab = _rcap  # sempre abastece até cheio na simulação
-
+                    f"⛽ <b>{_n_ab} parada(s) sugerida(s)</b> · "
+                    f"Custo estimado: <b>R$ {_custo:,.2f}</b></div>".replace(",","X").replace(".",",").replace("X","."),
+                    unsafe_allow_html=True)
+                for _ia, _ab in enumerate(_sugest, 1):
+                    _cor_ab = "#1B5E20" if _ab.get("motivo")=="mais_barato" else "#E65100"
+                    _bg_ab  = "#f1f8e9" if _ab.get("motivo")=="mais_barato" else "#fff3e0"
+                    _tag_ab = "🏆 Melhor preço" if _ab.get("motivo")=="mais_barato" else "📍 Mais próximo"
                     st.markdown(
-                        f"<div style='border-left:4px solid {_ab_cor};background:{_ab_bg};"
-                        f"border-radius:0 10px 10px 0;padding:10px 14px;margin-bottom:8px'>"
-                        f"<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap;"
-                        f"margin-bottom:4px'>"
-                        f"<span style='font-size:14px;font-weight:800;color:{_ab_cor}'>#{_idx_ab}</span>"
-                        f"<span style='font-size:12px;font-weight:700;color:#1a1a1a'>{_ab['label']}</span>"
-                        f"<span style='background:{_ab_cor};color:#fff;border-radius:4px;"
-                        f"padding:2px 6px;font-size:10px;font-weight:700'>{_ab_tag}</span>"
-                        f"</div>"
-                        f"<div style='font-size:11px;color:#555;line-height:1.8'>"
-                        f"📍 {_ab_mun} &nbsp;·&nbsp; "
-                        f"🛣 {_ab_km:.0f} km da origem &nbsp;·&nbsp; "
-                        f"↔ {_ab_desvio:.1f} km do corredor<br>"
-                        f"💰 <b>R$ {_ab_preco:.3f}/L</b> · "
-                        f"Tanque cheio ≈ <b>R$ {_ab_preco * _litros_ab:.2f}</b> ({_litros_ab:.0f} L)"
-                        f"</div></div>",
-                        unsafe_allow_html=True,
-                    )
+                        f"<div style='border-left:4px solid {_cor_ab};background:{_bg_ab};"
+                        f"border-radius:0 10px 10px 0;padding:9px 14px;margin-bottom:6px'>"
+                        f"<b style='color:{_cor_ab}'>#{_ia} {_ab['label']}</b> "
+                        f"<span style='background:{_cor_ab};color:#fff;border-radius:4px;"
+                        f"padding:1px 6px;font-size:10px'>{_tag_ab}</span><br>"
+                        f"<span style='font-size:11px;color:#555'>"
+                        f"📍 {_ab.get('municipio','')} / {_ab.get('uf','')} &nbsp;·&nbsp; "
+                        f"🛣 {_ab.get('_km',0):.0f} km da origem &nbsp;·&nbsp; "
+                        f"💰 <b>R$ {_ab.get('preco',0):.3f}/L</b> · "
+                        f"abast. ~<b>R$ {_ab.get('preco',0)*_rcap:.2f}</b>"
+                        f"</span></div>",
+                        unsafe_allow_html=True)
 
-        with _tab_res_r:
+        with _t_res:
             st.markdown(
-                "<div style='font-size:13px;font-weight:700;color:#004D40;"
-                "margin-bottom:12px'>📋 Resumo da Roteirização</div>",
-                unsafe_allow_html=True,
-            )
-
-            # Pontos da rota
-            _pontos_resumo = [_ro] + _rp + [_rt]
-            _cores_res     = (
-                ["#2E7D32"] + ["#E65100"] * len(_rp) + ["#C62828"]
-            )
-            _icons_res     = ["🟢"] + ["🟠"] * len(_rp) + ["🔴"]
-            _labels_res    = ["Origem"] + [f"Parada {i+1}" for i in range(len(_rp))] + ["Destino"]
-
-            for _i_r, (_pt, _cr_r, _ic_r, _lb_r) in enumerate(
-                zip(_pontos_resumo, _cores_res, _icons_res, _labels_res)
-            ):
-                _tipo_r = _pt.get("tipo", "")
-                _ico_t  = {"estado": "🗺️", "cidade": "📍", "posto": "⛽"}.get(_tipo_r, "📍")
+                "<div style='font-size:12px;font-weight:700;color:#004D40;"
+                "margin-bottom:10px'>📋 Resumo da Roteirização</div>",
+                unsafe_allow_html=True)
+            _pontos_r = [_ro] + _rp + [_rt]
+            _cores_r  = ["#2E7D32"] + ["#E65100"]*len(_rp) + ["#C62828"]
+            _icons_r  = ["🟢"] + ["🟠"]*len(_rp) + ["🔴"]
+            _lbls_r   = ["Origem"] + [f"Parada {i+1}" for i in range(len(_rp))] + ["Destino"]
+            for _pt, _cr, _ic, _lb in zip(_pontos_r, _cores_r, _icons_r, _lbls_r):
+                _ico_t = {"estado":"🗺️","cidade":"📍","posto":"⛽"}.get(_pt.get("tipo",""),"📍")
                 st.markdown(
-                    f"<div style='border-left:3px solid {_cr_r};"
-                    f"padding:6px 10px;margin-bottom:4px;font-size:12px'>"
-                    f"<span style='color:{_cr_r};font-weight:700'>{_ic_r} {_lb_r}:</span> "
-                    f"{_ico_t} {_pt.get('label','')[:55]}</div>",
-                    unsafe_allow_html=True,
-                )
-
+                    f"<div style='border-left:3px solid {_cr};padding:5px 10px;"
+                    f"margin-bottom:3px;font-size:12px'>"
+                    f"<b style='color:{_cr}'>{_ic} {_lb}:</b> {_ico_t} {_pt.get('label','')[:55]}"
+                    f"</div>", unsafe_allow_html=True)
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-            # Estatísticas
-            _custo_est_r = (
-                sum(s.get("preco", 0) for s in _sugestoes_abast) / len(_sugestoes_abast)
-                * (_rd / _raut)
-                if _sugestoes_abast and _raut else 0
+            _custo_r = (
+                (sum(s.get("preco",0) for s in _sugest)/len(_sugest)) * (_rd/_raut)
+                if _sugest and _raut else 0
             )
-            _dados_res_md = [
-                ("📏 Distância total",   f"{_rd:,.0f} km".replace(",", ".")),
-                ("⏱️ Tempo estimado",    f"{int(_rm//60)}h {int(_rm%60):02d}min"),
-                ("🛢 Combustível",       _rcomb or "—"),
-                ("🚛 Veículo (placa)",   _rot_res.get("placa", "—") or "—"),
-                ("⛽ Consumo estimado",  f"{_rd/_raut:.0f} L" if _raut else "—"),
-                ("💰 Custo estimado",    f"R$ {_custo_est_r:,.2f}".replace(",","X").replace(".",",").replace("X",".") if _custo_est_r else "—"),
-                ("🔋 Paradas abast.",    str(len(_sugestoes_abast)) if _sugestoes_abast else "Nenhuma"),
-            ]
-            for _lbl_r, _val_r in _dados_res_md:
-                _cr1, _cr2 = st.columns([2, 3])
-                _cr1.markdown(f"<span style='font-size:11px;color:#555'>{_lbl_r}</span>",
-                              unsafe_allow_html=True)
-                _cr2.markdown(f"<span style='font-size:12px;font-weight:600'>{_val_r}</span>",
-                              unsafe_allow_html=True)
+            for _lbl, _val in [
+                ("📏 Distância",    f"{_rd:,.0f} km".replace(",",".")),
+                ("⏱️ Tempo",       f"{int(_rm//60)}h {int(_rm%60):02d}min"),
+                ("⛽ Combustível",  _rcomb or "—"),
+                ("🚛 Placa",       _rot_res.get("placa","") or "—"),
+                ("🛢 Consumo",     f"{_rd/_raut:.0f} L" if _raut else "—"),
+                ("💰 Custo est.",  f"R$ {_custo_r:.2f}".replace(".",",") if _custo_r else "—"),
+                ("⛽ Paradas abast.", str(len(_sugest)) if _sugest else "Nenhuma"),
+            ]:
+                _cr1, _cr2 = st.columns([3, 4])
+                _cr1.caption(_lbl); _cr2.markdown(f"**{_val}**")
 
-        # ════════════════════════════════════════════════════════════
-        #  Salvar roteirização
-        # ════════════════════════════════════════════════════════════
-        st.markdown("<div style='margin-top:20px;border-top:1px solid #e3e8f0;"
-                    "padding-top:16px'></div>", unsafe_allow_html=True)
-
-        _nome_sug_rot = (
-            f"Rota {_ro.get('label','Origem')[:20]} → {_rt.get('label','Destino')[:20]}"
-        )
-        _c_nome_rot, _c_salvar_rot = st.columns([4, 1])
-        with _c_nome_rot:
-            _nome_rot_input = st.text_input(
-                "Nome para salvar",
-                value=_nome_sug_rot,
-                placeholder="Ex: Rota São Paulo → Curitiba",
-                key="rot_nome_salvar",
-                label_visibility="visible",
-            )
-        with _c_salvar_rot:
+        # ── Salvar ────────────────────────────────────────────────
+        st.markdown("---")
+        _nome_sug = (f"{_ro.get('label','Origem')[:20]} → {_rt.get('label','Destino')[:20]}")
+        _cn1, _cn2 = st.columns([4, 1])
+        with _cn1:
+            _nome_in = st.text_input("Nome para salvar", value=_nome_sug,
+                                     key="rot_nome_salvar")
+        with _cn2:
             st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-            if st.button("💾 Salvar", use_container_width=True, key="rot_btn_salvar",
-                         help="Salvar esta roteirização"):
-                _dados_salvar_rot = {
-                    "label_orig":  _ro.get("label", "Origem"),
-                    "label_dest":  _rt.get("label", "Destino"),
-                    "lat_orig":    _ro.get("lat"),
-                    "lon_orig":    _ro.get("lon"),
-                    "lat_dest":    _rt.get("lat"),
-                    "lon_dest":    _rt.get("lon"),
-                    "paradas":     _rp,
-                    "dist_km":     _rd,
-                    "dur_min":     _rm,
-                    "placa":       _rot_res.get("placa", ""),
-                    "combustivel": _rcomb,
-                    "capacidade":  _rcap,
-                    "autonomia":   _raut,
-                    "abastecimentos": _sugestoes_abast,
-                }
-                if _salvar_rota_nova(
-                    _nome_rot_input or _nome_sug_rot, "roteirizacao", _dados_salvar_rot
-                ):
-                    st.toast("✅ Roteirização salva com sucesso!", icon="💾")
+            if st.button("💾 Salvar", key="rot_salvar"):
+                if _salvar_rota_nova(_nome_in or _nome_sug, "roteirizacao", {
+                    "label_orig":_ro.get("label",""), "label_dest":_rt.get("label",""),
+                    "lat_orig":_ro.get("lat"), "lon_orig":_ro.get("lon"),
+                    "lat_dest":_rt.get("lat"), "lon_dest":_rt.get("lon"),
+                    "paradas":_rp, "dist_km":_rd, "dur_min":_rm,
+                    "placa":_rot_placa, "combustivel":_rcomb,
+                    "capacidade":_rcap, "autonomia":_raut,
+                    "abastecimentos":_sugest,
+                }):
+                    st.toast("✅ Roteirização salva!", icon="💾")
                 else:
                     st.error("❌ Erro ao salvar.")
+
+# ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
+if (
+    st.session_state.get("modo_selecionado") == "📍 Por UF/Município"
+    and st.session_state.get("_restore_recalc_rota_m1")
+):
+    _o_rest = st.session_state.get("_map_orig")
+    _d_rest = st.session_state.get("_map_dest")
+    if _o_rest and _d_rest:
+        with st.spinner("🗺️ Recalculando rota restaurada…"):
+            _cr_rest, _dk_rest, _dm_rest, _lr_rest = calcular_rota(
+                _o_rest["lat"], _o_rest["lon"],
+                _d_rest["lat"], _d_rest["lon"]
+            )
+        st.session_state["_map_rota_result"] = {
+            "coords":   _cr_rest,
+            "dist_km":  _dk_rest,
+            "dur_min":  _dm_rest,
+            "linha_reta": _lr_rest,
+            "orig":     _o_rest,
+            "dest":     _d_rest,
+        }
+    st.session_state.pop("_restore_recalc_rota_m1", None)
+    st.rerun()
