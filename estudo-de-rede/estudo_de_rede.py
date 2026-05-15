@@ -1929,7 +1929,7 @@ def _tentar_osrm(srv, pontos: list):
     """pontos = [[lat, lon], ...] — suporta origem, N paradas e destino."""
     coords_str = ";".join(f"{lon},{lat}" for lat, lon in pontos)
     r = requests.get(f"{srv}/{coords_str}",
-                     params={"overview": "full", "geometries": "geojson"}, timeout=15)
+                     params={"overview": "full", "geometries": "geojson"}, timeout=6)
     d = r.json()
     if d.get("code") == "Ok":
         geo = d["routes"][0]["geometry"]["coordinates"]
@@ -1947,15 +1947,20 @@ def calcular_rota(lat1, lon1, lat2, lon2, waypoints=None):
 
     waypoints: list of [lat, lon] — paradas na ordem desejada (até 10).
     Retorna (coords_rota, dist_km, dur_min, linha_reta).
+    Tenta os servidores OSRM em paralelo para reduzir latência.
     """
     pontos = [[lat1, lon1]] + (waypoints or []) + [[lat2, lon2]]
-    for srv in _OSRM_SERVIDORES:
-        try:
-            res = _tentar_osrm(srv, pontos)
-            if res:
-                return res[0], res[1], res[2], False
-        except Exception:
-            continue
+    # Tenta servidores em paralelo — usa o primeiro que responder com sucesso
+    with ThreadPoolExecutor(max_workers=len(_OSRM_SERVIDORES)) as _ex:
+        _futs = {_ex.submit(_tentar_osrm, srv, pontos): srv
+                 for srv in _OSRM_SERVIDORES}
+        for _fut in as_completed(_futs):
+            try:
+                res = _fut.result()
+                if res:
+                    return res[0], res[1], res[2], False
+            except Exception:
+                continue
     # Fallback: segmentos de linha reta entre todos os pontos
     coords, n_seg = [], max(20, 15 * len(pontos))
     segs_por_trecho = max(10, n_seg // (len(pontos) - 1))
@@ -8061,34 +8066,64 @@ elif modo == "🛣️ Roteirização":
                 _pfc = _pf_df_r.copy()
                 _pfc["_cn"] = _pfc["cnpj"].fillna("").str.replace(r"\D","",regex=True)
                 _mg  = _pfc.merge(_pr, left_on="_cn", right_on="cnpj_norm", how="inner")
-                for _, _row in _mg.iterrows():
-                    if pd.notna(_row.get("_lat")) and pd.notna(_row.get("_lon")):
-                        _cands.append({
-                            "label":     str(_row.get("razaoSocial") or "Posto GF")[:45],
-                            "cnpj":      str(_row["_cn"]),
-                            "lat":       float(_row["_lat"]),
-                            "lon":       float(_row["_lon"]),
-                            "preco":     float(_row["preco"]),
-                            "municipio": str(_row.get("municipio", "")),
-                            "uf":        str(_row.get("uf", "")),
-                        })
+                # ── Vetorizado: sem iterrows() ─────────────────────
+                _mg_valid = _mg[pd.notna(_mg["_lat"]) & pd.notna(_mg["_lon"])].copy()
+                if not _mg_valid.empty:
+                    _cands = [
+                        {
+                            "label":     str(r.get("razaoSocial") or "Posto GF")[:45],
+                            "cnpj":      str(r["_cn"]),
+                            "lat":       float(r["_lat"]),
+                            "lon":       float(r["_lon"]),
+                            "preco":     float(r["preco"]),
+                            "municipio": str(r.get("municipio", "")),
+                            "uf":        str(r.get("uf", "")),
+                        }
+                        for r in _mg_valid.to_dict("records")
+                    ]
 
         if _cands and _rc and _raut > 0:
             _MAX_DEV = 5.0   # km do corredor
 
-            def _proj(lat_s, lon_s):
-                """Distância perpendicular e km ao longo da rota para uma estação."""
-                _mp = float("inf"); _bk = 0.0; _cum = 0.0
-                for _ii in range(len(_rc) - 1):
-                    _la1, _lo1 = _rc[_ii]; _la2, _lo2 = _rc[_ii+1]
-                    _d1 = _haversine(lat_s, lon_s, _la1, _lo1) / 1000
-                    if _d1 < _mp: _mp = _d1; _bk = _cum
-                    _cum += _haversine(_la1, _lo1, _la2, _lo2) / 1000
-                return _mp, _bk
+            # ── Vetorizar projeção: NumPy broadcasting O(candidatos + pontos_rota) ──
+            # Subsamplea a rota para no máximo 300 pontos (suficiente para 5 km de precisão)
+            _rc_arr = np.array(_rc, dtype=np.float64)   # (N, 2) → [lat, lon]
+            if len(_rc_arr) > 300:
+                _idx = np.round(np.linspace(0, len(_rc_arr) - 1, 300)).astype(int)
+                _rc_arr = _rc_arr[_idx]
+
+            # Distâncias acumuladas ao longo da rota (km)
+            _R = 6371.0
+            _dlat = np.radians(np.diff(_rc_arr[:, 0]))
+            _dlon = np.radians(np.diff(_rc_arr[:, 1]))
+            _lat1r = np.radians(_rc_arr[:-1, 0])
+            _lat2r = np.radians(_rc_arr[1:, 0])
+            _a_seg = np.sin(_dlat/2)**2 + np.cos(_lat1r)*np.cos(_lat2r)*np.sin(_dlon/2)**2
+            _seg_km = 2 * _R * np.arcsin(np.sqrt(_a_seg))
+            _cum_km = np.concatenate([[0.0], np.cumsum(_seg_km)])  # (N,)
+
+            # Para cada candidato: distância haversine a cada ponto da rota (vetorizado)
+            _c_lats = np.radians(np.array([c["lat"] for c in _cands]))   # (M,)
+            _c_lons = np.radians(np.array([c["lon"] for c in _cands]))   # (M,)
+            _r_lats = np.radians(_rc_arr[:, 0])                          # (N,)
+            _r_lons = np.radians(_rc_arr[:, 1])                          # (N,)
+
+            # Broadcasting (M, N)
+            _dlat_c = _c_lats[:, None] - _r_lats[None, :]
+            _dlon_c = _c_lons[:, None] - _r_lons[None, :]
+            _aa = (np.sin(_dlat_c/2)**2
+                   + np.cos(_c_lats[:, None]) * np.cos(_r_lats[None, :])
+                   * np.sin(_dlon_c/2)**2)
+            _dist_mat = 2 * _R * np.arcsin(np.sqrt(np.clip(_aa, 0, 1)))  # (M, N) km
+
+            _best_idx = np.argmin(_dist_mat, axis=1)   # (M,) — índice do ponto mais próximo
+            _perp_km  = _dist_mat[np.arange(len(_cands)), _best_idx]   # (M,)
+            _km_along = _cum_km[_best_idx]                              # (M,)
 
             _ests = []
-            for _pc in _cands:
-                _perp, _kma = _proj(_pc["lat"], _pc["lon"])
+            for _i, _pc in enumerate(_cands):
+                _perp = float(_perp_km[_i])
+                _kma  = float(_km_along[_i])
                 if _perp <= _MAX_DEV and 0 <= _kma <= _rd:
                     _ests.append({**_pc, "_km": _kma, "_dev": _perp})
             _ests.sort(key=lambda x: x["_km"])
