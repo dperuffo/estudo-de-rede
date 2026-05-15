@@ -3575,7 +3575,12 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
     if _sel:
         _ban_nome = _sel.get("nome", "Posto")
         _ban_geo  = _sel.get("geo", "")
-        c_info, c_limpar = st.columns([5, 1])
+        _ban_lat  = _sel.get("lat")
+        _ban_lon  = _sel.get("lon")
+        _ban_maps = (f"https://maps.google.com/?q={float(_ban_lat):.6f},{float(_ban_lon):.6f}"
+                     if _ban_lat is not None and _ban_lon is not None else None)
+
+        c_info, c_maps, c_limpar = st.columns([5, 1, 1])
         with c_info:
             st.markdown(
                 f"<div style='"
@@ -3591,6 +3596,9 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
                 f"</div>",
                 unsafe_allow_html=True,
             )
+        with c_maps:
+            if _ban_maps:
+                st.link_button("📍 Maps", _ban_maps, use_container_width=True)
         with c_limpar:
             if st.button(
                 "✕ Limpar",
