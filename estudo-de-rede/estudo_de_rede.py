@@ -3640,10 +3640,17 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
         return
 
     # Persiste no session_state (mantém painel visível em reruns futuros)
+    _existing_cnpj = (st.session_state.get(_sel_key) or {}).get("cnpj", "")
     st.session_state[_sel_key] = dict(
         nome=_nome, cnpj=_cnpj, dist=_dist, geo=_geo,
         lat=_lat, lon=_lon, pf=_pf, cer=_cer, rr=_rr,
     )
+
+    # ── Força re-render imediato para o banner aparecer na 1ª seleção ──
+    # Sem este rerun o banner só apareceria no 2º clique, porque o
+    # st.plotly_chart() (que produz os dados) vem depois do bloco "if _sel:"
+    if _cnpj != _existing_cnpj:
+        st.rerun()
 
     _maps_url = f"https://maps.google.com/?q={_lat:.6f},{_lon:.6f}"
 
