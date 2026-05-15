@@ -8873,12 +8873,13 @@ if modo == "📊 Dashboard":
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
         # ── Tabs do dashboard ─────────────────────────────────────────────
-        _dt1, _dt2, _dt3, _dt4, _dt5 = st.tabs([
+        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6 = st.tabs([
             "📊 Cobertura por Estado",
             "🎯 Penetração vs ANP",
             "🗺️ Mapa de Densidade",
             "⛽ Combustíveis",
             "⚠️ Alertas de Preço",
+            "⚖️ Modo Comparativo",
         ])
 
         # ──────────────────────────────────────────────────────────────────
@@ -9514,6 +9515,428 @@ if modo == "📊 Dashboard":
                                     f"⚠️ **{_n_alertas} postos** com preço acima de 5% da referência ANP. "
                                     f"Exporte a lista completa para análise detalhada."
                                 )
+
+
+        # ══════════════════════════════════════════════════════════════════
+        # TAB 6 — MODO COMPARATIVO
+        # ══════════════════════════════════════════════════════════════════
+        with _dt6:
+            st.markdown(
+                "<p style='color:#555;font-size:13px;margin:0 0 14px'>"
+                "Compare dois estados ou duas regiões: cobertura, distribuidoras "
+                "e preços médios lado a lado.</p>",
+                unsafe_allow_html=True,
+            )
+
+            # ── Dicionários de suporte ────────────────────────────────────────
+            _REGIOES_BR = {
+                "Norte":        ["AM","PA","AC","RO","RR","AP","TO"],
+                "Nordeste":     ["MA","PI","CE","RN","PB","PE","AL","SE","BA"],
+                "Centro-Oeste": ["MT","MS","GO","DF"],
+                "Sudeste":      ["SP","RJ","MG","ES"],
+                "Sul":          ["PR","SC","RS"],
+            }
+            # Total de municípios por UF (IBGE 2023) — usado para cobertura %
+            _TOTAL_MUNS_UF = {
+                "AC":22,"AL":102,"AP":16,"AM":62,"BA":417,"CE":184,"DF":1,
+                "ES":78,"GO":246,"MA":217,"MT":141,"MS":79,"MG":853,"PA":144,
+                "PB":223,"PR":399,"PE":185,"PI":224,"RJ":92,"RN":167,"RS":497,
+                "RO":52,"RR":15,"SC":295,"SP":645,"SE":75,"TO":139,
+            }
+
+            # ── Seletor de modo ───────────────────────────────────────────────
+            _cmp_modo = st.radio(
+                "Comparar por:",
+                ["🗺️ Estados", "🌎 Regiões"],
+                horizontal=True,
+                key="dash_cmp_modo",
+            )
+
+            _ufs_disponiveis = sorted(_df_valid["uf"].unique().tolist())
+
+            if _cmp_modo == "🗺️ Estados":
+                _sc1, _sc2 = st.columns(2)
+                with _sc1:
+                    _uf_a = st.selectbox(
+                        "Estado A", _ufs_disponiveis,
+                        index=0,
+                        format_func=lambda u: f"{u} — {_UF_NOME_DASH.get(u, u)}",
+                        key="dash_cmp_uf_a",
+                    )
+                with _sc2:
+                    _default_b_idx = 1 if len(_ufs_disponiveis) > 1 else 0
+                    _uf_b = st.selectbox(
+                        "Estado B", _ufs_disponiveis,
+                        index=_default_b_idx,
+                        format_func=lambda u: f"{u} — {_UF_NOME_DASH.get(u, u)}",
+                        key="dash_cmp_uf_b",
+                    )
+                _label_a  = f"{_uf_a} — {_UF_NOME_DASH.get(_uf_a, _uf_a)}"
+                _label_b  = f"{_uf_b} — {_UF_NOME_DASH.get(_uf_b, _uf_b)}"
+                _ufs_a    = [_uf_a]
+                _ufs_b    = [_uf_b]
+            else:
+                _regioes_disp = sorted(_REGIOES_BR.keys())
+                _sc1, _sc2 = st.columns(2)
+                with _sc1:
+                    _reg_a = st.selectbox("Região A", _regioes_disp,
+                                          index=0, key="dash_cmp_reg_a")
+                with _sc2:
+                    _reg_b = st.selectbox("Região B", _regioes_disp,
+                                          index=min(1, len(_regioes_disp)-1),
+                                          key="dash_cmp_reg_b")
+                _label_a = f"🌎 {_reg_a}"
+                _label_b = f"🌎 {_reg_b}"
+                _ufs_a   = _REGIOES_BR[_reg_a]
+                _ufs_b   = _REGIOES_BR[_reg_b]
+
+            # ── Função: calcula métricas para um conjunto de UFs ──────────────
+            def _cmp_metricas(ufs, df_v, pp):
+                """Retorna dict com KPIs e dados detalhados para um grupo de UFs."""
+                _sub = df_v[df_v["uf"].isin(ufs)].copy()
+                _n_postos   = len(_sub)
+                _n_muns     = int(_sub["municipio"].replace("", pd.NA).dropna().nunique())
+                _n_distrib  = int(
+                    _sub["distribuidora"].replace("", pd.NA).dropna().nunique()
+                    if "distribuidora" in _sub.columns else 0
+                )
+                _n_coord    = int(_sub[pd.notna(_sub["_lat"]) & pd.notna(_sub["_lon"])].shape[0])
+                _total_muns_reg = sum(_TOTAL_MUNS_UF.get(u, 0) for u in ufs)
+                _cob_pct    = round(_n_muns / _total_muns_reg * 100, 1) if _total_muns_reg else 0
+                _media_mun  = round(_n_postos / _n_muns, 1) if _n_muns else 0
+
+                # Distribuidoras ranking
+                _distrib_cnt = pd.Series(dtype=int)
+                if "distribuidora" in _sub.columns:
+                    _distrib_cnt = (
+                        _sub["distribuidora"]
+                        .replace("", pd.NA).dropna()
+                        .value_counts()
+                        .head(10)
+                    )
+
+                # Preços médios por combustível (se disponível)
+                _precos = {}
+                if pp is not None and not pp.empty and "cnpj" in _sub.columns:
+                    _cnpjs = set(_sub["cnpj"].dropna().astype(str)
+                                 .str.replace(r"\D", "", regex=True))
+                    _pp_sub = pp[pp["cnpj_norm"].isin(_cnpjs)]
+                    if not _pp_sub.empty:
+                        _precos = (
+                            _pp_sub.groupby("combustivel_label")["preco"]
+                            .mean().round(3).to_dict()
+                        )
+
+                return {
+                    "n_postos":    _n_postos,
+                    "n_muns":      _n_muns,
+                    "n_distrib":   _n_distrib,
+                    "n_coord":     _n_coord,
+                    "cob_pct":     _cob_pct,
+                    "media_mun":   _media_mun,
+                    "distrib_cnt": _distrib_cnt,
+                    "precos":      _precos,
+                    "df_sub":      _sub,
+                }
+
+            _ma = _cmp_metricas(_ufs_a, _df_valid, _pp_dash)
+            _mb = _cmp_metricas(_ufs_b, _df_valid, _pp_dash)
+
+            # ── Helper visual ─────────────────────────────────────────────────
+            def _badge_cmp(txt, cor_bg, cor_txt="#fff"):
+                return (
+                    f"<span style='background:{cor_bg};color:{cor_txt};"
+                    f"border-radius:5px;padding:1px 8px;font-size:11px;"
+                    f"font-weight:700'>{txt}</span>"
+                )
+
+            def _winner_cmp(val_a, val_b, higher_is_better=True):
+                """Retorna tuple (badge_a, badge_b) indicando quem é melhor."""
+                if val_a == val_b or (val_a == 0 and val_b == 0):
+                    return (_badge_cmp("=", "#607D8B"),
+                            _badge_cmp("=", "#607D8B"))
+                if higher_is_better:
+                    _wa = "#2E7D32" if val_a > val_b else "#C62828"
+                    _wb = "#2E7D32" if val_b > val_a else "#C62828"
+                else:
+                    _wa = "#2E7D32" if val_a < val_b else "#C62828"
+                    _wb = "#2E7D32" if val_b < val_a else "#C62828"
+                _sym_a = "▲" if _wa == "#2E7D32" else "▼"
+                _sym_b = "▲" if _wb == "#2E7D32" else "▼"
+                return _badge_cmp(_sym_a, _wa), _badge_cmp(_sym_b, _wb)
+
+            st.markdown("---")
+
+            # ── KPIs lado a lado ──────────────────────────────────────────────
+            st.markdown("#### 📊 Comparativo de Cobertura")
+            _kpi_rows = [
+                ("⛽ Postos GF",      _ma["n_postos"],  _mb["n_postos"],  True),
+                ("🏙️ Municípios GF", _ma["n_muns"],    _mb["n_muns"],    True),
+                ("📈 Cobertura %",    _ma["cob_pct"],   _mb["cob_pct"],   True),
+                ("🏢 Distribuidoras", _ma["n_distrib"], _mb["n_distrib"], True),
+                ("📍 Com Coord.",     _ma["n_coord"],   _mb["n_coord"],   True),
+                ("📊 Média GF/Mun.", _ma["media_mun"], _mb["media_mun"], True),
+            ]
+
+            # Cabeçalho da tabela comparativa
+            _hc0, _hca, _hcw, _hcb = st.columns([2, 2, 1, 2])
+            _hc0.markdown(
+                "<div style='font-size:12px;color:#888;font-weight:600'>Indicador</div>",
+                unsafe_allow_html=True)
+            _hca.markdown(
+                f"<div style='font-size:13px;font-weight:700;color:#0D47A1'>{_label_a}</div>",
+                unsafe_allow_html=True)
+            _hcw.markdown("")
+            _hcb.markdown(
+                f"<div style='font-size:13px;font-weight:700;color:#B71C1C'>{_label_b}</div>",
+                unsafe_allow_html=True)
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+            def _fmt_num(v):
+                if isinstance(v, float):
+                    return f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                return f"{v:,}".replace(",", ".")
+
+            for _kpi_lbl, _va, _vb, _hib in _kpi_rows:
+                _ba, _bb = _winner_cmp(_va, _vb, higher_is_better=_hib)
+                _c0, _ca, _cw, _cb = st.columns([2, 2, 1, 2])
+                _c0.markdown(
+                    f"<div style='font-size:12px;color:#555;padding:4px 0'>{_kpi_lbl}</div>",
+                    unsafe_allow_html=True)
+                _ca.markdown(
+                    f"<div style='font-size:14px;font-weight:700;color:#0D47A1;padding:2px 0'>"
+                    f"{_fmt_num(_va)}&nbsp;{_ba}</div>",
+                    unsafe_allow_html=True)
+                _cw.markdown(
+                    "<div style='text-align:center;font-size:12px;"
+                    "color:#aaa;padding:4px 0'>vs</div>",
+                    unsafe_allow_html=True)
+                _cb.markdown(
+                    f"<div style='font-size:14px;font-weight:700;color:#B71C1C;padding:2px 0'>"
+                    f"{_fmt_num(_vb)}&nbsp;{_bb}</div>",
+                    unsafe_allow_html=True)
+
+            # ── Distribuidoras ────────────────────────────────────────────────
+            st.markdown("---")
+            st.markdown("#### 🏢 Distribuidoras — Top 10")
+            _gc_a, _gc_b = st.columns(2)
+
+            def _chart_distrib_cmp(title, distrib_cnt, cor_base):
+                if distrib_cnt.empty:
+                    return None
+                _nc  = len(distrib_cnt)
+                _r   = int(cor_base[1:3], 16)
+                _g   = int(cor_base[3:5], 16)
+                _b_v = int(cor_base[5:7], 16)
+                _cors = [
+                    cor_base if i == 0 else
+                    f"rgba({_r},{_g},{_b_v},{max(0.3, 1 - i * 0.08):.2f})"
+                    for i in range(_nc)
+                ]
+                _fig = go.Figure()
+                _fig.add_trace(go.Bar(
+                    y=distrib_cnt.index.tolist(),
+                    x=distrib_cnt.values.tolist(),
+                    orientation="h",
+                    marker_color=_cors,
+                    text=distrib_cnt.values.tolist(),
+                    textposition="outside",
+                    hovertemplate="<b>%{y}</b><br>Postos: %{x}<extra></extra>",
+                ))
+                _fig.update_layout(
+                    title=title,
+                    xaxis_title="Postos GF",
+                    yaxis=dict(autorange="reversed"),
+                    height=max(260, _nc * 30 + 80),
+                    margin=dict(l=10, r=50, t=45, b=20),
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    font=dict(size=10),
+                )
+                _fig.update_xaxes(showgrid=True, gridcolor="#ECEFF1")
+                return _fig
+
+            with _gc_a:
+                _fig_da = _chart_distrib_cmp(_label_a, _ma["distrib_cnt"], "#0D47A1")
+                if _fig_da:
+                    st.plotly_chart(_fig_da, use_container_width=True)
+                else:
+                    st.info("Sem dados de distribuidora para este grupo.")
+
+            with _gc_b:
+                _fig_db = _chart_distrib_cmp(_label_b, _mb["distrib_cnt"], "#B71C1C")
+                if _fig_db:
+                    st.plotly_chart(_fig_db, use_container_width=True)
+                else:
+                    st.info("Sem dados de distribuidora para este grupo.")
+
+            # ── Preços médios por combustível ─────────────────────────────────
+            _precos_a = _ma["precos"]
+            _precos_b = _mb["precos"]
+
+            if _precos_a or _precos_b:
+                st.markdown("---")
+                st.markdown("#### 💲 Preços Médios por Combustível (R$/L)")
+                _all_combs = sorted(set(list(_precos_a.keys()) + list(_precos_b.keys())))
+
+                if _all_combs:
+                    _fig_preco = go.Figure()
+                    _fig_preco.add_trace(go.Bar(
+                        name=_label_a,
+                        x=_all_combs,
+                        y=[_precos_a.get(c) for c in _all_combs],
+                        marker_color="#1565C0",
+                        text=[f"R$ {_precos_a[c]:.3f}".replace(".", ",")
+                              if c in _precos_a else "" for c in _all_combs],
+                        textposition="outside",
+                        hovertemplate="<b>%{x}</b><br>%{fullData.name}: R$ %{y:.3f}<extra></extra>",
+                    ))
+                    _fig_preco.add_trace(go.Bar(
+                        name=_label_b,
+                        x=_all_combs,
+                        y=[_precos_b.get(c) for c in _all_combs],
+                        marker_color="#C62828",
+                        text=[f"R$ {_precos_b[c]:.3f}".replace(".", ",")
+                              if c in _precos_b else "" for c in _all_combs],
+                        textposition="outside",
+                        hovertemplate="<b>%{x}</b><br>%{fullData.name}: R$ %{y:.3f}<extra></extra>",
+                    ))
+                    _fig_preco.update_layout(
+                        barmode="group",
+                        yaxis_title="R$/L",
+                        height=380,
+                        margin=dict(l=10, r=10, t=30, b=60),
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        legend=dict(orientation="h", y=-0.20, x=0.5, xanchor="center"),
+                        font=dict(size=11),
+                    )
+                    _fig_preco.update_yaxes(showgrid=True, gridcolor="#ECEFF1")
+                    st.plotly_chart(_fig_preco, use_container_width=True)
+
+                    # Tabela delta
+                    st.markdown("##### Δ Diferença de Preços (A − B)")
+                    _delta_rows = []
+                    for _c in _all_combs:
+                        _pa = _precos_a.get(_c)
+                        _pb = _precos_b.get(_c)
+                        if _pa is not None and _pb is not None:
+                            _diff     = _pa - _pb
+                            _diff_pct = (_diff / _pb * 100) if _pb else 0
+                            _delta_rows.append({
+                                "Combustível": _c,
+                                f"Preço A":    f"R$ {_pa:.3f}".replace(".", ","),
+                                f"Preço B":    f"R$ {_pb:.3f}".replace(".", ","),
+                                "Δ R$/L":      f"{'+' if _diff >= 0 else ''}{_diff:.3f}".replace(".", ","),
+                                "Δ %":         f"{'+' if _diff_pct >= 0 else ''}{_diff_pct:.1f}%",
+                                "Mais barato": (
+                                    _label_a[:20] if _pa < _pb else
+                                    (_label_b[:20] if _pb < _pa else "Igual")
+                                ),
+                            })
+                    if _delta_rows:
+                        st.dataframe(pd.DataFrame(_delta_rows),
+                                     use_container_width=True, hide_index=True)
+            else:
+                st.markdown("---")
+                st.info(
+                    "ℹ️ Para comparar preços médios, carregue a planilha de Preços "
+                    "em **Configurações → Preços dos Postos GF**."
+                )
+
+            # ── Mini mapas geográficos ─────────────────────────────────────────
+            st.markdown("---")
+            st.markdown("#### 🗺️ Distribuição Geográfica")
+            _gm_a, _gm_b = st.columns(2)
+
+            def _mini_mapa_cmp(df_sub, titulo, cor_marker):
+                _sc = df_sub[pd.notna(df_sub["_lat"]) & pd.notna(df_sub["_lon"])].copy()
+                if _sc.empty:
+                    return None
+                _sc = _sc.sample(min(len(_sc), 800), random_state=42)
+                _fig_m = go.Figure()
+                _cd = (
+                    _sc[["razaoSocial", "municipio", "uf"]].values
+                    if all(c in _sc.columns for c in ["razaoSocial", "municipio", "uf"])
+                    else None
+                )
+                _fig_m.add_trace(go.Scattergeo(
+                    lat=_sc["_lat"], lon=_sc["_lon"],
+                    mode="markers",
+                    marker=dict(size=5, color=cor_marker, opacity=0.75,
+                                line=dict(color="white", width=0.4)),
+                    hovertemplate=(
+                        "<b>%{customdata[0]}</b><br>"
+                        "%{customdata[1]} — %{customdata[2]}<extra></extra>"
+                    ),
+                    customdata=_cd,
+                ))
+                _lat_c = (_sc["_lat"].max() + _sc["_lat"].min()) / 2
+                _lon_c = (_sc["_lon"].max() + _sc["_lon"].min()) / 2
+                _fig_m.update_layout(
+                    title=dict(text=titulo, font=dict(size=12)),
+                    geo=dict(
+                        scope="south america",
+                        center=dict(lat=_lat_c, lon=_lon_c),
+                        projection_type="mercator",
+                        showland=True, landcolor="#F5F5F5",
+                        showcoastlines=True, coastlinecolor="#BDBDBD",
+                        showframe=False,
+                        lataxis=dict(range=[_sc["_lat"].min() - 2, _sc["_lat"].max() + 2]),
+                        lonaxis=dict(range=[_sc["_lon"].min() - 2, _sc["_lon"].max() + 2]),
+                    ),
+                    height=380,
+                    margin=dict(l=0, r=0, t=40, b=0),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                )
+                return _fig_m
+
+            with _gm_a:
+                _fm_a = _mini_mapa_cmp(_ma["df_sub"], _label_a, "#1565C0")
+                if _fm_a:
+                    st.plotly_chart(_fm_a, use_container_width=True)
+                else:
+                    st.info(f"Sem coordenadas para {_label_a}.")
+
+            with _gm_b:
+                _fm_b = _mini_mapa_cmp(_mb["df_sub"], _label_b, "#C62828")
+                if _fm_b:
+                    st.plotly_chart(_fm_b, use_container_width=True)
+                else:
+                    st.info(f"Sem coordenadas para {_label_b}.")
+
+            # ── Resumo executivo ──────────────────────────────────────────────
+            st.markdown("---")
+            st.markdown("#### 📋 Resumo Executivo")
+            _re_a, _re_b = st.columns(2)
+            for _re_col, _lbl, _m, _cor in [
+                (_re_a, _label_a, _ma, "#0D47A1"),
+                (_re_b, _label_b, _mb, "#B71C1C"),
+            ]:
+                with _re_col:
+                    _preco_item = ""
+                    if _m["precos"]:
+                        _best_c = min(_m["precos"], key=_m["precos"].get)
+                        _best_v = _m["precos"][_best_c]
+                        _preco_item = (
+                            f"<li>Combustível mais barato: <b>{_best_c}</b> "
+                            f"@ R$ {_best_v:.3f}".replace(".", ",") + "/L</li>"
+                        )
+                    st.markdown(
+                        f"<div style='border:2px solid {_cor};"
+                        f"border-radius:10px;padding:14px 16px;background:#fafafa'>"
+                        f"<div style='font-size:14px;font-weight:700;color:{_cor};"
+                        f"margin-bottom:8px'>{_lbl}</div>"
+                        f"<ul style='font-size:12px;color:#333;margin:0;padding-left:16px'>"
+                        f"<li><b>{_m['n_postos']:,}</b> postos GF credenciados</li>"
+                        f"<li><b>{_m['n_muns']:,}</b> municípios atendidos "
+                        f"(<b>{_m['cob_pct']:.1f}%</b> de cobertura)</li>"
+                        f"<li><b>{_m['n_distrib']}</b> distribuidoras presentes</li>"
+                        f"<li>Média de <b>{_m['media_mun']:.1f}</b> posto(s)/município</li>"
+                        + _preco_item +
+                        f"</ul></div>",
+                        unsafe_allow_html=True,
+                    )
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
