@@ -6130,21 +6130,6 @@ if modo == "📍 Por UF/Município":
         c3.metric("🏷️ Bandeiras",       _n(df_show['distribuidora'].nunique()) if not df_show.empty else "0")
         c4.metric("📍 Estado",          uf)
 
-        # ── Cards comparativo GF vs ANP (quando dados disponíveis) ────
-        _pp_df_m1    = st.session_state.get("_pp_df")
-        _cnpjs_pf_m1 = st.session_state.get("cnpjs_pro_frotas", set())
-        _cache_m1    = st.session_state.get("_precos_anp_cache", {})
-        _sheets_m1   = _cache_m1.get("sheets")
-        if _pp_df_m1 is not None and _sheets_m1 is not None and _cnpjs_pf_m1:
-            _comp_m1 = _calcular_comparativo_pf_anp(
-                _pp_df_m1, _cnpjs_pf_m1, _sheets_m1, ufs=[uf] if uf else None
-            )
-            if _comp_m1:
-                _renderizar_comparativo_pf_anp(
-                    _comp_m1,
-                    subtitulo=f"Postos Gestão de Frotas vs preço médio ANP — {UF_NOME.get(uf, uf)}"
-                )
-
         # ── Botão Salvar (Modo 1) ─────────────────────────────────────
         _col_sv1, _col_sv2 = st.columns([3, 1])
         with _col_sv1:
@@ -6175,9 +6160,9 @@ if modo == "📍 Por UF/Município":
                 else:
                     st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
 
-        tab_mapa, tab_dados, tab_analise, tab_precos = st.tabs([
+        tab_mapa, tab_dados, tab_analise = st.tabs([
             "🗺️  Mapa Interativo", "📋  Dados Tabulares",
-            "📊  Análise por Bandeira", "💰  Preços ANP"])
+            "📊  Análise por Bandeira"])
 
         with tab_mapa:
             with st.spinner(f"🗺️ Carregando mapa — {_n(len(df_show))} postos…"):
@@ -6452,6 +6437,29 @@ if modo == "📍 Por UF/Município":
                 else:
                     st.warning("⚠️ Nenhum posto encontrado. Tente um nome diferente ou apenas parte do CNPJ.")
 
+            # ══════════════════════════════════════════════════════
+            # ── PREÇOS E COMPARATIVO — sempre abaixo do mapa ──────
+            # ══════════════════════════════════════════════════════
+            st.markdown(
+                "<div style='margin-top:24px;border-top:2px solid #e3e8f0;"
+                "padding-top:18px'></div>",
+                unsafe_allow_html=True,
+            )
+            _pp_df_m1    = st.session_state.get("_pp_df")
+            _cnpjs_pf_m1 = st.session_state.get("cnpjs_pro_frotas", set())
+            _cache_m1    = st.session_state.get("_precos_anp_cache", {})
+            _sheets_m1   = _cache_m1.get("sheets")
+            if _pp_df_m1 is not None and _sheets_m1 is not None and _cnpjs_pf_m1:
+                _comp_m1 = _calcular_comparativo_pf_anp(
+                    _pp_df_m1, _cnpjs_pf_m1, _sheets_m1, ufs=[uf] if uf else None
+                )
+                if _comp_m1:
+                    _renderizar_comparativo_pf_anp(
+                        _comp_m1,
+                        subtitulo=f"Postos Gestão de Frotas vs preço médio ANP — {UF_NOME.get(uf, uf)}"
+                    )
+            _renderizar_precos_anp(uf, municipio_input.strip() or None)
+
         with tab_dados:
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
                                  "endereco","bairro","municipio","uf","cep","autorizacao","statusSIGAF"]
@@ -6475,9 +6483,6 @@ if modo == "📍 Por UF/Município":
                     pf_dist = df_show[df_show["_pro_frotas"]]["distribuidora"].value_counts().reset_index()
                     pf_dist.columns = ["Distribuidora","Gestão de Frotas"]
                     st.bar_chart(pf_dist.set_index("Distribuidora"), height=300)
-
-        with tab_precos:
-            _renderizar_precos_anp(uf, municipio_input.strip() or None)
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
@@ -6706,25 +6711,8 @@ elif modo == "🗺️ Por Rota":
                 else:
                     st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
 
-        # ── Cards comparativo GF vs ANP para a rota ───────────────────
-        _pp_df_m2    = st.session_state.get("_pp_df")
-        _cnpjs_pf_m2 = st.session_state.get("cnpjs_pro_frotas", set())
-        _cache_m2    = st.session_state.get("_precos_anp_cache", {})
-        _sheets_m2   = _cache_m2.get("sheets")
-        _ufs_rota_m2 = list(st.session_state.get("_ufs_rota_atual", []))
-        if _pp_df_m2 is not None and _sheets_m2 is not None and _cnpjs_pf_m2:
-            _comp_m2 = _calcular_comparativo_pf_anp(
-                _pp_df_m2, _cnpjs_pf_m2, _sheets_m2,
-                ufs=_ufs_rota_m2 if _ufs_rota_m2 else None
-            )
-            if _comp_m2:
-                _renderizar_comparativo_pf_anp(
-                    _comp_m2,
-                    subtitulo=f"Postos Gestão de Frotas vs preço médio ANP — estados da rota"
-                )
-
-        tab_m, tab_d, tab_preco_r = st.tabs([
-            "🗺️  Mapa da Rota", "📋  Postos na Rota", "💰  Preços ANP"])
+        tab_m, tab_d = st.tabs([
+            "🗺️  Mapa da Rota", "📋  Postos na Rota"])
 
         with tab_m:
             with st.spinner(f"🗺️ Carregando mapa da rota — {_n(len(df_show_r))} postos…"):
@@ -6814,6 +6802,32 @@ elif modo == "🗺️ Por Rota":
                     else:
                         st.warning("⚠️ Nenhum posto encontrado na rota com esse nome.")
 
+            # ══════════════════════════════════════════════════════
+            # ── PREÇOS E COMPARATIVO — abaixo do mapa da rota ─────
+            # ══════════════════════════════════════════════════════
+            st.markdown(
+                "<div style='margin-top:24px;border-top:2px solid #e3e8f0;"
+                "padding-top:18px'></div>",
+                unsafe_allow_html=True,
+            )
+            _pp_df_m2    = st.session_state.get("_pp_df")
+            _cnpjs_pf_m2 = st.session_state.get("cnpjs_pro_frotas", set())
+            _cache_m2    = st.session_state.get("_precos_anp_cache", {})
+            _sheets_m2   = _cache_m2.get("sheets")
+            _ufs_rota_m2 = list(st.session_state.get("_ufs_rota_atual", []))
+            if _pp_df_m2 is not None and _sheets_m2 is not None and _cnpjs_pf_m2:
+                _comp_m2 = _calcular_comparativo_pf_anp(
+                    _pp_df_m2, _cnpjs_pf_m2, _sheets_m2,
+                    ufs=_ufs_rota_m2 if _ufs_rota_m2 else None
+                )
+                if _comp_m2:
+                    _renderizar_comparativo_pf_anp(
+                        _comp_m2,
+                        subtitulo="Postos Gestão de Frotas vs preço médio ANP — estados da rota"
+                    )
+            _ufs_rota = st.session_state.get("_ufs_rota_atual", [])
+            _renderizar_precos_anp(None, ufs_multiplas=_ufs_rota)
+
         with tab_d:
             cols_r = [c for c in ["razaoSocial","distribuidora","_pro_frotas",
                                    "municipio","uf","endereco","cep","_dist_rota"]
@@ -6849,10 +6863,6 @@ elif modo == "🗺️ Por Rota":
             st.download_button("⬇️ Baixar dados em CSV",
                                df_show_r.to_csv(index=False).encode("utf-8"),
                                "postos_rota.csv","text/csv", use_container_width=True)
-
-        with tab_preco_r:
-            _ufs_rota = st.session_state.get("_ufs_rota_atual", [])
-            _renderizar_precos_anp(None, ufs_multiplas=_ufs_rota)
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
