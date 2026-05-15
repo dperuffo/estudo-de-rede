@@ -873,7 +873,7 @@ ARQUIVO_PF_REPO       = "pro_frotas.xlsx"
 ARQUIVO_CERCADOS_REPO = "Postos Cercados.xlsx"
 COR_CERCADO_FILL      = "#FF8F00"   # laranja âmbar — alerta visual
 COR_CERCADO_BORDA     = "#E65100"   # laranja escuro
-ARQUIVO_PP_REPO       = "Preço Posto.xlsx"   # planilha de preços por posto
+ARQUIVO_PP_REPO       = "preco_posto.xlsx"   # planilha de preços por posto
 _PP_PARSER_VERSION    = "v5"                 # incrementar aqui força re-parse automático
 
 
@@ -1419,9 +1419,11 @@ def _auto_carregar_precos_postos_repo():
 
     # 1ª tentativa: comparação exata (rápida)
     candidatos_exatos = [
-        ARQUIVO_PP_REPO,       # "Preço Posto.xlsx"
+        "preco_posto.xlsx",      # nome padrão do repositório
+        ARQUIVO_PP_REPO,         # alias configurado (atualmente = "preco_posto.xlsx")
+        "preco_postos.xlsx",
         "Preco Posto.xlsx",
-        "preco_posto.xlsx",
+        "Preço Posto.xlsx",
         "precos_postos.xlsx",
         "precos_posto.xlsx",
         "Preco_Posto.xlsx",
