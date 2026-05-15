@@ -8182,7 +8182,16 @@ elif modo == "🛣️ Roteirização":
 
         with _tab_mapa_r:
             # Mapa com os postos sugeridos destacados
-            _wps_map_r = [[float(p["lat"]), float(p["lon"])] for p in _rp if "lat" in p] or None
+            # criar_mapa espera waypoints como dicts {"lat", "lon", "label"}
+            _wps_map_r = [
+                {
+                    "lat":   float(p["lat"]),
+                    "lon":   float(p["lon"]),
+                    "label": str(p.get("label", f"Parada {_wi + 1}")),
+                }
+                for _wi, p in enumerate(_rp)
+                if "lat" in p and "lon" in p
+            ] or None
 
             _cnpjs_sug_r = {s["cnpj"] for s in _sugestoes_abast}
             if _cnpjs_sug_r and not _pf_df_rot.empty:
