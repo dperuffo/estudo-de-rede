@@ -20,6 +20,11 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import folium
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
 
 # Diretório onde este script está — usado para localizar arquivos do repo
 _DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1913,6 +1918,403 @@ def ufs_ao_longo_rota(coords_rota):
             if la_min <= lat <= la_max and lo_min <= lon <= lo_max:
                 ufs.add(uf)
     return sorted(ufs)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  PDF — RELATÓRIO DE ROTEIRIZAÇÃO
+# ═══════════════════════════════════════════════════════════════════
+
+def _gerar_mapa_rota_png(coords_rota, orig, dest, paradas, sugest):
+    """
+    Renderiza o mapa da rota usando matplotlib e retorna bytes PNG.
+    coords_rota: [[lat, lon], ...]   orig/dest: dict com lat/lon/label
+    paradas: list de dict           sugest: list de dict com lat/lon
+    """
+    lats = [c[0] for c in coords_rota]
+    lons = [c[1] for c in coords_rota]
+
+    fig, ax = plt.subplots(figsize=(10, 5.5), dpi=130)
+    ax.set_facecolor("#F0F4F8")
+    fig.patch.set_facecolor("#F0F4F8")
+
+    # Rota
+    ax.plot(lons, lats, color="#1565C0", linewidth=2.2, zorder=3, solid_capstyle="round")
+
+    # Postos sugeridos
+    for s in sugest:
+        ax.scatter(float(s["lon"]), float(s["lat"]),
+                   s=100, c="#FF6F00", marker="^", zorder=5, linewidths=0.6,
+                   edgecolors="#fff")
+
+    # Paradas intermediárias
+    for p in paradas:
+        ax.scatter(float(p["lon"]), float(p["lat"]),
+                   s=90, c="#E65100", marker="D", zorder=6, linewidths=0.6,
+                   edgecolors="#fff")
+
+    # Origem e Destino
+    ax.scatter(float(orig["lon"]), float(orig["lat"]),
+               s=160, c="#2E7D32", marker="o", zorder=7, linewidths=0.8,
+               edgecolors="#fff")
+    ax.scatter(float(dest["lon"]), float(dest["lat"]),
+               s=160, c="#C62828", marker="s", zorder=7, linewidths=0.8,
+               edgecolors="#fff")
+
+    # Labels origem/destino
+    ax.annotate(str(orig.get("label","Origem"))[:22],
+                xy=(float(orig["lon"]), float(orig["lat"])),
+                xytext=(6, 6), textcoords="offset points",
+                fontsize=7, color="#1B5E20", fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.75, ec="none"))
+    ax.annotate(str(dest.get("label","Destino"))[:22],
+                xy=(float(dest["lon"]), float(dest["lat"])),
+                xytext=(6, 6), textcoords="offset points",
+                fontsize=7, color="#B71C1C", fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.75, ec="none"))
+
+    # Margens + grade leve
+    _pad_lat = max((max(lats)-min(lats))*0.12, 0.3)
+    _pad_lon = max((max(lons)-min(lons))*0.12, 0.3)
+    ax.set_xlim(min(lons)-_pad_lon, max(lons)+_pad_lon)
+    ax.set_ylim(min(lats)-_pad_lat, max(lats)+_pad_lat)
+    ax.grid(True, linestyle="--", linewidth=0.4, color="#B0BEC5", alpha=0.7)
+    ax.set_xlabel("Longitude", fontsize=7, color="#607D8B")
+    ax.set_ylabel("Latitude",  fontsize=7, color="#607D8B")
+    ax.tick_params(labelsize=6, colors="#607D8B")
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#B0BEC5")
+
+    # Legenda
+    _legenda = [
+        Line2D([0],[0], color="#1565C0", linewidth=2, label="Rota"),
+        mpatches.Patch(color="#2E7D32", label="Origem"),
+        mpatches.Patch(color="#C62828", label="Destino"),
+    ]
+    if paradas:
+        _legenda.append(mpatches.Patch(color="#E65100", label="Parada(s)"))
+    if sugest:
+        _legenda.append(Line2D([0],[0], marker="^", color="w",
+                                markerfacecolor="#FF6F00", markersize=8,
+                                label="Posto sugerido"))
+    ax.legend(handles=_legenda, fontsize=6.5, loc="lower right",
+              framealpha=0.85, edgecolor="#B0BEC5")
+
+    plt.tight_layout(pad=0.5)
+    _buf = io.BytesIO()
+    fig.savefig(_buf, format="png", bbox_inches="tight", dpi=130)
+    plt.close(fig)
+    _buf.seek(0)
+    return _buf.read()
+
+
+def gerar_pdf_roteirizacao(rot_res: dict, sugest: list, logo_b64: str = None) -> bytes:
+    """
+    Gera PDF completo do relatório de roteirização.
+    rot_res: dicionário com todos os campos do resultado.
+    sugest:  lista de postos sugeridos.
+    Retorna bytes do PDF.
+    """
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+            Image as RLImage, HRFlowable, KeepTogether
+        )
+    except ImportError:
+        return b""
+
+    _buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        _buf, pagesize=A4,
+        leftMargin=1.8*cm, rightMargin=1.8*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm,
+    )
+
+    W, H = A4
+    _w = W - 3.6*cm   # largura útil
+
+    # ── Estilos ───────────────────────────────────────────────────────
+    styles = getSampleStyleSheet()
+    _azul   = colors.HexColor("#0D47A1")
+    _azul2  = colors.HexColor("#1565C0")
+    _laranja= colors.HexColor("#E65100")
+    _verde  = colors.HexColor("#2E7D32")
+    _cinza  = colors.HexColor("#607D8B")
+    _cinzacl= colors.HexColor("#ECEFF1")
+    _branco = colors.white
+
+    _sT = ParagraphStyle("sT", parent=styles["Normal"],
+                         fontSize=18, textColor=_branco,
+                         fontName="Helvetica-Bold", spaceAfter=0)
+    _sS = ParagraphStyle("sS", parent=styles["Normal"],
+                         fontSize=8, textColor=colors.HexColor("#BBDEFB"),
+                         fontName="Helvetica", spaceAfter=0)
+    _sH2 = ParagraphStyle("sH2", parent=styles["Normal"],
+                          fontSize=10, textColor=_azul,
+                          fontName="Helvetica-Bold", spaceBefore=10, spaceAfter=4)
+    _sN  = ParagraphStyle("sN",  parent=styles["Normal"],
+                          fontSize=8.5, textColor=colors.HexColor("#37474F"),
+                          fontName="Helvetica", leading=13)
+    _sB  = ParagraphStyle("sB",  parent=styles["Normal"],
+                          fontSize=8.5, textColor=colors.HexColor("#212121"),
+                          fontName="Helvetica-Bold", leading=13)
+    _sC  = ParagraphStyle("sC",  parent=styles["Normal"],
+                          fontSize=7, textColor=_cinza,
+                          fontName="Helvetica", alignment=TA_CENTER)
+
+    story = []
+
+    # ═══════════════════════════════════════════
+    # CABEÇALHO AZUL
+    # ═══════════════════════════════════════════
+    _hdr_cells = []
+    if logo_b64:
+        try:
+            _logo_bytes = base64.b64decode(logo_b64)
+            _logo_io    = io.BytesIO(_logo_bytes)
+            _logo_img   = RLImage(_logo_io, width=3*cm, height=1.4*cm)
+            _logo_img.hAlign = "LEFT"
+            _hdr_cells.append([_logo_img])
+        except Exception:
+            _hdr_cells = None
+    else:
+        _hdr_cells = None
+
+    _titulo_txt = [
+        Paragraph("Relatório de Roteirização", _sT),
+        Paragraph("Gestão de Frotas – Estudo de Rede", _sS),
+    ]
+
+    _data_txt = Paragraph(
+        datetime.now().strftime("%d/%m/%Y  %H:%M"),
+        ParagraphStyle("dt", parent=_sS, alignment=TA_RIGHT)
+    )
+
+    if _hdr_cells:
+        _hdr_tbl = Table(
+            [[_logo_img, _titulo_txt, _data_txt]],
+            colWidths=[3.2*cm, _w - 5.5*cm, 2.3*cm],
+        )
+    else:
+        _hdr_tbl = Table(
+            [[_titulo_txt, _data_txt]],
+            colWidths=[_w - 2.5*cm, 2.5*cm],
+        )
+
+    _hdr_tbl.setStyle(TableStyle([
+        ("BACKGROUND",   (0,0), (-1,-1), _azul),
+        ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+        ("LEFTPADDING",  (0,0), (-1,-1), 10),
+        ("RIGHTPADDING", (0,0), (-1,-1), 10),
+        ("TOPPADDING",   (0,0), (-1,-1), 10),
+        ("BOTTOMPADDING",(0,0), (-1,-1), 10),
+        ("ROUNDEDCORNERS", (0,0), (-1,-1), [6,6,6,6]),
+    ]))
+    story.append(_hdr_tbl)
+    story.append(Spacer(1, 0.35*cm))
+
+    # ═══════════════════════════════════════════
+    # PARÂMETROS DO VEÍCULO / ROTA
+    # ═══════════════════════════════════════════
+    _placa  = rot_res.get("placa","—") or "—"
+    _comb   = rot_res.get("combustivel","—") or "—"
+    _cap    = float(rot_res.get("capacidade", 0) or 0)
+    _aut    = float(rot_res.get("autonomia",  0) or 0)
+    _rmin_v = _cap * 0.25
+    _range_v= (_cap - _rmin_v) * _aut if _aut else 0
+    _rd_v   = float(rot_res.get("dist_km", 0))
+    _rm_v   = float(rot_res.get("dur_min", 0))
+    _n_pts  = len(rot_res.get("paradas", [])) + 2
+
+    _param_rows = [
+        [Paragraph("<b>Parâmetro</b>", _sB), Paragraph("<b>Valor</b>", _sB),
+         Paragraph("<b>Parâmetro</b>", _sB), Paragraph("<b>Valor</b>", _sB)],
+        [Paragraph("🚛 Placa",    _sN), Paragraph(_placa,          _sB),
+         Paragraph("⛽ Combustível",_sN),Paragraph(_comb,           _sB)],
+        [Paragraph("🛢 Tanque",   _sN), Paragraph(f"{_cap:.0f} L",  _sB),
+         Paragraph("📏 Autonomia",_sN), Paragraph(f"{_aut:.0f} km/tanque" if _aut else "—", _sB)],
+        [Paragraph("⚠️ Nível mín.",_sN),Paragraph(f"{_rmin_v:.0f} L ({25:.0f}%)", _sB),
+         Paragraph("🎯 Alcance ef.",_sN),Paragraph(f"{_range_v:.0f} km" if _range_v else "—", _sB)],
+    ]
+    _cw = _w / 4
+    _tbl_param = Table(_param_rows, colWidths=[_cw]*4, hAlign="LEFT")
+    _tbl_param.setStyle(TableStyle([
+        ("BACKGROUND",   (0,0), (-1,0), _azul2),
+        ("TEXTCOLOR",    (0,0), (-1,0), _branco),
+        ("BACKGROUND",   (0,1), (-1,-1), _cinzacl),
+        ("ROWBACKGROUNDS",(0,1),(-1,-1), [_branco, _cinzacl]),
+        ("GRID",         (0,0), (-1,-1), 0.4, colors.HexColor("#B0BEC5")),
+        ("FONTSIZE",     (0,0), (-1,-1), 8),
+        ("TOPPADDING",   (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING",(0,0), (-1,-1), 5),
+        ("LEFTPADDING",  (0,0), (-1,-1), 7),
+        ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(Paragraph("Parâmetros da Roteirização", _sH2))
+    story.append(_tbl_param)
+    story.append(Spacer(1, 0.3*cm))
+
+    # ═══════════════════════════════════════════
+    # KPIs — INDICADORES
+    # ═══════════════════════════════════════════
+    _consumo_v = f"{_rd_v/_aut:.0f} L" if _aut else "—"
+    _kpis = [
+        ("📏 Distância",    f"{_rd_v:,.0f} km".replace(",",".")),
+        ("⏱️ Tempo est.",   f"{int(_rm_v//60)}h {int(_rm_v%60):02d}min"),
+        ("🛢 Consumo",      _consumo_v),
+        ("📍 Pontos na rota", str(_n_pts)),
+        ("⛽ Paradas abast.",str(len(sugest)) if sugest else "Nenhuma"),
+    ]
+    _kpi_w = _w / len(_kpis)
+    _kpi_row_lbl = [Paragraph(f"<b>{k}</b>", ParagraphStyle(
+        "kl", parent=_sC, fontSize=7.5, textColor=_branco)) for k,v in _kpis]
+    _kpi_row_val = [Paragraph(f"<b>{v}</b>", ParagraphStyle(
+        "kv", parent=_sC, fontSize=13, textColor=_branco, fontName="Helvetica-Bold")) for k,v in _kpis]
+
+    _tbl_kpi = Table([_kpi_row_lbl, _kpi_row_val],
+                     colWidths=[_kpi_w]*len(_kpis), hAlign="LEFT")
+    _tbl_kpi.setStyle(TableStyle([
+        ("BACKGROUND",   (0,0), (-1,-1), _azul2),
+        ("GRID",         (0,0), (-1,-1), 0.5, colors.HexColor("#1976D2")),
+        ("TOPPADDING",   (0,0), (-1,0),  5),
+        ("BOTTOMPADDING",(0,0), (-1,0),  2),
+        ("TOPPADDING",   (0,1), (-1,1),  2),
+        ("BOTTOMPADDING",(0,1), (-1,1),  8),
+        ("ALIGN",        (0,0), (-1,-1), "CENTER"),
+        ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+        ("ROUNDEDCORNERS",(0,0),(-1,-1), [4,4,4,4]),
+    ]))
+    story.append(Paragraph("Indicadores da Rota", _sH2))
+    story.append(_tbl_kpi)
+    story.append(Spacer(1, 0.35*cm))
+
+    # ═══════════════════════════════════════════
+    # MAPA DA ROTA
+    # ═══════════════════════════════════════════
+    _rc = rot_res.get("coords", [])
+    _ro = rot_res.get("orig",  {})
+    _rt = rot_res.get("dest",  {})
+    _rp = rot_res.get("paradas", [])
+
+    if _rc and len(_rc) >= 2:
+        story.append(Paragraph("Mapa da Rota", _sH2))
+        try:
+            _map_png = _gerar_mapa_rota_png(_rc, _ro, _rt, _rp, sugest)
+            _map_io  = io.BytesIO(_map_png)
+            _map_img = RLImage(_map_io, width=_w, height=_w * 0.52)
+            _map_img.hAlign = "CENTER"
+            story.append(_map_img)
+        except Exception as _em:
+            story.append(Paragraph(f"⚠️ Mapa indisponível: {_em}", _sN))
+        story.append(Spacer(1, 0.35*cm))
+
+    # ═══════════════════════════════════════════
+    # POSTOS DE ABASTECIMENTO SUGERIDOS
+    # ═══════════════════════════════════════════
+    story.append(Paragraph("Postos de Abastecimento Sugeridos", _sH2))
+    if not sugest:
+        story.append(Paragraph(
+            "✅ Nenhuma parada necessária — o alcance efetivo cobre toda a rota.",
+            _sN))
+    else:
+        _ab_header = [
+            Paragraph("<b>#</b>",        _sB),
+            Paragraph("<b>Posto</b>",    _sB),
+            Paragraph("<b>Município/UF</b>", _sB),
+            Paragraph("<b>Km da orig.</b>",  _sB),
+            Paragraph("<b>Preço/L</b>",  _sB),
+            Paragraph("<b>Abast. est.</b>",  _sB),
+            Paragraph("<b>Motivo</b>",   _sB),
+        ]
+        _ab_rows = [_ab_header]
+        _cap_v = float(rot_res.get("capacidade", 0) or 0)
+        for _i, _s in enumerate(sugest, 1):
+            _preco  = float(_s.get("preco", 0))
+            _abast  = f"R$ {_preco * _cap_v:,.2f}".replace(",","X").replace(".",",").replace("X",".") if _cap_v else "—"
+            _motivo = "Melhor preço" if _s.get("motivo")=="mais_barato" else "Mais próximo"
+            _cor_m  = _verde if _s.get("motivo")=="mais_barato" else _laranja
+            _ab_rows.append([
+                Paragraph(str(_i), _sN),
+                Paragraph(str(_s.get("label",""))[:38], _sN),
+                Paragraph(f"{_s.get('municipio','')} / {_s.get('uf','')}", _sN),
+                Paragraph(f"{_s.get('_km',0):.0f} km", _sN),
+                Paragraph(f"R$ {_preco:.3f}".replace(".",","), _sN),
+                Paragraph(_abast, _sN),
+                Paragraph(_motivo, ParagraphStyle("sm", parent=_sN, textColor=_cor_m, fontName="Helvetica-Bold")),
+            ])
+        _cws_ab = [0.6*cm, 4.8*cm, 3.0*cm, 1.8*cm, 1.7*cm, 2.1*cm, 2.4*cm]
+        _tbl_ab = Table(_ab_rows, colWidths=_cws_ab, hAlign="LEFT", repeatRows=1)
+        _tbl_ab.setStyle(TableStyle([
+            ("BACKGROUND",    (0,0), (-1,0), _azul2),
+            ("TEXTCOLOR",     (0,0), (-1,0), _branco),
+            ("ROWBACKGROUNDS",(0,1),(-1,-1), [_branco, _cinzacl]),
+            ("GRID",          (0,0), (-1,-1), 0.4, colors.HexColor("#B0BEC5")),
+            ("FONTSIZE",      (0,0), (-1,-1), 8),
+            ("TOPPADDING",    (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ("LEFTPADDING",   (0,0), (-1,-1), 5),
+            ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+        ]))
+        story.append(_tbl_ab)
+
+    story.append(Spacer(1, 0.35*cm))
+
+    # ═══════════════════════════════════════════
+    # RESUMO DA ROTA — PONTOS
+    # ═══════════════════════════════════════════
+    story.append(Paragraph("Resumo da Rota — Pontos de Passagem", _sH2))
+    _pontos_pdf = [_ro] + _rp + [_rt]
+    _tipos_pdf  = (["Origem"] + [f"Parada {i+1}" for i in range(len(_rp))] + ["Destino"])
+    _cores_pdf  = ([_verde] + [_laranja]*len(_rp) + [colors.HexColor("#C62828")])
+
+    _pt_header = [
+        Paragraph("<b>#</b>",   _sB),
+        Paragraph("<b>Tipo</b>",_sB),
+        Paragraph("<b>Local</b>",_sB),
+        Paragraph("<b>Lat</b>", _sB),
+        Paragraph("<b>Lon</b>", _sB),
+    ]
+    _pt_rows = [_pt_header]
+    for _i, (_pt, _tp, _cr_pt) in enumerate(zip(_pontos_pdf, _tipos_pdf, _cores_pdf), 1):
+        _pt_rows.append([
+            Paragraph(str(_i), _sN),
+            Paragraph(_tp, ParagraphStyle("tp", parent=_sN, textColor=_cr_pt,
+                                          fontName="Helvetica-Bold")),
+            Paragraph(str(_pt.get("label",""))[:50], _sN),
+            Paragraph(f"{float(_pt.get('lat',0)):.5f}", _sN),
+            Paragraph(f"{float(_pt.get('lon',0)):.5f}", _sN),
+        ])
+    _cws_pt = [0.6*cm, 2.2*cm, 8.0*cm, 2.2*cm, 2.2*cm]
+    _tbl_pt = Table(_pt_rows, colWidths=_cws_pt, hAlign="LEFT", repeatRows=1)
+    _tbl_pt.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,0), _azul2),
+        ("TEXTCOLOR",     (0,0), (-1,0), _branco),
+        ("ROWBACKGROUNDS",(0,1),(-1,-1), [_branco, _cinzacl]),
+        ("GRID",          (0,0), (-1,-1), 0.4, colors.HexColor("#B0BEC5")),
+        ("FONTSIZE",      (0,0), (-1,-1), 8),
+        ("TOPPADDING",    (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("LEFTPADDING",   (0,0), (-1,-1), 5),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(_tbl_pt)
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── Rodapé ────────────────────────────────────────────────────────
+    story.append(HRFlowable(width=_w, thickness=0.5, color=_cinza))
+    story.append(Spacer(1, 0.15*cm))
+    story.append(Paragraph(
+        f"Gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')} · "
+        "Gestão de Frotas – Estudo de Rede · Documento gerado automaticamente",
+        _sC))
+
+    doc.build(story)
+    _buf.seek(0)
+    return _buf.read()
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -8254,6 +8656,58 @@ elif modo == "🛣️ Roteirização":
             ]:
                 _cr1, _cr2 = st.columns([3, 4])
                 _cr1.caption(_lbl); _cr2.markdown(f"**{_val}**")
+
+        # ── PDF ───────────────────────────────────────────────────
+        st.markdown("---")
+        _pdf_col1, _pdf_col2 = st.columns([3, 1])
+        with _pdf_col1:
+            st.markdown(
+                "<div style='font-size:11px;color:#555;padding:6px 0'>"
+                "📄 Gere um PDF para impressão com o mapa, postos sugeridos e resumo completo da rota.</div>",
+                unsafe_allow_html=True)
+        with _pdf_col2:
+            if st.button("📄 Gerar PDF", use_container_width=True,
+                         key="rot_gerar_pdf", type="primary"):
+                with st.spinner("📄 Gerando relatório PDF…"):
+                    try:
+                        _pdf_bytes = gerar_pdf_roteirizacao(
+                            {
+                                "placa":      _rot_res.get("placa",""),
+                                "combustivel":_rcomb,
+                                "capacidade": _rcap,
+                                "autonomia":  _raut,
+                                "dist_km":    _rd,
+                                "dur_min":    _rm,
+                                "coords":     _rc,
+                                "orig":       _ro,
+                                "dest":       _rt,
+                                "paradas":    _rp,
+                            },
+                            _sugest,
+                            logo_b64=_LOGO_B64,
+                        )
+                        if _pdf_bytes:
+                            _nome_pdf = (
+                                f"rota_{(_ro.get('label','orig'))[:15].replace(' ','_')}"
+                                f"_{(_rt.get('label','dest'))[:15].replace(' ','_')}"
+                                f"_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                            )
+                            st.session_state["_rot_pdf_bytes"] = _pdf_bytes
+                            st.session_state["_rot_pdf_nome"]  = _nome_pdf
+                        else:
+                            st.error("❌ Não foi possível gerar o PDF. Verifique se reportlab está instalado.")
+                    except Exception as _epdf:
+                        st.error(f"❌ Erro ao gerar PDF: {_epdf}")
+
+        if st.session_state.get("_rot_pdf_bytes"):
+            st.download_button(
+                label="⬇️ Baixar Relatório PDF",
+                data=st.session_state["_rot_pdf_bytes"],
+                file_name=st.session_state.get("_rot_pdf_nome", "relatorio_rota.pdf"),
+                mime="application/pdf",
+                use_container_width=True,
+                key="rot_download_pdf",
+            )
 
         # ── Salvar ────────────────────────────────────────────────
         st.markdown("---")
