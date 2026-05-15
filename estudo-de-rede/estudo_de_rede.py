@@ -2222,31 +2222,43 @@ def gerar_pdf_roteirizacao(rot_res: dict, sugest: list, logo_b64: str = None) ->
             _sN))
     else:
         _ab_header = [
-            Paragraph("<b>#</b>",        _sB),
-            Paragraph("<b>Posto</b>",    _sB),
-            Paragraph("<b>Município/UF</b>", _sB),
-            Paragraph("<b>Km da orig.</b>",  _sB),
-            Paragraph("<b>Preço/L</b>",  _sB),
-            Paragraph("<b>Abast. est.</b>",  _sB),
-            Paragraph("<b>Motivo</b>",   _sB),
+            Paragraph("<b>#</b>",           _sB),
+            Paragraph("<b>Posto</b>",       _sB),
+            Paragraph("<b>Município/UF</b>",_sB),
+            Paragraph("<b>Km orig.</b>",    _sB),
+            Paragraph("<b>Chega</b>",       _sB),
+            Paragraph("<b>Preço/L</b>",     _sB),
+            Paragraph("<b>Litros</b>",      _sB),
+            Paragraph("<b>Custo</b>",       _sB),
+            Paragraph("<b>Sai com</b>",     _sB),
         ]
         _ab_rows = [_ab_header]
-        _cap_v = float(rot_res.get("capacidade", 0) or 0)
         for _i, _s in enumerate(sugest, 1):
-            _preco  = float(_s.get("preco", 0))
-            _abast  = f"R$ {_preco * _cap_v:,.2f}".replace(",","X").replace(".",",").replace("X",".") if _cap_v else "—"
-            _motivo = "Melhor preço" if _s.get("motivo")=="mais_barato" else "Mais próximo"
-            _cor_m  = _verde if _s.get("motivo")=="mais_barato" else _laranja
+            _preco   = float(_s.get("preco", 0))
+            _litros  = int(_s.get("litros_sugeridos", 0))
+            _custo_s = float(_s.get("custo_abast", 0))
+            _f_ch    = float(_s.get("fuel_chegada", 0))
+            _p_ch    = float(_s.get("pct_chegada", 0))
+            _f_ap    = float(_s.get("fuel_apos", 0))
+            _p_ap    = float(_s.get("pct_apos", 0))
+            _motivo  = _s.get("motivo", "mais_barato")
+            _cor_m   = _verde if _motivo == "mais_barato" else colors.HexColor("#B71C1C")
             _ab_rows.append([
                 Paragraph(str(_i), _sN),
-                Paragraph(str(_s.get("label",""))[:38], _sN),
+                Paragraph(str(_s.get("label",""))[:35], _sN),
                 Paragraph(f"{_s.get('municipio','')} / {_s.get('uf','')}", _sN),
                 Paragraph(f"{_s.get('_km',0):.0f} km", _sN),
+                Paragraph(f"{_f_ch:.0f} L\n({_p_ch:.0f}%)", _sN),
                 Paragraph(f"R$ {_preco:.3f}".replace(".",","), _sN),
-                Paragraph(_abast, _sN),
-                Paragraph(_motivo, ParagraphStyle("sm", parent=_sN, textColor=_cor_m, fontName="Helvetica-Bold")),
+                Paragraph(str(_litros) + " L",
+                          ParagraphStyle("lf", parent=_sN, textColor=_cor_m,
+                                         fontName="Helvetica-Bold")),
+                Paragraph(f"R$ {_custo_s:.2f}".replace(".",","),
+                          ParagraphStyle("cf", parent=_sN, textColor=_cor_m,
+                                         fontName="Helvetica-Bold")),
+                Paragraph(f"{_f_ap:.0f} L\n({_p_ap:.0f}%)", _sN),
             ])
-        _cws_ab = [0.6*cm, 4.8*cm, 3.0*cm, 1.8*cm, 1.7*cm, 2.1*cm, 2.4*cm]
+        _cws_ab = [0.5*cm, 4.0*cm, 2.6*cm, 1.5*cm, 1.5*cm, 1.6*cm, 1.4*cm, 1.7*cm, 1.6*cm]
         _tbl_ab = Table(_ab_rows, colWidths=_cws_ab, hAlign="LEFT", repeatRows=1)
         _tbl_ab.setStyle(TableStyle([
             ("BACKGROUND",    (0,0), (-1,0), _azul2),
@@ -8530,25 +8542,75 @@ elif modo == "🛣️ Roteirização":
                     _ests.append({**_pc, "_km": _kma, "_dev": _perp})
             _ests.sort(key=lambda x: x["_km"])
 
-            _pos = 0.0; _fuel = _rcap; _seen: set = set()
-            for _ in range(50):
+            # ── Algoritmo de sugestão com rastreamento real de combustível ──
+            # Começa com tanque cheio na origem e simula o percurso.
+            # Em cada parada: calcula o nível de chegada, escolhe o melhor
+            # posto disponível antes de atingir o mínimo e determina a
+            # litragem exata para alcançar o próximo marco com 20% de margem.
+            _pos = 0.0; _fuel = float(_rcap); _seen: set = set()
+            for _ in range(60):
                 if _pos >= _rd: break
+
+                # Até onde podemos ir antes de atingir o nível mínimo?
                 _can_go = (_fuel - _rmin) * _raut
-                _must   = _pos + _can_go
-                if _must >= _rd: break
+                _must   = _pos + _can_go   # km máx. sem reabastecer
+
+                if _must >= _rd: break     # alcança o destino — sem parada necessária
+
+                # Postos acessíveis dentro do alcance restante
                 _ok = [e for e in _ests
                        if _pos < e["_km"] <= _must and e["cnpj"] not in _seen]
+
                 if _ok:
+                    # Melhor preço entre os acessíveis
                     _best = dict(min(_ok, key=lambda x: x.get("preco", 9999)))
                     _best["motivo"] = "mais_barato"
                 else:
-                    _prox = [e for e in _ests if e["_km"] > _pos and e["cnpj"] not in _seen]
+                    # Emergência: posto mais próximo além da posição atual
+                    _prox = [e for e in _ests
+                             if e["_km"] > _pos and e["cnpj"] not in _seen]
                     if not _prox: break
                     _best = dict(min(_prox, key=lambda x: x["_km"]))
-                    _best["motivo"] = "mais_proximo"
+                    _best["motivo"] = "emergencia"
+
+                # Nível de combustível ao chegar no posto escolhido
+                _km_ate = _best["_km"] - _pos
+                _fuel_chegada = max(0.0, _fuel - (_km_ate / _raut))
+                _pct_chegada  = (_fuel_chegada / _rcap * 100) if _rcap else 0
+
+                # Próximo marco: próximo posto candidato (não visto) ou destino
+                _prox_candidatos = [e for e in _ests
+                                    if e["_km"] > _best["_km"]
+                                    and e["cnpj"] not in _seen
+                                    and e["cnpj"] != _best["cnpj"]]
+                if _prox_candidatos:
+                    _km_prox = min(_prox_candidatos, key=lambda x: x["_km"])["_km"]
+                    _dist_prox = _km_prox - _best["_km"]
+                else:
+                    _dist_prox = _rd - _best["_km"]  # até o destino
+
+                # Litros necessários para o próximo marco + 20% margem de segurança
+                _litros_prox = (_dist_prox * 1.20) / _raut if _raut else 0
+                _litros_fill  = max(0.0, _litros_prox - _fuel_chegada)
+                _litros_fill  = min(_litros_fill, _rcap - _fuel_chegada)  # não exceder tanque
+                _litros_fill  = math.ceil(max(1.0, _litros_fill))         # mínimo 1 L, inteiro
+
+                _fuel_apos  = min(_fuel_chegada + _litros_fill, _rcap)
+                _pct_apos   = (_fuel_apos / _rcap * 100) if _rcap else 0
+                _custo_ab   = round(_litros_fill * _best.get("preco", 0), 2)
+
+                _best["fuel_chegada"]     = round(_fuel_chegada, 1)
+                _best["pct_chegada"]      = round(_pct_chegada, 1)
+                _best["litros_sugeridos"] = int(_litros_fill)
+                _best["custo_abast"]      = _custo_ab
+                _best["fuel_apos"]        = round(_fuel_apos, 1)
+                _best["pct_apos"]         = round(_pct_apos, 1)
+
                 _seen.add(_best["cnpj"])
                 _sugest.append(_best)
-                _fuel = _rcap
+
+                # Avança a simulação
+                _fuel = _fuel_apos
                 _pos  = _best["_km"]
 
         # ── Tabs ─────────────────────────────────────────────────
@@ -8594,34 +8656,81 @@ elif modo == "🛣️ Roteirização":
                     "Verifique se a planilha de preços foi carregada em **Configurações**.")
             elif not _sugest:
                 st.success(
-                    f"✅ Nenhuma parada necessária — alcance (~{_range_avail:.0f} km) "
-                    f"suficiente para os {_rd:.0f} km desta rota.")
+                    f"✅ Nenhuma parada necessária — alcance efetivo "
+                    f"(~{_range_avail:.0f} km) é suficiente para os {_rd:.0f} km desta rota.")
             else:
-                _n_ab = len(_sugest)
-                _custo = (sum(s.get("preco",0) for s in _sugest) / _n_ab) * (_rd/_raut) if _raut else 0
+                _n_ab         = len(_sugest)
+                _custo_total  = sum(s.get("custo_abast", 0) for s in _sugest)
+                _litros_total = sum(s.get("litros_sugeridos", 0) for s in _sugest)
+                # Banner resumo
                 st.markdown(
                     f"<div style='background:linear-gradient(90deg,#e0f7fa,#f1f8e9);"
                     f"border-radius:8px;padding:9px 14px;margin-bottom:10px;"
                     f"font-size:12px;color:#004D40'>"
-                    f"⛽ <b>{_n_ab} parada(s) sugerida(s)</b> · "
-                    f"Custo estimado: <b>R$ {_custo:,.2f}</b></div>".replace(",","X").replace(".",",").replace("X","."),
+                    f"⛽ <b>{_n_ab} parada(s) sugerida(s)</b> &nbsp;·&nbsp; "
+                    f"🛢 Total a abastecer: <b>{_litros_total} L</b> &nbsp;·&nbsp; "
+                    f"💰 Custo total estimado: <b>R$ {_custo_total:,.2f}</b>"
+                    f"</div>".replace(",","X").replace(".",",").replace("X","."),
                     unsafe_allow_html=True)
+
                 for _ia, _ab in enumerate(_sugest, 1):
-                    _cor_ab = "#1B5E20" if _ab.get("motivo")=="mais_barato" else "#E65100"
-                    _bg_ab  = "#f1f8e9" if _ab.get("motivo")=="mais_barato" else "#fff3e0"
-                    _tag_ab = "🏆 Melhor preço" if _ab.get("motivo")=="mais_barato" else "📍 Mais próximo"
+                    _motivo = _ab.get("motivo", "mais_barato")
+                    if _motivo == "mais_barato":
+                        _cor_ab = "#1B5E20"; _bg_ab = "#f1f8e9"
+                        _tag_ab = "🏆 Melhor preço"
+                    else:
+                        _cor_ab = "#B71C1C"; _bg_ab = "#fce4ec"
+                        _tag_ab = "⚠️ Emergência — posto mais próximo"
+
+                    _litros  = _ab.get("litros_sugeridos", 0)
+                    _custo_p = _ab.get("custo_abast", 0)
+                    _f_ch    = _ab.get("fuel_chegada", 0)
+                    _p_ch    = _ab.get("pct_chegada", 0)
+                    _f_ap    = _ab.get("fuel_apos", 0)
+                    _p_ap    = _ab.get("pct_apos", 0)
+                    _preco_l = _ab.get("preco", 0)
+
+                    # Barra de nível do tanque (chegada → saída)
+                    _bar_ch  = max(2, int(_p_ch))
+                    _bar_ap  = max(2, int(_p_ap))
+                    _bar_cor = "#4CAF50" if _p_ap >= 50 else ("#FF9800" if _p_ap >= 25 else "#F44336")
+
                     st.markdown(
                         f"<div style='border-left:4px solid {_cor_ab};background:{_bg_ab};"
-                        f"border-radius:0 10px 10px 0;padding:9px 14px;margin-bottom:6px'>"
-                        f"<b style='color:{_cor_ab}'>#{_ia} {_ab['label']}</b> "
+                        f"border-radius:0 10px 10px 0;padding:10px 14px;margin-bottom:8px'>"
+
+                        # Linha 1: nome + tag
+                        f"<div style='display:flex;align-items:center;gap:8px;margin-bottom:4px'>"
+                        f"<b style='color:{_cor_ab};font-size:13px'>#{_ia} {_ab['label']}</b>"
                         f"<span style='background:{_cor_ab};color:#fff;border-radius:4px;"
-                        f"padding:1px 6px;font-size:10px'>{_tag_ab}</span><br>"
-                        f"<span style='font-size:11px;color:#555'>"
+                        f"padding:1px 7px;font-size:10px;white-space:nowrap'>{_tag_ab}</span>"
+                        f"</div>"
+
+                        # Linha 2: localização + km + preço
+                        f"<div style='font-size:11px;color:#555;margin-bottom:5px'>"
                         f"📍 {_ab.get('municipio','')} / {_ab.get('uf','')} &nbsp;·&nbsp; "
-                        f"🛣 {_ab.get('_km',0):.0f} km da origem &nbsp;·&nbsp; "
-                        f"💰 <b>R$ {_ab.get('preco',0):.3f}/L</b> · "
-                        f"abast. ~<b>R$ {_ab.get('preco',0)*_rcap:.2f}</b>"
-                        f"</span></div>",
+                        f"🛣 <b>{_ab.get('_km',0):.0f} km</b> da origem &nbsp;·&nbsp; "
+                        f"💰 <b>R$ {_preco_l:.3f}/L</b>"
+                        f"</div>"
+
+                        # Linha 3: nível tanque — chegada e saída
+                        f"<div style='font-size:11px;color:#444;margin-bottom:5px'>"
+                        f"🔋 Chega com <b>{_f_ch:.0f} L ({_p_ch:.0f}%)</b> &nbsp;→&nbsp; "
+                        f"⛽ Abastece <b style='color:{_cor_ab}'>{_litros} L de {_rcomb}</b> &nbsp;→&nbsp; "
+                        f"🔋 Sai com <b style='color:{_bar_cor}'>{_f_ap:.0f} L ({_p_ap:.0f}%)</b>"
+                        f"</div>"
+
+                        # Linha 4: custo + barra visual do tanque
+                        f"<div style='display:flex;align-items:center;gap:10px'>"
+                        f"<span style='font-size:12px;font-weight:700;color:{_cor_ab}'>"
+                        f"💵 Custo: R$ {_custo_p:.2f}</span>"
+                        f"<div style='flex:1;background:#e0e0e0;border-radius:4px;height:8px;overflow:hidden'>"
+                        f"<div style='width:{_bar_ap}%;background:{_bar_cor};height:100%;border-radius:4px'></div>"
+                        f"</div>"
+                        f"<span style='font-size:10px;color:#888'>{_p_ap:.0f}%</span>"
+                        f"</div>"
+
+                        f"</div>",
                         unsafe_allow_html=True)
 
         with _t_res:
@@ -8641,17 +8750,16 @@ elif modo == "🛣️ Roteirização":
                     f"<b style='color:{_cr}'>{_ic} {_lb}:</b> {_ico_t} {_pt.get('label','')[:55]}"
                     f"</div>", unsafe_allow_html=True)
             st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-            _custo_r = (
-                (sum(s.get("preco",0) for s in _sugest)/len(_sugest)) * (_rd/_raut)
-                if _sugest and _raut else 0
-            )
+            _custo_r   = sum(s.get("custo_abast", 0) for s in _sugest)
+            _litros_r  = sum(s.get("litros_sugeridos", 0) for s in _sugest)
             for _lbl, _val in [
-                ("📏 Distância",    f"{_rd:,.0f} km".replace(",",".")),
-                ("⏱️ Tempo",       f"{int(_rm//60)}h {int(_rm%60):02d}min"),
-                ("⛽ Combustível",  _rcomb or "—"),
-                ("🚛 Placa",       _rot_res.get("placa","") or "—"),
-                ("🛢 Consumo",     f"{_rd/_raut:.0f} L" if _raut else "—"),
-                ("💰 Custo est.",  f"R$ {_custo_r:.2f}".replace(".",",") if _custo_r else "—"),
+                ("📏 Distância",      f"{_rd:,.0f} km".replace(",",".")),
+                ("⏱️ Tempo",         f"{int(_rm//60)}h {int(_rm%60):02d}min"),
+                ("⛽ Combustível",    _rcomb or "—"),
+                ("🚛 Placa",         _rot_res.get("placa","") or "—"),
+                ("🛢 Consumo total", f"{_rd/_raut:.0f} L" if _raut else "—"),
+                ("🛢 Total abastec.",f"{_litros_r} L" if _sugest else "—"),
+                ("💰 Custo abast.",  f"R$ {_custo_r:.2f}".replace(".",",") if _custo_r else "—"),
                 ("⛽ Paradas abast.", str(len(_sugest)) if _sugest else "Nenhuma"),
             ]:
                 _cr1, _cr2 = st.columns([3, 4])
