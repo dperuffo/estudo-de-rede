@@ -5549,6 +5549,38 @@ with st.sidebar:
     transform: translateY(-1px) !important;
 }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Dashboard ── */
+.st-key-btn_dashboard button {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+    transition: all .2s ease !important;
+}
+.st-key-btn_dashboard button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_dashboard [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #0D47A1 0%, #1565C0 50%, #E65100 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(13,71,161,.40) !important;
+}
+.st-key-btn_dashboard [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #1565C0 0%, #1976D2 50%, #F57C00 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_dashboard [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_dashboard [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #1565C0 !important;
+    color: #1565C0 !important;
+    box-shadow: none !important;
+}
+.st-key-btn_dashboard [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #E65100 !important; color: #E65100 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_dashboard [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
@@ -5605,6 +5637,17 @@ with st.sidebar:
         help="Ver e restaurar consultas salvas anteriormente",
     ):
         st.session_state["modo_selecionado"] = "📋 Rotas Salvas"
+        st.rerun()
+
+    # ── Botão Dashboard (largura total) ─────────────────────────
+    if st.button(
+        "📊 Dashboard",
+        use_container_width=True,
+        type="primary" if _modo_atual == "📊 Dashboard" else "secondary",
+        key="btn_dashboard",
+        help="KPIs de cobertura e penetração GF por estado",
+    ):
+        st.session_state["modo_selecionado"] = "📊 Dashboard"
         st.rerun()
 
     modo = _modo_atual
@@ -6050,10 +6093,10 @@ with st.sidebar:
         with _c_cap:
             st.number_input(
                 "Tanque (L)",
-                min_value=10.0, max_value=500.0,
+                min_value=10.0, max_value=1200.0,
                 value=float(st.session_state.get("rot_capacidade") or 80.0),
-                step=5.0, key="rot_capacidade",
-                help="Capacidade total do tanque em litros",
+                step=10.0, key="rot_capacidade",
+                help="Capacidade total do tanque em litros (até 1.200 L)",
             )
         with _c_aut:
             st.number_input(
@@ -8150,6 +8193,349 @@ elif modo == "📋 Rotas Salvas":
                     st.rerun()
                 else:
                     st.error("❌ Erro ao excluir.")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO 6 — DASHBOARD ANALÍTICO
+# ═══════════════════════════════════════════════════════════════════
+
+# Referência ANP: total estimado de postos por UF (fonte SIMP/ANP 2023)
+_ANP_REF_UF = {
+    "AC": 320,  "AL": 980,  "AM": 780,  "AP": 330,  "BA": 4100,
+    "CE": 2600, "DF": 1300, "ES": 1550, "GO": 2900, "MA": 1400,
+    "MG": 8500, "MS": 1650, "MT": 1850, "PA": 1500, "PB": 1150,
+    "PE": 2500, "PI": 890,  "PR": 4300, "RJ": 5000, "RN": 1050,
+    "RO": 620,  "RR": 270,  "RS": 4700, "SC": 3600, "SE": 780,
+    "SP":13000, "TO": 570,
+}
+
+_UF_NOME_DASH = {
+    "AC":"Acre","AL":"Alagoas","AM":"Amazonas","AP":"Amapá","BA":"Bahia",
+    "CE":"Ceará","DF":"Distrito Federal","ES":"Espírito Santo","GO":"Goiás",
+    "MA":"Maranhão","MG":"Minas Gerais","MS":"Mato Grosso do Sul",
+    "MT":"Mato Grosso","PA":"Pará","PB":"Paraíba","PE":"Pernambuco",
+    "PI":"Piauí","PR":"Paraná","RJ":"Rio de Janeiro","RN":"Rio Grande do Norte",
+    "RO":"Rondônia","RR":"Roraima","RS":"Rio Grande do Sul",
+    "SC":"Santa Catarina","SE":"Sergipe","SP":"São Paulo","TO":"Tocantins",
+}
+
+if modo == "📊 Dashboard":
+
+    _pf_dash  = st.session_state.get("pf_coords_df", pd.DataFrame())
+    _pp_dash  = st.session_state.get("_pp_df")
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#0D47A1,#E65100);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "📊 Dashboard Analítico GF</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 14px'>"
+        "KPIs de cobertura geográfica e penetração da rede GF nos estados brasileiros.</p>",
+        unsafe_allow_html=True,
+    )
+
+    if _pf_dash.empty:
+        st.warning(
+            "⚠️ Nenhum dado GF carregado. "
+            "Importe a planilha de postos em **Configurações** para visualizar o dashboard."
+        )
+    else:
+        # ── Pré-processamento ─────────────────────────────────────────────
+        _df = _pf_dash.copy()
+        _df["uf"] = _df["uf"].fillna("").str.strip().str.upper()
+        _df["municipio"] = _df["municipio"].fillna("").str.strip()
+        _df_valid = _df[_df["uf"].isin(_ANP_REF_UF.keys())]
+
+        _total_gf    = len(_df)
+        _valid_coord = int(_df[pd.notna(_df["_lat"]) & pd.notna(_df["_lon"])].shape[0])
+        _total_ufs   = int(_df_valid["uf"].nunique())
+        _total_mun   = int(_df_valid["municipio"].replace("", pd.NA).dropna().nunique())
+        _cobertura_br= round(_total_ufs / 27 * 100, 1)
+
+        # ── KPIs — linha 1 ───────────────────────────────────────────────
+        _k1, _k2, _k3, _k4, _k5 = st.columns(5)
+        for _col, _lbl, _val, _delta in [
+            (_k1, "⛽ Postos GF",          f"{_total_gf:,}".replace(",","."), None),
+            (_k2, "📍 Com Coordenadas",    f"{_valid_coord:,}".replace(",","."),
+             f"{_valid_coord/_total_gf*100:.0f}% do total"),
+            (_k3, "🗺️ Estados Cobertos",  f"{_total_ufs} / 27",
+             f"{_cobertura_br:.0f}% do Brasil"),
+            (_k4, "🏙️ Municípios",        f"{_total_mun:,}".replace(",","."), None),
+            (_k5, "📊 Média por UF",
+             f"{_total_gf/_total_ufs:.0f}" if _total_ufs else "—", None),
+        ]:
+            _col.metric(_lbl, _val, _delta)
+
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+        # ── Tabs do dashboard ─────────────────────────────────────────────
+        _dt1, _dt2, _dt3, _dt4 = st.tabs([
+            "📊 Cobertura por Estado",
+            "🎯 Penetração vs ANP",
+            "🗺️ Mapa de Densidade",
+            "⛽ Combustíveis",
+        ])
+
+        # ──────────────────────────────────────────────────────────────────
+        # TAB 1 — Cobertura por Estado
+        # ──────────────────────────────────────────────────────────────────
+        with _dt1:
+            _uf_cnt = (
+                _df_valid.groupby("uf").size().reset_index(name="postos_gf")
+                .sort_values("postos_gf", ascending=False)
+            )
+            _uf_cnt["uf_nome"] = _uf_cnt["uf"].map(_UF_NOME_DASH).fillna(_uf_cnt["uf"])
+
+            # Gráfico de barras horizontal — ranking
+            _fig_bar = go.Figure()
+            _colors_bar = [
+                "#0D47A1" if v >= _uf_cnt["postos_gf"].quantile(0.75) else
+                "#1976D2" if v >= _uf_cnt["postos_gf"].median() else
+                "#90CAF9"
+                for v in _uf_cnt["postos_gf"]
+            ]
+            _fig_bar.add_trace(go.Bar(
+                y=_uf_cnt["uf_nome"],
+                x=_uf_cnt["postos_gf"],
+                orientation="h",
+                marker_color=_colors_bar,
+                text=_uf_cnt["postos_gf"].astype(str),
+                textposition="outside",
+                hovertemplate="<b>%{y}</b><br>Postos GF: %{x}<extra></extra>",
+            ))
+            _fig_bar.update_layout(
+                title="Ranking de Postos GF por Estado",
+                xaxis_title="Quantidade de Postos GF",
+                yaxis=dict(autorange="reversed"),
+                height=max(400, len(_uf_cnt) * 22 + 80),
+                margin=dict(l=10, r=60, t=45, b=30),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                font=dict(size=11),
+            )
+            _fig_bar.update_xaxes(showgrid=True, gridcolor="#E3F2FD", gridwidth=0.5)
+            st.plotly_chart(_fig_bar, use_container_width=True)
+
+            # Tabela detalhada
+            st.markdown("##### Detalhamento por Estado")
+            _uf_det = _uf_cnt.copy()
+            _uf_det["% do Total GF"] = (_uf_det["postos_gf"] / _total_gf * 100).round(1).astype(str) + "%"
+            _uf_det["Municípios GF"] = _uf_det["uf"].apply(
+                lambda u: int(_df_valid[_df_valid["uf"]==u]["municipio"]
+                              .replace("", pd.NA).dropna().nunique())
+            )
+            _uf_det = _uf_det.rename(columns={
+                "uf": "UF", "uf_nome": "Estado", "postos_gf": "Postos GF"
+            })[["UF","Estado","Postos GF","% do Total GF","Municípios GF"]]
+            st.dataframe(_uf_det.reset_index(drop=True), use_container_width=True, height=350)
+
+        # ──────────────────────────────────────────────────────────────────
+        # TAB 2 — Penetração vs ANP
+        # ──────────────────────────────────────────────────────────────────
+        with _dt2:
+            _uf_pen = _uf_cnt.copy()
+            _uf_pen["anp_total"] = _uf_pen["uf"].map(_ANP_REF_UF).fillna(0)
+            _uf_pen["penetracao_pct"] = (
+                _uf_pen["postos_gf"] / _uf_pen["anp_total"] * 100
+            ).round(2)
+            _uf_pen = _uf_pen.sort_values("penetracao_pct", ascending=False)
+
+            # Gráfico de penetração
+            _pen_max = float(_uf_pen["penetracao_pct"].max())
+            _pen_colors = [
+                "#2E7D32" if v >= _pen_max * 0.66 else
+                "#F57F17" if v >= _pen_max * 0.33 else
+                "#B71C1C"
+                for v in _uf_pen["penetracao_pct"]
+            ]
+            _fig_pen = go.Figure()
+            _fig_pen.add_trace(go.Bar(
+                y=_uf_pen["uf_nome"],
+                x=_uf_pen["penetracao_pct"],
+                orientation="h",
+                marker_color=_pen_colors,
+                text=_uf_pen["penetracao_pct"].apply(lambda v: f"{v:.2f}%"),
+                textposition="outside",
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    "Penetração GF: %{x:.2f}%<br>"
+                    "<extra></extra>"
+                ),
+            ))
+            _fig_pen.update_layout(
+                title="Penetração GF (% dos postos ANP por estado)",
+                xaxis_title="Penetração GF (%)",
+                yaxis=dict(autorange="reversed"),
+                height=max(400, len(_uf_pen) * 22 + 80),
+                margin=dict(l=10, r=80, t=45, b=30),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                font=dict(size=11),
+            )
+            _fig_pen.update_xaxes(showgrid=True, gridcolor="#E8F5E9", gridwidth=0.5)
+
+            # Linha de média
+            _pen_media = float(_uf_pen["penetracao_pct"].mean())
+            _fig_pen.add_vline(
+                x=_pen_media, line_dash="dash", line_color="#888",
+                annotation_text=f"Média: {_pen_media:.2f}%",
+                annotation_position="top right",
+                annotation_font_size=10,
+            )
+            st.plotly_chart(_fig_pen, use_container_width=True)
+
+            # Legenda cores
+            _lc1, _lc2, _lc3 = st.columns(3)
+            _lc1.markdown("<span style='color:#2E7D32;font-weight:700'>🟢 Alta penetração</span> — top 33%", unsafe_allow_html=True)
+            _lc2.markdown("<span style='color:#F57F17;font-weight:700'>🟡 Média penetração</span> — meio 33%", unsafe_allow_html=True)
+            _lc3.markdown("<span style='color:#B71C1C;font-weight:700'>🔴 Baixa penetração</span> — fundo 33%", unsafe_allow_html=True)
+
+            st.markdown("##### Tabela de Penetração por Estado")
+            _tbl_pen = _uf_pen[["uf","uf_nome","postos_gf","anp_total","penetracao_pct"]].copy()
+            _tbl_pen.columns = ["UF","Estado","Postos GF","Total ANP (ref.)","Penetração (%)"]
+            _tbl_pen["Total ANP (ref.)"] = _tbl_pen["Total ANP (ref.)"].astype(int)
+            st.dataframe(
+                _tbl_pen.reset_index(drop=True),
+                use_container_width=True, height=350,
+                column_config={
+                    "Penetração (%)": st.column_config.ProgressColumn(
+                        "Penetração (%)", min_value=0,
+                        max_value=float(_tbl_pen["Penetração (%)"].max()),
+                        format="%.2f%%",
+                    )
+                }
+            )
+            st.caption(
+                "⚠️ Os totais ANP são estimativas de referência (SIMP/ANP 2023). "
+                "Para análise precisa importe os dados oficiais mais recentes."
+            )
+
+        # ──────────────────────────────────────────────────────────────────
+        # TAB 3 — Mapa de Densidade
+        # ──────────────────────────────────────────────────────────────────
+        with _dt3:
+            _df_map = _df[pd.notna(_df["_lat"]) & pd.notna(_df["_lon"])].copy()
+            if _df_map.empty:
+                st.warning("Nenhum posto com coordenadas válidas para exibir no mapa.")
+            else:
+                # Mapa de scatter com densidade
+                _fig_map_d = go.Figure()
+                _fig_map_d.add_trace(go.Scattermapbox(
+                    lat=_df_map["_lat"].tolist(),
+                    lon=_df_map["_lon"].tolist(),
+                    mode="markers",
+                    marker=dict(
+                        size=6,
+                        color="#1565C0",
+                        opacity=0.65,
+                    ),
+                    text=_df_map.apply(
+                        lambda r: f"{r.get('razaoSocial','Posto GF')}<br>"
+                                  f"{r.get('municipio','')} / {r.get('uf','')}",
+                        axis=1,
+                    ).tolist(),
+                    hoverinfo="text",
+                    name="Postos GF",
+                ))
+                # Centroide do Brasil
+                _clat = float(_df_map["_lat"].mean())
+                _clon = float(_df_map["_lon"].mean())
+                _fig_map_d.update_layout(
+                    mapbox=dict(
+                        style="carto-positron",
+                        center=dict(lat=_clat, lon=_clon),
+                        zoom=3.8,
+                    ),
+                    height=520,
+                    margin=dict(l=0, r=0, t=30, b=0),
+                    title="Distribuição Geográfica dos Postos GF",
+                )
+                st.plotly_chart(_fig_map_d, use_container_width=True)
+
+                # Top 10 municípios
+                st.markdown("##### Top 10 Municípios com Mais Postos GF")
+                _top_mun = (
+                    _df_valid.groupby(["municipio","uf"]).size()
+                    .reset_index(name="postos")
+                    .sort_values("postos", ascending=False)
+                    .head(10)
+                )
+                _top_mun.columns = ["Município","UF","Postos GF"]
+                _fig_top = go.Figure(go.Bar(
+                    x=_top_mun["Município"] + " / " + _top_mun["UF"],
+                    y=_top_mun["Postos GF"],
+                    marker_color="#1565C0",
+                    text=_top_mun["Postos GF"],
+                    textposition="outside",
+                ))
+                _fig_top.update_layout(
+                    xaxis_tickangle=-35,
+                    height=320,
+                    margin=dict(l=10, r=10, t=20, b=80),
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                )
+                _fig_top.update_yaxes(showgrid=True, gridcolor="#E3F2FD")
+                st.plotly_chart(_fig_top, use_container_width=True)
+
+        # ──────────────────────────────────────────────────────────────────
+        # TAB 4 — Combustíveis
+        # ──────────────────────────────────────────────────────────────────
+        with _dt4:
+            if _pp_dash is None or _pp_dash.empty:
+                st.info("📋 Importe a planilha de preços em **Configurações** para ver os dados de combustíveis.")
+            else:
+                # Combustíveis disponíveis e preços
+                _comb_df = (
+                    _pp_dash.groupby("combustivel_label")["preco"]
+                    .agg(["count","mean","min","max"])
+                    .reset_index()
+                )
+                _comb_df.columns = ["Combustível","Qtd Registros","Preço Médio (R$/L)","Mín (R$/L)","Máx (R$/L)"]
+                _comb_df = _comb_df.sort_values("Qtd Registros", ascending=False)
+
+                # KPIs de combustíveis
+                _cf1, _cf2, _cf3 = st.columns(3)
+                _cf1.metric("⛽ Combustíveis cadastrados", str(len(_comb_df)))
+                _cf2.metric("📋 Total de registros de preço", f"{len(_pp_dash):,}".replace(",","."))
+                if "cnpj_norm" in _pp_dash.columns:
+                    _cf3.metric("🏪 Postos com preço cadastrado",
+                                f"{_pp_dash['cnpj_norm'].nunique():,}".replace(",","."))
+
+                # Gráfico de preços médios
+                _fig_comb = go.Figure()
+                _fig_comb.add_trace(go.Bar(
+                    x=_comb_df["Combustível"],
+                    y=_comb_df["Preço Médio (R$/L)"],
+                    marker_color="#E65100",
+                    text=_comb_df["Preço Médio (R$/L)"].apply(lambda v: f"R$ {v:.3f}".replace(".",",")),
+                    textposition="outside",
+                    name="Preço Médio",
+                    error_y=dict(
+                        type="data",
+                        array=(_comb_df["Máx (R$/L)"] - _comb_df["Preço Médio (R$/L)"]).tolist(),
+                        arrayminus=(_comb_df["Preço Médio (R$/L)"] - _comb_df["Mín (R$/L)"]).tolist(),
+                        visible=True,
+                        color="#B0BEC5",
+                    ),
+                ))
+                _fig_comb.update_layout(
+                    title="Preço Médio por Combustível (R$/L) — base GF",
+                    yaxis_title="R$/L",
+                    height=350,
+                    margin=dict(l=10, r=10, t=45, b=60),
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    xaxis_tickangle=-20,
+                )
+                _fig_comb.update_yaxes(showgrid=True, gridcolor="#FBE9E7")
+                st.plotly_chart(_fig_comb, use_container_width=True)
+
+                # Tabela de combustíveis
+                st.markdown("##### Detalhamento por Combustível")
+                for col in ["Preço Médio (R$/L)","Mín (R$/L)","Máx (R$/L)"]:
+                    _comb_df[col] = _comb_df[col].apply(lambda v: f"R$ {v:.3f}".replace(".",","))
+                st.dataframe(_comb_df.reset_index(drop=True), use_container_width=True)
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
