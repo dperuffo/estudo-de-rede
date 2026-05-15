@@ -2330,6 +2330,113 @@ def gerar_pdf_roteirizacao(rot_res: dict, sugest: list, logo_b64: str = None) ->
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  GPX — EXPORTAÇÃO DE ROTA PARA GPS / GOOGLE MAPS
+# ═══════════════════════════════════════════════════════════════════
+
+def gerar_gpx_roteirizacao(rot_res: dict, sugest: list) -> bytes:
+    """
+    Gera arquivo GPX 1.1 com waypoints e trilha da rota.
+    Compatível com GPS Garmin, Google Maps, OsmAnd, Waze etc.
+    """
+    import xml.etree.ElementTree as ET
+
+    _ts   = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    _orig = rot_res.get("orig", {})
+    _dest = rot_res.get("dest", {})
+    _rp   = rot_res.get("paradas", [])
+    _rc   = rot_res.get("coords", [])
+    _nome = (f"{_orig.get('label','Origem')[:25]} → "
+             f"{_dest.get('label','Destino')[:25]}")
+
+    # Namespace GPX 1.1
+    ET.register_namespace("", "http://www.topografix.com/GPX/1/1")
+    ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
+
+    gpx = ET.Element("gpx", {
+        "version": "1.1",
+        "creator": "Estudo de Rede – Gestão de Frotas",
+        "xmlns":   "http://www.topografix.com/GPX/1/1",
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xsi:schemaLocation": (
+            "http://www.topografix.com/GPX/1/1 "
+            "http://www.topografix.com/GPX/1/1/gpx.xsd"
+        ),
+    })
+
+    # ── Metadata ────────────────────────────────────────────────────
+    meta = ET.SubElement(gpx, "metadata")
+    ET.SubElement(meta, "name").text   = _nome
+    ET.SubElement(meta, "desc").text   = (
+        f"Rota: {rot_res.get('dist_km',0):.0f} km · "
+        f"{len(sugest)} parada(s) de abastecimento · "
+        f"Placa: {rot_res.get('placa','—')}"
+    )
+    ET.SubElement(meta, "time").text   = _ts
+
+    # ── Waypoints ────────────────────────────────────────────────────
+    def _wpt(lat, lon, name, desc="", sym="Waypoint"):
+        w = ET.SubElement(gpx, "wpt", {"lat": f"{lat:.6f}", "lon": f"{lon:.6f}"})
+        ET.SubElement(w, "name").text = name[:50]
+        if desc:
+            ET.SubElement(w, "desc").text = desc[:120]
+        ET.SubElement(w, "sym").text  = sym
+        return w
+
+    # Origem
+    if _orig.get("lat") and _orig.get("lon"):
+        _wpt(float(_orig["lat"]), float(_orig["lon"]),
+             f"🟢 Origem: {_orig.get('label','Origem')[:40]}",
+             desc="Ponto de partida da rota", sym="Flag, Green")
+
+    # Paradas intermediárias
+    for _wi, _p in enumerate(_rp, 1):
+        if _p.get("lat") and _p.get("lon"):
+            _wpt(float(_p["lat"]), float(_p["lon"]),
+                 f"🟠 Parada {_wi}: {_p.get('label','')[:35]}",
+                 desc=f"Parada intermediária {_wi}", sym="Flag, Blue")
+
+    # Postos de abastecimento sugeridos
+    for _si, _s in enumerate(sugest, 1):
+        if _s.get("lat") and _s.get("lon"):
+            _wpt(
+                float(_s["lat"]), float(_s["lon"]),
+                f"⛽ Posto {_si}: {_s.get('label','')[:35]}",
+                desc=(
+                    f"Abastecer {_s.get('litros_sugeridos',0)} L · "
+                    f"R$ {_s.get('preco',0):.3f}/L · "
+                    f"{_s.get('municipio','')} / {_s.get('uf','')}"
+                ),
+                sym="Gas Station",
+            )
+
+    # Destino
+    if _dest.get("lat") and _dest.get("lon"):
+        _wpt(float(_dest["lat"]), float(_dest["lon"]),
+             f"🔴 Destino: {_dest.get('label','Destino')[:40]}",
+             desc="Ponto de chegada da rota", sym="Flag, Red")
+
+    # ── Track (trilha da rota) ────────────────────────────────────────
+    if _rc and len(_rc) >= 2:
+        trk = ET.SubElement(gpx, "trk")
+        ET.SubElement(trk, "name").text = _nome
+        ET.SubElement(trk, "desc").text = f"Rota calculada · {rot_res.get('dist_km',0):.0f} km"
+        trkseg = ET.SubElement(trk, "trkseg")
+        # Limita a 2000 pontos para manter o arquivo leve
+        _step = max(1, len(_rc) // 2000)
+        for _i, (_lat, _lon) in enumerate(_rc):
+            if _i % _step == 0 or _i == len(_rc) - 1:
+                ET.SubElement(trkseg, "trkpt",
+                              {"lat": f"{_lat:.6f}", "lon": f"{_lon:.6f}"})
+
+    # Serializa para bytes UTF-8
+    tree = ET.ElementTree(gpx)
+    _buf = io.BytesIO()
+    _buf.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
+    tree.write(_buf, encoding="unicode", xml_declaration=False)
+    return _buf.getvalue().encode("utf-8")
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  ROTEAMENTO — OSRM + fallback linha reta
 # ═══════════════════════════════════════════════════════════════════
 
@@ -8269,11 +8376,12 @@ if modo == "📊 Dashboard":
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
         # ── Tabs do dashboard ─────────────────────────────────────────────
-        _dt1, _dt2, _dt3, _dt4 = st.tabs([
+        _dt1, _dt2, _dt3, _dt4, _dt5 = st.tabs([
             "📊 Cobertura por Estado",
             "🎯 Penetração vs ANP",
             "🗺️ Mapa de Densidade",
             "⛽ Combustíveis",
+            "⚠️ Alertas de Preço",
         ])
 
         # ──────────────────────────────────────────────────────────────────
@@ -8536,6 +8644,254 @@ if modo == "📊 Dashboard":
                 for col in ["Preço Médio (R$/L)","Mín (R$/L)","Máx (R$/L)"]:
                     _comb_df[col] = _comb_df[col].apply(lambda v: f"R$ {v:.3f}".replace(".",","))
                 st.dataframe(_comb_df.reset_index(drop=True), use_container_width=True)
+
+        # ──────────────────────────────────────────────────────────────────
+        # TAB 5 — Alertas de Preço
+        # ──────────────────────────────────────────────────────────────────
+        with _dt5:
+            # ── Referência ANP por UF ──────────────────────────────────────
+            _ANP_REF_COMB = {
+                "GASOLINA COMUM":    {"SP": 6.29, "RJ": 6.48, "MG": 6.22, "RS": 6.15,
+                                      "PR": 6.08, "SC": 6.05, "BA": 6.35, "GO": 6.18,
+                                      "MT": 6.40, "MS": 6.25, "PA": 6.52, "AM": 6.70,
+                                      "PE": 6.42, "CE": 6.38, "MA": 6.55, "PI": 6.48,
+                                      "AL": 6.43, "SE": 6.40, "RN": 6.37, "PB": 6.41,
+                                      "ES": 6.28, "TO": 6.50, "RO": 6.58, "AC": 6.72,
+                                      "RR": 6.75, "AP": 6.65, "DF": 6.20},
+                "DIESEL S10":        {"SP": 6.05, "RJ": 6.18, "MG": 5.98, "RS": 5.92,
+                                      "PR": 5.88, "SC": 5.85, "BA": 6.12, "GO": 6.00,
+                                      "MT": 6.22, "MS": 6.08, "PA": 6.28, "AM": 6.45,
+                                      "PE": 6.15, "CE": 6.10, "MA": 6.30, "PI": 6.22,
+                                      "AL": 6.18, "SE": 6.15, "RN": 6.12, "PB": 6.16,
+                                      "ES": 6.02, "TO": 6.25, "RO": 6.35, "AC": 6.48,
+                                      "RR": 6.50, "AP": 6.40, "DF": 5.95},
+                "DIESEL COMUM":      {"SP": 5.98, "RJ": 6.10, "MG": 5.90, "RS": 5.85,
+                                      "PR": 5.80, "SC": 5.78, "BA": 6.05, "GO": 5.93,
+                                      "MT": 6.15, "MS": 6.00, "PA": 6.20, "AM": 6.38,
+                                      "PE": 6.08, "CE": 6.02, "MA": 6.22, "PI": 6.15,
+                                      "AL": 6.10, "SE": 6.08, "RN": 6.05, "PB": 6.09,
+                                      "ES": 5.95, "TO": 6.18, "RO": 6.28, "AC": 6.40,
+                                      "RR": 6.42, "AP": 6.32, "DF": 5.88},
+                "ETANOL":            {"SP": 3.80, "RJ": 4.20, "MG": 3.95, "RS": 4.10,
+                                      "PR": 3.88, "SC": 4.05, "BA": 4.28, "GO": 3.72,
+                                      "MT": 3.68, "MS": 3.75, "PA": 4.50, "AM": 4.85,
+                                      "PE": 4.32, "CE": 4.38, "MA": 4.45, "PI": 4.40,
+                                      "AL": 3.90, "SE": 4.25, "RN": 4.30, "PB": 4.35,
+                                      "ES": 4.05, "TO": 4.20, "RO": 4.55, "AC": 4.90,
+                                      "RR": 4.95, "AP": 4.70, "DF": 4.00},
+                "GNV":               {"SP": 4.20, "RJ": 4.35, "MG": 4.15, "RS": 4.10,
+                                      "PR": 4.08, "SC": 4.05, "BA": 4.38, "GO": 4.22,
+                                      "MT": 4.45, "MS": 4.30, "PA": 4.55, "AM": 4.70,
+                                      "PE": 4.40, "CE": 4.35, "MA": 4.55, "PI": 4.48,
+                                      "AL": 4.43, "SE": 4.40, "RN": 4.37, "PB": 4.41,
+                                      "ES": 4.18, "TO": 4.50, "RO": 4.58, "AC": 4.72,
+                                      "RR": 4.75, "AP": 4.65, "DF": 4.10},
+            }
+            _ALERT_THRESH = 0.05  # 5% acima da média ANP
+
+            # Verifica se há coluna de preço
+            _price_col = None
+            for _pc in ["preco", "preco_revenda", "price", "valor", "vl_unit"]:
+                if _pc in _df_valid.columns:
+                    _price_col = _pc
+                    break
+
+            if _price_col is None:
+                st.info("ℹ️ Nenhuma coluna de preço identificada na base. "
+                        "Para ativar os alertas, a base de postos deve conter uma coluna "
+                        "com nome 'preco', 'preco_revenda' ou similar.")
+            else:
+                # Normaliza coluna de combustível
+                _comb_col = None
+                for _cc in ["combustivel", "produto", "fuel", "tipo_combustivel"]:
+                    if _cc in _df_valid.columns:
+                        _comb_col = _cc
+                        break
+
+                _alert_df = _df_valid[[
+                    _price_col, "uf",
+                    *([_comb_col] if _comb_col else []),
+                    *([c for c in ["nome", "razao_social", "municipio", "lat", "lon"] if c in _df_valid.columns])
+                ]].copy()
+                _alert_df[_price_col] = pd.to_numeric(_alert_df[_price_col], errors="coerce")
+                _alert_df = _alert_df.dropna(subset=[_price_col])
+                _alert_df = _alert_df[_alert_df[_price_col] > 0]
+
+                # Calcula referência ANP por posto
+                def _get_anp_ref(row):
+                    if _comb_col and row.get(_comb_col):
+                        _comb_norm = str(row[_comb_col]).upper().strip()
+                        for _key, _refs in _ANP_REF_COMB.items():
+                            if _key in _comb_norm or _comb_norm in _key:
+                                return _refs.get(str(row["uf"]).upper(), None)
+                    # fallback: diesel S10 como padrão
+                    return _ANP_REF_COMB["DIESEL S10"].get(str(row["uf"]).upper(), None)
+
+                _alert_df["_anp_ref"] = _alert_df.apply(_get_anp_ref, axis=1)
+                _alert_df["_diff_pct"] = (
+                    (_alert_df[_price_col] - _alert_df["_anp_ref"]) /
+                    _alert_df["_anp_ref"].replace(0, np.nan)
+                )
+                _alert_df["_alerta"] = _alert_df["_diff_pct"] > _ALERT_THRESH
+                _alert_df["_diff_rs"] = _alert_df[_price_col] - _alert_df["_anp_ref"]
+
+                _n_total   = len(_alert_df)
+                _n_alertas = int(_alert_df["_alerta"].sum())
+                _n_ok      = _n_total - _n_alertas
+                _pct_alert = (_n_alertas / _n_total * 100) if _n_total > 0 else 0
+                _pior_diff = _alert_df.loc[_alert_df["_alerta"], "_diff_pct"].max() if _n_alertas > 0 else 0
+                _media_diff = _alert_df.loc[_alert_df["_alerta"], "_diff_pct"].mean() if _n_alertas > 0 else 0
+
+                # KPIs
+                _ac1, _ac2, _ac3, _ac4 = st.columns(4)
+                _ac1.metric("⚠️ Postos em Alerta", f"{_n_alertas:,}",
+                            delta=f"{_pct_alert:.1f}% da base",
+                            delta_color="inverse")
+                _ac2.metric("✅ Postos Dentro da Média", f"{_n_ok:,}",
+                            delta=f"{100-_pct_alert:.1f}% da base")
+                _ac3.metric("📈 Pior Desvio", f"+{_pior_diff*100:.1f}%" if _n_alertas > 0 else "—")
+                _ac4.metric("📊 Desvio Médio (alertas)", f"+{_media_diff*100:.1f}%" if _n_alertas > 0 else "—")
+
+                st.markdown("---")
+
+                if _n_alertas == 0:
+                    st.success("✅ Nenhum posto GF com preço acima de 5% da média ANP. "
+                               "Todos os preços estão dentro do parâmetro de referência.")
+                else:
+                    # ── Alertas por UF ────────────────────────────────────────
+                    _alerta_uf = (
+                        _alert_df[_alert_df["_alerta"]]
+                        .groupby("uf")
+                        .agg(
+                            postos_alerta=(_price_col, "count"),
+                            preco_medio=(_price_col, "mean"),
+                            pior_desvio=("_diff_pct", "max"),
+                        )
+                        .reset_index()
+                        .sort_values("postos_alerta", ascending=False)
+                    )
+                    _alerta_uf["uf_nome"] = _alerta_uf["uf"].map(_UF_NOME_DASH).fillna(_alerta_uf["uf"])
+                    _alerta_uf["_anp_med"] = _alerta_uf["uf"].map(
+                        lambda u: _ANP_REF_COMB["DIESEL S10"].get(u.upper(), None)
+                    )
+
+                    st.markdown("#### ⚠️ Alertas por Estado")
+                    _col_g1, _col_g2 = st.columns([2, 1])
+
+                    with _col_g1:
+                        _fig_alerta = go.Figure()
+                        _color_alert = [
+                            "#B71C1C" if v > 0.10 else
+                            "#E53935" if v > 0.07 else
+                            "#EF9A9A"
+                            for v in _alerta_uf["pior_desvio"]
+                        ]
+                        _fig_alerta.add_trace(go.Bar(
+                            y=_alerta_uf["uf_nome"],
+                            x=_alerta_uf["postos_alerta"],
+                            orientation="h",
+                            marker_color=_color_alert,
+                            text=_alerta_uf["postos_alerta"].astype(str),
+                            textposition="outside",
+                            hovertemplate=(
+                                "<b>%{y}</b><br>"
+                                "Postos em alerta: %{x}<br>"
+                                "<extra></extra>"
+                            ),
+                        ))
+                        _fig_alerta.update_layout(
+                            title="Postos em Alerta por Estado (preço > ANP + 5%)",
+                            xaxis_title="Quantidade de Postos",
+                            yaxis=dict(autorange="reversed"),
+                            height=max(300, len(_alerta_uf) * 24 + 80),
+                            margin=dict(l=10, r=60, t=45, b=30),
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            font=dict(size=11),
+                        )
+                        _fig_alerta.update_xaxes(showgrid=True, gridcolor="#FFEBEE")
+                        st.plotly_chart(_fig_alerta, use_container_width=True)
+
+                    with _col_g2:
+                        st.markdown("##### Desvio Médio por UF")
+                        _alerta_uf_disp = _alerta_uf[["uf_nome", "postos_alerta", "pior_desvio"]].copy()
+                        _alerta_uf_disp.columns = ["Estado", "Postos", "Pior Desvio"]
+                        _alerta_uf_disp["Pior Desvio"] = _alerta_uf_disp["Pior Desvio"].apply(
+                            lambda v: f"+{v*100:.1f}%"
+                        )
+                        st.dataframe(_alerta_uf_disp, use_container_width=True, hide_index=True)
+
+                    # ── Top piores postos ─────────────────────────────────────
+                    st.markdown("#### 🏆 Top 20 Postos com Maior Desvio")
+                    _top_piores = (
+                        _alert_df[_alert_df["_alerta"]]
+                        .nlargest(20, "_diff_pct")
+                        .copy()
+                    )
+                    _disp_cols = []
+                    for _c in ["nome", "razao_social", "municipio", "uf", _price_col, "_anp_ref", "_diff_pct", "_diff_rs"]:
+                        if _c in _top_piores.columns:
+                            _disp_cols.append(_c)
+                    _top_piores_disp = _top_piores[_disp_cols].copy()
+
+                    # Renomeia colunas legíveis
+                    _rename_map = {
+                        _price_col: "Preço GF (R$/L)",
+                        "_anp_ref": "Ref. ANP (R$/L)",
+                        "_diff_pct": "Desvio %",
+                        "_diff_rs": "Desvio R$/L",
+                    }
+                    if "nome" in _top_piores_disp.columns:
+                        _rename_map["nome"] = "Nome"
+                    if "razao_social" in _top_piores_disp.columns:
+                        _rename_map["razao_social"] = "Razão Social"
+                    if "municipio" in _top_piores_disp.columns:
+                        _rename_map["municipio"] = "Município"
+                    if "uf" in _top_piores_disp.columns:
+                        _rename_map["uf"] = "UF"
+                    _top_piores_disp = _top_piores_disp.rename(columns=_rename_map)
+
+                    if "Desvio %" in _top_piores_disp.columns:
+                        _top_piores_disp["Desvio %"] = _top_piores_disp["Desvio %"].apply(
+                            lambda v: f"+{v*100:.1f}%" if pd.notna(v) else "—"
+                        )
+                    if "Desvio R$/L" in _top_piores_disp.columns:
+                        _top_piores_disp["Desvio R$/L"] = _top_piores_disp["Desvio R$/L"].apply(
+                            lambda v: f"+R$ {v:.3f}".replace(".", ",") if pd.notna(v) and v > 0 else "—"
+                        )
+                    for _fc in ["Preço GF (R$/L)", "Ref. ANP (R$/L)"]:
+                        if _fc in _top_piores_disp.columns:
+                            _top_piores_disp[_fc] = _top_piores_disp[_fc].apply(
+                                lambda v: f"R$ {v:.3f}".replace(".", ",") if pd.notna(v) else "—"
+                            )
+
+                    st.dataframe(
+                        _top_piores_disp.reset_index(drop=True),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+                    # ── Exportar lista de alertas ─────────────────────────────
+                    st.markdown("---")
+                    _exp_alert_cols = st.columns([3, 1])
+                    with _exp_alert_cols[1]:
+                        _all_alertas = _alert_df[_alert_df["_alerta"]].copy()
+                        _all_alertas["Desvio_pct"] = (_all_alertas["_diff_pct"] * 100).round(2)
+                        _all_alertas["Desvio_RS"] = _all_alertas["_diff_rs"].round(3)
+                        _all_alertas = _all_alertas.drop(columns=["_anp_ref", "_diff_pct", "_diff_rs", "_alerta"], errors="ignore")
+                        _csv_alertas = _all_alertas.to_csv(index=False).encode("utf-8-sig")
+                        st.download_button(
+                            label="📥 Exportar Alertas (CSV)",
+                            data=_csv_alertas,
+                            file_name=f"alertas_preco_gf_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
+                            mime="text/csv",
+                            use_container_width=True,
+                        )
+                    with _exp_alert_cols[0]:
+                        st.caption(
+                            f"⚠️ **{_n_alertas} postos** com preço acima de 5% da referência ANP. "
+                            f"Exporte a lista completa para análise detalhada."
+                        )
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
@@ -9167,15 +9523,53 @@ elif modo == "🛣️ Roteirização":
                 _cr1, _cr2 = st.columns([3, 4])
                 _cr1.caption(_lbl); _cr2.markdown(f"**{_val}**")
 
-        # ── PDF ───────────────────────────────────────────────────
+        # ── Exportações (PDF + GPX) ───────────────────────────────
         st.markdown("---")
-        _pdf_col1, _pdf_col2 = st.columns([3, 1])
-        with _pdf_col1:
+        _exp_col1, _exp_col2, _exp_col3 = st.columns([3, 1, 1])
+        with _exp_col1:
             st.markdown(
                 "<div style='font-size:11px;color:#555;padding:6px 0'>"
-                "📄 Gere um PDF para impressão com o mapa, postos sugeridos e resumo completo da rota.</div>",
+                "📄 <b>PDF</b> para impressão &nbsp;·&nbsp; "
+                "🗺️ <b>GPX</b> para GPS / Google Maps / OsmAnd</div>",
                 unsafe_allow_html=True)
-        with _pdf_col2:
+
+        with _exp_col3:
+            # ── GPX: gerado imediatamente ao clicar ──────────────
+            if st.button("🗺️ Exportar GPX", use_container_width=True,
+                         key="rot_gerar_gpx"):
+                try:
+                    _gpx_bytes = gerar_gpx_roteirizacao(
+                        {
+                            "placa":    _rot_res.get("placa",""),
+                            "dist_km":  _rd,
+                            "coords":   _rc,
+                            "orig":     _ro,
+                            "dest":     _rt,
+                            "paradas":  _rp,
+                        },
+                        _sugest,
+                    )
+                    _nome_gpx = (
+                        f"rota_{(_ro.get('label','orig'))[:15].replace(' ','_')}"
+                        f"_{(_rt.get('label','dest'))[:15].replace(' ','_')}"
+                        f"_{datetime.now().strftime('%Y%m%d_%H%M')}.gpx"
+                    )
+                    st.session_state["_rot_gpx_bytes"] = _gpx_bytes
+                    st.session_state["_rot_gpx_nome"]  = _nome_gpx
+                except Exception as _egpx:
+                    st.error(f"❌ Erro ao gerar GPX: {_egpx}")
+
+        if st.session_state.get("_rot_gpx_bytes"):
+            st.download_button(
+                label="⬇️ Baixar arquivo GPX",
+                data=st.session_state["_rot_gpx_bytes"],
+                file_name=st.session_state.get("_rot_gpx_nome", "rota.gpx"),
+                mime="application/gpx+xml",
+                use_container_width=True,
+                key="rot_download_gpx",
+            )
+
+        with _exp_col2:
             if st.button("📄 Gerar PDF", use_container_width=True,
                          key="rot_gerar_pdf", type="primary"):
                 with st.spinner("📄 Gerando relatório PDF…"):
