@@ -2918,11 +2918,50 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
     """
     Renderiza o mapa Plotly e exibe painel de detalhe ao clicar num posto.
 
+    — Seleção ativa: banner amarelo acima do mapa + card destacado abaixo.
+    — Botão "✕ Limpar seleção" força re-render limpo (sem seleção).
     — CNPJ + localização aparecem no tooltip (hover) nativo do Plotly.
-    — Ao clicar num marcador, exibe card com botão clicável para Google Maps
-      abaixo do mapa (via customdata — zero chamada de rede).
-    — Sem custo de performance: customdata é gerado 1× na criação da figura.
     """
+    # ── Chaves de sessão para esta instância do mapa ────────────────────────────
+    _sel_key = f"_msel_{key}"   # armazena dados do posto selecionado
+    _ver_key = f"_mver_{key}"   # versão para forçar re-render ao limpar
+
+    _ver      = st.session_state.get(_ver_key, 0)
+    _chart_key = f"{key}_v{_ver}"
+    _sel       = st.session_state.get(_sel_key)  # dict com dados do posto ou None
+
+    # ── Banner de seleção ativa (aparece ACIMA do mapa) ─────────────────────────
+    if _sel:
+        _ban_nome = _sel.get("nome", "Posto")
+        _ban_geo  = _sel.get("geo", "")
+        c_info, c_limpar = st.columns([5, 1])
+        with c_info:
+            st.markdown(
+                f"<div style='"
+                f"background:linear-gradient(90deg,#fff8e1,#fffde7);"
+                f"border:1.5px solid #f9a825;"
+                f"border-radius:8px;padding:8px 14px;"
+                f"display:flex;align-items:center;gap:10px;"
+                f"font-size:13px;color:#5f4307;line-height:1.4'>"
+                f"<span style='font-size:18px'>📌</span>"
+                f"<div><b>Posto selecionado</b><br>"
+                f"<span style='color:#333'>{_ban_nome}"
+                f"{'  ·  ' + _ban_geo if _ban_geo else ''}</span></div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        with c_limpar:
+            if st.button(
+                "✕ Limpar",
+                key=f"_desel_{key}",
+                use_container_width=True,
+                help="Remover seleção e voltar ao mapa limpo",
+            ):
+                st.session_state.pop(_sel_key, None)
+                st.session_state[_ver_key] = _ver + 1  # troca a key → re-render sem seleção
+                st.rerun()
+
+    # ── Renderiza o gráfico ─────────────────────────────────────────────────────
     try:
         evt = st.plotly_chart(
             fig,
@@ -2930,15 +2969,14 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
             config={"scrollZoom": True},
             height=height,
             on_select="rerun",
-            key=key,
+            key=_chart_key,
         )
     except TypeError:
-        # Fallback para versões antigas do Streamlit sem on_select
         st.plotly_chart(fig, use_container_width=True,
                         config={"scrollZoom": True}, height=height)
         return
 
-    # ── Painel de detalhe ao clicar ────────────────────────────────────────────
+    # ── Captura seleção ─────────────────────────────────────────────────────────
     pts = (evt or {}).get("selection", {}).get("points", [])
     if not pts:
         return
@@ -2960,13 +2998,20 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
     if _lat is None or _lon is None:
         return
 
+    # Persiste no session_state (mantém painel visível em reruns futuros)
+    st.session_state[_sel_key] = dict(
+        nome=_nome, cnpj=_cnpj, dist=_dist, geo=_geo,
+        lat=_lat, lon=_lon, pf=_pf, cer=_cer, rr=_rr,
+    )
+
     _maps_url = f"https://maps.google.com/?q={_lat:.6f},{_lon:.6f}"
 
+    # ── Badges de categoria ─────────────────────────────────────────────────────
     _badges_html = ""
     if _pf:
         _badges_html += (
-            "<span style='background:#1565c0;color:#fff;border-radius:3px;"
-            "padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Gestão de Frotas</span>"
+            "<span style='background:#1565c0;color:#fff;border-radius:4px;"
+            "padding:2px 8px;font-size:11px;margin-right:5px'>⭐ Gestão de Frotas</span>"
         )
     if _rr:
         _rr_img = _img_rodo_rede_b64()
@@ -2974,34 +3019,40 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
             _badges_html += (
                 f"<span style='display:inline-flex;align-items:center;gap:4px;"
                 f"background:#fff3e0;border:1px solid {COR_RR_FILL};"
-                f"border-radius:3px;padding:1px 6px;font-size:11px;margin-right:4px'>"
+                f"border-radius:4px;padding:2px 7px;font-size:11px;margin-right:5px'>"
                 f"<img src='{_rr_img}' style='height:14px;width:auto;object-fit:contain;"
                 f"vertical-align:middle;border-radius:2px'> ⭐ Ipiranga RodoRede</span>"
             )
         else:
             _badges_html += (
-                f"<span style='background:{COR_RR_FILL};color:#fff;border-radius:3px;"
-                f"padding:1px 7px;font-size:11px;margin-right:4px'>⭐ Ipiranga RodoRede</span>"
+                f"<span style='background:{COR_RR_FILL};color:#fff;border-radius:4px;"
+                f"padding:2px 8px;font-size:11px;margin-right:5px'>⭐ Ipiranga RodoRede</span>"
             )
     if _cer:
         _badges_html += (
-            "<span style='background:#FF8F00;color:#fff;border-radius:3px;"
-            "padding:1px 7px;font-size:11px;margin-right:4px'>⚠️ Cercado</span>"
+            "<span style='background:#FF8F00;color:#fff;border-radius:4px;"
+            "padding:2px 8px;font-size:11px;margin-right:5px'>⚠️ Cercado</span>"
         )
 
-    _cnpj_html = f"<span style='color:#555'>📋 {_cnpj}</span>  " if _cnpj else ""
-    _geo_html  = f"<span style='color:#555'>📍 {_geo}</span>" if _geo else ""
+    _cnpj_html = f"<span style='color:#666;font-size:12px'>📋 {_cnpj}</span>&nbsp;&nbsp;" if _cnpj else ""
+    _geo_html  = f"<span style='color:#666;font-size:12px'>📍 {_geo}</span>" if _geo else ""
+    _dist_html = f"&nbsp;·&nbsp;<span style='color:#888'>{_dist}</span>" if _dist else ""
 
+    # ── Card de detalhe destacado (abaixo do mapa) ──────────────────────────────
     col_info, col_btn = st.columns([5, 1])
     with col_info:
         st.markdown(
-            f"<div style='background:#e3f2fd;border-left:4px solid #1565c0;"
-            f"border-radius:6px;padding:9px 14px;font-size:13px;line-height:1.6'>"
-            f"<b style='font-size:14px'>{_nome}</b>"
-            f"{'  ·  ' + _dist if _dist else ''}<br>"
-            f"{_badges_html}"
-            f"<br style='margin:2px'>"
-            f"{_cnpj_html}{_geo_html}"
+            f"<div style='"
+            f"background:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);"
+            f"border-left:5px solid #1565c0;"
+            f"border-radius:0 10px 10px 0;"
+            f"padding:12px 16px;"
+            f"box-shadow:0 3px 12px rgba(21,101,192,0.18);"
+            f"margin-top:4px'>"
+            f"<div style='font-size:15px;font-weight:700;color:#0d47a1'>"
+            f"🏪 {_nome}{_dist_html}</div>"
+            f"<div style='margin:6px 0 4px'>{_badges_html}</div>"
+            f"<div style='margin-top:4px'>{_cnpj_html}{_geo_html}</div>"
             f"</div>",
             unsafe_allow_html=True,
         )
