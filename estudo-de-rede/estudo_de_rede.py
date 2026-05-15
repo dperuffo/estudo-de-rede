@@ -2038,80 +2038,219 @@ def ufs_ao_longo_rota(coords_rota):
 
 def _gerar_mapa_rota_png(coords_rota, orig, dest, paradas, sugest):
     """
-    Renderiza o mapa da rota usando matplotlib e retorna bytes PNG.
+    Renderiza o mapa da rota e retorna bytes PNG.
+    Estratégia:
+      1. staticmap com tiles OpenStreetMap (mapa real com estradas/cidades).
+         Funciona quando o servidor tem acesso à internet (Streamlit Cloud).
+      2. Fallback: matplotlib limpo sem eixos, visual de cartografia.
     coords_rota: [[lat, lon], ...]   orig/dest: dict com lat/lon/label
     paradas: list de dict           sugest: list de dict com lat/lon
     """
+
+    # ── Tentativa 1: staticmap + tiles OSM ───────────────────────────────────
+    try:
+        from staticmap import StaticMap, Line, CircleMarker
+        from PIL import Image as _PILImage, ImageDraw as _PILDraw, ImageFont as _PILFont
+
+        _W, _H = 900, 480
+
+        _sm = StaticMap(
+            _W, _H,
+            url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            headers={"User-Agent": "EstudoDeRede-ProFrotas/2.0"},
+        )
+
+        # Linha da rota
+        _route_xy = [(float(c[1]), float(c[0])) for c in coords_rota]
+        _sm.add_line(Line(_route_xy, "#1565C0", 4))
+
+        # Postos sugeridos (⛽ laranja)
+        for _s in sugest:
+            _sm.add_marker(CircleMarker((float(_s["lon"]), float(_s["lat"])),
+                                        "#FF6F00", 16))
+            _sm.add_marker(CircleMarker((float(_s["lon"]), float(_s["lat"])),
+                                        "#ffffff", 8))
+
+        # Paradas intermediárias (laranja escuro)
+        for _p in paradas:
+            _sm.add_marker(CircleMarker((float(_p["lon"]), float(_p["lat"])),
+                                        "#E65100", 16))
+
+        # Destino (vermelho)
+        _sm.add_marker(CircleMarker((float(dest["lon"]), float(dest["lat"])),
+                                    "#C62828", 20))
+        _sm.add_marker(CircleMarker((float(dest["lon"]), float(dest["lat"])),
+                                    "#ffffff", 8))
+
+        # Origem (verde) — desenhada por cima para ficar visível
+        _sm.add_marker(CircleMarker((float(orig["lon"]), float(orig["lat"])),
+                                    "#2E7D32", 20))
+        _sm.add_marker(CircleMarker((float(orig["lon"]), float(orig["lat"])),
+                                    "#ffffff", 8))
+
+        _img = _sm.render()
+        _draw = _PILDraw.Draw(_img)
+
+        # Função auxiliar: converte lon/lat → pixel no resultado renderizado
+        import math as _math
+        def _ll_to_px(lat, lon, zoom, w, h):
+            _n = 2 ** zoom
+            _x_tile = (lon + 180) / 360 * _n
+            _y_tile = (1 - _math.log(_math.tan(_math.radians(lat)) +
+                       1 / _math.cos(_math.radians(lat))) / _math.pi) / 2 * _n
+            # centro do mapa
+            _lats = [c[0] for c in coords_rota]
+            _lons = [c[1] for c in coords_rota]
+            _lat_c = (max(_lats) + min(_lats)) / 2
+            _lon_c = (max(_lons) + min(_lons)) / 2
+            _xc = ((_lon_c + 180) / 360 * _n)
+            _yc = ((1 - _math.log(_math.tan(_math.radians(_lat_c)) +
+                    1 / _math.cos(_math.radians(_lat_c))) / _math.pi) / 2 * _n)
+            _px = int((_x_tile - _xc) * 256 + w / 2)
+            _py = int((_y_tile - _yc) * 256 + h / 2)
+            return _px, _py
+
+        # Determina zoom usado pelo staticmap para calcular posição dos labels
+        _lats_r = [c[0] for c in coords_rota]
+        _lons_r = [c[1] for c in coords_rota]
+        _span_lat = max(_lats_r) - min(_lats_r)
+        _span_lon = max(_lons_r) - min(_lons_r)
+        _span_max = max(_span_lat, _span_lon * 0.65)
+        _zoom_est = max(4, min(13, int(7 - _math.log2(max(_span_max, 0.01)))))
+
+        def _label(draw, text, lon, lat, color, bg):
+            _px, _py = _ll_to_px(lat, lon, _zoom_est, _W, _H)
+            _txt = str(text)[:28]
+            _bbox = draw.textbbox((_px + 10, _py - 8), _txt)
+            _pad = 3
+            draw.rounded_rectangle(
+                (_bbox[0]-_pad, _bbox[1]-_pad, _bbox[2]+_pad, _bbox[3]+_pad),
+                radius=4, fill=bg + "DD"
+            )
+            draw.text((_px + 10, _py - 8), _txt, fill=color)
+
+        try:
+            _label(_draw, orig.get("label", "Origem"),
+                   float(orig["lon"]), float(orig["lat"]), "#1B5E20", "#ffffff")
+            _label(_draw, dest.get("label", "Destino"),
+                   float(dest["lon"]), float(dest["lat"]), "#B71C1C", "#ffffff")
+            for _i, _p in enumerate(paradas, 1):
+                _label(_draw, _p.get("label", f"Parada {_i}"),
+                       float(_p["lon"]), float(_p["lat"]), "#BF360C", "#fff3e0")
+            for _s in sugest:
+                _label(_draw, _s.get("razaoSocial", _s.get("nome", "Posto"))[:20],
+                       float(_s["lon"]), float(_s["lat"]), "#E65100", "#fff8e1")
+        except Exception:
+            pass  # labels opcionais
+
+        # Legenda simples no canto inferior direito
+        _leg_items = [
+            ("#1565C0", "Rota"),
+            ("#2E7D32", "Origem"),
+            ("#C62828", "Destino"),
+        ]
+        if paradas:  _leg_items.append(("#E65100", f"{len(paradas)} Parada(s)"))
+        if sugest:   _leg_items.append(("#FF6F00", f"{len(sugest)} Posto(s) sugerido(s)"))
+
+        _lx, _ly = _W - 180, _H - len(_leg_items) * 22 - 12
+        _draw.rounded_rectangle((_lx - 8, _ly - 8, _W - 6, _H - 6),
+                                  radius=6, fill="#ffffffCC")
+        for _j, (_cor, _txt) in enumerate(_leg_items):
+            _yy = _ly + _j * 22
+            _draw.ellipse((_lx, _yy + 3, _lx + 14, _yy + 17), fill=_cor)
+            _draw.text((_lx + 20, _yy), _txt, fill="#333333")
+
+        _buf_sm = io.BytesIO()
+        _img.save(_buf_sm, format="PNG")
+        _buf_sm.seek(0)
+        return _buf_sm.read()
+
+    except Exception:
+        pass  # cai no fallback matplotlib
+
+    # ── Fallback: matplotlib sem eixos ────────────────────────────────────────
     lats = [c[0] for c in coords_rota]
     lons = [c[1] for c in coords_rota]
 
     fig, ax = plt.subplots(figsize=(10, 5.5), dpi=130)
-    ax.set_facecolor("#F0F4F8")
-    fig.patch.set_facecolor("#F0F4F8")
 
-    # Rota
-    ax.plot(lons, lats, color="#1565C0", linewidth=2.2, zorder=3, solid_capstyle="round")
+    # Fundo estilo cartográfico claro
+    ax.set_facecolor("#EEF2F7")
+    fig.patch.set_facecolor("#EEF2F7")
+
+    # Rota com sombra
+    ax.plot(lons, lats, color="#90CAF9", linewidth=5.0, zorder=2,
+            solid_capstyle="round", alpha=0.5)
+    ax.plot(lons, lats, color="#1565C0", linewidth=2.5, zorder=3,
+            solid_capstyle="round")
 
     # Postos sugeridos
     for s in sugest:
         ax.scatter(float(s["lon"]), float(s["lat"]),
-                   s=100, c="#FF6F00", marker="^", zorder=5, linewidths=0.6,
-                   edgecolors="#fff")
+                   s=120, c="#FF6F00", marker="^", zorder=5,
+                   linewidths=1.0, edgecolors="#fff")
 
     # Paradas intermediárias
     for p in paradas:
         ax.scatter(float(p["lon"]), float(p["lat"]),
-                   s=90, c="#E65100", marker="D", zorder=6, linewidths=0.6,
-                   edgecolors="#fff")
+                   s=110, c="#E65100", marker="D", zorder=6,
+                   linewidths=1.0, edgecolors="#fff")
 
     # Origem e Destino
     ax.scatter(float(orig["lon"]), float(orig["lat"]),
-               s=160, c="#2E7D32", marker="o", zorder=7, linewidths=0.8,
-               edgecolors="#fff")
+               s=200, c="#2E7D32", marker="o", zorder=7,
+               linewidths=1.2, edgecolors="#fff")
     ax.scatter(float(dest["lon"]), float(dest["lat"]),
-               s=160, c="#C62828", marker="s", zorder=7, linewidths=0.8,
-               edgecolors="#fff")
+               s=200, c="#C62828", marker="s", zorder=7,
+               linewidths=1.2, edgecolors="#fff")
 
     # Labels origem/destino
-    ax.annotate(str(orig.get("label","Origem"))[:22],
-                xy=(float(orig["lon"]), float(orig["lat"])),
-                xytext=(6, 6), textcoords="offset points",
-                fontsize=7, color="#1B5E20", fontweight="bold",
-                bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.75, ec="none"))
-    ax.annotate(str(dest.get("label","Destino"))[:22],
-                xy=(float(dest["lon"]), float(dest["lat"])),
-                xytext=(6, 6), textcoords="offset points",
-                fontsize=7, color="#B71C1C", fontweight="bold",
-                bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.75, ec="none"))
+    for _pt, _cor_txt, _cor_bg in [
+        (orig, "#1B5E20", "#E8F5E9"),
+        (dest, "#B71C1C", "#FFEBEE"),
+    ]:
+        ax.annotate(
+            str(_pt.get("label", ""))[:25],
+            xy=(float(_pt["lon"]), float(_pt["lat"])),
+            xytext=(8, 8), textcoords="offset points",
+            fontsize=7.5, color=_cor_txt, fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.3", fc=_cor_bg, alpha=0.9, ec="none"),
+        )
 
-    # Margens + grade leve
-    _pad_lat = max((max(lats)-min(lats))*0.12, 0.3)
-    _pad_lon = max((max(lons)-min(lons))*0.12, 0.3)
-    ax.set_xlim(min(lons)-_pad_lon, max(lons)+_pad_lon)
-    ax.set_ylim(min(lats)-_pad_lat, max(lats)+_pad_lat)
-    ax.grid(True, linestyle="--", linewidth=0.4, color="#B0BEC5", alpha=0.7)
-    ax.set_xlabel("Longitude", fontsize=7, color="#607D8B")
-    ax.set_ylabel("Latitude",  fontsize=7, color="#607D8B")
-    ax.tick_params(labelsize=6, colors="#607D8B")
+    # Margens sem eixos visíveis
+    _pad_lat = max((max(lats) - min(lats)) * 0.13, 0.35)
+    _pad_lon = max((max(lons) - min(lons)) * 0.13, 0.35)
+    ax.set_xlim(min(lons) - _pad_lon, max(lons) + _pad_lon)
+    ax.set_ylim(min(lats) - _pad_lat, max(lats) + _pad_lat)
+
+    # Remove todos os eixos e ticks
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlabel("")
+    ax.set_ylabel("")
     for spine in ax.spines.values():
-        spine.set_edgecolor("#B0BEC5")
+        spine.set_visible(False)
+
+    # Grade ultra-suave
+    ax.grid(True, linestyle=":", linewidth=0.3, color="#B0BEC5", alpha=0.5)
 
     # Legenda
     _legenda = [
-        Line2D([0],[0], color="#1565C0", linewidth=2, label="Rota"),
+        Line2D([0], [0], color="#1565C0", linewidth=2.5, label="Rota"),
         mpatches.Patch(color="#2E7D32", label="Origem"),
         mpatches.Patch(color="#C62828", label="Destino"),
     ]
     if paradas:
         _legenda.append(mpatches.Patch(color="#E65100", label="Parada(s)"))
     if sugest:
-        _legenda.append(Line2D([0],[0], marker="^", color="w",
-                                markerfacecolor="#FF6F00", markersize=8,
-                                label="Posto sugerido"))
-    ax.legend(handles=_legenda, fontsize=6.5, loc="lower right",
-              framealpha=0.85, edgecolor="#B0BEC5")
+        _legenda.append(Line2D([0], [0], marker="^", color="w",
+                               markerfacecolor="#FF6F00", markersize=9,
+                               label="Posto sugerido"))
+    ax.legend(handles=_legenda, fontsize=7, loc="lower right",
+              framealpha=0.9, edgecolor="#CFD8DC",
+              facecolor="white", labelcolor="#333333")
 
-    plt.tight_layout(pad=0.5)
+    plt.tight_layout(pad=0.4)
     _buf = io.BytesIO()
     fig.savefig(_buf, format="png", bbox_inches="tight", dpi=130)
     plt.close(fig)
