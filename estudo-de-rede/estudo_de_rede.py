@@ -870,6 +870,118 @@ MAX_MAPA_POSTOS = 5000  # Plotly WebGL suporta 10 000+ marcadores sem travar
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  SISTEMA DE LOGS DE USO
+# ═══════════════════════════════════════════════════════════════════
+
+import csv as _csv_mod
+import os as _os_mod
+
+_LOG_PATH = _os_mod.path.join(
+    _os_mod.path.dirname(_os_mod.path.abspath(__file__)),
+    "_usage_logs.csv"
+)
+_LOG_FIELDS = [
+    "timestamp", "data", "hora", "ip", "session_id",
+    "modo", "uf", "municipio", "acao", "detalhe", "user_agent",
+]
+
+
+def _get_session_id() -> str:
+    """ID de sessão baseado no id() do session_state — estável dentro da sessão."""
+    if "_session_id" not in st.session_state:
+        import hashlib as _hl
+        st.session_state["_session_id"] = _hl.md5(
+            str(id(st.session_state)).encode()
+        ).hexdigest()[:10]
+    return st.session_state["_session_id"]
+
+
+def _get_client_ip() -> str:
+    """Tenta obter IP real do cliente via headers Streamlit (≥1.31)."""
+    try:
+        _h = st.context.headers
+        for _hk in ["X-Forwarded-For", "X-Real-Ip", "Cf-Connecting-Ip", "True-Client-Ip"]:
+            _v = _h.get(_hk, "")
+            if _v:
+                return _v.split(",")[0].strip()
+        return _h.get("Remote-Addr", "—")
+    except Exception:
+        return "—"
+
+
+def _get_user_agent() -> str:
+    """User-Agent do navegador."""
+    try:
+        return st.context.headers.get("User-Agent", "—")[:200]
+    except Exception:
+        return "—"
+
+
+def _log_acesso(acao: str, detalhe: str = "", modo_override: str = None):
+    """
+    Registra um evento de uso.
+    Grava em st.session_state['_uso_logs'] (sempre) e no arquivo CSV (se possível).
+    """
+    _now = datetime.now()
+    _entry = {
+        "timestamp":  _now.strftime("%Y-%m-%d %H:%M:%S"),
+        "data":       _now.strftime("%d/%m/%Y"),
+        "hora":       _now.strftime("%H:%M:%S"),
+        "ip":         _get_client_ip(),
+        "session_id": _get_session_id(),
+        "modo":       modo_override or st.session_state.get("modo_selecionado", "—"),
+        "uf":         str(st.session_state.get("uf_input") or "—"),
+        "municipio":  str(st.session_state.get("municipio_input") or "—"),
+        "acao":       acao,
+        "detalhe":    str(detalhe)[:200],
+        "user_agent": _get_user_agent(),
+    }
+
+    # ── Guarda em memória (sessão atual) ──
+    if "_uso_logs" not in st.session_state:
+        st.session_state["_uso_logs"] = []
+    st.session_state["_uso_logs"].append(_entry)
+
+    # ── Persiste em arquivo CSV ──
+    try:
+        _existe = _os_mod.path.exists(_LOG_PATH)
+        with open(_LOG_PATH, "a", newline="", encoding="utf-8") as _f:
+            _w = _csv_mod.DictWriter(_f, fieldnames=_LOG_FIELDS, extrasaction="ignore")
+            if not _existe:
+                _w.writeheader()
+            _w.writerow(_entry)
+    except Exception:
+        pass  # Falha silenciosa em ambientes read-only (Streamlit Cloud)
+
+
+def _log_ler_arquivo() -> list:
+    """Lê o arquivo de log e retorna lista de dicts. Combina com sessão atual."""
+    _rows = []
+    try:
+        if _os_mod.path.exists(_LOG_PATH):
+            with open(_LOG_PATH, "r", encoding="utf-8") as _f:
+                _rows = list(_csv_mod.DictReader(_f))
+    except Exception:
+        pass
+
+    # Merge: arquivo + sessão atual (evita duplicatas por timestamp+session_id)
+    _sess_logs = st.session_state.get("_uso_logs", [])
+    _seen = {(r.get("timestamp"), r.get("session_id")) for r in _rows}
+    for _r in _sess_logs:
+        _key = (_r.get("timestamp"), _r.get("session_id"))
+        if _key not in _seen:
+            _rows.append(_r)
+            _seen.add(_key)
+    return _rows
+
+
+# ── Registra acesso inicial da sessão (uma vez por sessão) ──────────
+if not st.session_state.get("_log_inicio_ok", False):
+    _log_acesso("SESSÃO_INÍCIO", detalhe="App carregado")
+    st.session_state["_log_inicio_ok"] = True
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  GESTÃO DE FROTAS — Upload e comparação de CNPJs
 # ═══════════════════════════════════════════════════════════════════
 
@@ -5703,6 +5815,7 @@ with st.sidebar:
             key="btn_modo_estado",
         ):
             st.session_state["modo_selecionado"] = "📍 Por UF/Município"
+            _log_acesso("MODO_SELECIONADO", "📍 Por UF/Município", modo_override="📍 Por UF/Município")
             st.rerun()
     with _col_m2:
         if st.button(
@@ -5712,6 +5825,7 @@ with st.sidebar:
             key="btn_modo_rota",
         ):
             st.session_state["modo_selecionado"] = "🗺️ Por Rota"
+            _log_acesso("MODO_SELECIONADO", "🗺️ Por Rota", modo_override="🗺️ Por Rota")
             st.rerun()
     with _col_m3:
         if st.button(
@@ -5721,6 +5835,7 @@ with st.sidebar:
             key="btn_modo_consulta",
         ):
             st.session_state["modo_selecionado"] = "🔍 Consulta por Posto"
+            _log_acesso("MODO_SELECIONADO", "🔍 Consulta por Posto", modo_override="🔍 Consulta por Posto")
             st.rerun()
 
     # ── Botão Roteirização (largura total) ──────────────────────
@@ -5732,6 +5847,7 @@ with st.sidebar:
         help="Planejar rota com otimização de abastecimento",
     ):
         st.session_state["modo_selecionado"] = "🛣️ Roteirização"
+        _log_acesso("MODO_SELECIONADO", "🛣️ Roteirização", modo_override="🛣️ Roteirização")
         st.rerun()
 
     # ── Botão Rotas Salvas (largura total, abaixo dos modos) ──────
@@ -5745,6 +5861,7 @@ with st.sidebar:
         help="Ver e restaurar consultas salvas anteriormente",
     ):
         st.session_state["modo_selecionado"] = "📋 Rotas Salvas"
+        _log_acesso("MODO_SELECIONADO", "📋 Rotas Salvas", modo_override="📋 Rotas Salvas")
         st.rerun()
 
     # ── Botão Dashboard (largura total) ─────────────────────────
@@ -5756,6 +5873,7 @@ with st.sidebar:
         help="KPIs de cobertura e penetração GF por estado",
     ):
         st.session_state["modo_selecionado"] = "📊 Dashboard"
+        _log_acesso("MODO_SELECIONADO", "📊 Dashboard", modo_override="📊 Dashboard")
         st.rerun()
 
     modo = _modo_atual
@@ -5917,6 +6035,7 @@ with st.sidebar:
             disabled=len(_termo_m3.strip()) < 3,
         )
         if _buscar_m3:
+            _log_acesso("CONSULTA_POSTO", f"termo={_termo_m3.strip()} | uf={_uf_m3}")
             st.session_state["_m3_termo"]     = _termo_m3.strip()
             st.session_state["_m3_uf"]        = _uf_m3
             st.session_state["_m3_resultado"] = None
@@ -6285,7 +6404,7 @@ with st.sidebar:
                         st.session_state["_cfg_senha_errada"] = True
                 if st.session_state.get("_cfg_senha_errada", False):
                     st.error("❌ Senha incorreta. Tente novamente.")
-            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = None
+            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = tab_logs = None
         else:
             _col_cfg_lock, _ = st.columns([1, 5])
             with _col_cfg_lock:
@@ -6294,8 +6413,9 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf, tab_cer, tab_pp, tab_base, tab_anp = st.tabs(
-                ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP", "🗃️ Base", "🔵 Postos ANP"]
+            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs = st.tabs(
+                ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
+                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso"]
             )
 
         # ── Tab Gestão de Frotas ────────────────────────────────────
@@ -6728,6 +6848,177 @@ with st.sidebar:
                         st.rerun()
                     else:
                         st.error(f"❌ {_anp_msg_cfg}")
+
+        # ── Tab Logs de Uso ─────────────────────────────────────────────
+        if tab_logs is not None:
+         with tab_logs:
+            _todos_logs = _log_ler_arquivo()
+
+            if not _todos_logs:
+                st.info("ℹ️ Nenhum evento registrado ainda. Os logs são gerados automaticamente "
+                        "a cada acesso e interação com o app.")
+            else:
+                _log_df = pd.DataFrame(_todos_logs)
+
+                # Garante colunas mínimas
+                for _lc in _LOG_FIELDS:
+                    if _lc not in _log_df.columns:
+                        _log_df[_lc] = "—"
+
+                # ── KPIs ────────────────────────────────────────────────
+                _n_eventos    = len(_log_df)
+                _n_sessoes    = _log_df["session_id"].nunique()
+                _n_ips        = _log_df["ip"].replace("—", pd.NA).dropna().nunique()
+                _log_df_hoje  = _log_df[_log_df["data"] == datetime.now().strftime("%d/%m/%Y")] \
+                    if "data" in _log_df.columns else pd.DataFrame()
+                _n_hoje       = len(_log_df_hoje)
+
+                _lk1, _lk2, _lk3, _lk4 = st.columns(4)
+                _lk1.metric("📋 Total de Eventos",  f"{_n_eventos:,}")
+                _lk2.metric("👤 Sessões Únicas",     f"{_n_sessoes:,}")
+                _lk3.metric("🌐 IPs Únicos",         f"{_n_ips:,}")
+                _lk4.metric("📅 Eventos Hoje",       f"{_n_hoje:,}")
+
+                st.markdown("---")
+
+                # ── Top Modos ────────────────────────────────────────────
+                _lt1, _lt2 = st.columns(2)
+
+                with _lt1:
+                    st.markdown("##### 🗂️ Ações mais frequentes")
+                    _top_acoes = (
+                        _log_df["acao"].value_counts().head(10)
+                        .reset_index()
+                    )
+                    _top_acoes.columns = ["Ação", "Qtd"]
+                    _fig_acao = go.Figure(go.Bar(
+                        y=_top_acoes["Ação"],
+                        x=_top_acoes["Qtd"],
+                        orientation="h",
+                        marker_color="#1565C0",
+                        text=_top_acoes["Qtd"].astype(str),
+                        textposition="outside",
+                    ))
+                    _fig_acao.update_layout(
+                        height=max(250, len(_top_acoes) * 28 + 60),
+                        margin=dict(l=10, r=40, t=20, b=10),
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        yaxis=dict(autorange="reversed"),
+                        font=dict(size=11),
+                    )
+                    st.plotly_chart(_fig_acao, use_container_width=True)
+
+                with _lt2:
+                    st.markdown("##### 🗺️ Modos acessados")
+                    _top_modos = (
+                        _log_df[_log_df["modo"] != "—"]["modo"]
+                        .value_counts().head(10)
+                        .reset_index()
+                    )
+                    _top_modos.columns = ["Modo", "Qtd"]
+                    if not _top_modos.empty:
+                        _fig_modo = go.Figure(go.Bar(
+                            y=_top_modos["Modo"],
+                            x=_top_modos["Qtd"],
+                            orientation="h",
+                            marker_color="#00796B",
+                            text=_top_modos["Qtd"].astype(str),
+                            textposition="outside",
+                        ))
+                        _fig_modo.update_layout(
+                            height=max(250, len(_top_modos) * 28 + 60),
+                            margin=dict(l=10, r=40, t=20, b=10),
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            yaxis=dict(autorange="reversed"),
+                            font=dict(size=11),
+                        )
+                        st.plotly_chart(_fig_modo, use_container_width=True)
+                    else:
+                        st.info("Sem dados de modo ainda.")
+
+                # ── Top UFs ──────────────────────────────────────────────
+                st.markdown("##### 📍 UFs mais consultadas")
+                _top_ufs = (
+                    _log_df[_log_df["uf"].replace("—", pd.NA).notna()]["uf"]
+                    .value_counts().head(15)
+                    .reset_index()
+                )
+                _top_ufs.columns = ["UF", "Acessos"]
+                if not _top_ufs.empty:
+                    _fig_uf = go.Figure(go.Bar(
+                        x=_top_ufs["UF"],
+                        y=_top_ufs["Acessos"],
+                        marker_color="#E65100",
+                        text=_top_ufs["Acessos"].astype(str),
+                        textposition="outside",
+                    ))
+                    _fig_uf.update_layout(
+                        height=280,
+                        margin=dict(l=10, r=10, t=20, b=30),
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        font=dict(size=11),
+                    )
+                    st.plotly_chart(_fig_uf, use_container_width=True)
+
+                # ── Tabela de eventos recentes ───────────────────────────
+                st.markdown("##### 🕐 Últimos 50 eventos")
+                _log_display = _log_df.tail(50).iloc[::-1].copy()
+                _cols_show = [c for c in ["timestamp","ip","session_id","modo","uf",
+                                          "municipio","acao","detalhe"] if c in _log_display.columns]
+                _rename_log = {
+                    "timestamp": "Data/Hora", "ip": "IP", "session_id": "Sessão",
+                    "modo": "Modo", "uf": "UF", "municipio": "Município",
+                    "acao": "Ação", "detalhe": "Detalhe",
+                }
+                st.dataframe(
+                    _log_display[_cols_show].rename(columns=_rename_log).reset_index(drop=True),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+                # ── Exportar ──────────────────────────────────────────────
+                st.markdown("---")
+                _exp_l1, _exp_l2, _exp_l3 = st.columns([3, 1, 1])
+
+                with _exp_l2:
+                    _csv_logs = _log_df.to_csv(index=False).encode("utf-8-sig")
+                    st.download_button(
+                        label="📥 Exportar CSV",
+                        data=_csv_logs,
+                        file_name=f"logs_uso_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                        help="Baixar todos os eventos em CSV",
+                    )
+
+                with _exp_l3:
+                    if st.button("🗑️ Limpar Logs", use_container_width=True,
+                                 key="btn_limpar_logs",
+                                 help="Remove o arquivo de log do servidor"):
+                        try:
+                            if _os_mod.path.exists(_LOG_PATH):
+                                _os_mod.remove(_LOG_PATH)
+                            st.session_state.pop("_uso_logs", None)
+                            st.success("✅ Logs limpos.")
+                            st.rerun()
+                        except Exception as _e_log:
+                            st.error(f"❌ Não foi possível limpar: {_e_log}")
+
+                with _exp_l1:
+                    _arquivo_info = ""
+                    try:
+                        if _os_mod.path.exists(_LOG_PATH):
+                            _sz = _os_mod.path.getsize(_LOG_PATH)
+                            _arquivo_info = (f"📁 Arquivo: `_usage_logs.csv` · "
+                                             f"{_sz/1024:.1f} KB · {_n_eventos} eventos")
+                        else:
+                            _arquivo_info = "⚠️ Arquivo não encontrado (apenas sessão em memória)"
+                    except Exception:
+                        _arquivo_info = "⚠️ Sem acesso ao arquivo"
+                    st.caption(_arquivo_info)
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO 1 — Por Estado / Município
@@ -7186,6 +7477,10 @@ elif modo == "🗺️ Por Rota":
     if buscar_rota_btn or _auto_rota:
         orig_sel = st.session_state.get("orig_sel")
         dest_sel = st.session_state.get("dest_sel")
+        if buscar_rota_btn:
+            _log_acesso("ROTA_CALCULAR",
+                        f"{orig_sel.get('label','—') if orig_sel else '—'} → "
+                        f"{dest_sel.get('label','—') if dest_sel else '—'}")
         # Coleta paradas intermediárias selecionadas (ignora as não preenchidas)
         _n_par_main = st.session_state.get("_paradas_count", 0)
         _paradas_data_main = [
@@ -9267,6 +9562,10 @@ elif modo == "🛣️ Roteirização":
     #  CÁLCULO (roda no mesmo pass — sem st.rerun após armazenar)
     # ════════════════════════════════════════════════════════════════
     if _rot_calcular and _rot_pronto:
+        _log_acesso("ROTEIRIZACAO_CALCULAR",
+                    f"{st.session_state.get('rot_placa','—')} | "
+                    f"orig={st.session_state.get('_rot_orig_sel',{}).get('label','—')} → "
+                    f"dest={st.session_state.get('_rot_dest_sel',{}).get('label','—')}")
         _wps_calc = []
         for _ri in range(1, _rot_np + 1):
             _ws = st.session_state.get(f"rot_parada_sel_{_ri}")
