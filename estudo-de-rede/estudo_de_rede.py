@@ -3163,6 +3163,54 @@ def _popup(row):
     nome_safe = v("razaoSocial").replace(";", ",")[:80]
     coord_tag = f"<!-- POSTO_SEL:{row.get('_lat', '')};{row.get('_lon', '')};{nome_safe} -->"
 
+    # ── Preço do posto via _pp_df + tendência vs ANP semana anterior ─
+    _preco_posto_html = ""
+    try:
+        _pp_df_popup = st.session_state.get("_pp_df")
+        _cnpj_n_popup = str(row.get("_cnpj_norm", row.get("cnpj", ""))).replace(r"\D", "")
+        if _pp_df_popup is not None and _cnpj_n_popup and "cnpj_norm" in _pp_df_popup.columns:
+            _pp_row = _pp_df_popup[_pp_df_popup["cnpj_norm"] == _cnpj_n_popup]
+            if not _pp_row.empty:
+                _uf_popup = str(row.get("uf", "")).strip().upper()
+                _cache_ant_popup  = st.session_state.get("_precos_anp_cache_anterior", {})
+                _sheets_ant_popup = _cache_ant_popup.get("sheets", {})
+                _semana_ant_popup = _cache_ant_popup.get("semana", "")
+                _linhas_popup = []
+                for _, _pp_r in _pp_row.iterrows():
+                    _comb_label = str(_pp_r.get("combustivel_label", "")).strip()
+                    _pk_popup   = _anp_norm(_pp_r.get("combustivel_pk", _comb_label))
+                    _preco_p    = float(_pp_r["preco"])
+                    # Preço ANP semana anterior para este UF/combustível
+                    _anp_ant = None
+                    if _sheets_ant_popup and _uf_popup:
+                        _anp_ant = _anp_preco_uf(_sheets_ant_popup, _pk_popup, _uf_popup)
+                        if _anp_ant is None:
+                            _anp_ant = _anp_preco_brasil(_sheets_ant_popup, _pk_popup)
+                    _tend_html = _tendencia_badge(_preco_p, _anp_ant, inline=True) if _anp_ant else ""
+                    _data_p    = str(_pp_r.get("data_atualizacao", "")).strip()
+                    _data_lbl  = f" · {_data_p}" if _data_p and _data_p not in ("nan","None","") else ""
+                    _linhas_popup.append(
+                        f"<tr>"
+                        f"<td style='padding:2px 6px;font-size:11px;color:#555'>{_comb_label}</td>"
+                        f"<td style='padding:2px 6px;font-size:12px;font-weight:700;color:#0d1b4b'>"
+                        f"R$ {_brl(_preco_p, 3)}</td>"
+                        f"<td style='padding:2px 6px'>{_tend_html}</td>"
+                        f"</tr>"
+                    )
+                if _linhas_popup:
+                    _ant_nota = (f"<div style='font-size:9px;color:#aaa;margin-top:2px'>"
+                                 f"↑↓ vs ANP sem. {_semana_ant_popup}</div>"
+                                 if _semana_ant_popup else "")
+                    _preco_posto_html = (
+                        f"<hr style='margin:5px 0'>"
+                        f"<b style='font-size:11px'>💰 Preços cadastrados:</b>"
+                        f"<table style='width:100%;border-collapse:collapse;margin-top:3px'>"
+                        + "".join(_linhas_popup) +
+                        f"</table>{_ant_nota}"
+                    )
+    except Exception:
+        pass
+
     # ── Serviços disponíveis (colunas opcionais da planilha) ──────────
     _svc_badges = []
     if row.get("funciona_24h") is True:
@@ -3211,12 +3259,13 @@ def _popup(row):
         f"<b>Situação:</b> {v('situacaoConstatada')} | <b>SIGAF:</b> {v('statusSIGAF')}<br>"
         f"{_horario_html}"
         f"{dist_txt}"
+        f"{_preco_posto_html}"
         f"{_svc_html}"
         f"{produtos_html}"
         f"{botoes_html}"
         f"{coord_tag}"
         f"</div>",
-        max_width=340
+        max_width=360
     )
 
 
@@ -3975,6 +4024,98 @@ def _brl(v, d=2):
     return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _anp_preco_brasil(sheets, pk):
+    """Extrai o preço médio nacional (aba BRASIL) para um produto pk.
+    Retorna float ou None.
+    """
+    df_b = sheets.get("brasil")
+    if df_b is None or df_b.empty:
+        return None
+    c_prod = _anp_col(df_b, "produto")
+    c_med  = _anp_col(df_b, "medio revenda", "media revenda", "preco medio", "medio")
+    if not c_prod or not c_med:
+        return None
+    for prod_raw, grp in df_b.groupby(c_prod):
+        if _anp_norm(str(prod_raw)) == pk:
+            val = pd.to_numeric(grp[c_med], errors="coerce").mean()
+            if not pd.isna(val):
+                return float(round(val, 3))
+    return None
+
+
+def _anp_preco_uf(sheets, pk, uf):
+    """Extrai o preço médio estadual (aba ESTADOS) para produto pk e UF.
+    Retorna float ou None.
+    """
+    df_e = sheets.get("estados")
+    if df_e is None or df_e.empty:
+        return None
+    c_prod = _anp_col(df_e, "produto")
+    c_med  = _anp_col(df_e, "medio revenda", "media revenda", "preco medio", "medio")
+    c_est  = _anp_col(df_e, "estado", "estados", "uf")
+    if not c_prod or not c_med or not c_est:
+        return None
+    uf_norm = _anp_norm(UF_NOME.get(uf, uf))
+    for (prod_raw, est_raw), grp in df_e.groupby([c_prod, c_est]):
+        if (_anp_norm(str(prod_raw)) == pk
+                and (_anp_norm(str(est_raw)) == uf_norm
+                     or _anp_norm(str(est_raw)) == _anp_norm(uf))):
+            val = pd.to_numeric(grp[c_med], errors="coerce").mean()
+            if not pd.isna(val):
+                return float(round(val, 3))
+    return None
+
+
+def _tendencia_badge(preco_atual, preco_anterior, inline=True):
+    """Gera um badge HTML com seta de tendência comparando dois preços ANP.
+
+    Parâmetros:
+        preco_atual:    float — preço ANP da semana atual
+        preco_anterior: float — preço ANP da semana anterior
+        inline:         bool  — True = badge pequeno (para cards); False = bloco expandido
+
+    Retorna string HTML ou "" se qualquer preço for None.
+
+    Regras:
+        |delta| ≤ 0.5% do anterior → ≈ estável (cinza)
+        delta  > 0  → ↑ subiu  (vermelho)
+        delta  < 0  → ↓ caiu   (verde)
+    """
+    if preco_atual is None or preco_anterior is None:
+        return ""
+    delta     = preco_atual - preco_anterior
+    delta_pct = (delta / preco_anterior * 100) if preco_anterior else 0
+    tol       = abs(preco_anterior) * 0.005   # 0.5% de tolerância
+
+    if abs(delta) <= tol:
+        seta, cor_bg, cor_txt, texto = "≈", "#f3f4f6", "#666", "estável"
+    elif delta > 0:
+        seta, cor_bg, cor_txt, texto = "↑", "#ffebee", "#c62828", f"+{_brl(delta, 3)}/L"
+    else:
+        seta, cor_bg, cor_txt, texto = "↓", "#e8f5e9", "#2e7d32", f"{_brl(delta, 3)}/L"
+
+    if inline:
+        return (
+            f"<span title='Var. semana anterior: {_brl(delta,3)} R$/L ({delta_pct:+.1f}%)' "
+            f"style='display:inline-flex;align-items:center;gap:2px;"
+            f"background:{cor_bg};color:{cor_txt};"
+            f"border-radius:4px;padding:1px 5px;font-size:11px;"
+            f"font-weight:700;white-space:nowrap;cursor:help'>"
+            f"{seta}&thinsp;{texto}</span>"
+        )
+    else:
+        return (
+            f"<div style='display:flex;align-items:center;gap:6px;"
+            f"background:{cor_bg};border-radius:6px;padding:4px 10px;margin-top:4px'>"
+            f"<span style='font-size:18px;color:{cor_txt};font-weight:800'>{seta}</span>"
+            f"<span style='font-size:11px;color:{cor_txt}'>"
+            f"vs sem. anterior: <b>{_brl(preco_anterior, 3)}</b> → "
+            f"<b>{_brl(preco_atual, 3)}</b> "
+            f"(<b>{delta_pct:+.1f}%</b>)</span>"
+            f"</div>"
+        )
+
+
 def _anp_col(df, *termos):
     """Retorna a primeira coluna cujo nome normalizado contenha qualquer dos termos."""
     for col in df.columns:
@@ -4045,6 +4186,8 @@ def _anp_processar_arquivo(buf):
 def buscar_precos_anp():
     """Tenta baixar a planilha de preços ANP automaticamente.
     Retorna (bytes_xlsx | None, semana_str | None, erro_str | None).
+    Também tenta baixar a semana anterior e salvar em session_state
+    como '_precos_anp_cache_anterior' para o indicador de tendência.
     NÃO usa @st.cache_data para que falhas não fiquem em cache.
     O resultado bem-sucedido é guardado em st.session_state pelo chamador.
     """
@@ -4056,18 +4199,38 @@ def buscar_precos_anp():
         resp.raise_for_status()
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(resp.text, "html.parser")
-        link = next(
-            (a["href"] for a in soup.find_all("a", href=True)
-             if a["href"].lower().endswith(".xlsx")),
-            None,
-        )
-        if not link:
+        links_xlsx = [
+            a["href"] for a in soup.find_all("a", href=True)
+            if a["href"].lower().endswith(".xlsx")
+        ]
+        if not links_xlsx:
             return None, None, "Nenhum link .xlsx encontrado na página da ANP."
+        link = links_xlsx[0]
         if not link.startswith("http"):
             link = "https://www.gov.br" + link
         r2 = requests.get(link, headers=HEADERS_ANP, timeout=60)
         r2.raise_for_status()
         semana = link.split("/")[-1].replace(".xlsx", "")
+
+        # ── Tenta buscar a semana anterior (segundo link) ─────────
+        if len(links_xlsx) >= 2:
+            try:
+                link_ant = links_xlsx[1]
+                if not link_ant.startswith("http"):
+                    link_ant = "https://www.gov.br" + link_ant
+                _ant_ja = st.session_state.get("_precos_anp_cache_anterior", {})
+                _sem_ant = link_ant.split("/")[-1].replace(".xlsx", "")
+                if _ant_ja.get("semana") != _sem_ant:
+                    r_ant = requests.get(link_ant, headers=HEADERS_ANP, timeout=60)
+                    r_ant.raise_for_status()
+                    _sh_ant = _anp_processar_arquivo(io.BytesIO(r_ant.content))
+                    if _sh_ant:
+                        st.session_state["_precos_anp_cache_anterior"] = {
+                            "sheets": _sh_ant, "semana": _sem_ant
+                        }
+            except Exception:
+                pass  # semana anterior é opcional — falha silenciosa
+
         return r2.content, semana, None
     except Exception as ex:
         return None, None, str(ex)
@@ -4528,6 +4691,11 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
 </style>
 """
 
+    # ── Preços ANP semana anterior (para tendência nos cards) ────────
+    _ant_cache_cmp  = st.session_state.get("_precos_anp_cache_anterior", {})
+    _ant_sheets_cmp = _ant_cache_cmp.get("sheets", {})
+    _ant_semana_cmp = _ant_cache_cmp.get("semana", "")
+
     cards_html = ""
     for item in comparativo:
         cheaper   = item["delta_abs"] < 0
@@ -4539,6 +4707,19 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
         txt_eco   = (f"Economia de R$ {_brl(abs(item['economia_100l']))}/100 L"
                      if cheaper
                      else f"Custo adicional de R$ {_brl(abs(item['economia_100l']))}/100 L")
+
+        # Tendência ANP semana anterior
+        _pk_cmp     = _anp_norm(item.get("combustivel_pk", item.get("combustivel_label", "")))
+        _anp_ant_v  = None
+        if _ant_sheets_cmp:
+            _ufs_item = list({pu["uf"] for pu in item.get("por_uf", []) if "uf" in pu})
+            if _ufs_item:
+                _vals_ant = [_anp_preco_uf(_ant_sheets_cmp, _pk_cmp, u) for u in _ufs_item]
+                _vals_ant = [v for v in _vals_ant if v is not None]
+                _anp_ant_v = sum(_vals_ant) / len(_vals_ant) if _vals_ant else None
+            if _anp_ant_v is None:
+                _anp_ant_v = _anp_preco_brasil(_ant_sheets_cmp, _pk_cmp)
+        _tend_cmp = _tendencia_badge(item["preco_anp"], _anp_ant_v, inline=True) if _anp_ant_v else ""
 
         # Tabela por estado (só rota com múltiplos UFs)
         por_uf = item.get("por_uf", [])
@@ -4583,7 +4764,10 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
             f"<div><div class='cmp-lbl'>⭐ Gestão de Frotas médio</div>"
             f"<div class='cmp-pf'>R$ {_brl(item['preco_pf_med'], 3)}</div></div>"
             f"<div style='text-align:right'><div class='cmp-lbl'>📊 Ref. ANP</div>"
-            f"<div class='cmp-anp'>R$ {_brl(item['preco_anp'], 3)}</div></div>"
+            f"<div style='display:flex;align-items:baseline;gap:6px;justify-content:flex-end'>"
+            f"<span class='cmp-anp'>R$ {_brl(item['preco_anp'], 3)}</span>"
+            f"{_tend_cmp}"
+            f"</div></div>"
             f"</div>"
             f"<div class='cmp-delta' style='background:{cor_bg}'>"
             f"<div class='cmp-pct' style='color:{cor_delta}'>{sinal} {abs(item['delta_pct']):.1f}%</div>"
@@ -4683,6 +4867,10 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                         st.error("❌ Nenhuma aba reconhecida. Verifique se é a planilha correta da ANP.")
                     else:
                         _sem = arq.name.replace(".xlsx", "").replace(".xls", "")
+                        # Rotaciona: cache atual → anterior (para tendência de preço)
+                        _cache_atual = st.session_state.get("_precos_anp_cache", {})
+                        if _cache_atual.get("sheets") and _cache_atual.get("semana") != _sem:
+                            st.session_state["_precos_anp_cache_anterior"] = _cache_atual
                         st.session_state["_precos_anp_cache"] = {"sheets": _sheets, "semana": _sem}
                         st.rerun()
                 except Exception as ex:
@@ -4710,6 +4898,9 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                 _sh2 = _anp_processar_arquivo(io.BytesIO(arq2.read()))
                 if _sh2:
                     _sem2 = arq2.name.replace(".xlsx", "")
+                    _cache_atual2 = st.session_state.get("_precos_anp_cache", {})
+                    if _cache_atual2.get("sheets") and _cache_atual2.get("semana") != _sem2:
+                        st.session_state["_precos_anp_cache_anterior"] = _cache_atual2
                     st.session_state["_precos_anp_cache"] = {"sheets": _sh2, "semana": _sem2}
                     st.rerun()
                 else:
@@ -4986,11 +5177,16 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
         ordem_comb = {_anp_norm(k): i for i, k in enumerate(PRODUTOS_CHAVE)}
         combustiveis.sort(key=lambda c: ordem_comb.get(_anp_norm(c), 99))
 
+        # Preços semana anterior (por UF, para tendência)
+        _ant_cache_pc  = st.session_state.get("_precos_anp_cache_anterior", {})
+        _ant_sheets_pc = _ant_cache_pc.get("sheets", {})
+
         for comb in combustiveis:
             df_c = df_rota[df_rota["Combustível"] == comb]
             precos = {row["UF"]: row["Preço Médio"] for _, row in df_c.iterrows()}
             if not precos: continue
 
+            _pk_pc   = _anp_norm(comb)
             p_vals   = list(precos.values())
             p_min    = min(p_vals)
             p_max    = max(p_vals)
@@ -5013,11 +5209,19 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                 else:
                     bg, txt, badge = "#fff8e1", "#4e342e", ""
                 badge_html = f"<span class='pc-badge' style='background:{txt};color:#fff'>{badge}</span>" if badge else ""
+                # Tendência: preço ANP desta semana vs semana anterior para o mesmo UF
+                _ant_p_pc = None
+                if _ant_sheets_pc:
+                    _ant_p_pc = _anp_preco_uf(_ant_sheets_pc, _pk_pc, uf_r)
+                    if _ant_p_pc is None:
+                        _ant_p_pc = _anp_preco_brasil(_ant_sheets_pc, _pk_pc)
+                _tend_pc = _tendencia_badge(preco, _ant_p_pc, inline=True) if _ant_p_pc else ""
                 cells += (
                     f"<div class='pc-cell' style='background:{bg}'>"
                     f"<span class='pc-uf'>{uf_r}</span>"
                     f"<span class='pc-val' style='color:{txt}'>R$ {_brl(preco, 3)}</span>"
                     f"<span class='pc-uni'>{unidade}</span>"
+                    f"{_tend_pc}"
                     f"{badge_html}</div>"
                 )
 
@@ -5206,6 +5410,19 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
             f"</div>"
         )
 
+    # ── Pré-carrega preços da semana anterior (para tendência) ───
+    _cache_ant  = st.session_state.get("_precos_anp_cache_anterior", {})
+    _sheets_ant = _cache_ant.get("sheets", {})
+    _semana_ant = _cache_ant.get("semana", "")
+    # Monta dict {pk: preco_anterior} usando o mesmo escopo (uf/brasil)
+    _ant_precos: dict = {}
+    if _sheets_ant:
+        _rows_ant = _anp_extrair_precos(_sheets_ant, uf=uf, municipio=municipio or None)
+        if not _rows_ant and uf:
+            _rows_ant = _anp_extrair_precos(_sheets_ant, uf=uf)
+        for _r_ant in _rows_ant:
+            _ant_precos[_anp_norm(_r_ant["Combustível"])] = _r_ant["Preço Médio"]
+
     # ── Grid 3 colunas ────────────────────────────────────────────
     n_cols = 3
     for chunk_start in range(0, len(rows), n_cols):
@@ -5228,6 +5445,16 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
             else:
                 borda, preco_cor = "#1565c0", "#0d1b4b"
 
+            # ── Tendência vs semana anterior ─────────────────────
+            _pk_r         = _anp_norm(r["Combustível"])
+            _preco_ant_r  = _ant_precos.get(_pk_r)
+            _tend_badge   = _tendencia_badge(pm, _preco_ant_r, inline=True)
+            _tend_bloco   = _tendencia_badge(pm, _preco_ant_r, inline=False) if _preco_ant_r else ""
+            _ant_caption  = (
+                f"<div style='font-size:10px;color:#aaa;margin-top:2px'>"
+                f"Sem. ant.: R$ {_brl(_preco_ant_r, 3)}</div>"
+            ) if _preco_ant_r else ""
+
             # Monta referências
             refs = ""
             if mostrar_est:
@@ -5238,9 +5465,13 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
             card = (
                 f"<div class='fc' style='border-left-color:{borda}'>"
                 f"<div class='fc-nome'>{r['Combustível']}</div>"
-                f"<div><span class='fc-preco' style='color:{preco_cor}'>"
+                f"<div style='display:flex;align-items:baseline;gap:8px;flex-wrap:wrap'>"
+                f"<span class='fc-preco' style='color:{preco_cor}'>"
                 f"R$ {_brl(pm, 3)}</span>"
-                f"<span class='fc-uni'>{uni}</span></div>"
+                f"<span class='fc-uni'>{uni}</span>"
+                f"{_tend_badge}"
+                f"</div>"
+                f"{_ant_caption}"
                 f"<div class='fc-refs'>{refs}</div>"
                 f"<div class='fc-postos'>{postos} postos pesquisados</div>"
                 f"</div>"
@@ -5248,9 +5479,15 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
             with cols[j]:
                 st.markdown(card, unsafe_allow_html=True)
 
+    _tend_nota = (
+        f" · Tendência vs semana <b>{_semana_ant}</b>"
+        if _semana_ant else
+        " · Sem dados de semana anterior para tendência"
+    )
     st.caption(
         f"Legenda de borda: 🟢 abaixo da média nacional · "
         f"🔴 acima · 🔵 igual  |  Semana ANP: {semana_str}"
+        + (_tend_nota if _sheets_ant else "")
     )
 
 
