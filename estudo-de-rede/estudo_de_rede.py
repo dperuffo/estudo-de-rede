@@ -4038,6 +4038,40 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 name="⛽ Postos ANP",
             ))
 
+    # ── Trace Top 5 Mais Baratos — estrelas douradas sobrepostas ─────────────────
+    if not df.empty and "_rank_barato" in df.columns:
+        _df_top5 = df[df["_rank_barato"] > 0].sort_values("_rank_barato")
+        if not _df_top5.empty:
+            _top5_hover = []
+            for _, _tr in _df_top5.iterrows():
+                _rank_n  = int(_tr["_rank_barato"])
+                _emoji_r = _RANK_EMOJI.get(_rank_n, str(_rank_n))
+                _nome_r  = str(_tr.get("razaoSocial", "?"))[:35]
+                _preco_r = _tr.get("_preco_barato")
+                _comb_r  = str(_tr.get("_comb_barato", ""))
+                _mun_r   = str(_tr.get("municipio", ""))
+                _uf_r    = str(_tr.get("uf", ""))
+                _geo_r   = f"{_mun_r}/{_uf_r}" if _mun_r and _uf_r else _mun_r or _uf_r
+                _preco_str = f"R$ {_preco_r:.3f}/L" if _preco_r is not None else "—"
+                _top5_hover.append(
+                    f"<b>{_emoji_r} #{_rank_n} Mais Barato</b><br>"
+                    f"{_nome_r}<br>"
+                    f"💰 {_preco_str} — {_comb_r}<br>"
+                    f"📍 {_geo_r}<extra></extra>"
+                )
+            traces.append(go.Scattermapbox(
+                lat=_df_top5["_lat"].tolist(),
+                lon=_df_top5["_lon"].tolist(),
+                mode="markers+text",
+                marker=dict(size=22, color="#FFD700", opacity=1.0),
+                text=[_RANK_EMOJI.get(int(r), "★") for r in _df_top5["_rank_barato"]],
+                textfont=dict(size=11, color="#7B3F00", family="Arial Black, sans-serif"),
+                textposition="middle center",
+                hovertemplate=_top5_hover,
+                name="💰 Top 5 Mais Baratos",
+                showlegend=True,
+            ))
+
     # ── Garante ao menos 1 trace Scattermapbox para ativar tiles mesmo sem dados ──
     # Sem isso, Plotly cai no modo cartesiano quando traces=[] e exibe eixos vazios.
     if not traces:
@@ -6048,6 +6082,69 @@ def n_pf(df):
     return int(df["_pro_frotas"].sum()) if "_pro_frotas" in df.columns else 0
 
 
+# Emojis de medalha para rank 1-5
+_RANK_EMOJI = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}
+
+
+def _calcular_top5_baratos(df: "pd.DataFrame", fuel_label: str = None) -> dict:
+    """Calcula os 5 postos mais baratos da consulta atual.
+
+    Parâmetros:
+        df:          DataFrame de postos (df_show) — deve ter coluna '_cnpj_norm'
+        fuel_label:  rótulo do combustível (ex: 'GASOLINA COMUM'). Se None, usa
+                     o menor preço de qualquer combustível por posto.
+
+    Retorna:
+        dict {cnpj_norm: (rank, preco, combustivel_label)}  — só top-5 presentes em df.
+        Rank 1 = mais barato.  Vazio se _pp_df não carregado ou df sem CNPJs.
+    """
+    _pp = st.session_state.get("_pp_df")
+    if _pp is None or df.empty or "_cnpj_norm" not in df.columns:
+        return {}
+
+    cnpjs_visíveis = set(df["_cnpj_norm"].dropna().tolist())
+    if not cnpjs_visíveis:
+        return {}
+
+    # Filtra _pp_df pelos postos visíveis
+    _pp_vis = _pp[_pp["cnpj_norm"].isin(cnpjs_visíveis)].copy()
+    if _pp_vis.empty:
+        return {}
+
+    # Filtra combustível se especificado
+    if fuel_label and "combustivel_label" in _pp_vis.columns:
+        _pp_vis = _pp_vis[_pp_vis["combustivel_label"].str.strip() == fuel_label]
+    if _pp_vis.empty:
+        return {}
+
+    # Preço mínimo por posto (caso haja múltiplos combustíveis)
+    _pp_min = (
+        _pp_vis.sort_values("preco")
+        .groupby("cnpj_norm", sort=False)
+        .first()
+        .reset_index()
+    )[["cnpj_norm", "preco", "combustivel_label"]]
+
+    # Ordena e pega top 5
+    _top = _pp_min.nsmallest(5, "preco").reset_index(drop=True)
+    result = {}
+    for i, row in _top.iterrows():
+        rank = i + 1
+        result[row["cnpj_norm"]] = (rank, float(row["preco"]), str(row.get("combustivel_label", "")))
+    return result
+
+
+def _aplicar_rank_barato(df: "pd.DataFrame", top5: dict) -> "pd.DataFrame":
+    """Adiciona coluna '_rank_barato' (0 = não ranqueado, 1-5 = posição)."""
+    if "_cnpj_norm" not in df.columns:
+        return df
+    df = df.copy()
+    df["_rank_barato"]  = df["_cnpj_norm"].map(lambda x: top5.get(x, (0,))[0]).fillna(0).astype(int)
+    df["_preco_barato"] = df["_cnpj_norm"].map(lambda x: top5.get(x, (0, None))[1])
+    df["_comb_barato"]  = df["_cnpj_norm"].map(lambda x: top5.get(x, (0, None, ""))[2] if x in top5 else "")
+    return df
+
+
 def _agora() -> str:
     """Retorna data e hora atual formatada: 06/05/2026 às 20:53."""
     return datetime.now().strftime("%d/%m/%Y às %H:%M")
@@ -8052,6 +8149,11 @@ if modo == "📍 Por UF/Município":
                 _sem_preco_m1 = ~df_show["_cnpj_norm"].isin(_fuel_df_m1["cnpj_norm"])
                 df_show = df_show[_sem_preco_m1 | df_show["_cnpj_norm"].isin(_cnpj_ok_m1)]
 
+        # ── Ranking Top 5 Mais Baratos ──────────────────────────────────────
+        _fuel_rank_m1 = _fuel_sel_m1 if (_fuel_sel_m1 and _fuel_sel_m1 != "— Todos —") else None
+        _top5_m1 = _calcular_top5_baratos(df_show, fuel_label=_fuel_rank_m1)
+        df_show  = _aplicar_rank_barato(df_show, _top5_m1)
+
         # ── Overlay ANP: adiciona postos do arquivo carregado pelo usuário ──
         # O mapa já contém apenas postos GF (da planilha). O overlay acrescenta
         # postos não-GF do arquivo ANP, somente quando o usuário o inseriu.
@@ -8441,12 +8543,55 @@ if modo == "📍 Por UF/Município":
             _renderizar_precos_anp(uf, municipio_input.strip() or None)
 
         with tab_dados:
+            # ── Mini painel: Top 5 Mais Baratos ──────────────────────────────
+            if "_rank_barato" in df_show.columns and df_show["_rank_barato"].gt(0).any():
+                st.markdown(
+                    "<div style='font-size:14px;font-weight:700;color:#7B3F00;"
+                    "margin-bottom:8px'>💰 Top 5 Mais Baratos nesta consulta</div>",
+                    unsafe_allow_html=True,
+                )
+                _top5_rows = df_show[df_show["_rank_barato"] > 0].sort_values("_rank_barato")
+                _top5_cols = st.columns(min(len(_top5_rows), 5))
+                for _ti, (_, _tr5) in enumerate(zip(_top5_cols, _top5_rows.iterrows())):
+                    _, _row5 = _tr5
+                    _rk5   = int(_row5["_rank_barato"])
+                    _em5   = _RANK_EMOJI.get(_rk5, str(_rk5))
+                    _nm5   = str(_row5.get("razaoSocial","?"))[:30]
+                    _pr5   = _row5.get("_preco_barato")
+                    _cb5   = str(_row5.get("_comb_barato",""))
+                    _mn5   = str(_row5.get("municipio",""))
+                    _uf5   = str(_row5.get("uf",""))
+                    _geo5  = f"{_mn5}/{_uf5}" if _mn5 and _uf5 else _mn5 or _uf5
+                    _pr5_s = f"R$ {_pr5:.3f}/L" if _pr5 is not None else "—"
+                    _top5_cols[_ti].markdown(
+                        f"<div style='background:linear-gradient(135deg,#fff9c4,#fff3e0);"
+                        f"border:2px solid #FFD700;border-radius:10px;padding:10px 12px;"
+                        f"text-align:center;height:100%'>"
+                        f"<div style='font-size:22px'>{_em5}</div>"
+                        f"<div style='font-size:11px;font-weight:700;color:#5f3a00;"
+                        f"margin:4px 0 2px;line-height:1.3'>{_nm5}</div>"
+                        f"<div style='font-size:13px;font-weight:800;color:#2e7d32'>{_pr5_s}</div>"
+                        f"<div style='font-size:10px;color:#888;margin-top:2px'>{_cb5}</div>"
+                        f"<div style='font-size:10px;color:#aaa'>{_geo5}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+            # ── Tabela de dados ───────────────────────────────────────────────
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
                                  "endereco","bairro","municipio","uf","cep","autorizacao","statusSIGAF"]
                     if c in df_show.columns]
             df_exib = df_show[cols].copy()
             if "_pro_frotas" in df_exib.columns:
                 df_exib = df_exib.rename(columns={"_pro_frotas":"Gestão de Frotas ⭐"})
+            # Coluna de ranking (se existir)
+            if "_rank_barato" in df_show.columns:
+                df_exib.insert(0, "💰 Rank",
+                    df_show["_rank_barato"].map(
+                        lambda v: _RANK_EMOJI.get(int(v), "") if int(v) > 0 else ""
+                    )
+                )
             st.dataframe(df_exib, use_container_width=True, height=450)
             st.download_button("⬇️ Baixar dados em CSV",
                                df_show.to_csv(index=False).encode("utf-8"),
@@ -8671,6 +8816,11 @@ elif modo == "🗺️ Por Rota":
                 _sem_preco_m2 = ~df_show_r["_cnpj_norm"].isin(_fuel_df_m2["cnpj_norm"])
                 df_show_r = df_show_r[_sem_preco_m2 | df_show_r["_cnpj_norm"].isin(_cnpj_ok_m2)]
 
+        # ── Ranking Top 5 Mais Baratos ──────────────────────────────────────
+        _fuel_rank_m2 = _fuel_sel_m2 if (_fuel_sel_m2 and _fuel_sel_m2 != "— Todos —") else None
+        _top5_m2 = _calcular_top5_baratos(df_show_r, fuel_label=_fuel_rank_m2)
+        df_show_r = _aplicar_rank_barato(df_show_r, _top5_m2)
+
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("🛣️ Distância",      f"{_n(dist_km)} km")
         c2.metric("⏱️ Tempo estimado", f"{int(dur_min//60)}h {int(dur_min%60)}min")
@@ -8853,6 +9003,42 @@ elif modo == "🗺️ Por Rota":
             _renderizar_precos_anp(None, ufs_multiplas=_ufs_rota)
 
         with tab_d:
+            # ── Mini painel: Top 5 Mais Baratos ──────────────────────────────
+            if "_rank_barato" in df_show_r.columns and df_show_r["_rank_barato"].gt(0).any():
+                st.markdown(
+                    "<div style='font-size:14px;font-weight:700;color:#7B3F00;"
+                    "margin-bottom:8px'>💰 Top 5 Mais Baratos nesta rota</div>",
+                    unsafe_allow_html=True,
+                )
+                _top5r_rows = df_show_r[df_show_r["_rank_barato"] > 0].sort_values("_rank_barato")
+                _top5r_cols = st.columns(min(len(_top5r_rows), 5))
+                for _ti2, (_, _tr5r) in enumerate(zip(_top5r_cols, _top5r_rows.iterrows())):
+                    _, _row5r = _tr5r
+                    _rk5r  = int(_row5r["_rank_barato"])
+                    _em5r  = _RANK_EMOJI.get(_rk5r, str(_rk5r))
+                    _nm5r  = str(_row5r.get("razaoSocial","?"))[:30]
+                    _pr5r  = _row5r.get("_preco_barato")
+                    _cb5r  = str(_row5r.get("_comb_barato",""))
+                    _mn5r  = str(_row5r.get("municipio",""))
+                    _uf5r  = str(_row5r.get("uf",""))
+                    _geo5r = f"{_mn5r}/{_uf5r}" if _mn5r and _uf5r else _mn5r or _uf5r
+                    _pr5r_s = f"R$ {_pr5r:.3f}/L" if _pr5r is not None else "—"
+                    _top5r_cols[_ti2].markdown(
+                        f"<div style='background:linear-gradient(135deg,#fff9c4,#fff3e0);"
+                        f"border:2px solid #FFD700;border-radius:10px;padding:10px 12px;"
+                        f"text-align:center;height:100%'>"
+                        f"<div style='font-size:22px'>{_em5r}</div>"
+                        f"<div style='font-size:11px;font-weight:700;color:#5f3a00;"
+                        f"margin:4px 0 2px;line-height:1.3'>{_nm5r}</div>"
+                        f"<div style='font-size:13px;font-weight:800;color:#2e7d32'>{_pr5r_s}</div>"
+                        f"<div style='font-size:10px;color:#888;margin-top:2px'>{_cb5r}</div>"
+                        f"<div style='font-size:10px;color:#aaa'>{_geo5r}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+            # ── Tabela de dados ───────────────────────────────────────────────
             cols_r = [c for c in ["razaoSocial","distribuidora","_pro_frotas",
                                    "municipio","uf","endereco","cep","_dist_rota"]
                       if c in df_show_r.columns]
@@ -8862,6 +9048,13 @@ elif modo == "🗺️ Por Rota":
             if "_dist_rota" in df_exib.columns:
                 df_exib = df_exib.rename(columns={"_dist_rota":"Dist. da Rota (m)"})
                 df_exib["Dist. da Rota (m)"] = df_exib["Dist. da Rota (m)"].round(0).astype(int)
+            # Coluna de ranking (se existir)
+            if "_rank_barato" in df_show_r.columns:
+                df_exib.insert(0, "💰 Rank",
+                    df_show_r["_rank_barato"].map(
+                        lambda v: _RANK_EMOJI.get(int(v), "") if int(v) > 0 else ""
+                    )
+                )
 
             # Coluna de link Google Maps — usa lat/lon do df_show_r original
             if "_lat" in df_show_r.columns and "_lon" in df_show_r.columns:
