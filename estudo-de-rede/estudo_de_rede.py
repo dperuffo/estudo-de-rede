@@ -619,6 +619,270 @@ iframe { animation: mapFadeIn 0.45s ease-in; }
 </script>
 """, unsafe_allow_html=True)
 
+# ─── Bottom Navigation + Mobile Map Enhancements ─────────────────
+st.markdown("""
+<style>
+/* ══ BOTTOM NAV BAR (mobile only) ════════════════════════════════ */
+#gf-bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 62px;
+    background: #fff;
+    border-top: 1.5px solid #dde3ee;
+    box-shadow: 0 -3px 20px rgba(13,71,161,0.10);
+    z-index: 8990;
+    align-items: stretch;
+    justify-content: space-around;
+    padding: 0;
+}
+.gf-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    padding: 6px 1px 4px;
+    border: none;
+    background: transparent;
+    transition: background 0.12s;
+    position: relative;
+    min-width: 0;
+}
+.gf-nav-item:active { background: #f0f4ff; border-radius: 10px; }
+.gf-nav-item.ativo::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 15%; right: 15%;
+    height: 3px;
+    border-radius: 0 0 4px 4px;
+    background: linear-gradient(90deg,#0d47a1,#1565c0);
+}
+.gf-nav-icon {
+    font-size: 20px;
+    line-height: 1;
+    transition: transform 0.12s;
+}
+.gf-nav-item.ativo .gf-nav-icon { transform: scale(1.12); }
+.gf-nav-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #9aa5b8;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 54px;
+    text-overflow: ellipsis;
+}
+.gf-nav-item.ativo .gf-nav-label { color: #1565c0; }
+
+/* ── Padding-bottom para conteúdo não ficar atrás da nav ── */
+@media (max-width: 768px) {
+    .main .block-container,
+    [data-testid="stMain"] .block-container {
+        padding-bottom: 74px !important;
+    }
+
+    /* Plotly map: altura máxima adaptada + touch */
+    [data-testid="stPlotlyChart"] {
+        max-height: 370px !important;
+        overflow: hidden;
+    }
+    [data-testid="stPlotlyChart"] > div { height: 370px !important; }
+    .js-plotly-plot, .plot-container   { max-height: 370px !important; }
+    .js-plotly-plot, .plot-container, .plotly-graph-div {
+        touch-action: pan-x pan-y !important;
+    }
+    /* Toolbar do Plotly — botões maiores para toque */
+    .modebar-btn { min-width: 28px !important; min-height: 28px !important; }
+
+    /* Tabelas com scroll horizontal */
+    [data-testid="stDataFrame"] table {
+        font-size: 11px !important;
+    }
+
+    /* Cards ANP menores */
+    .fc { padding: 10px 12px 8px !important; }
+    .fc-preco { font-size: 20px !important; }
+
+    /* Cards cc (calc custo) */
+    .cc-preco  { font-size: 17px !important; }
+    .cc-custo  { font-size: 16px !important; }
+
+    /* Expanders — mais altura de toque */
+    summary { min-height: 44px; display: flex; align-items: center; }
+
+    /* Popup do posto selecionado — responsivo */
+    .main-posto-card { font-size: 12px !important; }
+}
+
+@media (max-width: 480px) {
+    .gf-nav-icon  { font-size: 18px; }
+    .gf-nav-label { font-size: 8px; max-width: 44px; }
+    #gf-bottom-nav { height: 56px; }
+    .main .block-container { padding-bottom: 62px !important; }
+    [data-testid="stPlotlyChart"]      { max-height: 300px !important; }
+    [data-testid="stPlotlyChart"] > div{ height: 300px !important; }
+    .js-plotly-plot, .plot-container   { max-height: 300px !important; }
+}
+</style>
+
+<script>
+(function() {
+    'use strict';
+
+    var NAV = [
+        { e:'📍', l:'Mapa',    k:'btn_modo_estado' },
+        { e:'🗺️', l:'Rota',   k:'btn_modo_rota' },
+        { e:'🔍', l:'Busca',  k:'btn_modo_consulta' },
+        { e:'🛣️', l:'Roteiro',k:'btn_modo_roteirizacao' },
+        { e:'📋', l:'Salvas', k:'btn_rotas_salvas' },
+        { e:'📊', l:'Dash',   k:'btn_dashboard' },
+    ];
+
+    var _nav = null;
+
+    function isMobile() { return window.innerWidth <= 768; }
+
+    /* ── Clicar no botão sidebar correspondente ── */
+    function clickSidebarBtn(key) {
+        var c = document.querySelector('.st-key-' + key);
+        if (!c) return;
+        var b = c.querySelector('button');
+        if (b) {
+            b.click();
+            /* Feedback háptico se disponível */
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(8);
+            }
+        }
+    }
+
+    /* ── Detectar modo ativo (botão primary no sidebar) ── */
+    function getActiveKey() {
+        for (var i = 0; i < NAV.length; i++) {
+            var c = document.querySelector('.st-key-' + NAV[i].k);
+            if (!c) continue;
+            if (c.querySelector('[data-testid="stBaseButton-primary"]')) {
+                return NAV[i].k;
+            }
+        }
+        return null;
+    }
+
+    /* ── Criar a barra ── */
+    function criarNav() {
+        if (document.getElementById('gf-bottom-nav')) {
+            _nav = document.getElementById('gf-bottom-nav');
+            return;
+        }
+        _nav = document.createElement('nav');
+        _nav.id = 'gf-bottom-nav';
+        _nav.setAttribute('role', 'navigation');
+        _nav.setAttribute('aria-label', 'Navegação');
+
+        NAV.forEach(function(item) {
+            var btn = document.createElement('button');
+            btn.className = 'gf-nav-item';
+            btn.setAttribute('data-navkey', item.k);
+            btn.setAttribute('aria-label', item.l);
+            btn.setAttribute('type', 'button');
+            btn.innerHTML =
+                '<span class="gf-nav-icon" aria-hidden="true">' + item.e + '</span>' +
+                '<span class="gf-nav-label">' + item.l + '</span>';
+
+            /* Touch — preferir touchend para resposta imediata */
+            var _tapping = false;
+            btn.addEventListener('touchstart', function() { _tapping = true; }, { passive: true });
+            btn.addEventListener('touchend', function(e) {
+                if (!_tapping) return;
+                _tapping = false;
+                e.preventDefault();
+                clickSidebarBtn(item.k);
+                /* Feedback visual imediato */
+                _nav.querySelectorAll('.gf-nav-item').forEach(function(el) {
+                    el.classList.remove('ativo');
+                });
+                btn.classList.add('ativo');
+            });
+            btn.addEventListener('click', function() { clickSidebarBtn(item.k); });
+
+            _nav.appendChild(btn);
+        });
+
+        document.body.appendChild(_nav);
+    }
+
+    /* ── Atualizar item ativo ── */
+    function atualizarAtivo() {
+        if (!_nav) return;
+        var activeKey = getActiveKey();
+        _nav.querySelectorAll('.gf-nav-item').forEach(function(el) {
+            var key = el.getAttribute('data-navkey');
+            if (key === activeKey) {
+                el.classList.add('ativo');
+            } else {
+                el.classList.remove('ativo');
+            }
+        });
+    }
+
+    /* ── Aplicar touch-action ao mapa Plotly (sem bloquear pan) ── */
+    function melhorarMapaToque() {
+        document.querySelectorAll('.js-plotly-plot').forEach(function(el) {
+            el.style.touchAction = 'pan-x pan-y';
+            /* Garantir que o Plotly não bloqueie scroll da página */
+            var dragLayer = el.querySelector('.dragcover,.drag,.nsewdrag');
+            if (dragLayer) dragLayer.style.touchAction = 'none';
+        });
+    }
+
+    /* ── Tick principal ── */
+    function tick() {
+        criarNav();
+        atualizarAtivo();
+        melhorarMapaToque();
+        if (_nav) {
+            _nav.style.display = isMobile() ? 'flex' : 'none';
+        }
+    }
+
+    /* Boot */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tick);
+    } else {
+        setTimeout(tick, 50);
+    }
+
+    /* Re-aplica após re-renders do Streamlit */
+    var _mutTimer = null;
+    new MutationObserver(function() {
+        clearTimeout(_mutTimer);
+        _mutTimer = setTimeout(tick, 60);
+    }).observe(document.body, { childList: true, subtree: true });
+
+    window.addEventListener('resize', function() {
+        if (_nav) _nav.style.display = isMobile() ? 'flex' : 'none';
+    });
+
+    /* iOS safe-area (notch) — padding extra para iPhones */
+    if (CSS && CSS.supports && CSS.supports('padding-bottom', 'env(safe-area-inset-bottom)')) {
+        var style = document.createElement('style');
+        style.textContent = (
+            '#gf-bottom-nav { padding-bottom: env(safe-area-inset-bottom); ' +
+            'height: calc(62px + env(safe-area-inset-bottom)); }'
+        );
+        document.head.appendChild(style);
+    }
+})();
+</script>
+""", unsafe_allow_html=True)
+
 # ─── Constantes ───────────────────────────────────────────────────
 API_BASE_URL = "https://revendedoresapi.anp.gov.br"
 ENDPOINT     = "/v1/combustivel"
@@ -3878,11 +4142,22 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
                 st.rerun()
 
     # ── Renderiza o gráfico ─────────────────────────────────────────────────────
+    # Config mobile-friendly: botões da toolbar reduzidos, sem mode bar em telas pequenas
+    _plotly_cfg = {
+        "scrollZoom":          True,
+        "displaylogo":         False,
+        "responsive":          True,
+        "modeBarButtonsToRemove": [
+            "select2d", "lasso2d", "autoScale2d",
+            "hoverClosestCartesian", "hoverCompareCartesian",
+        ],
+        "toImageButtonOptions": {"format": "png", "filename": "mapa_rede"},
+    }
     try:
         evt = st.plotly_chart(
             fig,
             use_container_width=True,
-            config={"scrollZoom": True},
+            config=_plotly_cfg,
             height=height,
             on_select="rerun",
             key=_chart_key,
