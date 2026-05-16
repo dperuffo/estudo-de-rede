@@ -992,6 +992,23 @@ COR_CERCADO_FILL      = "#FF8F00"   # laranja âmbar — alerta visual
 COR_CERCADO_BORDA     = "#E65100"   # laranja escuro
 ARQUIVO_PP_REPO       = "preco_posto.xlsx"   # planilha de preços por posto
 _PP_PARSER_VERSION    = "v5"                 # incrementar aqui força re-parse automático
+ARQUIVO_DOC_PDF       = "documentacao_gestao_frotas.pdf"   # documentação da aplicação
+
+
+@st.cache_data(show_spinner=False, ttl=86400)   # 24 h — relê o PDF do repo uma vez por dia
+def _carregar_doc_pdf():
+    """
+    Carrega o PDF de documentação do repositório.
+    Retorna (bytes, nome_arquivo) ou (None, None) se não encontrado.
+    """
+    _caminho_doc = os.path.join(_DIR, ARQUIVO_DOC_PDF)
+    if os.path.exists(_caminho_doc):
+        try:
+            with open(_caminho_doc, "rb") as _f:
+                return _f.read(), ARQUIVO_DOC_PDF
+        except Exception:
+            return None, None
+    return None, None
 
 
 def normalizar_cnpj(valor):
@@ -7173,6 +7190,29 @@ with st.sidebar:
                     except Exception:
                         _arquivo_info = "⚠️ Sem acesso ao arquivo"
                     st.caption(_arquivo_info)
+
+    # ── README — link para documentação PDF ──────────────────────────────────
+    _doc_bytes, _doc_nome = _carregar_doc_pdf()
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    if _doc_bytes:
+        _col_doc_l, _col_doc_c, _col_doc_r = st.columns([1, 4, 1])
+        with _col_doc_c:
+            st.download_button(
+                label="📄 README — Documentação",
+                data=_doc_bytes,
+                file_name=_doc_nome,
+                mime="application/pdf",
+                use_container_width=True,
+                help="Abrir documentação técnica e executiva da aplicação (PDF)",
+            )
+    else:
+        _col_doc_l, _col_doc_c, _col_doc_r = st.columns([1, 4, 1])
+        with _col_doc_c:
+            st.markdown(
+                "<div style='text-align:center;font-size:11px;color:#9E9E9E;padding:4px 0'>"
+                "📄 Documentação não encontrada</div>",
+                unsafe_allow_html=True,
+            )
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO 1 — Por Estado / Município
