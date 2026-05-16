@@ -1112,6 +1112,17 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
     col_mun  = _detectar_col(df, ["MUNICIPIO", "CIDADE"])
     col_uf   = _detectar_col(df, ["UF", "ESTADO"])
 
+    # ── Colunas opcionais de serviços / horário ─────────────────
+    col_horario   = _detectar_col(df, ["HORARIO FUNCIONAMENTO", "HORARIO", "FUNCIONAMENTO", "HORA FUNC"])
+    col_24h       = _detectar_col(df, ["FUNCIONA 24H", "24H", "24 HORAS", "ABERTO 24H", "FUNCIONAMENTO 24H"])
+    col_caminhao  = _detectar_col(df, ["PISTA CAMINHAO", "CAMINHAO", "PISTA TRUCK", "TRUCK", "PISTA CAM"])
+    col_arla      = _detectar_col(df, ["ARLA", "ARLA 32", "ARLA32"])
+    col_conv      = _detectar_col(df, ["CONVENIENCIA", "LOJA CONVENIENCIA", "LOJA", "CONVENIENCE"])
+
+    def _bool_col(val):
+        """Converte 'SIM','S','1','YES','TRUE','X' → True; demais → False."""
+        return str(val).strip().upper() in ("SIM", "S", "1", "YES", "TRUE", "X", "VERDADEIRO")
+
     df_coords = pd.DataFrame()
     if col_lat and col_lon:
         rows = []
@@ -1126,7 +1137,7 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
                 continue
             if not (-33.8 <= lat <= 5.3 and -73.9 <= lon <= -34.7):
                 continue
-            rows.append({
+            rec = {
                 "cnpj":         cnpj_n,
                 "_lat":         lat,
                 "_lon":         lon,
@@ -1134,7 +1145,14 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
                 "distribuidora":str(row.get(col_dist, "")).strip() if col_dist else "",
                 "municipio":    str(row.get(col_mun,  "")).strip() if col_mun  else "",
                 "uf":           _normalizar_uf(str(row.get(col_uf, ""))) if col_uf else "",
-            })
+                # Serviços / horário — None quando coluna ausente
+                "horario":       str(row.get(col_horario, "")).strip() if col_horario else None,
+                "funciona_24h":  _bool_col(row.get(col_24h, ""))      if col_24h     else None,
+                "pista_caminhao":_bool_col(row.get(col_caminhao, "")) if col_caminhao else None,
+                "arla":          _bool_col(row.get(col_arla, ""))     if col_arla    else None,
+                "conveniencia":  _bool_col(row.get(col_conv, ""))     if col_conv    else None,
+            }
+            rows.append(rec)
         if rows:
             df_coords = pd.DataFrame(rows)
             # Limpa valores "nan" / "None" que vieram como string
@@ -1143,6 +1161,14 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
                     {"nan": "", "None": "", "NaN": ""})
             # Normaliza distribuidora para Title Case uniforme
             df_coords["distribuidora"] = _normalizar_distribuidora(df_coords["distribuidora"])
+            # Informa quais colunas de serviço foram detectadas (para feedback no sidebar)
+            _servicos_detectados = [s for s, c in [
+                ("horario", col_horario), ("funciona_24h", col_24h),
+                ("pista_caminhao", col_caminhao), ("arla", col_arla),
+                ("conveniencia", col_conv),
+            ] if c]
+            if _servicos_detectados:
+                st.session_state["_servicos_cols_disponiveis"] = _servicos_detectados
 
     preview = df[[col]].rename(columns={col: "CNPJ (original)"}).head(10)
     perfil_info  = f" · {len(set(perfil_map.values()))} perfis" if perfil_map else ""
@@ -3137,6 +3163,40 @@ def _popup(row):
     nome_safe = v("razaoSocial").replace(";", ",")[:80]
     coord_tag = f"<!-- POSTO_SEL:{row.get('_lat', '')};{row.get('_lon', '')};{nome_safe} -->"
 
+    # ── Serviços disponíveis (colunas opcionais da planilha) ──────────
+    _svc_badges = []
+    if row.get("funciona_24h") is True:
+        _svc_badges.append(
+            "<span style='background:#1565c0;color:#fff;border-radius:4px;"
+            "padding:1px 5px;font-size:10px;font-weight:700'>🕐 24h</span>"
+        )
+    if row.get("pista_caminhao") is True:
+        _svc_badges.append(
+            "<span style='background:#4e342e;color:#fff;border-radius:4px;"
+            "padding:1px 5px;font-size:10px;font-weight:700'>🚛 Pista</span>"
+        )
+    if row.get("arla") is True:
+        _svc_badges.append(
+            "<span style='background:#1b5e20;color:#fff;border-radius:4px;"
+            "padding:1px 5px;font-size:10px;font-weight:700'>🧪 ARLA</span>"
+        )
+    if row.get("conveniencia") is True:
+        _svc_badges.append(
+            "<span style='background:#4a148c;color:#fff;border-radius:4px;"
+            "padding:1px 5px;font-size:10px;font-weight:700'>🛒 Conv.</span>"
+        )
+    _svc_html = ""
+    if _svc_badges:
+        _svc_html = (
+            "<div style='display:flex;flex-wrap:wrap;gap:4px;margin:5px 0'>"
+            + " ".join(_svc_badges)
+            + "</div>"
+        )
+    _horario_val = str(row.get("horario", "") or "").strip()
+    _horario_html = ""
+    if _horario_val and _horario_val not in ("nan", "None", "—"):
+        _horario_html = f"<b>🕐 Horário:</b> {_horario_val}<br>"
+
     return folium.Popup(
         f"<div style='font-family:sans-serif;font-size:12px;min-width:260px;max-width:320px'>"
         f"{pf_badge}"
@@ -3149,7 +3209,9 @@ def _popup(row):
         f"<b>CEP:</b> {v('cep')}<br>"
         f"<b>Autorização:</b> {v('autorizacao')}<br>"
         f"<b>Situação:</b> {v('situacaoConstatada')} | <b>SIGAF:</b> {v('statusSIGAF')}<br>"
+        f"{_horario_html}"
         f"{dist_txt}"
+        f"{_svc_html}"
         f"{produtos_html}"
         f"{botoes_html}"
         f"{coord_tag}"
@@ -5411,19 +5473,22 @@ def _marcar_df_completo(df_raw: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=None):
+def preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=None,
+                filtro_servicos=None, filtro_24h=False):
     """
     Retorna df filtrado e marcado.
     A etapa de marcação (cara) é cacheada em session_state:
     só reprocessa quando df_raw ou os conjuntos GF/cercados/perfis mudam.
+
+    Parâmetros extras:
+      filtro_servicos: list com zero ou mais de ['pista_caminhao','arla','conveniencia']
+      filtro_24h: bool — se True, exibe apenas postos com funciona_24h == True
     """
     cnpjs_pf   = st.session_state.get("cnpjs_pro_frotas", set())
     cnpjs_cer  = st.session_state.get("cnpjs_cercados",   set())
     perfil_map = st.session_state.get("perfil_venda_map", {})
 
     # Chave de cache: muda só quando os dados ou marcadores mudam.
-    # Usa id() + len() + hash das primeiras/últimas linhas para evitar
-    # colisões por reuso de endereço de memória do Python.
     _first_cnpj = df_raw["cnpj"].iloc[0]  if (not df_raw.empty and "cnpj" in df_raw.columns) else ""
     _last_cnpj  = df_raw["cnpj"].iloc[-1] if (not df_raw.empty and "cnpj" in df_raw.columns) else ""
     _mark_key = (
@@ -5448,6 +5513,22 @@ def preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=None):
         df = df[df["distribuidora"].isin(distribuidoras_filtro)]
     if perfis_filtro and "_perfil_venda" in df.columns:
         df = df[df["_perfil_venda"].isin(perfis_filtro)]
+
+    # ── Filtro 24h ────────────────────────────────────────────
+    if filtro_24h and "funciona_24h" in df.columns:
+        _mask_24h = df["funciona_24h"].fillna(False).astype(bool)
+        # Aplica apenas a postos que têm dado (não None); sem dado → não remove
+        _tem_dado = df["funciona_24h"].notna()
+        df = df[~_tem_dado | _mask_24h]
+
+    # ── Filtro de Serviços ────────────────────────────────────
+    if filtro_servicos:
+        for _svc in filtro_servicos:
+            if _svc in df.columns:
+                _mask_svc = df[_svc].fillna(False).astype(bool)
+                _tem_dado_svc = df[_svc].notna()
+                df = df[~_tem_dado_svc | _mask_svc]
+
     return df
 
 
@@ -6099,6 +6180,91 @@ with st.sidebar:
                 help="Filtra os postos Gestão de Frotas pelo perfil de venda. Postos não-GF sempre exibidos.",
             )
 
+        # ── Filtros Avançados ─────────────────────────────────────────────
+        _pp_df_adv   = st.session_state.get("_pp_df")
+        _svc_cols    = st.session_state.get("_servicos_cols_disponiveis", [])
+        _tem_preco   = _pp_df_adv is not None and "preco" in _pp_df_adv.columns
+        _tem_servico = bool(_svc_cols)
+
+        if _tem_preco or _tem_servico:
+            with st.expander("🔍 Filtros Avançados", expanded=False):
+                # ── Faixa de Preço (R$/L) ─────────────────────────────
+                _preco_min_m1 = _preco_max_m1 = None
+                _preco_faixa_m1 = None
+                _fuel_sel_m1 = None
+                if _tem_preco:
+                    _fuels_m1 = sorted(
+                        _pp_df_adv["combustivel_label"].dropna().str.strip().unique().tolist()
+                    )
+                    _fuel_sel_m1 = st.selectbox(
+                        "⛽ Combustível (preço)",
+                        ["— Todos —"] + _fuels_m1,
+                        key=f"adv_fuel_m1_{_fk_m1}",
+                        label_visibility="visible",
+                    )
+                    if _fuel_sel_m1 and _fuel_sel_m1 != "— Todos —":
+                        _df_fuel_m1 = _pp_df_adv[
+                            _pp_df_adv["combustivel_label"].str.strip() == _fuel_sel_m1
+                        ]
+                        if not _df_fuel_m1.empty:
+                            _pmin = float(_df_fuel_m1["preco"].min())
+                            _pmax = float(_df_fuel_m1["preco"].max())
+                            if _pmin < _pmax:
+                                _preco_min_m1, _preco_max_m1 = _pmin, _pmax
+                                _preco_faixa_m1 = st.slider(
+                                    "💰 Faixa de Preço (R$/L)",
+                                    min_value=round(_pmin, 2),
+                                    max_value=round(_pmax, 2),
+                                    value=(round(_pmin, 2), round(_pmax, 2)),
+                                    step=0.01,
+                                    format="R$ %.2f",
+                                    key=f"adv_preco_m1_{_fk_m1}",
+                                    help="Exibe apenas postos com preço registrado dentro da faixa selecionada",
+                                )
+                            else:
+                                st.caption(f"Preço único: R$ {_pmin:.3f}/L")
+
+                # ── Horário de Funcionamento ───────────────────────────
+                _filtro_24h_m1 = False
+                if "funciona_24h" in _svc_cols:
+                    _filtro_24h_m1 = st.checkbox(
+                        "🕐 Somente postos 24h",
+                        key=f"adv_24h_m1_{_fk_m1}",
+                        help="Filtra postos que funcionam 24 horas (coluna 'FUNCIONA_24H' da planilha)",
+                    )
+
+                # ── Serviços Disponíveis ───────────────────────────────
+                _filtro_servicos_m1 = []
+                _svc_opts = []
+                if "pista_caminhao" in _svc_cols: _svc_opts.append("🚛 Pista Caminhão")
+                if "arla"           in _svc_cols: _svc_opts.append("🧪 ARLA 32")
+                if "conveniencia"   in _svc_cols: _svc_opts.append("🛒 Conveniência")
+                if _svc_opts:
+                    _svc_sel_m1 = st.multiselect(
+                        "🔧 Serviços disponíveis",
+                        _svc_opts,
+                        placeholder="Qualquer serviço",
+                        key=f"adv_svc_m1_{_fk_m1}",
+                        help="Exibe apenas postos que oferecem os serviços selecionados",
+                    )
+                    _svc_map = {
+                        "🚛 Pista Caminhão": "pista_caminhao",
+                        "🧪 ARLA 32":        "arla",
+                        "🛒 Conveniência":   "conveniencia",
+                    }
+                    _filtro_servicos_m1 = [_svc_map[s] for s in _svc_sel_m1]
+
+                if not _tem_servico:
+                    st.caption(
+                        "ℹ️ Colunas de serviço não encontradas na planilha. "
+                        "Adicione: PISTA_CAMINHAO, ARLA, CONVENIENCIA, FUNCIONA_24H."
+                    )
+        else:
+            _preco_faixa_m1 = None
+            _fuel_sel_m1    = None
+            _filtro_24h_m1  = False
+            _filtro_servicos_m1 = []
+
     # ── Modo 3 ────────────────────────────────────────────────
     elif modo == "🔍 Consulta por Posto":
 
@@ -6447,6 +6613,80 @@ with st.sidebar:
                 help="Filtra os postos Gestão de Frotas pelo perfil de venda.",
             )
 
+        # ── Filtros Avançados — Modo Rota ─────────────────────────────────
+        _pp_df_adv_m2 = st.session_state.get("_pp_df")
+        _svc_cols_m2  = st.session_state.get("_servicos_cols_disponiveis", [])
+        _tem_preco_m2   = _pp_df_adv_m2 is not None and "preco" in _pp_df_adv_m2.columns
+        _tem_servico_m2 = bool(_svc_cols_m2)
+
+        if _tem_preco_m2 or _tem_servico_m2:
+            with st.expander("🔍 Filtros Avançados", expanded=False):
+                _preco_faixa_m2 = None
+                _fuel_sel_m2    = None
+                if _tem_preco_m2:
+                    _fuels_m2 = sorted(
+                        _pp_df_adv_m2["combustivel_label"].dropna().str.strip().unique().tolist()
+                    )
+                    _fuel_sel_m2 = st.selectbox(
+                        "⛽ Combustível (preço)",
+                        ["— Todos —"] + _fuels_m2,
+                        key="adv_fuel_m2",
+                        label_visibility="visible",
+                    )
+                    if _fuel_sel_m2 and _fuel_sel_m2 != "— Todos —":
+                        _df_fuel_m2 = _pp_df_adv_m2[
+                            _pp_df_adv_m2["combustivel_label"].str.strip() == _fuel_sel_m2
+                        ]
+                        if not _df_fuel_m2.empty:
+                            _pmin2 = float(_df_fuel_m2["preco"].min())
+                            _pmax2 = float(_df_fuel_m2["preco"].max())
+                            if _pmin2 < _pmax2:
+                                _preco_faixa_m2 = st.slider(
+                                    "💰 Faixa de Preço (R$/L)",
+                                    min_value=round(_pmin2, 2),
+                                    max_value=round(_pmax2, 2),
+                                    value=(round(_pmin2, 2), round(_pmax2, 2)),
+                                    step=0.01,
+                                    format="R$ %.2f",
+                                    key="adv_preco_m2",
+                                    help="Exibe apenas postos com preço dentro da faixa selecionada",
+                                )
+                            else:
+                                st.caption(f"Preço único: R$ {_pmin2:.3f}/L")
+
+                _filtro_24h_m2 = False
+                if "funciona_24h" in _svc_cols_m2:
+                    _filtro_24h_m2 = st.checkbox(
+                        "🕐 Somente postos 24h",
+                        key="adv_24h_m2",
+                        help="Filtra postos que funcionam 24 horas",
+                    )
+
+                _filtro_servicos_m2 = []
+                _svc_opts_m2 = []
+                if "pista_caminhao" in _svc_cols_m2: _svc_opts_m2.append("🚛 Pista Caminhão")
+                if "arla"           in _svc_cols_m2: _svc_opts_m2.append("🧪 ARLA 32")
+                if "conveniencia"   in _svc_cols_m2: _svc_opts_m2.append("🛒 Conveniência")
+                if _svc_opts_m2:
+                    _svc_sel_m2 = st.multiselect(
+                        "🔧 Serviços disponíveis",
+                        _svc_opts_m2,
+                        placeholder="Qualquer serviço",
+                        key="adv_svc_m2",
+                        help="Exibe apenas postos que oferecem os serviços selecionados",
+                    )
+                    _svc_map_m2 = {
+                        "🚛 Pista Caminhão": "pista_caminhao",
+                        "🧪 ARLA 32":        "arla",
+                        "🛒 Conveniência":   "conveniencia",
+                    }
+                    _filtro_servicos_m2 = [_svc_map_m2[s] for s in _svc_sel_m2]
+        else:
+            _preco_faixa_m2     = None
+            _fuel_sel_m2        = None
+            _filtro_24h_m2      = False
+            _filtro_servicos_m2 = []
+
     # ── Modo Roteirização — campos do veículo ─────────────────────────────────
     elif modo == "🛣️ Roteirização":
 
@@ -6533,6 +6773,22 @@ with st.sidebar:
         perfis_filtro_m2   = []
     if "perfis_filtro_m1" not in dir():
         perfis_filtro_m1   = []
+    if "filtro_24h_m1" not in dir():
+        _filtro_24h_m1      = False
+    if "_filtro_servicos_m1" not in dir():
+        _filtro_servicos_m1 = []
+    if "_preco_faixa_m1" not in dir():
+        _preco_faixa_m1     = None
+    if "_fuel_sel_m1" not in dir():
+        _fuel_sel_m1        = None
+    if "_filtro_24h_m2" not in dir():
+        _filtro_24h_m2      = False
+    if "_filtro_servicos_m2" not in dir():
+        _filtro_servicos_m2 = []
+    if "_preco_faixa_m2" not in dir():
+        _preco_faixa_m2     = None
+    if "_fuel_sel_m2" not in dir():
+        _fuel_sel_m2        = None
 
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
@@ -7260,7 +7516,29 @@ if modo == "📍 Por UF/Município":
         else:
             df_raw = df_raw_full
 
-        df_show = preparar_df(df_raw, distribuidoras_filtro, perfis_filtro=perfis_filtro_m1)
+        df_show = preparar_df(
+            df_raw, distribuidoras_filtro,
+            perfis_filtro=perfis_filtro_m1,
+            filtro_servicos=_filtro_servicos_m1,
+            filtro_24h=_filtro_24h_m1,
+        )
+
+        # ── Filtro de Preço — pós-processamento via _pp_df ───────────────
+        if _preco_faixa_m1 and _fuel_sel_m1 and _fuel_sel_m1 != "— Todos —":
+            _pp_m1 = st.session_state.get("_pp_df")
+            if _pp_m1 is not None and "_cnpj_norm" in df_show.columns:
+                _fuel_df_m1 = _pp_m1[
+                    _pp_m1["combustivel_label"].str.strip() == _fuel_sel_m1
+                ][["cnpj_norm","preco"]].copy()
+                _lo_m1, _hi_m1 = _preco_faixa_m1
+                _cnpj_ok_m1 = set(
+                    _fuel_df_m1[
+                        _fuel_df_m1["preco"].between(_lo_m1, _hi_m1)
+                    ]["cnpj_norm"]
+                )
+                # Mantém postos sem preço cadastrado + postos dentro da faixa
+                _sem_preco_m1 = ~df_show["_cnpj_norm"].isin(_fuel_df_m1["cnpj_norm"])
+                df_show = df_show[_sem_preco_m1 | df_show["_cnpj_norm"].isin(_cnpj_ok_m1)]
 
         # ── Overlay ANP: adiciona postos do arquivo carregado pelo usuário ──
         # O mapa já contém apenas postos GF (da planilha). O overlay acrescenta
@@ -7330,6 +7608,25 @@ if modo == "📍 Por UF/Município":
                     st.toast(f"✅ Consulta **{_nome_salvar_m1 or _nome_sugerido_m1}** salva!", icon="💾")
                 else:
                     st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
+
+        # ── Banner de filtros ativos ──────────────────────────────────────
+        _filtros_ativos_m1 = []
+        if distribuidoras_filtro:
+            _filtros_ativos_m1.append(f"Bandeira: {', '.join(distribuidoras_filtro)}")
+        if _filtro_24h_m1:
+            _filtros_ativos_m1.append("⏰ 24h")
+        if _filtro_servicos_m1:
+            _srv_label = {"pista_caminhao":"🚛 Pista","arla":"🧪 ARLA","conveniencia":"🛒 Conv."}
+            _filtros_ativos_m1 += [_srv_label.get(s,s) for s in _filtro_servicos_m1]
+        if _preco_faixa_m1 and _fuel_sel_m1 and _fuel_sel_m1 != "— Todos —":
+            _lo_lbl, _hi_lbl = _preco_faixa_m1
+            _filtros_ativos_m1.append(f"💰 {_fuel_sel_m1}: R$ {_lo_lbl:.2f}–{_hi_lbl:.2f}/L")
+        if _filtros_ativos_m1:
+            st.info(
+                "🔍 **Filtros ativos:** " + " · ".join(_filtros_ativos_m1)
+                + f" &nbsp;|&nbsp; **{_n(len(df_show))} postos** exibidos",
+                icon=None,
+            )
 
         tab_mapa, tab_dados, tab_analise = st.tabs([
             "🗺️  Mapa Interativo", "📋  Dados Tabulares",
@@ -7839,7 +8136,28 @@ elif modo == "🗺️ Por Rota":
                     "Aumente o **Raio da rota** na barra lateral."
                 )
 
-        df_show_r = preparar_df(df_rota, distribuidoras_filtro, perfis_filtro=perfis_filtro_m2)
+        df_show_r = preparar_df(
+            df_rota, distribuidoras_filtro,
+            perfis_filtro=perfis_filtro_m2,
+            filtro_servicos=_filtro_servicos_m2,
+            filtro_24h=_filtro_24h_m2,
+        )
+
+        # ── Filtro de Preço — pós-processamento via _pp_df ───────────────
+        if _preco_faixa_m2 and _fuel_sel_m2 and _fuel_sel_m2 != "— Todos —":
+            _pp_m2 = st.session_state.get("_pp_df")
+            if _pp_m2 is not None and "_cnpj_norm" in df_show_r.columns:
+                _fuel_df_m2 = _pp_m2[
+                    _pp_m2["combustivel_label"].str.strip() == _fuel_sel_m2
+                ][["cnpj_norm","preco"]].copy()
+                _lo_m2, _hi_m2 = _preco_faixa_m2
+                _cnpj_ok_m2 = set(
+                    _fuel_df_m2[
+                        _fuel_df_m2["preco"].between(_lo_m2, _hi_m2)
+                    ]["cnpj_norm"]
+                )
+                _sem_preco_m2 = ~df_show_r["_cnpj_norm"].isin(_fuel_df_m2["cnpj_norm"])
+                df_show_r = df_show_r[_sem_preco_m2 | df_show_r["_cnpj_norm"].isin(_cnpj_ok_m2)]
 
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("🛣️ Distância",      f"{_n(dist_km)} km")
@@ -7852,6 +8170,25 @@ elif modo == "🗺️ Por Rota":
         _all_labels = [label_orig] + [wp["label"] for wp in _paradas_vis] + [label_dest]
         _rota_str   = " → ".join(f"**{lb}**" for lb in _all_labels)
         st.success(f"✅ {_rota_str} | {_n(len(df_show_r))} postos a até {raio_usado} m")
+
+        # ── Banner de filtros ativos (Modo 2) ────────────────────────────
+        _filtros_ativos_m2 = []
+        if distribuidoras_filtro:
+            _filtros_ativos_m2.append(f"Bandeira: {', '.join(distribuidoras_filtro)}")
+        if _filtro_24h_m2:
+            _filtros_ativos_m2.append("⏰ 24h")
+        if _filtro_servicos_m2:
+            _srv_lbl2 = {"pista_caminhao":"🚛 Pista","arla":"🧪 ARLA","conveniencia":"🛒 Conv."}
+            _filtros_ativos_m2 += [_srv_lbl2.get(s,s) for s in _filtro_servicos_m2]
+        if _preco_faixa_m2 and _fuel_sel_m2 and _fuel_sel_m2 != "— Todos —":
+            _lo_lbl2, _hi_lbl2 = _preco_faixa_m2
+            _filtros_ativos_m2.append(f"💰 {_fuel_sel_m2}: R$ {_lo_lbl2:.2f}–{_hi_lbl2:.2f}/L")
+        if _filtros_ativos_m2:
+            st.info(
+                "🔍 **Filtros ativos:** " + " · ".join(_filtros_ativos_m2)
+                + f" &nbsp;|&nbsp; **{_n(len(df_show_r))} postos** exibidos",
+                icon=None,
+            )
 
         # ── Botão Salvar (Modo 2) ─────────────────────────────────────
         _nome_sugerido_m2 = f"{label_orig[:30]} → {label_dest[:30]}"
