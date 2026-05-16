@@ -10461,8 +10461,8 @@ elif modo == "🛣️ Roteirização":
                 _pos  = _best["_km"]
 
         # ── Tabs ─────────────────────────────────────────────────
-        _t_mapa, _t_abast, _t_res = st.tabs(
-            ["🗺️  Mapa da Rota", "⛽  Abastecimento", "📋  Resumo"]
+        _t_mapa, _t_abast, _t_custo, _t_res = st.tabs(
+            ["🗺️  Mapa da Rota", "⛽  Abastecimento", "💰  Custo da Viagem", "📋  Resumo"]
         )
 
         with _t_mapa:
@@ -10579,6 +10579,342 @@ elif modo == "🛣️ Roteirização":
 
                         f"</div>",
                         unsafe_allow_html=True)
+
+        # ══════════════════════════════════════════════════════════
+        # TAB CUSTO DA VIAGEM
+        # ══════════════════════════════════════════════════════════
+        with _t_custo:
+            # ── Sem planilha de preços ────────────────────────────
+            if _pp_df_r is None or _pp_df_r.empty:
+                st.info(
+                    "ℹ️ Para calcular o custo da viagem, carregue a **planilha de preços** "
+                    "em Configurações → 💲 Preços PP."
+                )
+            else:
+                # ── Dados base ────────────────────────────────────
+                _consumo_total_l = _rd / _raut if _raut > 0 else 0
+
+                # Preço médio dos candidatos GF para esse combustível
+                _preco_medio_gf = (
+                    sum(c["preco"] for c in _cands) / len(_cands) if _cands else None
+                )
+
+                # Referência ANP (se disponível via planilha carregada)
+                _anp_cache_r   = st.session_state.get("_precos_anp_cache", {})
+                _sheets_r      = _anp_cache_r.get("sheets")
+                _preco_anp_ref = None
+                if _sheets_r and "estados" in _sheets_r:
+                    _df_est_r = _sheets_r["estados"]
+                    _ce_r = _anp_col(_df_est_r, "estado", "estados")
+                    _cp_r = _anp_col(_df_est_r, "produto")
+                    _cm_r = _anp_col(_df_est_r, "medio revenda", "media revenda", "preco medio")
+                    if _ce_r and _cp_r and _cm_r:
+                        _uf_origem = _ro.get("uf", "") or ""
+                        _pk_r = _anp_norm(_rcomb)
+                        _anp_vals = []
+                        for _, _rr in _df_est_r.iterrows():
+                            _uf_n = _anp_norm(str(_rr.get(_ce_r, "")))
+                            _pk_n = _anp_norm(str(_rr.get(_cp_r, "")))
+                            if _uf_n == _anp_norm(_uf_origem) or _uf_n in _anp_norm(_uf_origem):
+                                if _pk_r in _pk_n or _pk_n in _pk_r:
+                                    try:
+                                        _v = float(str(_rr.get(_cm_r, "")).replace(",", "."))
+                                        if _v > 0:
+                                            _anp_vals.append(_v)
+                                    except (ValueError, TypeError):
+                                        pass
+                        if _anp_vals:
+                            _preco_anp_ref = sum(_anp_vals) / len(_anp_vals)
+
+                # Custo total dos abastecimentos sugeridos
+                _custo_sugest  = sum(s.get("custo_abast", 0) for s in _sugest)
+                _litros_sugest = sum(s.get("litros_sugeridos", 0) for s in _sugest)
+
+                # Custo estimado total (inclui combustível já no tanque consumido)
+                _custo_km      = _custo_sugest / _rd if _rd > 0 and _custo_sugest > 0 else 0
+                _custo_100km   = _custo_km * 100
+
+                # Custo se fosse ao preço médio GF (referência de mercado)
+                _custo_medio_gf = (
+                    _consumo_total_l * _preco_medio_gf if _preco_medio_gf else None
+                )
+                # Custo se fosse ao preço ANP
+                _custo_anp = (
+                    _consumo_total_l * _preco_anp_ref if _preco_anp_ref else None
+                )
+
+                # ── Header ────────────────────────────────────────
+                st.markdown(
+                    "<div style='font-size:13px;font-weight:700;color:#1B5E20;"
+                    "margin-bottom:12px'>💰 Custo Estimado da Viagem</div>",
+                    unsafe_allow_html=True,
+                )
+
+                # ── Caso sem paradas necessárias ──────────────────
+                if not _sugest and _preco_medio_gf:
+                    _custo_sem_par = _consumo_total_l * _preco_medio_gf
+                    _ck1, _ck2, _ck3 = st.columns(3)
+                    _ck1.metric("💰 Custo estimado",
+                                f"R$ {_custo_sem_par:,.2f}".replace(",","X").replace(".",",").replace("X","."))
+                    _ck2.metric("🛢 Consumo total",
+                                f"{_consumo_total_l:.1f} L")
+                    _ck3.metric("📏 Custo/km",
+                                f"R$ {_custo_sem_par/_rd:.3f}".replace(".",",") if _rd > 0 else "—")
+                    st.info(
+                        f"✅ O alcance efetivo do veículo (~{_range_avail:.0f} km) cobre toda a rota "
+                        f"({_rd:.0f} km). O custo é calculado com base no preço médio dos postos GF "
+                        f"para **{_rcomb}**."
+                    )
+
+                elif _sugest:
+                    # ── KPIs ──────────────────────────────────────
+                    _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+                    _kc1.metric(
+                        "💰 Total Abastecimentos",
+                        f"R$ {_custo_sugest:,.2f}".replace(",","X").replace(".",",").replace("X","."),
+                        help="Custo total das paradas de abastecimento sugeridas",
+                    )
+                    _kc2.metric(
+                        "🛢 Total Abastecido",
+                        f"{_litros_sugest:.0f} L",
+                        delta=f"{_litros_sugest/_consumo_total_l*100:.0f}% do consumo" if _consumo_total_l > 0 else None,
+                    )
+                    _kc3.metric(
+                        "📏 Custo por km",
+                        f"R$ {_custo_km:.4f}".replace(".",",") if _custo_km > 0 else "—",
+                        help="Custo de abastecimento dividido pela distância total",
+                    )
+                    _kc4.metric(
+                        "⛽ Preço médio pago",
+                        f"R$ {_custo_sugest/_litros_sugest:.3f}/L".replace(".",",") if _litros_sugest > 0 else "—",
+                        help="Preço médio ponderado pelos volumes abastecidos",
+                    )
+
+                    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+                    # ── Gráfico custo acumulado ao longo da rota ──
+                    if len(_sugest) >= 1:
+                        st.markdown("#### 📈 Custo Acumulado ao Longo da Rota")
+                        _km_pts  = [0.0] + [s.get("_km", 0) for s in _sugest] + [float(_rd)]
+                        _custo_pts = [0.0]
+                        _acc = 0.0
+                        for _s in _sugest:
+                            _acc += _s.get("custo_abast", 0)
+                            _custo_pts.append(_acc)
+                        _custo_pts.append(_acc)  # linha reta até o destino
+
+                        _lbl_pts = (
+                            [f"Origem: {_ro.get('label','')[:25]}"]
+                            + [s["label"][:30] for s in _sugest]
+                            + [f"Destino: {_rt.get('label','')[:25]}"]
+                        )
+
+                        _fig_acc = go.Figure()
+                        # Área preenchida
+                        _fig_acc.add_trace(go.Scatter(
+                            x=_km_pts, y=_custo_pts,
+                            mode="lines+markers",
+                            name="Custo acumulado",
+                            line=dict(color="#1B5E20", width=2.5),
+                            marker=dict(size=10, color="#2E7D32",
+                                       line=dict(color="white", width=2)),
+                            fill="tozeroy",
+                            fillcolor="rgba(27,94,32,0.10)",
+                            text=_lbl_pts,
+                            hovertemplate=(
+                                "<b>%{text}</b><br>"
+                                "Km: %{x:.0f} km<br>"
+                                "Acumulado: R$ %{y:,.2f}<extra></extra>"
+                            ),
+                        ))
+                        # Marcadores de cada parada
+                        for _is, _sp in enumerate(_sugest):
+                            _acc_s = sum(_sugest[j].get("custo_abast", 0) for j in range(_is + 1))
+                            _fig_acc.add_annotation(
+                                x=_sp.get("_km", 0),
+                                y=_acc_s,
+                                text=f"R$ {_sp.get('custo_abast',0):.0f}",
+                                showarrow=True, arrowhead=2,
+                                arrowcolor="#E65100", arrowsize=1,
+                                ax=0, ay=-32,
+                                font=dict(size=9, color="#E65100"),
+                                bgcolor="white",
+                                bordercolor="#E65100",
+                                borderwidth=1,
+                                borderpad=2,
+                            )
+                        _fig_acc.update_layout(
+                            xaxis_title="Distância (km)",
+                            yaxis_title="Custo acumulado (R$)",
+                            height=280,
+                            margin=dict(l=10, r=10, t=20, b=40),
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            showlegend=False,
+                            font=dict(size=11),
+                        )
+                        _fig_acc.update_xaxes(showgrid=True, gridcolor="#E8F5E9")
+                        _fig_acc.update_yaxes(showgrid=True, gridcolor="#E8F5E9",
+                                              tickprefix="R$ ")
+                        st.plotly_chart(_fig_acc, use_container_width=True)
+
+                    # ── Breakdown por posto ───────────────────────
+                    st.markdown("#### 🏢 Custo por Posto de Abastecimento")
+                    _fig_bk = go.Figure()
+                    _nomes_bk = [f"#{_i+1} {s['label'][:28]}" for _i, s in enumerate(_sugest)]
+                    _custos_bk = [s.get("custo_abast", 0) for s in _sugest]
+                    _precos_bk = [s.get("preco", 0) for s in _sugest]
+                    _litros_bk = [s.get("litros_sugeridos", 0) for s in _sugest]
+                    _cores_bk  = [
+                        "#1B5E20" if p == min(_precos_bk) else
+                        "#E65100" if p == max(_precos_bk) else
+                        "#2E7D32"
+                        for p in _precos_bk
+                    ]
+                    _fig_bk.add_trace(go.Bar(
+                        y=_nomes_bk,
+                        x=_custos_bk,
+                        orientation="h",
+                        marker_color=_cores_bk,
+                        text=[
+                            f"R$ {c:.2f}  ({l}L @ R$ {p:.3f}/L)"
+                            .replace(".",",")
+                            for c, l, p in zip(_custos_bk, _litros_bk, _precos_bk)
+                        ],
+                        textposition="outside",
+                        hovertemplate=(
+                            "<b>%{y}</b><br>"
+                            "Custo: R$ %{x:,.2f}<br>"
+                            "<extra></extra>"
+                        ),
+                    ))
+                    _fig_bk.update_layout(
+                        xaxis_title="Custo (R$)",
+                        yaxis=dict(autorange="reversed"),
+                        height=max(200, len(_sugest) * 48 + 60),
+                        margin=dict(l=10, r=120, t=20, b=30),
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        font=dict(size=10),
+                    )
+                    _fig_bk.update_xaxes(showgrid=True, gridcolor="#E8F5E9",
+                                         tickprefix="R$ ")
+                    st.plotly_chart(_fig_bk, use_container_width=True)
+
+                    # ── Comparativo de preços ─────────────────────
+                    _preco_pago_medio = (
+                        _custo_sugest / _litros_sugest if _litros_sugest > 0 else None
+                    )
+                    _tem_comparativo = (
+                        _preco_medio_gf is not None or _preco_anp_ref is not None
+                    )
+                    if _tem_comparativo and _preco_pago_medio:
+                        st.markdown("#### 📊 Comparativo de Preços")
+                        _comp_nomes, _comp_vals, _comp_cores = [], [], []
+                        _comp_nomes.append("Preço pago (postos GF selecionados)")
+                        _comp_vals.append(_preco_pago_medio)
+                        _comp_cores.append("#1B5E20")
+                        if _preco_medio_gf and abs(_preco_medio_gf - _preco_pago_medio) > 0.001:
+                            _comp_nomes.append("Preço médio rede GF (rota)")
+                            _comp_vals.append(_preco_medio_gf)
+                            _comp_cores.append("#42A5F5")
+                        if _preco_anp_ref:
+                            _comp_nomes.append(f"Referência ANP ({_ro.get('uf','UF')})")
+                            _comp_vals.append(_preco_anp_ref)
+                            _comp_cores.append("#E65100")
+
+                        _fig_cmp = go.Figure()
+                        _fig_cmp.add_trace(go.Bar(
+                            x=_comp_nomes,
+                            y=_comp_vals,
+                            marker_color=_comp_cores,
+                            text=[f"R$ {v:.3f}".replace(".", ",") for v in _comp_vals],
+                            textposition="outside",
+                            hovertemplate="<b>%{x}</b><br>R$ %{y:.3f}/L<extra></extra>",
+                        ))
+                        _fig_cmp.update_layout(
+                            yaxis_title="R$/L",
+                            height=260,
+                            margin=dict(l=10, r=10, t=20, b=60),
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            font=dict(size=10),
+                            showlegend=False,
+                        )
+                        _fig_cmp.update_yaxes(
+                            showgrid=True, gridcolor="#E8F5E9",
+                            tickprefix="R$ ",
+                            range=[0, max(_comp_vals) * 1.2],
+                        )
+                        st.plotly_chart(_fig_cmp, use_container_width=True)
+
+                    # ── Projeção de economia ──────────────────────
+                    _economia_rows = []
+                    if _preco_medio_gf and _preco_pago_medio and _litros_sugest > 0:
+                        _custo_se_medio = _litros_sugest * _preco_medio_gf
+                        _eco_medio = _custo_se_medio - _custo_sugest
+                        _economia_rows.append({
+                            "Cenário": "vs. Preço médio GF da rota",
+                            "Custo (R$)": f"R$ {_custo_se_medio:,.2f}".replace(",","X").replace(".",",").replace("X","."),
+                            "Economia (R$)": f"{'+ R$ ' if _eco_medio >= 0 else '- R$ '}{abs(_eco_medio):,.2f}".replace(",","X").replace(".",",").replace("X","."),
+                            "Economia (%)": f"{'▼' if _eco_medio >= 0 else '▲'} {abs(_eco_medio/_custo_se_medio*100):.1f}%",
+                        })
+                    if _custo_anp and _litros_sugest > 0:
+                        _eco_anp = _custo_anp - _custo_sugest
+                        # Custo ANP proporcional aos litros abastecidos
+                        _custo_anp_prop = _litros_sugest * _preco_anp_ref
+                        _eco_anp_prop = _custo_anp_prop - _custo_sugest
+                        _economia_rows.append({
+                            "Cenário": f"vs. Referência ANP ({_ro.get('uf','UF')})",
+                            "Custo (R$)": f"R$ {_custo_anp_prop:,.2f}".replace(",","X").replace(".",",").replace("X","."),
+                            "Economia (R$)": f"{'+ R$ ' if _eco_anp_prop >= 0 else '- R$ '}{abs(_eco_anp_prop):,.2f}".replace(",","X").replace(".",",").replace("X","."),
+                            "Economia (%)": f"{'▼' if _eco_anp_prop >= 0 else '▲'} {abs(_eco_anp_prop/_custo_anp_prop*100):.1f}%" if _custo_anp_prop > 0 else "—",
+                        })
+
+                    if _economia_rows:
+                        st.markdown("#### 💡 Projeção de Economia")
+                        _eco_df = pd.DataFrame(_economia_rows)
+                        st.dataframe(_eco_df, use_container_width=True, hide_index=True)
+                        st.caption(
+                            "🟢 Economia positiva = postos GF selecionados têm preço abaixo da referência. "
+                            "Valores calculados com base nos litros efetivamente abastecidos."
+                        )
+
+                    # ── Tabela detalhada ──────────────────────────
+                    st.markdown("#### 📋 Tabela Detalhada de Abastecimentos")
+                    _det_rows = []
+                    for _id, _sp in enumerate(_sugest, 1):
+                        _det_rows.append({
+                            "#":         _id,
+                            "Posto":     _sp["label"][:35],
+                            "Município": f"{_sp.get('municipio','')} / {_sp.get('uf','')}",
+                            "Km na rota":f"{_sp.get('_km',0):.0f} km",
+                            "Preço R$/L": f"R$ {_sp.get('preco',0):.3f}".replace(".",","),
+                            "Litros":    f"{_sp.get('litros_sugeridos',0):.0f} L",
+                            "Custo":     f"R$ {_sp.get('custo_abast',0):,.2f}".replace(",","X").replace(".",",").replace("X","."),
+                            "Nível após":f"{_sp.get('pct_apos',0):.0f}% ({_sp.get('fuel_apos',0):.0f} L)",
+                        })
+                    if _det_rows:
+                        _df_det = pd.DataFrame(_det_rows)
+                        st.dataframe(_df_det, use_container_width=True, hide_index=True)
+
+                        # Rodapé totais
+                        st.markdown(
+                            f"<div style='background:#E8F5E9;border-radius:8px;"
+                            f"padding:10px 14px;font-size:12px;color:#1B5E20;"
+                            f"display:flex;gap:24px;flex-wrap:wrap;margin-top:4px'>"
+                            f"<span>🛢 <b>Total abastecido:</b> {_litros_sugest:.0f} L</span>"
+                            f"<span>💰 <b>Custo total:</b> R$ {_custo_sugest:,.2f}</span>".replace(",","X").replace(".",",").replace("X",".")
+                            + f"<span>📏 <b>Custo/100 km:</b> R$ {_custo_100km:.2f}</span>".replace(".",",")
+                            + f"<span>⛽ <b>Preço médio pago:</b> R$ {_preco_pago_medio:.3f}/L</span>".replace(".",",")
+                            + f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.warning(
+                        f"⚠️ Nenhum posto GF com preço de **{_rcomb}** encontrado na rota. "
+                        "Verifique a planilha de preços em Configurações."
+                    )
 
         with _t_res:
             st.markdown(
