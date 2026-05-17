@@ -8588,8 +8588,8 @@ if modo == "📍 Por UF/Município":
             # Coluna de ranking (se existir)
             if "_rank_barato" in df_show.columns:
                 df_exib.insert(0, "💰 Rank",
-                    df_show["_rank_barato"].map(
-                        lambda v: _RANK_EMOJI.get(int(v), "") if int(v) > 0 else ""
+                    df_show["_rank_barato"].fillna(0).astype(int).map(
+                        lambda v: _RANK_EMOJI.get(v, "") if v > 0 else ""
                     )
                 )
             st.dataframe(df_exib, use_container_width=True, height=450)
