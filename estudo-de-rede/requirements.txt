@@ -16,4 +16,4 @@ plotly
 matplotlib
 beautifulsoup4
 fpdf2
-streamlit-oauth>=0.3.0
+streamlit-oauth>=0.1.14
