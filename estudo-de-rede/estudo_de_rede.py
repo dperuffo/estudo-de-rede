@@ -1356,8 +1356,8 @@ _LOG_PATH = _os_mod.path.join(
 )
 _LOG_FIELDS = [
     "timestamp", "data", "hora", "ip", "session_id",
-    "user_email", "user_name", "auth_provider",
     "modo", "uf", "municipio", "acao", "detalhe", "user_agent",
+    "user_email", "user_name", "auth_provider",
 ]
 
 
@@ -1425,8 +1425,19 @@ def _log_acesso(acao: str, detalhe: str = "", modo_override: str = None):
     # ── Persiste em arquivo CSV ──
     try:
         _existe = _os_mod.path.exists(_LOG_PATH)
+        # Validação de schema: se o header do arquivo não bate com _LOG_FIELDS, recria
+        if _existe:
+            try:
+                with open(_LOG_PATH, "r", encoding="utf-8") as _chk:
+                    _hdr = next(_csv_mod.reader(_chk), [])
+                if _hdr != _LOG_FIELDS:
+                    _os_mod.remove(_LOG_PATH)
+                    _existe = False
+            except Exception:
+                _existe = False
         with open(_LOG_PATH, "a", newline="", encoding="utf-8") as _f:
-            _w = _csv_mod.DictWriter(_f, fieldnames=_LOG_FIELDS, extrasaction="ignore")
+            _w = _csv_mod.DictWriter(_f, fieldnames=_LOG_FIELDS,
+                                     extrasaction="ignore", quoting=_csv_mod.QUOTE_ALL)
             if not _existe:
                 _w.writeheader()
             _w.writerow(_entry)
@@ -8347,30 +8358,35 @@ with st.sidebar:
                 # ── Tabela de eventos recentes ───────────────────────────
                 st.markdown("##### 🕐 Últimos 50 eventos")
                 _log_display = _log_df.tail(50).iloc[::-1].copy()
+                # Garante colunas na ordem correta para exibição
                 _cols_show = [c for c in [
-                    "timestamp", "user_email", "user_name", "auth_provider",
-                    "ip", "modo", "uf", "municipio", "acao", "detalhe",
+                    "timestamp", "user_name", "user_email", "auth_provider",
+                    "modo", "uf", "municipio", "acao", "detalhe", "ip",
                 ] if c in _log_display.columns]
                 _rename_log = {
                     "timestamp":     "Data/Hora",
+                    "user_name":     "Usuário",
                     "user_email":    "E-mail",
-                    "user_name":     "Nome",
                     "auth_provider": "Provider",
-                    "ip":            "IP",
                     "modo":          "Modo",
                     "uf":            "UF",
                     "municipio":     "Município",
                     "acao":          "Ação",
                     "detalhe":       "Detalhe",
+                    "ip":            "IP",
                 }
                 st.dataframe(
                     _log_display[_cols_show].rename(columns=_rename_log).reset_index(drop=True),
                     use_container_width=True,
                     hide_index=True,
                     column_config={
-                        "E-mail":   st.column_config.TextColumn("📧 E-mail"),
-                        "Nome":     st.column_config.TextColumn("👤 Nome"),
-                        "Provider": st.column_config.TextColumn("🔑 Provider"),
+                        "Data/Hora": st.column_config.TextColumn("🕐 Data/Hora", width="medium"),
+                        "Usuário":   st.column_config.TextColumn("👤 Usuário",   width="medium"),
+                        "E-mail":    st.column_config.TextColumn("📧 E-mail",    width="medium"),
+                        "Provider":  st.column_config.TextColumn("🔑",           width="small"),
+                        "Modo":      st.column_config.TextColumn("Modo",         width="medium"),
+                        "Ação":      st.column_config.TextColumn("Ação",         width="small"),
+                        "Detalhe":   st.column_config.TextColumn("Detalhe",      width="large"),
                     },
                 )
 
@@ -8379,14 +8395,29 @@ with st.sidebar:
                 _exp_l1, _exp_l2, _exp_l3 = st.columns([3, 1, 1])
 
                 with _exp_l2:
-                    _csv_logs = _log_df.to_csv(index=False).encode("utf-8-sig")
+                    # Exporta como XLSX (evita problema de vírgulas no user_agent)
+                    _cols_export = [c for c in _LOG_FIELDS if c in _log_df.columns]
+                    _rename_export = {
+                        "timestamp": "Data/Hora", "data": "Data", "hora": "Hora",
+                        "ip": "IP", "session_id": "Sessão",
+                        "modo": "Modo", "uf": "UF", "municipio": "Município",
+                        "acao": "Ação", "detalhe": "Detalhe", "user_agent": "Navegador",
+                        "user_email": "E-mail", "user_name": "Usuário",
+                        "auth_provider": "Provider",
+                    }
+                    import io as _io_mod
+                    _xlsx_buf = _io_mod.BytesIO()
+                    (_log_df[_cols_export]
+                     .rename(columns=_rename_export)
+                     .to_excel(_xlsx_buf, index=False, engine="openpyxl"))
+                    _xlsx_buf.seek(0)
                     st.download_button(
-                        label="📥 Exportar CSV",
-                        data=_csv_logs,
-                        file_name=f"logs_uso_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
+                        label="📥 Exportar Excel",
+                        data=_xlsx_buf.getvalue(),
+                        file_name=f"logs_uso_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True,
-                        help="Baixar todos os eventos em CSV",
+                        help="Baixar todos os eventos em Excel (.xlsx)",
                     )
 
                 with _exp_l3:
