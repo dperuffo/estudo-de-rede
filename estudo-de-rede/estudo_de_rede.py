@@ -8141,623 +8141,275 @@ with st.sidebar:
 if st.session_state.get("_tour_ativo", False):
     st.markdown("""
 <style>
-/* ── Overlay ── */
-#gf-tour-overlay {
-    position: fixed; inset: 0; z-index: 99990;
-    background: rgba(10,20,40,0.72);
-    backdrop-filter: blur(3px);
-    display: flex; align-items: center; justify-content: center;
-    animation: gfTourFadeIn .3s ease;
-}
-@keyframes gfTourFadeIn { from{opacity:0} to{opacity:1} }
-
-/* ── Card ── */
-#gf-tour-card {
-    background: #fff;
-    border-radius: 18px;
-    width: min(680px, 94vw);
-    max-height: 90vh;
-    overflow: hidden;
-    display: flex; flex-direction: column;
-    box-shadow: 0 24px 60px rgba(0,0,0,.35);
-    animation: gfTourSlideUp .35s cubic-bezier(.22,.68,0,1.2);
-}
-@keyframes gfTourSlideUp {
-    from{transform:translateY(40px);opacity:0}
-    to  {transform:translateY(0);   opacity:1}
-}
-
-/* ── Header ── */
-#gf-tour-header {
-    background: linear-gradient(135deg,#1565c0,#0d47a1);
-    padding: 20px 24px 16px;
-    display: flex; align-items: center; justify-content: space-between;
-    flex-shrink: 0;
-}
-#gf-tour-title-wrap { display:flex; align-items:center; gap:12px; }
-#gf-tour-icon { font-size:28px; line-height:1; }
-#gf-tour-title { color:#fff; font-size:16px; font-weight:700; margin:0; }
-#gf-tour-subtitle { color:rgba(255,255,255,.75); font-size:12px; margin:2px 0 0; }
-#gf-tour-close {
-    background:rgba(255,255,255,.15); border:none; border-radius:50%;
-    width:32px; height:32px; cursor:pointer; color:#fff; font-size:18px;
-    display:flex; align-items:center; justify-content:center;
-    transition:background .2s;
-}
-#gf-tour-close:hover { background:rgba(255,255,255,.28); }
-
-/* ── Dots de progresso ── */
-#gf-tour-dots {
-    display:flex; justify-content:center; gap:7px; padding:14px 24px 0;
-    flex-shrink:0;
-}
-.gf-tour-dot {
-    width:8px; height:8px; border-radius:50%;
-    background:#e0e0e0; transition:all .25s;
-}
-.gf-tour-dot.ativo { background:#1565c0; transform:scale(1.3); }
-
-/* ── Conteúdo ── */
-#gf-tour-body {
-    padding: 18px 28px;
-    overflow-y: auto;
-    flex: 1;
-}
-.gf-tour-step { display:none; }
-.gf-tour-step.ativo { display:block; animation: gfStepIn .25s ease; }
-@keyframes gfStepIn { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:none} }
-
-.gf-tour-step-title {
-    font-size:18px; font-weight:800; color:#1a1a1a;
-    margin: 0 0 8px; display:flex; align-items:center; gap:10px;
-}
-.gf-tour-step-desc {
-    font-size:14px; color:#444; line-height:1.65; margin:0 0 16px;
-}
-.gf-tour-ilust {
-    border-radius:12px; overflow:hidden;
-    background:#f5f7fb; border:1px solid #e8ecf4;
-    margin-bottom:4px;
-    display:flex; align-items:center; justify-content:center;
-    min-height:150px;
-}
-
-/* ── Badges de dica ── */
-.gf-tip {
-    display:inline-flex; align-items:center; gap:6px;
-    background:#e3f2fd; border:1px solid #90caf9;
-    border-radius:8px; padding:6px 12px;
-    font-size:12px; color:#0d47a1; margin:4px 4px 0 0;
-}
-
-/* ── Footer ── */
-#gf-tour-footer {
-    padding:14px 24px 18px;
-    display:flex; align-items:center; justify-content:space-between;
-    border-top:1px solid #f0f0f0;
-    flex-shrink:0; gap:10px;
-}
-#gf-tour-counter { font-size:12px; color:#999; }
-.gf-tour-btn {
-    border:none; border-radius:8px; padding:9px 22px;
-    font-size:13px; font-weight:700; cursor:pointer;
-    transition:all .2s;
-}
-#gf-btn-prev {
-    background:#f5f5f5; color:#555;
-}
-#gf-btn-prev:hover { background:#e0e0e0; }
-#gf-btn-next {
-    background:#1565c0; color:#fff;
-    box-shadow:0 3px 10px rgba(21,101,192,.35);
-}
-#gf-btn-next:hover { background:#0d47a1; transform:translateY(-1px); }
-#gf-btn-skip { font-size:12px; color:#aaa; background:none; border:none; cursor:pointer; }
-#gf-btn-skip:hover { color:#666; }
-#gf-tour-check-wrap { display:flex; align-items:center; gap:6px; font-size:12px; color:#888; }
-#gf-tour-check { accent-color:#1565c0; width:14px; height:14px; }
-
-@media(max-width:480px){
-    #gf-tour-card { border-radius:14px; }
-    #gf-tour-body { padding:14px 18px; }
-    #gf-tour-footer { flex-wrap:wrap; gap:8px; }
-    .gf-tour-step-title { font-size:15px; }
-}
+#gf-tour-overlay{position:fixed;inset:0;z-index:99990;background:rgba(10,20,40,.72);
+  backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;
+  animation:gfTFadeIn .3s ease}
+@keyframes gfTFadeIn{from{opacity:0}to{opacity:1}}
+#gf-tour-card{background:#fff;border-radius:18px;width:min(660px,94vw);max-height:90vh;
+  overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 24px 60px rgba(0,0,0,.35);
+  animation:gfTSlide .35s cubic-bezier(.22,.68,0,1.2)}
+@keyframes gfTSlide{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+#gft-hdr{background:linear-gradient(135deg,#1565c0,#0d47a1);padding:18px 22px 14px;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#gft-icon{font-size:26px;line-height:1;margin-right:12px}
+#gft-title{color:#fff;font-size:15px;font-weight:700;margin:0}
+#gft-sub{color:rgba(255,255,255,.72);font-size:11px;margin:2px 0 0}
+#gft-x{background:rgba(255,255,255,.15);border:none;border-radius:50%;
+  width:30px;height:30px;cursor:pointer;color:#fff;font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:background .2s;flex-shrink:0}
+#gft-x:hover{background:rgba(255,255,255,.28)}
+#gft-dots{display:flex;justify-content:center;gap:7px;padding:12px 0 0;flex-shrink:0}
+.gft-dot{width:8px;height:8px;border-radius:50%;background:#e0e0e0;
+  transition:all .25s;cursor:pointer}
+.gft-dot.on{background:#1565c0;transform:scale(1.3)}
+#gft-body{padding:18px 26px;overflow-y:auto;flex:1}
+.gft-step{display:none}
+.gft-step.on{display:block;animation:gftStepIn .22s ease}
+@keyframes gftStepIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+#gft-foot{padding:12px 22px 16px;display:flex;align-items:center;
+  justify-content:space-between;border-top:1px solid #f0f0f0;flex-shrink:0;gap:8px;
+  flex-wrap:wrap}
+#gft-counter{font-size:11px;color:#999}
+.gft-chk{display:flex;align-items:center;gap:5px;font-size:11px;color:#888;cursor:pointer}
+.gft-chk input{accent-color:#1565c0}
+.gft-btns{display:flex;gap:8px;align-items:center}
+.gft-btn{border:none;border-radius:8px;padding:8px 20px;font-size:13px;
+  font-weight:700;cursor:pointer;transition:all .2s}
+#gft-skip{font-size:11px;color:#bbb;background:none;border:none;cursor:pointer;padding:4px 8px}
+#gft-skip:hover{color:#666}
+#gft-prev{background:#f0f0f0;color:#555}
+#gft-prev:hover{background:#e0e0e0}
+#gft-next{background:#1565c0;color:#fff;box-shadow:0 3px 10px rgba(21,101,192,.3)}
+#gft-next:hover{background:#0d47a1;transform:translateY(-1px)}
 </style>
-
-<div id="gf-tour-overlay">
-<div id="gf-tour-card">
-
-  <!-- Header -->
-  <div id="gf-tour-header">
-    <div id="gf-tour-title-wrap">
-      <span id="gf-tour-icon">🗺️</span>
-      <div>
-        <div id="gf-tour-title">Guia de Uso — Estudo de Rede de Frotas</div>
-        <div id="gf-tour-subtitle">Tour rápido · 7 passos · 2 minutos</div>
-      </div>
-    </div>
-    <button id="gf-tour-close" title="Fechar">✕</button>
-  </div>
-
-  <!-- Dots -->
-  <div id="gf-tour-dots">
-    <div class="gf-tour-dot ativo" data-step="0"></div>
-    <div class="gf-tour-dot" data-step="1"></div>
-    <div class="gf-tour-dot" data-step="2"></div>
-    <div class="gf-tour-dot" data-step="3"></div>
-    <div class="gf-tour-dot" data-step="4"></div>
-    <div class="gf-tour-dot" data-step="5"></div>
-    <div class="gf-tour-dot" data-step="6"></div>
-  </div>
-
-  <!-- Body -->
-  <div id="gf-tour-body">
-
-    <!-- STEP 0 — Boas-vindas -->
-    <div class="gf-tour-step ativo">
-      <div class="gf-tour-step-title">👋 Bem-vindo ao Estudo de Rede!</div>
-      <p class="gf-tour-step-desc">
-        Esta plataforma permite <strong>visualizar e analisar a rede de postos credenciados</strong>
-        à frota, comparar preços da ANP, planejar rotas e muito mais.
-        Este tour rápido vai mostrar o essencial em menos de 2 minutos.
-      </p>
-      <div class="gf-tour-ilust">
-        <svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" width="100%">
-          <rect width="560" height="180" fill="#f0f4ff"/>
-          <!-- Brasil simplificado -->
-          <ellipse cx="280" cy="95" rx="130" ry="72" fill="#c8d8f8" stroke="#90b4f0" stroke-width="2"/>
-          <ellipse cx="280" cy="95" rx="95" ry="52" fill="#dce8fb"/>
-          <!-- Pins coloridos -->
-          <g transform="translate(210,62)">
-            <circle cx="0" cy="0" r="10" fill="#1565c0"/>
-            <polygon points="0,10 -6,0 6,0" fill="#1565c0"/>
-            <text x="0" y="4" text-anchor="middle" font-size="10" fill="#fff">⛽</text>
-          </g>
-          <g transform="translate(270,80)">
-            <circle cx="0" cy="0" r="12" fill="#FFD700" stroke="#e6a800" stroke-width="1.5"/>
-            <polygon points="0,12 -7,0 7,0" fill="#FFD700" stroke="#e6a800" stroke-width="1.5"/>
-            <text x="0" y="4" text-anchor="middle" font-size="11" fill="#7B3F00">★</text>
-          </g>
-          <g transform="translate(330,70)">
-            <circle cx="0" cy="0" r="10" fill="#43a047"/>
-            <polygon points="0,10 -6,0 6,0" fill="#43a047"/>
-            <text x="0" y="4" text-anchor="middle" font-size="10" fill="#fff">⛽</text>
-          </g>
-          <g transform="translate(260,115)">
-            <circle cx="0" cy="0" r="10" fill="#e53935"/>
-            <polygon points="0,10 -6,0 6,0" fill="#e53935"/>
-            <text x="0" y="4" text-anchor="middle" font-size="10" fill="#fff">⛽</text>
-          </g>
-          <!-- Labels -->
-          <text x="280" y="163" text-anchor="middle" font-size="12" fill="#1565c0" font-weight="bold">Rede Nacional de Postos Credenciados</text>
-        </svg>
-      </div>
-      <div style="margin-top:10px">
-        <span class="gf-tip">📍 Postos por estado</span>
-        <span class="gf-tip">🗺️ Consulta por rota</span>
-        <span class="gf-tip">📊 Dashboard analítico</span>
-        <span class="gf-tip">💰 Comparação de preços</span>
-      </div>
-    </div>
-
-    <!-- STEP 1 — Modo Por UF -->
-    <div class="gf-tour-step">
-      <div class="gf-tour-step-title">📍 Modo 1 · Consulta por Estado</div>
-      <p class="gf-tour-step-desc">
-        Selecione um <strong>estado (UF)</strong> na barra lateral para visualizar todos os postos
-        credenciados naquele estado. Opcionalmente filtre por <strong>município</strong> para
-        refinar a busca. O mapa exibe os postos com marcadores coloridos por bandeira.
-      </p>
-      <div class="gf-tour-ilust">
-        <svg viewBox="0 0 560 175" xmlns="http://www.w3.org/2000/svg" width="100%">
-          <rect width="560" height="175" fill="#f0f4ff"/>
-          <!-- Sidebar simulada -->
-          <rect x="10" y="10" width="140" height="155" rx="8" fill="#fff" stroke="#dde" stroke-width="1"/>
-          <rect x="18" y="18" width="124" height="22" rx="5" fill="#1565c0"/>
-          <text x="80" y="33" text-anchor="middle" font-size="10" fill="#fff" font-weight="bold">Localização</text>
-          <rect x="18" y="46" width="124" height="26" rx="5" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
-          <text x="80" y="63" text-anchor="middle" font-size="10" fill="#333">Estado: SP ▼</text>
-          <rect x="18" y="78" width="124" height="22" rx="5" fill="#e3f2fd" stroke="#90caf9" stroke-width="1"/>
-          <text x="80" y="93" text-anchor="middle" font-size="9" fill="#1565c0">📍 Por UF   🔵</text>
-          <rect x="18" y="106" width="124" height="18" rx="4" fill="#f0f0f0"/>
-          <text x="80" y="119" text-anchor="middle" font-size="9" fill="#888">🗺️ Por Rota</text>
-          <rect x="18" y="130" width="124" height="18" rx="4" fill="#f0f0f0"/>
-          <text x="80" y="143" text-anchor="middle" font-size="9" fill="#888">🔍 Busca</text>
-          <!-- Mapa área -->
-          <rect x="162" y="10" width="390" height="155" rx="8" fill="#dce8fb" stroke="#b0c8f0" stroke-width="1"/>
-          <ellipse cx="357" cy="87" rx="130" ry="58" fill="#c0d4f4" opacity=".6"/>
-          <!-- Pins SP -->
-          <g transform="translate(310,65)"><circle r="7" fill="#FFB300"/><polygon points="0,7 -4,0 4,0" fill="#FFB300"/></g>
-          <g transform="translate(340,80)"><circle r="7" fill="#1565c0"/><polygon points="0,7 -4,0 4,0" fill="#1565c0"/></g>
-          <g transform="translate(375,60)"><circle r="7" fill="#43a047"/><polygon points="0,7 -4,0 4,0" fill="#43a047"/></g>
-          <g transform="translate(355,105)"><circle r="7" fill="#e53935"/><polygon points="0,7 -4,0 4,0" fill="#e53935"/></g>
-          <g transform="translate(395,90)"><circle r="7" fill="#FFB300"/><polygon points="0,7 -4,0 4,0" fill="#FFB300"/></g>
-          <text x="357" y="162" text-anchor="middle" font-size="10" fill="#1565c0">São Paulo · 312 postos encontrados</text>
-        </svg>
-      </div>
-      <div style="margin-top:10px">
-        <span class="gf-tip">💡 Filtre por município para resultados mais precisos</span>
-        <span class="gf-tip">⭐ Postos GF são destacados em azul/amarelo</span>
-      </div>
-    </div>
-
-    <!-- STEP 2 — Modo Por Rota -->
-    <div class="gf-tour-step">
-      <div class="gf-tour-step-title">🗺️ Modo 2 · Consulta por Rota</div>
-      <p class="gf-tour-step-desc">
-        Informe um ponto de <strong>Origem</strong> e um de <strong>Destino</strong> — o sistema
-        calcula a rota via OSRM e exibe todos os postos credenciados dentro do
-        <strong>raio configurável</strong> (padrão: 500 m). Ideal para planejar abastecimento em viagens.
-      </p>
-      <div class="gf-tour-ilust">
-        <svg viewBox="0 0 560 172" xmlns="http://www.w3.org/2000/svg" width="100%">
-          <rect width="560" height="172" fill="#f0f4ff"/>
-          <rect x="10" y="10" width="390" height="152" rx="8" fill="#dce8fb" stroke="#b0c8f0"/>
-          <!-- Linha de rota -->
-          <path d="M80,130 C120,100 160,80 220,70 C280,60 330,55 420,50" stroke="#1565c0" stroke-width="4" fill="none" stroke-linecap="round"/>
-          <!-- Origem -->
-          <circle cx="80" cy="130" r="12" fill="#2e7d32"/>
-          <text x="80" y="134" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">A</text>
-          <!-- Destino -->
-          <circle cx="420" cy="50" r="12" fill="#c62828"/>
-          <text x="420" y="54" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">B</text>
-          <!-- Postos ao longo da rota -->
-          <g transform="translate(165,75)"><circle r="8" fill="#FFB300" stroke="#fff" stroke-width="1.5"/><polygon points="0,8 -4,0 4,0" fill="#FFB300"/></g>
-          <g transform="translate(240,67)"><circle r="8" fill="#FFD700" stroke="#e6a800" stroke-width="1.5"/><text x="0" y="4" text-anchor="middle" font-size="8" fill="#7B3F00">★</text><polygon points="0,8 -4,0 4,0" fill="#FFD700"/></g>
-          <g transform="translate(310,58)"><circle r="8" fill="#1565c0" stroke="#fff" stroke-width="1.5"/><polygon points="0,8 -4,0 4,0" fill="#1565c0"/></g>
-          <!-- Raio pontilhado -->
-          <circle cx="240" cy="67" r="30" fill="none" stroke="#FFD700" stroke-width="1.5" stroke-dasharray="4,3" opacity=".7"/>
-          <!-- Painel lateral -->
-          <rect x="414" y="10" width="136" height="152" rx="8" fill="#fff" stroke="#dde"/>
-          <text x="482" y="35" text-anchor="middle" font-size="10" fill="#333" font-weight="bold">Postos na Rota</text>
-          <rect x="422" y="42" width="120" height="28" rx="5" fill="#e8f5e9" stroke="#a5d6a7"/>
-          <text x="482" y="56" text-anchor="middle" font-size="9" fill="#2e7d32">🟢 Curitiba / PR</text>
-          <text x="482" y="66" text-anchor="middle" font-size="8" fill="#888">Origem</text>
-          <rect x="422" y="76" width="120" height="28" rx="5" fill="#fff8f8" stroke="#ef9a9a"/>
-          <text x="482" y="90" text-anchor="middle" font-size="9" fill="#c62828">🔴 Florianópolis / SC</text>
-          <text x="482" y="100" text-anchor="middle" font-size="8" fill="#888">Destino</text>
-          <text x="482" y="125" text-anchor="middle" font-size="9" fill="#555">⛽ 18 postos</text>
-          <text x="482" y="140" text-anchor="middle" font-size="9" fill="#555">📏 312 km</text>
-          <text x="482" y="155" text-anchor="middle" font-size="9" fill="#555">⏱ 3h 24min</text>
-        </svg>
-      </div>
-      <div style="margin-top:10px">
-        <span class="gf-tip">🛑 Adicione paradas intermediárias na rota</span>
-        <span class="gf-tip">📏 Raio de busca configurável na sidebar</span>
-      </div>
-    </div>
-
-    <!-- STEP 3 — Filtros Avançados -->
-    <div class="gf-tour-step">
-      <div class="gf-tour-step-title">🔍 Filtros Avançados</div>
-      <p class="gf-tour-step-desc">
-        Na barra lateral, expanda <strong>Filtros Avançados</strong> para refinar os resultados.
-        Filtre por <strong>faixa de preço (R$/L)</strong> de um combustível específico,
-        postos com <strong>funcionamento 24h</strong> e <strong>serviços</strong>:
-        Pista Caminhão, ARLA 32 e Conveniência.
-      </p>
-      <div class="gf-tour-ilust">
-        <svg viewBox="0 0 560 172" xmlns="http://www.w3.org/2000/svg" width="100%">
-          <rect width="560" height="172" fill="#f0f4ff"/>
-          <!-- Card de filtros -->
-          <rect x="30" y="14" width="220" height="145" rx="10" fill="#fff" stroke="#dde" stroke-width="1.5"/>
-          <rect x="30" y="14" width="220" height="34" rx="10" fill="#1565c0"/>
-          <rect x="30" y="38" width="220" height="10" rx="0" fill="#1565c0"/>
-          <text x="140" y="35" text-anchor="middle" font-size="11" fill="#fff" font-weight="bold">🔍 Filtros Avançados</text>
-          <!-- Combustível select -->
-          <text x="48" y="68" font-size="9" fill="#555">Combustível</text>
-          <rect x="46" y="72" width="186" height="20" rx="4" fill="#f5f5f5" stroke="#ddd"/>
-          <text x="60" y="86" font-size="9" fill="#333">Gasolina Comum ▼</text>
-          <!-- Slider de preço -->
-          <text x="48" y="108" font-size="9" fill="#555">Faixa de Preço (R$/L)</text>
-          <rect x="46" y="112" width="186" height="6" rx="3" fill="#e0e0e0"/>
-          <rect x="46" y="112" width="130" height="6" rx="3" fill="#1565c0"/>
-          <circle cx="176" cy="115" r="8" fill="#1565c0" stroke="#fff" stroke-width="2"/>
-          <text x="48" y="130" font-size="8" fill="#1565c0">R$ 5,50</text>
-          <text x="220" y="130" font-size="8" fill="#1565c0" text-anchor="end">R$ 6,80</text>
-          <!-- Checkboxes -->
-          <rect x="46" y="136" width="13" height="13" rx="3" fill="#e3f2fd" stroke="#1565c0"/>
-          <text x="50" y="147" font-size="9" fill="#1565c0" font-weight="bold">✓</text>
-          <text x="64" y="147" font-size="9" fill="#333">Funciona 24h</text>
-          <rect x="140" y="136" width="13" height="13" rx="3" fill="#f5f5f5" stroke="#bbb"/>
-          <text x="158" y="147" font-size="9" fill="#555">Pista Caminhão</text>
-          <!-- Resultado visual -->
-          <rect x="270" y="14" width="260" height="145" rx="10" fill="#fff" stroke="#dde"/>
-          <rect x="270" y="14" width="260" height="34" rx="10" fill="#e8f5e9"/>
-          <rect x="270" y="38" width="260" height="10" rx="0" fill="#e8f5e9"/>
-          <text x="400" y="35" text-anchor="middle" font-size="11" fill="#2e7d32" font-weight="bold">✅ Filtros aplicados</text>
-          <rect x="284" y="55" width="232" height="22" rx="5" fill="#f5f5f5"/>
-          <text x="400" y="70" text-anchor="middle" font-size="9" fill="#333">💰 Gasolina: R$5,50 – R$6,80</text>
-          <rect x="284" y="82" width="232" height="22" rx="5" fill="#f5f5f5"/>
-          <text x="400" y="97" text-anchor="middle" font-size="9" fill="#333">⏰ 24h · 🚛 Pista Caminhão</text>
-          <text x="400" y="125" text-anchor="middle" font-size="16" fill="#1565c0" font-weight="bold">47</text>
-          <text x="400" y="141" text-anchor="middle" font-size="10" fill="#555">postos exibidos</text>
-          <text x="400" y="155" text-anchor="middle" font-size="9" fill="#888">(de 312 no estado)</text>
-        </svg>
-      </div>
-      <div style="margin-top:10px">
-        <span class="gf-tip">⚠️ Postos sem dado de serviço não são excluídos</span>
-        <span class="gf-tip">🔗 Filtros combinam entre si</span>
-      </div>
-    </div>
-
-    <!-- STEP 4 — Preços ANP -->
-    <div class="gf-tour-step">
-      <div class="gf-tour-step-title">📊 Preços ANP e Tendências</div>
-      <p class="gf-tour-step-desc">
-        Carregue o arquivo <strong>.xlsx semanal da ANP</strong> (ou deixe o sistema buscar
-        automaticamente). O app exibe preços médios por combustível com indicadores de
-        <strong>tendência ↑↓≈</strong> comparando a semana atual com a anterior.
-      </p>
-      <div class="gf-tour-ilust">
-        <svg viewBox="0 0 560 172" xmlns="http://www.w3.org/2000/svg" width="100%">
-          <rect width="560" height="172" fill="#f0f4ff"/>
-          <!-- Cards de preço ANP -->
-          <g transform="translate(20,18)">
-            <rect width="155" height="80" rx="10" fill="#fff" stroke="#dde"/>
-            <text x="78" y="22" text-anchor="middle" font-size="10" fill="#555">⛽ Gasolina Comum</text>
-            <text x="60" y="48" text-anchor="middle" font-size="20" fill="#1a1a1a" font-weight="800">R$6,12</text>
-            <rect x="82" y="36" width="52" height="18" rx="9" fill="#ffebee"/>
-            <text x="108" y="49" text-anchor="middle" font-size="11" fill="#c62828">↑ +0,08</text>
-            <text x="78" y="70" text-anchor="middle" font-size="9" fill="#888">Média SP · Sem. 18</text>
-          </g>
-          <g transform="translate(192,18)">
-            <rect width="155" height="80" rx="10" fill="#fff" stroke="#dde"/>
-            <text x="78" y="22" text-anchor="middle" font-size="10" fill="#555">🛢 Diesel S-10</text>
-            <text x="60" y="48" text-anchor="middle" font-size="20" fill="#1a1a1a" font-weight="800">R$6,48</text>
-            <rect x="82" y="36" width="52" height="18" rx="9" fill="#e8f5e9"/>
-            <text x="108" y="49" text-anchor="middle" font-size="11" fill="#2e7d32">↓ -0,05</text>
-            <text x="78" y="70" text-anchor="middle" font-size="9" fill="#888">Média SP · Sem. 18</text>
-          </g>
-          <g transform="translate(364,18)">
-            <rect width="155" height="80" rx="10" fill="#fff" stroke="#dde"/>
-            <text x="78" y="22" text-anchor="middle" font-size="10" fill="#555">🧪 ARLA 32</text>
-            <text x="60" y="48" text-anchor="middle" font-size="20" fill="#1a1a1a" font-weight="800">R$3,21</text>
-            <rect x="82" y="36" width="52" height="18" rx="9" fill="#f3f4f6"/>
-            <text x="108" y="49" text-anchor="middle" font-size="11" fill="#666">≈ estável</text>
-            <text x="78" y="70" text-anchor="middle" font-size="9" fill="#888">Média SP · Sem. 18</text>
-          </g>
-          <!-- GF vs ANP comparativo -->
-          <rect x="20" y="110" width="520" height="48" rx="10" fill="#fff" stroke="#dde"/>
-          <text x="40" y="132" font-size="10" fill="#555" font-weight="bold">Posto GF</text>
-          <text x="40" y="148" font-size="13" fill="#1565c0" font-weight="800">R$ 5,89/L</text>
-          <text x="200" y="132" font-size="10" fill="#555" font-weight="bold">Média ANP (UF)</text>
-          <text x="200" y="148" font-size="13" fill="#555">R$ 6,12/L  <tspan fill="#c62828" font-size="10">↑</tspan></text>
-          <rect x="360" y="122" width="155" height="22" rx="6" fill="#e8f5e9" stroke="#a5d6a7"/>
-          <text x="438" y="137" text-anchor="middle" font-size="10" fill="#2e7d32" font-weight="bold">✅ R$0,23/L abaixo ANP</text>
-        </svg>
-      </div>
-      <div style="margin-top:10px">
-        <span class="gf-tip">🔄 O app busca o arquivo ANP automaticamente</span>
-        <span class="gf-tip">📁 Ou faça upload manual nas Configurações</span>
-      </div>
-    </div>
-
-    <!-- STEP 5 — Ranking Top 5 -->
-    <div class="gf-tour-step">
-      <div class="gf-tour-step-title">💰 Ranking Top 5 Mais Baratos</div>
-      <p class="gf-tour-step-desc">
-        Os <strong>5 postos com menor preço</strong> na consulta atual são destacados
-        automaticamente — com <strong>estrelas douradas ★</strong> no mapa e cards de ranking
-        na aba Dados Tabulares. O combustível pode ser filtrado nos Filtros Avançados.
-      </p>
-      <div class="gf-tour-ilust">
-        <svg viewBox="0 0 560 170" xmlns="http://www.w3.org/2000/svg" width="100%">
-          <rect width="560" height="170" fill="#f0f4ff"/>
-          <!-- Mapa com estrelas -->
-          <rect x="10" y="10" width="280" height="150" rx="10" fill="#dce8fb" stroke="#b0c8f0"/>
-          <!-- Postos normais -->
-          <circle cx="80" cy="80" r="7" fill="#1565c0" opacity=".7"/>
-          <circle cx="120" cy="60" r="7" fill="#43a047" opacity=".7"/>
-          <circle cx="180" cy="100" r="7" fill="#FFB300" opacity=".7"/>
-          <circle cx="220" cy="70" r="7" fill="#1565c0" opacity=".7"/>
-          <circle cx="250" cy="120" r="7" fill="#e53935" opacity=".7"/>
-          <!-- Top 5 com estrelas -->
-          <circle cx="100" cy="120" r="14" fill="#FFD700" stroke="#e6a800" stroke-width="2"/>
-          <text x="100" y="125" text-anchor="middle" font-size="12" fill="#7B3F00">🥇</text>
-          <circle cx="155" cy="75" r="13" fill="#FFD700" stroke="#e6a800" stroke-width="2"/>
-          <text x="155" y="80" text-anchor="middle" font-size="11" fill="#7B3F00">🥈</text>
-          <circle cx="210" cy="110" r="12" fill="#FFD700" stroke="#e6a800" stroke-width="2"/>
-          <text x="210" y="115" text-anchor="middle" font-size="11" fill="#7B3F00">🥉</text>
-          <text x="150" y="155" text-anchor="middle" font-size="10" fill="#1565c0">Marcadores dourados = top 5 mais baratos</text>
-          <!-- Cards de ranking -->
-          <rect x="300" y="10" width="250" height="150" rx="10" fill="#fff" stroke="#dde"/>
-          <text x="425" y="30" text-anchor="middle" font-size="11" fill="#7B3F00" font-weight="bold">💰 Top 5 Mais Baratos</text>
-          <!-- Card 1 -->
-          <rect x="308" y="36" width="46" height="56" rx="8" fill="#fff9c4" stroke="#FFD700" stroke-width="1.5"/>
-          <text x="331" y="56" text-anchor="middle" font-size="16">🥇</text>
-          <text x="331" y="70" text-anchor="middle" font-size="7" fill="#5f3a00">Posto Alfa</text>
-          <text x="331" y="82" text-anchor="middle" font-size="9" fill="#2e7d32" font-weight="bold">R$5,72</text>
-          <!-- Card 2 -->
-          <rect x="358" y="36" width="46" height="56" rx="8" fill="#fff9c4" stroke="#FFD700" stroke-width="1.5"/>
-          <text x="381" y="56" text-anchor="middle" font-size="16">🥈</text>
-          <text x="381" y="70" text-anchor="middle" font-size="7" fill="#5f3a00">Posto Beta</text>
-          <text x="381" y="82" text-anchor="middle" font-size="9" fill="#2e7d32" font-weight="bold">R$5,79</text>
-          <!-- Card 3 -->
-          <rect x="408" y="36" width="46" height="56" rx="8" fill="#fff9c4" stroke="#FFD700" stroke-width="1.5"/>
-          <text x="431" y="56" text-anchor="middle" font-size="16">🥉</text>
-          <text x="431" y="70" text-anchor="middle" font-size="7" fill="#5f3a00">Posto Gama</text>
-          <text x="431" y="82" text-anchor="middle" font-size="9" fill="#2e7d32" font-weight="bold">R$5,83</text>
-          <!-- Card 4 -->
-          <rect x="458" y="36" width="46" height="56" rx="8" fill="#fff9c4" stroke="#FFD700" stroke-width="1.5"/>
-          <text x="481" y="56" text-anchor="middle" font-size="14">4️⃣</text>
-          <text x="481" y="70" text-anchor="middle" font-size="7" fill="#5f3a00">Posto Delta</text>
-          <text x="481" y="82" text-anchor="middle" font-size="9" fill="#2e7d32" font-weight="bold">R$5,89</text>
-          <!-- Tabela rank -->
-          <rect x="308" y="100" width="232" height="50" rx="6" fill="#f5f5f5"/>
-          <text x="315" y="116" font-size="9" fill="#555">💰 Rank</text>
-          <text x="370" y="116" font-size="9" fill="#555">Posto</text>
-          <text x="490" y="116" font-size="9" fill="#555" text-anchor="end">Preço</text>
-          <text x="315" y="130" font-size="9" fill="#7B3F00">🥇</text>
-          <text x="335" y="130" font-size="8" fill="#333">Posto Alfa · SP</text>
-          <text x="490" y="130" font-size="9" fill="#2e7d32" text-anchor="end" font-weight="bold">R$5,72</text>
-          <text x="315" y="143" font-size="9" fill="#7B3F00">🥈</text>
-          <text x="335" y="143" font-size="8" fill="#333">Posto Beta · SP</text>
-          <text x="490" y="143" font-size="9" fill="#2e7d32" text-anchor="end">R$5,79</text>
-        </svg>
-      </div>
-      <div style="margin-top:10px">
-        <span class="gf-tip">🎯 Selecione um combustível no filtro para ranking mais preciso</span>
-      </div>
-    </div>
-
-    <!-- STEP 6 — Dashboard -->
-    <div class="gf-tour-step">
-      <div class="gf-tour-step-title">📊 Dashboard Analítico</div>
-      <p class="gf-tour-step-desc">
-        Acesse o <strong>Dashboard</strong> pelo botão na sidebar para ver KPIs de cobertura,
-        penetração GF, comparativo GF vs ANP por estado e análise de preços.
-        Ideal para acompanhar a evolução da rede ao longo do tempo.
-      </p>
-      <div class="gf-tour-ilust">
-        <svg viewBox="0 0 560 170" xmlns="http://www.w3.org/2000/svg" width="100%">
-          <rect width="560" height="170" fill="#f0f4ff"/>
-          <!-- KPI cards -->
-          <rect x="10" y="10" width="120" height="55" rx="8" fill="#fff" stroke="#dde"/>
-          <text x="70" y="30" text-anchor="middle" font-size="9" fill="#888">⛽ Total Postos</text>
-          <text x="70" y="52" text-anchor="middle" font-size="20" fill="#1565c0" font-weight="800">4.821</text>
-          <rect x="140" y="10" width="120" height="55" rx="8" fill="#fff" stroke="#dde"/>
-          <text x="200" y="30" text-anchor="middle" font-size="9" fill="#888">⭐ Gestão Frotas</text>
-          <text x="200" y="52" text-anchor="middle" font-size="20" fill="#43a047" font-weight="800">1.347</text>
-          <rect x="270" y="10" width="120" height="55" rx="8" fill="#fff" stroke="#dde"/>
-          <text x="330" y="30" text-anchor="middle" font-size="9" fill="#888">📈 Penetração GF</text>
-          <text x="330" y="52" text-anchor="middle" font-size="20" fill="#e65100" font-weight="800">27,9%</text>
-          <rect x="400" y="10" width="150" height="55" rx="8" fill="#fff" stroke="#dde"/>
-          <text x="475" y="30" text-anchor="middle" font-size="9" fill="#888">💰 Economia vs ANP</text>
-          <text x="475" y="52" text-anchor="middle" font-size="20" fill="#2e7d32" font-weight="800">R$0,18/L</text>
-          <!-- Gráfico de barras -->
-          <rect x="10" y="75" width="330" height="85" rx="8" fill="#fff" stroke="#dde"/>
-          <text x="175" y="92" text-anchor="middle" font-size="9" fill="#555" font-weight="bold">Cobertura GF por Estado</text>
-          <rect x="30"  y="135" width="20" height="25" fill="#1565c0" opacity=".8"/>
-          <rect x="60"  y="120" width="20" height="40" fill="#1565c0" opacity=".8"/>
-          <rect x="90"  y="110" width="20" height="50" fill="#1565c0" opacity=".8"/>
-          <rect x="120" y="100" width="20" height="60" fill="#43a047" opacity=".8"/>
-          <rect x="150" y="105" width="20" height="55" fill="#43a047" opacity=".8"/>
-          <rect x="180" y="115" width="20" height="45" fill="#1565c0" opacity=".8"/>
-          <rect x="210" y="125" width="20" height="35" fill="#1565c0" opacity=".8"/>
-          <rect x="240" y="118" width="20" height="42" fill="#43a047" opacity=".8"/>
-          <rect x="270" y="130" width="20" height="30" fill="#1565c0" opacity=".8"/>
-          <rect x="300" y="122" width="20" height="38" fill="#1565c0" opacity=".8"/>
-          <!-- GF vs ANP chart -->
-          <rect x="350" y="75" width="200" height="85" rx="8" fill="#fff" stroke="#dde"/>
-          <text x="450" y="92" text-anchor="middle" font-size="9" fill="#555" font-weight="bold">GF vs Média ANP</text>
-          <rect x="370" y="102" width="24" height="50" fill="#FFB300" rx="3"/>
-          <rect x="370" y="107" width="24" height="45" fill="#2e7d32" opacity=".4" rx="3"/>
-          <rect x="405" y="108" width="24" height="44" fill="#FFB300" rx="3"/>
-          <rect x="405" y="115" width="24" height="37" fill="#2e7d32" opacity=".4" rx="3"/>
-          <rect x="440" y="105" width="24" height="47" fill="#FFB300" rx="3"/>
-          <rect x="440" y="110" width="24" height="42" fill="#2e7d32" opacity=".4" rx="3"/>
-          <text x="382" y="160" text-anchor="middle" font-size="7" fill="#888">SP</text>
-          <text x="417" y="160" text-anchor="middle" font-size="7" fill="#888">MG</text>
-          <text x="452" y="160" text-anchor="middle" font-size="7" fill="#888">PR</text>
-          <rect x="475" y="105" width="8" height="8" fill="#FFB300" rx="1"/>
-          <text x="486" y="113" font-size="7" fill="#555">GF</text>
-          <rect x="475" y="118" width="8" height="8" fill="#2e7d32" opacity=".5" rx="1"/>
-          <text x="486" y="126" font-size="7" fill="#555">ANP</text>
-        </svg>
-      </div>
-      <div style="margin-top:10px">
-        <span class="gf-tip">📤 Exporte os dados em CSV para relatórios</span>
-        <span class="gf-tip">🗺️ Comparativo por estado disponível na aba dedicada</span>
-      </div>
-    </div>
-
-  </div><!-- /body -->
-
-  <!-- Footer -->
-  <div id="gf-tour-footer">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span id="gf-tour-counter">Passo 1 de 7</span>
-      <label id="gf-tour-check-wrap">
-        <input type="checkbox" id="gf-tour-check"> Não mostrar novamente
-      </label>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="gf-tour-btn" id="gf-btn-skip">Pular tour</button>
-      <button class="gf-tour-btn" id="gf-btn-prev">← Anterior</button>
-      <button class="gf-tour-btn" id="gf-btn-next">Próximo →</button>
-    </div>
-  </div>
-
-</div><!-- /card -->
-</div><!-- /overlay -->
-
+<div id="gf-tour-mount"></div>
 <script>
 (function(){
-  var TOTAL = 7;
-  var cur   = 0;
-  var steps = document.querySelectorAll('.gf-tour-step');
-  var dots  = document.querySelectorAll('.gf-tour-dot');
-  var counter = document.getElementById('gf-tour-counter');
-  var btnPrev = document.getElementById('gf-btn-prev');
-  var btnNext = document.getElementById('gf-btn-next');
-  var btnSkip = document.getElementById('gf-btn-skip');
-  var btnClose= document.getElementById('gf-tour-close');
+  var STEPS = [
+    { icon:'👋', title:'Bem-vindo ao Estudo de Rede!',
+      desc:'Esta plataforma permite <b>visualizar e analisar a rede de postos credenciados</b> '+
+           'a frota, comparar precos da ANP, planejar rotas e muito mais. '+
+           'Este tour rapido vai mostrar o essencial em menos de 2 minutos.',
+      visual:[
+        {em:'📍',label:'Postos por estado',bg:'#e3f2fd'},
+        {em:'🗺️',label:'Consulta por rota',bg:'#e8f5e9'},
+        {em:'📊',label:'Dashboard analitico',bg:'#fff8e1'},
+        {em:'💰',label:'Comparacao de precos',bg:'#fce4ec'},
+        {em:'🔍',label:'Filtros avancados',bg:'#f3e5f5'},
+        {em:'💾',label:'Salve consultas',bg:'#e0f2f1'}
+      ],
+      tips:['📍 Postos por estado','🗺️ Consulta por rota','📊 Dashboard analitico','💰 Ranking top 5']
+    },
+    { icon:'📍', title:'Modo 1 · Consulta por Estado (UF)',
+      desc:'Selecione um <b>estado (UF)</b> na barra lateral para visualizar todos os postos '+
+           'credenciados. Filtre por <b>municipio</b> para resultados mais precisos. '+
+           'Postos Gestao de Frotas aparecem em <b>azul e amarelo</b> destacados no mapa.',
+      visual:[
+        {em:'1️⃣',label:'Escolha o Estado na sidebar',bg:'#e3f2fd'},
+        {em:'🏙️',label:'Opcional: filtre por Municipio',bg:'#e8f5e9'},
+        {em:'🗺️',label:'Mapa carrega com todos os postos',bg:'#fff8e1'},
+        {em:'⭐',label:'Postos GF destacados em azul/amarelo',bg:'#fce4ec'}
+      ],
+      tips:['💡 Filtre por municipio para resultados mais precisos','⭐ Postos GF sao destacados visualmente']
+    },
+    { icon:'🗺️', title:'Modo 2 · Consulta por Rota',
+      desc:'Defina <b>Origem</b> e <b>Destino</b> — o sistema calcula a rota e exibe todos '+
+           'os postos dentro do <b>raio configuravel</b> (padrao: 500 m). '+
+           'Adicione <b>paradas intermediarias</b> para rotas mais complexas.',
+      visual:[
+        {em:'🟢',label:'Defina ponto de Origem',bg:'#e8f5e9'},
+        {em:'🔴',label:'Defina ponto de Destino',bg:'#fce4ec'},
+        {em:'🛣️',label:'Rota calculada automaticamente',bg:'#e3f2fd'},
+        {em:'⛽',label:'Postos no raio da rota',bg:'#fff8e1'}
+      ],
+      tips:['🛑 Adicione paradas intermediarias','📏 Raio de busca configuravel na sidebar']
+    },
+    { icon:'🔍', title:'Filtros Avancados',
+      desc:'Na barra lateral, expanda <b>Filtros Avancados</b> para refinar a busca. '+
+           'Filtre por <b>faixa de preco (R$/L)</b>, postos <b>abertos 24h</b>, '+
+           'e <b>servicos</b>: Pista Caminhao, ARLA 32 e Conveniencia.',
+      visual:[
+        {em:'💲',label:'Faixa de preco por combustivel',bg:'#e8f5e9'},
+        {em:'⏰',label:'Funcionamento 24 horas',bg:'#e3f2fd'},
+        {em:'🚛',label:'Pista para Caminhao',bg:'#fff8e1'},
+        {em:'🧪',label:'ARLA 32 disponivel',bg:'#fce4ec'}
+      ],
+      tips:['⚠️ Postos sem dado de servico nao sao excluidos','🔗 Filtros se combinam entre si']
+    },
+    { icon:'📊', title:'Precos ANP e Tendencias',
+      desc:'Carregue o <b>.xlsx semanal da ANP</b> (ou o sistema busca automaticamente). '+
+           'Veja precos medios por combustivel com indicadores de <b>tendencia semanal: ↑ ↓ ≈</b>. '+
+           'Compare o preco do posto GF vs a media da ANP no estado.',
+      visual:[
+        {em:'⛽',label:'Gasolina  R$6,12  ↑ +0,08',bg:'#ffebee'},
+        {em:'🛢️',label:'Diesel S10  R$6,48  ↓ -0,05',bg:'#e8f5e9'},
+        {em:'🧪',label:'ARLA 32  R$3,21  ≈ estavel',bg:'#f3f4f6'},
+        {em:'✅',label:'GF R$0,23/L abaixo ANP',bg:'#e8f5e9'}
+      ],
+      tips:['🔄 O app busca o arquivo ANP automaticamente','📁 Ou faca upload manual nas Configuracoes']
+    },
+    { icon:'💰', title:'Ranking Top 5 Mais Baratos',
+      desc:'Os <b>5 postos com menor preco</b> da consulta atual sao destacados com '+
+           '<b>estrelas douradas ★</b> no mapa e com <b>cards de medalha</b> na aba Dados Tabulares. '+
+           'Selecione um combustivel nos Filtros para um ranking mais preciso.',
+      visual:[
+        {em:'🥇',label:'1o mais barato — estrela no mapa',bg:'#fff9c4'},
+        {em:'🥈',label:'2o mais barato',bg:'#fff9c4'},
+        {em:'🥉',label:'3o mais barato',bg:'#fff9c4'},
+        {em:'🏅',label:'4o e 5o completam o top 5',bg:'#fff9c4'}
+      ],
+      tips:['🎯 Filtre por combustivel para ranking mais preciso','⭐ Marcadores dourados no mapa']
+    },
+    { icon:'📊', title:'Dashboard Analitico',
+      desc:'Acesse o <b>Dashboard</b> na sidebar para ver KPIs de cobertura, '+
+           'penetracao GF, comparativo GF vs ANP por estado e analise de precos. '+
+           'Exporte os dados em <b>CSV</b> para seus relatorios.',
+      visual:[
+        {em:'⛽',label:'Total de postos na rede',bg:'#e3f2fd'},
+        {em:'⭐',label:'Postos Gestao de Frotas',bg:'#fff8e1'},
+        {em:'📈',label:'Penetracao GF por estado',bg:'#e8f5e9'},
+        {em:'💰',label:'Economia media vs ANP',bg:'#fce4ec'}
+      ],
+      tips:['📤 Exporte os dados em CSV','🗺️ Comparativo por estado disponivel']
+    }
+  ];
+
+  var cur = 0;
+  var mount = document.getElementById('gf-tour-mount');
+  if(!mount) return;
+
+  // Constroi HTML do overlay via JS (evita sanitizacao do Streamlit)
+  var ov = document.createElement('div');
+  ov.id = 'gf-tour-overlay';
+
+  var card = document.createElement('div');
+  card.id = 'gf-tour-card';
+  ov.appendChild(card);
+
+  // Header
+  var hdr = document.createElement('div');
+  hdr.id = 'gft-hdr';
+  hdr.innerHTML =
+    '<div style="display:flex;align-items:center">' +
+    '  <span id="gft-icon">👋</span>' +
+    '  <div><div id="gft-title">Guia de Uso — Estudo de Rede de Frotas</div>' +
+    '  <div id="gft-sub">Tour rapido · 7 passos · 2 minutos</div></div>' +
+    '</div>' +
+    '<button id="gft-x" title="Fechar">✕</button>';
+  card.appendChild(hdr);
+
+  // Dots
+  var dotsWrap = document.createElement('div');
+  dotsWrap.id = 'gft-dots';
+  STEPS.forEach(function(_,i){
+    var d = document.createElement('div');
+    d.className = 'gft-dot' + (i===0?' on':'');
+    d.addEventListener('click', function(){ show(i); });
+    dotsWrap.appendChild(d);
+  });
+  card.appendChild(dotsWrap);
+
+  // Body
+  var body = document.createElement('div');
+  body.id = 'gft-body';
+  STEPS.forEach(function(s, i){
+    var step = document.createElement('div');
+    step.className = 'gft-step' + (i===0?' on':'');
+
+    // Titulo
+    var tDiv = document.createElement('div');
+    tDiv.style.cssText = 'font-size:18px;font-weight:800;color:#1a1a1a;margin:0 0 10px;display:flex;align-items:center;gap:10px';
+    tDiv.textContent = s.title;
+    step.appendChild(tDiv);
+
+    // Descricao
+    var dDiv = document.createElement('p');
+    dDiv.style.cssText = 'font-size:14px;color:#444;line-height:1.65;margin:0 0 16px';
+    dDiv.innerHTML = s.desc;
+    step.appendChild(dDiv);
+
+    // Visual grid
+    var grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px';
+    s.visual.forEach(function(v){
+      var cell = document.createElement('div');
+      cell.style.cssText = 'background:' + v.bg + ';border-radius:10px;padding:14px 12px;text-align:center;border:1px solid rgba(0,0,0,.06)';
+      cell.innerHTML = '<div style="font-size:26px;margin-bottom:6px">' + v.em + '</div>' +
+                       '<div style="font-size:11px;color:#333;font-weight:600;line-height:1.4">' + v.label + '</div>';
+      grid.appendChild(cell);
+    });
+    step.appendChild(grid);
+
+    // Tips
+    var tips = document.createElement('div');
+    tips.style.cssText = 'margin-top:4px';
+    s.tips.forEach(function(t){
+      var tip = document.createElement('span');
+      tip.style.cssText = 'display:inline-flex;align-items:center;background:#e3f2fd;border:1px solid #90caf9;'+
+        'border-radius:8px;padding:5px 11px;font-size:11px;color:#0d47a1;margin:3px 3px 0 0';
+      tip.textContent = t;
+      tips.appendChild(tip);
+    });
+    step.appendChild(tips);
+
+    body.appendChild(step);
+  });
+  card.appendChild(body);
+
+  // Footer
+  var foot = document.createElement('div');
+  foot.id = 'gft-foot';
+  foot.innerHTML =
+    '<div style="display:flex;align-items:center;gap:12px">' +
+    '  <span id="gft-counter">Passo 1 de 7</span>' +
+    '  <label class="gft-chk"><input type="checkbox" id="gft-chk"> Nao mostrar novamente</label>' +
+    '</div>' +
+    '<div class="gft-btns">' +
+    '  <button class="gft-btn" id="gft-skip">Pular tour</button>' +
+    '  <button class="gft-btn" id="gft-prev">← Anterior</button>' +
+    '  <button class="gft-btn" id="gft-next">Proximo →</button>' +
+    '</div>';
+  card.appendChild(foot);
+
+  mount.appendChild(ov);
+
+  // Logica de navegacao
+  var allSteps = body.querySelectorAll('.gft-step');
+  var allDots  = dotsWrap.querySelectorAll('.gft-dot');
+  var counter  = document.getElementById('gft-counter');
+  var btnPrev  = document.getElementById('gft-prev');
+  var btnNext  = document.getElementById('gft-next');
+  var btnSkip  = document.getElementById('gft-skip');
+  var btnX     = document.getElementById('gft-x');
+  var iconEl   = document.getElementById('gft-icon');
 
   function show(n){
-    steps.forEach(function(s,i){
-      s.classList.toggle('ativo', i===n);
-    });
-    dots.forEach(function(d,i){
-      d.classList.toggle('ativo', i===n);
-    });
-    counter.textContent = 'Passo '+(n+1)+' de '+TOTAL;
+    allSteps.forEach(function(s,i){ s.classList.toggle('on', i===n); });
+    allDots.forEach(function(d,i){ d.classList.toggle('on', i===n); });
+    counter.textContent = 'Passo '+(n+1)+' de '+STEPS.length;
     btnPrev.style.display = n===0 ? 'none' : '';
-    btnNext.textContent   = n===TOTAL-1 ? '✅ Concluir' : 'Próximo →';
-    // icon no header
-    var icons = ['🗺️','📍','🗺️','🔍','📊','💰','📊'];
-    var el = document.getElementById('gf-tour-icon');
-    if(el) el.textContent = icons[n] || '🗺️';
+    btnNext.textContent   = n===STEPS.length-1 ? '✅ Concluir' : 'Proximo →';
+    iconEl.textContent    = STEPS[n].icon;
     cur = n;
   }
 
-  function fechar(marcarDone){
-    var overlay = document.getElementById('gf-tour-overlay');
-    if(overlay){
-      overlay.style.animation = 'gfTourFadeIn .2s ease reverse';
-      setTimeout(function(){
-        if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      }, 200);
+  function fechar(gravar){
+    ov.style.animation = 'gfTFadeIn .18s ease reverse';
+    setTimeout(function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); }, 200);
+    if(gravar){
+      var b = document.querySelector('.st-key-btn_tour_done_hidden button');
+      if(b) b.click();
     }
-    if(marcarDone){
-      // Clica no botão oculto Streamlit para gravar flag
-      var btn = document.querySelector('.st-key-btn_tour_done_hidden button');
-      if(btn){ btn.click(); return; }
-    }
-    // Apenas fecha sem gravar
-    var btnOpen = document.querySelector('.st-key-btn_tour_open_hidden button');
-    // sem ação — só remove o overlay
   }
 
   btnNext.addEventListener('click', function(){
-    if(cur < TOTAL-1){
-      show(cur+1);
-    } else {
-      var marcar = document.getElementById('gf-tour-check').checked;
-      fechar(true); // sempre grava ao concluir
-    }
+    if(cur < STEPS.length-1){ show(cur+1); }
+    else { fechar(true); }
   });
-
-  btnPrev.addEventListener('click', function(){
-    if(cur > 0) show(cur-1);
-  });
-
-  btnSkip.addEventListener('click', function(){
-    var marcar = document.getElementById('gf-tour-check').checked;
-    fechar(marcar);
-  });
-
-  btnClose.addEventListener('click', function(){
-    var marcar = document.getElementById('gf-tour-check').checked;
-    fechar(marcar);
-  });
-
-  // Dots clicáveis
-  dots.forEach(function(d,i){
-    d.style.cursor='pointer';
-    d.addEventListener('click', function(){ show(i); });
-  });
+  btnPrev.addEventListener('click',  function(){ if(cur>0) show(cur-1); });
+  btnSkip.addEventListener('click',  function(){ fechar(document.getElementById('gft-chk').checked); });
+  btnX.addEventListener('click',     function(){ fechar(document.getElementById('gft-chk').checked); });
 
   show(0);
 })();
