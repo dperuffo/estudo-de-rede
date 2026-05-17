@@ -17,3 +17,4 @@ matplotlib
 beautifulsoup4
 fpdf2
 streamlit-oauth>=0.1.14
+reportlab>=3.6.0
