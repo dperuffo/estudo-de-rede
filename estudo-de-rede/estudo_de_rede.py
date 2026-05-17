@@ -6396,14 +6396,12 @@ if "_tour_ativo" not in st.session_state:
     st.session_state["_tour_ativo"] = _tour_primeira_visita()
 
 # Botão oculto que JS vai clicar ao concluir/pular o tour
-if st.button("__tour_done__", key="btn_tour_done_hidden",
-             label_visibility="collapsed"):
+if st.button("​", key="btn_tour_done_hidden"):   # zero-width space
     _marcar_tour_concluido()
     st.session_state["_tour_ativo"] = False
     st.rerun()
 
-if st.button("__tour_open__", key="btn_tour_open_hidden",
-             label_visibility="collapsed"):
+if st.button("​​", key="btn_tour_open_hidden"):   # dois zero-width spaces
     st.session_state["_tour_ativo"] = True
     st.rerun()
 
