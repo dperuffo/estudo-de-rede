@@ -6669,6 +6669,58 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
+    # ── Card do usuário autenticado ────────────────────────────────
+    _auth_u = st.session_state.get("_auth_user")
+    if _auth_u:
+        _nome_u   = _auth_u.get("name",     "Usuário")
+        _email_u  = _auth_u.get("email",    "")
+        _pic_u    = _auth_u.get("picture",  "")
+        _prov_u   = _auth_u.get("provider", "")
+        _prov_ico = "🪟" if _prov_u == "microsoft" else "🔴"
+
+        # Avatar: foto de perfil ou iniciais
+        if _pic_u:
+            _avatar_html = (
+                f"<img src='{_pic_u}' style='"
+                f"width:36px;height:36px;border-radius:50%;"
+                f"object-fit:cover;border:2px solid #e3e8f0'>"
+            )
+        else:
+            _ini = "".join(w[0].upper() for w in _nome_u.split()[:2]) if _nome_u else "?"
+            _avatar_html = (
+                f"<div style='width:36px;height:36px;border-radius:50%;"
+                f"background:#0D47A1;color:#fff;display:flex;align-items:center;"
+                f"justify-content:center;font-weight:700;font-size:13px;"
+                f"flex-shrink:0'>{_ini}</div>"
+            )
+
+        st.markdown(f"""
+        <div style='background:#f5f7fd;border:1px solid #dde3ee;border-radius:11px;
+                    padding:9px 11px;margin:4px 0 6px;
+                    display:flex;align-items:center;gap:9px'>
+          {_avatar_html}
+          <div style='min-width:0;flex:1;overflow:hidden'>
+            <div style='font-weight:600;font-size:12.5px;color:#1a237e;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+            >{_nome_u}</div>
+            <div style='font-size:10.5px;color:#607d8b;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+            >{_email_u}</div>
+          </div>
+          <span title='{_prov_u}' style='font-size:15px;flex-shrink:0'>{_prov_ico}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button(
+            "🚪 Sair",
+            use_container_width=True,
+            type="secondary",
+            key="btn_logout",
+            help="Encerrar sessão e voltar ao login",
+        ):
+            st.session_state["_auth_user"] = None
+            st.rerun()
+
     # ── Auto-carregamento do repositório ─────────────────────
     # Tenta UMA VEZ por sessão — usa flag para não repetir
     if not st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("_repo_tentado"):
@@ -7008,58 +7060,6 @@ with st.sidebar:
     ):
         st.session_state["_tour_ativo"] = True
         st.rerun()
-
-    # ── Card do usuário autenticado ────────────────────────────────
-    _auth_u = st.session_state.get("_auth_user")
-    if _auth_u:
-        _nome_u   = _auth_u.get("name",     "Usuário")
-        _email_u  = _auth_u.get("email",    "")
-        _pic_u    = _auth_u.get("picture",  "")
-        _prov_u   = _auth_u.get("provider", "")
-        _prov_ico = "🪟" if _prov_u == "microsoft" else "🔴"
-
-        # Avatar: foto de perfil ou iniciais
-        if _pic_u:
-            _avatar_html = (
-                f"<img src='{_pic_u}' style='"
-                f"width:36px;height:36px;border-radius:50%;"
-                f"object-fit:cover;border:2px solid #e3e8f0'>"
-            )
-        else:
-            _ini = "".join(w[0].upper() for w in _nome_u.split()[:2]) if _nome_u else "?"
-            _avatar_html = (
-                f"<div style='width:36px;height:36px;border-radius:50%;"
-                f"background:#0D47A1;color:#fff;display:flex;align-items:center;"
-                f"justify-content:center;font-weight:700;font-size:13px;"
-                f"flex-shrink:0'>{_ini}</div>"
-            )
-
-        st.markdown(f"""
-        <div style='background:#f5f7fd;border:1px solid #dde3ee;border-radius:11px;
-                    padding:9px 11px;margin:8px 0 2px;
-                    display:flex;align-items:center;gap:9px'>
-          {_avatar_html}
-          <div style='min-width:0;flex:1;overflow:hidden'>
-            <div style='font-weight:600;font-size:12.5px;color:#1a237e;
-                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
-            >{_nome_u}</div>
-            <div style='font-size:10.5px;color:#607d8b;
-                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
-            >{_email_u}</div>
-          </div>
-          <span title='{_prov_u}' style='font-size:15px;flex-shrink:0'>{_prov_ico}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button(
-            "🚪 Sair",
-            use_container_width=True,
-            type="secondary",
-            key="btn_logout",
-            help="Encerrar sessão e voltar ao login",
-        ):
-            st.session_state["_auth_user"] = None
-            st.rerun()
 
     modo = _modo_atual
     st.divider()
