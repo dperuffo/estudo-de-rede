@@ -1555,6 +1555,51 @@ def _detectar_col(df: pd.DataFrame, termos: list) -> str | None:
     return None
 
 
+# ── Mapeamento de colunas de serviço "Possui X?" / "Oferece X?" ─────────────
+# Chave interna → label para exibição no filtro avançado.
+# A detecção usa substring normalizada (sem acentos, uppercase).
+_PF_SVC_LABELS_MASTER: dict[str, str] = {
+    "svc_conveniencia":   "🛒 Conveniência",
+    "svc_ampm":           "🏪 Conv. AM/PM",
+    "svc_restaurante":    "🍽️ Restaurante",
+    "svc_banheiro":       "🚻 Banheiro",
+    "svc_banheiro_pago":  "💰 Banheiro Pago",
+    "svc_estacionamento": "🅿️ Estacionamento",
+    "svc_troca_oleo":     "🔧 Troca de Óleo",
+    "svc_oleo_granel":    "🛢️ Óleo a Granel",
+    "svc_arla32":         "🧪 ARLA 32",
+    "svc_tipo_arla":      "🏷️ Tipo de ARLA",
+}
+
+# Colunas legadas que são "substituídas" por colunas dinâmicas da planilha.
+# { col_key_legada: {col_keys_dinamicas_que_cobrem_o_conceito} }
+_SVC_LEGADO_SUPERSEDE: dict[str, set] = {
+    "conveniencia": {"svc_conveniencia"},
+    "arla":         {"svc_arla32"},
+}
+
+
+def _atualizar_servicos_pf(df_coords) -> None:
+    """
+    Reconstrói st.session_state["_servicos_pf_labels"] e complementa
+    "_servicos_cols_disponiveis" com base nas colunas presentes em df_coords.
+
+    Deve ser chamado sempre que pf_coords_df for atualizado no session_state.
+    """
+    if df_coords is None or (hasattr(df_coords, "empty") and df_coords.empty):
+        return
+    _labels: dict[str, str] = {}
+    _cols_disp: list = list(st.session_state.get("_servicos_cols_disponiveis") or [])
+    for _key, _lbl in _PF_SVC_LABELS_MASTER.items():
+        if _key in df_coords.columns:
+            _labels[_key] = _lbl
+            if _key not in _cols_disp:
+                _cols_disp.append(_key)
+    if _labels:
+        st.session_state["_servicos_pf_labels"]       = _labels
+        st.session_state["_servicos_cols_disponiveis"] = _cols_disp
+
+
 def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
     """
     Núcleo de leitura da planilha Gestão de Frotas.
@@ -1622,6 +1667,42 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
     col_arla      = _detectar_col(df, ["ARLA", "ARLA 32", "ARLA32"])
     col_conv      = _detectar_col(df, ["CONVENIENCIA", "LOJA CONVENIENCIA", "LOJA", "CONVENIENCE"])
 
+    # ── Detecção genérica de colunas "Possui X?" / "Oferece X?" ──────────────
+    # Normaliza nome de coluna: remove acentos, pontuação → uppercase limpo.
+    import unicodedata as _ud_svc
+    def _norm_svc_col(s: str) -> str:
+        s = _ud_svc.normalize("NFD", str(s).upper())
+        s = "".join(c for c in s if _ud_svc.category(c) != "Mn")
+        return re.sub(r"[^A-Z0-9 /]+", " ", s).strip()
+
+    # Lista de (keyword_normalizada, col_key_interna, ignorar_se_col_exata_ja_detectada)
+    _PF_SVC_DETECT = [
+        ("POSSUI CONVENIENCIA",   "svc_conveniencia",   col_conv),
+        ("CONVENIENCIA E AM",     "svc_ampm",           None),
+        ("CONVENIENCIA AM PM",    "svc_ampm",           None),
+        ("POSSUI RESTAURANTE",    "svc_restaurante",    None),
+        ("POSSUI BANHEIRO",       "svc_banheiro",       None),
+        ("COBRANCA PARA USAR",    "svc_banheiro_pago",  None),
+        ("POSSUI ESTACIONAMENTO", "svc_estacionamento", None),
+        ("TROCA DE OLEO",         "svc_troca_oleo",     None),
+        ("OLEO A GRANEL",         "svc_oleo_granel",    None),
+        ("OFERECE PRODUTO ARLA",  "svc_arla32",         col_arla),
+        ("QUAL TIPO DE ARLA",     "svc_tipo_arla",      None),
+    ]
+
+    # Mapeia col_real_no_df → col_key_interna (evita duplicatas de chave)
+    _pf_svc_detected: dict[str, str] = {}
+    _seen_svc_keys: set = set()
+    for _raw_col in df.columns:
+        _n = _norm_svc_col(str(_raw_col))
+        for _kw, _ckey, _skip_col in _PF_SVC_DETECT:
+            if _kw in _n and _ckey not in _seen_svc_keys:
+                # Se este conceito já está coberto por uma coluna legada detectada,
+                # ainda registramos a coluna planilha (mais rica) para sobrescrever.
+                _pf_svc_detected[str(_raw_col)] = _ckey
+                _seen_svc_keys.add(_ckey)
+                break
+
     def _bool_col(val):
         """Converte 'SIM','S','1','YES','TRUE','X' → True; demais → False."""
         return str(val).strip().upper() in ("SIM", "S", "1", "YES", "TRUE", "X", "VERDADEIRO")
@@ -1648,13 +1729,16 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
                 "distribuidora":str(row.get(col_dist, "")).strip() if col_dist else "",
                 "municipio":    str(row.get(col_mun,  "")).strip() if col_mun  else "",
                 "uf":           _normalizar_uf(str(row.get(col_uf, ""))) if col_uf else "",
-                # Serviços / horário — None quando coluna ausente
+                # Serviços / horário legados — None quando coluna ausente
                 "horario":       str(row.get(col_horario, "")).strip() if col_horario else None,
                 "funciona_24h":  _bool_col(row.get(col_24h, ""))      if col_24h     else None,
                 "pista_caminhao":_bool_col(row.get(col_caminhao, "")) if col_caminhao else None,
                 "arla":          _bool_col(row.get(col_arla, ""))     if col_arla    else None,
                 "conveniencia":  _bool_col(row.get(col_conv, ""))     if col_conv    else None,
             }
+            # ── Adiciona serviços detectados dinamicamente ("Possui X?") ──
+            for _rcol, _ckey in _pf_svc_detected.items():
+                rec[_ckey] = _bool_col(row.get(_rcol, ""))
             rows.append(rec)
         if rows:
             df_coords = pd.DataFrame(rows)
@@ -1670,6 +1754,10 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
                 ("pista_caminhao", col_caminhao), ("arla", col_arla),
                 ("conveniencia", col_conv),
             ] if c]
+            # Adiciona chaves das colunas dinâmicas
+            for _ckey_d in _pf_svc_detected.values():
+                if _ckey_d not in _servicos_detectados:
+                    _servicos_detectados.append(_ckey_d)
             if _servicos_detectados:
                 st.session_state["_servicos_cols_disponiveis"] = _servicos_detectados
 
@@ -2804,6 +2892,335 @@ def _gerar_mapa_rota_png(coords_rota, orig, dest, paradas, sugest):
     return _buf.read()
 
 
+# ═══════════════════════════════════════════════════════════════════
+#  CARD PNG PARA COMPARTILHAMENTO DE ROTA
+# ═══════════════════════════════════════════════════════════════════
+
+def _gerar_card_rota_png(rot_res: dict, sugest: list) -> bytes:
+    """
+    Gera um card PNG visual para compartilhamento da roteirização
+    (WhatsApp, e-mail, etc.).  Retorna bytes PNG.
+
+    Layout:
+      ┌──────────────────────────────────────┐
+      │  Header azul: branding + placa       │
+      ├──────────────────┬───────────────────┤
+      │   Mini-mapa      │  Stats da rota    │
+      ├──────────────────┴───────────────────┤
+      │  Lista de postos sugeridos           │
+      └──────────────────────────────────────┘
+    """
+    import matplotlib.gridspec as _mgs
+    import textwrap as _tw
+
+    _AZ    = "#0D47A1"
+    _AZ2   = "#1565C0"
+    _AZ3   = "#1976D2"
+    _VERDE = "#2E7D32"
+    _VERD2 = "#E8F5E9"
+    _LAR   = "#E65100"
+    _LAR2  = "#FFF3E0"
+    _CINZ  = "#ECEFF1"
+    _BRNC  = "#FFFFFF"
+    _DARK  = "#212121"
+    _MED   = "#546E7A"
+
+    DPI   = 140
+    W_IN  = 10.0
+    H_IN  = 6.5
+
+    fig = plt.figure(figsize=(W_IN, H_IN), dpi=DPI, facecolor=_AZ)
+
+    # ── GridSpec: header | corpo | footer ──────────────────────────
+    gs_outer = _mgs.GridSpec(3, 1, figure=fig,
+                              height_ratios=[0.13, 0.72, 0.15],
+                              hspace=0, left=0, right=1, top=1, bottom=0)
+
+    # ── HEADER ─────────────────────────────────────────────────────
+    ax_hdr = fig.add_subplot(gs_outer[0])
+    ax_hdr.set_facecolor(_AZ)
+    ax_hdr.set_xlim(0, 1); ax_hdr.set_ylim(0, 1)
+    ax_hdr.axis("off")
+    _placa = rot_res.get("placa","") or ""
+    _hdr_txt = "🚛  Estudo de Rede — Gestão de Frotas"
+    if _placa:
+        _hdr_txt += f"  ·  Placa {_placa}"
+    ax_hdr.text(0.5, 0.5, _hdr_txt,
+                ha="center", va="center", fontsize=11, fontweight="bold",
+                color=_BRNC, transform=ax_hdr.transAxes)
+
+    # ── CORPO ──────────────────────────────────────────────────────
+    ax_body = fig.add_subplot(gs_outer[1])
+    ax_body.set_facecolor(_BRNC)
+    ax_body.axis("off")
+
+    # Divide corpo: mapa (esq) + info (dir)
+    gs_body = _mgs.GridSpecFromSubplotSpec(
+        1, 2, subplot_spec=gs_outer[1],
+        width_ratios=[1.1, 0.9], wspace=0.0
+    )
+
+    # ── Mapa (coluna esquerda) ──────────────────────────────────────
+    ax_map = fig.add_subplot(gs_body[0])
+    ax_map.set_facecolor(_CINZ)
+    ax_map.axis("off")
+
+    _rc  = rot_res.get("coords",  [])
+    _ro  = rot_res.get("orig",    {})
+    _rt  = rot_res.get("dest",    {})
+    _rp  = rot_res.get("paradas", [])
+
+    if _rc and len(_rc) >= 2:
+        try:
+            _map_bytes = _gerar_mapa_rota_png(_rc, _ro, _rt, _rp, sugest)
+            from PIL import Image as _PILI
+            _map_img = _PILI.open(io.BytesIO(_map_bytes))
+            ax_map.imshow(_map_img, aspect="auto")
+        except Exception:
+            # Fallback matplotlib inline
+            _lts = [c[0] for c in _rc]; _lns = [c[1] for c in _rc]
+            ax_map.set_facecolor("#EEF2F7")
+            ax_map.plot(_lns, _lts, color=_AZ2, linewidth=2.5)
+            if _ro: ax_map.scatter(float(_ro["lon"]), float(_ro["lat"]),
+                                   s=100, c=_VERDE, zorder=5)
+            if _rt: ax_map.scatter(float(_rt["lon"]), float(_rt["lat"]),
+                                   s=100, c="#C62828", zorder=5)
+            for _s in sugest:
+                ax_map.scatter(float(_s["lon"]), float(_s["lat"]),
+                               s=70, c=_LAR, marker="^", zorder=6)
+            _pad = 0.3
+            ax_map.set_xlim(min(_lns)-_pad, max(_lns)+_pad)
+            ax_map.set_ylim(min(_lts)-_pad, max(_lts)+_pad)
+            ax_map.set_xticks([]); ax_map.set_yticks([])
+    else:
+        ax_map.text(0.5, 0.5, "Mapa indisponível\n(sem coordenadas de rota)",
+                    ha="center", va="center", fontsize=9, color=_MED)
+
+    # ── Info (coluna direita) ───────────────────────────────────────
+    ax_info = fig.add_subplot(gs_body[1])
+    ax_info.set_facecolor(_BRNC)
+    ax_info.set_xlim(0, 1); ax_info.set_ylim(0, 1)
+    ax_info.axis("off")
+
+    _rd  = float(rot_res.get("dist_km", 0) or 0)
+    _rm  = float(rot_res.get("dur_min", 0) or 0)
+    _cap = float(rot_res.get("capacidade", 0) or 0)
+    _aut = float(rot_res.get("autonomia",  0) or 0)
+    _comb = rot_res.get("combustivel", "—") or "—"
+
+    _orig_lbl = (_ro.get("label","Origem") or "Origem")[:32]
+    _dest_lbl = (_rt.get("label","Destino") or "Destino")[:32]
+
+    _y = 0.94
+
+    # Título Origem → Destino
+    ax_info.text(0.5, _y, _orig_lbl, ha="center", va="top", fontsize=9,
+                 color=_VERDE, fontweight="bold",
+                 transform=ax_info.transAxes)
+    _y -= 0.07
+    ax_info.text(0.5, _y, "▼", ha="center", va="top", fontsize=12,
+                 color=_AZ3, transform=ax_info.transAxes)
+    _y -= 0.09
+    ax_info.text(0.5, _y, _dest_lbl, ha="center", va="top", fontsize=9,
+                 color="#C62828", fontweight="bold",
+                 transform=ax_info.transAxes)
+    _y -= 0.06
+
+    # Linha divisória
+    ax_info.axhline(_y + 0.01, xmin=0.05, xmax=0.95,
+                    color="#B0BEC5", linewidth=0.8, transform=ax_info.transAxes)
+    _y -= 0.04
+
+    # Stats
+    def _stat(y, icon, label, value, vcolor=_DARK):
+        ax_info.text(0.08, y, icon, ha="left", va="top", fontsize=9,
+                     transform=ax_info.transAxes)
+        ax_info.text(0.24, y, label, ha="left", va="top", fontsize=7.5,
+                     color=_MED, transform=ax_info.transAxes)
+        ax_info.text(0.92, y, value, ha="right", va="top", fontsize=8.5,
+                     fontweight="bold", color=vcolor, transform=ax_info.transAxes)
+        return y - 0.085
+
+    _dist_fmt = f"{_rd:,.0f} km".replace(",",".")
+    _h, _min  = int(_rm//60), int(_rm%60)
+    _time_fmt = f"{_h}h {_min:02d}min"
+    _cons_fmt = (f"{_rd/_aut:.0f} L ({_comb})" if _aut else f"— ({_comb})")
+    _para_fmt = str(len(sugest)) if sugest else "Nenhuma"
+
+    _y = _stat(_y, "📏", "Distância",    _dist_fmt)
+    _y = _stat(_y, "⏱️",  "Tempo est.",   _time_fmt)
+    _y = _stat(_y, "⛽",  "Consumo",     _cons_fmt)
+    _y = _stat(_y, "🚦",  "Paradas abast.", _para_fmt,
+               vcolor=(_LAR if sugest else _VERDE))
+
+    if _cap and _aut:
+        _y = _stat(_y, "🛢️", "Tanque/Aut.",
+                   f"{_cap:.0f} L / {_aut:.0f} km")
+
+    n_par = len(rot_res.get("paradas", []))
+    if n_par:
+        _y = _stat(_y, "📍", "Paradas interm.", str(n_par))
+
+    # ── Lista de postos sugeridos ─────────────────────────────────
+    ax_stops = fig.add_subplot(gs_outer[2] if len(sugest) == 0 else gs_outer[1])
+
+    # Usar um ax extra no rodapé para a lista de postos
+    ax_body2 = fig.add_axes([0.0, 0.01, 1.0, 0.17])
+    ax_body2.set_facecolor(_LAR2)
+    ax_body2.set_xlim(0, 1); ax_body2.set_ylim(0, 1)
+    ax_body2.axis("off")
+
+    _stops_txt = "⛽  Postos de abastecimento sugeridos:  "
+    _max_show  = min(len(sugest), 4)
+    for _i, _s in enumerate(sugest[:_max_show]):
+        _nm = str(_s.get("razaoSocial") or _s.get("nome") or "Posto")[:28]
+        _uf_s = _s.get("uf", "")
+        _mun  = _s.get("municipio", "")
+        _loc  = f"{_mun}/{_uf_s}" if _mun else _uf_s
+        _pr   = _s.get("preco", None)
+        _pr_s = f"  R$ {_pr:.3f}/L" if _pr else ""
+        _stops_txt += f"  [{_i+1}] {_nm} ({_loc}){_pr_s}    "
+    if len(sugest) > _max_show:
+        _stops_txt += f"  +{len(sugest)-_max_show} mais…"
+    if not sugest:
+        _stops_txt = "✅  Nenhuma parada de abastecimento necessária na rota."
+
+    ax_body2.text(0.01, 0.55, _stops_txt, ha="left", va="center",
+                  fontsize=7.5, color=_LAR if sugest else _VERDE,
+                  fontweight="bold", wrap=True,
+                  transform=ax_body2.transAxes)
+
+    # ── FOOTER ─────────────────────────────────────────────────────
+    ax_ftr = fig.add_axes([0.0, 0.0, 1.0, 0.055])
+    ax_ftr.set_facecolor(_AZ)
+    ax_ftr.set_xlim(0, 1); ax_ftr.set_ylim(0, 1)
+    ax_ftr.axis("off")
+    _now_str = datetime.now().strftime("%d/%m/%Y  %H:%M")
+    ax_ftr.text(0.5, 0.5, f"Gerado em {_now_str}  ·  Estudo de Rede — Pró-Frotas",
+                ha="center", va="center", fontsize=7.5, color="#BBDEFB",
+                transform=ax_ftr.transAxes)
+
+    # Salva
+    _buf_card = io.BytesIO()
+    fig.savefig(_buf_card, format="png", bbox_inches="tight",
+                dpi=DPI, facecolor=_AZ)
+    plt.close(fig)
+    _buf_card.seek(0)
+    return _buf_card.read()
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  EXPORTAÇÃO DO MAPA DE POSTOS COMO PNG
+# ═══════════════════════════════════════════════════════════════════
+
+def _exportar_mapa_postos_png(df: "pd.DataFrame", titulo: str = "",
+                               subtitulo: str = "") -> bytes:
+    """
+    Gera imagem PNG estática dos postos presentes no df.
+    Usa matplotlib com scatter plot georreferenciado.
+    Retorna bytes PNG.
+    """
+    if df is None or df.empty or "_lat" not in df.columns:
+        # Mapa vazio
+        fig, ax = plt.subplots(figsize=(8, 5), dpi=120)
+        ax.set_facecolor("#EEF2F7")
+        ax.text(0.5, 0.5, "Sem postos para exibir", ha="center", va="center",
+                fontsize=12, color="#90A4AE", transform=ax.transAxes)
+        ax.axis("off")
+        _b = io.BytesIO(); fig.savefig(_b, format="png", dpi=120)
+        plt.close(fig); _b.seek(0); return _b.read()
+
+    _df = df.dropna(subset=["_lat","_lon"]).copy()
+    if _df.empty:
+        return _exportar_mapa_postos_png(None)
+
+    lats = _df["_lat"].astype(float)
+    lons = _df["_lon"].astype(float)
+
+    fig, ax = plt.subplots(figsize=(11, 6.5), dpi=130)
+    ax.set_facecolor("#EEF2F7")
+    fig.patch.set_facecolor("#FFFFFF")
+
+    # ── Camadas de pontos ──────────────────────────────────────────
+    # Postos comuns (ANP)
+    _mask_reg = ~(
+        (_df.get("_pro_frotas", pd.Series(False, index=_df.index)).fillna(False)) |
+        (_df.get("_cercado",    pd.Series(False, index=_df.index)).fillna(False)) |
+        (_df.get("_rodo_rede",  pd.Series(False, index=_df.index)).fillna(False))
+    )
+    _col_reg = "#42A5F5"
+    if "_pro_frotas" in _df.columns:
+        _mask_reg = (~_df["_pro_frotas"].fillna(False) &
+                     ~_df.get("_cercado",   pd.Series(False, index=_df.index)).fillna(False) &
+                     ~_df.get("_rodo_rede", pd.Series(False, index=_df.index)).fillna(False))
+
+    if _mask_reg.any():
+        ax.scatter(lons[_mask_reg], lats[_mask_reg],
+                   s=22, c=_col_reg, alpha=0.7, zorder=3,
+                   linewidths=0.3, edgecolors="#1565C0", label="Postos ANP")
+
+    # Rodo Rede
+    if "_rodo_rede" in _df.columns:
+        _mask_rr = _df["_rodo_rede"].fillna(False) & ~_df.get("_cercado", pd.Series(False, index=_df.index)).fillna(False)
+        if _mask_rr.any():
+            ax.scatter(lons[_mask_rr], lats[_mask_rr],
+                       s=35, c="#9C27B0", alpha=0.85, zorder=4,
+                       linewidths=0.4, edgecolors="#4A148C", label="Rodo Rede")
+
+    # Cercados
+    if "_cercado" in _df.columns:
+        _mask_cer = _df["_cercado"].fillna(False)
+        if _mask_cer.any():
+            ax.scatter(lons[_mask_cer], lats[_mask_cer],
+                       s=45, c="#FF8F00", alpha=0.9, zorder=5,
+                       linewidths=0.5, edgecolors="#E65100", label="Cercados ⚠️",
+                       marker="D")
+
+    # Gestão de Frotas
+    if "_pro_frotas" in _df.columns:
+        _mask_pf = _df["_pro_frotas"].fillna(False)
+        if _mask_pf.any():
+            ax.scatter(lons[_mask_pf], lats[_mask_pf],
+                       s=55, c="#FFD700", alpha=0.95, zorder=6,
+                       linewidths=0.6, edgecolors="#F57F17", label="Gestão de Frotas ⭐",
+                       marker="*")
+
+    # Margens
+    _pad_lat = max((lats.max() - lats.min()) * 0.08, 0.4)
+    _pad_lon = max((lons.max() - lons.min()) * 0.08, 0.4)
+    ax.set_xlim(lons.min() - _pad_lon, lons.max() + _pad_lon)
+    ax.set_ylim(lats.min() - _pad_lat, lats.max() + _pad_lat)
+
+    # Eixos simplificados
+    ax.set_xticks([]); ax.set_yticks([])
+    for sp in ax.spines.values(): sp.set_visible(False)
+    ax.grid(True, linestyle=":", linewidth=0.3, color="#B0BEC5", alpha=0.5)
+
+    # Título
+    _titulo_final = titulo or "Postos de Combustível"
+    ax.set_title(_titulo_final, fontsize=12, fontweight="bold",
+                 color="#0D47A1", pad=8)
+    if subtitulo:
+        ax.text(0.5, 1.01, subtitulo, ha="center", va="bottom",
+                fontsize=8, color="#546E7A", transform=ax.transAxes)
+
+    # Legenda
+    ax.legend(fontsize=7.5, loc="lower right", framealpha=0.92,
+              edgecolor="#CFD8DC", facecolor="white")
+
+    # Contador
+    ax.text(0.01, 0.01, f"{len(_df)} postos  ·  {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            ha="left", va="bottom", fontsize=7, color="#90A4AE",
+            transform=ax.transAxes)
+
+    plt.tight_layout(pad=0.5)
+    _buf_map = io.BytesIO()
+    fig.savefig(_buf_map, format="png", bbox_inches="tight", dpi=130)
+    plt.close(fig)
+    _buf_map.seek(0)
+    return _buf_map.read()
+
+
 def gerar_pdf_roteirizacao(rot_res: dict, sugest: list, logo_b64: str = None) -> bytes:
     """
     Gera PDF completo do relatório de roteirização.
@@ -3398,7 +3815,8 @@ def buscar_posto_por_cnpj(cnpj_norm: str) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def buscar_postos_por_nome(termo: str, uf: str = "") -> pd.DataFrame:
-    """Busca postos na API ANP por razão social (parcial) + UF opcional."""
+    """Busca postos na API ANP por razão social (parcial) + UF opcional.
+    Aplica pós-filtro de UF pois a API nem sempre respeita o parâmetro."""
     params: dict = {"numeropagina": 1, "razaoSocial": termo}
     if uf:
         params["uf"] = uf
@@ -3414,6 +3832,11 @@ def buscar_postos_por_nome(termo: str, uf: str = "") -> pd.DataFrame:
         df["_lon"] = pd.to_numeric(df.get("longitude"), errors="coerce")
         df = df.dropna(subset=["_lat", "_lon"])
         df = df[df["_lat"].between(-33.8, 5.3) & df["_lon"].between(-73.9, -34.7)]
+        # ── Pós-filtro de UF (a API pode ignorar o parâmetro) ────────
+        if uf and not df.empty and "uf" in df.columns:
+            df = df[
+                df["uf"].fillna("").str.upper().str.strip() == uf.upper()
+            ].reset_index(drop=True)
         return df.reset_index(drop=True)
     except Exception:
         return pd.DataFrame()
@@ -3488,12 +3911,28 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
         if df.empty:
             _df_api = buscar_postos_por_nome(termo, uf=uf)
             if not _df_api.empty:
-                if cnpjs_pf and "cnpj" in _df_api.columns:
+                # ── Pós-filtro UF (defesa em profundidade) ────────────
+                if uf and "uf" in _df_api.columns:
+                    _df_api = _df_api[
+                        _df_api["uf"].fillna("").str.upper().str.strip() == uf.upper()
+                    ].reset_index(drop=True)
+                if cnpjs_pf and not _df_api.empty and "cnpj" in _df_api.columns:
                     _cnpjs_api = _df_api["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
                     _df_api = _df_api[_cnpjs_api.isin(cnpjs_pf)].reset_index(drop=True)
                 if not _df_api.empty:
                     df = _df_api
                     fonte += " (API ANP)"
+
+    if df.empty:
+        return pd.DataFrame(), fonte
+
+    # ── Pós-filtro de UF (defesa final — garante mesmo se API ignorou) ──
+    if uf and not is_cnpj and "uf" in df.columns:
+        _mask_uf_final = df["uf"].fillna("").str.upper().str.strip() == uf.upper()
+        # Só aplica se ao menos alguns registros têm UF preenchida;
+        # senão mantém tudo (evita apagar resultados de planilhas sem UF).
+        if _mask_uf_final.any():
+            df = df[_mask_uf_final].reset_index(drop=True)
 
     if df.empty:
         return pd.DataFrame(), fonte
@@ -6746,6 +7185,14 @@ with st.sidebar:
             st.session_state["perfis_pf_lista"]     = sorted(set(_perfil_repo.values()))
         if _coords_repo is not None and not _coords_repo.empty:
             st.session_state["pf_coords_df"] = _coords_repo
+            _atualizar_servicos_pf(_coords_repo)
+
+    # Reconstrói labels de serviços se pf_coords_df já existe mas labels ainda não foram gerados
+    # (ex: primeira rerun após cache hit)
+    if ("pf_coords_df" in st.session_state
+            and not st.session_state["pf_coords_df"].empty
+            and not st.session_state.get("_servicos_pf_labels")):
+        _atualizar_servicos_pf(st.session_state["pf_coords_df"])
 
     # Fallback: CNPJs já carregados mas perfil_venda_map ou pf_coords_df ainda ausentes/vazio
     # (ocorre quando o cache antigo não incluía lat/lon ou pf_coords_df foi armazenado vazio)
@@ -6768,6 +7215,7 @@ with st.sidebar:
             st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r2.values()))
         if _coords_r2 is not None and not _coords_r2.empty:
             st.session_state["pf_coords_df"] = _coords_r2
+            _atualizar_servicos_pf(_coords_r2)
 
     # Auto-load Postos Cercados (uma vez por sessão)
     if not st.session_state.get("cnpjs_cercados") and not st.session_state.get("_cercados_tentado"):
@@ -7168,10 +7616,24 @@ with st.sidebar:
 
                 # ── Serviços Disponíveis ───────────────────────────────
                 _filtro_servicos_m1 = []
-                _svc_opts = []
-                if "pista_caminhao" in _svc_cols: _svc_opts.append("🚛 Pista Caminhão")
-                if "arla"           in _svc_cols: _svc_opts.append("🧪 ARLA 32")
-                if "conveniencia"   in _svc_cols: _svc_opts.append("🛒 Conveniência")
+                _svc_pf_lbl_m1 = st.session_state.get("_servicos_pf_labels", {})
+                # Labels legadas (colunas genéricas) — só aparecem se não substituídas
+                _SVC_LEG_LBL = {"pista_caminhao": "🚛 Pista Caminhão",
+                                 "arla":           "🧪 ARLA 32",
+                                 "conveniencia":   "🛒 Conveniência"}
+                _conceitos_cobertos_m1 = set(_svc_pf_lbl_m1.keys())
+                _svc_map_m1: dict = {}
+                # 1) Colunas dinâmicas da planilha ("Possui X?")
+                for _ck, _lbl in _svc_pf_lbl_m1.items():
+                    if _ck in _svc_cols:
+                        _svc_map_m1[_lbl] = _ck
+                # 2) Legadas (se o conceito não foi substituído)
+                for _ck, _lbl in _SVC_LEG_LBL.items():
+                    if _ck in _svc_cols:
+                        _sup = _SVC_LEGADO_SUPERSEDE.get(_ck, set())
+                        if not (_sup & _conceitos_cobertos_m1):
+                            _svc_map_m1[_lbl] = _ck
+                _svc_opts = list(_svc_map_m1.keys())
                 if _svc_opts:
                     _svc_sel_m1 = st.multiselect(
                         "🔧 Serviços disponíveis",
@@ -7180,17 +7642,12 @@ with st.sidebar:
                         key=f"adv_svc_m1_{_fk_m1}",
                         help="Exibe apenas postos que oferecem os serviços selecionados",
                     )
-                    _svc_map = {
-                        "🚛 Pista Caminhão": "pista_caminhao",
-                        "🧪 ARLA 32":        "arla",
-                        "🛒 Conveniência":   "conveniencia",
-                    }
-                    _filtro_servicos_m1 = [_svc_map[s] for s in _svc_sel_m1]
+                    _filtro_servicos_m1 = [_svc_map_m1[s] for s in _svc_sel_m1]
 
                 if not _tem_servico:
                     st.caption(
                         "ℹ️ Colunas de serviço não encontradas na planilha. "
-                        "Adicione: PISTA_CAMINHAO, ARLA, CONVENIENCIA, FUNCIONA_24H."
+                        "Adicione colunas como 'Possui restaurante?', 'Possui estacionamento?', etc."
                     )
         else:
             _preco_faixa_m1 = None
@@ -7596,10 +8053,23 @@ with st.sidebar:
                     )
 
                 _filtro_servicos_m2 = []
-                _svc_opts_m2 = []
-                if "pista_caminhao" in _svc_cols_m2: _svc_opts_m2.append("🚛 Pista Caminhão")
-                if "arla"           in _svc_cols_m2: _svc_opts_m2.append("🧪 ARLA 32")
-                if "conveniencia"   in _svc_cols_m2: _svc_opts_m2.append("🛒 Conveniência")
+                _svc_pf_lbl_m2 = st.session_state.get("_servicos_pf_labels", {})
+                _SVC_LEG_LBL_M2 = {"pista_caminhao": "🚛 Pista Caminhão",
+                                    "arla":           "🧪 ARLA 32",
+                                    "conveniencia":   "🛒 Conveniência"}
+                _conceitos_cob_m2 = set(_svc_pf_lbl_m2.keys())
+                _svc_map_m2: dict = {}
+                # 1) Colunas dinâmicas da planilha ("Possui X?")
+                for _ck, _lbl in _svc_pf_lbl_m2.items():
+                    if _ck in _svc_cols_m2:
+                        _svc_map_m2[_lbl] = _ck
+                # 2) Legadas (se o conceito não foi substituído)
+                for _ck, _lbl in _SVC_LEG_LBL_M2.items():
+                    if _ck in _svc_cols_m2:
+                        _sup = _SVC_LEGADO_SUPERSEDE.get(_ck, set())
+                        if not (_sup & _conceitos_cob_m2):
+                            _svc_map_m2[_lbl] = _ck
+                _svc_opts_m2 = list(_svc_map_m2.keys())
                 if _svc_opts_m2:
                     _svc_sel_m2 = st.multiselect(
                         "🔧 Serviços disponíveis",
@@ -7608,11 +8078,6 @@ with st.sidebar:
                         key="adv_svc_m2",
                         help="Exibe apenas postos que oferecem os serviços selecionados",
                     )
-                    _svc_map_m2 = {
-                        "🚛 Pista Caminhão": "pista_caminhao",
-                        "🧪 ARLA 32":        "arla",
-                        "🛒 Conveniência":   "conveniencia",
-                    }
                     _filtro_servicos_m2 = [_svc_map_m2[s] for s in _svc_sel_m2]
         else:
             _preco_faixa_m2     = None
@@ -7821,6 +8286,7 @@ with st.sidebar:
                         st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r.values()))
                     if _coords_r is not None and not _coords_r.empty:
                         st.session_state["pf_coords_df"] = _coords_r
+                        _atualizar_servicos_pf(_coords_r)
                     st.success(f"✅ {_msg_r}")
                     time.sleep(1)
                     st.rerun()
@@ -7846,6 +8312,7 @@ with st.sidebar:
                             st.session_state["perfis_pf_lista"]  = sorted(set(perfil_pf.values()))
                         if coords_pf is not None and not coords_pf.empty:
                             st.session_state["pf_coords_df"] = coords_pf
+                            _atualizar_servicos_pf(coords_pf)
                         st.success(msg_pf)
                         if preview_pf is not None:
                             with st.expander("Ver amostra dos CNPJs"):
@@ -9113,7 +9580,8 @@ if modo == "📍 Por UF/Município":
         if _filtro_24h_m1:
             _filtros_ativos_m1.append("⏰ 24h")
         if _filtro_servicos_m1:
-            _srv_label = {"pista_caminhao":"🚛 Pista","arla":"🧪 ARLA","conveniencia":"🛒 Conv."}
+            _srv_label = {"pista_caminhao":"🚛 Pista","arla":"🧪 ARLA","conveniencia":"🛒 Conv.",
+                          **{k: v for k, v in st.session_state.get("_servicos_pf_labels", {}).items()}}
             _filtros_ativos_m1 += [_srv_label.get(s,s) for s in _filtro_servicos_m1]
         if _preco_faixa_m1 and _fuel_sel_m1 and _fuel_sel_m1 != "— Todos —":
             _lo_lbl, _hi_lbl = _preco_faixa_m1
@@ -9142,6 +9610,34 @@ if modo == "📍 Por UF/Município":
                     )
                     import traceback
                     st.code(traceback.format_exc(), language="python")
+
+            # ── Exportar mapa como PNG ─────────────────────────────
+            _mc1, _mc2 = st.columns([5, 1])
+            with _mc2:
+                if st.button("📸 Exportar mapa", use_container_width=True,
+                             key="btn_exp_mapa_m1",
+                             help="Baixar o mapa atual como imagem PNG"):
+                    with st.spinner("🖼️ Gerando imagem…"):
+                        try:
+                            _titulo_png = f"Postos — {uf}" + (f" · {municipio_input.strip()}" if municipio_input.strip() else "")
+                            _sub_png    = f"{len(df_show)} postos  ·  {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+                            _png_m1 = _exportar_mapa_postos_png(df_show, _titulo_png, _sub_png)
+                            st.session_state["_mapa_png_m1"] = _png_m1
+                            st.session_state["_mapa_png_m1_nome"] = (
+                                f"mapa_{uf}_{datetime.now().strftime('%Y%m%d_%H%M')}.png"
+                            )
+                        except Exception as _emp:
+                            st.error(f"Erro ao gerar imagem: {_emp}")
+            if st.session_state.get("_mapa_png_m1"):
+                with _mc1:
+                    st.download_button(
+                        "⬇️ Baixar PNG do mapa",
+                        data=st.session_state["_mapa_png_m1"],
+                        file_name=st.session_state.get("_mapa_png_m1_nome","mapa.png"),
+                        mime="image/png",
+                        use_container_width=True,
+                        key="dl_mapa_png_m1",
+                    )
 
             # ══════════════════════════════════════════════════════
             # ── PAINEL ORIGEM / DESTINO — UX redesenhado ──────────
@@ -9723,7 +10219,8 @@ elif modo == "🗺️ Por Rota":
         if _filtro_24h_m2:
             _filtros_ativos_m2.append("⏰ 24h")
         if _filtro_servicos_m2:
-            _srv_lbl2 = {"pista_caminhao":"🚛 Pista","arla":"🧪 ARLA","conveniencia":"🛒 Conv."}
+            _srv_lbl2 = {"pista_caminhao":"🚛 Pista","arla":"🧪 ARLA","conveniencia":"🛒 Conv.",
+                         **{k: v for k, v in st.session_state.get("_servicos_pf_labels", {}).items()}}
             _filtros_ativos_m2 += [_srv_lbl2.get(s,s) for s in _filtro_servicos_m2]
         if _preco_faixa_m2 and _fuel_sel_m2 and _fuel_sel_m2 != "— Todos —":
             _lo_lbl2, _hi_lbl2 = _preco_faixa_m2
@@ -9779,6 +10276,34 @@ elif modo == "🗺️ Por Rota":
                                label_orig=label_orig, label_dest=label_dest,
                                waypoints=_paradas_vis if _paradas_vis else None)
                 _renderizar_mapa(m, height=660, key="mapa_m2_rota")
+
+            # ── Exportar mapa como PNG (Modo 2) ───────────────────
+            _m2c1, _m2c2 = st.columns([5, 1])
+            with _m2c2:
+                if st.button("📸 Exportar mapa", use_container_width=True,
+                             key="btn_exp_mapa_m2",
+                             help="Baixar o mapa da rota como imagem PNG"):
+                    with st.spinner("🖼️ Gerando imagem…"):
+                        try:
+                            _titulo_m2 = f"Rota: {label_orig[:20]} → {label_dest[:20]}"
+                            _sub_m2    = f"{len(df_show_r)} postos  ·  {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+                            _png_m2 = _exportar_mapa_postos_png(df_show_r, _titulo_m2, _sub_m2)
+                            st.session_state["_mapa_png_m2"] = _png_m2
+                            st.session_state["_mapa_png_m2_nome"] = (
+                                f"mapa_rota_{datetime.now().strftime('%Y%m%d_%H%M')}.png"
+                            )
+                        except Exception as _emp2:
+                            st.error(f"Erro ao gerar imagem: {_emp2}")
+            if st.session_state.get("_mapa_png_m2"):
+                with _m2c1:
+                    st.download_button(
+                        "⬇️ Baixar PNG do mapa",
+                        data=st.session_state["_mapa_png_m2"],
+                        file_name=st.session_state.get("_mapa_png_m2_nome","mapa_rota.png"),
+                        mime="image/png",
+                        use_container_width=True,
+                        key="dl_mapa_png_m2",
+                    )
 
             # ── Refinar Origem/Destino com posto da rota ──────────
             if not df_show_r.empty:
@@ -10267,6 +10792,35 @@ elif modo == "🔍 Consulta por Posto":
                         _mapa_m3.update_layout(mapbox=dict(zoom=8))
 
                 _renderizar_mapa(_mapa_m3, height=560, key="mapa_m3_res")
+
+                # ── Exportar mapa como PNG (Modo 3) ───────────────
+                _m3c1, _m3c2 = st.columns([5, 1])
+                with _m3c2:
+                    if st.button("📸 Exportar mapa", use_container_width=True,
+                                 key="btn_exp_mapa_m3",
+                                 help="Baixar o mapa dos postos como imagem PNG"):
+                        with st.spinner("🖼️ Gerando imagem…"):
+                            try:
+                                _titulo_m3 = f"Busca: {_m3_termo[:30]}" + (f" — {_m3_uf}" if _m3_uf else "")
+                                _sub_m3    = f"{len(_df_m3)} postos  ·  {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+                                _png_m3 = _exportar_mapa_postos_png(_df_m3, _titulo_m3, _sub_m3)
+                                st.session_state["_mapa_png_m3"] = _png_m3
+                                st.session_state["_mapa_png_m3_nome"] = (
+                                    f"busca_{_m3_termo[:15].replace(' ','_')}"
+                                    f"_{datetime.now().strftime('%Y%m%d_%H%M')}.png"
+                                )
+                            except Exception as _emp3:
+                                st.error(f"Erro ao gerar imagem: {_emp3}")
+                if st.session_state.get("_mapa_png_m3"):
+                    with _m3c1:
+                        st.download_button(
+                            "⬇️ Baixar PNG do mapa",
+                            data=st.session_state["_mapa_png_m3"],
+                            file_name=st.session_state.get("_mapa_png_m3_nome","mapa_busca.png"),
+                            mime="image/png",
+                            use_container_width=True,
+                            key="dl_mapa_png_m3",
+                        )
 
                 # ── Botões de O/D para os resultados ──────────────
                 _df_m3_od = _df_m3.head(8)
@@ -12919,15 +13473,56 @@ elif modo == "🛣️ Roteirização":
                 _cr1, _cr2 = st.columns([3, 4])
                 _cr1.caption(_lbl); _cr2.markdown(f"**{_val}**")
 
-        # ── Exportações (PDF + GPX) ───────────────────────────────
+        # ── Exportações (Card · PDF · GPX) ────────────────────────
         st.markdown("---")
-        _exp_col1, _exp_col2, _exp_col3 = st.columns([3, 1, 1])
+        _exp_col1, _exp_col2, _exp_col3, _exp_col4 = st.columns([2.5, 1, 1, 1])
         with _exp_col1:
             st.markdown(
                 "<div style='font-size:11px;color:#555;padding:6px 0'>"
+                "📤 <b>Card</b> para WhatsApp/e-mail &nbsp;·&nbsp; "
                 "📄 <b>PDF</b> para impressão &nbsp;·&nbsp; "
-                "🗺️ <b>GPX</b> para GPS / Google Maps / OsmAnd</div>",
+                "🗺️ <b>GPX</b> para GPS</div>",
                 unsafe_allow_html=True)
+
+        with _exp_col4:
+            if st.button("📤 Card PNG", use_container_width=True,
+                         key="rot_gerar_card"):
+                with st.spinner("🖼️ Gerando card de compartilhamento…"):
+                    try:
+                        _card_bytes = _gerar_card_rota_png(
+                            {
+                                "placa":      _rot_res.get("placa",""),
+                                "combustivel":_rcomb,
+                                "capacidade": _rcap,
+                                "autonomia":  _raut,
+                                "dist_km":    _rd,
+                                "dur_min":    _rm,
+                                "coords":     _rc,
+                                "orig":       _ro,
+                                "dest":       _rt,
+                                "paradas":    _rp,
+                            },
+                            _sugest,
+                        )
+                        _nome_card = (
+                            f"rota_{(_ro.get('label','orig'))[:15].replace(' ','_')}"
+                            f"_{(_rt.get('label','dest'))[:15].replace(' ','_')}"
+                            f"_{datetime.now().strftime('%Y%m%d_%H%M')}.png"
+                        )
+                        st.session_state["_rot_card_bytes"] = _card_bytes
+                        st.session_state["_rot_card_nome"]  = _nome_card
+                    except Exception as _ecard:
+                        st.error(f"❌ Erro ao gerar card: {_ecard}")
+
+        if st.session_state.get("_rot_card_bytes"):
+            st.download_button(
+                label="⬇️ Baixar Card PNG",
+                data=st.session_state["_rot_card_bytes"],
+                file_name=st.session_state.get("_rot_card_nome", "card_rota.png"),
+                mime="image/png",
+                use_container_width=True,
+                key="rot_download_card",
+            )
 
         with _exp_col3:
             # ── GPX: gerado imediatamente ao clicar ──────────────
