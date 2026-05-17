@@ -894,6 +894,205 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
+# ═══════════════════════════════════════════════════════════════════
+#  AUTENTICAÇÃO OAuth2 — Google + Microsoft
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Importa a biblioteca (opcional — sem ela o auth fica desativado) ──
+try:
+    from streamlit_oauth import OAuth2Component
+    _OAUTH_LIB_OK = True
+except ImportError:
+    OAuth2Component = None          # type: ignore
+    _OAUTH_LIB_OK   = False
+
+
+def _oauth_cfg(provider: str) -> bool:
+    """True se as credenciais do provider existem em st.secrets."""
+    try:
+        return (provider in st.secrets
+                and bool(st.secrets[provider].get("client_id")))
+    except Exception:
+        return False
+
+
+_OAUTH_GOOGLE_OK = _OAUTH_LIB_OK and _oauth_cfg("oauth_google")
+_OAUTH_MS_OK     = _OAUTH_LIB_OK and _oauth_cfg("oauth_microsoft")
+_OAUTH_ATIVO     = _OAUTH_GOOGLE_OK or _OAUTH_MS_OK
+
+
+# ── Decodifica payload de JWT sem verificar assinatura ──
+def _auth_decode_jwt(token_str: str) -> dict:
+    try:
+        import base64 as _b64, json as _j
+        parts   = token_str.split(".")
+        if len(parts) < 2:
+            return {}
+        payload = parts[1]
+        payload += "=" * (4 - len(payload) % 4)
+        return _j.loads(_b64.urlsafe_b64decode(payload))
+    except Exception:
+        return {}
+
+
+def _auth_user_from_token(token_result: dict, provider: str) -> dict:
+    """Extrai nome, e-mail e foto a partir do token OAuth2 retornado."""
+    id_token = token_result.get("id_token", "")
+    claims   = _auth_decode_jwt(id_token) if id_token else {}
+    return {
+        "name"    : (claims.get("name")
+                     or claims.get("preferred_username")
+                     or claims.get("email", "Usuário")),
+        "email"   : claims.get("email", ""),
+        "picture" : claims.get("picture", ""),
+        "provider": provider,
+    }
+
+
+def _auth_login_page():
+    """Página de login — exibida quando o usuário não está autenticado."""
+
+    # ── Estilos do card de login ──
+    st.markdown("""
+    <style>
+    /* Centra o conteúdo na página de login */
+    section[data-testid="stMain"] > div:first-child {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 88vh;
+    }
+    .auth-wrap { max-width: 420px; width: 100%; padding: 0 1rem; }
+    .auth-card {
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 8px 40px rgba(13,27,75,0.13);
+        padding: 2.8rem 2.6rem 2rem;
+        text-align: center;
+        margin-bottom: 0;
+    }
+    .auth-logo-emoji { font-size: 54px; line-height: 1; }
+    .auth-title {
+        font-size: 1.55rem; font-weight: 800;
+        color: #0D47A1; margin: 0.4rem 0 0.1rem;
+    }
+    .auth-sub {
+        font-size: 0.88rem; color: #78909c; margin-bottom: 1.8rem;
+        line-height: 1.5;
+    }
+    .auth-hr {
+        border: none; border-top: 1px solid #e8edf5;
+        margin: 1.5rem 0 1.2rem;
+    }
+    .auth-footer {
+        font-size: 0.72rem; color: #b0bec5; margin-top: 1.4rem;
+        line-height: 1.6;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Layout: coluna central ──
+    _, _c, _ = st.columns([1, 2.2, 1])
+    with _c:
+        # Card de boas-vindas
+        st.markdown("""
+        <div class='auth-card'>
+          <div class='auth-logo-emoji'>⛽</div>
+          <div class='auth-title'>Estudo de Rede</div>
+          <div class='auth-sub'>
+            Gestão de Frotas · Pró-Frotas<br>
+            Faça login para acessar a plataforma
+          </div>
+          <hr class='auth-hr'>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ── Redirect URI ──
+        try:
+            _redir = st.secrets.get("redirect_uri", "http://localhost:8501")
+        except Exception:
+            _redir = "http://localhost:8501"
+
+        # ── Botão Google ──
+        if _OAUTH_GOOGLE_OK:
+            _g_oauth = OAuth2Component(
+                client_id=st.secrets["oauth_google"]["client_id"],
+                client_secret=st.secrets["oauth_google"]["client_secret"],
+                authorize_endpoint="https://accounts.google.com/o/oauth2/v2/auth",
+                token_endpoint="https://oauth2.googleapis.com/token",
+                refresh_token_endpoint="https://oauth2.googleapis.com/token",
+                revoke_token_endpoint="https://oauth2.googleapis.com/revoke",
+            )
+            _res_g = _g_oauth.authorize_button(
+                name="Continuar com Google",
+                redirect_uri=_redir,
+                scope="openid email profile",
+                use_container_width=True,
+                pkce="S256",
+                icon="https://www.google.com/favicon.ico",
+                key="oauth_btn_google",
+            )
+            if _res_g and "token" in _res_g:
+                st.session_state["_auth_user"] = _auth_user_from_token(
+                    _res_g["token"], "google"
+                )
+                st.rerun()
+
+        # ── Espaço entre botões ──
+        if _OAUTH_GOOGLE_OK and _OAUTH_MS_OK:
+            st.markdown(
+                "<div style='text-align:center;font-size:12px;color:#b0bec5;"
+                "margin:6px 0'>ou</div>",
+                unsafe_allow_html=True,
+            )
+
+        # ── Botão Microsoft ──
+        if _OAUTH_MS_OK:
+            _ms_oauth = OAuth2Component(
+                client_id=st.secrets["oauth_microsoft"]["client_id"],
+                client_secret=st.secrets["oauth_microsoft"]["client_secret"],
+                authorize_endpoint=(
+                    "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+                ),
+                token_endpoint=(
+                    "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                ),
+                refresh_token_endpoint=(
+                    "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                ),
+            )
+            _res_ms = _ms_oauth.authorize_button(
+                name="Continuar com Microsoft",
+                redirect_uri=_redir,
+                scope="openid email profile User.Read",
+                use_container_width=True,
+                pkce="S256",
+                key="oauth_btn_microsoft",
+            )
+            if _res_ms and "token" in _res_ms:
+                st.session_state["_auth_user"] = _auth_user_from_token(
+                    _res_ms["token"], "microsoft"
+                )
+                st.rerun()
+
+        st.markdown(
+            "<p class='auth-footer'>Acesso restrito a colaboradores autorizados.<br>"
+            "Em caso de dúvidas, contate o administrador do sistema.</p>",
+            unsafe_allow_html=True,
+        )
+
+
+# ── Inicializar estado de autenticação ──────────────────────────────
+if "_auth_user" not in st.session_state:
+    st.session_state["_auth_user"] = None
+
+# ── Verificar autenticação — bloqueia o app se não autenticado ──────
+if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
+    _auth_login_page()
+    st.stop()
+
+
 # ─── Constantes ───────────────────────────────────────────────────
 API_BASE_URL = "https://revendedoresapi.anp.gov.br"
 ENDPOINT     = "/v1/combustivel"
@@ -6791,6 +6990,58 @@ with st.sidebar:
     ):
         st.session_state["_tour_ativo"] = True
         st.rerun()
+
+    # ── Card do usuário autenticado ────────────────────────────────
+    _auth_u = st.session_state.get("_auth_user")
+    if _auth_u:
+        _nome_u   = _auth_u.get("name",     "Usuário")
+        _email_u  = _auth_u.get("email",    "")
+        _pic_u    = _auth_u.get("picture",  "")
+        _prov_u   = _auth_u.get("provider", "")
+        _prov_ico = "🪟" if _prov_u == "microsoft" else "🔴"
+
+        # Avatar: foto de perfil ou iniciais
+        if _pic_u:
+            _avatar_html = (
+                f"<img src='{_pic_u}' style='"
+                f"width:36px;height:36px;border-radius:50%;"
+                f"object-fit:cover;border:2px solid #e3e8f0'>"
+            )
+        else:
+            _ini = "".join(w[0].upper() for w in _nome_u.split()[:2]) if _nome_u else "?"
+            _avatar_html = (
+                f"<div style='width:36px;height:36px;border-radius:50%;"
+                f"background:#0D47A1;color:#fff;display:flex;align-items:center;"
+                f"justify-content:center;font-weight:700;font-size:13px;"
+                f"flex-shrink:0'>{_ini}</div>"
+            )
+
+        st.markdown(f"""
+        <div style='background:#f5f7fd;border:1px solid #dde3ee;border-radius:11px;
+                    padding:9px 11px;margin:8px 0 2px;
+                    display:flex;align-items:center;gap:9px'>
+          {_avatar_html}
+          <div style='min-width:0;flex:1;overflow:hidden'>
+            <div style='font-weight:600;font-size:12.5px;color:#1a237e;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+            >{_nome_u}</div>
+            <div style='font-size:10.5px;color:#607d8b;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+            >{_email_u}</div>
+          </div>
+          <span title='{_prov_u}' style='font-size:15px;flex-shrink:0'>{_prov_ico}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button(
+            "🚪 Sair",
+            use_container_width=True,
+            type="secondary",
+            key="btn_logout",
+            help="Encerrar sessão e voltar ao login",
+        ):
+            st.session_state["_auth_user"] = None
+            st.rerun()
 
     modo = _modo_atual
     st.divider()
