@@ -998,10 +998,10 @@ def _auth_login_page():
         # Card de boas-vindas
         st.markdown("""
         <div class='auth-card'>
-          <div class='auth-logo-emoji'>⛽</div>
+          <div class='auth-logo-emoji'>🗺️</div>
           <div class='auth-title'>Estudo de Rede</div>
           <div class='auth-sub'>
-            Gestão de Frotas · Pró-Frotas<br>
+            Gestão de Frotas<br>
             Faça login para acessar a plataforma
           </div>
           <hr class='auth-hr'>
