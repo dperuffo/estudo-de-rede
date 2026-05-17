@@ -12,3 +12,4 @@ requests>=2.31.0
 pandas>=2.0.0
 openpyxl>=3.1.0        # leitura de arquivos .xlsx (planilha Pró-Frotas)
 xlrd>=2.0.0            # leitura de arquivos .xls (formato antigo)
+plotly
