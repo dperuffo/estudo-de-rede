@@ -1356,6 +1356,7 @@ _LOG_PATH = _os_mod.path.join(
 )
 _LOG_FIELDS = [
     "timestamp", "data", "hora", "ip", "session_id",
+    "user_email", "user_name", "auth_provider",
     "modo", "uf", "municipio", "acao", "detalhe", "user_agent",
 ]
 
@@ -1395,20 +1396,25 @@ def _log_acesso(acao: str, detalhe: str = "", modo_override: str = None):
     """
     Registra um evento de uso.
     Grava em st.session_state['_uso_logs'] (sempre) e no arquivo CSV (se possível).
+    Inclui dados do usuário autenticado via OAuth2 quando disponível.
     """
-    _now = datetime.now()
+    _now   = datetime.now()
+    _auth  = st.session_state.get("_auth_user") or {}
     _entry = {
-        "timestamp":  _now.strftime("%Y-%m-%d %H:%M:%S"),
-        "data":       _now.strftime("%d/%m/%Y"),
-        "hora":       _now.strftime("%H:%M:%S"),
-        "ip":         _get_client_ip(),
-        "session_id": _get_session_id(),
-        "modo":       modo_override or st.session_state.get("modo_selecionado", "—"),
-        "uf":         str(st.session_state.get("uf_input") or "—"),
-        "municipio":  str(st.session_state.get("municipio_input") or "—"),
-        "acao":       acao,
-        "detalhe":    str(detalhe)[:200],
-        "user_agent": _get_user_agent(),
+        "timestamp":     _now.strftime("%Y-%m-%d %H:%M:%S"),
+        "data":          _now.strftime("%d/%m/%Y"),
+        "hora":          _now.strftime("%H:%M:%S"),
+        "ip":            _get_client_ip(),
+        "session_id":    _get_session_id(),
+        "user_email":    _auth.get("email",    "—"),
+        "user_name":     _auth.get("name",     "—"),
+        "auth_provider": _auth.get("provider", "—"),
+        "modo":          modo_override or st.session_state.get("modo_selecionado", "—"),
+        "uf":            str(st.session_state.get("uf_input") or "—"),
+        "municipio":     str(st.session_state.get("municipio_input") or "—"),
+        "acao":          acao,
+        "detalhe":       str(detalhe)[:200],
+        "user_agent":    _get_user_agent(),
     }
 
     # ── Guarda em memória (sessão atual) ──
@@ -1451,7 +1457,19 @@ def _log_ler_arquivo() -> list:
 
 # ── Registra acesso inicial da sessão (uma vez por sessão) ──────────
 if not st.session_state.get("_log_inicio_ok", False):
-    _log_acesso("SESSÃO_INÍCIO", detalhe="App carregado")
+    _auth_u = st.session_state.get("_auth_user") or {}
+    if _auth_u:
+        # Usuário autenticado: registra LOGIN com dados do provider
+        _log_acesso(
+            "LOGIN",
+            detalhe=(
+                f"provider={_auth_u.get('provider','—')} | "
+                f"email={_auth_u.get('email','—')} | "
+                f"name={_auth_u.get('name','—')}"
+            ),
+        )
+    else:
+        _log_acesso("SESSÃO_INÍCIO", detalhe="App carregado")
     st.session_state["_log_inicio_ok"] = True
 
 
@@ -8214,14 +8232,46 @@ with st.sidebar:
                 _log_df_hoje  = _log_df[_log_df["data"] == datetime.now().strftime("%d/%m/%Y")] \
                     if "data" in _log_df.columns else pd.DataFrame()
                 _n_hoje       = len(_log_df_hoje)
+                _emails_auth  = (_log_df["user_email"].replace("—", pd.NA).dropna()
+                                 if "user_email" in _log_df.columns else pd.Series())
+                _n_usuarios   = _emails_auth.nunique()
 
-                _lk1, _lk2, _lk3, _lk4 = st.columns(4)
+                _lk1, _lk2, _lk3, _lk4, _lk5 = st.columns(5)
                 _lk1.metric("📋 Total de Eventos",  f"{_n_eventos:,}")
                 _lk2.metric("👤 Sessões Únicas",     f"{_n_sessoes:,}")
-                _lk3.metric("🌐 IPs Únicos",         f"{_n_ips:,}")
-                _lk4.metric("📅 Eventos Hoje",       f"{_n_hoje:,}")
+                _lk3.metric("🔐 Usuários Google",    f"{_n_usuarios:,}")
+                _lk4.metric("🌐 IPs Únicos",         f"{_n_ips:,}")
+                _lk5.metric("📅 Eventos Hoje",       f"{_n_hoje:,}")
 
                 st.markdown("---")
+
+                # ── Usuários autenticados ────────────────────────────────
+                if "user_email" in _log_df.columns and _n_usuarios > 0:
+                    st.markdown("##### 🔐 Usuários autenticados")
+                    _df_logins = (
+                        _log_df[_log_df["user_email"].replace("—", pd.NA).notna()]
+                        .groupby(["user_email", "user_name", "auth_provider"])
+                        .agg(
+                            Acessos=("timestamp", "count"),
+                            Último_acesso=("timestamp", "max"),
+                        )
+                        .reset_index()
+                        .sort_values("Acessos", ascending=False)
+                    )
+                    _df_logins.columns = ["E-mail", "Nome", "Provider", "Acessos", "Último acesso"]
+                    st.dataframe(
+                        _df_logins.reset_index(drop=True),
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "E-mail":        st.column_config.TextColumn("📧 E-mail"),
+                            "Nome":          st.column_config.TextColumn("👤 Nome"),
+                            "Provider":      st.column_config.TextColumn("🔑 Provider"),
+                            "Acessos":       st.column_config.NumberColumn("Acessos", format="%d"),
+                            "Último acesso": st.column_config.TextColumn("⏱️ Último acesso"),
+                        },
+                    )
+                    st.markdown("---")
 
                 # ── Top Modos ────────────────────────────────────────────
                 _lt1, _lt2 = st.columns(2)
@@ -8308,17 +8358,31 @@ with st.sidebar:
                 # ── Tabela de eventos recentes ───────────────────────────
                 st.markdown("##### 🕐 Últimos 50 eventos")
                 _log_display = _log_df.tail(50).iloc[::-1].copy()
-                _cols_show = [c for c in ["timestamp","ip","session_id","modo","uf",
-                                          "municipio","acao","detalhe"] if c in _log_display.columns]
+                _cols_show = [c for c in [
+                    "timestamp", "user_email", "user_name", "auth_provider",
+                    "ip", "modo", "uf", "municipio", "acao", "detalhe",
+                ] if c in _log_display.columns]
                 _rename_log = {
-                    "timestamp": "Data/Hora", "ip": "IP", "session_id": "Sessão",
-                    "modo": "Modo", "uf": "UF", "municipio": "Município",
-                    "acao": "Ação", "detalhe": "Detalhe",
+                    "timestamp":     "Data/Hora",
+                    "user_email":    "E-mail",
+                    "user_name":     "Nome",
+                    "auth_provider": "Provider",
+                    "ip":            "IP",
+                    "modo":          "Modo",
+                    "uf":            "UF",
+                    "municipio":     "Município",
+                    "acao":          "Ação",
+                    "detalhe":       "Detalhe",
                 }
                 st.dataframe(
                     _log_display[_cols_show].rename(columns=_rename_log).reset_index(drop=True),
                     use_container_width=True,
                     hide_index=True,
+                    column_config={
+                        "E-mail":   st.column_config.TextColumn("📧 E-mail"),
+                        "Nome":     st.column_config.TextColumn("👤 Nome"),
+                        "Provider": st.column_config.TextColumn("🔑 Provider"),
+                    },
                 )
 
                 # ── Exportar ──────────────────────────────────────────────
