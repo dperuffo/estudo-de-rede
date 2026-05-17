@@ -12299,88 +12299,131 @@ elif modo == "🛣️ Roteirização":
             _ests.sort(key=lambda x: x["_km"])
 
             # ════════════════════════════════════════════════════════
-            # ALGORITMO CORRETO DE PARADAS NECESSÁRIAS
+            # ALGORITMO INTELIGENTE DE PARADAS — v2
             # ────────────────────────────────────────────────────────
-            # Lógica:
-            #   1. Parte com tanque cheio na origem.
-            #   2. Calcula até onde chega antes de atingir o nível
-            #      mínimo (25% do tanque) → janela obrigatória.
-            #   3. Dentro dessa janela, escolhe o posto de MELHOR PREÇO.
-            #   4. Ao parar: abastece o suficiente para chegar ao
-            #      próximo ponto obrigatório (próxima janela) ou ao
-            #      destino — enche o tanque apenas até o necessário.
-            #   5. Número de paradas = ceil(distância / alcance) - 1.
+            # Princípios:
+            #   1. Só para quando necessário (combustível abaixo de
+            #      65%) OU quando há vantagem real de preço.
+            #   2. Look-ahead: se há posto >3% mais barato além da
+            #      janela obrigatória, abastece o mínimo no posto
+            #      atual para "voar" até o mais barato.
+            #   3. Na última parada, abastece só o necessário para
+            #      o destino (sem encher o tanque desnecessariamente).
+            #   4. Evita paradas minúsculas (< 5 L) — descarta e
+            #      avança posição sem registrar parada.
             # ════════════════════════════════════════════════════════
             _alcance_efetivo = (_rcap - _rmin) * _raut   # km por ciclo
+            _PCT_BAIXO       = 0.65   # abaixo deste % considera parar voluntariamente
+            _PRECO_VANT      = 0.03   # vantagem mínima de preço para look-ahead (3%)
+            _LITROS_MIN_STOP = 5      # descarta paradas com < 5 L
 
-            _pos  = 0.0
-            _fuel = float(_rcap)          # começa com tanque cheio
-            _seen: set = set()
+            _pos          = 0.0
+            _fuel         = float(_rcap)
+            _seen: set    = set()
+            _ultimo_preco = None      # último preço pago (para comparação)
 
-            for _ in range(30):           # no máximo 30 paradas
+            for _ in range(30):       # no máximo 30 paradas
                 if _pos >= _rd:
                     break
 
                 # Até onde posso ir antes de atingir o mínimo?
                 _can_go = (_fuel - _rmin) * _raut
-                _must   = _pos + _can_go  # PRECISO ter reabastecido antes daqui
+                _must   = _pos + _can_go
 
                 if _must >= _rd:
-                    break                 # alcança o destino sem parar
+                    break             # alcança o destino sem parar
 
                 # ── Janela obrigatória: [_pos, _must] ──────────────
-                _ok = [e for e in _ests
-                       if _pos < e["_km"] <= _must
-                       and e["cnpj"] not in _seen]
+                _janela = [e for e in _ests
+                           if _pos < e["_km"] <= _must
+                           and e["cnpj"] not in _seen]
 
-                if _ok:
-                    # Melhor preço na janela obrigatória
-                    _best = dict(min(_ok, key=lambda x: x.get("preco", 9999)))
-                    _best["motivo"] = "mais_barato"
-                else:
-                    # Nenhum posto na janela → pega o mais próximo além do limite
+                # ── Janela estendida: além de _must, alcançável com
+                #    tanque cheio a partir de qualquer posto da janela
+                _janela_ext = [e for e in _ests
+                               if _must < e["_km"] <= _pos + _alcance_efetivo * 1.85
+                               and e["cnpj"] not in _seen]
+
+                if not _janela:
+                    # Emergência: pega o mais próximo disponível
                     _alem = [e for e in _ests
                              if e["_km"] > _pos and e["cnpj"] not in _seen]
                     if not _alem:
                         break
                     _best = dict(min(_alem, key=lambda x: x["_km"]))
-                    _best["motivo"] = "emergencia"
+                    _best["motivo"]    = "emergencia"
+                    _fill_target_km   = None
+                else:
+                    _best_obrig  = min(_janela, key=lambda x: x.get("preco", 9999))
+                    _preco_obrig = _best_obrig.get("preco", 9999)
+
+                    # ── Look-ahead: posto mais barato além da janela?
+                    _fill_target_km = None
+                    if _janela_ext:
+                        _best_ext  = min(_janela_ext, key=lambda x: x.get("preco", 9999))
+                        _preco_ext = _best_ext.get("preco", 9999)
+                        if _preco_ext < _preco_obrig * (1 - _PRECO_VANT):
+                            _fill_target_km = _best_ext["_km"]
+
+                    _best = dict(_best_obrig)
+                    _best["motivo"] = "estrategico" if _fill_target_km else "mais_barato"
 
                 # ── Combustível ao chegar no posto ─────────────────
                 _km_ate       = _best["_km"] - _pos
                 _fuel_chegada = max(0.0, _fuel - (_km_ate / _raut))
                 _pct_chegada  = (_fuel_chegada / _rcap * 100) if _rcap else 0.0
 
+                # ── Pula parada se tanque ainda alto e preço não compensa
+                if (_best.get("motivo") != "emergencia"
+                        and _pct_chegada >= _PCT_BAIXO * 100
+                        and _ultimo_preco is not None
+                        and _best.get("preco", 9999) >= _ultimo_preco * (1 - _PRECO_VANT)
+                        and not _fill_target_km):
+                    # Avança sem registrar parada
+                    _pos  = _best["_km"]
+                    _fuel = _fuel_chegada
+                    _seen.add(_best["cnpj"])   # evita revisitar
+                    continue
+
                 # ── Quantos litros abastecer? ───────────────────────
-                # Queremos sair daqui com combustível suficiente para
-                # chegar ao PRÓXIMO ponto obrigatório (próxima janela)
-                # OU ao destino — com 15% de margem de segurança.
                 _dist_restante = _rd - _best["_km"]
 
-                if _dist_restante <= _alcance_efetivo:
-                    # Última parada: abastece só o necessário para o destino
+                if _fill_target_km:
+                    # Abastece mínimo para chegar ao posto mais barato à frente
+                    _dist_ate_target    = _fill_target_km - _best["_km"]
+                    _litros_necessarios = (_dist_ate_target / _raut) * 1.10 + _rmin
+                elif _dist_restante <= _alcance_efetivo:
+                    # Última parada: só o necessário para o destino + margem
                     _litros_necessarios = (_dist_restante / _raut) * 1.15 + _rmin
                 else:
-                    # Há mais paradas: abastece para completar um ciclo completo
-                    _litros_necessarios = _rcap  # tanque cheio → máximo alcance
+                    # Parada intermediária: enche o tanque (máximo alcance)
+                    _litros_necessarios = _rcap
 
                 _litros_fill = max(0.0, _litros_necessarios - _fuel_chegada)
                 _litros_fill = min(_litros_fill, _rcap - _fuel_chegada)
                 _litros_fill = math.ceil(_litros_fill)
 
+                # Descarta paradas com abastecimento insignificante
+                if _litros_fill < _LITROS_MIN_STOP:
+                    _pos  = _best["_km"]
+                    _fuel = _fuel_chegada
+                    _seen.add(_best["cnpj"])
+                    continue
+
                 _fuel_apos = min(_fuel_chegada + _litros_fill, _rcap)
                 _pct_apos  = (_fuel_apos / _rcap * 100) if _rcap else 0.0
                 _custo_ab  = round(_litros_fill * _best.get("preco", 0.0), 2)
 
-                _best["fuel_chegada"]      = round(_fuel_chegada, 1)
-                _best["pct_chegada"]       = round(_pct_chegada, 1)
-                _best["litros_sugeridos"]  = int(_litros_fill)
-                _best["custo_abast"]       = _custo_ab
-                _best["fuel_apos"]         = round(_fuel_apos, 1)
-                _best["pct_apos"]          = round(_pct_apos, 1)
+                _best["fuel_chegada"]     = round(_fuel_chegada, 1)
+                _best["pct_chegada"]      = round(_pct_chegada, 1)
+                _best["litros_sugeridos"] = int(_litros_fill)
+                _best["custo_abast"]      = _custo_ab
+                _best["fuel_apos"]        = round(_fuel_apos, 1)
+                _best["pct_apos"]         = round(_pct_apos, 1)
 
                 _seen.add(_best["cnpj"])
                 _sugest.append(_best)
+                _ultimo_preco = _best.get("preco")
 
                 _fuel = _fuel_apos
                 _pos  = _best["_km"]
@@ -12450,6 +12493,9 @@ elif modo == "🛣️ Roteirização":
                     if _motivo == "mais_barato":
                         _cor_ab = "#1B5E20"; _bg_ab = "#f1f8e9"
                         _tag_ab = "🏆 Melhor preço"
+                    elif _motivo == "estrategico":
+                        _cor_ab = "#E65100"; _bg_ab = "#fff3e0"
+                        _tag_ab = "🎯 Estratégico — posto mais barato à frente"
                     else:
                         _cor_ab = "#B71C1C"; _bg_ab = "#fce4ec"
                         _tag_ab = "⚠️ Emergência — posto mais próximo"
