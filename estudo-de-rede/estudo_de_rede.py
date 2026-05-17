@@ -8138,7 +8138,204 @@ with st.sidebar:
 #  TOUR DE ONBOARDING
 # ═══════════════════════════════════════════════════════════════════
 
+_TOUR_STEPS = [
+    {
+        "icon": "👋", "title": "Bem-vindo ao Estudo de Rede!",
+        "desc": (
+            "Esta plataforma permite **visualizar e analisar a rede de postos credenciados** "
+            "à frota, comparar preços da ANP, planejar rotas e muito mais. "
+            "Este tour rápido mostra o essencial em menos de 2 minutos."
+        ),
+        "visual": [
+            ("📍","Postos por estado","#e3f2fd"),
+            ("🗺️","Consulta por rota","#e8f5e9"),
+            ("📊","Dashboard analítico","#fff8e1"),
+            ("💰","Ranking de preços","#fce4ec"),
+            ("🔍","Filtros avançados","#f3e5f5"),
+            ("💾","Salve consultas","#e0f2f1"),
+        ],
+        "tips": ["📍 6 modos de consulta disponíveis", "💾 Salve e restaure consultas anteriores"],
+    },
+    {
+        "icon": "📍", "title": "Modo 1 · Consulta por Estado (UF)",
+        "desc": (
+            "Selecione um **estado (UF)** na barra lateral para visualizar todos os postos "
+            "credenciados. Filtre também por **município** para resultados mais precisos. "
+            "Postos Gestão de Frotas aparecem em **azul e amarelo** no mapa."
+        ),
+        "visual": [
+            ("1️⃣","Escolha o Estado na sidebar","#e3f2fd"),
+            ("🏙️","Filtre por Município (opcional)","#e8f5e9"),
+            ("🗺️","Mapa com todos os postos","#fff8e1"),
+            ("⭐","Postos GF destacados","#fce4ec"),
+        ],
+        "tips": ["💡 Filtre por município para resultados mais precisos", "⭐ Postos GF têm marcadores maiores"],
+    },
+    {
+        "icon": "🗺️", "title": "Modo 2 · Consulta por Rota",
+        "desc": (
+            "Defina **Origem** e **Destino** — o sistema calcula a rota e exibe todos "
+            "os postos dentro do **raio configurável** (padrão: 500 m). "
+            "Adicione **paradas intermediárias** para rotas mais complexas."
+        ),
+        "visual": [
+            ("🟢","Defina ponto de Origem","#e8f5e9"),
+            ("🔴","Defina ponto de Destino","#fce4ec"),
+            ("🛣️","Rota calculada via OSRM","#e3f2fd"),
+            ("⛽","Postos no raio da rota","#fff8e1"),
+        ],
+        "tips": ["🛑 Adicione paradas intermediárias", "📏 Raio de busca ajustável na sidebar"],
+    },
+    {
+        "icon": "🔍", "title": "Filtros Avançados",
+        "desc": (
+            "Expanda **Filtros Avançados** na sidebar para refinar a busca. "
+            "Filtre por **faixa de preço (R$/L)**, postos **abertos 24h**, "
+            "e **serviços**: Pista Caminhão, ARLA 32 e Conveniência."
+        ),
+        "visual": [
+            ("💲","Faixa de preço por combustível","#e8f5e9"),
+            ("⏰","Funcionamento 24 horas","#e3f2fd"),
+            ("🚛","Pista para Caminhão","#fff8e1"),
+            ("🧪","ARLA 32 disponível","#fce4ec"),
+        ],
+        "tips": ["⚠️ Postos sem dado de serviço não são excluídos", "🔗 Filtros se combinam entre si"],
+    },
+    {
+        "icon": "📊", "title": "Preços ANP e Tendências",
+        "desc": (
+            "Carregue o **.xlsx semanal da ANP** (ou o sistema busca automaticamente). "
+            "Veja preços médios por combustível com indicadores de **tendência semanal ↑ ↓ ≈** "
+            "e compare o preço do posto GF vs a média ANP do estado."
+        ),
+        "visual": [
+            ("⛽","Gasolina  R$6,12  ↑","#ffebee"),
+            ("🛢️","Diesel S10  R$6,48  ↓","#e8f5e9"),
+            ("🧪","ARLA 32  R$3,21  ≈","#f3f4f6"),
+            ("✅","GF R$0,23/L abaixo ANP","#e8f5e9"),
+        ],
+        "tips": ["🔄 O app busca o arquivo ANP automaticamente", "📁 Ou faça upload manual nas Configurações"],
+    },
+    {
+        "icon": "💰", "title": "Ranking Top 5 Mais Baratos",
+        "desc": (
+            "Os **5 postos com menor preço** da consulta são destacados com "
+            "**estrelas douradas ★** no mapa e com **cards de medalha** na aba Dados Tabulares. "
+            "Selecione um combustível nos Filtros para um ranking mais preciso."
+        ),
+        "visual": [
+            ("🥇","1º mais barato — estrela no mapa","#fff9c4"),
+            ("🥈","2º mais barato","#fff9c4"),
+            ("🥉","3º mais barato","#fff9c4"),
+            ("🏅","4º e 5º completam o top 5","#fff9c4"),
+        ],
+        "tips": ["🎯 Filtre por combustível para ranking mais preciso", "⭐ Marcadores dourados no mapa"],
+    },
+    {
+        "icon": "📊", "title": "Dashboard Analítico",
+        "desc": (
+            "Acesse o **Dashboard** na sidebar para ver KPIs de cobertura, "
+            "penetração GF, comparativo GF vs ANP por estado e análise de preços. "
+            "Exporte os dados em **CSV** para seus relatórios."
+        ),
+        "visual": [
+            ("⛽","Total de postos na rede","#e3f2fd"),
+            ("⭐","Postos Gestão de Frotas","#fff8e1"),
+            ("📈","Penetração GF por estado","#e8f5e9"),
+            ("💰","Economia média vs ANP","#fce4ec"),
+        ],
+        "tips": ["📤 Exporte os dados em CSV", "🗺️ Comparativo por estado disponível"],
+    },
+]
+
+
+@st.dialog("🗺️ Guia de Uso — Estudo de Rede de Frotas", width="large")
+def _tour_dialog():
+    _step   = st.session_state.get("_tour_step", 0)
+    _total  = len(_TOUR_STEPS)
+    _s      = _TOUR_STEPS[_step]
+
+    # ── Progresso ─────────────────────────────────────────────────────
+    _dots_html = "".join(
+        f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
+        f"background:{'#1565c0' if i==_step else '#ddd'};"
+        f"margin:0 3px;transition:background .2s'></span>"
+        for i in range(_total)
+    )
+    st.markdown(
+        f"<div style='text-align:center;margin:-8px 0 10px'>{_dots_html}</div>"
+        f"<div style='text-align:center;font-size:11px;color:#999;margin-bottom:14px'>"
+        f"Passo {_step+1} de {_total}</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Título + descrição ─────────────────────────────────────────────
+    st.markdown(
+        f"<div style='font-size:20px;font-weight:800;color:#1a1a1a;margin-bottom:10px'>"
+        f"{_s['icon']}  {_s['title']}</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(_s["desc"])
+
+    # ── Grid visual ────────────────────────────────────────────────────
+    _vis = _s["visual"]
+    _cols = st.columns(len(_vis))
+    for _ci, (_em, _lbl, _bg) in enumerate(_vis):
+        _cols[_ci].markdown(
+            f"<div style='background:{_bg};border-radius:10px;padding:14px 10px;"
+            f"text-align:center;border:1px solid rgba(0,0,0,.06);min-height:88px;"
+            f"display:flex;flex-direction:column;align-items:center;justify-content:center'>"
+            f"<div style='font-size:28px;margin-bottom:6px'>{_em}</div>"
+            f"<div style='font-size:11px;color:#333;font-weight:600;line-height:1.35'>{_lbl}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    # ── Tips ───────────────────────────────────────────────────────────
+    st.markdown("<div style='margin-top:12px'>" +
+        "".join(
+            f"<span style='display:inline-flex;align-items:center;background:#e3f2fd;"
+            f"border:1px solid #90caf9;border-radius:8px;padding:5px 11px;"
+            f"font-size:11px;color:#0d47a1;margin:3px 4px 0 0'>{t}</span>"
+            for t in _s["tips"]
+        ) + "</div>", unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ── Navegação ──────────────────────────────────────────────────────
+    _c1, _c2, _c3 = st.columns([1, 1, 2])
+    with _c1:
+        if _step > 0:
+            if st.button("← Anterior", use_container_width=True, key="tour_prev"):
+                st.session_state["_tour_step"] = _step - 1
+                st.rerun()
+    with _c2:
+        if st.button("Pular tour", use_container_width=True, key="tour_skip",
+                     help="Fechar o guia sem marcar como concluído"):
+            st.session_state["_tour_ativo"] = False
+            st.session_state.pop("_tour_step", None)
+            st.rerun()
+    with _c3:
+        _lbl_next = "✅ Concluir e fechar" if _step == _total - 1 else f"Próximo → ({_step+2}/{_total})"
+        if st.button(_lbl_next, type="primary", use_container_width=True, key="tour_next"):
+            if _step == _total - 1:
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.session_state.pop("_tour_step", None)
+            else:
+                st.session_state["_tour_step"] = _step + 1
+            st.rerun()
+
+
 if st.session_state.get("_tour_ativo", False):
+    _tour_dialog()
+    # garante step inicial
+    if "_tour_step" not in st.session_state:
+        st.session_state["_tour_step"] = 0
+
+
+# ── BLOCO ANTIGO REMOVIDO (era st.markdown com script JS — não funciona no Streamlit) ──
+if False:
     st.markdown("""
 <style>
 #gf-tour-overlay{position:fixed;inset:0;z-index:99990;background:rgba(10,20,40,.72);
