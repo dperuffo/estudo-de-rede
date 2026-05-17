@@ -7050,17 +7050,6 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "📊 Dashboard", modo_override="📊 Dashboard")
         st.rerun()
 
-    # ── Botão Tour ────────────────────────────────────────────────
-    if st.button(
-        "❓ Guia de Uso",
-        use_container_width=True,
-        type="secondary",
-        key="btn_tour_sidebar",
-        help="Abrir o guia interativo passo a passo",
-    ):
-        st.session_state["_tour_ativo"] = True
-        st.rerun()
-
     modo = _modo_atual
     st.divider()
 
@@ -8425,6 +8414,19 @@ with st.sidebar:
                     except Exception:
                         _arquivo_info = "⚠️ Sem acesso ao arquivo"
                     st.caption(_arquivo_info)
+
+    # ── Guia de Uso ───────────────────────────────────────────────────────────
+    _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
+    with _col_guia_c:
+        if st.button(
+            "❓ Guia de Uso",
+            use_container_width=True,
+            type="secondary",
+            key="btn_tour_sidebar",
+            help="Abrir o guia interativo passo a passo",
+        ):
+            st.session_state["_tour_ativo"] = True
+            st.rerun()
 
     # ── README — link para documentação PDF ──────────────────────────────────
     _doc_bytes, _doc_nome = _carregar_doc_pdf()
