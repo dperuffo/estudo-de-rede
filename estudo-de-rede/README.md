@@ -11,7 +11,7 @@ Versão 5.2 · Plataforma Web · Python / Streamlit · Plotly WebGL
 | Deploy | Streamlit Community Cloud |
 | Repositório | [github.com/dperuffo/estudo-de-rede](https://github.com/dperuffo/estudo-de-rede) |
 
-> 📄 **Documentação completa em PDF:** [Gestao de Frotas.pdf](https://github.com/dperuffo/estudo-de-rede/blob/master/Gestao%20de%20Frotas.pdf)
+> 📄 **Documentação completa em PDF:** [Gestao de Frotas.pdf](https://github.com/dperuffo/estudo-de-rede/raw/master/estudo-de-rede/Gestao%20de%20Frotas.pdf)
 
 ---
 
