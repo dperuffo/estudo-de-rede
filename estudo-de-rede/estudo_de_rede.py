@@ -11019,18 +11019,35 @@ if modo == "📍 Por UF/Município":
             _hist_data = _intel_load().get("historico", {})
             if _hist_data and not df_show.empty:
                 with st.expander("📈 Histórico de preços de um posto", expanded=False):
-                    _sel_nomes = df_show["razaoSocial"].fillna("").tolist()[:100]
-                    _sel_nomes_map = {
-                        n: re.sub(r"\D", "", str(df_show.iloc[i].get("cnpj","") or ""))
-                        for i, n in enumerate(_sel_nomes)
-                    }
-                    _hist_sel_nome = st.selectbox(
-                        "Selecione o posto", options=["—"] + _sel_nomes,
-                        key="hist_sel_m1")
-                    if _hist_sel_nome and _hist_sel_nome != "—":
-                        _hist_cnpj_sel = _sel_nomes_map.get(_hist_sel_nome, "")
+                    # Monta labels enriquecidos: "Razão Social — CNPJ • Cidade/UF"
+                    _hist_opts   = ["—"]
+                    _hist_cnpj_map = {}  # label → cnpj_norm
+                    _hist_nome_map = {}  # label → nome limpo
+                    for _i, _row_h in df_show.head(200).iterrows():
+                        _nm  = str(_row_h.get("razaoSocial", "") or "").strip()
+                        _cj  = re.sub(r"\D", "", str(_row_h.get("cnpj", "") or ""))
+                        _mn  = str(_row_h.get("municipio", "") or "").strip().title()
+                        _uf  = str(_row_h.get("uf", "") or "").strip().upper()
+                        _cj_fmt = (f"{_cj[:2]}.{_cj[2:5]}.{_cj[5:8]}/{_cj[8:12]}-{_cj[12:]}"
+                                   if len(_cj) == 14 else _cj)
+                        _geo = f"{_mn}/{_uf}" if _mn and _uf else (_mn or _uf)
+                        _label = f"{_nm}  —  {_cj_fmt}"
+                        if _geo:
+                            _label += f"  •  {_geo}"
+                        _hist_opts.append(_label)
+                        _hist_cnpj_map[_label] = _cj
+                        _hist_nome_map[_label] = _nm
+
+                    _hist_sel = st.selectbox(
+                        "Selecione o posto",
+                        options=_hist_opts,
+                        key="hist_sel_m1",
+                    )
+                    if _hist_sel and _hist_sel != "—":
+                        _hist_cnpj_sel = _hist_cnpj_map.get(_hist_sel, "")
+                        _hist_nome_sel = _hist_nome_map.get(_hist_sel, _hist_sel)
                         if _hist_cnpj_sel and _hist_cnpj_sel in _hist_data:
-                            _fig_hist = _hist_chart_posto(_hist_cnpj_sel, _hist_sel_nome)
+                            _fig_hist = _hist_chart_posto(_hist_cnpj_sel, _hist_nome_sel)
                             if _fig_hist:
                                 st.plotly_chart(_fig_hist, use_container_width=True)
                         else:
