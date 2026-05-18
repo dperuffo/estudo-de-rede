@@ -754,6 +754,7 @@ st.markdown("""
         { e:'🛣️', l:'Roteiro',k:'btn_modo_roteirizacao' },
         { e:'📋', l:'Salvas', k:'btn_rotas_salvas' },
         { e:'📊', l:'Dash',   k:'btn_dashboard' },
+        { e:'🧠', l:'Intel',  k:'btn_inteligencia' },
     ];
 
     var _nav = null;
@@ -8158,6 +8159,37 @@ with st.sidebar:
     transform: translateY(-1px) !important;
 }
 .st-key-btn_dashboard [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+/* ── Botão Inteligência ── */
+.st-key-btn_inteligencia button {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+    transition: all .2s ease !important;
+}
+.st-key-btn_inteligencia button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_inteligencia [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #4A148C 0%, #6A1B9A 50%, #0D47A1 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(74,20,140,.40) !important;
+}
+.st-key-btn_inteligencia [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #6A1B9A 0%, #7B1FA2 50%, #1565C0 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_inteligencia [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_inteligencia [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #6A1B9A !important;
+    color: #6A1B9A !important;
+    box-shadow: none !important;
+}
+.st-key-btn_inteligencia [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #0D47A1 !important; color: #0D47A1 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_inteligencia [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
@@ -8231,6 +8263,18 @@ with st.sidebar:
     ):
         st.session_state["modo_selecionado"] = "📊 Dashboard"
         _log_acesso("MODO_SELECIONADO", "📊 Dashboard", modo_override="📊 Dashboard")
+        st.rerun()
+
+    # ── Botão Inteligência de Dados (largura total) ───────────────
+    if st.button(
+        "🧠 Inteligência",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🧠 Inteligência" else "secondary",
+        key="btn_inteligencia",
+        help="Histórico de preços, score de postos e relatório de alertas",
+    ):
+        st.session_state["modo_selecionado"] = "🧠 Inteligência"
+        _log_acesso("MODO_SELECIONADO", "🧠 Inteligência", modo_override="🧠 Inteligência")
         st.rerun()
 
     modo = _modo_atual
@@ -13455,6 +13499,299 @@ if (
         }
     st.session_state.pop("_restore_recalc_rota_m1", None)
     st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Inteligência de Dados
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "🧠 Inteligência":
+
+    st.markdown("""
+    <style>
+    .intel-hero {
+        background: linear-gradient(135deg, #1a0533 0%, #0d1b4b 60%, #061840 100%);
+        border-radius: 18px;
+        padding: 2rem 2.2rem 1.6rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .intel-hero::before {
+        content: "";
+        position: absolute;
+        top: -40px; right: -40px;
+        width: 200px; height: 200px;
+        background: radial-gradient(circle, rgba(106,27,154,0.3) 0%, transparent 70%);
+    }
+    .intel-hero-title {
+        font-size: 1.6rem; font-weight: 800;
+        background: linear-gradient(135deg, #ffffff 0%, #ce93d8 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text; margin: 0 0 0.3rem;
+    }
+    .intel-hero-sub { font-size: 0.9rem; color: rgba(255,255,255,0.55); margin: 0; }
+    .intel-kpi-card {
+        background: linear-gradient(135deg, #f3e5f5, #fce4ec);
+        border: 1px solid #ce93d8;
+        border-radius: 14px;
+        padding: 1rem 1.2rem;
+        text-align: center;
+    }
+    .intel-kpi-num { font-size: 1.8rem; font-weight: 800; color: #4a148c; line-height: 1; }
+    .intel-kpi-lbl { font-size: 0.75rem; color: #888; margin-top: 4px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Hero banner ────────────────────────────────────────────────
+    st.markdown("""
+    <div class='intel-hero'>
+      <div class='intel-hero-title'>🧠 Inteligência de Dados</div>
+      <div class='intel-hero-sub'>
+        Histórico de preços por posto · Score composto · Relatório de alertas
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    _intel_d_pg = _intel_load()
+    _hist_all_pg = _intel_d_pg.get("historico", {})
+    _n_cnpjs_pg  = len(_hist_all_pg)
+    _n_obs_pg    = sum(len(v) for v in _hist_all_pg.values())
+    _datas_pg    = sorted({e["data"] for v in _hist_all_pg.values() for e in v})
+    _semanas_pg  = len(_datas_pg)
+
+    # ── KPIs ──────────────────────────────────────────────────────
+    _ki1, _ki2, _ki3, _ki4 = st.columns(4)
+    with _ki1:
+        st.markdown(f"<div class='intel-kpi-card'>"
+                    f"<div class='intel-kpi-num'>{_n_cnpjs_pg:,}</div>"
+                    f"<div class='intel-kpi-lbl'>📍 Postos rastreados</div></div>",
+                    unsafe_allow_html=True)
+    with _ki2:
+        st.markdown(f"<div class='intel-kpi-card'>"
+                    f"<div class='intel-kpi-num'>{_n_obs_pg:,}</div>"
+                    f"<div class='intel-kpi-lbl'>📊 Observações</div></div>",
+                    unsafe_allow_html=True)
+    with _ki3:
+        st.markdown(f"<div class='intel-kpi-card'>"
+                    f"<div class='intel-kpi-num'>{_semanas_pg}</div>"
+                    f"<div class='intel-kpi-lbl'>📅 Semanas de histórico</div></div>",
+                    unsafe_allow_html=True)
+    with _ki4:
+        _last_rpt = _intel_d_pg.get("last_report","")
+        _last_rpt_fmt = _last_rpt[:10] if _last_rpt else "Nunca"
+        st.markdown(f"<div class='intel-kpi-card'>"
+                    f"<div class='intel-kpi-num' style='font-size:1.1rem'>{_last_rpt_fmt}</div>"
+                    f"<div class='intel-kpi-lbl'>📋 Último relatório</div></div>",
+                    unsafe_allow_html=True)
+
+    st.markdown("<div style='height:1.2rem'></div>", unsafe_allow_html=True)
+
+    # ── Abas principais ───────────────────────────────────────────
+    _tab_hist, _tab_score, _tab_alertas = st.tabs([
+        "📈 Histórico de Preços",
+        "⭐ Score de Postos",
+        "⚠️ Relatório de Alertas",
+    ])
+
+    # ══ ABA 1: Histórico ══════════════════════════════════════════
+    with _tab_hist:
+        if _n_obs_pg == 0:
+            st.info(
+                "**Nenhum histórico registrado ainda.**\n\n"
+                "Os preços são acumulados automaticamente toda vez que você carrega "
+                "a planilha de **Preços PP** em Configurações → 💲 Preços PP.\n\n"
+                "Após algumas semanas de uso, o gráfico de evolução de preços "
+                "estará disponível aqui."
+            )
+        else:
+            st.markdown("#### Visualizar histórico de um posto")
+            _col_h1, _col_h2 = st.columns([2, 1])
+            with _col_h1:
+                _cnpj_hist_pg = st.text_input(
+                    "CNPJ do posto (somente números)",
+                    key="intel_cnpj_pg",
+                    placeholder="Ex: 12345678000199",
+                    max_chars=18,
+                )
+            with _col_h2:
+                _comb_hist_pg = st.selectbox(
+                    "Filtrar por combustível",
+                    options=["Todos"] + list({
+                        e["combustivel"]
+                        for v in _hist_all_pg.values()
+                        for e in v
+                        if e.get("combustivel")
+                    }),
+                    key="intel_comb_hist_pg",
+                )
+
+            if _cnpj_hist_pg:
+                _cnpj_h_n2 = re.sub(r"\D", "", _cnpj_hist_pg)
+                _hist_posto2 = _hist_all_pg.get(_cnpj_h_n2, [])
+                if not _hist_posto2:
+                    st.warning("Nenhum histórico encontrado para este CNPJ.")
+                else:
+                    _nome_h2 = _hist_posto2[0].get("nome", f"Posto {_cnpj_h_n2}")
+                    _comb_f2 = None if _comb_hist_pg == "Todos" else _comb_hist_pg
+                    _fig_h2  = _hist_chart_posto(_cnpj_h_n2, _nome_h2, combustivel=_comb_f2)
+                    if _fig_h2:
+                        st.plotly_chart(_fig_h2, use_container_width=True)
+
+                    _df_h2 = pd.DataFrame(_hist_posto2)
+                    if _comb_f2:
+                        _df_h2 = _df_h2[_df_h2["combustivel"] == _comb_f2]
+                    _df_h2 = _df_h2.sort_values("data", ascending=False)
+                    _df_h2 = _df_h2.rename(columns={
+                        "data":"Data","preco":"Preço R$/L",
+                        "combustivel":"Combustível","municipio":"Município","uf":"UF"})
+                    st.dataframe(_df_h2.head(52), use_container_width=True, height=250)
+
+            # Registrar preços da planilha PP
+            st.markdown("---")
+            st.markdown("##### Registrar preços no histórico")
+            _pp_df_pg = st.session_state.get("_pp_df")
+            if _pp_df_pg is not None and not _pp_df_pg.empty:
+                st.caption(f"Planilha PP carregada: {len(_pp_df_pg):,} registros")
+                if st.button("🔄 Registrar preços atuais da planilha PP",
+                             key="btn_hist_reg_pg", use_container_width=True):
+                    _n_reg_pg = 0
+                    for _cc_pg in _pp_df_pg.columns:
+                        if pd.api.types.is_numeric_dtype(_pp_df_pg[_cc_pg]) and \
+                           ("preco" in _cc_pg.lower() or "preço" in _cc_pg.lower()):
+                            _n_reg_pg += _hist_record_lote(_pp_df_pg, _cc_pg.upper())
+                    st.session_state.pop("_intel_loaded", None)
+                    st.success(f"✅ {_n_reg_pg} novas observações registradas.")
+                    st.rerun()
+            else:
+                st.info("Carregue a planilha de Preços PP em **Configurações → 💲 Preços PP** para ativar o registro automático de histórico.")
+
+    # ══ ABA 2: Score ══════════════════════════════════════════════
+    with _tab_score:
+        st.markdown(
+            "O **Score** é calculado automaticamente na tabela de dados de cada modo.\n\n"
+            "Ele aparece como `A 82`, `B 61`, `C 43` ou `D 28` — combinando três fatores:"
+        )
+        _sc_c1, _sc_c2, _sc_c3 = st.columns(3)
+        with _sc_c1:
+            st.markdown(
+                "<div style='background:linear-gradient(135deg,#e3f2fd,#bbdefb);"
+                "border-radius:14px;padding:1.2rem;text-align:center'>"
+                "<div style='font-size:2rem'>💰</div>"
+                "<div style='font-weight:800;color:#0d47a1;font-size:1rem'>Preço vs ANP</div>"
+                "<div style='font-size:0.75rem;color:#555;margin-top:6px'><b>50%</b> do score</div>"
+                "<div style='font-size:0.78rem;color:#666;margin-top:8px'>"
+                "Quanto mais barato que a média ANP regional, maior a pontuação.</div>"
+                "</div>", unsafe_allow_html=True)
+        with _sc_c2:
+            st.markdown(
+                "<div style='background:linear-gradient(135deg,#e8f5e9,#c8e6c9);"
+                "border-radius:14px;padding:1.2rem;text-align:center'>"
+                "<div style='font-size:2rem'>🛒</div>"
+                "<div style='font-weight:800;color:#2e7d32;font-size:1rem'>Serviços</div>"
+                "<div style='font-size:0.75rem;color:#555;margin-top:6px'><b>30%</b> do score</div>"
+                "<div style='font-size:0.78rem;color:#666;margin-top:8px'>"
+                "Conveniência, ARLA 32, restaurante, banheiro e outros serviços disponíveis.</div>"
+                "</div>", unsafe_allow_html=True)
+        with _sc_c3:
+            st.markdown(
+                "<div style='background:linear-gradient(135deg,#fff8e1,#ffe082);"
+                "border-radius:14px;padding:1.2rem;text-align:center'>"
+                "<div style='font-size:2rem'>📍</div>"
+                "<div style='font-weight:800;color:#f57f17;font-size:1rem'>Distância</div>"
+                "<div style='font-size:0.75rem;color:#555;margin-top:6px'><b>20%</b> do score</div>"
+                "<div style='font-size:0.78rem;color:#666;margin-top:8px'>"
+                "Proximidade ao ponto de busca ou à rota selecionada.</div>"
+                "</div>", unsafe_allow_html=True)
+
+        st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+        st.markdown("""
+| Grau | Pontuação | Significado |
+|------|-----------|-------------|
+| 🟢 **A** | ≥ 75 pts | Excelente — preço competitivo, muitos serviços, bem localizado |
+| 🔵 **B** | 55–74 pts | Bom — acima da média em pelo menos dois fatores |
+| 🟡 **C** | 35–54 pts | Regular — desempenho mediano |
+| 🔴 **D** | < 35 pts | Abaixo da média — preço elevado ou sem serviços |
+        """)
+        st.info("💡 O Score aparece como primeira coluna na tabela de dados do Modo **📍 Por UF/Município**. "
+                "Quanto mais dados da planilha Pró-Frotas e ANP estiverem carregados, mais preciso ele fica.")
+
+    # ══ ABA 3: Alertas ════════════════════════════════════════════
+    with _tab_alertas:
+        st.markdown("#### ⚠️ Configurar Limiares e Gerar Relatório")
+        st.markdown(
+            "Defina o **preço máximo aceitável** para cada combustível. "
+            "Ao gerar o relatório, todos os postos da planilha GF que estiverem "
+            "**acima do limiar** serão listados no arquivo Excel."
+        )
+
+        _intel_d3    = _intel_load()
+        _limiar_cfg3 = _intel_d3.get("limiar", {})
+
+        _COMBS_LIM3 = [
+            ("GASOLINA COMUM",    "⛽ Gasolina Comum",     5.80),
+            ("GASOLINA ADITIVADA","⛽ Gasolina Aditivada",  6.20),
+            ("ETANOL HIDRATADO",  "🌿 Etanol Hidratado",    4.00),
+            ("DIESEL S10",        "🚛 Diesel S10",          6.00),
+            ("DIESEL S500",       "🚛 Diesel S500",         5.90),
+        ]
+        _lim_novo3 = {}
+        _lca, _lcb = st.columns(2)
+        for _ci3, (_ck3, _clbl3, _cdef3) in enumerate(_COMBS_LIM3):
+            with (_lca if _ci3 % 2 == 0 else _lcb):
+                _lim_novo3[_ck3] = st.number_input(
+                    _clbl3,
+                    min_value=0.0, max_value=20.0,
+                    value=float(_limiar_cfg3.get(_ck3, _cdef3)),
+                    step=0.01, format="%.3f",
+                    key=f"intel_lim3_{_ck3}",
+                )
+
+        _col_btn_a, _col_btn_b = st.columns([1, 1])
+        with _col_btn_a:
+            if st.button("💾 Salvar limiares", key="btn_intel3_salvar",
+                         use_container_width=True):
+                _intel_d3["limiar"] = _lim_novo3
+                _intel_save(_intel_d3)
+                st.session_state.pop("_intel_loaded", None)
+                st.success("✅ Limiares salvos.")
+
+        with _col_btn_b:
+            _pp_df3 = st.session_state.get("_pp_df")
+            if st.button("📄 Gerar Relatório Excel",
+                         key="btn_intel3_gerar",
+                         use_container_width=True,
+                         type="primary"):
+                if _pp_df3 is None or _pp_df3.empty:
+                    st.warning("⚠️ Carregue a planilha de Preços PP em Configurações antes de gerar o relatório.")
+                else:
+                    with st.spinner("Gerando relatório…"):
+                        _bytes3, _fname3, _err3 = _gerar_relatorio_alertas_xlsx(
+                            _pp_df3, _lim_novo3)
+                    if _err3:
+                        st.error(f"❌ Erro: {_err3}")
+                    else:
+                        st.session_state["_intel_rel_bytes"] = _bytes3
+                        st.session_state["_intel_rel_fname"] = _fname3
+                        st.session_state.pop("_intel_loaded", None)
+                        st.rerun()
+
+        _bytes_dl3 = st.session_state.get("_intel_rel_bytes")
+        _fname_dl3 = st.session_state.get("_intel_rel_fname", "alertas.xlsx")
+        if _bytes_dl3:
+            st.markdown("---")
+            st.download_button(
+                "⬇️ Baixar relatório gerado",
+                data=_bytes_dl3,
+                file_name=_fname_dl3,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="btn_intel3_download",
+            )
+
+        if not (st.session_state.get("_pp_df") is not None):
+            st.info("ℹ️ Para gerar o relatório, carregue a planilha de **Preços PP** em "
+                    "**Configurações → 💲 Preços PP**.")
 
 
 # ═══════════════════════════════════════════════════════════════════
