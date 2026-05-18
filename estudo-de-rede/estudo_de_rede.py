@@ -1925,13 +1925,16 @@ def _hist_chart_posto(cnpj: str, nome: str, combustivel: str = None):
         return None
 
     _CORES_COMB = {
-        "GASOLINA COMUM":    "#EF5350",
-        "GASOLINA ADITIVADA":"#FF7043",
-        "ETANOL HIDRATADO":  "#66BB6A",
-        "DIESEL S10":        "#42A5F5",
-        "DIESEL S500":       "#1E88E5",
-        "GNV":               "#AB47BC",
-        "GLP":               "#FFA726",
+        "GASOLINA COMUM":      "#EF5350",
+        "GASOLINA ADITIVADA":  "#FF7043",
+        "ETANOL HIDRATADO":    "#66BB6A",
+        "ETANOL COMUM":        "#81C784",
+        "DIESEL S10":          "#42A5F5",
+        "DIESEL S500":         "#1E88E5",
+        "DIESEL S-500 COMUM":  "#1565C0",
+        "DIESEL S-500 ADITIVADO": "#0D47A1",
+        "GNV":                 "#AB47BC",
+        "GLP":                 "#FFA726",
     }
     por_comb: dict = _dd(list)
     for r in registros:
@@ -1942,28 +1945,59 @@ def _hist_chart_posto(cnpj: str, nome: str, combustivel: str = None):
     fig = _pgo.Figure()
     for comb, pts in sorted(por_comb.items()):
         pts_s  = sorted(pts, key=lambda x: x[0])
-        datas  = [p[0] for p in pts_s]
+        # Converte "YYYY-MM-DD" → "DD/MM/YYYY" para exibir no eixo X como categoria
+        datas  = []
+        for _d in [p[0] for p in pts_s]:
+            try:
+                _parts = str(_d).split("-")
+                datas.append(f"{_parts[2]}/{_parts[1]}/{_parts[0]}" if len(_parts) == 3 else str(_d))
+            except Exception:
+                datas.append(str(_d))
         precos = [p[1] for p in pts_s]
         fig.add_trace(_pgo.Scatter(
-            x=datas, y=precos, mode="lines+markers",
+            x=datas, y=precos,
+            mode="lines+markers" if len(precos) > 1 else "markers",
             name=comb,
             line=dict(color=_CORES_COMB.get(comb, "#90CAF9"), width=2.5),
-            marker=dict(size=7),
-            hovertemplate="%{x}<br><b>R$ %{y:.3f}/L</b><extra>" + comb + "</extra>",
+            marker=dict(size=8, line=dict(width=1.5, color="white")),
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                f"<span style='color:{_CORES_COMB.get(comb,'#90CAF9')}'>{comb}</span><br>"
+                "R$ <b>%{y:.3f}</b>/L<extra></extra>"
+            ),
         ))
 
     fig.update_layout(
-        title=dict(text=f"📈 Histórico de Preços — {nome[:40]}", font_size=14, x=0),
-        xaxis_title="Data",
+        # Sem title interno — será renderizado via st.markdown antes do gráfico
+        xaxis_title=None,
         yaxis_title="R$/L",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        legend=dict(
+            orientation="h",
+            yanchor="top", y=-0.18,       # legenda abaixo do gráfico
+            xanchor="center", x=0.5,
+            font=dict(size=11),
+            bgcolor="rgba(255,255,255,0.85)",
+            bordercolor="rgba(0,0,0,0.08)",
+            borderwidth=1,
+        ),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(t=60, b=40, l=50, r=20),
-        height=320,
+        margin=dict(t=16, b=110, l=55, r=16),   # margem inferior para a legenda
+        height=360,
         hovermode="x unified",
-        xaxis=dict(gridcolor="rgba(0,0,0,0.07)"),
-        yaxis=dict(gridcolor="rgba(0,0,0,0.07)"),
+        xaxis=dict(
+            type="category",                     # trata datas como texto — sem timezone
+            gridcolor="rgba(0,0,0,0.07)",
+            tickangle=-35,
+            tickfont=dict(size=11),
+            title=dict(text="Data", font=dict(size=12)),
+        ),
+        yaxis=dict(
+            gridcolor="rgba(0,0,0,0.07)",
+            tickprefix="R$ ",
+            tickformat=".3f",
+            tickfont=dict(size=11),
+        ),
     )
     return fig
 
@@ -9796,6 +9830,12 @@ with st.sidebar:
                         _nome_h = _hist_posto[0].get("nome", f"Posto {_cnpj_h_n}")
                         _fig_h  = _hist_chart_posto(_cnpj_h_n, _nome_h)
                         if _fig_h:
+                            st.markdown(
+                                f"<p style='font-weight:600;font-size:0.95rem;"
+                                f"margin:0 0 4px 0;color:var(--text-color,#1a1a2e)'>"
+                                f"📈 Evolução de preços — {_nome_h}</p>",
+                                unsafe_allow_html=True,
+                            )
                             st.plotly_chart(_fig_h, use_container_width=True)
                         _df_h = pd.DataFrame(_hist_posto).sort_values("data", ascending=False)
                         _df_h = _df_h.rename(columns={
@@ -11049,6 +11089,12 @@ if modo == "📍 Por UF/Município":
                         if _hist_cnpj_sel and _hist_cnpj_sel in _hist_data:
                             _fig_hist = _hist_chart_posto(_hist_cnpj_sel, _hist_nome_sel)
                             if _fig_hist:
+                                st.markdown(
+                                    f"<p style='font-weight:600;font-size:0.95rem;"
+                                    f"margin:0 0 4px 0;color:var(--text-color,#1a1a2e)'>"
+                                    f"📈 Evolução de preços — {_hist_nome_sel}</p>",
+                                    unsafe_allow_html=True,
+                                )
                                 st.plotly_chart(_fig_hist, use_container_width=True)
                         else:
                             st.info("Nenhum histórico registrado para este posto ainda.")
@@ -13701,6 +13747,15 @@ elif modo == "🧠 Inteligência":
                     _comb_f2 = None if _comb_hist_pg == "Todos" else _comb_hist_pg
                     _fig_h2  = _hist_chart_posto(_cnpj_h_n2, _nome_h2, combustivel=_comb_f2)
                     if _fig_h2:
+                        _titulo_h2 = f"📈 Evolução de preços — {_nome_h2}"
+                        if _comb_f2:
+                            _titulo_h2 += f" ({_comb_f2.title()})"
+                        st.markdown(
+                            f"<p style='font-weight:600;font-size:0.95rem;"
+                            f"margin:0 0 4px 0;color:var(--text-color,#1a1a2e)'>"
+                            f"{_titulo_h2}</p>",
+                            unsafe_allow_html=True,
+                        )
                         st.plotly_chart(_fig_h2, use_container_width=True)
 
                     _df_h2 = pd.DataFrame(_hist_posto2)
