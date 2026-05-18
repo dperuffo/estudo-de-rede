@@ -1728,6 +1728,487 @@ if not st.session_state.get("_log_inicio_ok", False):
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  INTELIGÊNCIA DE DADOS — Histórico de Preços · Score · Alertas
+# ═══════════════════════════════════════════════════════════════════
+
+import json  as _json_mod
+import math  as _math_mod
+
+_INTEL_PATH = _os_mod.path.join(
+    _os_mod.path.dirname(_os_mod.path.abspath(__file__)),
+    "_intel_data.json",
+)
+
+# ── Persistência ────────────────────────────────────────────────────
+
+def _intel_load() -> dict:
+    """Carrega dados de inteligência do JSON (cache por sessão)."""
+    if st.session_state.get("_intel_loaded"):
+        return st.session_state.get("_intel_data", {})
+    try:
+        if _os_mod.path.exists(_INTEL_PATH):
+            with open(_INTEL_PATH, "r", encoding="utf-8") as _f:
+                _data = _json_mod.load(_f)
+        else:
+            _data = {}
+    except Exception:
+        _data = {}
+    _data.setdefault("historico", {})   # {cnpj14: [{data, preco, combustivel, nome, municipio, uf}]}
+    _data.setdefault("limiar",    {})   # {combustivel: float}
+    _data.setdefault("last_report", None)
+    st.session_state["_intel_data"]   = _data
+    st.session_state["_intel_loaded"] = True
+    return _data
+
+
+def _intel_save(data: dict) -> bool:
+    """Persiste dados de inteligência no JSON."""
+    try:
+        with open(_INTEL_PATH, "w", encoding="utf-8") as _f:
+            _json_mod.dump(data, _f, ensure_ascii=False, separators=(",", ":"))
+        st.session_state["_intel_data"]   = data
+        st.session_state["_intel_loaded"] = True
+        return True
+    except Exception:
+        return False
+
+
+# ── Registro de observações de preço ───────────────────────────────
+
+def _hist_record_lote(
+    df: "pd.DataFrame",
+    combustivel: str,
+    data_str: str = None,
+) -> int:
+    """
+    Registra preços de um DataFrame de postos no histórico.
+    df precisa de: cnpj (ou _cnpj_norm), razaoSocial/nome, coluna de preço.
+    Retorna quantidade de novos registros adicionados.
+    """
+    if df is None or df.empty:
+        return 0
+    if data_str is None:
+        data_str = datetime.now().strftime("%Y-%m-%d")
+
+    # detecta coluna de preço
+    _preco_col = None
+    for _c in df.columns:
+        _cl = _c.lower()
+        if "preco" in _cl or "preço" in _cl or _cl.startswith("_preco"):
+            _preco_col = _c
+            break
+    if _preco_col is None:
+        return 0
+
+    # detecta coluna de CNPJ
+    _cnpj_col = ("_cnpj_norm" if "_cnpj_norm" in df.columns
+                 else ("cnpj" if "cnpj" in df.columns else None))
+    if _cnpj_col is None:
+        return 0
+
+    _nome_col = next((c for c in ["razaoSocial","nome","nomeFantasia"] if c in df.columns), None)
+    _mun_col  = "municipio" if "municipio" in df.columns else None
+    _uf_col   = "uf"        if "uf"        in df.columns else None
+
+    intel = _intel_load()
+    hist  = intel["historico"]
+    novos = 0
+
+    for _, row in df.iterrows():
+        _cnpj = re.sub(r"\D", "", str(row.get(_cnpj_col, "") or ""))
+        if len(_cnpj) != 14:
+            continue
+        _preco = pd.to_numeric(row.get(_preco_col), errors="coerce")
+        if pd.isna(_preco) or _preco <= 0:
+            continue
+
+        _entry: dict = {"data": data_str, "preco": round(float(_preco), 3),
+                        "combustivel": combustivel}
+        if _nome_col: _entry["nome"]      = str(row.get(_nome_col, ""))[:50]
+        if _mun_col:  _entry["municipio"] = str(row.get(_mun_col,  ""))
+        if _uf_col:   _entry["uf"]        = str(row.get(_uf_col,   ""))
+
+        _lista = hist.setdefault(_cnpj, [])
+        _ja_tem = any(
+            e.get("data") == data_str and e.get("combustivel") == combustivel
+            for e in _lista
+        )
+        if not _ja_tem:
+            _lista.append(_entry)
+            if len(_lista) > 52:
+                _lista[:] = sorted(_lista, key=lambda e: e.get("data", ""))[-52:]
+            novos += 1
+
+    if novos > 0:
+        _intel_save(intel)
+    return novos
+
+
+def _hist_get_posto(cnpj: str, combustivel: str = None) -> list:
+    """Retorna histórico de preços de um posto (lista de dicts)."""
+    _cnpj_n   = re.sub(r"\D", "", str(cnpj or ""))
+    intel     = _intel_load()
+    registros = intel.get("historico", {}).get(_cnpj_n, [])
+    if combustivel:
+        _ck = combustivel.upper()
+        registros = [r for r in registros if r.get("combustivel", "").upper() == _ck]
+    return sorted(registros, key=lambda r: r.get("data", ""))
+
+
+def _hist_chart_posto(cnpj: str, nome: str, combustivel: str = None):
+    """Retorna figura Plotly com evolução de preço de um posto."""
+    import plotly.graph_objects as _pgo
+    from collections import defaultdict as _dd
+    registros = _hist_get_posto(cnpj, combustivel)
+    if not registros:
+        return None
+
+    _CORES_COMB = {
+        "GASOLINA COMUM":    "#EF5350",
+        "GASOLINA ADITIVADA":"#FF7043",
+        "ETANOL HIDRATADO":  "#66BB6A",
+        "DIESEL S10":        "#42A5F5",
+        "DIESEL S500":       "#1E88E5",
+        "GNV":               "#AB47BC",
+        "GLP":               "#FFA726",
+    }
+    por_comb: dict = _dd(list)
+    for r in registros:
+        por_comb[r.get("combustivel", "Combustível")].append(
+            (r["data"], r["preco"])
+        )
+
+    fig = _pgo.Figure()
+    for comb, pts in sorted(por_comb.items()):
+        pts_s  = sorted(pts, key=lambda x: x[0])
+        datas  = [p[0] for p in pts_s]
+        precos = [p[1] for p in pts_s]
+        fig.add_trace(_pgo.Scatter(
+            x=datas, y=precos, mode="lines+markers",
+            name=comb,
+            line=dict(color=_CORES_COMB.get(comb, "#90CAF9"), width=2.5),
+            marker=dict(size=7),
+            hovertemplate="%{x}<br><b>R$ %{y:.3f}/L</b><extra>" + comb + "</extra>",
+        ))
+
+    fig.update_layout(
+        title=dict(text=f"📈 Histórico de Preços — {nome[:40]}", font_size=14, x=0),
+        xaxis_title="Data",
+        yaxis_title="R$/L",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=60, b=40, l=50, r=20),
+        height=320,
+        hovermode="x unified",
+        xaxis=dict(gridcolor="rgba(0,0,0,0.07)"),
+        yaxis=dict(gridcolor="rgba(0,0,0,0.07)"),
+    )
+    return fig
+
+
+# ── Score de posto ──────────────────────────────────────────────────
+
+_SCORE_ICONES = {"A": "🟢", "B": "🔵", "C": "🟡", "D": "🔴"}
+_SCORE_CORES  = {
+    "A": ("#e8f5e9", "#2e7d32", "#a5d6a7"),
+    "B": ("#e3f2fd", "#1565c0", "#90caf9"),
+    "C": ("#fff8e1", "#f57f17", "#ffe082"),
+    "D": ("#ffebee", "#c62828", "#ef9a9a"),
+}
+
+
+def _calcular_score_posto(
+    row:                  dict,
+    preco_ref_anp:        float = None,
+    lat_ref:              float = None,
+    lon_ref:              float = None,
+    servicos_keys:        list  = None,
+    n_servicos_max:       int   = 10,
+) -> dict:
+    """
+    Score composto 0-100 para um posto.
+    Pesos: preço vs ANP 50% · serviços 30% · distância 20%.
+    Graus: A≥75 · B≥55 · C≥35 · D<35
+    """
+    # ── Preço (50%) ─────────────────────────────────────────────────
+    _s_preco = 50.0
+    _det_preco = "Sem referência ANP"
+    if preco_ref_anp and preco_ref_anp > 0:
+        _p = pd.to_numeric(
+            row.get("_preco_posto") or row.get("preco") or row.get("_preco"),
+            errors="coerce")
+        if pd.notna(_p) and _p > 0:
+            _diff = (_p - preco_ref_anp) / preco_ref_anp
+            _s_preco = max(0.0, min(100.0, 50.0 - _diff * 500.0))
+            _det_preco = f"{_diff:+.1%} vs ANP ({preco_ref_anp:.3f})"
+
+    # ── Serviços (30%) ──────────────────────────────────────────────
+    _s_svc = 0.0
+    _det_svc = "Sem dados de serviços"
+    if servicos_keys and n_servicos_max > 0:
+        _n = sum(1 for s in servicos_keys if row.get(s))
+        _s_svc = min(100.0, _n / n_servicos_max * 100.0)
+        _det_svc = f"{_n}/{n_servicos_max} serviços"
+
+    # ── Distância (20%) ─────────────────────────────────────────────
+    _s_dist = 50.0
+    _det_dist = "Sem ponto de referência"
+    if lat_ref is not None and lon_ref is not None:
+        _lat = pd.to_numeric(row.get("_lat") or row.get("lat"), errors="coerce")
+        _lon = pd.to_numeric(row.get("_lon") or row.get("lon"), errors="coerce")
+        if pd.notna(_lat) and pd.notna(_lon):
+            _dlat = _math_mod.radians(_lat - lat_ref)
+            _dlon = _math_mod.radians(_lon - lon_ref)
+            _a    = (_math_mod.sin(_dlat/2)**2 +
+                     _math_mod.cos(_math_mod.radians(lat_ref)) *
+                     _math_mod.cos(_math_mod.radians(_lat)) *
+                     _math_mod.sin(_dlon/2)**2)
+            _d_km = 6371 * 2 * _math_mod.atan2(
+                _math_mod.sqrt(_a), _math_mod.sqrt(1 - _a))
+            _s_dist   = max(0.0, min(100.0, 100.0 - _d_km))
+            _det_dist = f"{_d_km:.1f} km do ponto de busca"
+
+    _score = 0.50 * _s_preco + 0.30 * _s_svc + 0.20 * _s_dist
+    _grade = ("A" if _score >= 75 else
+              "B" if _score >= 55 else
+              "C" if _score >= 35 else "D")
+    return {
+        "score":           round(_score, 1),
+        "grade":           _grade,
+        "score_preco":     round(_s_preco, 1),
+        "score_servicos":  round(_s_svc,   1),
+        "score_distancia": round(_s_dist,  1),
+        "detalhe_preco":   _det_preco,
+        "detalhe_svc":     _det_svc,
+        "detalhe_dist":    _det_dist,
+    }
+
+
+def _score_badge_html(score: float, grade: str, tooltip: str = "",
+                      size: str = "normal") -> str:
+    """Badge colorido com score e grau (HTML)."""
+    bg, txt, brd = _SCORE_CORES.get(grade, ("#f5f5f5", "#424242", "#e0e0e0"))
+    _ic   = _SCORE_ICONES.get(grade, "⚪")
+    _font = "13px" if size == "normal" else "11px"
+    _pad  = "4px 10px" if size == "normal" else "2px 7px"
+    _tt   = f" title='{tooltip}'" if tooltip else ""
+    return (
+        f"<span{_tt} style='display:inline-flex;align-items:center;gap:5px;"
+        f"background:{bg};border:1px solid {brd};border-radius:20px;"
+        f"padding:{_pad};font-size:{_font};font-weight:700;color:{txt};cursor:default'>"
+        f"{_ic} Score {score:.0f}"
+        f"<span style='opacity:.65;font-weight:600'>({grade})</span>"
+        f"</span>"
+    )
+
+
+def _calcular_score_df(
+    df: "pd.DataFrame",
+    preco_ref_anp: float = None,
+    lat_ref: float = None,
+    lon_ref: float = None,
+) -> "pd.DataFrame":
+    """
+    Adiciona coluna '⭐ Score' ao DataFrame de postos.
+    Retorna df com a coluna inserida na posição 0.
+    """
+    if df is None or df.empty:
+        return df
+    _svc_keys = list(st.session_state.get("_servicos_pf_labels", {}).keys())
+    _n_max    = max(len(_svc_keys), 1)
+    _scores   = []
+    for _, row in df.iterrows():
+        _res = _calcular_score_posto(
+            row.to_dict(),
+            preco_ref_anp=preco_ref_anp,
+            lat_ref=lat_ref,
+            lon_ref=lon_ref,
+            servicos_keys=_svc_keys,
+            n_servicos_max=_n_max,
+        )
+        _scores.append(f"{_res['grade']} {_res['score']:.0f}")
+    _df = df.copy()
+    _df.insert(0, "⭐ Score", _scores)
+    return _df
+
+
+# ── Relatório semanal de alertas ────────────────────────────────────
+
+def _gerar_relatorio_alertas_xlsx(
+    df_pp:  "pd.DataFrame",
+    limiar: dict,
+    semana: str = None,
+) -> tuple:
+    """
+    Gera relatório Excel de postos em alerta de preço.
+
+    df_pp:  DataFrame de preços dos postos GF.
+    limiar: {combustivel_norm: preco_max_float}.
+    semana: label de referência (ex: "2024-W05").
+
+    Retorna (bytes_xlsx, filename, error_msg).
+    """
+    if df_pp is None or df_pp.empty:
+        return None, None, "Nenhuma planilha de preços carregada."
+    if not limiar:
+        return None, None, "Defina ao menos um limiar de preço."
+
+    try:
+        import io as _io
+        import openpyxl as _opxl
+        from openpyxl.styles import (PatternFill, Font, Alignment,
+                                     Border, Side, numbers)
+        from openpyxl.utils import get_column_letter
+
+        _data_rel = semana or datetime.now().strftime("%Y-W%V")
+        _wb  = _opxl.Workbook()
+        _ws  = _wb.active
+        _ws.title = "Alertas de Preço"
+
+        # ── Cabeçalho do relatório ──────────────────────────────────
+        _titulo_fill = PatternFill("solid", fgColor="0D47A1")
+        _titulo_font = Font(bold=True, color="FFFFFF", size=13)
+        _ws.merge_cells("A1:H1")
+        _ws["A1"] = f"Relatório de Alertas de Preço — {_data_rel}"
+        _ws["A1"].fill = _titulo_fill
+        _ws["A1"].font = _titulo_font
+        _ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+        _ws.row_dimensions[1].height = 26
+
+        _ws.merge_cells("A2:H2")
+        _ws["A2"] = f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · Pró-Frotas"
+        _ws["A2"].font = Font(italic=True, color="666666", size=10)
+        _ws["A2"].alignment = Alignment(horizontal="center")
+
+        _row = 4
+        _alert_total = 0
+
+        # ── Para cada combustível com limiar ────────────────────────
+        for _comb_key, _lim in limiar.items():
+            if _lim <= 0:
+                continue
+
+            # Detecta coluna de preço no df_pp
+            _col_preco = None
+            for _c in df_pp.columns:
+                _cn = re.sub(r"[^a-z]", "", _c.lower())
+                if _cn in _comb_key.lower().replace(" ", "") or \
+                   _comb_key.lower().replace(" ", "") in _cn:
+                    _col_preco = _c
+                    break
+            if _col_preco is None:
+                # fallback: primeira coluna numérica
+                for _c in df_pp.columns:
+                    if pd.api.types.is_numeric_dtype(df_pp[_c]):
+                        _col_preco = _c
+                        break
+            if _col_preco is None:
+                continue
+
+            _df_c = df_pp.copy()
+            _df_c["_preco_num"] = pd.to_numeric(_df_c[_col_preco], errors="coerce")
+            _df_alert = _df_c[
+                _df_c["_preco_num"].notna() &
+                (_df_c["_preco_num"] > _lim)
+            ].sort_values("_preco_num", ascending=False)
+            if _df_alert.empty:
+                continue
+
+            _alert_total += len(_df_alert)
+
+            # Título do combustível
+            _ws.merge_cells(f"A{_row}:H{_row}")
+            _ws[f"A{_row}"] = f"⚠️ {_comb_key.title()} — Limiar: R$ {_lim:.3f}/L · {len(_df_alert)} postos em alerta"
+            _ws[f"A{_row}"].fill = PatternFill("solid", fgColor="FFF9C4")
+            _ws[f"A{_row}"].font = Font(bold=True, color="F57F17", size=11)
+            _ws[f"A{_row}"].alignment = Alignment(horizontal="left", indent=1)
+            _row += 1
+
+            # Cabeçalho da tabela
+            _hdrs = ["CNPJ","Razão Social","Município","UF",
+                     f"Preço ({_comb_key.title()})","Desvio vs Limiar","% Acima","Bandeira"]
+            _hdr_fill = PatternFill("solid", fgColor="E3F2FD")
+            _hdr_font = Font(bold=True, color="1565C0", size=10)
+            for _ci, _h in enumerate(_hdrs, 1):
+                _cell = _ws.cell(row=_row, column=_ci, value=_h)
+                _cell.fill = _hdr_fill
+                _cell.font = _hdr_font
+                _cell.alignment = Alignment(horizontal="center")
+                _cell.border = Border(
+                    bottom=Side(style="thin", color="90CAF9"),
+                    top=Side(style="thin", color="90CAF9"),
+                )
+            _row += 1
+
+            # Linhas de dados
+            _alt_fill_r = PatternFill("solid", fgColor="FFEBEE")
+            _alt_fill_w = PatternFill("solid", fgColor="FFFFFF")
+            for _ri, (_, _ar) in enumerate(_df_alert.iterrows()):
+                _preco_p  = _ar["_preco_num"]
+                _desvio   = _preco_p - _lim
+                _pct      = _desvio / _lim * 100 if _lim else 0
+                _fill     = _alt_fill_r if _ri % 2 == 0 else _alt_fill_w
+
+                _cnpj_c   = _ar.get("cnpj", _ar.get("_cnpj_norm", ""))
+                _nome_c   = _ar.get("razaoSocial", _ar.get("nome", ""))
+                _mun_c    = _ar.get("municipio", "")
+                _uf_c     = _ar.get("uf", "")
+                _band_c   = _ar.get("distribuidora", "")
+
+                _vals = [
+                    _cnpj_c, _nome_c, _mun_c, _uf_c,
+                    _preco_p, _desvio, _pct / 100, _band_c,
+                ]
+                for _ci, _v in enumerate(_vals, 1):
+                    _cell = _ws.cell(row=_row, column=_ci, value=_v)
+                    _cell.fill = _fill
+                    _cell.font = Font(size=9)
+                    if _ci == 5:  # preço
+                        _cell.number_format = 'R$ #,##0.000'
+                        _cell.font = Font(size=9, bold=True,
+                                          color=("C62828" if _preco_p > _lim * 1.1 else "E65100"))
+                    elif _ci == 6:
+                        _cell.number_format = 'R$ #,##0.000'
+                    elif _ci == 7:
+                        _cell.number_format = '0.0%'
+                _row += 1
+            _row += 2  # espaço entre combustíveis
+
+        if _alert_total == 0:
+            _ws[f"A{_row}"] = "✅ Nenhum posto acima do limiar configurado."
+            _ws[f"A{_row}"].font = Font(color="2E7D32", italic=True, size=10)
+            _row += 1
+
+        # Resumo final
+        _row += 1
+        _ws.merge_cells(f"A{_row}:H{_row}")
+        _ws[f"A{_row}"] = f"Total de postos em alerta: {_alert_total}"
+        _ws[f"A{_row}"].font = Font(bold=True, size=11,
+                                     color=("C62828" if _alert_total > 0 else "2E7D32"))
+
+        # Ajusta largura das colunas
+        _larguras = [18, 40, 22, 5, 12, 12, 8, 18]
+        for _ci, _larg in enumerate(_larguras, 1):
+            _ws.column_dimensions[get_column_letter(_ci)].width = _larg
+
+        _buf = _io.BytesIO()
+        _wb.save(_buf)
+        _buf.seek(0)
+        _fname = f"alertas_preco_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+
+        # Atualiza data do último relatório
+        _intel = _intel_load()
+        _intel["last_report"] = datetime.now().isoformat()
+        _intel_save(_intel)
+
+        return _buf.getvalue(), _fname, None
+
+    except Exception as _ex:
+        return None, None, str(_ex)
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  GESTÃO DE FROTAS — Upload e comparação de CNPJs
 # ═══════════════════════════════════════════════════════════════════
 
@@ -8472,7 +8953,7 @@ with st.sidebar:
                         st.session_state["_cfg_senha_errada"] = True
                 if st.session_state.get("_cfg_senha_errada", False):
                     st.error("❌ Senha incorreta. Tente novamente.")
-            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = tab_logs = None
+            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = tab_logs = tab_intel = None
         else:
             _col_cfg_lock, _ = st.columns([1, 5])
             with _col_cfg_lock:
@@ -8481,9 +8962,9 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs = st.tabs(
+            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel = st.tabs(
                 ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
-                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso"]
+                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "🧠 Inteligência"]
             )
 
         # ── Tab Gestão de Frotas ────────────────────────────────────
@@ -8735,6 +9216,14 @@ with st.sidebar:
                     st.session_state["_pp_df"]          = _pp_tmp
                     st.session_state["_pp_fonte"]        = "repo"
                     st.session_state["_pp_carregado_em"] = _agora()
+                    # ── Auto-registro no histórico de inteligência ──
+                    try:
+                        for _cc_pp in _pp_tmp.columns:
+                            if pd.api.types.is_numeric_dtype(_pp_tmp[_cc_pp]) and \
+                               ("preco" in _cc_pp.lower() or "preço" in _cc_pp.lower()):
+                                _hist_record_lote(_pp_tmp, _cc_pp.upper())
+                    except Exception:
+                        pass
                     st.success(f"✅ {_pp_msg_tmp}")
                     time.sleep(1)
                     st.rerun()
@@ -8757,6 +9246,14 @@ with st.sidebar:
                         st.session_state["_pp_fonte"]           = "manual"
                         st.session_state["_pp_carregado_em"]    = _agora()
                         st.session_state["_pp_last_upload_id"]  = _pp_file_id
+                        # ── Auto-registro no histórico de inteligência ──
+                        try:
+                            for _cc_pp in _pp_up.columns:
+                                if pd.api.types.is_numeric_dtype(_pp_up[_cc_pp]) and \
+                                   ("preco" in _cc_pp.lower() or "preço" in _cc_pp.lower()):
+                                    _hist_record_lote(_pp_up, _cc_pp.upper())
+                        except Exception:
+                            pass
                         st.success(_pp_msg_up)
                         st.rerun()
                     else:
@@ -9155,6 +9652,197 @@ with st.sidebar:
                     except Exception:
                         _arquivo_info = "⚠️ Sem acesso ao arquivo"
                     st.caption(_arquivo_info)
+
+        # ── Tab Inteligência de Dados ─────────────────────────────────────────
+        if tab_intel is not None:
+         with tab_intel:
+            st.markdown("#### 🧠 Inteligência de Dados")
+
+            # ── Seção 1: Histórico de Preços ──────────────────────────────────
+            st.markdown("##### 📈 Histórico de Preços por Posto")
+            _intel_d = _intel_load()
+            _hist_all = _intel_d.get("historico", {})
+            _n_cnpjs  = len(_hist_all)
+            _n_obs    = sum(len(v) for v in _hist_all.values())
+
+            if _n_obs == 0:
+                st.info(
+                    "Nenhum histórico registrado ainda.\n\n"
+                    "Os preços são registrados automaticamente cada vez que você carrega "
+                    "a **planilha de Preços PP** na aba *💲 Preços PP*. "
+                    "Após algumas semanas, o histórico começa a mostrar a evolução dos preços."
+                )
+            else:
+                _c_h1, _c_h2, _c_h3 = st.columns(3)
+                _c_h1.metric("📍 Postos rastreados", f"{_n_cnpjs:,}")
+                _c_h2.metric("📊 Observações totais", f"{_n_obs:,}")
+                _datas_all = [e["data"] for v in _hist_all.values() for e in v]
+                _dt_min = min(_datas_all) if _datas_all else "—"
+                _dt_max = max(_datas_all) if _datas_all else "—"
+                _c_h3.metric("📅 Período", f"{_dt_min} → {_dt_max}")
+
+                # Busca por CNPJ
+                st.markdown("**Visualizar histórico de um posto**")
+                _cnpj_hist_inp = st.text_input(
+                    "CNPJ do posto (somente números)",
+                    key="intel_cnpj_hist_inp",
+                    placeholder="Ex: 12345678000199",
+                    max_chars=18,
+                )
+                if _cnpj_hist_inp:
+                    _cnpj_h_n = re.sub(r"\D", "", _cnpj_hist_inp)
+                    _hist_posto = _hist_all.get(_cnpj_h_n, [])
+                    if not _hist_posto:
+                        st.warning("Nenhum histórico encontrado para este CNPJ.")
+                    else:
+                        _nome_h = _hist_posto[0].get("nome", f"Posto {_cnpj_h_n}")
+                        _fig_h  = _hist_chart_posto(_cnpj_h_n, _nome_h)
+                        if _fig_h:
+                            st.plotly_chart(_fig_h, use_container_width=True)
+                        _df_h = pd.DataFrame(_hist_posto).sort_values("data", ascending=False)
+                        _df_h = _df_h.rename(columns={
+                            "data":"Data","preco":"Preço (R$/L)",
+                            "combustivel":"Combustível","municipio":"Município","uf":"UF"})
+                        st.dataframe(_df_h.head(20), use_container_width=True, height=220)
+
+                # Botão para registrar preços atuais da planilha PP
+                st.markdown("---")
+                _pp_df_intel = st.session_state.get("_pp_df")
+                if _pp_df_intel is not None and not _pp_df_intel.empty:
+                    if st.button("🔄 Registrar preços atuais da planilha PP no histórico",
+                                 key="btn_intel_registrar_pp",
+                                 use_container_width=True):
+                        _n_reg = 0
+                        for _cc in _pp_df_intel.columns:
+                            if pd.api.types.is_numeric_dtype(_pp_df_intel[_cc]) and \
+                               ("preco" in _cc.lower() or "preço" in _cc.lower()):
+                                _n_reg += _hist_record_lote(
+                                    _pp_df_intel, _cc.upper())
+                        st.success(f"✅ {_n_reg} observações adicionadas ao histórico.")
+                        st.session_state.pop("_intel_loaded", None)
+                        st.rerun()
+                else:
+                    st.caption("Carregue a planilha de Preços PP para ativar o registro de histórico.")
+
+            # ── Seção 2: Score de Postos ──────────────────────────────────────
+            st.markdown("---")
+            st.markdown("##### ⭐ Score de Postos")
+            st.markdown(
+                "O **Score** é calculado automaticamente na tabela de dados de cada modo. "
+                "Ele combina três fatores:"
+            )
+            _sc1, _sc2, _sc3 = st.columns(3)
+            with _sc1:
+                st.markdown(
+                    "<div style='background:#e3f2fd;border-radius:10px;padding:10px 12px'>"
+                    "<b>💰 Preço vs ANP</b><br>"
+                    "<span style='font-size:12px;color:#555'>50% do score</span><br>"
+                    "<span style='font-size:11px'>Quanto mais barato que a média ANP "
+                    "do município/estado, maior a pontuação.</span></div>",
+                    unsafe_allow_html=True)
+            with _sc2:
+                st.markdown(
+                    "<div style='background:#e8f5e9;border-radius:10px;padding:10px 12px'>"
+                    "<b>🛒 Serviços</b><br>"
+                    "<span style='font-size:12px;color:#555'>30% do score</span><br>"
+                    "<span style='font-size:11px'>Quantidade de serviços disponíveis "
+                    "(conveniência, ARLA 32, restaurante, etc.).</span></div>",
+                    unsafe_allow_html=True)
+            with _sc3:
+                st.markdown(
+                    "<div style='background:#fff8e1;border-radius:10px;padding:10px 12px'>"
+                    "<b>📍 Distância</b><br>"
+                    "<span style='font-size:12px;color:#555'>20% do score</span><br>"
+                    "<span style='font-size:11px'>Proximidade ao ponto de busca "
+                    "ou à rota selecionada.</span></div>",
+                    unsafe_allow_html=True)
+            st.markdown(
+                "<div style='margin-top:10px;font-size:12px;color:#555'>"
+                "🟢 <b>A</b> ≥ 75 pts &nbsp;|&nbsp; "
+                "🔵 <b>B</b> 55–74 &nbsp;|&nbsp; "
+                "🟡 <b>C</b> 35–54 &nbsp;|&nbsp; "
+                "🔴 <b>D</b> &lt; 35"
+                "</div>",
+                unsafe_allow_html=True)
+
+            # ── Seção 3: Relatório de Alertas ─────────────────────────────────
+            st.markdown("---")
+            st.markdown("##### ⚠️ Relatório Semanal de Alertas de Preço")
+
+            _intel_d2    = _intel_load()
+            _limiar_cfg  = _intel_d2.get("limiar", {})
+            _last_report = _intel_d2.get("last_report")
+
+            if _last_report:
+                st.caption(f"📋 Último relatório gerado: {_last_report[:16].replace('T',' ')}")
+
+            st.markdown(
+                "Defina o **limiar máximo** de preço para cada combustível. "
+                "Postos acima deste valor aparecerão como alertas no relatório."
+            )
+
+            # Limiares por combustível
+            _COMBS_LIMIAR = [
+                ("GASOLINA COMUM",    "⛽ Gasolina Comum",    5.80),
+                ("GASOLINA ADITIVADA","⛽ Gasolina Aditivada", 6.20),
+                ("ETANOL HIDRATADO",  "🌿 Etanol",             4.00),
+                ("DIESEL S10",        "🚛 Diesel S10",         6.00),
+                ("DIESEL S500",       "🚛 Diesel S500",        5.90),
+            ]
+            _lim_novo = {}
+            _lc1, _lc2 = st.columns(2)
+            for _ci, (_ck, _clbl, _cdef) in enumerate(_COMBS_LIMIAR):
+                _col_lim = _lc1 if _ci % 2 == 0 else _lc2
+                with _col_lim:
+                    _lim_novo[_ck] = st.number_input(
+                        _clbl,
+                        min_value=0.0, max_value=20.0,
+                        value=float(_limiar_cfg.get(_ck, _cdef)),
+                        step=0.01, format="%.3f",
+                        key=f"intel_lim_{_ck}",
+                    )
+
+            _col_lim_btn1, _col_lim_btn2 = st.columns([1, 1])
+            with _col_lim_btn1:
+                if st.button("💾 Salvar limiares", key="btn_intel_salvar_lim",
+                             use_container_width=True):
+                    _intel_d2["limiar"] = _lim_novo
+                    _intel_save(_intel_d2)
+                    st.session_state.pop("_intel_loaded", None)
+                    st.success("✅ Limiares salvos.")
+
+            with _col_lim_btn2:
+                _pp_df_rep = st.session_state.get("_pp_df")
+                if st.button("📄 Gerar Relatório de Alertas (.xlsx)",
+                             key="btn_intel_gerar_rel",
+                             use_container_width=True,
+                             type="primary"):
+                    if _pp_df_rep is None or _pp_df_rep.empty:
+                        st.warning("⚠️ Carregue a planilha de Preços PP antes de gerar o relatório.")
+                    else:
+                        with st.spinner("Gerando relatório…"):
+                            _bytes_rel, _fname_rel, _err_rel = _gerar_relatorio_alertas_xlsx(
+                                _pp_df_rep, _lim_novo)
+                        if _err_rel:
+                            st.error(f"❌ Erro: {_err_rel}")
+                        else:
+                            st.session_state["_intel_rel_bytes"] = _bytes_rel
+                            st.session_state["_intel_rel_fname"] = _fname_rel
+                            st.session_state.pop("_intel_loaded", None)
+                            st.rerun()
+
+            # Botão de download aparece após geração
+            _bytes_dl = st.session_state.get("_intel_rel_bytes")
+            _fname_dl = st.session_state.get("_intel_rel_fname", "alertas.xlsx")
+            if _bytes_dl:
+                st.download_button(
+                    "⬇️ Baixar relatório gerado",
+                    data=_bytes_dl,
+                    file_name=_fname_dl,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_intel_download_rel",
+                )
 
     # ── Guia de Uso ───────────────────────────────────────────────────────────
     _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
@@ -10214,7 +10902,48 @@ if modo == "📍 Por UF/Município":
                         lambda v: _RANK_EMOJI.get(v, "") if v > 0 else ""
                     )
                 )
+            # ── Score de posto ─────────────────────────────────────────────────
+            _anp_ref_m1 = None
+            if st.session_state.get("_precos_anp_cache"):
+                try:
+                    _sh_m1 = st.session_state["_precos_anp_cache"].get("sheets", {})
+                    _pr_m1 = _anp_extrair_precos(_sh_m1.get("estados"), uf=uf)
+                    if _pr_m1:
+                        _anp_ref_m1 = next(
+                            (r["Preço Médio"] for r in _pr_m1 if "gasolina" in r.get("Combustível","").lower()),
+                            None)
+                except Exception:
+                    pass
+            _df_exib_scored = _calcular_score_df(
+                df_show,
+                preco_ref_anp=_anp_ref_m1,
+                lat_ref=None, lon_ref=None,
+            )
+            if "⭐ Score" in _df_exib_scored.columns:
+                df_exib.insert(0, "⭐ Score", _df_exib_scored["⭐ Score"].values)
             st.dataframe(df_exib, use_container_width=True, height=450)
+
+            # ── Histórico de preço de posto selecionado ────────────────────────
+            _hist_data = _intel_load().get("historico", {})
+            if _hist_data and not df_show.empty:
+                with st.expander("📈 Histórico de preços de um posto", expanded=False):
+                    _sel_nomes = df_show["razaoSocial"].fillna("").tolist()[:100]
+                    _sel_nomes_map = {
+                        n: re.sub(r"\D", "", str(df_show.iloc[i].get("cnpj","") or ""))
+                        for i, n in enumerate(_sel_nomes)
+                    }
+                    _hist_sel_nome = st.selectbox(
+                        "Selecione o posto", options=["—"] + _sel_nomes,
+                        key="hist_sel_m1")
+                    if _hist_sel_nome and _hist_sel_nome != "—":
+                        _hist_cnpj_sel = _sel_nomes_map.get(_hist_sel_nome, "")
+                        if _hist_cnpj_sel and _hist_cnpj_sel in _hist_data:
+                            _fig_hist = _hist_chart_posto(_hist_cnpj_sel, _hist_sel_nome)
+                            if _fig_hist:
+                                st.plotly_chart(_fig_hist, use_container_width=True)
+                        else:
+                            st.info("Nenhum histórico registrado para este posto ainda.")
+
             st.download_button("⬇️ Baixar dados em CSV",
                                df_show.to_csv(index=False).encode("utf-8"),
                                f"postos_{uf}.csv", "text/csv", use_container_width=True)
