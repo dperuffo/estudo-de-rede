@@ -5584,7 +5584,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     layout_annotations = []
     if foi_limitado:
         layout_annotations.append(dict(
-            text=(f"⚠️ Exibindo {MAX_MAPA_POSTOS:,} de {n_total:,} postos "
+            text=(f"⚠️ Exibindo {_fmt_int(MAX_MAPA_POSTOS)} de {_fmt_int(n_total)} postos "
                   f"(Gestão de Frotas priorizados). Veja todos na aba Dados Tabulares."),
             x=0.5, y=0.02, xref="paper", yref="paper",
             showarrow=False, align="center",
@@ -5828,6 +5828,16 @@ def _brl(v, d=2):
     """
     s = f"{v:,.{d}f}"          # '1,234.50' (padrão US)
     return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _fmt_int(v) -> str:
+    """Formata inteiro com ponto como separador de milhar (padrão BR).
+    Exemplo: _fmt_int(14045) → '14.045'  |  _fmt_int(2962) → '2.962'
+    """
+    try:
+        return f"{int(round(v)):,}".replace(",", ".")
+    except (TypeError, ValueError):
+        return str(v)
 
 
 def _anp_preco_brasil(sheets, pk):
@@ -9119,7 +9129,7 @@ with st.sidebar:
                 st.markdown(
                     f"<div style='background:{_c[0]};border:1px solid {_c[1]};"
                     f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_c[2]}'>"
-                    f"{_c[3]} <b>{len(_pf_set):,} CNPJs</b> carregados"
+                    f"{_c[3]} <b>{_fmt_int(len(_pf_set))} CNPJs</b> carregados"
                     f"{_pf_ts_html}<br>{_src}</div>",
                     unsafe_allow_html=True,
                 )
@@ -9206,7 +9216,7 @@ with st.sidebar:
                 st.markdown(
                     f"<div style='background:{_cc[0]};border:1px solid {_cc[1]};"
                     f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_cc[2]}'>"
-                    f"⚠️ <b>{len(_cer_set):,} postos cercados</b> identificados"
+                    f"⚠️ <b>{_fmt_int(len(_cer_set))} postos cercados</b> identificados"
                     f"{_cer_ts_html}<br>{_src_cer}</div>",
                     unsafe_allow_html=True,
                 )
@@ -9282,7 +9292,7 @@ with st.sidebar:
                 st.markdown(
                     f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
                     f"border-radius:8px;padding:8px 11px;font-size:11px;color:#1565c0'>"
-                    f"💲 <b>{_pp_n2:,} postos</b> · {_pp_c} combustíveis"
+                    f"💲 <b>{_fmt_int(_pp_n2)} postos</b> · {_pp_c} combustíveis"
                     f"{_pp_ts_html}<br>{_pp_src}</div>",
                     unsafe_allow_html=True,
                 )
@@ -9497,7 +9507,7 @@ with st.sidebar:
                     f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
                     f"border-radius:8px;padding:8px 11px;font-size:11px;"
                     f"color:#1565c0;margin-bottom:8px'>"
-                    f"🔵 <b>{_n_anp_cfg:,} postos ANP</b> ativos como overlay em todos os modos"
+                    f"🔵 <b>{_fmt_int(_n_anp_cfg)} postos ANP</b> ativos como overlay em todos os modos"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
@@ -9576,11 +9586,11 @@ with st.sidebar:
                 _n_usuarios   = _emails_auth.nunique()
 
                 _lk1, _lk2, _lk3, _lk4, _lk5 = st.columns(5)
-                _lk1.metric("📋 Total de Eventos",  f"{_n_eventos:,}")
-                _lk2.metric("👤 Sessões Únicas",     f"{_n_sessoes:,}")
-                _lk3.metric("🔐 Usuários Google",    f"{_n_usuarios:,}")
-                _lk4.metric("🌐 IPs Únicos",         f"{_n_ips:,}")
-                _lk5.metric("📅 Eventos Hoje",       f"{_n_hoje:,}")
+                _lk1.metric("📋 Total de Eventos",  _fmt_int(_n_eventos))
+                _lk2.metric("👤 Sessões Únicas",     _fmt_int(_n_sessoes))
+                _lk3.metric("🔐 Usuários Google",    _fmt_int(_n_usuarios))
+                _lk4.metric("🌐 IPs Únicos",         _fmt_int(_n_ips))
+                _lk5.metric("📅 Eventos Hoje",       _fmt_int(_n_hoje))
 
                 st.markdown("---")
 
@@ -9806,8 +9816,8 @@ with st.sidebar:
                 )
             else:
                 _c_h1, _c_h2, _c_h3 = st.columns(3)
-                _c_h1.metric("📍 Postos rastreados", f"{_n_cnpjs:,}")
-                _c_h2.metric("📊 Observações totais", f"{_n_obs:,}")
+                _c_h1.metric("📍 Postos rastreados", _fmt_int(_n_cnpjs))
+                _c_h2.metric("📊 Observações totais", _fmt_int(_n_obs))
                 _datas_all = [e["data"] for v in _hist_all.values() for e in v]
                 _dt_min = min(_datas_all) if _datas_all else "—"
                 _dt_max = max(_datas_all) if _datas_all else "—"
@@ -10668,7 +10678,7 @@ if modo == "📍 Por UF/Município":
             _filtros_ativos_m1 += [_srv_label.get(s,s) for s in _filtro_servicos_m1]
         if _preco_faixa_m1 and _fuel_sel_m1 and _fuel_sel_m1 != "— Todos —":
             _lo_lbl, _hi_lbl = _preco_faixa_m1
-            _filtros_ativos_m1.append(f"💰 {_fuel_sel_m1}: R$ {_lo_lbl:.2f}–{_hi_lbl:.2f}/L")
+            _filtros_ativos_m1.append(f"💰 {_fuel_sel_m1}: R$ {_brl(_lo_lbl,2)}–{_brl(_hi_lbl,2)}/L")
         if _filtros_ativos_m1:
             st.info(
                 "🔍 **Filtros ativos:** " + " · ".join(_filtros_ativos_m1)
@@ -11371,7 +11381,7 @@ elif modo == "🗺️ Por Rota":
             _filtros_ativos_m2 += [_srv_lbl2.get(s,s) for s in _filtro_servicos_m2]
         if _preco_faixa_m2 and _fuel_sel_m2 and _fuel_sel_m2 != "— Todos —":
             _lo_lbl2, _hi_lbl2 = _preco_faixa_m2
-            _filtros_ativos_m2.append(f"💰 {_fuel_sel_m2}: R$ {_lo_lbl2:.2f}–{_hi_lbl2:.2f}/L")
+            _filtros_ativos_m2.append(f"💰 {_fuel_sel_m2}: R$ {_brl(_lo_lbl2,2)}–{_brl(_hi_lbl2,2)}/L")
         if _filtros_ativos_m2:
             st.info(
                 "🔍 **Filtros ativos:** " + " · ".join(_filtros_ativos_m2)
@@ -12525,14 +12535,14 @@ if modo == "📊 Dashboard":
         # ── KPIs — linha 1 ───────────────────────────────────────────────
         _k1, _k2, _k3, _k4, _k5 = st.columns(5)
         for _col, _lbl, _val, _delta in [
-            (_k1, "⛽ Postos GF",          f"{_total_gf:,}".replace(",","."), None),
-            (_k2, "📍 Com Coordenadas",    f"{_valid_coord:,}".replace(",","."),
+            (_k1, "⛽ Postos GF",          _fmt_int(_total_gf), None),
+            (_k2, "📍 Com Coordenadas",    _fmt_int(_valid_coord),
              f"{_valid_coord/_total_gf*100:.0f}% do total"),
             (_k3, "🗺️ Estados Cobertos",  f"{_total_ufs} / 27",
              f"{_cobertura_br:.0f}% do Brasil"),
-            (_k4, "🏙️ Municípios",        f"{_total_mun:,}".replace(",","."), None),
+            (_k4, "🏙️ Municípios",        _fmt_int(_total_mun), None),
             (_k5, "📊 Média por UF",
-             f"{_total_gf/_total_ufs:.0f}" if _total_ufs else "—", None),
+             _fmt_int(_total_gf / _total_ufs) if _total_ufs else "—", None),
         ]:
             _col.metric(_lbl, _val, _delta)
 
@@ -12769,10 +12779,10 @@ if modo == "📊 Dashboard":
                 # KPIs de combustíveis
                 _cf1, _cf2, _cf3 = st.columns(3)
                 _cf1.metric("⛽ Combustíveis cadastrados", str(len(_comb_df)))
-                _cf2.metric("📋 Total de registros de preço", f"{len(_pp_dash):,}".replace(",","."))
+                _cf2.metric("📋 Total de registros de preço", _fmt_int(len(_pp_dash)))
                 if "cnpj_norm" in _pp_dash.columns:
                     _cf3.metric("🏪 Postos com preço cadastrado",
-                                f"{_pp_dash['cnpj_norm'].nunique():,}".replace(",","."))
+                                _fmt_int(_pp_dash["cnpj_norm"].nunique()))
 
                 # Gráfico de preços médios
                 _fig_comb = go.Figure()
@@ -13029,10 +13039,10 @@ if modo == "📊 Dashboard":
 
                         # KPIs
                         _ac1, _ac2, _ac3, _ac4 = st.columns(4)
-                        _ac1.metric("⚠️ Postos em Alerta", f"{_n_alertas:,}",
+                        _ac1.metric("⚠️ Postos em Alerta", _fmt_int(_n_alertas),
                                     delta=f"{_pct_alert:.1f}% da base",
                                     delta_color="inverse")
-                        _ac2.metric("✅ Dentro da Média", f"{_n_ok:,}",
+                        _ac2.metric("✅ Dentro da Média", _fmt_int(_n_ok),
                                     delta=f"{100-_pct_alert:.1f}% da base")
                         _ac3.metric("📈 Pior Desvio", f"+{_pior_diff*100:.1f}%" if _n_alertas > 0 else "—")
                         _ac4.metric("📊 Desvio Médio", f"+{_media_diff*100:.1f}%" if _n_alertas > 0 else "—")
@@ -13594,8 +13604,8 @@ if modo == "📊 Dashboard":
                         f"<div style='font-size:14px;font-weight:700;color:{_cor};"
                         f"margin-bottom:8px'>{_lbl}</div>"
                         f"<ul style='font-size:12px;color:#333;margin:0;padding-left:16px'>"
-                        f"<li><b>{_m['n_postos']:,}</b> postos GF credenciados</li>"
-                        f"<li><b>{_m['n_muns']:,}</b> municípios atendidos "
+                        f"<li><b>{_fmt_int(_m['n_postos'])}</b> postos GF credenciados</li>"
+                        f"<li><b>{_fmt_int(_m['n_muns'])}</b> municípios atendidos "
                         f"(<b>{_m['cob_pct']:.1f}%</b> de cobertura)</li>"
                         f"<li><b>{_m['n_distrib']}</b> distribuidoras presentes</li>"
                         f"<li>Média de <b>{_m['media_mun']:.1f}</b> posto(s)/município</li>"
@@ -13695,12 +13705,12 @@ elif modo == "🧠 Inteligência":
     _ki1, _ki2, _ki3, _ki4 = st.columns(4)
     with _ki1:
         st.markdown(f"<div class='intel-kpi-card'>"
-                    f"<div class='intel-kpi-num'>{_n_cnpjs_pg:,}</div>"
+                    f"<div class='intel-kpi-num'>{_fmt_int(_n_cnpjs_pg)}</div>"
                     f"<div class='intel-kpi-lbl'>📍 Postos rastreados</div></div>",
                     unsafe_allow_html=True)
     with _ki2:
         st.markdown(f"<div class='intel-kpi-card'>"
-                    f"<div class='intel-kpi-num'>{_n_obs_pg:,}</div>"
+                    f"<div class='intel-kpi-num'>{_fmt_int(_n_obs_pg)}</div>"
                     f"<div class='intel-kpi-lbl'>📊 Observações</div></div>",
                     unsafe_allow_html=True)
     with _ki3:
@@ -13792,7 +13802,7 @@ elif modo == "🧠 Inteligência":
             st.markdown("##### Registrar preços no histórico")
             _pp_df_pg = st.session_state.get("_pp_df")
             if _pp_df_pg is not None and not _pp_df_pg.empty:
-                st.caption(f"Planilha PP carregada: {len(_pp_df_pg):,} registros")
+                st.caption(f"Planilha PP carregada: {_fmt_int(len(_pp_df_pg))} registros")
                 if st.button("🔄 Registrar preços atuais da planilha PP",
                              key="btn_hist_reg_pg", use_container_width=True):
                     _n_reg_pg = _hist_record_pp_df(_pp_df_pg)
@@ -14482,8 +14492,8 @@ elif modo == "🛣️ Roteirização":
                     f"font-size:12px;color:#004D40'>"
                     f"⛽ <b>{_n_ab} parada(s) sugerida(s)</b> &nbsp;·&nbsp; "
                     f"🛢 Total a abastecer: <b>{_litros_total} L</b> &nbsp;·&nbsp; "
-                    f"💰 Custo total estimado: <b>R$ {_custo_total:,.2f}</b>"
-                    f"</div>".replace(",","X").replace(".",",").replace("X","."),
+                    f"💰 Custo total estimado: <b>R$ {_brl(_custo_total, 2)}</b>"
+                    f"</div>",
                     unsafe_allow_html=True)
 
                 for _ia, _ab in enumerate(_sugest, 1):
