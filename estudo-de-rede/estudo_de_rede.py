@@ -10021,7 +10021,8 @@ _TOUR_STEPS = [
         "icon": "👋", "title": "Bem-vindo ao Estudo de Rede!",
         "desc": (
             "Esta plataforma permite **visualizar e analisar a rede de postos credenciados** "
-            "à frota, comparar preços da ANP, planejar rotas e muito mais. "
+            "à frota, comparar preços da ANP, planejar rotas e acompanhar a **evolução histórica "
+            "de preços e score de qualidade** de cada posto. "
             "Este tour rápido mostra o essencial em menos de 2 minutos."
         ),
         "visual": [
@@ -10030,9 +10031,10 @@ _TOUR_STEPS = [
             ("📊","Dashboard analítico","#fff8e1"),
             ("💰","Ranking de preços","#fce4ec"),
             ("🔍","Filtros avançados","#f3e5f5"),
+            ("🧠","Inteligência de dados","#ede7f6"),
             ("💾","Salve consultas","#e0f2f1"),
         ],
-        "tips": ["📍 6 modos de consulta disponíveis", "💾 Salve e restaure consultas anteriores"],
+        "tips": ["📍 7 modos de consulta disponíveis", "🧠 Novo: histórico de preços e score por posto"],
     },
     {
         "icon": "📍", "title": "Modo 1 · Consulta por Estado (UF)",
@@ -10123,6 +10125,24 @@ _TOUR_STEPS = [
             ("💰","Economia média vs ANP","#fce4ec"),
         ],
         "tips": ["📤 Exporte os dados em CSV", "🗺️ Comparativo por estado disponível"],
+    },
+    {
+        "icon": "🧠", "title": "Inteligência de Dados",
+        "desc": (
+            "O módulo **🧠 Inteligência** rastreia preços semana a semana e avalia cada posto "
+            "com um **score A–D** baseado em preço (50%), serviços (30%) e distância (20%). "
+            "Gere também **relatórios de alerta** com postos acima do limite de preço configurado."
+        ),
+        "visual": [
+            ("📈","Histórico semanal de preços","#ede7f6"),
+            ("🟢","Score A — posto ideal","#e8f5e9"),
+            ("🟡","Score C — preço elevado","#fff8e1"),
+            ("⚠️","Alerta: acima da média ANP","#fce4ec"),
+        ],
+        "tips": [
+            "💡 Preços registrados automaticamente ao carregar a planilha PP",
+            "📥 Baixe o relatório de alertas em Excel (.xlsx)",
+        ],
     },
 ]
 
