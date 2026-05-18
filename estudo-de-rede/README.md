@@ -9,7 +9,9 @@ Versão 5.2 · Plataforma Web · Python / Streamlit · Plotly WebGL
 | Data | Maio / 2026 |
 | Tecnologia | Python 3.11+ / Streamlit / Plotly / OSRM / ANP |
 | Deploy | Streamlit Community Cloud |
-| Repositório | GitHub (estudo-de-rede) |
+| Repositório | [github.com/dperuffo/estudo-de-rede](https://github.com/dperuffo/estudo-de-rede) |
+
+> 📄 **Documentação completa em PDF:** [Gestao de Frotas.pdf](https://github.com/dperuffo/estudo-de-rede/blob/master/Gestao%20de%20Frotas.pdf)
 
 ---
 
