@@ -950,61 +950,303 @@ def _auth_user_from_token(token_result: dict, provider: str) -> dict:
 
 
 def _auth_login_page():
-    """Página de login — exibida quando o usuário não está autenticado."""
+    """Página de login — design moderno com fundo animado e glassmorphism."""
 
-    # ── Estilos do card de login ──
     st.markdown("""
     <style>
-    /* Centra o conteúdo na página de login */
+    /* ── Esconde elementos padrão do Streamlit na tela de login ── */
+    #MainMenu, header[data-testid="stHeader"], footer,
+    [data-testid="stSidebar"], [data-testid="stToolbar"],
+    [data-testid="collapsedControl"] { display: none !important; }
+
+    /* ── Fundo animado full-screen ── */
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, #0a0e27 0%, #0d1b4b 35%, #0a2a6e 65%, #061840 100%);
+        min-height: 100vh;
+        position: relative;
+        overflow: hidden;
+    }
+    [data-testid="stAppViewContainer"]::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+            radial-gradient(ellipse 80% 60% at 20% 30%, rgba(25,118,210,0.18) 0%, transparent 60%),
+            radial-gradient(ellipse 60% 50% at 80% 70%, rgba(0,200,150,0.10) 0%, transparent 55%),
+            radial-gradient(ellipse 50% 40% at 60% 10%, rgba(100,181,246,0.12) 0%, transparent 50%);
+        animation: bgPulse 8s ease-in-out infinite alternate;
+        pointer-events: none;
+        z-index: 0;
+    }
+    @keyframes bgPulse {
+        0%   { opacity: 0.7; transform: scale(1); }
+        100% { opacity: 1;   transform: scale(1.04); }
+    }
+
+    /* ── Partículas decorativas ── */
+    [data-testid="stAppViewContainer"]::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+            radial-gradient(circle 1.5px at 15% 20%, rgba(255,255,255,0.25) 0%, transparent 100%),
+            radial-gradient(circle 1px at 35% 55%, rgba(255,255,255,0.18) 0%, transparent 100%),
+            radial-gradient(circle 2px at 70% 15%, rgba(100,181,246,0.35) 0%, transparent 100%),
+            radial-gradient(circle 1px at 85% 40%, rgba(255,255,255,0.2) 0%, transparent 100%),
+            radial-gradient(circle 1.5px at 50% 80%, rgba(255,255,255,0.15) 0%, transparent 100%),
+            radial-gradient(circle 1px at 90% 75%, rgba(100,181,246,0.28) 0%, transparent 100%),
+            radial-gradient(circle 1px at 25% 90%, rgba(255,255,255,0.18) 0%, transparent 100%),
+            radial-gradient(circle 2px at 60% 45%, rgba(255,255,255,0.12) 0%, transparent 100%);
+        pointer-events: none;
+        z-index: 0;
+        animation: particlesDrift 12s ease-in-out infinite alternate;
+    }
+    @keyframes particlesDrift {
+        0%   { transform: translateY(0px); }
+        100% { transform: translateY(-12px); }
+    }
+
+    /* ── Centralização do conteúdo ── */
     section[data-testid="stMain"] > div:first-child {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 100vh !important;
+        padding: 2rem 1rem !important;
+        position: relative;
+        z-index: 1;
+    }
+    .block-container {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* ── Card principal — glassmorphism ── */
+    .login-card {
+        background: rgba(255, 255, 255, 0.07);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 28px;
+        padding: 3rem 2.8rem 2.4rem;
+        text-align: center;
+        box-shadow:
+            0 24px 64px rgba(0, 0, 0, 0.45),
+            0 4px 20px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255,255,255,0.12);
+        animation: cardAppear 0.6s cubic-bezier(0.16,1,0.3,1) both;
+        position: relative;
+        overflow: hidden;
+        max-width: 440px;
+        width: 100%;
+        margin: 0 auto;
+    }
+    .login-card::before {
+        content: "";
+        position: absolute;
+        top: -60px; left: -60px;
+        width: 180px; height: 180px;
+        background: radial-gradient(circle, rgba(100,181,246,0.15) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    @keyframes cardAppear {
+        from { opacity: 0; transform: translateY(28px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ── Logo ── */
+    .login-logo-ring {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px; height: 80px;
+        background: linear-gradient(135deg, rgba(25,118,210,0.5), rgba(0,200,150,0.3));
+        border: 2px solid rgba(100,181,246,0.4);
+        border-radius: 22px;
+        font-size: 42px;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 8px 24px rgba(25,118,210,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+        animation: logoPop 0.7s cubic-bezier(0.16,1,0.3,1) 0.2s both;
+    }
+    @keyframes logoPop {
+        from { opacity: 0; transform: scale(0.6) rotate(-10deg); }
+        to   { opacity: 1; transform: scale(1) rotate(0deg); }
+    }
+
+    /* ── Título e subtítulo ── */
+    .login-title {
+        font-size: 1.85rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ffffff 0%, #90caf9 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0 0 0.25rem;
+        letter-spacing: -0.5px;
+        animation: fadeUp 0.5s ease 0.3s both;
+    }
+    .login-badge {
+        display: inline-block;
+        background: linear-gradient(90deg, rgba(25,118,210,0.35), rgba(0,200,150,0.25));
+        border: 1px solid rgba(100,181,246,0.3);
+        border-radius: 20px;
+        padding: 3px 14px;
+        font-size: 0.75rem;
+        color: #90caf9;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        animation: fadeUp 0.5s ease 0.35s both;
+    }
+    .login-sub {
+        font-size: 0.875rem;
+        color: rgba(255,255,255,0.5);
+        margin-bottom: 2rem;
+        line-height: 1.55;
+        animation: fadeUp 0.5s ease 0.4s both;
+    }
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Divisor ── */
+    .login-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0.5rem 0 1.4rem;
+        animation: fadeUp 0.5s ease 0.45s both;
+    }
+    .login-divider::before, .login-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+    }
+    .login-divider span {
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.3);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* ── Features ── */
+    .login-features {
+        display: flex;
+        justify-content: center;
+        gap: 1.4rem;
+        margin-bottom: 1.8rem;
+        animation: fadeUp 0.5s ease 0.45s both;
+    }
+    .login-feature {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        min-height: 88vh;
+        gap: 5px;
     }
-    .auth-wrap { max-width: 420px; width: 100%; padding: 0 1rem; }
-    .auth-card {
-        background: #ffffff;
-        border-radius: 20px;
-        box-shadow: 0 8px 40px rgba(13,27,75,0.13);
-        padding: 2.8rem 2.6rem 2rem;
+    .login-feature-icon {
+        width: 38px; height: 38px;
+        background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 11px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+        transition: transform 0.2s, background 0.2s;
+    }
+    .login-feature-icon:hover {
+        transform: translateY(-3px);
+        background: rgba(100,181,246,0.15);
+    }
+    .login-feature-label {
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.4);
+        font-weight: 500;
         text-align: center;
-        margin-bottom: 0;
+        max-width: 60px;
+        line-height: 1.3;
     }
-    .auth-logo-emoji { font-size: 54px; line-height: 1; }
-    .auth-title {
-        font-size: 1.55rem; font-weight: 800;
-        color: #0D47A1; margin: 0.4rem 0 0.1rem;
+
+    /* ── Botões OAuth (override streamlit) ── */
+    div[data-testid="stButton"] > button,
+    div.stButton > button {
+        background: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
+        color: #ffffff !important;
+        border-radius: 14px !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        padding: 0.65rem 1.2rem !important;
+        transition: all 0.22s cubic-bezier(0.4,0,0.2,1) !important;
+        backdrop-filter: blur(8px) !important;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2) !important;
     }
-    .auth-sub {
-        font-size: 0.88rem; color: #78909c; margin-bottom: 1.8rem;
-        line-height: 1.5;
+    div[data-testid="stButton"] > button:hover,
+    div.stButton > button:hover {
+        background: rgba(255,255,255,0.14) !important;
+        border-color: rgba(255,255,255,0.32) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3) !important;
     }
-    .auth-hr {
-        border: none; border-top: 1px solid #e8edf5;
-        margin: 1.5rem 0 1.2rem;
-    }
-    .auth-footer {
-        font-size: 0.72rem; color: #b0bec5; margin-top: 1.4rem;
+
+    /* ── Rodapé ── */
+    .login-footer {
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.25);
+        margin-top: 1.6rem;
         line-height: 1.6;
+        animation: fadeUp 0.5s ease 0.6s both;
+    }
+    .login-footer a { color: rgba(144,202,249,0.5); text-decoration: none; }
+
+    /* ── Selo de versão ── */
+    .login-version {
+        position: fixed;
+        bottom: 1.2rem; right: 1.4rem;
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.2);
+        font-weight: 500;
+        z-index: 10;
     }
     </style>
     """, unsafe_allow_html=True)
 
     # ── Layout: coluna central ──
-    _, _c, _ = st.columns([1, 2.2, 1])
+    _, _c, _ = st.columns([1, 2.4, 1])
     with _c:
-        # Card de boas-vindas
+        # ── Card principal ──
         st.markdown("""
-        <div class='auth-card'>
-          <div class='auth-logo-emoji'>🗺️</div>
-          <div class='auth-title'>Estudo de Rede</div>
-          <div class='auth-sub'>
-            Gestão de Frotas<br>
-            Faça login para acessar a plataforma
+        <div class='login-card'>
+          <div class='login-logo-ring'>🗺️</div>
+          <div class='login-title'>Estudo de Rede</div>
+          <div class='login-badge'>Gestão de Frotas</div>
+          <div class='login-sub'>
+            Plataforma inteligente para análise de postos,<br>
+            roteirização e monitoramento de frota.
           </div>
-          <hr class='auth-hr'>
+
+          <div class='login-features'>
+            <div class='login-feature'>
+              <div class='login-feature-icon'>⛽</div>
+              <div class='login-feature-label'>Postos ANP</div>
+            </div>
+            <div class='login-feature'>
+              <div class='login-feature-icon'>🗺️</div>
+              <div class='login-feature-label'>Roteirização</div>
+            </div>
+            <div class='login-feature'>
+              <div class='login-feature-icon'>📊</div>
+              <div class='login-feature-label'>Dashboard</div>
+            </div>
+            <div class='login-feature'>
+              <div class='login-feature-icon'>🚛</div>
+              <div class='login-feature-label'>Pró-Frotas</div>
+            </div>
+          </div>
+
+          <div class='login-divider'><span>Acesso seguro</span></div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1025,7 +1267,7 @@ def _auth_login_page():
                 revoke_token_endpoint="https://oauth2.googleapis.com/revoke",
             )
             _res_g = _g_oauth.authorize_button(
-                name="Continuar com Google",
+                name="  Continuar com Google",
                 redirect_uri=_redir,
                 scope="openid email profile",
                 use_container_width=True,
@@ -1042,8 +1284,8 @@ def _auth_login_page():
         # ── Espaço entre botões ──
         if _OAUTH_GOOGLE_OK and _OAUTH_MS_OK:
             st.markdown(
-                "<div style='text-align:center;font-size:12px;color:#b0bec5;"
-                "margin:6px 0'>ou</div>",
+                "<div style='text-align:center;font-size:11px;color:rgba(255,255,255,0.25);"
+                "margin:8px 0;letter-spacing:1px;text-transform:uppercase'>ou</div>",
                 unsafe_allow_html=True,
             )
 
@@ -1063,7 +1305,7 @@ def _auth_login_page():
                 ),
             )
             _res_ms = _ms_oauth.authorize_button(
-                name="Continuar com Microsoft",
+                name="  Continuar com Microsoft",
                 redirect_uri=_redir,
                 scope="openid email profile User.Read",
                 use_container_width=True,
@@ -1077,10 +1319,11 @@ def _auth_login_page():
                 st.rerun()
 
         st.markdown(
-            "<p class='auth-footer'>Acesso restrito a colaboradores autorizados.<br>"
+            "<p class='login-footer'>🔒 Acesso restrito a colaboradores autorizados.<br>"
             "Em caso de dúvidas, contate o administrador do sistema.</p>",
             unsafe_allow_html=True,
         )
+        st.markdown("<div class='login-version'>v2.0 · Pró-Frotas</div>", unsafe_allow_html=True)
 
 
 # ── Inicializar estado de autenticação ──────────────────────────────
@@ -3027,8 +3270,8 @@ def _gerar_card_rota_png(rot_res: dict, sugest: list) -> bytes:
     _y -= 0.06
 
     # Linha divisória
-    ax_info.plot([0.05, 0.95], [_y + 0.01, _y + 0.01],
-                 color="#B0BEC5", linewidth=0.8, transform=ax_info.transAxes)
+    ax_info.axhline(_y + 0.01, xmin=0.05, xmax=0.95,
+                    color="#B0BEC5", linewidth=0.8, transform=ax_info.transAxes)
     _y -= 0.04
 
     # Stats
