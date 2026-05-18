@@ -1845,6 +1845,66 @@ def _hist_record_lote(
     return novos
 
 
+def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
+    """
+    Registra preços do _pp_df normalizado no histórico.
+
+    _pp_df tem colunas: cnpj_norm, combustivel_pk, combustivel_label,
+                        preco, data_atualizacao.
+    Retorna quantidade de novos registros adicionados.
+    """
+    if pp_df is None or pp_df.empty:
+        return 0
+
+    # Data de referência: usa data_atualizacao se disponível, senão hoje
+    _hoje = datetime.now().strftime("%Y-%m-%d")
+
+    intel = _intel_load()
+    hist  = intel["historico"]
+    novos = 0
+
+    for _, row in pp_df.iterrows():
+        _cnpj = str(row.get("cnpj_norm", "") or "").strip()
+        if len(_cnpj) != 14:
+            continue
+        _preco = pd.to_numeric(row.get("preco"), errors="coerce")
+        if pd.isna(_preco) or _preco <= 0:
+            continue
+        _comb = str(
+            row.get("combustivel_pk") or row.get("combustivel_label") or ""
+        ).upper().strip()
+        if not _comb:
+            continue
+
+        # Data: tenta usar data_atualizacao da planilha (YYYY-MM-DD)
+        _data_raw = str(row.get("data_atualizacao", "") or "").strip()
+        try:
+            _data = pd.to_datetime(_data_raw, dayfirst=True).strftime("%Y-%m-%d")
+        except Exception:
+            _data = _hoje
+
+        _lista = hist.setdefault(_cnpj, [])
+        _ja_tem = any(
+            e.get("data") == _data and e.get("combustivel") == _comb
+            for e in _lista
+        )
+        if not _ja_tem:
+            _lista.append({
+                "data":        _data,
+                "preco":       round(float(_preco), 3),
+                "combustivel": _comb,
+            })
+            if len(_lista) > 52:
+                _lista[:] = sorted(_lista, key=lambda e: e.get("data", ""))[-52:]
+            novos += 1
+
+    if novos > 0:
+        _intel_save(intel)
+        # Invalida o cache da sessão para que os KPIs sejam atualizados
+        st.session_state.pop("_intel_loaded", None)
+    return novos
+
+
 def _hist_get_posto(cnpj: str, combustivel: str = None) -> list:
     """Retorna histórico de preços de um posto (lista de dicts)."""
     _cnpj_n   = re.sub(r"\D", "", str(cnpj or ""))
@@ -9262,10 +9322,7 @@ with st.sidebar:
                     st.session_state["_pp_carregado_em"] = _agora()
                     # ── Auto-registro no histórico de inteligência ──
                     try:
-                        for _cc_pp in _pp_tmp.columns:
-                            if pd.api.types.is_numeric_dtype(_pp_tmp[_cc_pp]) and \
-                               ("preco" in _cc_pp.lower() or "preço" in _cc_pp.lower()):
-                                _hist_record_lote(_pp_tmp, _cc_pp.upper())
+                        _hist_record_pp_df(_pp_tmp)
                     except Exception:
                         pass
                     st.success(f"✅ {_pp_msg_tmp}")
@@ -9292,10 +9349,7 @@ with st.sidebar:
                         st.session_state["_pp_last_upload_id"]  = _pp_file_id
                         # ── Auto-registro no histórico de inteligência ──
                         try:
-                            for _cc_pp in _pp_up.columns:
-                                if pd.api.types.is_numeric_dtype(_pp_up[_cc_pp]) and \
-                                   ("preco" in _cc_pp.lower() or "preço" in _cc_pp.lower()):
-                                    _hist_record_lote(_pp_up, _cc_pp.upper())
+                            _hist_record_pp_df(_pp_up)
                         except Exception:
                             pass
                         st.success(_pp_msg_up)
@@ -9756,14 +9810,8 @@ with st.sidebar:
                     if st.button("🔄 Registrar preços atuais da planilha PP no histórico",
                                  key="btn_intel_registrar_pp",
                                  use_container_width=True):
-                        _n_reg = 0
-                        for _cc in _pp_df_intel.columns:
-                            if pd.api.types.is_numeric_dtype(_pp_df_intel[_cc]) and \
-                               ("preco" in _cc.lower() or "preço" in _cc.lower()):
-                                _n_reg += _hist_record_lote(
-                                    _pp_df_intel, _cc.upper())
-                        st.success(f"✅ {_n_reg} observações adicionadas ao histórico.")
-                        st.session_state.pop("_intel_loaded", None)
+                        _n_reg = _hist_record_pp_df(_pp_df_intel)
+                        st.success(f"✅ {_n_reg} novas observações registradas.")
                         st.rerun()
                 else:
                     st.caption("Carregue a planilha de Preços PP para ativar o registro de histórico.")
@@ -13655,12 +13703,7 @@ elif modo == "🧠 Inteligência":
                 st.caption(f"Planilha PP carregada: {len(_pp_df_pg):,} registros")
                 if st.button("🔄 Registrar preços atuais da planilha PP",
                              key="btn_hist_reg_pg", use_container_width=True):
-                    _n_reg_pg = 0
-                    for _cc_pg in _pp_df_pg.columns:
-                        if pd.api.types.is_numeric_dtype(_pp_df_pg[_cc_pg]) and \
-                           ("preco" in _cc_pg.lower() or "preço" in _cc_pg.lower()):
-                            _n_reg_pg += _hist_record_lote(_pp_df_pg, _cc_pg.upper())
-                    st.session_state.pop("_intel_loaded", None)
+                    _n_reg_pg = _hist_record_pp_df(_pp_df_pg)
                     st.success(f"✅ {_n_reg_pg} novas observações registradas.")
                     st.rerun()
             else:
