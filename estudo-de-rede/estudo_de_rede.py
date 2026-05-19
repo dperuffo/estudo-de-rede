@@ -258,6 +258,50 @@ def _db_historico_preco(cnpj: str, combustivel: str = None, dias: int = 90) -> l
     except Exception:
         return []
 
+
+# ── Logs de Acesso ─────────────────────────────────────────────────
+
+def _db_gravar_log(entry: dict) -> None:
+    """Grava um evento de log no Supabase. Fire-and-forget (falha silenciosa)."""
+    db = _db_client()
+    if not db:
+        return
+    try:
+        db.table("logs_acesso").insert({
+            "timestamp":     entry.get("timestamp"),
+            "data":          entry.get("data"),
+            "hora":          entry.get("hora"),
+            "ip":            entry.get("ip"),
+            "session_id":    entry.get("session_id"),
+            "user_email":    entry.get("user_email"),
+            "user_name":     entry.get("user_name"),
+            "auth_provider": entry.get("auth_provider"),
+            "modo":          entry.get("modo"),
+            "uf":            entry.get("uf"),
+            "municipio":     entry.get("municipio"),
+            "acao":          entry.get("acao"),
+            "detalhe":       entry.get("detalhe"),
+            "user_agent":    entry.get("user_agent"),
+        }).execute()
+    except Exception:
+        pass  # log nunca deve travar o app
+
+
+def _db_ler_logs(limite: int = 2000) -> list:
+    """Lê logs do Supabase. Retorna lista de dicts ordenada por mais recente."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        res = db.table("logs_acesso") \
+                .select("*") \
+                .order("criado_em", desc=True) \
+                .limit(limite) \
+                .execute()
+        return res.data or []
+    except Exception:
+        return []
+
 # ─── Imagem banner do sidebar (header) ───────────────────────────
 # Designer.jpg tem prioridade máxima; fallback para versões anteriores
 for _menu_nome in ["Designer.jpg", "designer.jpg", "Designer.png", "designer.png",
@@ -1947,10 +1991,12 @@ def _log_acesso(acao: str, detalhe: str = "", modo_override: str = None):
         st.session_state["_uso_logs"] = []
     st.session_state["_uso_logs"].append(_entry)
 
-    # ── Persiste em arquivo CSV ──
+    # ── Persiste no Supabase ──
+    _db_gravar_log(_entry)
+
+    # ── Persiste em arquivo CSV (fallback local) ──
     try:
         _existe = _os_mod.path.exists(_LOG_PATH)
-        # Validação de schema: se o header do arquivo não bate com _LOG_FIELDS, recria
         if _existe:
             try:
                 with open(_LOG_PATH, "r", encoding="utf-8") as _chk:
@@ -1971,16 +2017,22 @@ def _log_acesso(acao: str, detalhe: str = "", modo_override: str = None):
 
 
 def _log_ler_arquivo() -> list:
-    """Lê o arquivo de log e retorna lista de dicts. Combina com sessão atual."""
+    """Lê logs do Supabase (prioritário) + arquivo local + sessão atual."""
     _rows = []
-    try:
-        if _os_mod.path.exists(_LOG_PATH):
-            with open(_LOG_PATH, "r", encoding="utf-8") as _f:
-                _rows = list(_csv_mod.DictReader(_f))
-    except Exception:
-        pass
 
-    # Merge: arquivo + sessão atual (evita duplicatas por timestamp+session_id)
+    # ── 1. Tenta ler do Supabase ──
+    _rows = _db_ler_logs(limite=2000)
+
+    # ── 2. Fallback: arquivo CSV local (se banco vazio) ──
+    if not _rows:
+        try:
+            if _os_mod.path.exists(_LOG_PATH):
+                with open(_LOG_PATH, "r", encoding="utf-8") as _f:
+                    _rows = list(_csv_mod.DictReader(_f))
+        except Exception:
+            pass
+
+    # ── 3. Merge com sessão atual (evita duplicatas) ──
     _sess_logs = st.session_state.get("_uso_logs", [])
     _seen = {(r.get("timestamp"), r.get("session_id")) for r in _rows}
     for _r in _sess_logs:
