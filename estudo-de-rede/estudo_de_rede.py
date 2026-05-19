@@ -13102,6 +13102,10 @@ elif modo == "🔍 Consulta por Posto":
                     unsafe_allow_html=True,
                 )
                 st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+                # Garante que fav_cnpjs está carregado
+                if "fav_cnpjs" not in st.session_state:
+                    st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _db_favoritos()}
+
                 for _idx_od, _row_od in _df_m3_od.iterrows():
                     _ic_od  = "⭐" if bool(_row_od.get("_pro_frotas")) else "⛽"
                     _nm_od  = str(_row_od.get("razaoSocial", "?"))[:50]
@@ -13118,10 +13122,13 @@ elif modo == "🔍 Consulta por Posto":
                     # Destaca quando já selecionado
                     _is_orig_od = (_m3_map_o or {}).get("cnpj") == _cn_od and _cn_od != "—"
                     _is_dest_od = (_m3_map_d or {}).get("cnpj") == _cn_od and _cn_od != "—"
+                    _e_fav_od   = _cn_od in st.session_state["fav_cnpjs"]
                     _brd_od = ("#43a047" if _is_orig_od else
-                               "#e53935" if _is_dest_od else "#e0e0e0")
+                               "#e53935" if _is_dest_od else
+                               "#f9a825" if _e_fav_od  else "#e0e0e0")
                     _bg_od  = ("#f1f8e9" if _is_orig_od else
-                               "#fff8f8" if _is_dest_od else "#fff")
+                               "#fff8f8" if _is_dest_od else
+                               "#fffde7" if _e_fav_od  else "#fff")
                     st.markdown(
                         f"<div style='background:{_bg_od};border:1px solid {_brd_od};"
                         f"border-radius:8px;padding:8px 12px;margin-bottom:4px;"
@@ -13133,9 +13140,9 @@ elif modo == "🔍 Consulta por Posto":
                         f"</div></div>",
                         unsafe_allow_html=True,
                     )
-                    _c1_od, _c2_od = st.columns(2)
+                    _c1_od, _c2_od, _c3_od = st.columns(3)
                     if _c1_od.button(
-                        "🟢 Definir Origem" + (" ✔" if _is_orig_od else ""),
+                        "🟢 Origem" + (" ✔" if _is_orig_od else ""),
                         key=f"m3_set_orig_{_idx_od}",
                         use_container_width=True,
                         type="primary" if not _m3_o_ok else "secondary",
@@ -13144,13 +13151,36 @@ elif modo == "🔍 Consulta por Posto":
                         st.session_state["_map_orig"] = _sel_od
                         st.rerun()
                     if _c2_od.button(
-                        "🔴 Definir Destino" + (" ✔" if _is_dest_od else ""),
+                        "🔴 Destino" + (" ✔" if _is_dest_od else ""),
                         key=f"m3_set_dest_{_idx_od}",
                         use_container_width=True,
                         type="primary" if not _m3_d_ok else "secondary",
                         help="Marcar como ponto de chegada da rota",
                     ):
                         st.session_state["_map_dest"] = _sel_od
+                        st.rerun()
+                    _fav_lbl_od = "⭐ Fav." if _e_fav_od else "☆ Fav."
+                    if _c3_od.button(
+                        _fav_lbl_od,
+                        key=f"m3_fav_{_idx_od}",
+                        use_container_width=True,
+                        help="Adicionar/remover dos favoritos",
+                    ):
+                        if _e_fav_od:
+                            _db_remove_favorito(_cn_od)
+                            st.session_state["fav_cnpjs"].discard(_cn_od)
+                            st.toast("Removido dos favoritos", icon="🔖")
+                        else:
+                            _db_add_favorito(
+                                _cn_od,
+                                str(_row_od.get("razaoSocial", "")),
+                                str(_row_od.get("municipio", "")),
+                                str(_row_od.get("uf", "")),
+                                float(_row_od.get("_lat") or 0),
+                                float(_row_od.get("_lon") or 0),
+                            )
+                            st.session_state["fav_cnpjs"].add(_cn_od)
+                            st.toast("Adicionado aos favoritos!", icon="🌟")
                         st.rerun()
                 if len(_df_m3) > 8:
                     st.caption(f"Exibindo 8 de {len(_df_m3)} resultados. Refine a busca para ver mais.")
