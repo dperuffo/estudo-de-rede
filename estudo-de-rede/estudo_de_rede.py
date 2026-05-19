@@ -1061,14 +1061,30 @@ def _auth_login_page():
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 80px; height: 80px;
-        background: linear-gradient(135deg, rgba(25,118,210,0.5), rgba(0,200,150,0.3));
-        border: 2px solid rgba(100,181,246,0.4);
-        border-radius: 22px;
-        font-size: 42px;
-        margin-bottom: 1.2rem;
-        box-shadow: 0 8px 24px rgba(25,118,210,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+        width: 120px; height: 120px;
+        background: linear-gradient(135deg, rgba(13,71,161,0.7), rgba(25,118,210,0.5), rgba(0,200,150,0.25));
+        border: 2px solid rgba(100,181,246,0.5);
+        border-radius: 30px;
+        margin-bottom: 1.4rem;
+        box-shadow:
+            0 12px 40px rgba(25,118,210,0.45),
+            0 4px 16px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.2);
         animation: logoPop 0.7s cubic-bezier(0.16,1,0.3,1) 0.2s both;
+        position: relative;
+        overflow: hidden;
+    }
+    .login-logo-ring::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 30% 30%, rgba(100,181,246,0.3) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .login-logo-svg {
+        width: 72px; height: 72px;
+        position: relative; z-index: 1;
+        filter: drop-shadow(0 4px 12px rgba(25,118,210,0.6));
     }
     @keyframes logoPop {
         from { opacity: 0; transform: scale(0.6) rotate(-10deg); }
@@ -1170,26 +1186,35 @@ def _auth_login_page():
         line-height: 1.3;
     }
 
-    /* ── Botões OAuth (override streamlit) ── */
+    /* ── Botões OAuth (override streamlit) — discreto ── */
     div[data-testid="stButton"] > button,
     div.stButton > button {
-        background: rgba(255,255,255,0.08) !important;
-        border: 1px solid rgba(255,255,255,0.18) !important;
-        color: #ffffff !important;
-        border-radius: 14px !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        padding: 0.65rem 1.2rem !important;
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+        color: rgba(255,255,255,0.6) !important;
+        border-radius: 10px !important;
+        font-weight: 500 !important;
+        font-size: 0.78rem !important;
+        padding: 0.45rem 1rem !important;
         transition: all 0.22s cubic-bezier(0.4,0,0.2,1) !important;
         backdrop-filter: blur(8px) !important;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.2) !important;
+        box-shadow: none !important;
+        max-width: 220px !important;
+        margin: 0 auto !important;
     }
     div[data-testid="stButton"] > button:hover,
     div.stButton > button:hover {
-        background: rgba(255,255,255,0.14) !important;
-        border-color: rgba(255,255,255,0.32) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.3) !important;
+        background: rgba(255,255,255,0.10) !important;
+        border-color: rgba(255,255,255,0.20) !important;
+        color: rgba(255,255,255,0.85) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.2) !important;
+    }
+    /* Centraliza o botão OAuth */
+    div[data-testid="stButton"],
+    div.stButton {
+        display: flex !important;
+        justify-content: center !important;
     }
 
     /* ── Rodapé ── */
@@ -1220,7 +1245,34 @@ def _auth_login_page():
         # ── Card principal ──
         st.markdown("""
         <div class='login-card'>
-          <div class='login-logo-ring'>🗺️</div>
+          <div class='login-logo-ring'>
+            <svg class='login-logo-svg' viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Fundo do mapa -->
+              <rect x="6" y="10" width="60" height="52" rx="6" fill="rgba(13,71,161,0.6)" stroke="rgba(100,181,246,0.4)" stroke-width="1.2"/>
+              <!-- Grade do mapa -->
+              <line x1="6" y1="27" x2="66" y2="27" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
+              <line x1="6" y1="44" x2="66" y2="44" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
+              <line x1="24" y1="10" x2="24" y2="62" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
+              <line x1="48" y1="10" x2="48" y2="62" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
+              <!-- Rota principal (estrada) -->
+              <path d="M12 52 Q22 44 30 36 Q40 26 52 20" stroke="#64B5F6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 52 Q22 44 30 36 Q40 26 52 20" stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round"/>
+              <!-- Rota secundária -->
+              <path d="M30 36 Q38 42 52 48" stroke="rgba(100,181,246,0.5)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3"/>
+              <!-- Marcador origem (verde) -->
+              <circle cx="12" cy="52" r="5" fill="#2E7D32" stroke="white" stroke-width="1.5"/>
+              <circle cx="12" cy="52" r="2.5" fill="white"/>
+              <!-- Marcador destino (vermelho) -->
+              <circle cx="52" cy="20" r="5" fill="#C62828" stroke="white" stroke-width="1.5"/>
+              <circle cx="52" cy="20" r="2.5" fill="white"/>
+              <!-- Posto intermediário (laranja) -->
+              <polygon points="30,31 33,38 27,38" fill="#FF8F00" stroke="white" stroke-width="1.2"/>
+              <!-- Legenda mini -->
+              <rect x="38" y="48" width="22" height="10" rx="3" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+              <circle cx="43" cy="53" r="2" fill="#2E7D32"/>
+              <circle cx="53" cy="53" r="2" fill="#C62828"/>
+            </svg>
+          </div>
           <div class='login-title'>Estudo de Rede</div>
           <div class='login-badge'>Gestão de Frotas</div>
           <div class='login-sub'>
@@ -1243,7 +1295,7 @@ def _auth_login_page():
             </div>
             <div class='login-feature'>
               <div class='login-feature-icon'>🚛</div>
-              <div class='login-feature-label'>Pró-Frotas</div>
+              <div class='login-feature-label'>GF</div>
             </div>
           </div>
 
