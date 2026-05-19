@@ -11752,81 +11752,25 @@ if modo == "📍 Por UF/Município":
             "📊  Análise por Bandeira"])
 
         with tab_mapa:
+            # Constrói o objeto do mapa (pesado) dentro do spinner
+            _mapa_obj_m1  = None
+            _mapa_err_m1  = None
             with st.spinner(f"🗺️ Carregando mapa — {_n(len(df_show))} postos…"):
                 try:
-                    _mapa_obj = criar_mapa(df_show)
-                    _renderizar_mapa(_mapa_obj, height=660, key="mapa_m1_main")
-                except Exception as _mapa_err:
-                    st.error(
-                        f"❌ Erro ao gerar o mapa para **{uf}**.\n\n"
-                        f"**Detalhe:** `{type(_mapa_err).__name__}: {_mapa_err}`\n\n"
-                        "Tente recarregar a página ou selecionar outro estado."
-                    )
-                    import traceback
-                    st.code(traceback.format_exc(), language="python")
+                    _mapa_obj_m1 = criar_mapa(df_show)
+                except Exception as _mapa_err_m1:
+                    pass
 
-            # ── Painel de ação para posto selecionado no mapa ─────────────
-            _sel_m1 = st.session_state.get("_msel_mapa_m1_main")
-            if _sel_m1:
-                _cn_m1  = str(_sel_m1.get("cnpj", ""))
-                _nm_m1  = str(_sel_m1.get("nome", ""))
-                _mun_m1 = str(_sel_m1.get("geo", "")).split("/")[0].strip()
-                _uf_m1  = str(_sel_m1.get("geo", "")).split("/")[-1].strip()
-                _lat_m1 = float(_sel_m1.get("lat") or 0)
-                _lon_m1 = float(_sel_m1.get("lon") or 0)
-
-                # Garante que fav_cnpjs está carregado
-                if "fav_cnpjs" not in st.session_state:
-                    st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _db_favoritos()}
-                _e_fav_m1 = _cn_m1 in st.session_state["fav_cnpjs"]
-
-                st.markdown(
-                    "<div style='background:linear-gradient(90deg,#fff8e1,#fffde7);"
-                    "border:1.5px solid #f9a825;border-radius:8px;"
-                    "padding:10px 14px;margin:6px 0 4px;"
-                    "font-size:13px;color:#5f4307'>"
-                    "<b>📌 Ações para o posto selecionado</b>"
-                    "</div>",
-                    unsafe_allow_html=True,
+            if _mapa_err_m1:
+                st.error(
+                    f"❌ Erro ao gerar o mapa para **{uf}**.\n\n"
+                    f"**Detalhe:** `{type(_mapa_err_m1).__name__}: {_mapa_err_m1}`\n\n"
+                    "Tente recarregar a página ou selecionar outro estado."
                 )
-                _act1, _act2 = st.columns(2)
-                with _act1:
-                    _fav_lbl_m1 = "⭐ Remover Favorito" if _e_fav_m1 else "☆ Adicionar Favorito"
-                    if st.button(_fav_lbl_m1, use_container_width=True,
-                                 key="btn_fav_m1_map"):
-                        if _e_fav_m1:
-                            _db_remove_favorito(_cn_m1)
-                            st.session_state["fav_cnpjs"].discard(_cn_m1)
-                            st.toast("Removido dos favoritos", icon="🔖")
-                        else:
-                            _db_add_favorito(_cn_m1, _nm_m1, _mun_m1,
-                                             _uf_m1, _lat_m1, _lon_m1)
-                            st.session_state["fav_cnpjs"].add(_cn_m1)
-                            st.toast("Adicionado aos favoritos!", icon="🌟")
-                        st.rerun()
-                with _act2:
-                    _nota_key_m1 = f"nota_posto_{_cn_m1}"
-                    if _nota_key_m1 not in st.session_state:
-                        st.session_state[_nota_key_m1] = _db_nota_posto(_cn_m1)
-                    _tem_nota_m1 = bool(st.session_state[_nota_key_m1])
-                    _exp_lbl_m1  = f"📝 Anotação{'  ✏️' if _tem_nota_m1 else ''}"
-
-                with st.expander(_exp_lbl_m1, expanded=False):
-                    _nota_val_m1 = st.text_area(
-                        "Nota",
-                        value=st.session_state[_nota_key_m1],
-                        height=100,
-                        key=f"ta_m1_map_{_cn_m1}",
-                        placeholder="Contato, condições, restrições…",
-                        label_visibility="collapsed",
-                    )
-                    if st.button("💾 Salvar anotação", key=f"btn_nota_m1_map_{_cn_m1}",
-                                 use_container_width=True):
-                        if _db_salvar_nota_posto(_cn_m1, _nota_val_m1):
-                            st.session_state[_nota_key_m1] = _nota_val_m1
-                            st.toast("✅ Anotação salva!", icon="📝")
-                        else:
-                            st.error("❌ Erro ao salvar.")
+            elif _mapa_obj_m1 is not None:
+                # Renderiza o mapa FORA do spinner para que o banner de seleção
+                # apareça corretamente acima do mapa (igual ao Modo Busca)
+                _renderizar_mapa(_mapa_obj_m1, height=660, key="mapa_m1_main")
 
             # ── Exportar mapa como PNG ─────────────────────────────
             _mc1, _mc2 = st.columns([5, 1])
