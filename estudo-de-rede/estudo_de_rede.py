@@ -13182,6 +13182,29 @@ elif modo == "🔍 Consulta por Posto":
                             st.session_state["fav_cnpjs"].add(_cn_od)
                             st.toast("Adicionado aos favoritos!", icon="🌟")
                         st.rerun()
+
+                    # ── Anotação por posto ────────────────────────────
+                    _nota_key_od = f"nota_posto_{_cn_od}"
+                    if _nota_key_od not in st.session_state:
+                        st.session_state[_nota_key_od] = _db_nota_posto(_cn_od)
+                    _tem_nota_od = bool(st.session_state[_nota_key_od])
+                    _exp_lbl_od  = f"📝 Anotação{'  ✏️' if _tem_nota_od else ''}"
+                    with st.expander(_exp_lbl_od, expanded=False):
+                        _nota_val_od = st.text_area(
+                            "Nota",
+                            value=st.session_state[_nota_key_od],
+                            height=90,
+                            key=f"ta_m3_{_cn_od}_{_idx_od}",
+                            placeholder="Contato, condições, restrições…",
+                            label_visibility="collapsed",
+                        )
+                        if st.button("💾 Salvar", key=f"btn_nota_m3_{_cn_od}_{_idx_od}",
+                                     use_container_width=True):
+                            if _db_salvar_nota_posto(_cn_od, _nota_val_od):
+                                st.session_state[_nota_key_od] = _nota_val_od
+                                st.toast("✅ Anotação salva!", icon="📝")
+                            else:
+                                st.error("❌ Erro ao salvar.")
                 if len(_df_m3) > 8:
                     st.caption(f"Exibindo 8 de {len(_df_m3)} resultados. Refine a busca para ver mais.")
 
