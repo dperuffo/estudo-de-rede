@@ -11744,7 +11744,18 @@ if modo == "📍 Por UF/Município":
                             f"</div></div>",
                             unsafe_allow_html=True,
                         )
-                        _c1r, _c2r = st.columns(2)
+                        _cnpj_r = "".join(c for c in str(_row_r.get("cnpj","")) if c.isdigit())
+                        _nome_r = str(_row_r.get("razaoSocial",""))
+                        _mun_r  = str(_row_r.get("municipio",""))
+                        _uf_r   = str(_row_r.get("uf",""))
+                        _lat_r  = float(_row_r.get("_lat", 0) or 0)
+                        _lon_r  = float(_row_r.get("_lon", 0) or 0)
+
+                        if "fav_cnpjs" not in st.session_state:
+                            st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _db_favoritos()}
+                        _e_fav_r = _cnpj_r in st.session_state["fav_cnpjs"]
+
+                        _c1r, _c2r, _c3r = st.columns([2, 2, 1])
                         if _c1r.button(
                             "🟢 Definir como Origem",
                             key=f"set_orig_{_idx_r}",
@@ -11779,6 +11790,44 @@ if modo == "📍 Por UF/Município":
                             }
                             st.session_state.pop("_map_rota_result", None)
                             st.rerun()
+                        # ── Botão favorito ─────────────────────────────
+                        _fav_ico = "⭐" if _e_fav_r else "☆"
+                        if _c3r.button(
+                            _fav_ico,
+                            key=f"fav_m1_{_idx_r}",
+                            use_container_width=True,
+                            help="Remover dos favoritos" if _e_fav_r else "Adicionar aos favoritos",
+                        ):
+                            if _e_fav_r:
+                                _db_remove_favorito(_cnpj_r)
+                                st.session_state["fav_cnpjs"].discard(_cnpj_r)
+                                st.toast("Removido dos favoritos", icon="☆")
+                            else:
+                                _db_add_favorito(_cnpj_r, _nome_r, _mun_r, _uf_r, _lat_r, _lon_r)
+                                st.session_state["fav_cnpjs"].add(_cnpj_r)
+                                st.toast("Adicionado aos favoritos!", icon="⭐")
+                            st.rerun()
+
+                        # ── Anotação rápida ────────────────────────────
+                        with st.expander("📝 Anotação", expanded=False):
+                            _nk = f"nota_posto_{_cnpj_r}"
+                            if _nk not in st.session_state:
+                                st.session_state[_nk] = _db_nota_posto(_cnpj_r)
+                            _nv = st.text_area(
+                                "Nota",
+                                value=st.session_state[_nk],
+                                height=90,
+                                key=f"ta_{_nk}_m1",
+                                placeholder="Contato, condições, restrições…",
+                                label_visibility="collapsed",
+                            )
+                            if st.button("💾 Salvar", key=f"sv_nota_{_cnpj_r}_m1",
+                                         use_container_width=True):
+                                if _db_salvar_nota_posto(_cnpj_r, _nv):
+                                    st.session_state[_nk] = _nv
+                                    st.toast("✅ Anotação salva!", icon="📝")
+                                else:
+                                    st.error("❌ Erro ao salvar.")
                 else:
                     st.warning("⚠️ Nenhum posto encontrado. Tente um nome diferente ou apenas parte do CNPJ.")
 
