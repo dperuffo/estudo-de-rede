@@ -3846,8 +3846,8 @@ def _gerar_card_rota_png(rot_res: dict, sugest: list) -> bytes:
     _y -= 0.06
 
     # Linha divisória
-    ax_info.axhline(_y + 0.01, xmin=0.05, xmax=0.95,
-                    color="#B0BEC5", linewidth=0.8, transform=ax_info.transAxes)
+    ax_info.plot([0.05, 0.95], [_y + 0.01, _y + 0.01],
+                 color="#B0BEC5", linewidth=0.8, transform=ax_info.transAxes)
     _y -= 0.04
 
     # Stats
