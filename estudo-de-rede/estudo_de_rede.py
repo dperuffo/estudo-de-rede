@@ -2844,20 +2844,33 @@ ARQUIVO_PP_REPO       = "preco_posto.xlsx"   # planilha de preços por posto
 _PP_PARSER_VERSION    = "v5"                 # incrementar aqui força re-parse automático
 ARQUIVO_DOC_PDF       = "documentacao_gestao_frotas.pdf"   # documentação da aplicação
 
+# Candidatos de nome para o PDF de documentação (ordem de prioridade)
+_DOC_PDF_CANDIDATOS = [
+    "Gestao de Frotas.pdf",
+    "Gestão de Frotas.pdf",
+    "gestao_de_frotas.pdf",
+    "documentacao_gestao_frotas.pdf",
+    "documentacao_gestao_frotas.pdf",
+    "Documentacao_Gestao_Frotas.pdf",
+    "gestao de frotas.pdf",
+]
+
 
 @st.cache_data(show_spinner=False, ttl=86400)   # 24 h — relê o PDF do repo uma vez por dia
 def _carregar_doc_pdf():
     """
     Carrega o PDF de documentação do repositório.
+    Tenta vários nomes possíveis para o arquivo.
     Retorna (bytes, nome_arquivo) ou (None, None) se não encontrado.
     """
-    _caminho_doc = os.path.join(_DIR, ARQUIVO_DOC_PDF)
-    if os.path.exists(_caminho_doc):
-        try:
-            with open(_caminho_doc, "rb") as _f:
-                return _f.read(), ARQUIVO_DOC_PDF
-        except Exception:
-            return None, None
+    for _nome in _DOC_PDF_CANDIDATOS:
+        _caminho_doc = os.path.join(_DIR, _nome)
+        if os.path.exists(_caminho_doc):
+            try:
+                with open(_caminho_doc, "rb") as _f:
+                    return _f.read(), _nome
+            except Exception:
+                continue
     return None, None
 
 
@@ -10542,19 +10555,51 @@ with st.sidebar:
             st.session_state["_tour_ativo"] = True
             st.rerun()
 
-    # ── README — link para documentação PDF ──────────────────────────────────
+    # ── README — visualização do PDF de documentação ─────────────────────────
     _doc_bytes, _doc_nome = _carregar_doc_pdf()
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     if _doc_bytes:
         _col_doc_l, _col_doc_c, _col_doc_r = st.columns([1, 4, 1])
         with _col_doc_c:
+            if st.button(
+                "📄 README — Documentação",
+                use_container_width=True,
+                key="btn_doc_pdf",
+                help="Visualizar documentação da aplicação",
+            ):
+                st.session_state["_doc_aberto"] = not st.session_state.get("_doc_aberto", False)
+                st.rerun()
+
+        # Exibe o PDF inline se aberto
+        if st.session_state.get("_doc_aberto") and _doc_bytes:
+            _doc_b64 = base64.b64encode(_doc_bytes).decode("utf-8")
+            st.markdown(
+                f"""
+                <div style="margin:1rem 0;border-radius:12px;overflow:hidden;
+                            box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+                  <div style="background:#1565C0;color:#fff;padding:10px 16px;
+                              font-weight:600;font-size:13px;display:flex;
+                              justify-content:space-between;align-items:center;">
+                    <span>📄 {_doc_nome}</span>
+                  </div>
+                  <iframe
+                    src="data:application/pdf;base64,{_doc_b64}"
+                    width="100%"
+                    height="820px"
+                    style="border:none;display:block;"
+                    type="application/pdf">
+                  </iframe>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            # Botão de download como alternativa
             st.download_button(
-                label="📄 README — Documentação",
+                "⬇️ Baixar PDF",
                 data=_doc_bytes,
                 file_name=_doc_nome,
                 mime="application/pdf",
-                use_container_width=True,
-                help="Abrir documentação técnica e executiva da aplicação (PDF)",
+                key="btn_doc_download",
             )
     else:
         _col_doc_l, _col_doc_c, _col_doc_r = st.columns([1, 4, 1])
