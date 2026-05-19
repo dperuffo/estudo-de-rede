@@ -211,6 +211,97 @@ def _db_remove_favorito(cnpj: str) -> bool:
         return False
 
 
+# ── Notas por Posto ───────────────────────────────────────────────
+
+def _db_nota_posto(cnpj: str) -> str:
+    """Retorna a nota interna salva para um posto (por CNPJ)."""
+    db = _db_client()
+    if not db or not cnpj:
+        return ""
+    try:
+        res = db.table("notas_posto") \
+                .select("nota") \
+                .eq("usuario_email", _db_email()) \
+                .eq("cnpj", cnpj) \
+                .limit(1) \
+                .execute()
+        return res.data[0]["nota"] if res.data else ""
+    except Exception:
+        return ""
+
+
+def _db_salvar_nota_posto(cnpj: str, nota: str) -> bool:
+    """Salva/atualiza nota interna para um posto."""
+    db = _db_client()
+    if not db or not cnpj:
+        return False
+    try:
+        db.table("notas_posto").upsert({
+            "usuario_email": _db_email(),
+            "cnpj":          cnpj,
+            "nota":          nota.strip(),
+            "atualizado_em": datetime.now().isoformat(),
+        }, on_conflict="usuario_email,cnpj").execute()
+        return True
+    except Exception:
+        return False
+
+
+# ── Perfis de Veículo ─────────────────────────────────────────────
+
+def _db_perfis_veiculo() -> list:
+    """Lista perfis de veículo salvos pelo usuário."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        res = db.table("perfis_veiculo") \
+                .select("*") \
+                .eq("usuario_email", _db_email()) \
+                .order("criado_em", desc=False) \
+                .execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def _db_salvar_perfil_veiculo(nome: str, placa: str, combustivel: str,
+                               tanque: float, autonomia: float) -> bool:
+    """Salva um novo perfil de veículo."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("perfis_veiculo").insert({
+            "usuario_email": _db_email(),
+            "nome":          nome.strip() or placa or "Veículo",
+            "placa":         placa.strip().upper(),
+            "combustivel":   combustivel,
+            "tanque":        tanque,
+            "autonomia":     autonomia,
+            "criado_em":     datetime.now().isoformat(),
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _db_deletar_perfil_veiculo(perfil_id) -> bool:
+    """Remove um perfil de veículo."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("perfis_veiculo") \
+          .delete() \
+          .eq("id", perfil_id) \
+          .eq("usuario_email", _db_email()) \
+          .execute()
+        return True
+    except Exception:
+        return False
+
+
 # ── Histórico de Preços ────────────────────────────────────────────
 
 def _db_gravar_preco(cnpj: str, razao_social: str, municipio: str, uf: str,
@@ -8989,6 +9080,38 @@ with st.sidebar:
                 help="Filtra os postos Gestão de Frotas pelo perfil de venda. Postos não-GF sempre exibidos.",
             )
 
+        # ── Favoritos ─────────────────────────────────────────────────────
+        if "fav_cnpjs" not in st.session_state:
+            _favs_raw = _db_favoritos()
+            st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _favs_raw}
+
+        _filtro_apenas_favoritos_m1 = st.checkbox(
+            "⭐ Apenas Favoritos",
+            key="chk_apenas_fav_m1",
+            help="Exibe somente os postos que você marcou como favoritos",
+        )
+
+        # Painel de gerenciamento de favoritos
+        _fav_list = _db_favoritos() if st.session_state.get("fav_cnpjs") else []
+        if _fav_list:
+            with st.expander(f"⭐ Meus Favoritos ({len(_fav_list)})", expanded=False):
+                for _fv in _fav_list:
+                    _fv_col1, _fv_col2 = st.columns([4, 1])
+                    with _fv_col1:
+                        st.markdown(
+                            f"<div style='font-size:11px;font-weight:600;line-height:1.3'>"
+                            f"{_fv.get('razao_social','—')[:35]}</div>"
+                            f"<div style='font-size:10px;color:#888'>"
+                            f"{_fv.get('municipio','')} / {_fv.get('uf','')}</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _fv_col2:
+                        if st.button("✕", key=f"rm_fav_{_fv['cnpj']}",
+                                     help="Remover dos favoritos"):
+                            _db_remove_favorito(_fv["cnpj"])
+                            st.session_state["fav_cnpjs"].discard(_fv["cnpj"])
+                            st.rerun()
+
         # ── Filtros Avançados ─────────────────────────────────────────────
         _pp_df_adv   = st.session_state.get("_pp_df")
         _svc_cols    = st.session_state.get("_servicos_cols_disponiveis", [])
@@ -9525,6 +9648,39 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
+        # ── Seletor de Perfis de Veículo ─────────────────────────────────
+        _perfis_db = _db_perfis_veiculo()
+        if _perfis_db:
+            st.markdown("<div class='sb-label'>🚗 Perfis Salvos</div>", unsafe_allow_html=True)
+            _perfis_opcoes = ["— Selecione um perfil —"] + [
+                f"{p['nome']} · {p.get('placa','').upper() or '—'}" for p in _perfis_db
+            ]
+            _perfil_sel_idx = st.selectbox(
+                "Perfil de veículo",
+                range(len(_perfis_opcoes)),
+                format_func=lambda i: _perfis_opcoes[i],
+                key="rot_perfil_sel",
+                label_visibility="collapsed",
+            )
+            if _perfil_sel_idx and _perfil_sel_idx > 0:
+                _psel = _perfis_db[_perfil_sel_idx - 1]
+                _c_load, _c_del = st.columns([3, 1])
+                with _c_load:
+                    if st.button("⬇️ Carregar perfil", use_container_width=True,
+                                 key="btn_carregar_perfil"):
+                        st.session_state["rot_placa"]      = _psel.get("placa", "")
+                        st.session_state["rot_combustivel"] = _psel.get("combustivel", "")
+                        st.session_state["rot_capacidade"] = float(_psel.get("tanque") or 80.0)
+                        st.session_state["rot_autonomia"]  = float(_psel.get("autonomia") or 10.0)
+                        st.toast(f"✅ Perfil **{_psel['nome']}** carregado!", icon="🚛")
+                        st.rerun()
+                with _c_del:
+                    if st.button("🗑️", key="btn_del_perfil",
+                                 help="Excluir este perfil"):
+                        _db_deletar_perfil_veiculo(_psel["id"])
+                        st.toast("Perfil excluído", icon="🗑️")
+                        st.rerun()
+
         st.markdown("<div class='sb-label'>🚛 Dados do Veículo</div>", unsafe_allow_html=True)
 
         st.text_input(
@@ -9584,7 +9740,29 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
+        # ── Salvar como perfil de veículo ────────────────────────────────
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        with st.expander("💾 Salvar como perfil", expanded=False):
+            _nome_perfil = st.text_input(
+                "Nome do perfil",
+                placeholder="Ex: Scania R450 / Bitrem / Carreta",
+                key="rot_nome_perfil",
+                label_visibility="visible",
+            )
+            if st.button("💾 Salvar perfil", use_container_width=True,
+                         key="btn_salvar_perfil_veiculo"):
+                _placa_atual  = str(st.session_state.get("rot_placa") or "")
+                _comb_atual   = str(st.session_state.get("rot_combustivel") or "")
+                _tank_atual   = float(st.session_state.get("rot_capacidade") or 80.0)
+                _aut_atual    = float(st.session_state.get("rot_autonomia") or 10.0)
+                _nome_final   = _nome_perfil.strip() or _placa_atual or "Veículo"
+                if _db_salvar_perfil_veiculo(_nome_final, _placa_atual, _comb_atual,
+                                             _tank_atual, _aut_atual):
+                    st.toast(f"✅ Perfil **{_nome_final}** salvo!", icon="🚛")
+                    st.rerun()
+                else:
+                    st.error("❌ Erro ao salvar. Verifique a conexão com o banco.")
+
         st.caption("💡 Configure a origem, destino e paradas na área principal →")
 
     # ── Defaults para variáveis do Modo 2 quando outro modo está ativo ────────
@@ -11197,6 +11375,14 @@ if modo == "📍 Por UF/Município":
                 _sem_preco_m1 = ~df_show["_cnpj_norm"].isin(_fuel_df_m1["cnpj_norm"])
                 df_show = df_show[_sem_preco_m1 | df_show["_cnpj_norm"].isin(_cnpj_ok_m1)]
 
+        # ── Filtro Apenas Favoritos ──────────────────────────────────────────
+        if _filtro_apenas_favoritos_m1 and st.session_state.get("fav_cnpjs"):
+            _fav_set_m1 = st.session_state["fav_cnpjs"]
+            _cnpj_col   = "_cnpj_norm" if "_cnpj_norm" in df_show.columns else "cnpj"
+            df_show = df_show[
+                df_show[_cnpj_col].fillna("").str.replace(r"\D", "", regex=True).isin(_fav_set_m1)
+            ]
+
         # ── Ranking Top 5 Mais Baratos ──────────────────────────────────────
         _fuel_rank_m1 = _fuel_sel_m1 if (_fuel_sel_m1 and _fuel_sel_m1 != "— Todos —") else None
         _top5_m1 = _calcular_top5_baratos(df_show, fuel_label=_fuel_rank_m1)
@@ -12694,6 +12880,54 @@ elif modo == "🔍 Consulta por Posto":
                         f"</table></div>",
                         unsafe_allow_html=True,
                     )
+                    # ── Favorito + Anotação (apenas resultado único) ───────────
+                    _cnpj_det = str(_r.get("cnpj", "")).replace(".", "").replace("/", "").replace("-", "")
+                    _nome_det = str(_r.get("razaoSocial", ""))
+                    _mun_det  = str(_r.get("municipio", ""))
+                    _uf_det   = str(_r.get("uf", ""))
+                    _lat_det  = float(_r.get("_lat", 0) or 0)
+                    _lon_det  = float(_r.get("_lon", 0) or 0)
+
+                    if "fav_cnpjs" not in st.session_state:
+                        st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _db_favoritos()}
+
+                    _e_fav = _cnpj_det in st.session_state["fav_cnpjs"]
+                    _col_fav_a, _col_fav_b = st.columns([1, 1])
+                    with _col_fav_a:
+                        _fav_label = "⭐ Remover Favorito" if _e_fav else "☆ Adicionar Favorito"
+                        if st.button(_fav_label, use_container_width=True, key="btn_fav_det"):
+                            if _e_fav:
+                                _db_remove_favorito(_cnpj_det)
+                                st.session_state["fav_cnpjs"].discard(_cnpj_det)
+                                st.toast("Removido dos favoritos", icon="☆")
+                            else:
+                                _db_add_favorito(_cnpj_det, _nome_det, _mun_det,
+                                                 _uf_det, _lat_det, _lon_det)
+                                st.session_state["fav_cnpjs"].add(_cnpj_det)
+                                st.toast("Adicionado aos favoritos!", icon="⭐")
+                            st.rerun()
+
+                    # ── Anotação interna ──────────────────────────────────────
+                    with st.expander("📝 Anotação interna", expanded=False):
+                        _nota_key = f"nota_posto_{_cnpj_det}"
+                        if _nota_key not in st.session_state:
+                            st.session_state[_nota_key] = _db_nota_posto(_cnpj_det)
+                        _nota_val = st.text_area(
+                            "Notas (contato, condições, restrições…)",
+                            value=st.session_state[_nota_key],
+                            height=120,
+                            key=f"ta_{_nota_key}",
+                            placeholder="Ex: Falar com João - (11) 99999-0000 · só atende caminhão com agendamento",
+                            label_visibility="collapsed",
+                        )
+                        if st.button("💾 Salvar anotação", key=f"btn_nota_{_cnpj_det}",
+                                     use_container_width=True):
+                            if _db_salvar_nota_posto(_cnpj_det, _nota_val):
+                                st.session_state[_nota_key] = _nota_val
+                                st.toast("✅ Anotação salva!", icon="📝")
+                            else:
+                                st.error("❌ Erro ao salvar. Verifique a conexão com o banco.")
+
                 else:
                     # Tabela para múltiplos resultados
                     _cols_m3 = [c for c in [

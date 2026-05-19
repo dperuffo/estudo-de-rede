@@ -67,8 +67,34 @@ create table if not exists postos_favoritos (
 
 create index if not exists idx_favoritos_usuario on postos_favoritos(usuario_email);
 
+-- ── 5. Notas por Posto ───────────────────────────────────────────
+create table if not exists notas_posto (
+    id            bigserial primary key,
+    usuario_email text not null,
+    cnpj          text not null,
+    nota          text default '',
+    atualizado_em timestamptz default now(),
+    unique(usuario_email, cnpj)
+);
+create index if not exists idx_notas_usuario on notas_posto(usuario_email);
+
+-- ── 6. Perfis de Veículo ─────────────────────────────────────────
+create table if not exists perfis_veiculo (
+    id            bigserial primary key,
+    usuario_email text not null,
+    nome          text not null,
+    placa         text,
+    combustivel   text,
+    tanque        numeric(8,2),
+    autonomia     numeric(8,2),
+    criado_em     timestamptz default now()
+);
+create index if not exists idx_perfis_usuario on perfis_veiculo(usuario_email);
+
 -- ── Desabilita Row Level Security (app usa chave publishable) ─────
 alter table rotas_salvas      disable row level security;
 alter table historico_precos  disable row level security;
 alter table preferencias      disable row level security;
 alter table postos_favoritos  disable row level security;
+alter table notas_posto       disable row level security;
+alter table perfis_veiculo    disable row level security;
