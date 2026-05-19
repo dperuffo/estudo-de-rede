@@ -10570,30 +10570,9 @@ with st.sidebar:
                 st.session_state["_doc_aberto"] = not st.session_state.get("_doc_aberto", False)
                 st.rerun()
 
-        # Exibe o PDF inline se aberto
+        # Exibe o PDF inline se aberto — renderizado como imagem (sem iframe, sem bloqueio)
         if st.session_state.get("_doc_aberto") and _doc_bytes:
-            _doc_b64 = base64.b64encode(_doc_bytes).decode("utf-8")
-            st.markdown(
-                f"""
-                <div style="margin:1rem 0;border-radius:12px;overflow:hidden;
-                            box-shadow:0 4px 20px rgba(0,0,0,0.15);">
-                  <div style="background:#1565C0;color:#fff;padding:10px 16px;
-                              font-weight:600;font-size:13px;display:flex;
-                              justify-content:space-between;align-items:center;">
-                    <span>📄 {_doc_nome}</span>
-                  </div>
-                  <iframe
-                    src="data:application/pdf;base64,{_doc_b64}"
-                    width="100%"
-                    height="820px"
-                    style="border:none;display:block;"
-                    type="application/pdf">
-                  </iframe>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            # Botão de download como alternativa
+            # Botão de download sempre disponível
             st.download_button(
                 "⬇️ Baixar PDF",
                 data=_doc_bytes,
@@ -10601,6 +10580,44 @@ with st.sidebar:
                 mime="application/pdf",
                 key="btn_doc_download",
             )
+            try:
+                import fitz  # pymupdf
+                _pdf_doc   = fitz.open(stream=_doc_bytes, filetype="pdf")
+                _total_pgs = len(_pdf_doc)
+
+                if "doc_pagina_atual" not in st.session_state:
+                    st.session_state["doc_pagina_atual"] = 0
+                _pg_idx = st.session_state["doc_pagina_atual"]
+
+                # Navegação
+                _col_prev, _col_info, _col_next = st.columns([1, 2, 1])
+                with _col_prev:
+                    if st.button("◀ Anterior", use_container_width=True,
+                                 disabled=_pg_idx == 0, key="doc_pg_prev"):
+                        st.session_state["doc_pagina_atual"] -= 1
+                        st.rerun()
+                with _col_info:
+                    st.markdown(
+                        f"<p style='text-align:center;margin:6px 0;color:#555;font-size:13px'>"
+                        f"Página <b>{_pg_idx + 1}</b> de <b>{_total_pgs}</b></p>",
+                        unsafe_allow_html=True,
+                    )
+                with _col_next:
+                    if st.button("Próxima ▶", use_container_width=True,
+                                 disabled=_pg_idx >= _total_pgs - 1, key="doc_pg_next"):
+                        st.session_state["doc_pagina_atual"] += 1
+                        st.rerun()
+
+                # Renderiza página atual como imagem PNG
+                _page     = _pdf_doc[_pg_idx]
+                _mat      = fitz.Matrix(2.0, 2.0)
+                _pix      = _page.get_pixmap(matrix=_mat, alpha=False)
+                _img_bytes = _pix.tobytes("png")
+                _pdf_doc.close()
+                st.image(_img_bytes, use_container_width=True)
+
+            except ImportError:
+                st.info("📄 Para ver o PDF aqui, instale: `pip install pymupdf`")
     else:
         _col_doc_l, _col_doc_c, _col_doc_r = st.columns([1, 4, 1])
         with _col_doc_c:
