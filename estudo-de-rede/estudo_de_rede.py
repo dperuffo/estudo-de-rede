@@ -2489,6 +2489,17 @@ def _gerar_relatorio_alertas_xlsx(
                                      Border, Side, numbers)
         from openpyxl.utils import get_column_letter
 
+        # ── Enriquece df_pp com dados cadastrais do pf_coords_df ──────
+        _pf = st.session_state.get("pf_coords_df", pd.DataFrame())
+        if not _pf.empty and "cnpj_norm" in _pf.columns:
+            _info_cols = [c for c in ["cnpj_norm","razaoSocial","municipio","uf","distribuidora"]
+                          if c in _pf.columns]
+            _pf_info = _pf[_info_cols].drop_duplicates("cnpj_norm")
+            # df_pp usa cnpj_norm; garante coluna antes do merge
+            _key = "cnpj_norm" if "cnpj_norm" in df_pp.columns else None
+            if _key:
+                df_pp = df_pp.merge(_pf_info, on="cnpj_norm", how="left")
+
         _data_rel = semana or datetime.now().strftime("%Y-W%V")
         _wb  = _opxl.Workbook()
         _ws  = _wb.active
@@ -2578,8 +2589,14 @@ def _gerar_relatorio_alertas_xlsx(
                 _pct      = _desvio / _lim * 100 if _lim else 0
                 _fill     = _alt_fill_r if _ri % 2 == 0 else _alt_fill_w
 
-                _cnpj_c   = _ar.get("cnpj", _ar.get("_cnpj_norm", ""))
-                _nome_c   = _ar.get("razaoSocial", _ar.get("nome", ""))
+                _cnpj_raw = _ar.get("cnpj_norm", _ar.get("cnpj", _ar.get("_cnpj_norm", "")))
+                # Formata CNPJ: 00.000.000/0000-00
+                try:
+                    _d = re.sub(r"\D", "", str(_cnpj_raw))
+                    _cnpj_c = f"{_d[:2]}.{_d[2:5]}.{_d[5:8]}/{_d[8:12]}-{_d[12:14]}" if len(_d)==14 else _cnpj_raw
+                except Exception:
+                    _cnpj_c = _cnpj_raw
+                _nome_c   = _ar.get("razaoSocial", _ar.get("nome", _ar.get("nomeFantasia", "")))
                 _mun_c    = _ar.get("municipio", "")
                 _uf_c     = _ar.get("uf", "")
                 _band_c   = _ar.get("distribuidora", "")
