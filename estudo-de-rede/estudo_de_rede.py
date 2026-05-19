@@ -11637,32 +11637,67 @@ if False:
 
 if modo == "📍 Por UF/Município":
 
-    if uf:
+    # Modo Apenas Favoritos: não requer UF selecionada
+    _apenas_fav_sem_uf = _filtro_apenas_favoritos_m1 and not uf
+
+    if _apenas_fav_sem_uf:
+        # ── Constrói df_raw_full direto dos favoritos (todos os estados) ──
+        _fav_set_all  = st.session_state.get("fav_cnpjs", set())
+        _pf_all       = st.session_state.get("pf_coords_df", pd.DataFrame())
+        _fav_list_c   = st.session_state.get("_fav_list_cache", [])
+
+        _df_fav_pf = pd.DataFrame()
+        if not _pf_all.empty and "cnpj" in _pf_all.columns:
+            _df_fav_pf = _pf_all[
+                _pf_all["cnpj"].isin(_fav_set_all)
+            ].copy().reset_index(drop=True)
+
+        _cnpjs_em_pf = set(_df_fav_pf["cnpj"]) if not _df_fav_pf.empty else set()
+        _rows_extra_fav = []
+        for _ff in _fav_list_c:
+            if _ff["cnpj"] not in _cnpjs_em_pf and _ff.get("lat") and _ff.get("lon"):
+                _rows_extra_fav.append({
+                    "cnpj":        _ff["cnpj"],
+                    "_lat":        float(_ff["lat"]),
+                    "_lon":        float(_ff["lon"]),
+                    "razaoSocial": _ff.get("razao_social", ""),
+                    "municipio":   _ff.get("municipio", ""),
+                    "uf":          _ff.get("uf", ""),
+                    "distribuidora": "",
+                })
+
+        _df_extra_fav = pd.DataFrame(_rows_extra_fav) if _rows_extra_fav else pd.DataFrame()
+        _frames_fav   = [f for f in [_df_fav_pf, _df_extra_fav] if not f.empty]
+        df_raw_full   = pd.concat(_frames_fav, ignore_index=True) if _frames_fav else pd.DataFrame()
+        municipio_input = ""  # ignora filtro de município no modo favoritos
+
+    if uf or _apenas_fav_sem_uf:
         # ── Carrega postos GF do estado diretamente da planilha (sem chamada à API ANP) ──
-        if uf != st.session_state.get("_uf_carregada"):
-            _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
-            if not _pf_df_m1.empty:
-                df_raw_full = _pf_df_m1[
-                    _pf_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
-                ].copy().reset_index(drop=True)
-            else:
-                df_raw_full = pd.DataFrame()
-                st.warning(
-                    "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
-                    "Verifique a seção **Configurações** na barra lateral."
-                )
+        if not _apenas_fav_sem_uf:
+            if uf != st.session_state.get("_uf_carregada"):
+                _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
+                if not _pf_df_m1.empty:
+                    df_raw_full = _pf_df_m1[
+                        _pf_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
+                    ].copy().reset_index(drop=True)
+                else:
+                    df_raw_full = pd.DataFrame()
+                    st.warning(
+                        "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
+                        "Verifique a seção **Configurações** na barra lateral."
+                    )
 
-            st.session_state["df_raw_full"]  = df_raw_full
-            st.session_state["_uf_carregada"] = uf
-            if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
-                st.session_state["distribuidoras_disponiveis"] = sorted(
-                    df_raw_full["distribuidora"].dropna().unique().tolist())
-            st.session_state.pop("_df_marcado",      None)
-            st.session_state.pop("_df_marcado_key",  None)
-            st.session_state.pop("_pf_injetados_uf", None)
+                st.session_state["df_raw_full"]  = df_raw_full
+                st.session_state["_uf_carregada"] = uf
+                if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
+                    st.session_state["distribuidoras_disponiveis"] = sorted(
+                        df_raw_full["distribuidora"].dropna().unique().tolist())
+                st.session_state.pop("_df_marcado",      None)
+                st.session_state.pop("_df_marcado_key",  None)
+                st.session_state.pop("_pf_injetados_uf", None)
 
-        # ── Lê df_raw_full do session_state ───────────────────────────
-        df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
+            # ── Lê df_raw_full do session_state ─────────────────────────
+            df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
 
         # Filtra por município localmente (instantâneo, sem nova chamada à API)
         # Usa _sem_acento para que "Vitoria" encontre "VITÓRIA", "Ribeirao" → "RIBEIRÃO" etc.
@@ -11702,16 +11737,22 @@ if modo == "📍 Por UF/Município":
                 df_show = df_show[_sem_preco_m1 | df_show["_cnpj_norm"].isin(_cnpj_ok_m1)]
 
         # ── Filtro Apenas Favoritos ──────────────────────────────────────────
-        if _filtro_apenas_favoritos_m1 and st.session_state.get("fav_cnpjs"):
+        # Quando _apenas_fav_sem_uf, df_show já está correto (sem UF); não reprocessar.
+        if not _apenas_fav_sem_uf and _filtro_apenas_favoritos_m1 and st.session_state.get("fav_cnpjs"):
             _fav_set_m1    = st.session_state["fav_cnpjs"]
             _pf_coords_all = st.session_state.get("pf_coords_df", pd.DataFrame())
 
-            # 1. Postos favoritos presentes em pf_coords_df (qualquer UF)
+            # 1. Postos favoritos em pf_coords_df, filtrados pela UF selecionada
             _df_fav_pf = pd.DataFrame()
             if not _pf_coords_all.empty and "cnpj" in _pf_coords_all.columns:
-                _df_fav_pf = _pf_coords_all[
+                _df_fav_base = _pf_coords_all[
                     _pf_coords_all["cnpj"].isin(_fav_set_m1)
-                ].copy().reset_index(drop=True)
+                ].copy()
+                if uf:
+                    _df_fav_base = _df_fav_base[
+                        _df_fav_base["uf"].fillna("").str.upper().str.strip() == uf.upper()
+                    ]
+                _df_fav_pf = _df_fav_base.reset_index(drop=True)
 
             # 2. Postos favoritos que NÃO estão em pf_coords_df
             #    (favoritos adicionados via Busca/ANP, com lat/lon gravado no banco)
@@ -11720,6 +11761,9 @@ if modo == "📍 Por UF/Município":
             _rows_extra   = []
             for _ff in _fav_list_c:
                 if _ff["cnpj"] not in _cnpjs_em_pf and _ff.get("lat") and _ff.get("lon"):
+                    # Respeita filtro de UF quando selecionada
+                    if uf and _ff.get("uf", "").upper().strip() != uf.upper():
+                        continue
                     _rows_extra.append({
                         "cnpj":        _ff["cnpj"],
                         "_lat":        float(_ff["lat"]),
@@ -11731,11 +11775,19 @@ if modo == "📍 Por UF/Município":
                     })
             _df_extra = pd.DataFrame(_rows_extra) if _rows_extra else pd.DataFrame()
 
-            # 3. Une e prepara
+            # 3. Une, aplica filtro de município e prepara
             _frames_fav = [f for f in [_df_fav_pf, _df_extra] if not f.empty]
             if _frames_fav:
+                _df_fav_joined = pd.concat(_frames_fav, ignore_index=True)
+                if mun:
+                    _mun_norm_fav = _sem_acento(mun)
+                    _df_fav_joined = _df_fav_joined[
+                        _df_fav_joined["municipio"].fillna("").apply(
+                            lambda x: _mun_norm_fav in _sem_acento(x)
+                        )
+                    ]
                 df_show = preparar_df(
-                    pd.concat(_frames_fav, ignore_index=True),
+                    _df_fav_joined,
                     [], perfis_filtro=[], filtro_servicos=[], filtro_24h=False,
                 )
             else:
