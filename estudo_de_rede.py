@@ -15834,57 +15834,54 @@ elif modo == "📄 Documentação":
 
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-        # Visualizador de PDF usando components.html (mais confiável que markdown iframe)
-        _doc_b64 = base64.b64encode(_doc_bytes).decode("utf-8")
-        _html_doc = f"""<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    * {{ margin:0; padding:0; box-sizing:border-box; }}
-    body {{ background:#525659; font-family:sans-serif; }}
-    .viewer-wrap {{
-      width:100%; height:860px;
-      display:flex; flex-direction:column;
-      border-radius:10px; overflow:hidden;
-      box-shadow:0 4px 24px rgba(0,0,0,0.25);
-    }}
-    .viewer-header {{
-      background:#1565C0; color:#fff;
-      padding:10px 16px; font-size:13px; font-weight:600;
-      display:flex; align-items:center; gap:8px;
-    }}
-    object, embed {{
-      flex:1; width:100%; border:none; display:block;
-    }}
-    .fallback {{
-      flex:1; display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      background:#fff; color:#555; gap:12px; font-size:14px;
-    }}
-    .fallback a {{
-      background:#1565C0; color:#fff; padding:10px 20px;
-      border-radius:8px; text-decoration:none; font-weight:600;
-    }}
-  </style>
-</head>
-<body>
-  <div class="viewer-wrap">
-    <div class="viewer-header">📄 {_doc_nome}</div>
-    <object data="data:application/pdf;base64,{_doc_b64}"
-            type="application/pdf" width="100%" height="820">
-      <embed src="data:application/pdf;base64,{_doc_b64}"
-             type="application/pdf" width="100%" height="820">
-        <div class="fallback">
-          <span>Seu navegador não suporta visualização inline de PDF.</span>
-          <a href="data:application/pdf;base64,{_doc_b64}"
-             download="{_doc_nome}">⬇️ Clique aqui para baixar</a>
-        </div>
-      </embed>
-    </object>
-  </div>
-</body>
-</html>"""
-        _components.html(_html_doc, height=880, scrolling=False)
+        # Visualizador de PDF: renderiza páginas como imagens no servidor (sem iframe)
+        try:
+            import fitz  # pymupdf
+            _pdf_doc = fitz.open(stream=_doc_bytes, filetype="pdf")
+            _total_pgs = len(_pdf_doc)
+
+            # Controle de página via session_state
+            if "doc_pagina_atual" not in st.session_state:
+                st.session_state["doc_pagina_atual"] = 0
+
+            _pg_idx = st.session_state["doc_pagina_atual"]
+
+            # Navegação entre páginas
+            _col_prev, _col_info, _col_next = st.columns([1, 2, 1])
+            with _col_prev:
+                if st.button("◀ Anterior", use_container_width=True,
+                             disabled=_pg_idx == 0, key="doc_pg_prev"):
+                    st.session_state["doc_pagina_atual"] -= 1
+                    st.rerun()
+            with _col_info:
+                st.markdown(
+                    f"<p style='text-align:center;margin:6px 0;color:#555;font-size:13px'>"
+                    f"Página <b>{_pg_idx + 1}</b> de <b>{_total_pgs}</b></p>",
+                    unsafe_allow_html=True,
+                )
+            with _col_next:
+                if st.button("Próxima ▶", use_container_width=True,
+                             disabled=_pg_idx >= _total_pgs - 1, key="doc_pg_next"):
+                    st.session_state["doc_pagina_atual"] += 1
+                    st.rerun()
+
+            # Renderiza página atual como imagem (resolução 2x para nitidez)
+            _page = _pdf_doc[_pg_idx]
+            _mat  = fitz.Matrix(2.0, 2.0)
+            _pix  = _page.get_pixmap(matrix=_mat, alpha=False)
+            _img_bytes = _pix.tobytes("png")
+            _pdf_doc.close()
+
+            st.image(_img_bytes, use_container_width=True)
+
+        except ImportError:
+            st.warning(
+                "⚠️ Para visualizar o PDF inline, instale a biblioteca: "
+                "`pip install pymupdf`\n\n"
+                "Por enquanto, use o botão **⬇️ Baixar PDF** acima."
+            )
+        except Exception as _epdf_view:
+            st.error(f"❌ Erro ao renderizar PDF: {_epdf_view}")
 
     else:
         st.warning(
