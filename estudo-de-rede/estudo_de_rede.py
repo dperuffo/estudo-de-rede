@@ -302,6 +302,314 @@ def _db_deletar_perfil_veiculo(perfil_id) -> bool:
         return False
 
 
+# ── Postos GF (Gestão de Frotas) ─────────────────────────────────
+
+_POSTOS_GF_STD_COLS = {
+    "cnpj", "_lat", "_lon", "razaoSocial", "distribuidora",
+    "municipio", "uf", "horario", "funciona_24h",
+    "pista_caminhao", "arla", "conveniencia",
+}
+
+
+def _db_salvar_postos_gf(df_coords, cnpjs: set,
+                          perfil_map: dict, nome_arquivo: str):
+    """Salva postos GF no Supabase. Retorna (ok: bool, msg: str)."""
+    import math as _math
+    db = _db_client()
+    if not db:
+        return False, "Supabase não configurado."
+    try:
+        n_coords = len(df_coords) if (df_coords is not None and not df_coords.empty) else 0
+        # 1. Registra versão
+        ver = db.table("postos_gf_versoes").insert({
+            "usuario_email": _db_email(),
+            "nome_arquivo":  nome_arquivo,
+            "n_cnpjs":       len(cnpjs),
+            "n_coords":      n_coords,
+            "carregado_em":  datetime.now().isoformat(),
+        }).execute()
+        versao_id = ver.data[0]["id"] if ver.data else None
+
+        # 2. Limpa tabela existente (substitui tudo)
+        db.table("postos_gf").delete().neq("cnpj", "").execute()
+
+        # 3. Monta registros
+        records = []
+        now_iso = datetime.now().isoformat()
+        coords_cnpjs: set = set()
+
+        if df_coords is not None and not df_coords.empty:
+            extra_cols = [c for c in df_coords.columns if c not in _POSTOS_GF_STD_COLS]
+            for _, row in df_coords.iterrows():
+                cnpj = row["cnpj"]
+                coords_cnpjs.add(cnpj)
+                # Campos extras (serviços dinâmicos) → jsonb
+                extras: dict = {}
+                for ec in extra_cols:
+                    v = row.get(ec)
+                    if v is None:
+                        continue
+                    if isinstance(v, float) and _math.isnan(v):
+                        continue
+                    extras[ec] = bool(v) if isinstance(v, (bool,)) else v
+
+                def _safe_float(val):
+                    try:
+                        f = float(val)
+                        return None if _math.isnan(f) else f
+                    except (TypeError, ValueError):
+                        return None
+
+                def _safe_bool(val):
+                    return bool(val) if val is not None else None
+
+                rec = {
+                    "cnpj":           cnpj,
+                    "razao_social":   str(row.get("razaoSocial", "") or ""),
+                    "distribuidora":  str(row.get("distribuidora", "") or ""),
+                    "municipio":      str(row.get("municipio", "") or ""),
+                    "uf":             str(row.get("uf", "") or ""),
+                    "lat":            _safe_float(row.get("_lat")),
+                    "lon":            _safe_float(row.get("_lon")),
+                    "perfil_venda":   perfil_map.get(cnpj, ""),
+                    "horario":        str(row["horario"]) if row.get("horario") is not None else None,
+                    "funciona_24h":   _safe_bool(row.get("funciona_24h")),
+                    "pista_caminhao": _safe_bool(row.get("pista_caminhao")),
+                    "arla":           _safe_bool(row.get("arla")),
+                    "conveniencia":   _safe_bool(row.get("conveniencia")),
+                    "extras":         extras,
+                    "versao_id":      versao_id,
+                    "atualizado_em":  now_iso,
+                }
+                records.append(rec)
+
+        # CNPJs sem coordenadas
+        for cnpj in cnpjs:
+            if cnpj not in coords_cnpjs:
+                records.append({
+                    "cnpj":          cnpj,
+                    "perfil_venda":  perfil_map.get(cnpj, ""),
+                    "extras":        {},
+                    "versao_id":     versao_id,
+                    "atualizado_em": now_iso,
+                })
+
+        # 4. Upsert em chunks de 500
+        _chunk = 500
+        for _i in range(0, len(records), _chunk):
+            db.table("postos_gf").upsert(records[_i:_i + _chunk]).execute()
+
+        return True, f"{len(cnpjs)} CNPJs salvos ({n_coords} com coordenadas)"
+    except Exception as _e:
+        return False, f"Erro ao salvar postos GF: {_e}"
+
+
+def _db_carregar_postos_gf():
+    """
+    Carrega postos GF do Supabase.
+    Retorna (cnpjs: set, perfil_map: dict, df_coords: DataFrame).
+    """
+    db = _db_client()
+    if not db:
+        return set(), {}, pd.DataFrame()
+    try:
+        PAGE = 1000
+        rows: list = []
+        offset = 0
+        while True:
+            res = db.table("postos_gf").select("*") \
+                    .range(offset, offset + PAGE - 1).execute()
+            if not res.data:
+                break
+            rows.extend(res.data)
+            if len(res.data) < PAGE:
+                break
+            offset += PAGE
+
+        if not rows:
+            return set(), {}, pd.DataFrame()
+
+        cnpjs = {r["cnpj"] for r in rows}
+        perfil_map = {r["cnpj"]: r["perfil_venda"]
+                      for r in rows if r.get("perfil_venda")}
+
+        # Reconstrói df_coords
+        coord_rows = [r for r in rows
+                      if r.get("lat") is not None and r.get("lon") is not None]
+        if coord_rows:
+            df_list = []
+            for r in coord_rows:
+                rec = {
+                    "cnpj":          r["cnpj"],
+                    "_lat":          float(r["lat"]),
+                    "_lon":          float(r["lon"]),
+                    "razaoSocial":   r.get("razao_social", ""),
+                    "distribuidora": r.get("distribuidora", ""),
+                    "municipio":     r.get("municipio", ""),
+                    "uf":            r.get("uf", ""),
+                    "horario":       r.get("horario"),
+                    "funciona_24h":  r.get("funciona_24h"),
+                    "pista_caminhao": r.get("pista_caminhao"),
+                    "arla":          r.get("arla"),
+                    "conveniencia":  r.get("conveniencia"),
+                }
+                # Expande extras (serviços dinâmicos)
+                extras = r.get("extras") or {}
+                rec.update(extras)
+                df_list.append(rec)
+            df_coords = pd.DataFrame(df_list)
+        else:
+            df_coords = pd.DataFrame()
+
+        return cnpjs, perfil_map, df_coords
+    except Exception:
+        return set(), {}, pd.DataFrame()
+
+
+# ── Postos Cercados DB ────────────────────────────────────────────
+
+def _db_salvar_postos_cercados(cnpjs: set, nome_arquivo: str):
+    """Salva postos cercados no Supabase. Retorna (ok: bool, msg: str)."""
+    db = _db_client()
+    if not db:
+        return False, "Supabase não configurado."
+    try:
+        # 1. Registra versão
+        ver = db.table("postos_cercados_versoes").insert({
+            "usuario_email": _db_email(),
+            "nome_arquivo":  nome_arquivo,
+            "n_cnpjs":       len(cnpjs),
+            "carregado_em":  datetime.now().isoformat(),
+        }).execute()
+        versao_id = ver.data[0]["id"] if ver.data else None
+
+        # 2. Limpa tabela existente
+        db.table("postos_cercados_db").delete().neq("cnpj", "").execute()
+
+        # 3. Upsert em chunks
+        now_iso = datetime.now().isoformat()
+        records = [{"cnpj": c, "versao_id": versao_id,
+                    "adicionado_em": now_iso} for c in cnpjs]
+        _chunk = 500
+        for _i in range(0, len(records), _chunk):
+            db.table("postos_cercados_db").upsert(
+                records[_i:_i + _chunk]).execute()
+
+        return True, f"{len(cnpjs)} postos cercados salvos"
+    except Exception as _e:
+        return False, f"Erro ao salvar cercados: {_e}"
+
+
+def _db_carregar_postos_cercados() -> set:
+    """Carrega CNPJs dos postos cercados do Supabase."""
+    db = _db_client()
+    if not db:
+        return set()
+    try:
+        PAGE = 1000
+        rows: list = []
+        offset = 0
+        while True:
+            res = db.table("postos_cercados_db").select("cnpj") \
+                    .range(offset, offset + PAGE - 1).execute()
+            if not res.data:
+                break
+            rows.extend(res.data)
+            if len(res.data) < PAGE:
+                break
+            offset += PAGE
+        return {r["cnpj"] for r in rows}
+    except Exception:
+        return set()
+
+
+# ── Preços Posto DB ───────────────────────────────────────────────
+
+def _db_salvar_precos_posto(df_pp: pd.DataFrame, nome_arquivo: str):
+    """Salva preços por posto no Supabase. Retorna (ok: bool, msg: str)."""
+    db = _db_client()
+    if not db:
+        return False, "Supabase não configurado."
+    try:
+        n_postos = df_pp["cnpj_norm"].nunique() if "cnpj_norm" in df_pp.columns else 0
+        n_reg    = len(df_pp)
+
+        # 1. Registra versão
+        ver = db.table("precos_posto_versoes").insert({
+            "usuario_email": _db_email(),
+            "nome_arquivo":  nome_arquivo,
+            "n_registros":   n_reg,
+            "n_postos":      n_postos,
+            "carregado_em":  datetime.now().isoformat(),
+        }).execute()
+        versao_id = ver.data[0]["id"] if ver.data else None
+
+        # 2. Limpa tabela existente
+        db.table("precos_posto_db").delete().neq("cnpj_norm", "").execute()
+
+        # 3. Monta registros
+        now_iso = datetime.now().isoformat()
+        records = []
+        for _, row in df_pp.iterrows():
+            try:
+                preco_f = float(row["preco"]) if row.get("preco") is not None else None
+            except (ValueError, TypeError):
+                preco_f = None
+            records.append({
+                "cnpj_norm":          str(row.get("cnpj_norm", "")),
+                "combustivel_pk":     str(row.get("combustivel_pk", "")),
+                "combustivel_label":  str(row.get("combustivel_label", "")),
+                "preco":              preco_f,
+                "data_atualizacao":   str(row.get("data_atualizacao", "")),
+                "versao_id":          versao_id,
+                "atualizado_em":      now_iso,
+            })
+
+        # 4. Upsert em chunks
+        _chunk = 500
+        for _i in range(0, len(records), _chunk):
+            db.table("precos_posto_db").upsert(
+                records[_i:_i + _chunk],
+                on_conflict="cnpj_norm,combustivel_pk",
+            ).execute()
+
+        return True, f"{n_reg} registros salvos ({n_postos} postos)"
+    except Exception as _e:
+        return False, f"Erro ao salvar preços: {_e}"
+
+
+def _db_carregar_precos_posto() -> pd.DataFrame:
+    """Carrega preços por posto do Supabase."""
+    db = _db_client()
+    if not db:
+        return pd.DataFrame()
+    try:
+        PAGE = 1000
+        rows: list = []
+        offset = 0
+        while True:
+            res = db.table("precos_posto_db") \
+                    .select("cnpj_norm,combustivel_pk,combustivel_label,"
+                            "preco,data_atualizacao") \
+                    .range(offset, offset + PAGE - 1).execute()
+            if not res.data:
+                break
+            rows.extend(res.data)
+            if len(res.data) < PAGE:
+                break
+            offset += PAGE
+
+        if not rows:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(rows)
+        if "preco" in df.columns:
+            df["preco"] = pd.to_numeric(df["preco"], errors="coerce")
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
 # ── Histórico de Preços ────────────────────────────────────────────
 
 def _db_gravar_preco(cnpj: str, razao_social: str, municipio: str, uf: str,
@@ -8633,76 +8941,50 @@ with st.sidebar:
             st.session_state["_auth_user"] = None
             st.rerun()
 
-    # ── Auto-carregamento do repositório ─────────────────────
+    # ── Auto-carregamento do Supabase ────────────────────────────────
     # Tenta UMA VEZ por sessão — usa flag para não repetir
     if not st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("_repo_tentado"):
-        st.session_state["_repo_tentado"] = True   # evita loop
-        _cnpjs_repo, _msg_repo, _prev_repo, _perfil_repo, _coords_repo = _auto_carregar_pro_frotas_repo()
-        if _cnpjs_repo:
-            st.session_state["cnpjs_pro_frotas"]  = _cnpjs_repo
-            st.session_state["_pf_fonte"]         = "repo"
-            st.session_state["_pf_carregado_em"]  = _agora()
-        if _perfil_repo:
-            st.session_state["perfil_venda_map"]    = _perfil_repo
-            st.session_state["perfis_pf_lista"]     = sorted(set(_perfil_repo.values()))
-        if _coords_repo is not None and not _coords_repo.empty:
-            st.session_state["pf_coords_df"] = _coords_repo
-            _atualizar_servicos_pf(_coords_repo)
+        st.session_state["_repo_tentado"] = True
+        _cnpjs_db, _perfil_db, _coords_db = _db_carregar_postos_gf()
+        if _cnpjs_db:
+            st.session_state["cnpjs_pro_frotas"] = _cnpjs_db
+            st.session_state["_pf_fonte"]        = "supabase"
+            st.session_state["_pf_carregado_em"] = _agora()
+            if _perfil_db:
+                st.session_state["perfil_venda_map"] = _perfil_db
+                st.session_state["perfis_pf_lista"]  = sorted(set(_perfil_db.values()))
+            if _coords_db is not None and not _coords_db.empty:
+                st.session_state["pf_coords_df"] = _coords_db
+                _atualizar_servicos_pf(_coords_db)
+        elif not _db_client():
+            st.warning(
+                "⚠️ **Banco de dados não configurado.** "
+                "Acesse ⚙️ Configurações e faça upload das planilhas.",
+                icon="💾",
+            )
 
     # Reconstrói labels de serviços se pf_coords_df já existe mas labels ainda não foram gerados
-    # (ex: primeira rerun após cache hit)
     if ("pf_coords_df" in st.session_state
             and not st.session_state["pf_coords_df"].empty
             and not st.session_state.get("_servicos_pf_labels")):
         _atualizar_servicos_pf(st.session_state["pf_coords_df"])
 
-    # Fallback: CNPJs já carregados mas perfil_venda_map ou pf_coords_df ainda ausentes/vazio
-    # (ocorre quando o cache antigo não incluía lat/lon ou pf_coords_df foi armazenado vazio)
-    _pf_coords_ok = (
-        "pf_coords_df" in st.session_state
-        and not st.session_state["pf_coords_df"].empty
-    )
-    _needs_reload = (
-        st.session_state.get("cnpjs_pro_frotas") and (
-            not st.session_state.get("perfil_venda_map") or
-            not _pf_coords_ok
-        )
-    )
-    if _needs_reload and not st.session_state.get("_pf_coords_reload_feito"):
-        st.session_state["_pf_coords_reload_feito"] = True
-        _auto_carregar_pro_frotas_repo.clear()   # garante releitura com código atual
-        _cnpjs_r2, _, _, _perfil_r2, _coords_r2 = _auto_carregar_pro_frotas_repo()
-        if _perfil_r2:
-            st.session_state["perfil_venda_map"]  = _perfil_r2
-            st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r2.values()))
-        if _coords_r2 is not None and not _coords_r2.empty:
-            st.session_state["pf_coords_df"] = _coords_r2
-            _atualizar_servicos_pf(_coords_r2)
-
     # Auto-load Postos Cercados (uma vez por sessão)
     if not st.session_state.get("cnpjs_cercados") and not st.session_state.get("_cercados_tentado"):
         st.session_state["_cercados_tentado"] = True
-        _cnpjs_cer, _msg_cer, _ = _auto_carregar_cercados_repo()
-        if _cnpjs_cer:
-            st.session_state["cnpjs_cercados"]          = _cnpjs_cer
-            st.session_state["_cercados_fonte"]         = "repo"
-            st.session_state["_cercados_carregado_em"]  = _agora()
+        _cnpjs_cer_db = _db_carregar_postos_cercados()
+        if _cnpjs_cer_db:
+            st.session_state["cnpjs_cercados"]         = _cnpjs_cer_db
+            st.session_state["_cercados_fonte"]        = "supabase"
+            st.session_state["_cercados_carregado_em"] = _agora()
 
-    # Auto-load Preço Posto — re-parseia se a versão do parser mudou
-    _pp_ver_atual = st.session_state.get("_pp_parser_ver")
-    if _pp_ver_atual != _PP_PARSER_VERSION:
-        # Parser foi atualizado: descarta dado antigo e re-parseia
-        st.session_state.pop("_pp_df", None)
-        st.session_state.pop("_pp_tentado", None)
-        _auto_carregar_precos_postos_repo.clear()
-        st.session_state["_pp_parser_ver"] = _PP_PARSER_VERSION
-
+    # Auto-load Preço Posto
     if st.session_state.get("_pp_df") is None and not st.session_state.get("_pp_tentado"):
         st.session_state["_pp_tentado"] = True
-        _pp_df_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
-        if _pp_df_tmp is not None:
-            st.session_state["_pp_df"]         = _pp_df_tmp
-            st.session_state["_pp_fonte"]       = "repo"
+        _pp_df_db = _db_carregar_precos_posto()
+        if _pp_df_db is not None and not _pp_df_db.empty:
+            st.session_state["_pp_df"]          = _pp_df_db
+            st.session_state["_pp_fonte"]        = "supabase"
             st.session_state["_pp_carregado_em"] = _agora()
 
     # ── Modo de consulta — toggle buttons ─────────────────────
@@ -9855,11 +10137,9 @@ with st.sidebar:
             _pf_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_pf_ts}</span>"
                            if _pf_ts else "")
             if _pf_set:
-                _c = ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "repo" \
-                     else ("#fff8e1","#ffe082","#f57f17","⭐")
+                _c = ("#e8f5e9","#a5d6a7","#2e7d32","✅")
                 _src = (f"<span style='font-size:10px;opacity:.8'>"
-                        f"Fonte: <code>{ARQUIVO_PF_REPO}</code></span>"
-                        if _pf_fonte == "repo" else "")
+                        f"Fonte: banco de dados</span>")
                 st.markdown(
                     f"<div style='background:{_c[0]};border:1px solid {_c[1]};"
                     f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_c[2]}'>"
@@ -9869,63 +10149,57 @@ with st.sidebar:
                 )
             else:
                 st.markdown(
-                    f"<div style='background:#fff3e0;border:1px solid #ffcc80;"
-                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
-                    f"⚠️ <b>Não carregado</b><br>"
-                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_PF_REPO}</code> "
-                    f"ou faça upload.</span></div>",
+                    "<div style='background:#fff3e0;border:1px solid #ffcc80;"
+                    "border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
+                    "⚠️ <b>Não carregado</b><br>"
+                    "<span style='font-size:10px'>Faça upload da planilha abaixo "
+                    "(somente administrador).</span></div>",
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do repositório", use_container_width=True,
-                         help="Força nova leitura do pro_frotas.xlsx no GitHub",
-                         key="btn_reload_pf_cfg"):
-                _auto_carregar_pro_frotas_repo.clear()
-                with st.spinner(f"Lendo `{ARQUIVO_PF_REPO}`…"):
-                    _cnpjs_r, _msg_r, _prev_r, _perfil_r, _coords_r = _auto_carregar_pro_frotas_repo()
-                if _cnpjs_r:
-                    st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
-                    st.session_state["_pf_fonte"]        = "repo"
-                    st.session_state["_pf_carregado_em"] = _agora()
-                    if _perfil_r:
-                        st.session_state["perfil_venda_map"]  = _perfil_r
-                        st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r.values()))
-                    if _coords_r is not None and not _coords_r.empty:
-                        st.session_state["pf_coords_df"] = _coords_r
-                        _atualizar_servicos_pf(_coords_r)
-                    st.success(f"✅ {_msg_r}")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error(_msg_r or f"❌ `{ARQUIVO_PF_REPO}` não encontrado.")
-            st.markdown("<small><b>Upload manual</b></small>", unsafe_allow_html=True)
-            arquivo_pf = st.file_uploader(
-                "Planilha Gestão de Frotas", type=["xlsx","xls","csv"],
-                key="upload_pf", label_visibility="collapsed",
-            )
-            if arquivo_pf is not None:
-                _pf_file_id = f"{arquivo_pf.name}_{arquivo_pf.size}"
-                if st.session_state.get("_pf_last_upload_id") != _pf_file_id:
-                    with st.spinner("Lendo planilha…"):
-                        cnpjs_pf, msg_pf, preview_pf, perfil_pf, coords_pf = ler_planilha_pro_frotas(arquivo_pf)
-                    if cnpjs_pf is not None:
-                        st.session_state["cnpjs_pro_frotas"]    = cnpjs_pf
-                        st.session_state["_pf_fonte"]            = "manual"
-                        st.session_state["_pf_carregado_em"]     = _agora()
-                        st.session_state["_pf_last_upload_id"]   = _pf_file_id
-                        if perfil_pf:
-                            st.session_state["perfil_venda_map"] = perfil_pf
-                            st.session_state["perfis_pf_lista"]  = sorted(set(perfil_pf.values()))
-                        if coords_pf is not None and not coords_pf.empty:
-                            st.session_state["pf_coords_df"] = coords_pf
-                            _atualizar_servicos_pf(coords_pf)
-                        st.success(msg_pf)
-                        if preview_pf is not None:
-                            with st.expander("Ver amostra dos CNPJs"):
-                                st.dataframe(preview_pf, use_container_width=True)
-                        st.rerun()
-                    else:
-                        st.error(msg_pf)
+            # Upload restrito ao administrador
+            _is_admin_pf = _db_email().lower() == _ADMIN_EMAIL.lower()
+            if not _is_admin_pf:
+                st.info("🔒 Upload disponível apenas para o administrador do sistema.")
+            else:
+                st.markdown("<small><b>Upload de nova planilha</b> — substitui dados no banco:</small>",
+                            unsafe_allow_html=True)
+                arquivo_pf = st.file_uploader(
+                    "Planilha Gestão de Frotas", type=["xlsx","xls","csv"],
+                    key="upload_pf", label_visibility="collapsed",
+                )
+                if arquivo_pf is not None:
+                    _pf_file_id = f"{arquivo_pf.name}_{arquivo_pf.size}"
+                    if st.session_state.get("_pf_last_upload_id") != _pf_file_id:
+                        with st.spinner("Lendo planilha…"):
+                            cnpjs_pf, msg_pf, preview_pf, perfil_pf, coords_pf = ler_planilha_pro_frotas(arquivo_pf)
+                        if cnpjs_pf is not None:
+                            with st.spinner("Salvando no banco de dados…"):
+                                _ok_pf, _msg_db_pf = _db_salvar_postos_gf(
+                                    coords_pf, cnpjs_pf, perfil_pf or {}, arquivo_pf.name
+                                )
+                            if _ok_pf:
+                                st.session_state["cnpjs_pro_frotas"]   = cnpjs_pf
+                                st.session_state["_pf_fonte"]           = "supabase"
+                                st.session_state["_pf_carregado_em"]    = _agora()
+                                st.session_state["_pf_last_upload_id"]  = _pf_file_id
+                                st.session_state["_repo_tentado"]       = True
+                                if perfil_pf:
+                                    st.session_state["perfil_venda_map"] = perfil_pf
+                                    st.session_state["perfis_pf_lista"]  = sorted(set(perfil_pf.values()))
+                                if coords_pf is not None and not coords_pf.empty:
+                                    st.session_state["pf_coords_df"] = coords_pf
+                                    _atualizar_servicos_pf(coords_pf)
+                                st.success(f"✅ {msg_pf} · {_msg_db_pf}")
+                                if preview_pf is not None:
+                                    with st.expander("Ver amostra dos CNPJs"):
+                                        st.dataframe(preview_pf, use_container_width=True)
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Erro ao salvar no banco: {_msg_db_pf}")
+                        else:
+                            st.error(msg_pf)
             if _pf_set:
                 if st.button("🗑️ Remover Gestão de Frotas", use_container_width=True,
                              key="btn_rm_pf_cfg"):
@@ -9939,70 +10213,62 @@ with st.sidebar:
             _cer_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_cer_ts}</span>"
                             if _cer_ts else "")
             if _cer_set:
-                _cc = ("#fff8e1","#ffe082","#e65100") if _cer_fonte == "manual" \
-                      else ("#fff3e0","#ffcc80","#bf360c")
-                _src_cer = (
-                    f"<span style='font-size:10px;opacity:.8'>"
-                    f"Fonte: <code>{ARQUIVO_CERCADOS_REPO}</code></span>"
-                    if _cer_fonte == "repo" else
-                    "<span style='font-size:10px;opacity:.8'>Carregado manualmente</span>"
-                )
                 st.markdown(
-                    f"<div style='background:{_cc[0]};border:1px solid {_cc[1]};"
-                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_cc[2]}'>"
+                    f"<div style='background:#fff8e1;border:1px solid #ffe082;"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
                     f"⚠️ <b>{_fmt_int(len(_cer_set))} postos cercados</b> identificados"
-                    f"{_cer_ts_html}<br>{_src_cer}</div>",
+                    f"{_cer_ts_html}<br>"
+                    f"<span style='font-size:10px;opacity:.8'>Fonte: banco de dados</span>"
+                    f"</div>",
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown(
-                    f"<div style='background:#f5f5f5;border:1px solid #ddd;"
-                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
-                    f"Planilha não carregada.<br>"
-                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_CERCADOS_REPO}</code> "
-                    f"ao repositório ou faça upload manual.</span></div>",
+                    "<div style='background:#f5f5f5;border:1px solid #ddd;"
+                    "border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
+                    "Planilha não carregada.<br>"
+                    "<span style='font-size:10px'>Faça upload abaixo "
+                    "(somente administrador).</span></div>",
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do repositório", use_container_width=True,
-                         help=f"Força nova leitura de '{ARQUIVO_CERCADOS_REPO}' no GitHub",
-                         key="btn_reload_cercados"):
-                _auto_carregar_cercados_repo.clear()
-                with st.spinner(f"Lendo `{ARQUIVO_CERCADOS_REPO}`…"):
-                    _cnpjs_cer2, _msg_cer2, _ = _auto_carregar_cercados_repo()
-                if _cnpjs_cer2:
-                    st.session_state["cnpjs_cercados"]          = _cnpjs_cer2
-                    st.session_state["_cercados_fonte"]         = "repo"
-                    st.session_state["_cercados_carregado_em"]  = _agora()
-                    st.success(f"✅ {_msg_cer2}")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error(_msg_cer2 or f"❌ `{ARQUIVO_CERCADOS_REPO}` não encontrado.")
-
-            st.markdown("<small><b>Upload manual</b> — substitui nesta sessão:</small>",
-                        unsafe_allow_html=True)
-            arquivo_cer = st.file_uploader(
-                "Planilha Postos Cercados", type=["xlsx","xls","csv"],
-                key="upload_cercados", label_visibility="collapsed",
-            )
-            if arquivo_cer is not None:
-                _cer_file_id = f"{arquivo_cer.name}_{arquivo_cer.size}"
-                if st.session_state.get("_cer_last_upload_id") != _cer_file_id:
-                    with st.spinner("Lendo planilha…"):
-                        cnpjs_cer_up, msg_cer_up, prev_cer = ler_planilha_cercados(arquivo_cer)
-                    if cnpjs_cer_up is not None:
-                        st.session_state["cnpjs_cercados"]          = cnpjs_cer_up
-                        st.session_state["_cercados_fonte"]         = "manual"
-                        st.session_state["_cercados_carregado_em"]  = _agora()
-                        st.session_state["_cer_last_upload_id"]     = _cer_file_id
-                        st.success(msg_cer_up)
-                        if prev_cer is not None:
-                            with st.expander("Ver amostra"):
-                                st.dataframe(prev_cer, use_container_width=True)
-                        st.rerun()
-                    else:
-                        st.error(msg_cer_up)
+            # Upload restrito ao administrador
+            _is_admin_cer = _db_email().lower() == _ADMIN_EMAIL.lower()
+            if not _is_admin_cer:
+                st.info("🔒 Upload disponível apenas para o administrador do sistema.")
+            else:
+                st.markdown("<small><b>Upload de nova planilha</b> — substitui dados no banco:</small>",
+                            unsafe_allow_html=True)
+                arquivo_cer = st.file_uploader(
+                    "Planilha Postos Cercados", type=["xlsx","xls","csv"],
+                    key="upload_cercados", label_visibility="collapsed",
+                )
+                if arquivo_cer is not None:
+                    _cer_file_id = f"{arquivo_cer.name}_{arquivo_cer.size}"
+                    if st.session_state.get("_cer_last_upload_id") != _cer_file_id:
+                        with st.spinner("Lendo planilha…"):
+                            cnpjs_cer_up, msg_cer_up, prev_cer = ler_planilha_cercados(arquivo_cer)
+                        if cnpjs_cer_up is not None:
+                            with st.spinner("Salvando no banco de dados…"):
+                                _ok_cer, _msg_db_cer = _db_salvar_postos_cercados(
+                                    cnpjs_cer_up, arquivo_cer.name
+                                )
+                            if _ok_cer:
+                                st.session_state["cnpjs_cercados"]         = cnpjs_cer_up
+                                st.session_state["_cercados_fonte"]        = "supabase"
+                                st.session_state["_cercados_carregado_em"] = _agora()
+                                st.session_state["_cer_last_upload_id"]    = _cer_file_id
+                                st.session_state["_cercados_tentado"]      = True
+                                st.success(f"✅ {msg_cer_up} · {_msg_db_cer}")
+                                if prev_cer is not None:
+                                    with st.expander("Ver amostra"):
+                                        st.dataframe(prev_cer, use_container_width=True)
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Erro ao salvar no banco: {_msg_db_cer}")
+                        else:
+                            st.error(msg_cer_up)
 
             if _cer_set:
                 if st.button("🗑️ Remover Cercados", use_container_width=True,
@@ -10087,53 +10353,45 @@ with st.sidebar:
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do repositório", use_container_width=True,
-                         help=f"Força nova leitura de '{ARQUIVO_PP_REPO}' (cache 1 h)",
-                         key="btn_reload_pp"):
-                _auto_carregar_precos_postos_repo.clear()
-                st.session_state["_pp_tentado"] = False
-                with st.spinner(f"Lendo `{ARQUIVO_PP_REPO}`…"):
-                    _pp_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
-                if _pp_tmp is not None:
-                    st.session_state["_pp_df"]          = _pp_tmp
-                    st.session_state["_pp_fonte"]        = "repo"
-                    st.session_state["_pp_carregado_em"] = _agora()
-                    # ── Auto-registro no histórico de inteligência ──
-                    try:
-                        _hist_record_pp_df(_pp_tmp)
-                    except Exception:
-                        pass
-                    st.success(f"✅ {_pp_msg_tmp}")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error(_pp_msg_tmp or f"❌ `{ARQUIVO_PP_REPO}` não encontrado.")
-            st.markdown("<small><b>Upload manual</b> — substitui nesta sessão:</small>",
-                        unsafe_allow_html=True)
-            arquivo_pp = st.file_uploader(
-                "Planilha Preço Posto", type=["xlsx","xls","csv"],
-                key="upload_pp", label_visibility="collapsed",
-            )
-            if arquivo_pp is not None:
-                # Evita loop infinito: só processa se for um arquivo novo
-                _pp_file_id = f"{arquivo_pp.name}_{arquivo_pp.size}"
-                if st.session_state.get("_pp_last_upload_id") != _pp_file_id:
-                    with st.spinner("Lendo planilha…"):
-                        _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
-                    if _pp_up is not None:
-                        st.session_state["_pp_df"]             = _pp_up
-                        st.session_state["_pp_fonte"]           = "manual"
-                        st.session_state["_pp_carregado_em"]    = _agora()
-                        st.session_state["_pp_last_upload_id"]  = _pp_file_id
-                        # ── Auto-registro no histórico de inteligência ──
-                        try:
-                            _hist_record_pp_df(_pp_up)
-                        except Exception:
-                            pass
-                        st.success(_pp_msg_up)
-                        st.rerun()
-                    else:
-                        st.error(_pp_msg_up)
+            # Upload restrito ao administrador
+            _is_admin_pp = _db_email().lower() == _ADMIN_EMAIL.lower()
+            if not _is_admin_pp:
+                st.info("🔒 Upload disponível apenas para o administrador do sistema.")
+            else:
+                st.markdown("<small><b>Upload de nova planilha</b> — substitui dados no banco:</small>",
+                            unsafe_allow_html=True)
+                arquivo_pp = st.file_uploader(
+                    "Planilha Preço Posto", type=["xlsx","xls","csv"],
+                    key="upload_pp", label_visibility="collapsed",
+                )
+                if arquivo_pp is not None:
+                    _pp_file_id = f"{arquivo_pp.name}_{arquivo_pp.size}"
+                    if st.session_state.get("_pp_last_upload_id") != _pp_file_id:
+                        with st.spinner("Lendo planilha…"):
+                            _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
+                        if _pp_up is not None:
+                            with st.spinner("Salvando no banco de dados…"):
+                                _ok_pp, _msg_db_pp = _db_salvar_precos_posto(
+                                    _pp_up, arquivo_pp.name
+                                )
+                            if _ok_pp:
+                                st.session_state["_pp_df"]            = _pp_up
+                                st.session_state["_pp_fonte"]          = "supabase"
+                                st.session_state["_pp_carregado_em"]   = _agora()
+                                st.session_state["_pp_last_upload_id"] = _pp_file_id
+                                st.session_state["_pp_tentado"]        = True
+                                # ── Auto-registro no histórico de inteligência ──
+                                try:
+                                    _hist_record_pp_df(_pp_up)
+                                except Exception:
+                                    pass
+                                st.success(f"✅ {_pp_msg_up} · {_msg_db_pp}")
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Erro ao salvar no banco: {_msg_db_pp}")
+                        else:
+                            st.error(_pp_msg_up)
             if _pp_df_sb is not None:
                 if st.button("🗑️ Remover Preços PP", use_container_width=True,
                              key="btn_rm_pp"):
