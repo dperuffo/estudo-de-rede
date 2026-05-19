@@ -9389,14 +9389,68 @@ with st.sidebar:
         _fav_list = _db_favoritos() if st.session_state.get("fav_cnpjs") else []
         if _fav_list:
             with st.expander(f"⭐ Meus Favoritos ({len(_fav_list)})", expanded=False):
+                # Dados de contexto para score
+                _pp_df_fav    = st.session_state.get("_pp_df")
+                _coords_fav   = st.session_state.get("pf_coords_df", pd.DataFrame())
+                _svc_keys_fav = list(st.session_state.get("_servicos_pf_labels", {}).keys())
+
+                # Preço médio geral como referência ANP (melhor disponível na sidebar)
+                _preco_ref_fav = None
+                if _pp_df_fav is not None and "preco" in _pp_df_fav.columns:
+                    _media_geral = pd.to_numeric(
+                        _pp_df_fav["preco"], errors="coerce").mean()
+                    if pd.notna(_media_geral) and _media_geral > 0:
+                        _preco_ref_fav = float(_media_geral)
+
                 for _fv in _fav_list:
+                    _cnpj_fv = _fv.get("cnpj", "")
+
+                    # Monta dict de linha para o score
+                    _row_sc: dict = dict(_fv)
+
+                    # Preço do posto (menor preço disponível entre todos combustíveis)
+                    if _pp_df_fav is not None and "cnpj_norm" in _pp_df_fav.columns:
+                        _pp_fv = _pp_df_fav[_pp_df_fav["cnpj_norm"] == _cnpj_fv]
+                        if not _pp_fv.empty:
+                            _p_min = pd.to_numeric(
+                                _pp_fv["preco"], errors="coerce").min()
+                            if pd.notna(_p_min):
+                                _row_sc["_preco_posto"] = float(_p_min)
+
+                    # Serviços do posto (pf_coords_df)
+                    if not _coords_fav.empty and "cnpj" in _coords_fav.columns:
+                        _cf = _coords_fav[_coords_fav["cnpj"] == _cnpj_fv]
+                        if not _cf.empty:
+                            for _sc_col in _svc_keys_fav:
+                                if _sc_col in _cf.columns:
+                                    _row_sc[_sc_col] = bool(_cf.iloc[0][_sc_col])
+
+                    # Calcula score
+                    _sc_res = _calcular_score_posto(
+                        _row_sc,
+                        preco_ref_anp=_preco_ref_fav,
+                        lat_ref=None,
+                        lon_ref=None,
+                        servicos_keys=_svc_keys_fav,
+                        n_servicos_max=max(len(_svc_keys_fav), 1),
+                    )
+                    _badge_fv = _score_badge_html(
+                        _sc_res["score"], _sc_res["grade"],
+                        tooltip=(
+                            f"Preço: {_sc_res['score_preco']:.0f} · "
+                            f"Serviços: {_sc_res['score_servicos']:.0f}"
+                        ),
+                        size="small",
+                    )
+
                     _fv_col1, _fv_col2 = st.columns([4, 1])
                     with _fv_col1:
                         st.markdown(
                             f"<div style='font-size:11px;font-weight:600;line-height:1.3'>"
                             f"{_fv.get('razao_social','—')[:35]}</div>"
                             f"<div style='font-size:10px;color:#888'>"
-                            f"{_fv.get('municipio','')} / {_fv.get('uf','')}</div>",
+                            f"{_fv.get('municipio','')} / {_fv.get('uf','')}</div>"
+                            f"<div style='margin-top:3px'>{_badge_fv}</div>",
                             unsafe_allow_html=True,
                         )
                     with _fv_col2:
