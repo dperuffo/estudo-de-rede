@@ -76,6 +76,11 @@ def _db_salvar_rota(nome: str, tipo: str, dados: dict) -> bool:
     """Salva rota no Supabase. Fallback para JSON local."""
     db = _db_client()
     _id = f"{int(time.time())}_{nome[:8]}"
+    # Garante que dados é JSON puro (converte numpy, datetime, etc.)
+    try:
+        _dados_json = _json_mod.loads(_json_mod.dumps(dados, default=str))
+    except Exception:
+        _dados_json = {}
     if db:
         try:
             db.table("rotas_salvas").insert({
@@ -84,11 +89,11 @@ def _db_salvar_rota(nome: str, tipo: str, dados: dict) -> bool:
                 "nome":          nome.strip() or "Rota",
                 "tipo":          tipo,
                 "criado_em":     _agora(),
-                "dados":         dados,
+                "dados":         _dados_json,
             }).execute()
             return True
-        except Exception:
-            pass
+        except Exception as _e:
+            st.warning(f"⚠️ Banco indisponível ({_e}), salvando localmente.", icon="💾")
     return _salvar_rota_nova_local(nome, tipo, dados)
 
 
