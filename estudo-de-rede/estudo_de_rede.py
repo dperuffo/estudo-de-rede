@@ -9387,6 +9387,8 @@ with st.sidebar:
 
         # Painel de gerenciamento de favoritos
         _fav_list = _db_favoritos() if st.session_state.get("fav_cnpjs") else []
+        # Salva no session_state para uso no filtro principal (todos os estados)
+        st.session_state["_fav_list_cache"] = _fav_list
         if _fav_list:
             with st.expander(f"⭐ Meus Favoritos ({len(_fav_list)})", expanded=False):
                 # Dados de contexto para score
@@ -11701,11 +11703,43 @@ if modo == "📍 Por UF/Município":
 
         # ── Filtro Apenas Favoritos ──────────────────────────────────────────
         if _filtro_apenas_favoritos_m1 and st.session_state.get("fav_cnpjs"):
-            _fav_set_m1 = st.session_state["fav_cnpjs"]
-            _cnpj_col   = "_cnpj_norm" if "_cnpj_norm" in df_show.columns else "cnpj"
-            df_show = df_show[
-                df_show[_cnpj_col].fillna("").str.replace(r"\D", "", regex=True).isin(_fav_set_m1)
-            ]
+            _fav_set_m1    = st.session_state["fav_cnpjs"]
+            _pf_coords_all = st.session_state.get("pf_coords_df", pd.DataFrame())
+
+            # 1. Postos favoritos presentes em pf_coords_df (qualquer UF)
+            _df_fav_pf = pd.DataFrame()
+            if not _pf_coords_all.empty and "cnpj" in _pf_coords_all.columns:
+                _df_fav_pf = _pf_coords_all[
+                    _pf_coords_all["cnpj"].isin(_fav_set_m1)
+                ].copy().reset_index(drop=True)
+
+            # 2. Postos favoritos que NÃO estão em pf_coords_df
+            #    (favoritos adicionados via Busca/ANP, com lat/lon gravado no banco)
+            _cnpjs_em_pf  = set(_df_fav_pf["cnpj"]) if not _df_fav_pf.empty else set()
+            _fav_list_c   = st.session_state.get("_fav_list_cache", [])
+            _rows_extra   = []
+            for _ff in _fav_list_c:
+                if _ff["cnpj"] not in _cnpjs_em_pf and _ff.get("lat") and _ff.get("lon"):
+                    _rows_extra.append({
+                        "cnpj":        _ff["cnpj"],
+                        "_lat":        float(_ff["lat"]),
+                        "_lon":        float(_ff["lon"]),
+                        "razaoSocial": _ff.get("razao_social", ""),
+                        "municipio":   _ff.get("municipio", ""),
+                        "uf":          _ff.get("uf", ""),
+                        "distribuidora": "",
+                    })
+            _df_extra = pd.DataFrame(_rows_extra) if _rows_extra else pd.DataFrame()
+
+            # 3. Une e prepara
+            _frames_fav = [f for f in [_df_fav_pf, _df_extra] if not f.empty]
+            if _frames_fav:
+                df_show = preparar_df(
+                    pd.concat(_frames_fav, ignore_index=True),
+                    [], perfis_filtro=[], filtro_servicos=[], filtro_24h=False,
+                )
+            else:
+                df_show = pd.DataFrame()
 
         # ── Ranking Top 5 Mais Baratos ──────────────────────────────────────
         _fuel_rank_m1 = _fuel_sel_m1 if (_fuel_sel_m1 and _fuel_sel_m1 != "— Todos —") else None
