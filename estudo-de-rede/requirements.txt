@@ -20,3 +20,4 @@ streamlit-oauth>=0.1.14
 reportlab>=3.6.0
 staticmap>=0.5.4          # mapa de rota no card PNG
 Pillow>=10.0.0            # manipulação de imagem no card PNG
+supabase>=2.3.0           # banco de dados para persistência

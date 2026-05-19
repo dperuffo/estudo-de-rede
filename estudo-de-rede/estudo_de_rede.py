@@ -29,6 +29,228 @@ from matplotlib.lines import Line2D
 # Diretório onde este script está — usado para localizar arquivos do repo
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ═══════════════════════════════════════════════════════════════════
+#  SUPABASE — Banco de Dados para Persistência
+# ═══════════════════════════════════════════════════════════════════
+
+@st.cache_resource(show_spinner=False)
+def _db_client():
+    """Retorna o cliente Supabase (singleton). None se não configurado."""
+    try:
+        from supabase import create_client
+        _url = st.secrets.get("supabase", {}).get("url") or os.environ.get("SUPABASE_URL", "")
+        _key = st.secrets.get("supabase", {}).get("key") or os.environ.get("SUPABASE_KEY", "")
+        if _url and _key:
+            return create_client(_url, _key)
+    except Exception:
+        pass
+    return None
+
+
+def _db_email() -> str:
+    """E-mail do usuário logado, usado como identificador no banco."""
+    return (st.session_state.get("_auth_user") or {}).get("email", "anonimo")
+
+
+# ── Rotas ──────────────────────────────────────────────────────────
+
+def _db_carregar_rotas() -> list:
+    """Carrega rotas do Supabase. Fallback para JSON local."""
+    db = _db_client()
+    if db:
+        try:
+            res = db.table("rotas_salvas") \
+                    .select("*") \
+                    .eq("usuario_email", _db_email()) \
+                    .order("criado_em", desc=True) \
+                    .execute()
+            return [{"id": r["id"], "nome": r["nome"], "tipo": r["tipo"],
+                     "criado_em": r["criado_em"], **r.get("dados", {})}
+                    for r in (res.data or [])]
+        except Exception:
+            pass
+    return _carregar_rotas_salvas_local()
+
+
+def _db_salvar_rota(nome: str, tipo: str, dados: dict) -> bool:
+    """Salva rota no Supabase. Fallback para JSON local."""
+    db = _db_client()
+    _id = f"{int(time.time())}_{nome[:8]}"
+    if db:
+        try:
+            db.table("rotas_salvas").insert({
+                "id":            _id,
+                "usuario_email": _db_email(),
+                "nome":          nome.strip() or "Rota",
+                "tipo":          tipo,
+                "criado_em":     _agora(),
+                "dados":         dados,
+            }).execute()
+            return True
+        except Exception:
+            pass
+    return _salvar_rota_nova_local(nome, tipo, dados)
+
+
+def _db_deletar_rota(rota_id: str) -> bool:
+    """Remove rota do Supabase. Fallback para JSON local."""
+    db = _db_client()
+    if db:
+        try:
+            db.table("rotas_salvas") \
+              .delete() \
+              .eq("id", rota_id) \
+              .eq("usuario_email", _db_email()) \
+              .execute()
+            return True
+        except Exception:
+            pass
+    return _deletar_rota_local(rota_id)
+
+
+# ── Preferências ───────────────────────────────────────────────────
+
+def _db_salvar_preferencias(placa: str = "", combustivel: str = "",
+                             autonomia: float = 0.0, capacidade: float = 0.0,
+                             extras: dict = None) -> bool:
+    """Grava preferências do usuário no Supabase."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("preferencias").upsert({
+            "usuario_email": _db_email(),
+            "placa":         placa,
+            "combustivel":   combustivel,
+            "autonomia":     autonomia,
+            "capacidade":    capacidade,
+            "extras":        extras or {},
+            "atualizado_em": datetime.now().isoformat(),
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _db_carregar_preferencias() -> dict:
+    """Carrega preferências do usuário do Supabase."""
+    db = _db_client()
+    if not db:
+        return {}
+    try:
+        res = db.table("preferencias") \
+                .select("*") \
+                .eq("usuario_email", _db_email()) \
+                .limit(1) \
+                .execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return {}
+
+
+# ── Postos Favoritos ───────────────────────────────────────────────
+
+def _db_favoritos() -> list:
+    """Lista postos favoritos do usuário."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        res = db.table("postos_favoritos") \
+                .select("*") \
+                .eq("usuario_email", _db_email()) \
+                .execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def _db_add_favorito(cnpj: str, razao_social: str, municipio: str,
+                     uf: str, lat: float = None, lon: float = None) -> bool:
+    """Adiciona posto aos favoritos."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("postos_favoritos").upsert({
+            "usuario_email": _db_email(),
+            "cnpj":          cnpj,
+            "razao_social":  razao_social,
+            "municipio":     municipio,
+            "uf":            uf,
+            "lat":           lat,
+            "lon":           lon,
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _db_remove_favorito(cnpj: str) -> bool:
+    """Remove posto dos favoritos."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("postos_favoritos") \
+          .delete() \
+          .eq("usuario_email", _db_email()) \
+          .eq("cnpj", cnpj) \
+          .execute()
+        return True
+    except Exception:
+        return False
+
+
+# ── Histórico de Preços ────────────────────────────────────────────
+
+def _db_gravar_preco(cnpj: str, razao_social: str, municipio: str, uf: str,
+                     combustivel: str, preco: float, fonte: str = "ANP",
+                     lat: float = None, lon: float = None) -> bool:
+    """Grava snapshot de preço no histórico. Ignora duplicatas do mesmo dia."""
+    db = _db_client()
+    if not db or not cnpj or not preco:
+        return False
+    try:
+        db.table("historico_precos").upsert({
+            "cnpj":         cnpj,
+            "razao_social": razao_social,
+            "municipio":    municipio,
+            "uf":           uf,
+            "combustivel":  combustivel,
+            "preco":        round(float(preco), 3),
+            "fonte":        fonte,
+            "data_ref":     datetime.now().strftime("%Y-%m-%d"),
+            "lat":          lat,
+            "lon":          lon,
+        }, on_conflict="cnpj,combustivel,data_ref").execute()
+        return True
+    except Exception:
+        return False
+
+
+def _db_historico_preco(cnpj: str, combustivel: str = None, dias: int = 90) -> list:
+    """Retorna histórico de preços de um posto nos últimos N dias."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        from datetime import timedelta
+        data_ini = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
+        q = db.table("historico_precos") \
+              .select("data_ref,preco,combustivel,fonte") \
+              .eq("cnpj", cnpj) \
+              .gte("data_ref", data_ini) \
+              .order("data_ref")
+        if combustivel:
+            q = q.eq("combustivel", combustivel)
+        res = q.execute()
+        return res.data or []
+    except Exception:
+        return []
+
 # ─── Imagem banner do sidebar (header) ───────────────────────────
 # Designer.jpg tem prioridade máxima; fallback para versões anteriores
 for _menu_nome in ["Designer.jpg", "designer.jpg", "Designer.png", "designer.png",
@@ -7842,8 +8064,8 @@ def _marcar_tour_concluido():
         pass
 
 
-def _carregar_rotas_salvas() -> list:
-    """Lê rotas_salvas.json. Retorna lista vazia se não existir ou houver erro."""
+def _carregar_rotas_salvas_local() -> list:
+    """Lê rotas_salvas.json local (fallback sem banco)."""
     try:
         if os.path.exists(_ROTAS_FILE):
             with open(_ROTAS_FILE, "r", encoding="utf-8") as _f:
@@ -7854,8 +8076,8 @@ def _carregar_rotas_salvas() -> list:
     return []
 
 
-def _gravar_rotas_salvas(rotas: list) -> bool:
-    """Persiste a lista no arquivo JSON. Retorna True se gravou com sucesso."""
+def _gravar_rotas_salvas_local(rotas: list) -> bool:
+    """Persiste a lista no arquivo JSON local (fallback sem banco)."""
     try:
         with open(_ROTAS_FILE, "w", encoding="utf-8") as _f:
             _json_mod.dump(rotas, _f, ensure_ascii=False, indent=2, default=str)
@@ -7864,28 +8086,29 @@ def _gravar_rotas_salvas(rotas: list) -> bool:
         return False
 
 
-def _salvar_rota_nova(nome: str, tipo: str, dados: dict) -> bool:
-    """Adiciona uma nova rota salva ao arquivo."""
-    rotas = _carregar_rotas_salvas()
+def _salvar_rota_nova_local(nome: str, tipo: str, dados: dict) -> bool:
+    """Salva rota no JSON local (fallback sem banco)."""
+    rotas = _carregar_rotas_salvas_local()
     _id   = f"{int(time.time())}_{len(rotas)}"
-    rotas.append({
-        "id":         _id,
-        "nome":       nome.strip() or f"Rota {len(rotas)+1}",
-        "tipo":       tipo,
-        "criado_em":  _agora(),
-        **dados,
-    })
-    return _gravar_rotas_salvas(rotas)
+    rotas.append({"id": _id, "nome": nome.strip() or f"Rota {len(rotas)+1}",
+                  "tipo": tipo, "criado_em": _agora(), **dados})
+    return _gravar_rotas_salvas_local(rotas)
 
 
-def _deletar_rota(rota_id: str) -> bool:
-    """Remove uma rota pelo id."""
-    rotas = _carregar_rotas_salvas()
+def _deletar_rota_local(rota_id: str) -> bool:
+    """Remove rota do JSON local (fallback sem banco)."""
+    rotas = _carregar_rotas_salvas_local()
     antes = len(rotas)
     rotas = [r for r in rotas if r.get("id") != rota_id]
     if len(rotas) < antes:
-        return _gravar_rotas_salvas(rotas)
+        return _gravar_rotas_salvas_local(rotas)
     return False
+
+
+# Aliases públicos — usam Supabase se disponível, JSON local como fallback
+def _carregar_rotas_salvas() -> list:   return _db_carregar_rotas()
+def _salvar_rota_nova(nome, tipo, dados): return _db_salvar_rota(nome, tipo, dados)
+def _deletar_rota(rota_id):             return _db_deletar_rota(rota_id)
 
 
 def _icone_tipo(tipo: str) -> str:
