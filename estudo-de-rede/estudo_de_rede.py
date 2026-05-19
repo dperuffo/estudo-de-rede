@@ -11801,11 +11801,11 @@ if modo == "📍 Por UF/Município":
                             if _e_fav_r:
                                 _db_remove_favorito(_cnpj_r)
                                 st.session_state["fav_cnpjs"].discard(_cnpj_r)
-                                st.toast("Removido dos favoritos", icon="☆")
+                                st.toast("Removido dos favoritos", icon="🔖")
                             else:
                                 _db_add_favorito(_cnpj_r, _nome_r, _mun_r, _uf_r, _lat_r, _lon_r)
                                 st.session_state["fav_cnpjs"].add(_cnpj_r)
-                                st.toast("Adicionado aos favoritos!", icon="⭐")
+                                st.toast("Adicionado aos favoritos!", icon="🌟")
                             st.rerun()
 
                         # ── Anotação rápida ────────────────────────────
@@ -12948,12 +12948,12 @@ elif modo == "🔍 Consulta por Posto":
                             if _e_fav:
                                 _db_remove_favorito(_cnpj_det)
                                 st.session_state["fav_cnpjs"].discard(_cnpj_det)
-                                st.toast("Removido dos favoritos", icon="☆")
+                                st.toast("Removido dos favoritos", icon="🔖")
                             else:
                                 _db_add_favorito(_cnpj_det, _nome_det, _mun_det,
                                                  _uf_det, _lat_det, _lon_det)
                                 st.session_state["fav_cnpjs"].add(_cnpj_det)
-                                st.toast("Adicionado aos favoritos!", icon="⭐")
+                                st.toast("Adicionado aos favoritos!", icon="🌟")
                             st.rerun()
 
                     # ── Anotação interna ──────────────────────────────────────
