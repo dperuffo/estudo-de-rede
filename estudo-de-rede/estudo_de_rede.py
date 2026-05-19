@@ -394,7 +394,13 @@ def _db_salvar_postos_gf(df_coords, cnpjs: set,
                     "atualizado_em": now_iso,
                 })
 
-        # 4. Upsert em chunks de 500
+        # 4. Deduplica por CNPJ (evita ON CONFLICT duplicado no mesmo batch)
+        _seen: dict = {}
+        for _r in records:
+            _seen[_r["cnpj"]] = _r
+        records = list(_seen.values())
+
+        # 5. Upsert em chunks de 500
         _chunk = 500
         for _i in range(0, len(records), _chunk):
             db.table("postos_gf").upsert(records[_i:_i + _chunk]).execute()
