@@ -259,6 +259,142 @@ def _db_historico_preco(cnpj: str, combustivel: str = None, dias: int = 90) -> l
         return []
 
 
+# ── Controle de Acesso (Allowlist / Blacklist) ────────────────────
+
+# E-mail do administrador — único com acesso ao painel de gestão
+_ADMIN_EMAIL = "d.peruffo@gmail.com"
+
+
+def _db_verificar_acesso(email: str) -> tuple[bool, str]:
+    """
+    Verifica se o e-mail tem permissão para acessar o app.
+    Retorna (permitido: bool, motivo: str).
+
+    Modo 'blacklist' (padrão): todos entram, exceto bloqueados.
+    Modo 'allowlist':          só entra quem está com status='permitido'.
+    """
+    if not email or email == "anonimo":
+        return False, "E-mail não identificado."
+
+    # Admin sempre tem acesso
+    if email.lower() == _ADMIN_EMAIL.lower():
+        return True, "admin"
+
+    db = _db_client()
+    if not db:
+        return True, "banco indisponível — acesso liberado"
+
+    try:
+        # Lê modo de acesso configurado
+        _cfg = db.table("configuracoes") \
+                 .select("valor") \
+                 .eq("chave", "modo_acesso") \
+                 .limit(1) \
+                 .execute()
+        _modo = (_cfg.data[0]["valor"] if _cfg.data else "blacklist")
+
+        # Busca registro do e-mail
+        _res = db.table("controle_acesso") \
+                 .select("status,motivo") \
+                 .eq("email", email.lower()) \
+                 .limit(1) \
+                 .execute()
+        _registro = _res.data[0] if _res.data else None
+
+        if _registro:
+            if _registro["status"] == "bloqueado":
+                return False, _registro.get("motivo") or "Acesso bloqueado pelo administrador."
+            if _registro["status"] == "permitido":
+                # Atualiza último acesso
+                db.table("controle_acesso") \
+                  .update({"ultimo_acesso": datetime.now().isoformat()}) \
+                  .eq("email", email.lower()) \
+                  .execute()
+                return True, "permitido"
+
+        # Sem registro: depende do modo
+        if _modo == "allowlist":
+            # Registra como pendente para o admin revisar
+            db.table("controle_acesso").upsert({
+                "email":  email.lower(),
+                "status": "pendente",
+                "nome":   (st.session_state.get("_auth_user") or {}).get("name", ""),
+            }).execute()
+            return False, "Seu acesso está pendente de aprovação pelo administrador."
+
+        # Modo blacklist: não está bloqueado → pode entrar
+        return True, "blacklist-livre"
+
+    except Exception:
+        return True, "erro ao verificar — acesso liberado"
+
+
+def _db_atualizar_status_acesso(email: str, status: str,
+                                 motivo: str = "", admin: str = "") -> bool:
+    """Admin altera status de um e-mail: 'permitido' | 'bloqueado' | 'pendente'."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("controle_acesso").upsert({
+            "email":         email.lower(),
+            "status":        status,
+            "motivo":        motivo,
+            "adicionado_por": admin,
+            "adicionado_em": datetime.now().isoformat(),
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _db_listar_controle_acesso() -> list:
+    """Retorna todos os registros de controle de acesso."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        res = db.table("controle_acesso") \
+                .select("*") \
+                .order("adicionado_em", desc=True) \
+                .execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def _db_modo_acesso() -> str:
+    """Retorna o modo atual: 'blacklist' ou 'allowlist'."""
+    db = _db_client()
+    if not db:
+        return "blacklist"
+    try:
+        res = db.table("configuracoes") \
+                .select("valor") \
+                .eq("chave", "modo_acesso") \
+                .limit(1) \
+                .execute()
+        return res.data[0]["valor"] if res.data else "blacklist"
+    except Exception:
+        return "blacklist"
+
+
+def _db_set_modo_acesso(modo: str) -> bool:
+    """Admin altera o modo de acesso global."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("configuracoes").upsert({
+            "chave": "modo_acesso",
+            "valor": modo,
+            "atualizado_em": datetime.now().isoformat(),
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
 # ── Logs de Acesso ─────────────────────────────────────────────────
 
 def _db_gravar_log(entry: dict) -> None:
@@ -1660,6 +1796,48 @@ if "_auth_user" not in st.session_state:
 if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
     _auth_login_page()
     st.stop()
+
+# ── Verificar controle de acesso (allowlist / blacklist) ────────────
+if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
+    _email_logado = (st.session_state["_auth_user"] or {}).get("email", "")
+    if _email_logado and not st.session_state.get("_acesso_verificado"):
+        _acesso_ok, _acesso_motivo = _db_verificar_acesso(_email_logado)
+        st.session_state["_acesso_verificado"] = True
+        if not _acesso_ok:
+            # Limpa sessão e mostra tela de bloqueio
+            _nome_bloq = (st.session_state["_auth_user"] or {}).get("name", _email_logado)
+            st.session_state["_auth_user"] = None
+            st.session_state["_acesso_verificado"] = False
+            st.markdown("""
+            <style>
+            #MainMenu, header, footer, [data-testid="stSidebar"],
+            [data-testid="stToolbar"] { display: none !important; }
+            [data-testid="stAppViewContainer"] {
+                background: linear-gradient(135deg, #0a0e27 0%, #0d1b4b 100%);
+                display: flex; align-items: center; justify-content: center;
+                min-height: 100vh;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            _, _cc, _ = st.columns([1, 2, 1])
+            with _cc:
+                st.markdown(f"""
+                <div style="background:rgba(255,255,255,0.07);backdrop-filter:blur(20px);
+                            border:1px solid rgba(255,255,255,0.12);border-radius:20px;
+                            padding:2.5rem 2rem;text-align:center;margin-top:15vh;">
+                  <div style="font-size:56px;margin-bottom:1rem;">🚫</div>
+                  <div style="font-size:1.4rem;font-weight:700;color:#fff;margin-bottom:.5rem;">
+                    Acesso Negado
+                  </div>
+                  <div style="font-size:.9rem;color:rgba(255,255,255,.5);margin-bottom:1.5rem;">
+                    {_acesso_motivo}
+                  </div>
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.3);">
+                    {_email_logado}<br>Entre em contato com o administrador do sistema.
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+            st.stop()
 
 
 # ─── Constantes ───────────────────────────────────────────────────
@@ -8732,6 +8910,20 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🧠 Inteligência", modo_override="🧠 Inteligência")
         st.rerun()
 
+    # ── Botão Admin (visível só para o administrador) ─────────────
+    _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
+    if _email_atual.lower() == _ADMIN_EMAIL.lower():
+        st.divider()
+        if st.button(
+            "🔐 Admin",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🔐 Admin" else "secondary",
+            key="btn_admin",
+            help="Painel de controle de acesso de usuários",
+        ):
+            st.session_state["modo_selecionado"] = "🔐 Admin"
+            st.rerun()
+
     modo = _modo_atual
     st.divider()
 
@@ -14288,6 +14480,152 @@ elif modo == "🧠 Inteligência":
         if not (st.session_state.get("_pp_df") is not None):
             st.info("ℹ️ Para gerar o relatório, carregue a planilha de **Preços PP** em "
                     "**Configurações → 💲 Preços PP**.")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO ADMIN — Controle de Acesso de Usuários
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "🔐 Admin":
+    _email_admin_check = (st.session_state.get("_auth_user") or {}).get("email", "")
+    if _email_admin_check.lower() != _ADMIN_EMAIL.lower():
+        st.error("🚫 Acesso restrito ao administrador.")
+        st.stop()
+
+    st.markdown("## 🔐 Painel de Administração — Controle de Acesso")
+
+    # ── Modo de acesso global ──────────────────────────────────────
+    _modo_atual_db = _db_modo_acesso()
+    st.markdown("### ⚙️ Modo de Acesso Global")
+    _col_m1, _col_m2 = st.columns(2)
+    with _col_m1:
+        st.info(f"**Modo atual:** {'🔓 Blacklist (aberto)' if _modo_atual_db == 'blacklist' else '🔒 Allowlist (restrito)'}")
+    with _col_m2:
+        if _modo_atual_db == "blacklist":
+            if st.button("🔒 Mudar para Allowlist (restrito)", use_container_width=True):
+                _db_set_modo_acesso("allowlist")
+                st.toast("✅ Modo alterado para Allowlist.", icon="🔒")
+                st.rerun()
+        else:
+            if st.button("🔓 Mudar para Blacklist (aberto)", use_container_width=True):
+                _db_set_modo_acesso("blacklist")
+                st.toast("✅ Modo alterado para Blacklist.", icon="🔓")
+                st.rerun()
+
+    st.caption("**Blacklist:** todos entram, exceto os bloqueados. **Allowlist:** só entram os aprovados.")
+    st.divider()
+
+    # ── Adicionar e-mail manualmente ──────────────────────────────
+    st.markdown("### ➕ Adicionar Usuário")
+    _ca1, _ca2, _ca3, _ca4 = st.columns([3, 2, 2, 1])
+    with _ca1:
+        _novo_email = st.text_input("E-mail", placeholder="usuario@empresa.com", key="admin_novo_email")
+    with _ca2:
+        _novo_status = st.selectbox("Status", ["permitido", "bloqueado"], key="admin_novo_status")
+    with _ca3:
+        _novo_motivo = st.text_input("Motivo (opcional)", key="admin_novo_motivo")
+    with _ca4:
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        if st.button("Adicionar", use_container_width=True, key="admin_add_btn", type="primary"):
+            if _novo_email and "@" in _novo_email:
+                if _db_atualizar_status_acesso(_novo_email.strip(), _novo_status,
+                                               _novo_motivo, _ADMIN_EMAIL):
+                    st.toast(f"✅ {_novo_email} → {_novo_status}", icon="✅")
+                    st.rerun()
+            else:
+                st.warning("Digite um e-mail válido.")
+
+    st.divider()
+
+    # ── Lista de usuários controlados ─────────────────────────────
+    st.markdown("### 👥 Usuários Gerenciados")
+
+    _registros = _db_listar_controle_acesso()
+
+    # Também mostra usuários dos logs que ainda não estão na lista
+    _logs_emails = set()
+    try:
+        _logs_rec = _db_ler_logs(limite=5000)
+        _logs_emails = {r.get("user_email","") for r in _logs_rec
+                        if r.get("user_email") and r.get("user_email") != "—"}
+    except Exception:
+        pass
+    _emails_gerenc = {r["email"] for r in _registros}
+    _emails_novos  = _logs_emails - _emails_gerenc - {_ADMIN_EMAIL}
+
+    if _emails_novos:
+        st.info(f"💡 **{len(_emails_novos)} e-mail(s)** nos logs ainda não gerenciados: "
+                f"{', '.join(sorted(_emails_novos)[:5])}{'…' if len(_emails_novos)>5 else ''}")
+
+    if not _registros:
+        st.caption("Nenhum usuário gerenciado ainda. Use o formulário acima para adicionar.")
+    else:
+        # Filtro de status
+        _filtro_status = st.pills("Filtrar por status",
+                                   ["Todos", "✅ Permitido", "🚫 Bloqueado", "⏳ Pendente"],
+                                   default="Todos", key="admin_filtro_status")
+
+        _mapa_filtro = {"Todos": None, "✅ Permitido": "permitido",
+                        "🚫 Bloqueado": "bloqueado", "⏳ Pendente": "pendente"}
+        _filtro_val = _mapa_filtro.get(_filtro_status)
+        _reg_filtrados = [r for r in _registros
+                          if _filtro_val is None or r.get("status") == _filtro_val]
+
+        for _reg in _reg_filtrados:
+            _em   = _reg.get("email", "")
+            _st   = _reg.get("status", "")
+            _mot  = _reg.get("motivo", "") or ""
+            _nom  = _reg.get("nome", "") or ""
+            _ult  = _reg.get("ultimo_acesso", "") or ""
+            _icone = {"permitido": "✅", "bloqueado": "🚫", "pendente": "⏳"}.get(_st, "❔")
+
+            with st.container(border=True):
+                _rc1, _rc2, _rc3, _rc4 = st.columns([4, 2, 2, 2])
+                with _rc1:
+                    st.markdown(f"**{_em}**")
+                    if _nom:
+                        st.caption(f"👤 {_nom}")
+                    if _ult:
+                        st.caption(f"🕐 Último acesso: {_ult[:16]}")
+                with _rc2:
+                    st.markdown(f"{_icone} **{_st.title()}**")
+                    if _mot:
+                        st.caption(f"_{_mot}_")
+                with _rc3:
+                    _nova_acao = "bloqueado" if _st != "bloqueado" else "permitido"
+                    _btn_label = "🚫 Bloquear" if _nova_acao == "bloqueado" else "✅ Permitir"
+                    if st.button(_btn_label, key=f"admin_toggle_{_em}",
+                                 use_container_width=True):
+                        _db_atualizar_status_acesso(_em, _nova_acao, "", _ADMIN_EMAIL)
+                        st.toast(f"✅ {_em} → {_nova_acao}", icon="🔄")
+                        st.rerun()
+                with _rc4:
+                    _motivo_blq = st.text_input("Motivo", value=_mot,
+                                                key=f"admin_mot_{_em}",
+                                                placeholder="opcional",
+                                                label_visibility="collapsed")
+                    if st.button("💾", key=f"admin_save_mot_{_em}",
+                                 help="Salvar motivo"):
+                        _db_atualizar_status_acesso(_em, _st, _motivo_blq, _ADMIN_EMAIL)
+                        st.toast("Motivo salvo!", icon="💾")
+                        st.rerun()
+
+    st.divider()
+
+    # ── Resumo de acessos recentes (dos logs) ─────────────────────
+    st.markdown("### 📊 Acessos Recentes")
+    if _logs_rec:
+        _login_logs = [r for r in _logs_rec if r.get("acao") == "LOGIN"][:20]
+        if _login_logs:
+            _df_log = pd.DataFrame(_login_logs)[
+                ["timestamp","user_email","user_name","ip","auth_provider"]
+            ].rename(columns={
+                "timestamp": "Data/Hora", "user_email": "E-mail",
+                "user_name": "Nome", "ip": "IP", "auth_provider": "Provider"
+            })
+            st.dataframe(_df_log, use_container_width=True, hide_index=True)
+        else:
+            st.caption("Nenhum login registrado ainda.")
 
 
 # ═══════════════════════════════════════════════════════════════════
