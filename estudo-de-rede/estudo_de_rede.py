@@ -571,7 +571,13 @@ def _db_salvar_precos_posto(df_pp: pd.DataFrame, nome_arquivo: str):
                 "atualizado_em":      now_iso,
             })
 
-        # 4. Upsert em chunks
+        # 4. Deduplica por (cnpj_norm, combustivel_pk)
+        _seen_pp: dict = {}
+        for _r in records:
+            _seen_pp[(_r["cnpj_norm"], _r["combustivel_pk"])] = _r
+        records = list(_seen_pp.values())
+
+        # 5. Upsert em chunks
         _chunk = 500
         for _i in range(0, len(records), _chunk):
             db.table("precos_posto_db").upsert(
