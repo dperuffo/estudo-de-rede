@@ -8908,7 +8908,7 @@ with st.sidebar:
         _email_u  = _auth_u.get("email",    "")
         _pic_u    = _auth_u.get("picture",  "")
         _prov_u   = _auth_u.get("provider", "")
-        _prov_ico = "🪟" if _prov_u == "microsoft" else "🔴"
+        _prov_ico = "🪟" if _prov_u == "microsoft" else "✅"
 
         # Avatar: foto de perfil ou iniciais
         if _pic_u:
