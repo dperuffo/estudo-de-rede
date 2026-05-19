@@ -1,0 +1,33 @@
+# ════════════════════════════════════════════════════
+#  fly.toml — Configuração de deploy no fly.io
+#  App: Estudo de Rede – Pró-Frotas
+#
+#  ATENÇÃO: mude o nome do app abaixo se quiser
+#  um endereço personalizado (ex: minha-empresa-frotas)
+# ════════════════════════════════════════════════════
+
+app            = "estudo-de-rede-profrotas"
+primary_region = "gru"   # São Paulo, Brasil
+
+[build]
+
+[env]
+  PORT = "8501"
+
+[http_service]
+  internal_port        = 8501
+  force_https          = true
+  auto_stop_machines   = true
+  auto_start_machines  = true
+  min_machines_running = 0
+  processes            = ["app"]
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  memory   = "1gb"
+  cpu_kind = "shared"
+  cpus     = 1
