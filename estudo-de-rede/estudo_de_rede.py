@@ -33,18 +33,20 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 #  SUPABASE — Banco de Dados para Persistência
 # ═══════════════════════════════════════════════════════════════════
 
-@st.cache_resource(show_spinner=False)
 def _db_client():
-    """Retorna o cliente Supabase (singleton). None se não configurado."""
-    try:
-        from supabase import create_client
-        _url = st.secrets.get("supabase", {}).get("url") or os.environ.get("SUPABASE_URL", "")
-        _key = st.secrets.get("supabase", {}).get("key") or os.environ.get("SUPABASE_KEY", "")
-        if _url and _key:
-            return create_client(_url, _key)
-    except Exception:
-        pass
-    return None
+    """Retorna o cliente Supabase. Cria uma vez por sessão via session_state."""
+    if "_supabase_client" not in st.session_state:
+        try:
+            from supabase import create_client
+            _url = st.secrets.get("supabase", {}).get("url") or os.environ.get("SUPABASE_URL", "")
+            _key = st.secrets.get("supabase", {}).get("key") or os.environ.get("SUPABASE_KEY", "")
+            if _url and _key:
+                st.session_state["_supabase_client"] = create_client(_url, _key)
+            else:
+                st.session_state["_supabase_client"] = None
+        except Exception:
+            st.session_state["_supabase_client"] = None
+    return st.session_state["_supabase_client"]
 
 
 def _db_email() -> str:
