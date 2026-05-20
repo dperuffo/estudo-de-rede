@@ -16644,11 +16644,11 @@ elif modo == "🚛 Análise de Cliente":
                     consumo_medio=("_media_km_l", "mean"),
                 ).reset_index()
 
-                # custo por km calculado
-                _veic_grp["custo_km"] = _np.where(
-                    _veic_grp["km"] > 0,
-                    _veic_grp["custo"] / _veic_grp["km"],
-                    _np.nan
+                # custo por km calculado — substitui 0 por NaN antes de dividir
+                # (np.where avalia as duas branches antes da condição no Python 3.14+)
+                _veic_grp["custo_km"] = (
+                    _veic_grp["custo"]
+                    / _veic_grp["km"].replace(0, _np.nan)
                 )
                 # preço médio pago por litro
                 _preco_veiculo = _df.groupby("_placa")["_preco_litro"].mean().reset_index()
