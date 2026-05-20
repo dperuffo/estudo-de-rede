@@ -9207,6 +9207,17 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🧠 Inteligência", modo_override="🧠 Inteligência")
         st.rerun()
 
+    if st.button(
+        "🚛 Análise de Cliente",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🚛 Análise de Cliente" else "secondary",
+        key="btn_analise_cliente",
+        help="Análise de abastecimentos e custos da frota do cliente",
+    ):
+        st.session_state["modo_selecionado"] = "🚛 Análise de Cliente"
+        _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
+        st.rerun()
+
     # ── Botão Documentação (largura total) ──────────────────────────
     if st.button(
         "📄 Documentação",
@@ -9217,17 +9228,6 @@ with st.sidebar:
     ):
         st.session_state["modo_selecionado"] = "📄 Documentação"
         _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
-        st.rerun()
-
-    if st.button(
-        "🚛 Análise de Cliente",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🚛 Análise de Cliente" else "secondary",
-        key="btn_analise_cliente",
-        help="Análise de abastecimentos e custos da frota do cliente",
-    ):
-        st.session_state["modo_selecionado"] = "🚛 Análise de Cliente"
-        _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
         st.rerun()
 
     # ── Botão Admin (visível só para o administrador) ─────────────
