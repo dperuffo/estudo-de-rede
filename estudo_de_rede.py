@@ -17043,6 +17043,8 @@ elif modo == "🚛 Análise de Cliente":
 
                 # ════════════════════════════════════════════════
                 # WIDGET DE UPLOAD ANP (inline nesta aba)
+                # Sem st.rerun() — atualiza variáveis locais
+                # diretamente para evitar loop de reruns.
                 # ════════════════════════════════════════════════
                 _anp_cache_inline = st.session_state.get("_precos_anp_cache", {})
                 _sheets_inline    = _anp_cache_inline.get("sheets")
@@ -17105,10 +17107,21 @@ elif modo == "🚛 Análise de Cliente":
                                     st.session_state["_precos_anp_cache"] = {
                                         "sheets": _sh_sv, "semana": _sem_sv
                                     }
-                                    st.rerun()
+                                    # ↓ Atualiza variáveis locais SEM chamar st.rerun()
+                                    #   O rerun automático do file_uploader já foi
+                                    #   consumido pelo upload; um segundo st.rerun()
+                                    #   aqui criaria loop. Usamos as variáveis
+                                    #   atualizadas para o cálculo abaixo na mesma run.
+                                    _sheets_inline = _sh_sv
+                                    _semana_inline = _sem_sv
+                                    st.success(
+                                        f"✅ Planilha ANP **{_sem_sv}** carregada — "
+                                        "análise atualizada abaixo."
+                                    )
                             except Exception as _ex_sv:
                                 st.error(f"❌ Erro ao ler arquivo: {_ex_sv}")
-                else:
+
+                if _sheets_inline is not None:
                     # ── Dados carregados: badge compacto + opção de substituir ─
                     with st.expander(
                         f"✅ ANP carregada: **{_semana_inline}** · Clique para trocar",
@@ -17140,7 +17153,10 @@ elif modo == "🚛 Análise de Cliente":
                                     st.session_state["_precos_anp_cache"] = {
                                         "sheets": _sh_sv2, "semana": _sem_sv2
                                     }
-                                    st.rerun()
+                                    # Atualiza localmente sem rerun
+                                    _sheets_inline = _sh_sv2
+                                    _semana_inline = _sem_sv2
+                                    st.success("✅ Planilha ANP atualizada!")
                                 else:
                                     st.error("❌ Arquivo não reconhecido.")
                             except Exception as _ex_sv2:
@@ -17168,9 +17184,10 @@ elif modo == "🚛 Análise de Cliente":
                         return "—"
 
                 # ── Fontes de dados ───────────────────────────────────────
-                _anp_cache_sv   = st.session_state.get("_precos_anp_cache", {})
-                _sheets_anp_sv  = _anp_cache_sv.get("sheets")
-                _semana_anp_sv  = _anp_cache_sv.get("semana", "")
+                # Usa _sheets_inline / _semana_inline que já foram atualizados
+                # pelo upload acima (sem precisar de rerun extra).
+                _sheets_anp_sv  = _sheets_inline
+                _semana_anp_sv  = _semana_inline
                 _pp_df_sv       = st.session_state.get("_pp_df")
                 _pf_df_sv       = st.session_state.get("pf_coords_df", _pd.DataFrame())
 
