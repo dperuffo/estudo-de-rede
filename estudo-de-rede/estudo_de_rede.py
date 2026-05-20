@@ -12916,8 +12916,8 @@ elif modo == "🗺️ Por Rota":
                 else:
                     st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
 
-        tab_m, tab_d = st.tabs([
-            "🗺️  Mapa da Rota", "📋  Postos na Rota"])
+        tab_m, tab_d, tab_comp = st.tabs([
+            "🗺️  Mapa da Rota", "📋  Postos na Rota", "⚖️  Comparativo de Rotas"])
 
         with tab_m:
             with st.spinner(f"🗺️ Carregando mapa da rota — {_n(len(df_show_r))} postos…"):
@@ -13139,6 +13139,309 @@ elif modo == "🗺️ Por Rota":
             st.download_button("⬇️ Baixar dados em CSV",
                                df_show_r.to_csv(index=False).encode("utf-8"),
                                "postos_rota.csv","text/csv", use_container_width=True)
+
+        with tab_comp:
+            # ════════════════════════════════════════════════════════════
+            #  Comparativo de Rotas Alternativas
+            # ════════════════════════════════════════════════════════════
+            st.markdown(
+                "<div style='font-size:15px;font-weight:700;color:#1a237e;"
+                "margin-bottom:2px'>⚖️ Comparativo de Rotas Alternativas</div>"
+                "<div style='font-size:11px;color:#78909c;margin-bottom:14px'>"
+                "Compare dois trajetos entre o mesmo par Origem/Destino. "
+                "A Rota A é o trajeto já calculado. "
+                "Defina um ponto de desvio para criar a Rota B.</div>",
+                unsafe_allow_html=True,
+            )
+
+            # ── Linha reta O→D (referência de desvio) ────────────────────
+            def _hav_km(la1, lo1, la2, lo2):
+                _R = 6371.0
+                _dl = _math_mod.radians(la2 - la1)
+                _dlo = _math_mod.radians(lo2 - lo1)
+                _a = (_math_mod.sin(_dl/2)**2 +
+                      _math_mod.cos(_math_mod.radians(la1)) *
+                      _math_mod.cos(_math_mod.radians(la2)) *
+                      _math_mod.sin(_dlo/2)**2)
+                return _R * 2 * _math_mod.atan2(_math_mod.sqrt(_a), _math_mod.sqrt(1-_a))
+
+            _dist_reta_comp = _hav_km(lat_orig, lon_orig, lat_dest, lon_dest)
+
+            # ── Definir via point para Rota B ────────────────────────────
+            st.markdown("##### 🔵 Rota B — ponto intermediário alternativo")
+            _c_via1, _c_via2 = st.columns([3, 1])
+            with _c_via1:
+                _comp_via_txt = st.text_input(
+                    "Via intermediária (Rota B)",
+                    placeholder="Ex: Campinas, Londrina, Ribeirão Preto…",
+                    key="comp_via_b_txt",
+                    help="Digite uma cidade ou posto para desviar a Rota B",
+                    label_visibility="collapsed",
+                )
+            with _c_via2:
+                if st.session_state.get("_comp_via_b_sel"):
+                    if st.button("🗑️ Limpar via", key="btn_limpar_via_b",
+                                 use_container_width=True):
+                        st.session_state.pop("_comp_via_b_sel", None)
+                        st.session_state.pop("_comp_rota_b", None)
+                        st.rerun()
+
+            _comp_via_sel = st.session_state.get("_comp_via_b_sel")
+
+            if _comp_via_txt and len(_comp_via_txt.strip()) >= 3:
+                with st.spinner("🔍 Buscando localidades…"):
+                    _comp_sugs = (
+                        sugestoes_nominatim(_comp_via_txt)
+                        + buscar_posto_por_texto(_comp_via_txt, max_results=3)
+                    )
+                if _comp_sugs:
+                    _comp_labels = [s["label"] for s in _comp_sugs]
+                    _comp_choice = st.selectbox(
+                        "Selecione:",
+                        ["— Selecione um ponto de desvio —"] + _comp_labels,
+                        key="comp_via_b_choice",
+                        label_visibility="collapsed",
+                    )
+                    if _comp_choice != "— Selecione um ponto de desvio —":
+                        _idx_c = _comp_labels.index(_comp_choice)
+                        st.session_state["_comp_via_b_sel"] = _comp_sugs[_idx_c]
+                        _comp_via_sel = _comp_sugs[_idx_c]
+                        st.rerun()
+                else:
+                    st.caption("Nenhuma localidade encontrada. Tente outro termo.")
+
+            if _comp_via_sel:
+                st.success(f"✅ Via B: **{_comp_via_sel['label']}**")
+
+            _btn_calc_b = st.button(
+                "🔄 Calcular Rota B",
+                disabled=(_comp_via_sel is None),
+                use_container_width=False,
+                key="btn_calc_rota_b",
+                type="primary",
+            )
+
+            if _btn_calc_b and _comp_via_sel:
+                with st.spinner("🗺️ Calculando Rota B via {_comp_via_sel['label']}…"):
+                    _cr_b, _dk_b, _dm_b, _lr_b = calcular_rota(
+                        lat_orig, lon_orig, lat_dest, lon_dest,
+                        waypoints=[[_comp_via_sel["lat"], _comp_via_sel["lon"]]],
+                    )
+                # Postos na Rota B
+                _pf_comp = st.session_state.get("pf_coords_df", pd.DataFrame())
+                _ufs_b   = ufs_ao_longo_rota(_cr_b)
+                _ufs_b_s = {u.upper() for u in _ufs_b}
+                _df_rb   = pd.DataFrame()
+                if not _pf_comp.empty:
+                    _pf_b_tmp = _pf_comp[
+                        _pf_comp["uf"].fillna("").str.upper().str.strip().isin(_ufs_b_s)
+                    ].copy()
+                    if not _pf_b_tmp.empty:
+                        _dists_b = dist_minima_rota_np(
+                            _pf_b_tmp["_lat"].values,
+                            _pf_b_tmp["_lon"].values,
+                            _cr_b,
+                        )
+                        _pf_b_tmp["_dist_rota"] = _dists_b
+                        _df_rb = preparar_df(
+                            _pf_b_tmp[_pf_b_tmp["_dist_rota"] <= raio_usado].copy(),
+                            [], perfis_filtro=[], filtro_servicos=[], filtro_24h=False,
+                        )
+                st.session_state["_comp_rota_b"] = {
+                    "coords":     _cr_b,
+                    "dist_km":    _dk_b,
+                    "dur_min":    _dm_b,
+                    "linha_reta": _lr_b,
+                    "df_rota":    _df_rb,
+                    "via":        _comp_via_sel,
+                }
+                st.rerun()
+
+            # ── Exibe comparativo quando Rota B está pronta ───────────────
+            _comp_b = st.session_state.get("_comp_rota_b")
+            if _comp_b:
+                _df_b   = _comp_b["df_rota"]
+                _dk_b   = float(_comp_b["dist_km"] or 0)
+                _dm_b   = float(_comp_b["dur_min"]  or 0)
+                _via_b  = _comp_b["via"]
+
+                # Custo estimado de combustível
+                _aut_c  = float(st.session_state.get("rot_autonomia") or 10.0)
+                _comb_c = st.session_state.get("rot_combustivel", "")
+                _pp_c   = st.session_state.get("_pp_df")
+
+                def _preco_med_rota(df_r, comb_lbl, pp_df):
+                    if pp_df is None or df_r.empty or "cnpj" not in df_r.columns:
+                        return None
+                    _cn_s = set(
+                        df_r["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+                    )
+                    _pp_f = pp_df[pp_df["cnpj_norm"].isin(_cn_s)]
+                    if comb_lbl and comb_lbl not in ("—", ""):
+                        _pp_f = _pp_f[
+                            _pp_f["combustivel_label"].str.strip() == comb_lbl
+                        ]
+                    if _pp_f.empty:
+                        return None
+                    return float(pd.to_numeric(_pp_f["preco"], errors="coerce").median())
+
+                _pa = _preco_med_rota(df_show_r, _comb_c, _pp_c)
+                _pb = _preco_med_rota(_df_b,    _comb_c, _pp_c)
+
+                def _custo_est(dist, aut, preco):
+                    if aut and preco and aut > 0:
+                        return round(dist / aut * preco, 2)
+                    return None
+
+                _ca = _custo_est(dist_km, _aut_c, _pa)
+                _cb_v = _custo_est(_dk_b,   _aut_c, _pb)
+                _dev_a = ((dist_km - _dist_reta_comp) / _dist_reta_comp * 100
+                          if _dist_reta_comp else 0)
+                _dev_b = ((_dk_b   - _dist_reta_comp) / _dist_reta_comp * 100
+                          if _dist_reta_comp else 0)
+
+                # ── Cards lado a lado ─────────────────────────────────────
+                st.markdown(
+                    f"<div style='font-size:11px;color:#78909c;margin-bottom:10px'>"
+                    f"📐 Linha reta O→D: <b>{_dist_reta_comp:.1f} km</b> &nbsp;·&nbsp; "
+                    f"Autonomia: <b>{_aut_c:.0f} km/L</b>"
+                    f"{f' · Combustível: <b>{_comb_c}</b>' if _comb_c and _comb_c != chr(8212) else ''}"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+                _cA, _cB = st.columns(2)
+
+                def _card_rota(col, titulo, cor_borda, cor_txt,
+                               rota_label, via_label,
+                               dist, dur, n_gf, n_total,
+                               desvio, preco_med, custo):
+                    _h_str = f"{int(dur//60)}h {int(dur%60)}min"
+                    _p_str = f"R$ {preco_med:.3f}/L" if preco_med else "—"
+                    _c_str = f"R$ {custo:,.2f}" if custo else "—"
+                    _dev_str = f"+{desvio:.1f}%" if desvio >= 0 else f"{desvio:.1f}%"
+                    col.markdown(
+                        f"<div style='border:2px solid {cor_borda};"
+                        f"border-radius:14px;padding:14px 16px;height:100%'>"
+                        f"<div style='font-size:15px;font-weight:800;color:{cor_txt};"
+                        f"margin-bottom:10px'>{titulo}</div>"
+                        f"<div style='font-size:11px;color:#555;margin-bottom:8px'>"
+                        f"📍 {rota_label}</div>"
+                        f"{'<div style=\"font-size:10px;color:#888;margin-bottom:8px\">🔀 Via: ' + via_label + '</div>' if via_label else ''}"
+                        f"<table style='width:100%;border-collapse:collapse;font-size:12px'>"
+                        f"<tr><td style='padding:4px 0;color:#666'>🛣️ Distância</td>"
+                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{dist:.1f} km</td></tr>"
+                        f"<tr><td style='padding:4px 0;color:#666'>⏱️ Tempo</td>"
+                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_h_str}</td></tr>"
+                        f"<tr><td style='padding:4px 0;color:#666'>⭐ Postos GF</td>"
+                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{n_gf}</td></tr>"
+                        f"<tr><td style='padding:4px 0;color:#666'>⛽ Total postos</td>"
+                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{n_total}</td></tr>"
+                        f"<tr><td style='padding:4px 0;color:#666'>📐 Desvio</td>"
+                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_dev_str}</td></tr>"
+                        f"<tr><td style='padding:4px 0;color:#666'>💰 Preço médio</td>"
+                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_p_str}</td></tr>"
+                        f"<tr><td style='padding:4px 0;color:#666'>🧾 Custo est.</td>"
+                        f"<td style='padding:4px 0;font-weight:700;color:#2e7d32;text-align:right'>{_c_str}</td></tr>"
+                        f"</table></div>",
+                        unsafe_allow_html=True,
+                    )
+
+                _via_a_label = " → ".join(
+                    [wp["label"][:20] for wp in st.session_state.get("_paradas_data", [])]
+                ) if st.session_state.get("_paradas_data") else ""
+
+                _card_rota(
+                    _cA, "🟢 Rota A", "#2e7d32", "#1b5e20",
+                    f"{label_orig[:25]} → {label_dest[:25]}", _via_a_label,
+                    dist_km, dur_min,
+                    n_pf(df_show_r), len(df_show_r),
+                    _dev_a, _pa, _ca,
+                )
+                _card_rota(
+                    _cB, "🔵 Rota B", "#1565c0", "#0d3c7d",
+                    f"{label_orig[:25]} → {label_dest[:25]}", _via_b["label"][:30],
+                    _dk_b, _dm_b,
+                    n_pf(_df_b), len(_df_b),
+                    _dev_b, _pb, _cb_v,
+                )
+
+                # ── Veredito ─────────────────────────────────────────────
+                st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+                _vereditos = []
+                if dist_km < _dk_b:
+                    _vereditos.append("🟢 **Rota A é mais curta** "
+                                      f"({dist_km:.1f} km vs {_dk_b:.1f} km, "
+                                      f"diferença: {_dk_b - dist_km:.1f} km)")
+                elif _dk_b < dist_km:
+                    _vereditos.append("🔵 **Rota B é mais curta** "
+                                      f"({_dk_b:.1f} km vs {dist_km:.1f} km, "
+                                      f"diferença: {dist_km - _dk_b:.1f} km)")
+                else:
+                    _vereditos.append("⚖️ Distâncias equivalentes.")
+
+                if dur_min < _dm_b:
+                    _vereditos.append(f"🟢 **Rota A é mais rápida** "
+                                      f"({int(dur_min//60)}h{int(dur_min%60)}min "
+                                      f"vs {int(_dm_b//60)}h{int(_dm_b%60)}min)")
+                elif _dm_b < dur_min:
+                    _vereditos.append(f"🔵 **Rota B é mais rápida** "
+                                      f"({int(_dm_b//60)}h{int(_dm_b%60)}min "
+                                      f"vs {int(dur_min//60)}h{int(dur_min%60)}min)")
+
+                if n_pf(df_show_r) > n_pf(_df_b):
+                    _vereditos.append(f"🟢 **Rota A tem mais postos GF** "
+                                      f"({n_pf(df_show_r)} vs {n_pf(_df_b)})")
+                elif n_pf(_df_b) > n_pf(df_show_r):
+                    _vereditos.append(f"🔵 **Rota B tem mais postos GF** "
+                                      f"({n_pf(_df_b)} vs {n_pf(df_show_r)})")
+
+                if _ca is not None and _cb_v is not None:
+                    if _ca < _cb_v:
+                        _vereditos.append(f"🟢 **Rota A tem menor custo estimado** "
+                                          f"(R$ {_ca:,.2f} vs R$ {_cb_v:,.2f})")
+                    elif _cb_v < _ca:
+                        _vereditos.append(f"🔵 **Rota B tem menor custo estimado** "
+                                          f"(R$ {_cb_v:,.2f} vs R$ {_ca:,.2f})")
+
+                if _vereditos:
+                    with st.expander("📊 Veredito do comparativo", expanded=True):
+                        for _v in _vereditos:
+                            st.markdown(f"- {_v}")
+
+                # ── Mapa com as duas rotas sobrepostas ────────────────────
+                st.markdown("#### 🗺️ Mapa — Rotas A e B")
+                if _comp_b.get("coords"):
+                    try:
+                        import folium as _folium_c
+                        _m_comp = criar_mapa(
+                            df_show_r,
+                            coords_rota=coords_rota,
+                            lat_orig=lat_orig, lon_orig=lon_orig,
+                            lat_dest=lat_dest, lon_dest=lon_dest,
+                            label_orig=label_orig, label_dest=label_dest,
+                        )
+                        # Sobrepõe Rota B em azul
+                        _cr_b_coords = _comp_b["coords"]
+                        if _cr_b_coords and len(_cr_b_coords) >= 2:
+                            _folium_c.PolyLine(
+                                [[c[0], c[1]] for c in _cr_b_coords],
+                                color="#1565c0", weight=5, opacity=0.75,
+                                tooltip="Rota B",
+                                dash_array="8 4",
+                            ).add_to(_m_comp)
+                            _folium_c.Marker(
+                                [_via_b["lat"], _via_b["lon"]],
+                                tooltip=f"📍 Via B: {_via_b['label']}",
+                                icon=_folium_c.Icon(color="blue", icon="info-sign"),
+                            ).add_to(_m_comp)
+                        _renderizar_mapa(_m_comp, height=500, key="mapa_comp_ab")
+                    except Exception as _em_c:
+                        st.warning(f"Mapa não disponível: {_em_c}")
+                    st.caption(
+                        "🟢 Linha verde sólida = Rota A  ·  "
+                        "🔵 Linha azul tracejada = Rota B"
+                    )
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
