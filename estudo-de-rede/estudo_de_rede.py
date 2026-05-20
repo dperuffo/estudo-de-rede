@@ -16311,35 +16311,47 @@ elif modo == "🚛 Análise de Cliente":
 
     # ── helper: converte df → lista de dicts para Supabase ────────
     def _df_to_rows(df: _pd.DataFrame, nome_arq: str) -> list:
+        # Converte NaN/inf para None (JSON não aceita esses valores)
+        def _safe_float(v):
+            try:
+                f = float(v)
+                return None if (_np.isnan(f) or _np.isinf(f)) else f
+            except Exception:
+                return None
+
+        def _safe_str(v):
+            s = str(v) if v is not None else ""
+            return "" if s.lower() in ("nan", "none", "nat") else s
+
         rows = []
         for _, r in df.iterrows():
             lat, lon = _parse_latlon(r.get("_latlon_posto", ""))
             rows.append({
                 "id_transacao":       int(r["_id_transacao"]) if _pd.notna(r.get("_id_transacao")) else None,
                 "data_abastecimento": str(r["_data"]) if r.get("_data") else None,
-                "hora_abastecimento": str(r.get("_hora", "")),
-                "cnpj_frota":         str(r.get("_cnpj_frota", "")),
-                "razao_frota":        str(r.get("_razao_frota", "")),
-                "centro_custo":       str(r.get("_centro_custo", "")),
-                "cnpj_posto":         str(r.get("_cnpj_posto", "")),
-                "nome_posto":         str(r.get("_nome_posto", "")),
-                "cidade_posto":       str(r.get("_cidade_posto", "")),
-                "uf_posto":           str(r.get("_uf_posto", "")),
-                "placa":              str(r.get("_placa", "")),
-                "tipo_veiculo":       str(r.get("_tipo_veiculo", "")),
-                "nome_motorista":     str(r.get("_motorista", "")),
-                "hod_atual":          r.get("_hod_atual"),
-                "hod_anterior":       r.get("_hod_anterior"),
-                "km_percorrido":      r.get("_km_perc"),
-                "media_km_l":         r.get("_media_km_l"),
-                "produto":            str(r.get("_produto", "")),
-                "litros":             r.get("_litros"),
-                "preco_litro":        r.get("_preco_litro"),
-                "valor_combustivel":  r.get("_valor_comb"),
-                "valor_total":        r.get("_valor_total"),
-                "status_transacao":   str(r.get("_status", "")),
-                "lat_posto":          lat,
-                "lon_posto":          lon,
+                "hora_abastecimento": _safe_str(r.get("_hora")),
+                "cnpj_frota":         _safe_str(r.get("_cnpj_frota")),
+                "razao_frota":        _safe_str(r.get("_razao_frota")),
+                "centro_custo":       _safe_str(r.get("_centro_custo")),
+                "cnpj_posto":         _safe_str(r.get("_cnpj_posto")),
+                "nome_posto":         _safe_str(r.get("_nome_posto")),
+                "cidade_posto":       _safe_str(r.get("_cidade_posto")),
+                "uf_posto":           _safe_str(r.get("_uf_posto")),
+                "placa":              _safe_str(r.get("_placa")),
+                "tipo_veiculo":       _safe_str(r.get("_tipo_veiculo")),
+                "nome_motorista":     _safe_str(r.get("_motorista")),
+                "hod_atual":          _safe_float(r.get("_hod_atual")),
+                "hod_anterior":       _safe_float(r.get("_hod_anterior")),
+                "km_percorrido":      _safe_float(r.get("_km_perc")),
+                "media_km_l":         _safe_float(r.get("_media_km_l")),
+                "produto":            _safe_str(r.get("_produto")),
+                "litros":             _safe_float(r.get("_litros")),
+                "preco_litro":        _safe_float(r.get("_preco_litro")),
+                "valor_combustivel":  _safe_float(r.get("_valor_comb")),
+                "valor_total":        _safe_float(r.get("_valor_total")),
+                "status_transacao":   _safe_str(r.get("_status")),
+                "lat_posto":          _safe_float(lat),
+                "lon_posto":          _safe_float(lon),
                 "nome_arquivo":       nome_arq,
             })
         return rows
@@ -16771,31 +16783,36 @@ elif modo == "🚛 Análise de Cliente":
                         preco_medio=("_preco_litro", "mean"),
                         consumo_medio=("_media_km_l", "mean"),
                     ).sort_values("custo_km", ascending=False).reset_index()
-                    # média geral para flag de desvio
-                    _ck_media_geral = _ck_agg["custo_km"].mean()
-                    _custo_km_veiculo = _pd.DataFrame({
-                        "Placa": _ck_agg["_placa"],
-                        "Custo/km (R$)": _ck_agg["custo_km"].apply(
-                            lambda v: f"R$ {v:.4f}".replace(".", ",")
-                        ),
-                        "Consumo médio (km/L)": _ck_agg["consumo_medio"].apply(
-                            lambda v: f"{v:.2f} km/L".replace(".", ",") if _pd.notna(v) else "—"
-                        ),
-                        "Preço médio (R$/L)": _ck_agg["preco_medio"].apply(
-                            lambda v: f"R$ {v:.3f}".replace(".", ",") if _pd.notna(v) else "—"
-                        ),
-                        "Status": _ck_agg["custo_km"].apply(
-                            lambda v: "🔴 Acima da média" if v > _ck_media_geral * 1.15
-                            else ("🟢 Abaixo da média" if v < _ck_media_geral * 0.85
-                            else "🟡 Na média")
-                        ),
-                    })
-                    st.dataframe(_custo_km_veiculo, use_container_width=True, hide_index=True)
-                    st.caption(
-                        f"Custo/km = Preço R$/L ÷ Consumo km/L  |  "
-                        f"Média da frota: R$ {_ck_media_geral:.4f}/km".replace(".", ",") +
-                        "  |  🔴 >15% acima  🟡 dentro  🟢 >15% abaixo"
-                    )
+                    # remove linhas com NaN/inf no custo_km (evita erro JSON)
+                    _ck_agg = _ck_agg[_ck_agg["custo_km"].apply(
+                        lambda v: _pd.notna(v) and _np.isfinite(v)
+                    )].copy()
+                    if len(_ck_agg) == 0:
+                        st.info("Sem dados suficientes para calcular custo/km.")
+                    else:
+                        _ck_media_geral = float(_ck_agg["custo_km"].mean())
+                        def _fmt_v(v, fmt):
+                            try:
+                                return fmt.format(v).replace(".", ",") if _pd.notna(v) and _np.isfinite(float(v)) else "—"
+                            except Exception:
+                                return "—"
+                        _custo_km_veiculo = _pd.DataFrame({
+                            "Placa":                _ck_agg["_placa"].tolist(),
+                            "Custo/km (R$)":        [_fmt_v(v, "R$ {:.4f}") for v in _ck_agg["custo_km"]],
+                            "Consumo médio (km/L)": [_fmt_v(v, "{:.2f} km/L") for v in _ck_agg["consumo_medio"]],
+                            "Preço médio (R$/L)":   [_fmt_v(v, "R$ {:.3f}") for v in _ck_agg["preco_medio"]],
+                            "Status": [
+                                "🔴 Acima da média" if (v > _ck_media_geral * 1.15)
+                                else ("🟢 Abaixo da média" if v < _ck_media_geral * 0.85 else "🟡 Na média")
+                                for v in _ck_agg["custo_km"]
+                            ],
+                        })
+                        st.dataframe(_custo_km_veiculo, use_container_width=True, hide_index=True)
+                        st.caption(
+                            f"Custo/km = Preço R$/L ÷ Consumo km/L  |  "
+                            f"Média da frota: R$ {_ck_media_geral:.4f}/km".replace(".", ",") +
+                            "  |  🔴 >15% acima  🟡 dentro  🟢 >15% abaixo"
+                        )
 
             # ════════════════════════════════════════════════════
             # ABA 4 — ALERTAS & FRAUDE
