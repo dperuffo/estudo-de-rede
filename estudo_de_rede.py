@@ -1656,10 +1656,13 @@ def _auth_login_page():
         color: rgba(255,255,255,0.45);
         font-weight: 600;
         text-align: center;
-        max-width: 62px;
+        max-width: 88px;
         line-height: 1.35;
         letter-spacing: 0.3px;
         text-transform: uppercase;
+        word-break: normal;
+        overflow-wrap: normal;
+        hyphens: none;
     }
 
     /* ── Botões OAuth (override streamlit) — discreto ── */
