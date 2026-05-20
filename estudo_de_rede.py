@@ -554,7 +554,7 @@ else:
 
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
-    page_title="Estudo de Rede – Gestão de Frotas",
+    page_title="Fleet Network Intelligence",
     page_icon=_LOGO_PAGE_ICON,
     layout="wide",
     initial_sidebar_state="expanded",  # sempre aberta
@@ -1525,34 +1525,36 @@ def _auth_login_page():
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 120px; height: 120px;
-        background: linear-gradient(135deg, rgba(13,71,161,0.7), rgba(25,118,210,0.5), rgba(0,200,150,0.25));
-        border: 2px solid rgba(100,181,246,0.5);
-        border-radius: 30px;
+        width: 200px; height: 134px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 20px;
         margin-bottom: 1.4rem;
         box-shadow:
-            0 12px 40px rgba(25,118,210,0.45),
-            0 4px 16px rgba(0,0,0,0.4),
-            inset 0 1px 0 rgba(255,255,255,0.2);
+            0 12px 40px rgba(0,0,0,0.35),
+            0 4px 16px rgba(0,0,0,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.1);
         animation: logoPop 0.7s cubic-bezier(0.16,1,0.3,1) 0.2s both;
         position: relative;
         overflow: hidden;
+        padding: 10px;
     }
     .login-logo-ring::before {
         content: "";
         position: absolute;
         inset: 0;
-        background: radial-gradient(circle at 30% 30%, rgba(100,181,246,0.3) 0%, transparent 60%);
+        background: radial-gradient(circle at 30% 30%, rgba(100,181,246,0.08) 0%, transparent 70%);
         pointer-events: none;
     }
-    .login-logo-svg {
-        width: 72px; height: 72px;
+    .login-logo-img {
+        width: 100%; height: 100%;
+        object-fit: contain;
         position: relative; z-index: 1;
-        filter: drop-shadow(0 4px 12px rgba(25,118,210,0.6));
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
     }
     @keyframes logoPop {
-        from { opacity: 0; transform: scale(0.6) rotate(-10deg); }
-        to   { opacity: 1; transform: scale(1) rotate(0deg); }
+        from { opacity: 0; transform: scale(0.75); }
+        to   { opacity: 1; transform: scale(1); }
     }
 
     /* ── Título e subtítulo ── */
@@ -1703,63 +1705,67 @@ def _auth_login_page():
     </style>
     """, unsafe_allow_html=True)
 
+    # ── Carrega logo FNI como base64 ──────────────────────────────
+    import base64 as _b64, io as _io, pathlib as _pl
+    _logo_fni_b64 = ""
+    for _logo_candidate in [
+        _pl.Path(__file__).parent / "estudo-de-rede" / "Logo plataforma FNI.png",
+        _pl.Path(__file__).parent / "Logo plataforma FNI.png",
+    ]:
+        if _logo_candidate.exists():
+            try:
+                from PIL import Image as _PILImg
+                _img_fni = _PILImg.open(_logo_candidate)
+                _img_fni.thumbnail((400, 400), _PILImg.LANCZOS)
+                _buf_fni = _io.BytesIO()
+                _img_fni.save(_buf_fni, format="PNG", optimize=True)
+                _logo_fni_b64 = _b64.b64encode(_buf_fni.getvalue()).decode()
+            except Exception:
+                _logo_fni_b64 = _b64.b64encode(_logo_candidate.read_bytes()).decode()
+            break
+
+    _logo_fni_src = (
+        f"data:image/png;base64,{_logo_fni_b64}"
+        if _logo_fni_b64 else ""
+    )
+    _logo_fni_html = (
+        f"<img class='login-logo-img' src='{_logo_fni_src}' alt='FNI'/>"
+        if _logo_fni_src else
+        "<span style='font-size:48px'>🚛</span>"
+    )
+
     # ── Layout: coluna central ──
     _, _c, _ = st.columns([1, 2.4, 1])
     with _c:
         # ── Card principal ──
-        st.markdown("""
+        st.markdown(f"""
         <div class='login-card'>
           <div class='login-logo-ring'>
-            <svg class='login-logo-svg' viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <!-- Fundo do mapa -->
-              <rect x="6" y="10" width="60" height="52" rx="6" fill="rgba(13,71,161,0.6)" stroke="rgba(100,181,246,0.4)" stroke-width="1.2"/>
-              <!-- Grade do mapa -->
-              <line x1="6" y1="27" x2="66" y2="27" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
-              <line x1="6" y1="44" x2="66" y2="44" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
-              <line x1="24" y1="10" x2="24" y2="62" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
-              <line x1="48" y1="10" x2="48" y2="62" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
-              <!-- Rota principal (estrada) -->
-              <path d="M12 52 Q22 44 30 36 Q40 26 52 20" stroke="#64B5F6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 52 Q22 44 30 36 Q40 26 52 20" stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round"/>
-              <!-- Rota secundária -->
-              <path d="M30 36 Q38 42 52 48" stroke="rgba(100,181,246,0.5)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3"/>
-              <!-- Marcador origem (verde) -->
-              <circle cx="12" cy="52" r="5" fill="#2E7D32" stroke="white" stroke-width="1.5"/>
-              <circle cx="12" cy="52" r="2.5" fill="white"/>
-              <!-- Marcador destino (vermelho) -->
-              <circle cx="52" cy="20" r="5" fill="#C62828" stroke="white" stroke-width="1.5"/>
-              <circle cx="52" cy="20" r="2.5" fill="white"/>
-              <!-- Posto intermediário (laranja) -->
-              <polygon points="30,31 33,38 27,38" fill="#FF8F00" stroke="white" stroke-width="1.2"/>
-              <!-- Legenda mini -->
-              <rect x="38" y="48" width="22" height="10" rx="3" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
-              <circle cx="43" cy="53" r="2" fill="#2E7D32"/>
-              <circle cx="53" cy="53" r="2" fill="#C62828"/>
-            </svg>
+            {_logo_fni_html}
           </div>
-          <div class='login-title'>Estudo de Rede</div>
-          <div class='login-badge'>Gestão de Frotas</div>
+          <div class='login-title'>Fleet Network Intelligence</div>
+          <div class='login-badge'>Plataforma estratégica de inteligência de rede</div>
           <div class='login-sub'>
-            Plataforma inteligente para análise de postos,<br>
-            roteirização e monitoramento de frota.
+            Transformando dados em decisões de rede.<br>
+            Análise de postos, roteirização e gestão de frota.
           </div>
 
           <div class='login-features'>
             <div class='login-feature'>
               <div class='login-feature-icon'>⛽</div>
-              <div class='login-feature-label'>Postos ANP</div>
+              <div class='login-feature-label'>Rede de Postos</div>
             </div>
             <div class='login-feature'>
-              <div class='login-feature-icon'>🗺️</div>
+              <div class='login-feature-icon'>🛣️</div>
               <div class='login-feature-label'>Roteirização</div>
             </div>
             <div class='login-feature'>
               <div class='login-feature-icon'>📊</div>
-              <div class='login-feature-label'>Dashboard</div>
+              <div class='login-feature-label'>Inteligência</div>
             </div>
             <div class='login-feature'>
               <div class='login-feature-icon'>🚛</div>
-              <div class='login-feature-label'>GF</div>
+              <div class='login-feature-label'>Análise Frota</div>
             </div>
           </div>
 
@@ -8620,8 +8626,8 @@ pf_badge_html = (
 st.markdown(f"""
 <div class="topbar">
   <div style="min-width:0;">
-    <div class="topbar-title">Estudo de Rede</div>
-    <div class="topbar-sub">Gestão de Frotas</div>
+    <div class="topbar-title">Plataforma estratégica de inteligência de rede</div>
+    <div class="topbar-sub">Transformando dados em decisões de rede</div>
   </div>
   {pf_badge_html}
 </div>
@@ -8710,7 +8716,7 @@ with st.sidebar:
               text-transform: uppercase;
               font-weight: 700;
               opacity: 0.75;
-          '>Estudo de Rede · ANP</div>
+          '>Fleet Network Intelligence</div>
         </div>
         """, unsafe_allow_html=True)
 
