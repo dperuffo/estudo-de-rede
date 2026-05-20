@@ -13413,7 +13413,7 @@ elif modo == "🗺️ Por Rota":
                 st.markdown("#### 🗺️ Mapa — Rotas A e B")
                 if _comp_b.get("coords"):
                     try:
-                        import folium as _folium_c
+                        # Rota A: linha verde sólida (cor padrão)
                         _m_comp = criar_mapa(
                             df_show_r,
                             coords_rota=coords_rota,
@@ -13421,26 +13421,36 @@ elif modo == "🗺️ Por Rota":
                             lat_dest=lat_dest, lon_dest=lon_dest,
                             label_orig=label_orig, label_dest=label_dest,
                         )
-                        # Sobrepõe Rota B em azul
+                        # Sobrepõe Rota B como trace Plotly (laranja tracejado)
                         _cr_b_coords = _comp_b["coords"]
                         if _cr_b_coords and len(_cr_b_coords) >= 2:
-                            _folium_c.PolyLine(
-                                [[c[0], c[1]] for c in _cr_b_coords],
-                                color="#1565c0", weight=5, opacity=0.75,
-                                tooltip="Rota B",
-                                dash_array="8 4",
-                            ).add_to(_m_comp)
-                            _folium_c.Marker(
-                                [_via_b["lat"], _via_b["lon"]],
-                                tooltip=f"📍 Via B: {_via_b['label']}",
-                                icon=_folium_c.Icon(color="blue", icon="info-sign"),
-                            ).add_to(_m_comp)
+                            _cr_b_ds = _downsample(_cr_b_coords, 500)
+                            _m_comp.add_trace(go.Scattermapbox(
+                                lat=[c[0] for c in _cr_b_ds],
+                                lon=[c[1] for c in _cr_b_ds],
+                                mode="lines",
+                                line=dict(width=4, color="#E65100"),
+                                hoverinfo="skip",
+                                name="Rota B",
+                                showlegend=True,
+                            ))
+                            # Marcador do ponto de desvio
+                            _m_comp.add_trace(go.Scattermapbox(
+                                lat=[_via_b["lat"]],
+                                lon=[_via_b["lon"]],
+                                mode="markers+text",
+                                marker=dict(size=14, color="#E65100"),
+                                text=[f"🔀 Via B: {_via_b['label'][:30]}"],
+                                textposition="top right",
+                                hoverinfo="text",
+                                name="Via B",
+                                showlegend=False,
+                            ))
                         _renderizar_mapa(_m_comp, height=500, key="mapa_comp_ab")
                     except Exception as _em_c:
                         st.warning(f"Mapa não disponível: {_em_c}")
                     st.caption(
-                        "🟢 Linha verde sólida = Rota A  ·  "
-                        "🔵 Linha azul tracejada = Rota B"
+                        "🔵 Linha azul = Rota A  ·  🟠 Linha laranja = Rota B"
                     )
 
     else:
