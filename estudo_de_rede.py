@@ -16543,12 +16543,13 @@ elif modo == "🚛 Análise de Cliente":
             st.warning("Nenhum registro no período selecionado.")
         else:
             # ── abas principais ───────────────────────────────────
-            _ta, _tb, _tc, _td, _te = st.tabs([
+            _ta, _tb, _tc, _td, _te, _tf = st.tabs([
                 "📊 Resumo",
                 "🚗 Veículos",
                 "📈 Consumo & Custo/km",
                 "🚨 Alertas & Fraude",
                 "💡 Insights",
+                "💰 Contratos & Savings",
             ])
 
             # ════════════════════════════════════════════════════
@@ -17029,6 +17030,523 @@ elif modo == "🚛 Análise de Cliente":
                         yaxis_title="R$", xaxis_title="Data",
                     )
                     st.plotly_chart(_fig_evol, use_container_width=True)
+
+            # ════════════════════════════════════════════════════
+            # ABA 6 — CONTRATOS & SAVINGS
+            # ════════════════════════════════════════════════════
+            with _tf:
+                st.markdown("### 💰 Contratos & Savings")
+                st.caption(
+                    "Simule a economia potencial ao direcionar os abastecimentos "
+                    "para a rede GF credenciada e compare com o mercado (ANP)."
+                )
+
+                # ── Formatador pt-BR interno ──────────────────────────────
+                def _sv_frs(v, decimais=2):
+                    """Formata número como R$ em pt-BR. Retorna '—' se inválido."""
+                    try:
+                        f = float(v)
+                        if _np.isnan(f) or _np.isinf(f):
+                            return "—"
+                        s = f"{abs(f):,.{decimais}f}"
+                        return f"R$ {s}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    except Exception:
+                        return "—"
+
+                def _sv_frl(v):
+                    """Formata litros em pt-BR."""
+                    try:
+                        return f"{float(v):,.0f} L".replace(",", ".")
+                    except Exception:
+                        return "—"
+
+                # ── Fontes de dados ───────────────────────────────────────
+                _anp_cache_sv   = st.session_state.get("_precos_anp_cache", {})
+                _sheets_anp_sv  = _anp_cache_sv.get("sheets")
+                _semana_anp_sv  = _anp_cache_sv.get("semana", "")
+                _pp_df_sv       = st.session_state.get("_pp_df")
+                _pf_df_sv       = st.session_state.get("pf_coords_df", _pd.DataFrame())
+
+                # ── CNPJs da rede GF ──────────────────────────────────────
+                _cnpjs_gf_sv = set()
+                if not _pf_df_sv.empty:
+                    _col_cnpj_pf = next(
+                        (c for c in _pf_df_sv.columns if "cnpj" in c.lower()), None
+                    )
+                    if _col_cnpj_pf:
+                        _cnpjs_gf_sv = set(
+                            _pf_df_sv[_col_cnpj_pf]
+                            .astype(str)
+                            .str.replace(r"\D", "", regex=True)
+                        )
+
+                # ── Preços médios da rede GF por combustível ──────────────
+                _gf_preco_med: dict = {}   # {anp_pk: preco_medio}
+                _gf_n_postos: dict  = {}   # {anp_pk: n_postos}
+                if _pp_df_sv is not None and not _pp_df_sv.empty and _cnpjs_gf_sv:
+                    _pp_gf_sv = _pp_df_sv[
+                        _pp_df_sv["cnpj_norm"].isin(_cnpjs_gf_sv)
+                    ].copy()
+                    if not _pp_gf_sv.empty:
+                        _pp_gf_sv["_apk"] = _pp_gf_sv["combustivel_pk"].map(
+                            lambda pk: _PP_PARA_ANP_PK.get(pk, pk)
+                        )
+                        for _apk_g, _grp_gf in _pp_gf_sv.groupby("_apk"):
+                            _gf_preco_med[_apk_g] = float(_grp_gf["preco"].mean())
+                            _gf_n_postos[_apk_g]  = int(_grp_gf["cnpj_norm"].nunique())
+
+                # ── Preços ANP por combustível por UF ─────────────────────
+                _ufs_frota_sv = sorted(_df["_uf_posto"].dropna().unique().tolist())
+                _anp_por_uf_sv: dict = {}   # {anp_pk: {uf: preco}}
+                if _sheets_anp_sv and _ufs_frota_sv:
+                    _anp_por_uf_sv = _anp_precos_por_fuel_por_uf(
+                        _sheets_anp_sv, _ufs_frota_sv
+                    )
+
+                # ── Preço ANP nacional por combustível (fallback) ─────────
+                _anp_brasil_sv: dict = {}
+                if _sheets_anp_sv:
+                    _anp_brasil_sv = _anp_precos_por_fuel_brasil(_sheets_anp_sv)
+
+                # ── Preparar DataFrame de cálculo ─────────────────────────
+                _df_sv = _df.dropna(
+                    subset=["_preco_litro", "_litros", "_produto"]
+                ).copy()
+                _df_sv = _df_sv[
+                    (_df_sv["_preco_litro"] > 0) & (_df_sv["_litros"] > 0)
+                ].copy()
+
+                # Normaliza produto → ANP pk
+                _df_sv["_apk"] = _df_sv["_produto"].apply(
+                    lambda p: _PP_PARA_ANP_PK.get(
+                        str(p).upper().strip(), str(p).upper().strip()
+                    )
+                )
+
+                # Lookup ANP por UF (com fallback nacional)
+                def _get_anp_p_sv(row):
+                    pk = row["_apk"]
+                    uf = str(row.get("_uf_posto", "")) if _pd.notna(
+                        row.get("_uf_posto")
+                    ) else ""
+                    p = _anp_por_uf_sv.get(pk, {}).get(uf)
+                    if p is None:
+                        p = _anp_brasil_sv.get(pk)
+                    return p
+
+                if not _df_sv.empty:
+                    _df_sv["_preco_anp"]    = _df_sv.apply(_get_anp_p_sv, axis=1)
+                    _df_sv["_preco_gf_ref"] = _df_sv["_apk"].map(_gf_preco_med)
+
+                    # Saving por transação
+                    _df_sv["_saving_vs_anp"] = _df_sv.apply(
+                        lambda r: (r["_preco_litro"] - r["_preco_anp"]) * r["_litros"]
+                        if _pd.notna(r["_preco_anp"]) else _np.nan, axis=1
+                    )
+                    _df_sv["_saving_vs_gf"] = _df_sv.apply(
+                        lambda r: (r["_preco_litro"] - r["_preco_gf_ref"]) * r["_litros"]
+                        if _pd.notna(r["_preco_gf_ref"]) else _np.nan, axis=1
+                    )
+                else:
+                    _df_sv["_preco_anp"]    = _np.nan
+                    _df_sv["_preco_gf_ref"] = _np.nan
+                    _df_sv["_saving_vs_anp"] = _np.nan
+                    _df_sv["_saving_vs_gf"]  = _np.nan
+
+                _tem_anp = _df_sv["_saving_vs_anp"].notna().any()
+                _tem_gf  = _df_sv["_saving_vs_gf"].notna().any()
+
+                # ── Avisos de fontes indisponíveis ────────────────────────
+                if not _sheets_anp_sv:
+                    st.warning(
+                        "⚠️ Dados ANP não carregados — acesse **Rede de Postos → "
+                        "Atualizar Preços ANP** para habilitar o comparativo com o mercado."
+                    )
+                if not _gf_preco_med:
+                    st.warning(
+                        "⚠️ Preços da rede GF não disponíveis — carregue a planilha "
+                        "de preços por posto em **Configurações** para ver a simulação."
+                    )
+
+                # ── CARDS DE RESUMO DO PERÍODO ────────────────────────────
+                st.markdown("#### 📊 Visão Geral do Período")
+                _sv_total_litros = float(_df_sv["_litros"].sum()) if not _df_sv.empty else 0
+                _sv_total_gasto  = float(
+                    (_df_sv["_preco_litro"] * _df_sv["_litros"]).sum()
+                ) if not _df_sv.empty else 0
+                _sv_periodo = "—"
+                if "_data" in _df_sv and _df_sv["_data"].notna().any():
+                    _sv_periodo = (
+                        f"{_df_sv['_data'].min()} → {_df_sv['_data'].max()}"
+                    )
+
+                _sv_mc1, _sv_mc2, _sv_mc3 = st.columns(3)
+                _sv_mc1.metric(
+                    "⛽ Volume total abastecido",
+                    _sv_frl(_sv_total_litros),
+                )
+                _sv_mc2.metric(
+                    "💸 Gasto total no período",
+                    _sv_frs(_sv_total_gasto),
+                )
+                _sv_mc3.metric("📅 Período analisado", _sv_periodo)
+
+                st.divider()
+
+                # ════════════════════════════════════════════════
+                # BLOCO 1 — SAVING VS ANP (MERCADO)
+                # ════════════════════════════════════════════════
+                st.markdown("#### 🏛️ Comparativo vs Mercado (ANP)")
+                if _semana_anp_sv:
+                    st.caption(f"Referência: semana ANP **{_semana_anp_sv}**")
+
+                if not _tem_anp:
+                    st.info(
+                        "Dados ANP não disponíveis para os combustíveis/estados "
+                        "presentes neste portfólio. Verifique se os preços ANP "
+                        "foram carregados."
+                    )
+                else:
+                    _df_anp_ok = _df_sv.dropna(subset=["_saving_vs_anp"]).copy()
+                    _litros_anp = float(_df_anp_ok["_litros"].sum())
+                    _preco_med_pago = (
+                        (_df_anp_ok["_preco_litro"] * _df_anp_ok["_litros"]).sum()
+                        / _litros_anp
+                    ) if _litros_anp > 0 else 0
+                    _preco_med_anp = (
+                        (_df_anp_ok["_preco_anp"] * _df_anp_ok["_litros"]).sum()
+                        / _litros_anp
+                    ) if _litros_anp > 0 else 0
+                    _sv_anp_litro  = _preco_med_pago - _preco_med_anp
+                    _total_sv_anp  = float(_df_anp_ok["_saving_vs_anp"].sum())
+
+                    _c1, _c2, _c3, _c4 = st.columns(4)
+                    _c1.metric(
+                        "Preço médio pago",
+                        f"R$ {_preco_med_pago:.3f}/L".replace(".", ","),
+                    )
+                    _c2.metric(
+                        "Preço médio ANP",
+                        f"R$ {_preco_med_anp:.3f}/L".replace(".", ","),
+                    )
+                    _c3.metric(
+                        "Diferença por litro",
+                        f"R$ {abs(_sv_anp_litro):.3f}/L".replace(".", ","),
+                        delta=(
+                            "paga ACIMA do mercado"
+                            if _sv_anp_litro > 0
+                            else "paga ABAIXO do mercado"
+                        ),
+                        delta_color="inverse" if _sv_anp_litro > 0 else "normal",
+                    )
+                    _c4.metric(
+                        "Impacto total no período",
+                        _sv_frs(abs(_total_sv_anp)),
+                        delta=(
+                            "excesso pago vs ANP"
+                            if _total_sv_anp > 0
+                            else "abaixo do mercado ANP"
+                        ),
+                        delta_color="inverse" if _total_sv_anp > 0 else "normal",
+                    )
+
+                    # Gráficos comparativos por produto
+                    _anp_por_prod = (
+                        _df_anp_ok
+                        .groupby("_produto")
+                        .apply(lambda g: _pd.Series({
+                            "saving":     g["_saving_vs_anp"].sum(),
+                            "litros":     g["_litros"].sum(),
+                            "preco_pago": (
+                                (g["_preco_litro"] * g["_litros"]).sum()
+                                / g["_litros"].sum()
+                            ),
+                            "preco_anp":  (
+                                (g["_preco_anp"] * g["_litros"]).sum()
+                                / g["_litros"].sum()
+                            ),
+                        }))
+                        .reset_index()
+                    )
+
+                    _col_ga1, _col_ga2 = st.columns(2)
+                    with _col_ga1:
+                        _fig_anp_prod = go.Figure(go.Bar(
+                            x=_anp_por_prod["_produto"],
+                            y=_anp_por_prod["saving"],
+                            marker_color=[
+                                "#B71C1C" if v > 0 else "#2E7D32"
+                                for v in _anp_por_prod["saving"]
+                            ],
+                            text=[
+                                f"R$ {v:,.0f}".replace(",", ".")
+                                for v in _anp_por_prod["saving"]
+                            ],
+                            textposition="outside",
+                        ))
+                        _fig_anp_prod.update_layout(
+                            title="Impacto vs ANP por Combustível (R$)",
+                            height=320,
+                            margin=dict(l=10, r=10, t=40, b=10),
+                            yaxis_title="R$",
+                            showlegend=False,
+                        )
+                        st.plotly_chart(_fig_anp_prod, use_container_width=True)
+
+                    with _col_ga2:
+                        _fig_preco_anp = go.Figure()
+                        _fig_preco_anp.add_trace(go.Bar(
+                            name="Pago pela frota",
+                            x=_anp_por_prod["_produto"],
+                            y=_anp_por_prod["preco_pago"],
+                            marker_color="#1565C0",
+                        ))
+                        _fig_preco_anp.add_trace(go.Bar(
+                            name="Referência ANP",
+                            x=_anp_por_prod["_produto"],
+                            y=_anp_por_prod["preco_anp"],
+                            marker_color="#90CAF9",
+                        ))
+                        _fig_preco_anp.update_layout(
+                            title="Preço Médio por Combustível (R$/L)",
+                            barmode="group", height=320,
+                            margin=dict(l=10, r=10, t=40, b=10),
+                            yaxis_title="R$/L",
+                            legend=dict(orientation="h", y=-0.22),
+                        )
+                        st.plotly_chart(_fig_preco_anp, use_container_width=True)
+
+                    # Tabela por UF (quando há múltiplos estados)
+                    if len(_ufs_frota_sv) > 1:
+                        st.markdown("##### 🗺️ Detalhamento por Estado — vs ANP")
+                        _df_uf_anp = (
+                            _df_anp_ok
+                            .groupby("_uf_posto")
+                            .apply(lambda g: _pd.Series({
+                                "litros":     g["_litros"].sum(),
+                                "saving":     g["_saving_vs_anp"].sum(),
+                                "preco_pago": (
+                                    (g["_preco_litro"] * g["_litros"]).sum()
+                                    / g["_litros"].sum()
+                                ),
+                                "preco_anp":  (
+                                    (g["_preco_anp"] * g["_litros"]).sum()
+                                    / g["_litros"].sum()
+                                ),
+                            }))
+                            .reset_index()
+                            .sort_values("saving", ascending=False)
+                        )
+                        _df_uf_anp_show = _pd.DataFrame({
+                            "UF": _df_uf_anp["_uf_posto"],
+                            "Litros": _df_uf_anp["litros"].apply(
+                                lambda v: f"{v:,.0f}".replace(",", ".")
+                            ),
+                            "Preço Pago (R$/L)": _df_uf_anp["preco_pago"].apply(
+                                lambda v: f"R$ {v:.3f}".replace(".", ",")
+                            ),
+                            "Preço ANP (R$/L)": _df_uf_anp["preco_anp"].apply(
+                                lambda v: f"R$ {v:.3f}".replace(".", ",")
+                            ),
+                            "Impacto (R$)": _df_uf_anp["saving"].apply(
+                                lambda v: (
+                                    f"▲ R$ {abs(v):,.2f}"
+                                    if v > 0
+                                    else f"▼ R$ {abs(v):,.2f}"
+                                ).replace(",", "X").replace(".", ",").replace("X", ".")
+                            ),
+                            "Status": _df_uf_anp["saving"].apply(
+                                lambda v: "🔴 Acima do mercado" if v > 0 else "🟢 Abaixo do mercado"
+                            ),
+                        })
+                        st.dataframe(
+                            _df_uf_anp_show,
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+
+                st.divider()
+
+                # ════════════════════════════════════════════════
+                # BLOCO 2 — SAVING VS REDE GF
+                # ════════════════════════════════════════════════
+                st.markdown("#### 🏢 Potencial de Savings — Rede GF Credenciada")
+
+                if not _tem_gf:
+                    st.info(
+                        "Preços da rede GF não disponíveis. "
+                        "Carregue a planilha de preços em Configurações."
+                    )
+                else:
+                    _df_gf_ok = _df_sv.dropna(subset=["_saving_vs_gf"]).copy()
+                    _litros_gf    = float(_df_gf_ok["_litros"].sum())
+                    _gasto_gf_atual = float(
+                        (_df_gf_ok["_preco_litro"] * _df_gf_ok["_litros"]).sum()
+                    )
+                    _gasto_gf_redir = float(
+                        (_df_gf_ok["_preco_gf_ref"] * _df_gf_ok["_litros"]).sum()
+                    )
+                    _saving_total = float(_df_gf_ok["_saving_vs_gf"].sum())
+
+                    # Projeção anual via extrapolação de dias
+                    _dias_sv = 1
+                    if "_data" in _df_gf_ok and _df_gf_ok["_data"].notna().any():
+                        _d_ini_sv = _pd.to_datetime(_df_gf_ok["_data"].min(), errors="coerce")
+                        _d_fim_sv = _pd.to_datetime(_df_gf_ok["_data"].max(), errors="coerce")
+                        if _pd.notna(_d_ini_sv) and _pd.notna(_d_fim_sv):
+                            _dias_sv = max(1, (_d_fim_sv - _d_ini_sv).days)
+                    _saving_anual = (_saving_total / _dias_sv) * 365
+
+                    _col_gf1, _col_gf2, _col_gf3, _col_gf4 = st.columns(4)
+                    _col_gf1.metric(
+                        "💸 Gasto atual (período)",
+                        _sv_frs(_gasto_gf_atual),
+                    )
+                    _col_gf2.metric(
+                        "✅ Gasto c/ rede GF",
+                        _sv_frs(_gasto_gf_redir),
+                    )
+                    _col_gf3.metric(
+                        "💰 Saving potencial (período)",
+                        _sv_frs(abs(_saving_total)),
+                        delta=(
+                            "Economia potencial"
+                            if _saving_total > 0
+                            else "Rede GF mais cara no período"
+                        ),
+                        delta_color="normal" if _saving_total > 0 else "inverse",
+                    )
+                    _col_gf4.metric(
+                        "📈 Projeção anual",
+                        _sv_frs(abs(_saving_anual)),
+                        delta=(
+                            "Economia/ano estimada"
+                            if _saving_anual > 0
+                            else "Custo adicional/ano"
+                        ),
+                        delta_color="normal" if _saving_anual > 0 else "inverse",
+                    )
+
+                    # Gráficos por produto
+                    _gf_por_prod = (
+                        _df_gf_ok
+                        .groupby("_produto")
+                        .apply(lambda g: _pd.Series({
+                            "saving":    g["_saving_vs_gf"].sum(),
+                            "litros":    g["_litros"].sum(),
+                            "preco_pago": (
+                                (g["_preco_litro"] * g["_litros"]).sum()
+                                / g["_litros"].sum()
+                            ),
+                            "preco_gf":  (
+                                (g["_preco_gf_ref"] * g["_litros"]).sum()
+                                / g["_litros"].sum()
+                            ),
+                        }))
+                        .reset_index()
+                    )
+
+                    _col_gfg1, _col_gfg2 = st.columns(2)
+                    with _col_gfg1:
+                        _fig_gf_bar = go.Figure(go.Bar(
+                            x=_gf_por_prod["_produto"],
+                            y=_gf_por_prod["saving"],
+                            marker_color=[
+                                "#2E7D32" if v > 0 else "#B71C1C"
+                                for v in _gf_por_prod["saving"]
+                            ],
+                            text=[
+                                f"R$ {v:,.0f}".replace(",", ".")
+                                for v in _gf_por_prod["saving"]
+                            ],
+                            textposition="outside",
+                        ))
+                        _fig_gf_bar.update_layout(
+                            title="Saving Potencial por Combustível (R$)",
+                            height=320,
+                            margin=dict(l=10, r=10, t=40, b=10),
+                            yaxis_title="R$",
+                            showlegend=False,
+                        )
+                        st.plotly_chart(_fig_gf_bar, use_container_width=True)
+
+                    with _col_gfg2:
+                        _fig_gf_comp = go.Figure()
+                        _fig_gf_comp.add_trace(go.Bar(
+                            name="Preço pago atual",
+                            x=_gf_por_prod["_produto"],
+                            y=_gf_por_prod["preco_pago"],
+                            marker_color="#EF5350",
+                        ))
+                        _fig_gf_comp.add_trace(go.Bar(
+                            name="Preço médio rede GF",
+                            x=_gf_por_prod["_produto"],
+                            y=_gf_por_prod["preco_gf"],
+                            marker_color="#43A047",
+                        ))
+                        _fig_gf_comp.update_layout(
+                            title="Preço Atual vs Rede GF (R$/L)",
+                            barmode="group", height=320,
+                            margin=dict(l=10, r=10, t=40, b=10),
+                            yaxis_title="R$/L",
+                            legend=dict(orientation="h", y=-0.22),
+                        )
+                        st.plotly_chart(_fig_gf_comp, use_container_width=True)
+
+                    # Tabela de preços de referência GF por combustível
+                    st.markdown("##### 📋 Preços de Referência — Rede GF")
+                    _sv_tab_rows = []
+                    for _apk_sv, _p_gf_sv in sorted(_gf_preco_med.items()):
+                        _n_pos = _gf_n_postos.get(_apk_sv, 0)
+                        _sv_tab_rows.append({
+                            "Combustível": _apk_sv.title(),
+                            "Preço médio GF (R$/L)": (
+                                f"R$ {_p_gf_sv:.3f}".replace(".", ",")
+                            ),
+                            "Postos na rede": _n_pos,
+                        })
+                    if _sv_tab_rows:
+                        st.dataframe(
+                            _pd.DataFrame(_sv_tab_rows),
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+
+                    # ── Card de conclusão ─────────────────────────────────
+                    _pct_sv = (
+                        _saving_total / _gasto_gf_atual * 100
+                    ) if _gasto_gf_atual > 0 else 0
+                    _litros_sv_fmt = f"{_litros_gf:,.0f}".replace(",", ".")
+                    _sv_tot_fmt = _sv_frs(abs(_saving_total))
+                    _sv_ano_fmt = _sv_frs(abs(_saving_anual))
+                    _pct_fmt    = f"{abs(_pct_sv):.1f}".replace(".", ",")
+
+                    if _saving_total > 0:
+                        st.markdown(
+                            f"<div style='background:linear-gradient(135deg,#E8F5E9,#C8E6C9);"
+                            f"border-left:4px solid #2E7D32;padding:16px;"
+                            f"border-radius:8px;margin-top:12px'>"
+                            f"<b style='color:#1B5E20;font-size:16px'>"
+                            f"✅ Oportunidade de Saving Identificada</b><br><br>"
+                            f"Ao direcionar <b>{_litros_sv_fmt} L</b> para a rede GF, "
+                            f"a frota economizaria <b>{_sv_tot_fmt}</b> no período "
+                            f"analisado (<b>{_pct_fmt}%</b> do gasto atual).<br>"
+                            f"Projeção anual estimada: <b>{_sv_ano_fmt}</b>."
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            f"<div style='background:#FFF8E1;border-left:4px solid #F57F17;"
+                            f"padding:16px;border-radius:8px;margin-top:12px'>"
+                            f"<b style='color:#E65100'>⚠️ Frota opera com preços competitivos</b><br><br>"
+                            f"No período analisado, os preços pagos pela frota foram "
+                            f"<b>inferiores</b> ao preço médio da rede GF em "
+                            f"{_sv_frs(abs(_saving_total))}. "
+                            f"Avalie a qualidade e confiabilidade dos postos utilizados."
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 if (
