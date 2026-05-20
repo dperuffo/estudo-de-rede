@@ -16635,7 +16635,7 @@ elif modo == "🚛 Análise de Cliente":
             # ════════════════════════════════════════════════════
             with _tb:
                 _veic_grp = _df.groupby("_placa").agg(
-                    tipo=("_tipo_veiculo", lambda x: x.mode().iloc[0] if len(x) > 0 else "—"),
+                    tipo=("_tipo_veiculo", lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else "—"),
                     motoristas=("_motorista", lambda x: ", ".join(sorted(x.dropna().unique())[:3])),
                     n_abast=("_id_transacao", "count"),
                     litros=("_litros", "sum"),
@@ -16759,8 +16759,8 @@ elif modo == "🚛 Análise de Cliente":
                         preco_medio=("_preco_litro", "mean"),
                         n_abast=("_id_transacao", "count"),
                         litros=("_litros", "sum"),
-                        cidade=("_cidade_posto", lambda x: x.mode().iloc[0] if len(x) > 0 else ""),
-                        uf=("_uf_posto", lambda x: x.mode().iloc[0] if len(x) > 0 else ""),
+                        cidade=("_cidade_posto", lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else ""),
+                        uf=("_uf_posto", lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else ""),
                     ).sort_values("preco_medio").reset_index()
 
                     _posto_preco["Posto"]     = _posto_preco["_nome_posto"].str[:40]
