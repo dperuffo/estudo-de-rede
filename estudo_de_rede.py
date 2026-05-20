@@ -655,20 +655,21 @@ header[data-testid="stHeader"] {
     pointer-events: none;
 }
 .topbar-title {
-    font-size: 23px;
-    font-weight: 900;
-    letter-spacing: 0.3px;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.1px;
     text-shadow: 0 1px 4px rgba(0,0,0,0.30);
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.2;
 }
 .topbar-sub {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     opacity: 0.88;
     margin-top: 2px;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
+    letter-spacing: 0.5px;
     text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    white-space: normal;
 }
 .topbar-badge {
     margin-left: auto;
