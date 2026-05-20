@@ -2639,6 +2639,175 @@ def _calcular_score_df(
     return _df
 
 
+# ── Otimização de Abastecimento v3 ─────────────────────────────────
+
+def _otimizar_rota_v3(
+    ests: list,
+    rcap: float,
+    raut: float,
+    rd: float,
+    pesos: dict,
+    fill_mode: str = "normal",
+    max_paradas: int = 30,
+) -> list:
+    """
+    Motor de otimização de abastecimento com métrica composta.
+
+    Parâmetros
+    ----------
+    ests       : candidatos ao longo da rota — cada dict deve ter:
+                 _km (km na rota), preco, _dev (desvio em km),
+                 grade (A/B/C/D, opcional), cnpj, label, ...
+    rcap       : capacidade do tanque (L)
+    raut       : autonomia (km/L)
+    rd         : distância total da rota (km)
+    pesos      : dict {"preco": float, "score": float, "desvio": float}
+                 (devem somar 1.0)
+    fill_mode  : "normal" → enche ao máximo quando vantajoso
+                 "minimo" → abastece o mínimo necessário em cada parada
+    max_paradas: limite de iterações de segurança
+
+    Retorna
+    -------
+    Lista de dicts de parada, cada um com todos os campos do candidato
+    mais: litros_sugeridos, custo_abast, fuel_chegada, pct_chegada,
+          fuel_apos, pct_apos, motivo, metrica_valor
+    """
+    if not ests or raut <= 0 or rcap <= 0:
+        return []
+
+    rmin         = rcap * 0.25          # nível mínimo (25 %)
+    alc_efetivo  = (rcap - rmin) * raut # alcance por ciclo (km)
+    PCT_BAIXO    = 0.65                 # % tanque — abaixo disso considera parar
+    VANT_PRECO   = 0.03                 # vantagem mínima de preço para look-ahead
+    LITROS_MIN   = 5                    # descarta paradas com < 5 L
+
+    # ── normalização de preço e score ──────────────────────────────
+    _precos = [e["preco"] for e in ests if "preco" in e]
+    _pmin   = min(_precos) if _precos else 0.0
+    _pmax   = max(_precos) if _precos else 1.0
+    _GRADE  = {"A": 1.0, "B": 0.75, "C": 0.5, "D": 0.25}
+
+    def _met(e: dict) -> float:
+        """Métrica composta: maior = melhor posto para parar."""
+        _p = 1.0 - (e["preco"] - _pmin) / max(_pmax - _pmin, 0.01)
+        _g = _GRADE.get(e.get("grade"), 0.25)
+        _d = 1.0 - min(e.get("_dev", 0.0) / 5.0, 1.0)
+        return pesos["preco"] * _p + pesos["score"] * _g + pesos["desvio"] * _d
+
+    # ── algoritmo greedy look-ahead ─────────────────────────────────
+    paradas: list = []
+    pos:   float  = 0.0
+    fuel:  float  = float(rcap)
+    seen: set     = set()
+    ult_preco     = None
+
+    for _ in range(max_paradas):
+        if pos >= rd:
+            break
+
+        can_go = (fuel - rmin) * raut
+        must   = pos + can_go
+
+        if must >= rd:
+            break  # chega ao destino sem parar
+
+        janela = [e for e in ests
+                  if pos < e["_km"] <= must and e["cnpj"] not in seen]
+
+        janela_ext = [e for e in ests
+                      if must < e["_km"] <= pos + alc_efetivo * 1.85
+                      and e["cnpj"] not in seen]
+
+        if not janela:
+            alem = [e for e in ests if e["_km"] > pos and e["cnpj"] not in seen]
+            if not alem:
+                break
+            best  = dict(min(alem, key=lambda x: x["_km"]))
+            best["motivo"] = "emergencia"
+            fill_tgt_km    = None
+        else:
+            best_obrig  = max(janela, key=_met)
+            fill_tgt_km = None
+
+            if janela_ext:
+                best_ext = max(janela_ext, key=_met)
+                # look-ahead: se o posto à frente tem métrica bem melhor E preço menor
+                if (_met(best_ext) > _met(best_obrig) * 1.05
+                        and best_ext.get("preco", 9999) < best_obrig.get("preco", 9999) * (1 - VANT_PRECO)):
+                    fill_tgt_km = best_ext["_km"]
+
+            best = dict(best_obrig)
+            best["motivo"] = "estrategico" if fill_tgt_km else "otimizado"
+
+        km_ate       = best["_km"] - pos
+        fuel_chegada = max(0.0, fuel - km_ate / raut)
+        pct_chegada  = fuel_chegada / rcap * 100
+
+        # pula se tanque ainda alto e posto não compensa
+        if (best.get("motivo") != "emergencia"
+                and pct_chegada >= PCT_BAIXO * 100
+                and ult_preco is not None
+                and best.get("preco", 9999) >= ult_preco * (1 - VANT_PRECO)
+                and not fill_tgt_km):
+            pos  = best["_km"]
+            fuel = fuel_chegada
+            seen.add(best["cnpj"])
+            continue
+
+        dist_rest = rd - best["_km"]
+
+        if fill_mode == "minimo":
+            # Abastece o mínimo para chegar ao próximo posto obrigatório
+            prox_obrig = [e for e in ests
+                          if e["_km"] > best["_km"] and e["cnpj"] not in seen]
+            if prox_obrig:
+                _prox_km = min(prox_obrig, key=lambda x: x["_km"])["_km"]
+                _dist_prox = _prox_km - best["_km"]
+                litros_nec = (_dist_prox / raut) * 1.10 + rmin - fuel_chegada
+            else:
+                litros_nec = (dist_rest / raut) * 1.15 + rmin - fuel_chegada
+        elif fill_tgt_km:
+            dist_tgt   = fill_tgt_km - best["_km"]
+            litros_nec = (dist_tgt / raut) * 1.10 + rmin - fuel_chegada
+        elif dist_rest <= alc_efetivo:
+            litros_nec = (dist_rest / raut) * 1.15 + rmin - fuel_chegada
+        else:
+            litros_nec = rcap - fuel_chegada
+
+        litros_fill = max(0.0, litros_nec)
+        litros_fill = min(litros_fill, rcap - fuel_chegada)
+        litros_fill = math.ceil(litros_fill)
+
+        if litros_fill < LITROS_MIN:
+            pos  = best["_km"]
+            fuel = fuel_chegada
+            seen.add(best["cnpj"])
+            continue
+
+        fuel_apos = min(fuel_chegada + litros_fill, rcap)
+        pct_apos  = fuel_apos / rcap * 100
+        custo_ab  = round(litros_fill * best.get("preco", 0.0), 2)
+
+        best.update({
+            "fuel_chegada":     round(fuel_chegada, 1),
+            "pct_chegada":      round(pct_chegada,  1),
+            "litros_sugeridos": int(litros_fill),
+            "custo_abast":      custo_ab,
+            "fuel_apos":        round(fuel_apos, 1),
+            "pct_apos":         round(pct_apos,  1),
+            "metrica_valor":    round(_met(best), 3),
+        })
+
+        seen.add(best["cnpj"])
+        paradas.append(best)
+        ult_preco = best.get("preco")
+        fuel      = fuel_apos
+        pos       = best["_km"]
+
+    return paradas
+
+
 # ── Relatório semanal de alertas ────────────────────────────────────
 
 def _gerar_relatorio_alertas_xlsx(
@@ -14999,135 +15168,62 @@ elif modo == "🛣️ Roteirização":
                     _ests.append({**_pc, "_km": _kma, "_dev": _perp})
             _ests.sort(key=lambda x: x["_km"])
 
+            # ── Enriquecer candidatos com grade A-D do histórico ────
+            _intel_grades: dict = {}
+            _intel_d_rot = _intel_load()
+            _hist_all_rot = _intel_d_rot.get("historico", {})
+            for _ec in _ests:
+                _cnpj_e = _ec.get("cnpj", "")
+                _hist_e = _hist_all_rot.get(_cnpj_e, [])
+                if _hist_e:
+                    _precos_e = [h["preco"] for h in _hist_e if h.get("preco")]
+                    _preco_med_e = sum(_precos_e) / len(_precos_e) if _precos_e else None
+                    if _preco_med_e:
+                        _sc_e = _calcular_score_posto(
+                            {"preco": _preco_med_e, "_lat": _ec.get("lat"),
+                             "_lon": _ec.get("lon")},
+                        )
+                        _intel_grades[_cnpj_e] = _sc_e.get("grade", "C")
+            # Fallback: grade C para quem não tem histórico
+            for _ec in _ests:
+                _ec["grade"] = _intel_grades.get(_ec.get("cnpj", ""), "C")
+
             # ════════════════════════════════════════════════════════
-            # ALGORITMO INTELIGENTE DE PARADAS — v2
-            # ────────────────────────────────────────────────────────
-            # Princípios:
-            #   1. Só para quando necessário (combustível abaixo de
-            #      65%) OU quando há vantagem real de preço.
-            #   2. Look-ahead: se há posto >3% mais barato além da
-            #      janela obrigatória, abastece o mínimo no posto
-            #      atual para "voar" até o mais barato.
-            #   3. Na última parada, abastece só o necessário para
-            #      o destino (sem encher o tanque desnecessariamente).
-            #   4. Evita paradas minúsculas (< 5 L) — descarta e
-            #      avança posição sem registrar parada.
+            # SELETOR DE ESTRATÉGIA DE OTIMIZAÇÃO
             # ════════════════════════════════════════════════════════
-            _alcance_efetivo = (_rcap - _rmin) * _raut   # km por ciclo
-            _PCT_BAIXO       = 0.65   # abaixo deste % considera parar voluntariamente
-            _PRECO_VANT      = 0.03   # vantagem mínima de preço para look-ahead (3%)
-            _LITROS_MIN_STOP = 5      # descarta paradas com < 5 L
+            _ESTRATEGIAS_DEF = {
+                "💰 Economia":        {"preco": 0.80, "score": 0.10, "desvio": 0.10,
+                                       "fill": "normal", "desc": "Minimiza custo total — prioriza sempre o posto mais barato"},
+                "⚖️ Equilíbrio":      {"preco": 0.50, "score": 0.30, "desvio": 0.20,
+                                       "fill": "normal", "desc": "Pondera preço, qualidade do posto (score A-D) e distância da rota"},
+                "⭐ Qualidade":       {"preco": 0.30, "score": 0.50, "desvio": 0.20,
+                                       "fill": "normal", "desc": "Prioriza postos com score A e B — pode custar um pouco mais"},
+                "🛑 Mínimas Paradas": {"preco": 0.80, "score": 0.10, "desvio": 0.10,
+                                       "fill": "minimo", "desc": "Para o mínimo de vezes — abastece só o necessário a cada parada"},
+            }
+            _est_key = st.radio(
+                "🎯 Estratégia de otimização",
+                list(_ESTRATEGIAS_DEF.keys()),
+                horizontal=True,
+                key="rot_estrategia",
+                help="Define como o motor escolhe em qual posto parar e quanto abastecer.",
+            )
+            _est_cfg = _ESTRATEGIAS_DEF[_est_key]
+            st.caption(f"ℹ️ {_est_cfg['desc']}")
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
-            _pos          = 0.0
-            _fuel         = float(_rcap)
-            _seen: set    = set()
-            _ultimo_preco = None      # último preço pago (para comparação)
+            # ── Pesos da estratégia selecionada ─────────────────────
+            _pesos_est = {k: _est_cfg[k] for k in ("preco", "score", "desvio")}
 
-            for _ in range(30):       # no máximo 30 paradas
-                if _pos >= _rd:
-                    break
-
-                # Até onde posso ir antes de atingir o mínimo?
-                _can_go = (_fuel - _rmin) * _raut
-                _must   = _pos + _can_go
-
-                if _must >= _rd:
-                    break             # alcança o destino sem parar
-
-                # ── Janela obrigatória: [_pos, _must] ──────────────
-                _janela = [e for e in _ests
-                           if _pos < e["_km"] <= _must
-                           and e["cnpj"] not in _seen]
-
-                # ── Janela estendida: além de _must, alcançável com
-                #    tanque cheio a partir de qualquer posto da janela
-                _janela_ext = [e for e in _ests
-                               if _must < e["_km"] <= _pos + _alcance_efetivo * 1.85
-                               and e["cnpj"] not in _seen]
-
-                if not _janela:
-                    # Emergência: pega o mais próximo disponível
-                    _alem = [e for e in _ests
-                             if e["_km"] > _pos and e["cnpj"] not in _seen]
-                    if not _alem:
-                        break
-                    _best = dict(min(_alem, key=lambda x: x["_km"]))
-                    _best["motivo"]    = "emergencia"
-                    _fill_target_km   = None
-                else:
-                    _best_obrig  = min(_janela, key=lambda x: x.get("preco", 9999))
-                    _preco_obrig = _best_obrig.get("preco", 9999)
-
-                    # ── Look-ahead: posto mais barato além da janela?
-                    _fill_target_km = None
-                    if _janela_ext:
-                        _best_ext  = min(_janela_ext, key=lambda x: x.get("preco", 9999))
-                        _preco_ext = _best_ext.get("preco", 9999)
-                        if _preco_ext < _preco_obrig * (1 - _PRECO_VANT):
-                            _fill_target_km = _best_ext["_km"]
-
-                    _best = dict(_best_obrig)
-                    _best["motivo"] = "estrategico" if _fill_target_km else "mais_barato"
-
-                # ── Combustível ao chegar no posto ─────────────────
-                _km_ate       = _best["_km"] - _pos
-                _fuel_chegada = max(0.0, _fuel - (_km_ate / _raut))
-                _pct_chegada  = (_fuel_chegada / _rcap * 100) if _rcap else 0.0
-
-                # ── Pula parada se tanque ainda alto e preço não compensa
-                if (_best.get("motivo") != "emergencia"
-                        and _pct_chegada >= _PCT_BAIXO * 100
-                        and _ultimo_preco is not None
-                        and _best.get("preco", 9999) >= _ultimo_preco * (1 - _PRECO_VANT)
-                        and not _fill_target_km):
-                    # Avança sem registrar parada
-                    _pos  = _best["_km"]
-                    _fuel = _fuel_chegada
-                    _seen.add(_best["cnpj"])   # evita revisitar
-                    continue
-
-                # ── Quantos litros abastecer? ───────────────────────
-                _dist_restante = _rd - _best["_km"]
-
-                if _fill_target_km:
-                    # Abastece mínimo para chegar ao posto mais barato à frente
-                    _dist_ate_target    = _fill_target_km - _best["_km"]
-                    _litros_necessarios = (_dist_ate_target / _raut) * 1.10 + _rmin
-                elif _dist_restante <= _alcance_efetivo:
-                    # Última parada: só o necessário para o destino + margem
-                    _litros_necessarios = (_dist_restante / _raut) * 1.15 + _rmin
-                else:
-                    # Parada intermediária: enche o tanque (máximo alcance)
-                    _litros_necessarios = _rcap
-
-                _litros_fill = max(0.0, _litros_necessarios - _fuel_chegada)
-                _litros_fill = min(_litros_fill, _rcap - _fuel_chegada)
-                _litros_fill = math.ceil(_litros_fill)
-
-                # Descarta paradas com abastecimento insignificante
-                if _litros_fill < _LITROS_MIN_STOP:
-                    _pos  = _best["_km"]
-                    _fuel = _fuel_chegada
-                    _seen.add(_best["cnpj"])
-                    continue
-
-                _fuel_apos = min(_fuel_chegada + _litros_fill, _rcap)
-                _pct_apos  = (_fuel_apos / _rcap * 100) if _rcap else 0.0
-                _custo_ab  = round(_litros_fill * _best.get("preco", 0.0), 2)
-
-                _best["fuel_chegada"]     = round(_fuel_chegada, 1)
-                _best["pct_chegada"]      = round(_pct_chegada, 1)
-                _best["litros_sugeridos"] = int(_litros_fill)
-                _best["custo_abast"]      = _custo_ab
-                _best["fuel_apos"]        = round(_fuel_apos, 1)
-                _best["pct_apos"]         = round(_pct_apos, 1)
-
-                _seen.add(_best["cnpj"])
-                _sugest.append(_best)
-                _ultimo_preco = _best.get("preco")
-
-                _fuel = _fuel_apos
-                _pos  = _best["_km"]
+            # ── Rodar otimizador v3 ──────────────────────────────────
+            _sugest = _otimizar_rota_v3(
+                ests      = _ests,
+                rcap      = _rcap,
+                raut      = _raut,
+                rd        = _rd,
+                pesos     = _pesos_est,
+                fill_mode = _est_cfg["fill"],
+            )
 
         # ── Tabs ─────────────────────────────────────────────────
         _t_mapa, _t_abast, _t_custo, _t_res = st.tabs(
@@ -15322,6 +15418,70 @@ elif modo == "🛣️ Roteirização":
                     unsafe_allow_html=True,
                 )
 
+                # ── Comparativo de Estratégias ─────────────────────
+                st.markdown("#### ⚖️ Comparativo de Estratégias")
+                _cmp_ests = {
+                    "💰 Economia":        {"preco": 0.80, "score": 0.10, "desvio": 0.10, "fill": "normal"},
+                    "⚖️ Equilíbrio":      {"preco": 0.50, "score": 0.30, "desvio": 0.20, "fill": "normal"},
+                    "⭐ Qualidade":       {"preco": 0.30, "score": 0.50, "desvio": 0.20, "fill": "normal"},
+                    "🛑 Mín. Paradas":    {"preco": 0.80, "score": 0.10, "desvio": 0.10, "fill": "minimo"},
+                }
+                _cmp_cols = st.columns(len(_cmp_ests))
+                _cmp_resultados = {}
+                for _ci_e, (_cmp_nome, _cmp_cfg) in enumerate(_cmp_ests.items()):
+                    _cmp_pesos = {k: _cmp_cfg[k] for k in ("preco", "score", "desvio")}
+                    _cmp_sugest = _otimizar_rota_v3(
+                        ests=_ests, rcap=_rcap, raut=_raut, rd=_rd,
+                        pesos=_cmp_pesos, fill_mode=_cmp_cfg["fill"],
+                    )
+                    _cmp_custo   = sum(s.get("custo_abast", 0) for s in _cmp_sugest)
+                    _cmp_litros  = sum(s.get("litros_sugeridos", 0) for s in _cmp_sugest)
+                    _cmp_paradas = len(_cmp_sugest)
+                    _cmp_preco_m = _cmp_custo / _cmp_litros if _cmp_litros > 0 else 0
+                    _cmp_grades  = [s.get("grade", "C") for s in _cmp_sugest]
+                    _cmp_score_n = {"A": 4, "B": 3, "C": 2, "D": 1}
+                    _cmp_score_m = (sum(_cmp_score_n.get(g, 2) for g in _cmp_grades) /
+                                    len(_cmp_grades) if _cmp_grades else 2)
+                    _cmp_score_l = {4: "A", 3: "B", 2: "C", 1: "D"}
+                    _cmp_grade_m = _cmp_score_l.get(round(_cmp_score_m), "C")
+                    _cmp_resultados[_cmp_nome] = {
+                        "custo": _cmp_custo, "litros": _cmp_litros,
+                        "paradas": _cmp_paradas, "preco_medio": _cmp_preco_m,
+                        "grade_media": _cmp_grade_m,
+                    }
+                    _is_selected = (_cmp_nome.split()[0] == _est_key.split()[0])
+                    _brd = "3px solid #0D47A1" if _is_selected else "1px solid #ddd"
+                    _bg  = "#E3F2FD" if _is_selected else "#fafafa"
+                    _cmp_cols[_ci_e].markdown(
+                        f"<div style='background:{_bg};border:{_brd};border-radius:10px;"
+                        f"padding:10px;text-align:center;font-size:11px'>"
+                        f"<div style='font-weight:700;font-size:12px;margin-bottom:6px'>"
+                        f"{_cmp_nome}{'  ✓' if _is_selected else ''}</div>"
+                        f"<div style='color:#1B5E20;font-size:16px;font-weight:800'>"
+                        f"R$ {_brl(_cmp_custo, 2)}</div>"
+                        f"<div style='color:#555;margin-top:4px'>{_cmp_paradas} parada(s)</div>"
+                        f"<div style='color:#555'>{_cmp_litros} L</div>"
+                        f"<div style='color:#555'>Score médio: <b>{_cmp_grade_m}</b></div>"
+                        f"<div style='color:#777;font-size:10px'>"
+                        f"R$ {_brl(_cmp_preco_m, 3)}/L</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                # Destaque da economia vs pior caso
+                _custos_cmp = [v["custo"] for v in _cmp_resultados.values() if v["custo"] > 0]
+                if len(_custos_cmp) > 1:
+                    _custo_max_cmp = max(_custos_cmp)
+                    _custo_min_cmp = min(_custos_cmp)
+                    _eco_cmp = _custo_max_cmp - _custo_min_cmp
+                    if _eco_cmp > 0.5:
+                        st.success(
+                            f"💡 A diferença entre a estratégia mais econômica e a menos econômica "
+                            f"é de **R$ {_brl(_eco_cmp, 2)}** nesta rota."
+                        )
+                st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+                st.markdown("---")
+
                 # ── Caso sem paradas necessárias ──────────────────
                 if not _sugest and _preco_medio_gf:
                     _custo_sem_par = _consumo_total_l * _preco_medio_gf
@@ -15429,6 +15589,93 @@ elif modo == "🛣️ Roteirização":
                         _fig_acc.update_yaxes(showgrid=True, gridcolor="#E8F5E9",
                                               tickprefix="R$ ")
                         st.plotly_chart(_fig_acc, use_container_width=True)
+
+                    # ── Gráfico de nível do tanque ────────────────
+                    if len(_sugest) >= 1:
+                        st.markdown("#### 🛢 Nível do Tanque ao Longo da Rota")
+                        # Pontos: início + chegada e saída de cada parada + destino
+                        _tank_km    = [0.0]
+                        _tank_pct   = [100.0]   # tanque cheio na origem
+                        _tank_labels= [f"Origem: {_ro.get('label','')[:25]}"]
+                        _tank_cores = ["#2E7D32"]
+
+                        for _sp in _sugest:
+                            _km_sp = _sp.get("_km", 0)
+                            _pch   = _sp.get("pct_chegada", 0)
+                            _pap   = _sp.get("pct_apos",   0)
+                            _lbl   = _sp["label"][:28]
+                            _grade = _sp.get("grade", "C")
+                            _clr   = {"A": "#2E7D32", "B": "#1565C0",
+                                      "C": "#F57F17", "D": "#B71C1C"}.get(_grade, "#555")
+                            # chegada (antes de abastecer)
+                            _tank_km.append(_km_sp - 0.1)
+                            _tank_pct.append(_pch)
+                            _tank_labels.append(f"Chegada: {_lbl} ({_pch:.0f}%)")
+                            _tank_cores.append(_clr)
+                            # saída (depois de abastecer)
+                            _tank_km.append(_km_sp)
+                            _tank_pct.append(_pap)
+                            _tank_labels.append(
+                                f"Abast. {_sp.get('litros_sugeridos',0)} L → {_lbl} ({_pap:.0f}%)")
+                            _tank_cores.append(_clr)
+
+                        # consumo até o destino
+                        _km_ult  = _sugest[-1].get("_km", 0)
+                        _pct_ult = _sugest[-1].get("pct_apos", 100)
+                        _pct_dest = max(0, _pct_ult - (_rd - _km_ult) / _raut / _rcap * 100)
+                        _tank_km.append(_rd)
+                        _tank_pct.append(round(_pct_dest, 1))
+                        _tank_labels.append(f"Destino: {_rt.get('label','')[:25]} ({_pct_dest:.0f}%)")
+                        _tank_cores.append("#C62828")
+
+                        _fig_tank = go.Figure()
+                        # Área de fundo — zona de risco (< 25 %)
+                        _fig_tank.add_hrect(y0=0, y1=25,
+                                            fillcolor="rgba(244,67,54,0.08)",
+                                            line_width=0,
+                                            annotation_text="⚠️ Zona crítica (<25%)",
+                                            annotation_position="top left",
+                                            annotation_font_size=9,
+                                            annotation_font_color="#B71C1C")
+                        # Linha mínima
+                        _fig_tank.add_hline(y=25, line_dash="dash",
+                                            line_color="#EF5350", line_width=1.2,
+                                            annotation_text="Mín. 25%",
+                                            annotation_position="right",
+                                            annotation_font_color="#EF5350",
+                                            annotation_font_size=9)
+                        # Área do tanque
+                        _fig_tank.add_trace(go.Scatter(
+                            x=_tank_km, y=_tank_pct,
+                            mode="lines+markers",
+                            name="Nível do tanque",
+                            line=dict(color="#1565C0", width=2.5, shape="hv"),
+                            marker=dict(size=9, color=_tank_cores,
+                                        line=dict(color="white", width=1.5)),
+                            fill="tozeroy",
+                            fillcolor="rgba(21,101,192,0.12)",
+                            text=_tank_labels,
+                            hovertemplate="<b>%{text}</b><br>Km: %{x:.0f} km<extra></extra>",
+                        ))
+                        _fig_tank.update_layout(
+                            xaxis_title="Distância (km)",
+                            yaxis_title="Nível do tanque (%)",
+                            yaxis=dict(range=[0, 110], ticksuffix="%"),
+                            height=260,
+                            margin=dict(l=10, r=80, t=20, b=40),
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            font=dict(size=10),
+                            showlegend=False,
+                        )
+                        _fig_tank.update_xaxes(showgrid=True, gridcolor="#E3F2FD")
+                        _fig_tank.update_yaxes(showgrid=True, gridcolor="#E3F2FD")
+                        st.plotly_chart(_fig_tank, use_container_width=True)
+                        st.caption(
+                            "🟢 Verde = score A · 🔵 Azul = score B · "
+                            "🟡 Amarelo = score C · 🔴 Vermelho = score D. "
+                            "Os marcadores saltam verticalmente a cada abastecimento."
+                        )
 
                     # ── Breakdown por posto ───────────────────────
                     st.markdown("#### 🏢 Custo por Posto de Abastecimento")
