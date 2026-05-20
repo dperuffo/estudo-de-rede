@@ -13503,6 +13503,50 @@ elif modo == "🗺️ Por Rota":
                 unsafe_allow_html=True,
             )
 
+            # ── Configuração do veículo para o comparativo ───────────────
+            with st.expander("⚙️ Configuração do Veículo", expanded=False):
+                _pp_df_comp_cfg = st.session_state.get("_pp_df")
+                _combs_comp = []
+                if _pp_df_comp_cfg is not None and "combustivel_label" in _pp_df_comp_cfg.columns:
+                    _combs_comp = sorted(
+                        _pp_df_comp_cfg["combustivel_label"].dropna().str.strip().unique().tolist()
+                    )
+
+                _cfg_c1, _cfg_c2 = st.columns(2)
+                # Autonomia
+                _aut_default = float(st.session_state.get("rot_autonomia") or
+                                     st.session_state.get("_comp_autonomia") or 10.0)
+                _aut_comp = _cfg_c1.number_input(
+                    "🚛 Autonomia do veículo (km/L)",
+                    min_value=1.0, max_value=100.0,
+                    value=_aut_default, step=0.5,
+                    key="comp_autonomia_input",
+                    help="Consumo médio do veículo. Usado para calcular o custo estimado de cada rota.",
+                )
+                st.session_state["_comp_autonomia"] = _aut_comp
+
+                # Combustível
+                _comb_default = st.session_state.get("rot_combustivel", "") or \
+                                st.session_state.get("_comp_combustivel", "")
+                _comb_idx = 0
+                _comb_opts_comp = ["— Todos os combustíveis —"] + _combs_comp
+                if _comb_default and _comb_default in _comb_opts_comp:
+                    _comb_idx = _comb_opts_comp.index(_comb_default)
+                _comb_comp = _cfg_c2.selectbox(
+                    "⛽ Combustível",
+                    _comb_opts_comp,
+                    index=_comb_idx,
+                    key="comp_combustivel_sel",
+                    help="Filtra os preços pelo combustível selecionado ao calcular o custo.",
+                )
+                if _comb_comp and _comb_comp != "— Todos os combustíveis —":
+                    st.session_state["_comp_combustivel"] = _comb_comp
+                else:
+                    _comb_comp = ""
+
+                if not _combs_comp:
+                    st.caption("ℹ️ Carregue a planilha de preços em Configurações para habilitar o seletor de combustível.")
+
             # ── Linha reta O→D (referência de desvio) ────────────────────
             def _hav_km(la1, lo1, la2, lo2):
                 _R = 6371.0
@@ -13614,9 +13658,11 @@ elif modo == "🗺️ Por Rota":
                 _dm_b   = float(_comp_b["dur_min"]  or 0)
                 _via_b  = _comp_b["via"]
 
-                # Custo estimado de combustível
-                _aut_c  = float(st.session_state.get("rot_autonomia") or 10.0)
-                _comb_c = st.session_state.get("rot_combustivel", "")
+                # Custo estimado — usa autonomia e combustível definidos no comparativo
+                _aut_c  = float(st.session_state.get("_comp_autonomia") or
+                                st.session_state.get("rot_autonomia") or 10.0)
+                _comb_c = (st.session_state.get("_comp_combustivel") or
+                           st.session_state.get("rot_combustivel") or "")
                 _pp_c   = st.session_state.get("_pp_df")
 
                 def _preco_med_rota(df_r, comb_lbl, pp_df):
@@ -13650,11 +13696,17 @@ elif modo == "🗺️ Por Rota":
                           if _dist_reta_comp else 0)
 
                 # ── Cards lado a lado ─────────────────────────────────────
+                _aut_info = f"{_brl(_aut_c, 1)} km/L"
+                _comb_info = f" · Combustível: <b>{_comb_c}</b>" if _comb_c and _comb_c not in ("", "—") else ""
+                _custo_ok = _pp_c is not None and not _pp_c.empty
+                _aviso_custo = (
+                    "" if _custo_ok else
+                    " &nbsp;·&nbsp; <span style='color:#e65100'>⚠️ Sem planilha de preços — custo não calculado</span>"
+                )
                 st.markdown(
                     f"<div style='font-size:11px;color:#78909c;margin-bottom:10px'>"
                     f"📐 Linha reta O→D: <b>{_brl(_dist_reta_comp, 1)} km</b> &nbsp;·&nbsp; "
-                    f"Autonomia: <b>{_aut_c:.0f} km/L</b>"
-                    f"{f' · Combustível: <b>{_comb_c}</b>' if _comb_c and _comb_c != chr(8212) else ''}"
+                    f"Autonomia: <b>{_aut_info}</b>{_comb_info}{_aviso_custo}"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
