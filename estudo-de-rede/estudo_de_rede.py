@@ -5315,6 +5315,351 @@ def gerar_pdf_roteirizacao(rot_res: dict, sugest: list, logo_b64: str = None) ->
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  PDF — COMPARATIVO DE ROTAS A vs B
+# ═══════════════════════════════════════════════════════════════════
+
+def gerar_pdf_comparativo_rotas(
+    dados_a: dict,
+    dados_b: dict,
+    label_orig: str = "Origem",
+    label_dest: str = "Destino",
+    dist_reta: float = 0.0,
+    logo_b64: str = None,
+) -> bytes:
+    """
+    Gera PDF do comparativo entre Rota A e Rota B.
+    dados_a / dados_b: dicts com dist_km, dur_min, n_gf, n_total,
+                       desvio_pct, preco_med, custo_est, via_label, coords.
+    """
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+            Image as RLImage, HRFlowable, KeepTogether,
+        )
+    except ImportError:
+        return b""
+
+    _buf = io.BytesIO()
+    doc  = SimpleDocTemplate(
+        _buf, pagesize=A4,
+        leftMargin=1.8*cm, rightMargin=1.8*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm,
+    )
+    W, _ = A4
+    _w   = W - 3.6*cm
+
+    # ── Paleta de cores ────────────────────────────────────────────
+    _azul    = colors.HexColor("#0D47A1")
+    _azul2   = colors.HexColor("#1565C0")
+    _verde   = colors.HexColor("#1B5E20")
+    _laranja = colors.HexColor("#E65100")
+    _cinza   = colors.HexColor("#607D8B")
+    _cinzacl = colors.HexColor("#ECEFF1")
+    _branco  = colors.white
+    _cor_a   = colors.HexColor("#1565C0")   # Rota A — azul
+    _cor_b   = colors.HexColor("#E65100")   # Rota B — laranja
+
+    # ── Estilos ────────────────────────────────────────────────────
+    _sT  = ParagraphStyle("sT",  fontName="Helvetica-Bold",
+                          fontSize=16, textColor=_branco, spaceAfter=0)
+    _sSb = ParagraphStyle("sSb", fontName="Helvetica",
+                          fontSize=8,  textColor=colors.HexColor("#BBDEFB"), spaceAfter=0)
+    _sH2 = ParagraphStyle("sH2", fontName="Helvetica-Bold",
+                          fontSize=10, textColor=_azul, spaceBefore=10, spaceAfter=4)
+    _sN  = ParagraphStyle("sN",  fontName="Helvetica",
+                          fontSize=8.5, textColor=colors.HexColor("#37474F"), leading=13)
+    _sB  = ParagraphStyle("sB",  fontName="Helvetica-Bold",
+                          fontSize=8.5, textColor=colors.HexColor("#212121"), leading=13)
+    _sC  = ParagraphStyle("sC",  fontName="Helvetica",
+                          fontSize=7,  textColor=_cinza, alignment=TA_CENTER)
+    _sVA = ParagraphStyle("sVA", fontName="Helvetica-Bold",
+                          fontSize=9,  textColor=_cor_a)
+    _sVB = ParagraphStyle("sVB", fontName="Helvetica-Bold",
+                          fontSize=9,  textColor=_cor_b)
+    _sVN = ParagraphStyle("sVN", fontName="Helvetica",
+                          fontSize=8.5, textColor=_cinza)
+
+    story = []
+
+    # ── Cabeçalho colorido ─────────────────────────────────────────
+    _titulo = [
+        Paragraph("⚖️  Comparativo de Rotas Alternativas", _sT),
+        Paragraph("Gestão de Frotas – Estudo de Rede", _sSb),
+    ]
+    _data_p = Paragraph(
+        datetime.now().strftime("%d/%m/%Y  %H:%M"),
+        ParagraphStyle("dt", parent=_sSb, alignment=TA_RIGHT),
+    )
+    if logo_b64:
+        try:
+            _logo_io  = io.BytesIO(base64.b64decode(logo_b64))
+            _logo_img = RLImage(_logo_io, width=2.8*cm, height=1.3*cm)
+            _hdr_tbl  = Table(
+                [[_logo_img, _titulo, _data_p]],
+                colWidths=[3.0*cm, _w - 5.3*cm, 2.3*cm],
+            )
+        except Exception:
+            logo_b64 = None
+    if not logo_b64:
+        _hdr_tbl = Table([[_titulo, _data_p]],
+                         colWidths=[_w - 2.5*cm, 2.5*cm])
+
+    _hdr_tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,-1), _azul),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+        ("LEFTPADDING",   (0,0), (-1,-1), 10),
+        ("RIGHTPADDING",  (0,0), (-1,-1), 10),
+        ("TOPPADDING",    (0,0), (-1,-1), 10),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 10),
+    ]))
+    story.append(_hdr_tbl)
+    story.append(Spacer(1, 0.35*cm))
+
+    # ── Trajeto ────────────────────────────────────────────────────
+    story.append(Paragraph("📍 Trajeto", _sH2))
+    _traj_rows = [
+        [Paragraph("Origem",     _sN), Paragraph(label_orig[:60],   _sB)],
+        [Paragraph("Destino",    _sN), Paragraph(label_dest[:60],   _sB)],
+        [Paragraph("Via — Rota A", _sN), Paragraph(dados_a.get("via_label","Rota direta")[:60] or "Rota direta", _sB)],
+        [Paragraph("Via — Rota B", _sN), Paragraph(dados_b.get("via_label","—")[:60] or "—", _sB)],
+        [Paragraph("Linha reta O→D", _sN),
+         Paragraph(f"{dist_reta:.1f} km", _sB)],
+    ]
+    _traj_tbl = Table(_traj_rows, colWidths=[3.5*cm, _w - 3.5*cm])
+    _traj_tbl.setStyle(TableStyle([
+        ("ROWBACKGROUNDS", (0,0), (-1,-1), [_branco, _cinzacl]),
+        ("GRID",           (0,0), (-1,-1), 0.3, colors.HexColor("#CFD8DC")),
+        ("TOPPADDING",     (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING",  (0,0), (-1,-1), 4),
+        ("LEFTPADDING",    (0,0), (-1,-1), 6),
+    ]))
+    story.append(_traj_tbl)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Tabela comparativa ─────────────────────────────────────────
+    story.append(Paragraph("📊 Tabela Comparativa", _sH2))
+
+    def _fmt_dur(m):
+        m = float(m or 0)
+        return f"{int(m//60)}h {int(m%60)}min"
+
+    def _fmt_preco(p):
+        return f"R$ {p:.3f}/L" if p else "—"
+
+    def _fmt_custo(c):
+        return f"R$ {c:,.2f}" if c else "—"
+
+    def _fmt_desvio(d):
+        return f"+{d:.1f}%" if d >= 0 else f"{d:.1f}%"
+
+    def _melhor_low(va, vb, fmt):
+        """Retorna célula destacando o menor (melhor)."""
+        if va is None or vb is None:
+            return Paragraph("—", _sN)
+        if va < vb:
+            return Paragraph(f"🟢 Rota A ({fmt(va)})", _sVA)
+        elif vb < va:
+            return Paragraph(f"🟠 Rota B ({fmt(vb)})", _sVB)
+        return Paragraph("Equivalente", _sN)
+
+    def _melhor_high(va, vb, fmt):
+        """Retorna célula destacando o maior (melhor)."""
+        if va is None or vb is None:
+            return Paragraph("—", _sN)
+        if va > vb:
+            return Paragraph(f"🟢 Rota A ({fmt(va)})", _sVA)
+        elif vb > va:
+            return Paragraph(f"🟠 Rota B ({fmt(vb)})", _sVB)
+        return Paragraph("Equivalente", _sN)
+
+    _dkA  = float(dados_a.get("dist_km",  0) or 0)
+    _dmA  = float(dados_a.get("dur_min",  0) or 0)
+    _ngfA = int(dados_a.get("n_gf",     0) or 0)
+    _ntA  = int(dados_a.get("n_total",  0) or 0)
+    _dvA  = float(dados_a.get("desvio_pct", 0) or 0)
+    _pA   = dados_a.get("preco_med")
+    _cA   = dados_a.get("custo_est")
+
+    _dkB  = float(dados_b.get("dist_km",  0) or 0)
+    _dmB  = float(dados_b.get("dur_min",  0) or 0)
+    _ngfB = int(dados_b.get("n_gf",     0) or 0)
+    _ntB  = int(dados_b.get("n_total",  0) or 0)
+    _dvB  = float(dados_b.get("desvio_pct", 0) or 0)
+    _pB   = dados_b.get("preco_med")
+    _cB   = dados_b.get("custo_est")
+
+    _hdr_cmp = [
+        Paragraph("<b>Critério</b>",   _sB),
+        Paragraph("<b>🟢 Rota A</b>",  ParagraphStyle("ha", parent=_sB, textColor=_cor_a)),
+        Paragraph("<b>🟠 Rota B</b>",  ParagraphStyle("hb", parent=_sB, textColor=_cor_b)),
+        Paragraph("<b>Melhor</b>",      _sB),
+    ]
+    _cmp_rows = [
+        _hdr_cmp,
+        [Paragraph("🛣️ Distância", _sN),
+         Paragraph(f"{_dkA:.1f} km", _sB),
+         Paragraph(f"{_dkB:.1f} km", _sB),
+         _melhor_low(_dkA, _dkB, lambda v: f"{v:.1f} km")],
+        [Paragraph("⏱️ Tempo", _sN),
+         Paragraph(_fmt_dur(_dmA), _sB),
+         Paragraph(_fmt_dur(_dmB), _sB),
+         _melhor_low(_dmA, _dmB, _fmt_dur)],
+        [Paragraph("⭐ Postos GF", _sN),
+         Paragraph(str(_ngfA), _sB),
+         Paragraph(str(_ngfB), _sB),
+         _melhor_high(_ngfA, _ngfB, str)],
+        [Paragraph("⛽ Total postos", _sN),
+         Paragraph(str(_ntA), _sB),
+         Paragraph(str(_ntB), _sB),
+         _melhor_high(_ntA, _ntB, str)],
+        [Paragraph("📐 Desvio", _sN),
+         Paragraph(_fmt_desvio(_dvA), _sB),
+         Paragraph(_fmt_desvio(_dvB), _sB),
+         _melhor_low(_dvA, _dvB, _fmt_desvio)],
+        [Paragraph("💰 Preço médio", _sN),
+         Paragraph(_fmt_preco(_pA), _sB),
+         Paragraph(_fmt_preco(_pB), _sB),
+         _melhor_low(_pA, _pB, _fmt_preco) if _pA and _pB else Paragraph("—", _sN)],
+        [Paragraph("🧾 Custo estimado", _sN),
+         Paragraph(_fmt_custo(_cA), _sB),
+         Paragraph(_fmt_custo(_cB), _sB),
+         _melhor_low(_cA, _cB, _fmt_custo) if _cA and _cB else Paragraph("—", _sN)],
+    ]
+
+    _cw_cmp = [3.5*cm, 3.2*cm, 3.2*cm, _w - 9.9*cm]
+    _tbl_cmp = Table(_cmp_rows, colWidths=_cw_cmp, repeatRows=1)
+    _tbl_cmp.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,0), _azul2),
+        ("TEXTCOLOR",     (0,0), (-1,0), _branco),
+        ("BACKGROUND",    (1,1), (1,-1), colors.HexColor("#E8F5E9")),  # col A verde claro
+        ("BACKGROUND",    (2,1), (2,-1), colors.HexColor("#FFF3E0")),  # col B laranja claro
+        ("ROWBACKGROUNDS",(0,1), (0,-1), [_branco, _cinzacl]),
+        ("ROWBACKGROUNDS",(3,1), (3,-1), [_branco, _cinzacl]),
+        ("GRID",          (0,0), (-1,-1), 0.4, colors.HexColor("#B0BEC5")),
+        ("FONTSIZE",      (0,0), (-1,-1), 8),
+        ("TOPPADDING",    (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+        ("LEFTPADDING",   (0,0), (-1,-1), 6),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(_tbl_cmp)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Veredito ────────────────────────────────────────────────────
+    _vereditos = []
+    if _dkA and _dkB:
+        if _dkA < _dkB:
+            _vereditos.append(f"Rota A é mais curta ({_dkA:.1f} vs {_dkB:.1f} km, Δ {_dkB-_dkA:.1f} km).")
+        elif _dkB < _dkA:
+            _vereditos.append(f"Rota B é mais curta ({_dkB:.1f} vs {_dkA:.1f} km, Δ {_dkA-_dkB:.1f} km).")
+        else:
+            _vereditos.append("Distâncias equivalentes.")
+    if _dmA and _dmB:
+        if _dmA < _dmB:
+            _vereditos.append(f"Rota A é mais rápida ({_fmt_dur(_dmA)} vs {_fmt_dur(_dmB)}).")
+        elif _dmB < _dmA:
+            _vereditos.append(f"Rota B é mais rápida ({_fmt_dur(_dmB)} vs {_fmt_dur(_dmA)}).")
+    if _ngfA != _ngfB:
+        _vv = "A" if _ngfA > _ngfB else "B"
+        _ng1, _ng2 = (_ngfA, _ngfB) if _ngfA > _ngfB else (_ngfB, _ngfA)
+        _vereditos.append(f"Rota {_vv} tem mais postos GF ({_ng1} vs {_ng2}).")
+    if _cA and _cB:
+        if _cA < _cB:
+            _vereditos.append(f"Rota A tem menor custo estimado ({_fmt_custo(_cA)} vs {_fmt_custo(_cB)}).")
+        elif _cB < _cA:
+            _vereditos.append(f"Rota B tem menor custo estimado ({_fmt_custo(_cB)} vs {_fmt_custo(_cA)}).")
+
+    if _vereditos:
+        story.append(Paragraph("🏆 Veredito", _sH2))
+        _vrd_rows = [[Paragraph(f"• {v}", _sN)] for v in _vereditos]
+        _vrd_tbl = Table(_vrd_rows, colWidths=[_w])
+        _vrd_tbl.setStyle(TableStyle([
+            ("ROWBACKGROUNDS", (0,0), (-1,-1), [colors.HexColor("#F9FBE7"), _branco]),
+            ("LEFTPADDING",    (0,0), (-1,-1), 8),
+            ("TOPPADDING",     (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING",  (0,0), (-1,-1), 4),
+        ]))
+        story.append(_vrd_tbl)
+        story.append(Spacer(1, 0.4*cm))
+
+    # ── Mapa das duas rotas ────────────────────────────────────────
+    _coords_a = dados_a.get("coords", [])
+    _coords_b = dados_b.get("coords", [])
+    _lat_o    = dados_a.get("lat_orig")
+    _lon_o    = dados_a.get("lon_orig")
+    _lat_d    = dados_a.get("lat_dest")
+    _lon_d    = dados_a.get("lon_dest")
+
+    if _coords_a and _lat_o and _lon_o and _lat_d and _lon_d:
+        try:
+            from staticmap import StaticMap, Line, CircleMarker
+            _W, _H = 860, 420
+            _sm = StaticMap(
+                _W, _H,
+                url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                headers={"User-Agent": "EstudoDeRede-ProFrotas/2.0"},
+            )
+            # Rota A — azul
+            _sm.add_line(Line(
+                [(float(c[1]), float(c[0])) for c in _coords_a],
+                "#1565C0", 4,
+            ))
+            # Rota B — laranja
+            if _coords_b:
+                _sm.add_line(Line(
+                    [(float(c[1]), float(c[0])) for c in _coords_b],
+                    "#E65100", 3,
+                ))
+                # Ponto de desvio B
+                _via_lat = dados_b.get("via_lat")
+                _via_lon = dados_b.get("via_lon")
+                if _via_lat and _via_lon:
+                    _sm.add_marker(CircleMarker((float(_via_lon), float(_via_lat)), "#E65100", 14))
+                    _sm.add_marker(CircleMarker((float(_via_lon), float(_via_lat)), "#ffffff", 6))
+            # Origem
+            _sm.add_marker(CircleMarker((float(_lon_o), float(_lat_o)), "#2E7D32", 18))
+            _sm.add_marker(CircleMarker((float(_lon_o), float(_lat_o)), "#ffffff",  7))
+            # Destino
+            _sm.add_marker(CircleMarker((float(_lon_d), float(_lat_d)), "#C62828", 18))
+            _sm.add_marker(CircleMarker((float(_lon_d), float(_lat_d)), "#ffffff",  7))
+
+            _img_map = _sm.render()
+            _buf_map = io.BytesIO()
+            _img_map.save(_buf_map, format="PNG")
+            _buf_map.seek(0)
+
+            story.append(Paragraph("🗺️ Mapa — Rotas A e B", _sH2))
+            _rl_map = RLImage(_buf_map, width=_w, height=_w * _H / _W)
+            story.append(_rl_map)
+            story.append(Paragraph(
+                "Azul = Rota A   |   Laranja = Rota B   |   "
+                "● Verde = Origem   |   ● Vermelho = Destino",
+                _sC,
+            ))
+            story.append(Spacer(1, 0.35*cm))
+        except Exception:
+            pass   # mapa opcional — ignora silenciosamente
+
+    # ── Rodapé ─────────────────────────────────────────────────────
+    story.append(HRFlowable(width=_w, thickness=0.5, color=_cinza))
+    story.append(Spacer(1, 0.15*cm))
+    story.append(Paragraph(
+        f"Gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')} · "
+        "Gestão de Frotas – Estudo de Rede · Documento gerado automaticamente",
+        _sC,
+    ))
+
+    doc.build(story)
+    _buf.seek(0)
+    return _buf.read()
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  GPX — EXPORTAÇÃO DE ROTA PARA GPS / GOOGLE MAPS
 # ═══════════════════════════════════════════════════════════════════
 
@@ -13452,6 +13797,94 @@ elif modo == "🗺️ Por Rota":
                     st.caption(
                         "🔵 Linha azul = Rota A  ·  🟠 Linha laranja = Rota B"
                     )
+
+                # ── Botão Gerar PDF do Comparativo ───────────────────────
+                st.markdown(
+                    "<div style='height:8px'></div>",
+                    unsafe_allow_html=True,
+                )
+                # Chave de cache: muda se a rota mudar
+                _pdf_comp_sig = (
+                    f"{dist_km:.2f}_{dur_min:.0f}"
+                    f"_{_dk_b:.2f}_{_dm_b:.0f}"
+                    f"_{_via_b.get('label','')}"
+                )
+                if st.session_state.get("_pdf_comp_sig") != _pdf_comp_sig:
+                    st.session_state.pop("_pdf_comp_bytes", None)
+
+                _pdf_comp_cached = st.session_state.get("_pdf_comp_bytes")
+
+                _pc1, _pc2, _pc3 = st.columns([3, 2, 1])
+                if _pdf_comp_cached:
+                    _pc2.download_button(
+                        "⬇️ Baixar PDF do Comparativo",
+                        data=_pdf_comp_cached,
+                        file_name="comparativo_rotas.pdf",
+                        mime="application/pdf",
+                        key="dl_pdf_comp_rotas",
+                        use_container_width=True,
+                        type="primary",
+                    )
+                    if _pc3.button("🔄", key="btn_regen_pdf_comp",
+                                   help="Regerar PDF", use_container_width=True):
+                        st.session_state.pop("_pdf_comp_bytes", None)
+                        st.rerun()
+                else:
+                    if _pc2.button(
+                        "📄 Gerar PDF do Comparativo",
+                        key="btn_gerar_pdf_comp",
+                        use_container_width=True,
+                        type="secondary",
+                    ):
+                        with st.spinner("Gerando PDF do comparativo A vs B…"):
+                            _dados_pdf_a = {
+                                "dist_km":    dist_km,
+                                "dur_min":    dur_min,
+                                "n_gf":       n_pf(df_show_r),
+                                "n_total":    len(df_show_r),
+                                "desvio_pct": _dev_a,
+                                "preco_med":  _pa,
+                                "custo_est":  _ca,
+                                "via_label":  _via_a_label,
+                                "coords":     coords_rota,
+                                "lat_orig":   lat_orig,
+                                "lon_orig":   lon_orig,
+                                "lat_dest":   lat_dest,
+                                "lon_dest":   lon_dest,
+                                "via_lat":    None,
+                                "via_lon":    None,
+                            }
+                            _dados_pdf_b = {
+                                "dist_km":    _dk_b,
+                                "dur_min":    _dm_b,
+                                "n_gf":       n_pf(_df_b),
+                                "n_total":    len(_df_b),
+                                "desvio_pct": _dev_b,
+                                "preco_med":  _pb,
+                                "custo_est":  _cb_v,
+                                "via_label":  _via_b.get("label", ""),
+                                "coords":     _comp_b.get("coords", []),
+                                "lat_orig":   lat_orig,
+                                "lon_orig":   lon_orig,
+                                "lat_dest":   lat_dest,
+                                "lon_dest":   lon_dest,
+                                "via_lat":    _via_b.get("lat"),
+                                "via_lon":    _via_b.get("lon"),
+                            }
+                            try:
+                                _pdf_bytes_new = gerar_pdf_comparativo_rotas(
+                                    _dados_pdf_a,
+                                    _dados_pdf_b,
+                                    label_orig=label_orig,
+                                    label_dest=label_dest,
+                                    dist_reta=_dist_reta_comp,
+                                    logo_b64=_LOGO_B64,
+                                )
+                                st.session_state["_pdf_comp_bytes"] = _pdf_bytes_new
+                                st.session_state["_pdf_comp_sig"]   = _pdf_comp_sig
+                                st.rerun()
+                            except Exception as _epdf:
+                                st.error(f"Erro ao gerar PDF: {_epdf}")
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
