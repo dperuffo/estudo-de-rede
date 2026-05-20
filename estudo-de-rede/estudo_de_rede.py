@@ -9396,36 +9396,73 @@ with st.sidebar:
                 _coords_fav   = st.session_state.get("pf_coords_df", pd.DataFrame())
                 _svc_keys_fav = list(st.session_state.get("_servicos_pf_labels", {}).keys())
 
-                # Preço médio geral como referência ANP (melhor disponível na sidebar)
-                _preco_ref_fav = None
-                if _pp_df_fav is not None and "preco" in _pp_df_fav.columns:
-                    _media_geral = pd.to_numeric(
-                        _pp_df_fav["preco"], errors="coerce").mean()
-                    if pd.notna(_media_geral) and _media_geral > 0:
-                        _preco_ref_fav = float(_media_geral)
+                # Pré-normaliza CNPJ em _coords_fav para lookup correto
+                _coords_fav_idx: dict = {}
+                if not _coords_fav.empty and "cnpj" in _coords_fav.columns:
+                    _cf_tmp = _coords_fav.copy()
+                    _cf_tmp["_cnpj_n"] = (
+                        _cf_tmp["cnpj"].fillna("").str.replace(r'\D', '', regex=True)
+                    )
+                    _coords_fav_idx = {
+                        row["_cnpj_n"]: row
+                        for _, row in _cf_tmp.iterrows()
+                    }
+
+                # Mediana de preço POR COMBUSTÍVEL como referência correta
+                # (evita comparar o mínimo do posto contra média de fuels misturados)
+                _med_por_comb: dict = {}
+                if (_pp_df_fav is not None
+                        and "preco" in _pp_df_fav.columns
+                        and "combustivel_pk" in _pp_df_fav.columns):
+                    for _ck, _grp in _pp_df_fav.groupby("combustivel_pk"):
+                        _med = pd.to_numeric(
+                            _grp["preco"], errors="coerce").median()
+                        if pd.notna(_med) and _med > 0:
+                            _med_por_comb[str(_ck)] = float(_med)
 
                 for _fv in _fav_list:
-                    _cnpj_fv = _fv.get("cnpj", "")
+                    _cnpj_fv      = _fv.get("cnpj", "")
+                    _cnpj_fv_norm = re.sub(r'\D', '', str(_cnpj_fv))
 
                     # Monta dict de linha para o score
                     _row_sc: dict = dict(_fv)
 
-                    # Preço do posto (menor preço disponível entre todos combustíveis)
-                    if _pp_df_fav is not None and "cnpj_norm" in _pp_df_fav.columns:
-                        _pp_fv = _pp_df_fav[_pp_df_fav["cnpj_norm"] == _cnpj_fv]
+                    # Preço: compara cada combustível do posto com a mediana do mesmo fuel
+                    _preco_ref_fav: float | None = None
+                    if (_pp_df_fav is not None
+                            and "cnpj_norm" in _pp_df_fav.columns
+                            and _med_por_comb):
+                        _pp_fv = _pp_df_fav[
+                            _pp_df_fav["cnpj_norm"] == _cnpj_fv_norm
+                        ]
                         if not _pp_fv.empty:
-                            _p_min = pd.to_numeric(
-                                _pp_fv["preco"], errors="coerce").min()
-                            if pd.notna(_p_min):
-                                _row_sc["_preco_posto"] = float(_p_min)
+                            _score_preco_list = []
+                            for _, _prow in _pp_fv.iterrows():
+                                _pk  = str(_prow.get("combustivel_pk", ""))
+                                _pv  = pd.to_numeric(_prow.get("preco"), errors="coerce")
+                                _ref = _med_por_comb.get(_pk)
+                                if pd.notna(_pv) and _pv > 0 and _ref:
+                                    _d = (_pv - _ref) / _ref
+                                    _score_preco_list.append(
+                                        max(0.0, min(100.0, 50.0 - _d * 500.0))
+                                    )
+                            if _score_preco_list:
+                                # Score médio dos combustíveis do posto;
+                                # usa referência sintética para passar ao calculador
+                                _avg_sp = sum(_score_preco_list) / len(_score_preco_list)
+                                # Injeta preço sintético que produz exatamente _avg_sp
+                                # via: preco_ref=1.0; diff = (p-1)/1 = p-1
+                                # avg_sp = 50 - (p-1)*500 → p = 1 + (50-avg_sp)/500
+                                _p_sintetico = 1.0 + (50.0 - _avg_sp) / 500.0
+                                _row_sc["_preco_posto"] = _p_sintetico
+                                _preco_ref_fav          = 1.0   # base normalizada
 
-                    # Serviços do posto (pf_coords_df)
-                    if not _coords_fav.empty and "cnpj" in _coords_fav.columns:
-                        _cf = _coords_fav[_coords_fav["cnpj"] == _cnpj_fv]
-                        if not _cf.empty:
-                            for _sc_col in _svc_keys_fav:
-                                if _sc_col in _cf.columns:
-                                    _row_sc[_sc_col] = bool(_cf.iloc[0][_sc_col])
+                    # Serviços: lookup com CNPJ normalizado
+                    _cf_row = _coords_fav_idx.get(_cnpj_fv_norm)
+                    if _cf_row is not None:
+                        for _sc_col in _svc_keys_fav:
+                            if _sc_col in _cf_row:
+                                _row_sc[_sc_col] = bool(_cf_row[_sc_col])
 
                     # Calcula score
                     _sc_res = _calcular_score_posto(
