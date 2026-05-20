@@ -16458,6 +16458,59 @@ elif modo == "🚛 Análise de Cliente":
     # ═══════ ANÁLISES (só se há dados) ═══════════════════════════
     if _df_abast is not None and len(_df_abast) > 0:
 
+        # ── Banner do cliente (Razão Social + CNPJ) ───────────────
+        _razao_cliente = ""
+        _cnpj_cliente  = ""
+        for _col_rs in ["_razao_frota", "razao_frota"]:
+            if _col_rs in _df_abast.columns:
+                _vals = _df_abast[_col_rs].dropna()
+                if len(_vals) > 0:
+                    _razao_cliente = str(_vals.iloc[0]).strip()
+                    break
+        for _col_cn in ["_cnpj_frota", "cnpj_frota"]:
+            if _col_cn in _df_abast.columns:
+                _vals = _df_abast[_col_cn].dropna()
+                if len(_vals) > 0:
+                    _cnpj_cliente = str(_vals.iloc[0]).strip()
+                    break
+
+        if _razao_cliente or _cnpj_cliente:
+            # Formata CNPJ: 00.000.000/0001-00
+            def _fmt_cnpj(c: str) -> str:
+                d = "".join(filter(str.isdigit, c))
+                if len(d) == 14:
+                    return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
+                return c
+            _cnpj_fmt = _fmt_cnpj(_cnpj_cliente) if _cnpj_cliente else ""
+            st.markdown(
+                f"""
+                <div style='
+                    background: linear-gradient(135deg, rgba(21,101,192,0.08), rgba(2,136,209,0.05));
+                    border: 1px solid rgba(21,101,192,0.18);
+                    border-left: 4px solid #1565C0;
+                    border-radius: 10px;
+                    padding: 14px 20px;
+                    margin-bottom: 18px;
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                '>
+                  <div style='font-size:28px;line-height:1'>🏢</div>
+                  <div>
+                    <div style='font-size:11px;color:#1565C0;font-weight:700;
+                                letter-spacing:1px;text-transform:uppercase;margin-bottom:3px'>
+                      Cliente em análise
+                    </div>
+                    <div style='font-size:17px;font-weight:800;color:#0d1b4b;line-height:1.2'>
+                      {_razao_cliente}
+                    </div>
+                    {f"<div style='font-size:12px;color:#546e7a;font-weight:500;margin-top:3px'>CNPJ: {_cnpj_fmt}</div>" if _cnpj_fmt else ""}
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         # ── filtro de período ─────────────────────────────────────
         _datas_validas = [d for d in _df_abast["_data"] if d is not None]
         if _datas_validas:
