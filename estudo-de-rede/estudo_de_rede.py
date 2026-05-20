@@ -2958,7 +2958,8 @@ def _calcular_score_posto(
         if pd.notna(_p) and _p > 0:
             _diff = (_p - preco_ref_anp) / preco_ref_anp
             _s_preco = max(0.0, min(100.0, 50.0 - _diff * 500.0))
-            _det_preco = f"{_diff:+.1%} vs ANP ({preco_ref_anp:.3f})"
+            _det_preco = (f"{'+' if _diff >= 0 else ''}{_brl(_diff*100, 1)}% "
+                          f"vs ANP ({_brl(preco_ref_anp, 3)})")
 
     # ── Serviços (30%) ──────────────────────────────────────────────
     _s_svc = 0.0
@@ -2984,7 +2985,7 @@ def _calcular_score_posto(
             _d_km = 6371 * 2 * _math_mod.atan2(
                 _math_mod.sqrt(_a), _math_mod.sqrt(1 - _a))
             _s_dist   = max(0.0, min(100.0, 100.0 - _d_km))
-            _det_dist = f"{_d_km:.1f} km do ponto de busca"
+            _det_dist = f"{_brl(_d_km, 1)} km do ponto de busca"
 
     _score = 0.50 * _s_preco + 0.30 * _s_svc + 0.20 * _s_dist
     _grade = ("A" if _score >= 75 else
@@ -5428,7 +5429,7 @@ def gerar_pdf_comparativo_rotas(
         [Paragraph("Via — Rota A", _sN), Paragraph(dados_a.get("via_label","Rota direta")[:60] or "Rota direta", _sB)],
         [Paragraph("Via — Rota B", _sN), Paragraph(dados_b.get("via_label","—")[:60] or "—", _sB)],
         [Paragraph("Linha reta O→D", _sN),
-         Paragraph(f"{dist_reta:.1f} km", _sB)],
+         Paragraph(f"{f'{dist_reta:.1f}'.replace('.', ',')} km", _sB)],
     ]
     _traj_tbl = Table(_traj_rows, colWidths=[3.5*cm, _w - 3.5*cm])
     _traj_tbl.setStyle(TableStyle([
@@ -5449,13 +5450,15 @@ def gerar_pdf_comparativo_rotas(
         return f"{int(m//60)}h {int(m%60)}min"
 
     def _fmt_preco(p):
-        return f"R$ {p:.3f}/L" if p else "—"
+        return (f"R$ {f'{p:.3f}'.replace('.', ',')}/L") if p else "—"
 
     def _fmt_custo(c):
-        return f"R$ {c:,.2f}" if c else "—"
+        s = f"{c:,.2f}"
+        return f"R$ {s.replace(',','X').replace('.',',').replace('X','.')}" if c else "—"
 
     def _fmt_desvio(d):
-        return f"+{d:.1f}%" if d >= 0 else f"{d:.1f}%"
+        s = f"{abs(d):.1f}".replace(".", ",")
+        return f"+{s}%" if d >= 0 else f"-{s}%"
 
     def _melhor_low(va, vb, fmt):
         """Retorna célula destacando o menor (melhor)."""
@@ -5502,9 +5505,9 @@ def gerar_pdf_comparativo_rotas(
     _cmp_rows = [
         _hdr_cmp,
         [Paragraph("🛣️ Distância", _sN),
-         Paragraph(f"{_dkA:.1f} km", _sB),
-         Paragraph(f"{_dkB:.1f} km", _sB),
-         _melhor_low(_dkA, _dkB, lambda v: f"{v:.1f} km")],
+         Paragraph(f"{f'{_dkA:.1f}'.replace('.', ',')} km", _sB),
+         Paragraph(f"{f'{_dkB:.1f}'.replace('.', ',')} km", _sB),
+         _melhor_low(_dkA, _dkB, lambda v: f"{f'{v:.1f}'.replace('.', ',')} km")],
         [Paragraph("⏱️ Tempo", _sN),
          Paragraph(_fmt_dur(_dmA), _sB),
          Paragraph(_fmt_dur(_dmB), _sB),
@@ -5553,10 +5556,11 @@ def gerar_pdf_comparativo_rotas(
     # ── Veredito ────────────────────────────────────────────────────
     _vereditos = []
     if _dkA and _dkB:
+        def _fkm(v): return f"{f'{v:.1f}'.replace('.', ',')} km"
         if _dkA < _dkB:
-            _vereditos.append(f"Rota A é mais curta ({_dkA:.1f} vs {_dkB:.1f} km, Δ {_dkB-_dkA:.1f} km).")
+            _vereditos.append(f"Rota A é mais curta ({_fkm(_dkA)} vs {_fkm(_dkB)}, Δ {_fkm(_dkB-_dkA)}).")
         elif _dkB < _dkA:
-            _vereditos.append(f"Rota B é mais curta ({_dkB:.1f} vs {_dkA:.1f} km, Δ {_dkA-_dkB:.1f} km).")
+            _vereditos.append(f"Rota B é mais curta ({_fkm(_dkB)} vs {_fkm(_dkA)}, Δ {_fkm(_dkA-_dkB)}).")
         else:
             _vereditos.append("Distâncias equivalentes.")
     if _dmA and _dmB:
@@ -6846,7 +6850,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 _mun_r   = str(_tr.get("municipio", ""))
                 _uf_r    = str(_tr.get("uf", ""))
                 _geo_r   = f"{_mun_r}/{_uf_r}" if _mun_r and _uf_r else _mun_r or _uf_r
-                _preco_str = f"R$ {_preco_r:.3f}/L" if _preco_r is not None else "—"
+                _preco_str = f"R$ {_brl(_preco_r, 3)}/L" if _preco_r is not None else "—"
                 _top5_hover.append(
                     f"<b>{_emoji_r} #{_rank_n} Mais Barato</b><br>"
                     f"{_nome_r}<br>"
@@ -8135,7 +8139,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-body'>"
                     f"<div class='cc-preco-label'>Preço médio</div>"
                     f"<div class='cc-preco'>R$ {_brl(preco, 3)}<span class='cc-unidade'>/L</span></div>"
-                    f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                    f"<div class='cc-litros'>{_brl(litros, 1)} L necessários</div>"
                     f"<div class='cc-custo-label'>Custo estimado</div>"
                     f"<div class='cc-custo'>R$ {_brl(custo)}</div>"
                     f"{econ}"
@@ -8181,7 +8185,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-body'>"
                     f"<div class='cc-preco-label'>Preço médio</div>"
                     f"<div class='cc-preco'>R$ {_brl(p_med_rota, 3)}<span class='cc-unidade'>/L</span></div>"
-                    f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                    f"<div class='cc-litros'>{_brl(litros, 1)} L necessários</div>"
                     f"<div class='cc-custo-label'>Custo estimado</div>"
                     f"<div class='cc-custo'>R$ {_brl(custo_med_val)}</div>"
                     f"</div></div>"
@@ -8215,7 +8219,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                             f"background:{'#e8f5e9' if _delta_pf<0 else '#ffebee'};"
                             f"border-radius:4px;padding:3px 6px;margin-top:6px;text-align:center'>"
                             f"{_d_sinal} R$ {_brl(abs(_delta_pf), 3)} "
-                            f"({abs(_delta_pct):.1f}%) {_d_txt} da média ANP</div>"
+                            f"({_brl(abs(_delta_pct), 1)}%) {_d_txt} da média ANP</div>"
                         )
                     _pf_dest = (_custo_pf is not None and
                                 all(v is None or _custo_pf <= v
@@ -8232,7 +8236,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                         f"<div class='cc-preco-label'>Preço médio real</div>"
                         f"<div class='cc-preco'>R$ {_brl(_p_pf_real, 3)}"
                         f"<span class='cc-unidade'>/L</span></div>"
-                        f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                        f"<div class='cc-litros'>{_brl(litros, 1)} L necessários</div>"
                         f"<div class='cc-custo-label'>Custo estimado</div>"
                         f"<div class='cc-custo'>R$ {_brl(_custo_pf)}</div>"
                         f"{_delta_html}"
@@ -8269,7 +8273,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 
             # Nota de rodapé
             st.caption(
-                f"*Cálculo baseado em {dist_km:.0f} km ÷ {consumo:.1f} km/L = {litros:.1f} litros."
+                f"*Cálculo baseado em {dist_km:.0f} km ÷ {_brl(consumo, 1)} km/L = {_brl(litros, 1)} litros."
                 f" Preços: ANP semana {semana or '—'}. Valores estimados.*"
             )
 
@@ -9886,7 +9890,7 @@ with st.sidebar:
                                     help="Exibe apenas postos com preço registrado dentro da faixa selecionada",
                                 )
                             else:
-                                st.caption(f"Preço único: R$ {_pmin:.3f}/L")
+                                st.caption(f"Preço único: R$ {_brl(_pmin, 3)}/L")
 
                 # ── Horário de Funcionamento ───────────────────────────
                 _filtro_24h_m1 = False
@@ -10325,7 +10329,7 @@ with st.sidebar:
                                     help="Exibe apenas postos com preço dentro da faixa selecionada",
                                 )
                             else:
-                                st.caption(f"Preço único: R$ {_pmin2:.3f}/L")
+                                st.caption(f"Preço único: R$ {_brl(_pmin2, 3)}/L")
 
                 _filtro_24h_m2 = False
                 if "funciona_24h" in _svc_cols_m2:
@@ -13648,7 +13652,7 @@ elif modo == "🗺️ Por Rota":
                 # ── Cards lado a lado ─────────────────────────────────────
                 st.markdown(
                     f"<div style='font-size:11px;color:#78909c;margin-bottom:10px'>"
-                    f"📐 Linha reta O→D: <b>{_dist_reta_comp:.1f} km</b> &nbsp;·&nbsp; "
+                    f"📐 Linha reta O→D: <b>{_brl(_dist_reta_comp, 1)} km</b> &nbsp;·&nbsp; "
                     f"Autonomia: <b>{_aut_c:.0f} km/L</b>"
                     f"{f' · Combustível: <b>{_comb_c}</b>' if _comb_c and _comb_c != chr(8212) else ''}"
                     f"</div>",
@@ -13657,14 +13661,20 @@ elif modo == "🗺️ Por Rota":
 
                 _cA, _cB = st.columns(2)
 
+                def _fmtbr_card(v, dec=1):
+                    """Formata número no padrão pt-BR (ponto milhar, vírgula decimal)."""
+                    s = f"{v:,.{dec}f}"
+                    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
                 def _card_rota(col, titulo, cor_borda, cor_txt,
                                rota_label, via_label,
                                dist, dur, n_gf, n_total,
                                desvio, preco_med, custo):
-                    _h_str = f"{int(dur//60)}h {int(dur%60)}min"
-                    _p_str = f"R$ {preco_med:.3f}/L" if preco_med else "—"
-                    _c_str = f"R$ {custo:,.2f}" if custo else "—"
-                    _dev_str = f"+{desvio:.1f}%" if desvio >= 0 else f"{desvio:.1f}%"
+                    _h_str = f"{int(dur//60)}h {int(dur%60):02d}min"
+                    _p_str = f"R$ {_fmtbr_card(preco_med, 3)}/L" if preco_med else "—"
+                    _c_str = f"R$ {_fmtbr_card(custo, 2)}" if custo else "—"
+                    _dev_str = (f"+{_fmtbr_card(desvio)}%"
+                                if desvio >= 0 else f"{_fmtbr_card(desvio)}%")
                     col.markdown(
                         f"<div style='border:2px solid {cor_borda};"
                         f"border-radius:14px;padding:14px 16px;height:100%'>"
@@ -13675,7 +13685,7 @@ elif modo == "🗺️ Por Rota":
                         f"{'<div style=\"font-size:10px;color:#888;margin-bottom:8px\">🔀 Via: ' + via_label + '</div>' if via_label else ''}"
                         f"<table style='width:100%;border-collapse:collapse;font-size:12px'>"
                         f"<tr><td style='padding:4px 0;color:#666'>🛣️ Distância</td>"
-                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{dist:.1f} km</td></tr>"
+                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_fmtbr_card(dist)} km</td></tr>"
                         f"<tr><td style='padding:4px 0;color:#666'>⏱️ Tempo</td>"
                         f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_h_str}</td></tr>"
                         f"<tr><td style='padding:4px 0;color:#666'>⭐ Postos GF</td>"
@@ -13713,26 +13723,32 @@ elif modo == "🗺️ Por Rota":
 
                 # ── Veredito ─────────────────────────────────────────────
                 st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+
+                def _fmtbr(v, dec=1):
+                    """Formata número no padrão pt-BR: ponto milhar, vírgula decimal."""
+                    s = f"{v:,.{dec}f}"          # ex: "1,813.6"
+                    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
                 _vereditos = []
                 if dist_km < _dk_b:
                     _vereditos.append("🟢 **Rota A é mais curta** "
-                                      f"({dist_km:.1f} km vs {_dk_b:.1f} km, "
-                                      f"diferença: {_dk_b - dist_km:.1f} km)")
+                                      f"({_fmtbr(dist_km)} km vs {_fmtbr(_dk_b)} km, "
+                                      f"diferença: {_fmtbr(_dk_b - dist_km)} km)")
                 elif _dk_b < dist_km:
                     _vereditos.append("🔵 **Rota B é mais curta** "
-                                      f"({_dk_b:.1f} km vs {dist_km:.1f} km, "
-                                      f"diferença: {dist_km - _dk_b:.1f} km)")
+                                      f"({_fmtbr(_dk_b)} km vs {_fmtbr(dist_km)} km, "
+                                      f"diferença: {_fmtbr(dist_km - _dk_b)} km)")
                 else:
                     _vereditos.append("⚖️ Distâncias equivalentes.")
 
                 if dur_min < _dm_b:
                     _vereditos.append(f"🟢 **Rota A é mais rápida** "
-                                      f"({int(dur_min//60)}h{int(dur_min%60)}min "
-                                      f"vs {int(_dm_b//60)}h{int(_dm_b%60)}min)")
+                                      f"({int(dur_min//60)}h{int(dur_min%60):02d}min "
+                                      f"vs {int(_dm_b//60)}h{int(_dm_b%60):02d}min)")
                 elif _dm_b < dur_min:
                     _vereditos.append(f"🔵 **Rota B é mais rápida** "
-                                      f"({int(_dm_b//60)}h{int(_dm_b%60)}min "
-                                      f"vs {int(dur_min//60)}h{int(dur_min%60)}min)")
+                                      f"({int(_dm_b//60)}h{int(_dm_b%60):02d}min "
+                                      f"vs {int(dur_min//60)}h{int(dur_min%60):02d}min)")
 
                 if n_pf(df_show_r) > n_pf(_df_b):
                     _vereditos.append(f"🟢 **Rota A tem mais postos GF** "
@@ -13744,10 +13760,10 @@ elif modo == "🗺️ Por Rota":
                 if _ca is not None and _cb_v is not None:
                     if _ca < _cb_v:
                         _vereditos.append(f"🟢 **Rota A tem menor custo estimado** "
-                                          f"(R$ {_ca:,.2f} vs R$ {_cb_v:,.2f})")
+                                          f"(R$ {_fmtbr(_ca, 2)} vs R$ {_fmtbr(_cb_v, 2)})")
                     elif _cb_v < _ca:
                         _vereditos.append(f"🔵 **Rota B tem menor custo estimado** "
-                                          f"(R$ {_cb_v:,.2f} vs R$ {_ca:,.2f})")
+                                          f"(R$ {_fmtbr(_cb_v, 2)} vs R$ {_fmtbr(_ca, 2)})")
 
                 if _vereditos:
                     with st.expander("📊 Veredito do comparativo", expanded=True):
@@ -15381,12 +15397,12 @@ if modo == "📊 Dashboard":
                         # KPIs
                         _ac1, _ac2, _ac3, _ac4 = st.columns(4)
                         _ac1.metric("⚠️ Postos em Alerta", _fmt_int(_n_alertas),
-                                    delta=f"{_pct_alert:.1f}% da base",
+                                    delta=f"{_brl(_pct_alert, 1)}% da base",
                                     delta_color="inverse")
                         _ac2.metric("✅ Dentro da Média", _fmt_int(_n_ok),
-                                    delta=f"{100-_pct_alert:.1f}% da base")
-                        _ac3.metric("📈 Pior Desvio", f"+{_pior_diff*100:.1f}%" if _n_alertas > 0 else "—")
-                        _ac4.metric("📊 Desvio Médio", f"+{_media_diff*100:.1f}%" if _n_alertas > 0 else "—")
+                                    delta=f"{_brl(100-_pct_alert, 1)}% da base")
+                        _ac3.metric("📈 Pior Desvio", f"+{_brl(_pior_diff*100, 1)}%" if _n_alertas > 0 else "—")
+                        _ac4.metric("📊 Desvio Médio", f"+{_brl(_media_diff*100, 1)}%" if _n_alertas > 0 else "—")
 
                         if not _sem_anp:
                             st.caption(f"🔍 Referência ANP utilizada principalmente: **{_nivel_info}**")
@@ -15456,7 +15472,7 @@ if modo == "📊 Dashboard":
                                 _alerta_uf_disp = _alerta_uf[["uf_nome", "postos_alerta", "pior_desvio"]].copy()
                                 _alerta_uf_disp.columns = ["Estado", "Postos", "Pior Desvio"]
                                 _alerta_uf_disp["Pior Desvio"] = _alerta_uf_disp["Pior Desvio"].apply(
-                                    lambda v: f"+{v*100:.1f}%"
+                                    lambda v: f"+{_brl(v*100, 1)}%"
                                 )
                                 st.dataframe(_alerta_uf_disp, use_container_width=True, hide_index=True)
 
@@ -15490,7 +15506,7 @@ if modo == "📊 Dashboard":
 
                             if "Desvio %" in _top_piores_disp.columns:
                                 _top_piores_disp["Desvio %"] = _top_piores_disp["Desvio %"].apply(
-                                    lambda v: f"+{v*100:.1f}%" if pd.notna(v) else "—"
+                                    lambda v: f"+{_brl(v*100, 1)}%" if pd.notna(v) else "—"
                                 )
                             if "Desvio R$/L" in _top_piores_disp.columns:
                                 _top_piores_disp["Desvio R$/L"] = _top_piores_disp["Desvio R$/L"].apply(
@@ -15845,7 +15861,7 @@ if modo == "📊 Dashboard":
                                 f"Preço A":    f"R$ {_pa:.3f}".replace(".", ","),
                                 f"Preço B":    f"R$ {_pb:.3f}".replace(".", ","),
                                 "Δ R$/L":      f"{'+' if _diff >= 0 else ''}{_diff:.3f}".replace(".", ","),
-                                "Δ %":         f"{'+' if _diff_pct >= 0 else ''}{_diff_pct:.1f}%",
+                                "Δ %":         f"{'+' if _diff_pct >= 0 else ''}{_brl(_diff_pct, 1)}%",
                                 "Mais barato": (
                                     _label_a[:20] if _pa < _pb else
                                     (_label_b[:20] if _pb < _pa else "Igual")
@@ -15947,9 +15963,9 @@ if modo == "📊 Dashboard":
                         f"<ul style='font-size:12px;color:#333;margin:0;padding-left:16px'>"
                         f"<li><b>{_fmt_int(_m['n_postos'])}</b> postos GF credenciados</li>"
                         f"<li><b>{_fmt_int(_m['n_muns'])}</b> municípios atendidos "
-                        f"(<b>{_m['cob_pct']:.1f}%</b> de cobertura)</li>"
+                        f"(<b>{_brl(_m['cob_pct'], 1)}%</b> de cobertura)</li>"
                         f"<li><b>{_m['n_distrib']}</b> distribuidoras presentes</li>"
-                        f"<li>Média de <b>{_m['media_mun']:.1f}</b> posto(s)/município</li>"
+                        f"<li>Média de <b>{_brl(_m['media_mun'], 1)}</b> posto(s)/município</li>"
                         + _preco_item +
                         f"</ul></div>",
                         unsafe_allow_html=True,
@@ -16458,7 +16474,7 @@ elif modo == "🛣️ Roteirização":
         if _rot_placa: _v_parts.append(f"🚛 <b>{_rot_placa.upper()}</b>")
         if _rot_comb:  _v_parts.append(f"⛽ {_rot_comb}")
         if _rot_cap:   _v_parts.append(f"🛢 {_rot_cap:.0f} L")
-        if _rot_aut:   _v_parts.append(f"📏 {_rot_aut:.1f} km/L")
+        if _rot_aut:   _v_parts.append(f"📏 {_brl(_rot_aut, 1)} km/L")
         _v_parts.append(f"🔋 alcance ~{(_rot_cap - _rot_min) * _rot_aut:.0f} km")
         st.markdown(
             "<div style='background:linear-gradient(90deg,#e0f7fa,#f1f8e9);"
@@ -17023,7 +17039,7 @@ elif modo == "🛣️ Roteirização":
                         f"<div style='font-size:11px;color:#555;margin-bottom:5px'>"
                         f"📍 {_ab.get('municipio','')} / {_ab.get('uf','')} &nbsp;·&nbsp; "
                         f"🛣 <b>{_ab.get('_km',0):.0f} km</b> da origem &nbsp;·&nbsp; "
-                        f"💰 <b>R$ {_preco_l:.3f}/L</b>"
+                        f"💰 <b>R$ {_brl(_preco_l, 3)}/L</b>"
                         f"</div>"
 
                         # Linha 3: nível tanque — chegada e saída
@@ -17036,7 +17052,7 @@ elif modo == "🛣️ Roteirização":
                         # Linha 4: custo + barra visual do tanque
                         f"<div style='display:flex;align-items:center;gap:10px'>"
                         f"<span style='font-size:12px;font-weight:700;color:{_cor_ab}'>"
-                        f"💵 Custo: R$ {_custo_p:.2f}</span>"
+                        f"💵 Custo: R$ {_brl(_custo_p)}</span>"
                         f"<div style='flex:1;background:#e0e0e0;border-radius:4px;height:8px;overflow:hidden'>"
                         f"<div style='width:{_bar_ap}%;background:{_bar_cor};height:100%;border-radius:4px'></div>"
                         f"</div>"
@@ -17123,7 +17139,7 @@ elif modo == "🛣️ Roteirização":
                     _ck1.metric("💰 Custo estimado",
                                 f"R$ {_custo_sem_par:,.2f}".replace(",","X").replace(".",",").replace("X","."))
                     _ck2.metric("🛢 Consumo total",
-                                f"{_consumo_total_l:.1f} L")
+                                f"{_brl(_consumo_total_l, 1)} L")
                     _ck3.metric("📏 Custo/km",
                                 f"R$ {_custo_sem_par/_rd:.3f}".replace(".",",") if _rd > 0 else "—")
                     st.info(
