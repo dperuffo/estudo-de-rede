@@ -13169,8 +13169,21 @@ elif modo == "🗺️ Por Rota":
 
             # ── Definir via point para Rota B ────────────────────────────
             st.markdown("##### 🔵 Rota B — ponto intermediário alternativo")
-            _c_via1, _c_via2 = st.columns([3, 1])
-            with _c_via1:
+
+            # Lê seleção prévia antes de qualquer widget
+            _comp_via_sel = st.session_state.get("_comp_via_b_sel")
+
+            if _comp_via_sel:
+                # Via já escolhida: mostra confirmação + botão de limpar
+                _c_ok1, _c_ok2 = st.columns([4, 1])
+                _c_ok1.success(f"✅ Via B: **{_comp_via_sel['label']}**")
+                if _c_ok2.button("🗑️ Limpar via", key="btn_limpar_via_b",
+                                 use_container_width=True):
+                    st.session_state.pop("_comp_via_b_sel", None)
+                    st.session_state.pop("_comp_rota_b", None)
+                    st.rerun()
+            else:
+                # Via ainda não escolhida: exibe busca
                 _comp_via_txt = st.text_input(
                     "Via intermediária (Rota B)",
                     placeholder="Ex: Campinas, Londrina, Ribeirão Preto…",
@@ -13178,40 +13191,27 @@ elif modo == "🗺️ Por Rota":
                     help="Digite uma cidade ou posto para desviar a Rota B",
                     label_visibility="collapsed",
                 )
-            with _c_via2:
-                if st.session_state.get("_comp_via_b_sel"):
-                    if st.button("🗑️ Limpar via", key="btn_limpar_via_b",
-                                 use_container_width=True):
-                        st.session_state.pop("_comp_via_b_sel", None)
-                        st.session_state.pop("_comp_rota_b", None)
-                        st.rerun()
-
-            _comp_via_sel = st.session_state.get("_comp_via_b_sel")
-
-            if _comp_via_txt and len(_comp_via_txt.strip()) >= 3:
-                with st.spinner("🔍 Buscando localidades…"):
-                    _comp_sugs = (
-                        sugestoes_nominatim(_comp_via_txt)
-                        + buscar_posto_por_texto(_comp_via_txt, max_results=3)
-                    )
-                if _comp_sugs:
-                    _comp_labels = [s["label"] for s in _comp_sugs]
-                    _comp_choice = st.selectbox(
-                        "Selecione:",
-                        ["— Selecione um ponto de desvio —"] + _comp_labels,
-                        key="comp_via_b_choice",
-                        label_visibility="collapsed",
-                    )
-                    if _comp_choice != "— Selecione um ponto de desvio —":
-                        _idx_c = _comp_labels.index(_comp_choice)
-                        st.session_state["_comp_via_b_sel"] = _comp_sugs[_idx_c]
-                        _comp_via_sel = _comp_sugs[_idx_c]
-                        st.rerun()
-                else:
-                    st.caption("Nenhuma localidade encontrada. Tente outro termo.")
-
-            if _comp_via_sel:
-                st.success(f"✅ Via B: **{_comp_via_sel['label']}**")
+                if _comp_via_txt and len(_comp_via_txt.strip()) >= 3:
+                    with st.spinner("🔍 Buscando localidades…"):
+                        _comp_sugs = (
+                            sugestoes_nominatim(_comp_via_txt)
+                            + buscar_posto_por_texto(_comp_via_txt, max_results=3)
+                        )
+                    if _comp_sugs:
+                        _comp_labels = [s["label"] for s in _comp_sugs]
+                        _comp_choice = st.selectbox(
+                            "Selecione o ponto de desvio:",
+                            ["— Selecione —"] + _comp_labels,
+                            key="comp_via_b_choice",
+                            label_visibility="collapsed",
+                        )
+                        if _comp_choice != "— Selecione —":
+                            _idx_c = _comp_labels.index(_comp_choice)
+                            # Grava e força re-render para mostrar estado "via escolhida"
+                            st.session_state["_comp_via_b_sel"] = _comp_sugs[_idx_c]
+                            st.rerun()
+                    else:
+                        st.caption("Nenhuma localidade encontrada. Tente outro termo.")
 
             _btn_calc_b = st.button(
                 "🔄 Calcular Rota B",
@@ -13222,7 +13222,7 @@ elif modo == "🗺️ Por Rota":
             )
 
             if _btn_calc_b and _comp_via_sel:
-                with st.spinner("🗺️ Calculando Rota B via {_comp_via_sel['label']}…"):
+                with st.spinner(f"🗺️ Calculando Rota B via {_comp_via_sel['label']}…"):
                     _cr_b, _dk_b, _dm_b, _lr_b = calcular_rota(
                         lat_orig, lon_orig, lat_dest, lon_dest,
                         waypoints=[[_comp_via_sel["lat"], _comp_via_sel["lon"]]],
@@ -13255,7 +13255,7 @@ elif modo == "🗺️ Por Rota":
                     "df_rota":    _df_rb,
                     "via":        _comp_via_sel,
                 }
-                st.rerun()
+                # sem st.rerun() — o comparativo é renderizado na sequência
 
             # ── Exibe comparativo quando Rota B está pronta ───────────────
             _comp_b = st.session_state.get("_comp_rota_b")
