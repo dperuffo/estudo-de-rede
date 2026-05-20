@@ -11924,9 +11924,9 @@ if modo == "📍 Por UF/Município":
                 icon=None,
             )
 
-        tab_mapa, tab_dados, tab_analise = st.tabs([
+        tab_mapa, tab_dados, tab_analise, tab_scores = st.tabs([
             "🗺️  Mapa Interativo", "📋  Dados Tabulares",
-            "📊  Análise por Bandeira"])
+            "📊  Análise por Bandeira", "🏆  Melhores Scores"])
 
         with tab_mapa:
             # Constrói o objeto do mapa (pesado) dentro do spinner
@@ -12438,6 +12438,206 @@ if modo == "📍 Por UF/Município":
                     pf_dist = df_show[df_show["_pro_frotas"]]["distribuidora"].value_counts().reset_index()
                     pf_dist.columns = ["Distribuidora","Gestão de Frotas"]
                     st.bar_chart(pf_dist.set_index("Distribuidora"), height=300)
+
+        with tab_scores:
+            # ── Base de postos para o ranking ─────────────────────────────
+            _pf_all_sc  = st.session_state.get("pf_coords_df", pd.DataFrame())
+            _pp_df_sc   = st.session_state.get("_pp_df")
+
+            if _pf_all_sc.empty:
+                st.info(
+                    "ℹ️ Carregue a planilha **Gestão de Frotas** em Configurações "
+                    "para visualizar o ranking de scores."
+                )
+            else:
+                _scope_sc = st.radio(
+                    "Postos a classificar:",
+                    ["🌎 Todos os postos carregados", "🔍 Apenas postos filtrados (vista atual)"],
+                    horizontal=True, key="radio_score_scope_m1",
+                )
+                _df_base_sc = (
+                    _pf_all_sc if "Todos" in _scope_sc
+                    else df_show if not df_show.empty
+                    else _pf_all_sc
+                )
+
+                # ── Mediana de preço POR COMBUSTÍVEL ─────────────────────
+                _med_comb_sc: dict = {}
+                if (_pp_df_sc is not None
+                        and "preco" in _pp_df_sc.columns
+                        and "combustivel_pk" in _pp_df_sc.columns):
+                    for _ck_sc, _grp_sc in _pp_df_sc.groupby("combustivel_pk"):
+                        _med_sc = pd.to_numeric(
+                            _grp_sc["preco"], errors="coerce").median()
+                        if pd.notna(_med_sc) and _med_sc > 0:
+                            _med_comb_sc[str(_ck_sc)] = float(_med_sc)
+
+                # ── Índice de score de preço por CNPJ ────────────────────
+                _preco_idx_sc: dict = {}   # cnpj_norm → score_preco (0-100)
+                if _pp_df_sc is not None and "cnpj_norm" in _pp_df_sc.columns and _med_comb_sc:
+                    for _cn_sc, _grp_cn in _pp_df_sc.groupby("cnpj_norm"):
+                        _sp_list_sc = []
+                        for _, _pr_sc in _grp_cn.iterrows():
+                            _pk_sc  = str(_pr_sc.get("combustivel_pk", ""))
+                            _pv_sc  = pd.to_numeric(_pr_sc.get("preco"), errors="coerce")
+                            _ref_sc = _med_comb_sc.get(_pk_sc)
+                            if pd.notna(_pv_sc) and _pv_sc > 0 and _ref_sc:
+                                _d_sc = (_pv_sc - _ref_sc) / _ref_sc
+                                _sp_list_sc.append(
+                                    max(0.0, min(100.0, 50.0 - _d_sc * 500.0))
+                                )
+                        if _sp_list_sc:
+                            _preco_idx_sc[str(_cn_sc)] = (
+                                sum(_sp_list_sc) / len(_sp_list_sc)
+                            )
+
+                # ── Calcula score para cada posto ─────────────────────────
+                _svc_keys_sc = list(
+                    st.session_state.get("_servicos_pf_labels", {}).keys()
+                )
+                _n_max_sc    = max(len(_svc_keys_sc), 1)
+
+                with st.spinner("🧮 Calculando scores…"):
+                    _rows_ranked_sc = []
+                    for _, _row_sc in _df_base_sc.iterrows():
+                        _rd = _row_sc.to_dict()
+                        _cn_norm_sc = re.sub(r'\D', '', str(_rd.get("cnpj", "")))
+
+                        _preco_ref_sc = None
+                        if _cn_norm_sc in _preco_idx_sc:
+                            _avg_sc  = _preco_idx_sc[_cn_norm_sc]
+                            _rd["_preco_posto"] = 1.0 + (50.0 - _avg_sc) / 500.0
+                            _preco_ref_sc = 1.0
+
+                        _sc = _calcular_score_posto(
+                            _rd,
+                            preco_ref_anp=_preco_ref_sc,
+                            lat_ref=None, lon_ref=None,
+                            servicos_keys=_svc_keys_sc,
+                            n_servicos_max=_n_max_sc,
+                        )
+                        _rows_ranked_sc.append({
+                            "score":          _sc["score"],
+                            "grade":          _sc["grade"],
+                            "score_preco":    round(_sc["score_preco"], 1),
+                            "score_servicos": round(_sc["score_servicos"], 1),
+                            "razaoSocial":    str(_rd.get("razaoSocial", "—")),
+                            "municipio":      str(_rd.get("municipio", "")),
+                            "uf":             str(_rd.get("uf", "")),
+                            "distribuidora":  str(_rd.get("distribuidora", "")),
+                            "cnpj":           str(_rd.get("cnpj", "")),
+                            "_pro_frotas":    bool(_rd.get("_pro_frotas", False)),
+                        })
+
+                _df_ranked_sc = (
+                    pd.DataFrame(_rows_ranked_sc)
+                    .sort_values("score", ascending=False)
+                    .head(50)
+                    .reset_index(drop=True)
+                )
+
+                # ── Header ───────────────────────────────────────────────
+                _n_base = len(_df_base_sc)
+                _tem_preco_sc = bool(_preco_idx_sc)
+                st.markdown(
+                    f"<div style='font-size:15px;font-weight:700;color:#1a237e;"
+                    f"margin-bottom:4px'>🏆 Top 50 Postos — Melhores Scores</div>"
+                    f"<div style='font-size:11px;color:#78909c;margin-bottom:12px'>"
+                    f"Universo: {_n(_n_base)} postos · "
+                    f"{'Preço comparado à mediana por combustível' if _tem_preco_sc else 'Sem dados de preço — score neutro (50)'}"
+                    f" · Distância: referência neutra</div>",
+                    unsafe_allow_html=True,
+                )
+
+                # ── Pódio — top 3 ────────────────────────────────────────
+                _podio_emojis = ["🥇","🥈","🥉"]
+                _podio_cols   = st.columns(3)
+                for _pi, (_pod_col, (_, _pr)) in enumerate(
+                    zip(_podio_cols, _df_ranked_sc.head(3).iterrows())
+                ):
+                    _bg_pd, _txt_pd, _brd_pd = _SCORE_CORES.get(
+                        _pr["grade"], ("#f5f5f5","#424242","#e0e0e0")
+                    )
+                    _pod_col.markdown(
+                        f"<div style='background:{_bg_pd};border:2px solid {_brd_pd};"
+                        f"border-radius:12px;padding:12px 10px;text-align:center'>"
+                        f"<div style='font-size:28px'>{_podio_emojis[_pi]}</div>"
+                        f"<div style='font-size:11px;font-weight:700;color:{_txt_pd};"
+                        f"margin:4px 0 2px;line-height:1.3'>{_pr['razaoSocial'][:30]}</div>"
+                        f"<div style='font-size:10px;color:#888'>"
+                        f"{_pr['municipio']} / {_pr['uf']}</div>"
+                        f"<div style='font-size:18px;font-weight:800;color:{_txt_pd};"
+                        f"margin-top:6px'>{_pr['score']:.0f} pts</div>"
+                        f"<div style='font-size:11px;font-weight:600;color:{_txt_pd}'>"
+                        f"Grau {_pr['grade']}</div>"
+                        f"<div style='font-size:10px;color:#999;margin-top:4px'>"
+                        f"💰 {_pr['score_preco']:.0f} · 🔧 {_pr['score_servicos']:.0f}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+
+                # ── Tabela completa Top 50 ────────────────────────────────
+                _tbl_sc_rows = []
+                for _rk_sc, (_, _rw) in enumerate(
+                    _df_ranked_sc.iterrows(), start=1
+                ):
+                    _bg_t, _txt_t, _ = _SCORE_CORES.get(
+                        _rw["grade"], ("#f5f5f5","#424242","#e0e0e0")
+                    )
+                    _ic_t = _SCORE_ICONES.get(_rw["grade"], "⚪")
+                    _badge_t = (
+                        f"<span style='background:{_bg_t};color:{_txt_t};"
+                        f"border-radius:20px;padding:2px 8px;"
+                        f"font-size:11px;font-weight:700'>"
+                        f"{_ic_t} {_rw['score']:.0f} ({_rw['grade']})</span>"
+                    )
+                    _pf_mark = "⭐" if _rw["_pro_frotas"] else ""
+                    _tbl_sc_rows.append({
+                        "#":              _rk_sc,
+                        "Score":          _rw["score"],  # numérico — para ordenação
+                        "Grau":           f"{_ic_t} {_rw['grade']}",
+                        "Posto":          _rw["razaoSocial"][:40],
+                        "Cidade/UF":      f"{_rw['municipio']} / {_rw['uf']}",
+                        "Bandeira":       _rw["distribuidora"],
+                        "GF":             _pf_mark,
+                        "💰 Preço":       round(_rw["score_preco"], 1),
+                        "🔧 Serviços":    round(_rw["score_servicos"], 1),
+                    })
+
+                _df_tbl_sc = pd.DataFrame(_tbl_sc_rows)
+                st.dataframe(
+                    _df_tbl_sc,
+                    use_container_width=True,
+                    height=600,
+                    column_config={
+                        "#":           st.column_config.NumberColumn("#", width=40),
+                        "Score":       st.column_config.ProgressColumn(
+                            "Score", format="%.0f", min_value=0, max_value=100, width=120
+                        ),
+                        "Grau":        st.column_config.TextColumn("Grau", width=70),
+                        "Posto":       st.column_config.TextColumn("Posto", width=220),
+                        "Cidade/UF":   st.column_config.TextColumn("Cidade/UF", width=160),
+                        "Bandeira":    st.column_config.TextColumn("Bandeira", width=120),
+                        "GF":          st.column_config.TextColumn("GF ⭐", width=40),
+                        "💰 Preço":    st.column_config.NumberColumn("💰 Preço", format="%.1f", width=80),
+                        "🔧 Serviços": st.column_config.NumberColumn("🔧 Serviços", format="%.1f", width=80),
+                    },
+                    hide_index=True,
+                )
+
+                # ── Legenda ───────────────────────────────────────────────
+                st.markdown(
+                    "<div style='font-size:11px;color:#90a4ae;margin-top:6px'>"
+                    "🟢 <b>A</b> ≥ 75 pts &nbsp;|&nbsp; "
+                    "🔵 <b>B</b> 55–74 &nbsp;|&nbsp; "
+                    "🟡 <b>C</b> 35–54 &nbsp;|&nbsp; "
+                    "🔴 <b>D</b> &lt; 35 &nbsp;·&nbsp; "
+                    "💰 Preço vs mediana do combustível · 🔧 Serviços disponíveis · "
+                    "GF ⭐ = credenciado Gestão de Frotas"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
