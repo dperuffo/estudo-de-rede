@@ -157,6 +157,61 @@ def _db_carregar_preferencias() -> dict:
     return {}
 
 
+# ── Frota: Abastecimentos ─────────────────────────────────────────
+
+def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, str]:
+    """
+    Salva lista de dicts de abastecimentos no Supabase.
+    Faz upsert usando (usuario_email, id_transacao) como chave única.
+    Retorna (n_salvos, mensagem_erro_ou_vazio).
+    """
+    db = _db_client()
+    if not db:
+        return 0, "Supabase não configurado"
+    email = _db_email()
+    if not email:
+        return 0, "Usuário não autenticado"
+    try:
+        for row in df_rows:
+            row["usuario_email"] = email
+        res = db.table("frota_abastecimentos").upsert(
+            df_rows,
+            on_conflict="usuario_email,id_transacao"
+        ).execute()
+        n = len(res.data) if res.data else 0
+        # Registra upload
+        if df_rows:
+            datas = [r.get("data_abastecimento") for r in df_rows if r.get("data_abastecimento")]
+            db.table("frota_uploads").insert({
+                "usuario_email": email,
+                "nome_arquivo":  nome_arquivo,
+                "n_registros":   len(df_rows),
+                "n_veiculos":    len({r.get("placa") for r in df_rows if r.get("placa")}),
+                "periodo_ini":   min(datas) if datas else None,
+                "periodo_fim":   max(datas) if datas else None,
+            }).execute()
+        return n, ""
+    except Exception as _e:
+        return 0, str(_e)
+
+
+def _db_carregar_abastecimentos() -> list:
+    """Carrega abastecimentos salvos do usuário no Supabase."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        res = db.table("frota_abastecimentos") \
+                .select("*") \
+                .eq("usuario_email", _db_email()) \
+                .order("data_abastecimento", desc=True) \
+                .limit(5000) \
+                .execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
 # ── Postos Favoritos ───────────────────────────────────────────────
 
 def _db_favoritos() -> list:
@@ -209,417 +264,6 @@ def _db_remove_favorito(cnpj: str) -> bool:
         return True
     except Exception:
         return False
-
-
-# ── Notas por Posto ───────────────────────────────────────────────
-
-def _db_nota_posto(cnpj: str) -> str:
-    """Retorna a nota interna salva para um posto (por CNPJ)."""
-    db = _db_client()
-    if not db or not cnpj:
-        return ""
-    try:
-        res = db.table("notas_posto") \
-                .select("nota") \
-                .eq("usuario_email", _db_email()) \
-                .eq("cnpj", cnpj) \
-                .limit(1) \
-                .execute()
-        return res.data[0]["nota"] if res.data else ""
-    except Exception:
-        return ""
-
-
-def _db_salvar_nota_posto(cnpj: str, nota: str) -> bool:
-    """Salva/atualiza nota interna para um posto."""
-    db = _db_client()
-    if not db or not cnpj:
-        return False
-    try:
-        db.table("notas_posto").upsert({
-            "usuario_email": _db_email(),
-            "cnpj":          cnpj,
-            "nota":          nota.strip(),
-            "atualizado_em": datetime.now().isoformat(),
-        }, on_conflict="usuario_email,cnpj").execute()
-        return True
-    except Exception:
-        return False
-
-
-# ── Perfis de Veículo ─────────────────────────────────────────────
-
-def _db_perfis_veiculo() -> list:
-    """Lista perfis de veículo salvos pelo usuário."""
-    db = _db_client()
-    if not db:
-        return []
-    try:
-        res = db.table("perfis_veiculo") \
-                .select("*") \
-                .eq("usuario_email", _db_email()) \
-                .order("criado_em", desc=False) \
-                .execute()
-        return res.data or []
-    except Exception:
-        return []
-
-
-def _db_salvar_perfil_veiculo(nome: str, placa: str, combustivel: str,
-                               tanque: float, autonomia: float) -> bool:
-    """Salva um novo perfil de veículo."""
-    db = _db_client()
-    if not db:
-        return False
-    try:
-        db.table("perfis_veiculo").insert({
-            "usuario_email": _db_email(),
-            "nome":          nome.strip() or placa or "Veículo",
-            "placa":         placa.strip().upper(),
-            "combustivel":   combustivel,
-            "tanque":        tanque,
-            "autonomia":     autonomia,
-            "criado_em":     datetime.now().isoformat(),
-        }).execute()
-        return True
-    except Exception:
-        return False
-
-
-def _db_deletar_perfil_veiculo(perfil_id) -> bool:
-    """Remove um perfil de veículo."""
-    db = _db_client()
-    if not db:
-        return False
-    try:
-        db.table("perfis_veiculo") \
-          .delete() \
-          .eq("id", perfil_id) \
-          .eq("usuario_email", _db_email()) \
-          .execute()
-        return True
-    except Exception:
-        return False
-
-
-# ── Postos GF (Gestão de Frotas) ─────────────────────────────────
-
-_POSTOS_GF_STD_COLS = {
-    "cnpj", "_lat", "_lon", "razaoSocial", "distribuidora",
-    "municipio", "uf", "horario", "funciona_24h",
-    "pista_caminhao", "arla", "conveniencia",
-}
-
-
-def _db_salvar_postos_gf(df_coords, cnpjs: set,
-                          perfil_map: dict, nome_arquivo: str):
-    """Salva postos GF no Supabase. Retorna (ok: bool, msg: str)."""
-    import math as _math
-    db = _db_client()
-    if not db:
-        return False, "Supabase não configurado."
-    try:
-        n_coords = len(df_coords) if (df_coords is not None and not df_coords.empty) else 0
-        # 1. Registra versão
-        ver = db.table("postos_gf_versoes").insert({
-            "usuario_email": _db_email(),
-            "nome_arquivo":  nome_arquivo,
-            "n_cnpjs":       len(cnpjs),
-            "n_coords":      n_coords,
-            "carregado_em":  datetime.now().isoformat(),
-        }).execute()
-        versao_id = ver.data[0]["id"] if ver.data else None
-
-        # 2. Limpa tabela existente (substitui tudo)
-        db.table("postos_gf").delete().neq("cnpj", "").execute()
-
-        # 3. Monta registros
-        records = []
-        now_iso = datetime.now().isoformat()
-        coords_cnpjs: set = set()
-
-        if df_coords is not None and not df_coords.empty:
-            extra_cols = [c for c in df_coords.columns if c not in _POSTOS_GF_STD_COLS]
-            for _, row in df_coords.iterrows():
-                cnpj = row["cnpj"]
-                coords_cnpjs.add(cnpj)
-                # Campos extras (serviços dinâmicos) → jsonb
-                extras: dict = {}
-                for ec in extra_cols:
-                    v = row.get(ec)
-                    if v is None:
-                        continue
-                    if isinstance(v, float) and _math.isnan(v):
-                        continue
-                    extras[ec] = bool(v) if isinstance(v, (bool,)) else v
-
-                def _safe_float(val):
-                    try:
-                        f = float(val)
-                        return None if _math.isnan(f) else f
-                    except (TypeError, ValueError):
-                        return None
-
-                def _safe_bool(val):
-                    return bool(val) if val is not None else None
-
-                rec = {
-                    "cnpj":           cnpj,
-                    "razao_social":   str(row.get("razaoSocial", "") or ""),
-                    "distribuidora":  str(row.get("distribuidora", "") or ""),
-                    "municipio":      str(row.get("municipio", "") or ""),
-                    "uf":             str(row.get("uf", "") or ""),
-                    "lat":            _safe_float(row.get("_lat")),
-                    "lon":            _safe_float(row.get("_lon")),
-                    "perfil_venda":   perfil_map.get(cnpj, ""),
-                    "horario":        str(row["horario"]) if row.get("horario") is not None else None,
-                    "funciona_24h":   _safe_bool(row.get("funciona_24h")),
-                    "pista_caminhao": _safe_bool(row.get("pista_caminhao")),
-                    "arla":           _safe_bool(row.get("arla")),
-                    "conveniencia":   _safe_bool(row.get("conveniencia")),
-                    "extras":         extras,
-                    "versao_id":      versao_id,
-                    "atualizado_em":  now_iso,
-                }
-                records.append(rec)
-
-        # CNPJs sem coordenadas
-        for cnpj in cnpjs:
-            if cnpj not in coords_cnpjs:
-                records.append({
-                    "cnpj":          cnpj,
-                    "perfil_venda":  perfil_map.get(cnpj, ""),
-                    "extras":        {},
-                    "versao_id":     versao_id,
-                    "atualizado_em": now_iso,
-                })
-
-        # 4. Deduplica por CNPJ (evita ON CONFLICT duplicado no mesmo batch)
-        _seen: dict = {}
-        for _r in records:
-            _seen[_r["cnpj"]] = _r
-        records = list(_seen.values())
-
-        # 5. Upsert em chunks de 500
-        _chunk = 500
-        for _i in range(0, len(records), _chunk):
-            db.table("postos_gf").upsert(records[_i:_i + _chunk]).execute()
-
-        return True, f"{len(cnpjs)} CNPJs salvos ({n_coords} com coordenadas)"
-    except Exception as _e:
-        return False, f"Erro ao salvar postos GF: {_e}"
-
-
-def _db_carregar_postos_gf():
-    """
-    Carrega postos GF do Supabase.
-    Retorna (cnpjs: set, perfil_map: dict, df_coords: DataFrame).
-    """
-    db = _db_client()
-    if not db:
-        return set(), {}, pd.DataFrame()
-    try:
-        PAGE = 1000
-        rows: list = []
-        offset = 0
-        while True:
-            res = db.table("postos_gf").select("*") \
-                    .range(offset, offset + PAGE - 1).execute()
-            if not res.data:
-                break
-            rows.extend(res.data)
-            if len(res.data) < PAGE:
-                break
-            offset += PAGE
-
-        if not rows:
-            return set(), {}, pd.DataFrame()
-
-        cnpjs = {r["cnpj"] for r in rows}
-        perfil_map = {r["cnpj"]: r["perfil_venda"]
-                      for r in rows if r.get("perfil_venda")}
-
-        # Reconstrói df_coords
-        coord_rows = [r for r in rows
-                      if r.get("lat") is not None and r.get("lon") is not None]
-        if coord_rows:
-            df_list = []
-            for r in coord_rows:
-                rec = {
-                    "cnpj":          r["cnpj"],
-                    "_lat":          float(r["lat"]),
-                    "_lon":          float(r["lon"]),
-                    "razaoSocial":   r.get("razao_social", ""),
-                    "distribuidora": r.get("distribuidora", ""),
-                    "municipio":     r.get("municipio", ""),
-                    "uf":            r.get("uf", ""),
-                    "horario":       r.get("horario"),
-                    "funciona_24h":  r.get("funciona_24h"),
-                    "pista_caminhao": r.get("pista_caminhao"),
-                    "arla":          r.get("arla"),
-                    "conveniencia":  r.get("conveniencia"),
-                }
-                # Expande extras (serviços dinâmicos)
-                extras = r.get("extras") or {}
-                rec.update(extras)
-                df_list.append(rec)
-            df_coords = pd.DataFrame(df_list)
-        else:
-            df_coords = pd.DataFrame()
-
-        return cnpjs, perfil_map, df_coords
-    except Exception:
-        return set(), {}, pd.DataFrame()
-
-
-# ── Postos Cercados DB ────────────────────────────────────────────
-
-def _db_salvar_postos_cercados(cnpjs: set, nome_arquivo: str):
-    """Salva postos cercados no Supabase. Retorna (ok: bool, msg: str)."""
-    db = _db_client()
-    if not db:
-        return False, "Supabase não configurado."
-    try:
-        # 1. Registra versão
-        ver = db.table("postos_cercados_versoes").insert({
-            "usuario_email": _db_email(),
-            "nome_arquivo":  nome_arquivo,
-            "n_cnpjs":       len(cnpjs),
-            "carregado_em":  datetime.now().isoformat(),
-        }).execute()
-        versao_id = ver.data[0]["id"] if ver.data else None
-
-        # 2. Limpa tabela existente
-        db.table("postos_cercados_db").delete().neq("cnpj", "").execute()
-
-        # 3. Upsert em chunks
-        now_iso = datetime.now().isoformat()
-        records = [{"cnpj": c, "versao_id": versao_id,
-                    "adicionado_em": now_iso} for c in cnpjs]
-        _chunk = 500
-        for _i in range(0, len(records), _chunk):
-            db.table("postos_cercados_db").upsert(
-                records[_i:_i + _chunk]).execute()
-
-        return True, f"{len(cnpjs)} postos cercados salvos"
-    except Exception as _e:
-        return False, f"Erro ao salvar cercados: {_e}"
-
-
-def _db_carregar_postos_cercados() -> set:
-    """Carrega CNPJs dos postos cercados do Supabase."""
-    db = _db_client()
-    if not db:
-        return set()
-    try:
-        PAGE = 1000
-        rows: list = []
-        offset = 0
-        while True:
-            res = db.table("postos_cercados_db").select("cnpj") \
-                    .range(offset, offset + PAGE - 1).execute()
-            if not res.data:
-                break
-            rows.extend(res.data)
-            if len(res.data) < PAGE:
-                break
-            offset += PAGE
-        return {r["cnpj"] for r in rows}
-    except Exception:
-        return set()
-
-
-# ── Preços Posto DB ───────────────────────────────────────────────
-
-def _db_salvar_precos_posto(df_pp: pd.DataFrame, nome_arquivo: str):
-    """Salva preços por posto no Supabase. Retorna (ok: bool, msg: str)."""
-    db = _db_client()
-    if not db:
-        return False, "Supabase não configurado."
-    try:
-        n_postos = df_pp["cnpj_norm"].nunique() if "cnpj_norm" in df_pp.columns else 0
-        n_reg    = len(df_pp)
-
-        # 1. Registra versão
-        ver = db.table("precos_posto_versoes").insert({
-            "usuario_email": _db_email(),
-            "nome_arquivo":  nome_arquivo,
-            "n_registros":   n_reg,
-            "n_postos":      n_postos,
-            "carregado_em":  datetime.now().isoformat(),
-        }).execute()
-        versao_id = ver.data[0]["id"] if ver.data else None
-
-        # 2. Limpa tabela existente
-        db.table("precos_posto_db").delete().neq("cnpj_norm", "").execute()
-
-        # 3. Monta registros
-        now_iso = datetime.now().isoformat()
-        records = []
-        for _, row in df_pp.iterrows():
-            try:
-                preco_f = float(row["preco"]) if row.get("preco") is not None else None
-            except (ValueError, TypeError):
-                preco_f = None
-            records.append({
-                "cnpj_norm":          str(row.get("cnpj_norm", "")),
-                "combustivel_pk":     str(row.get("combustivel_pk", "")),
-                "combustivel_label":  str(row.get("combustivel_label", "")),
-                "preco":              preco_f,
-                "data_atualizacao":   str(row.get("data_atualizacao", "")),
-                "versao_id":          versao_id,
-                "atualizado_em":      now_iso,
-            })
-
-        # 4. Deduplica por (cnpj_norm, combustivel_pk)
-        _seen_pp: dict = {}
-        for _r in records:
-            _seen_pp[(_r["cnpj_norm"], _r["combustivel_pk"])] = _r
-        records = list(_seen_pp.values())
-
-        # 5. Upsert em chunks
-        _chunk = 500
-        for _i in range(0, len(records), _chunk):
-            db.table("precos_posto_db").upsert(
-                records[_i:_i + _chunk],
-                on_conflict="cnpj_norm,combustivel_pk",
-            ).execute()
-
-        return True, f"{n_reg} registros salvos ({n_postos} postos)"
-    except Exception as _e:
-        return False, f"Erro ao salvar preços: {_e}"
-
-
-def _db_carregar_precos_posto() -> pd.DataFrame:
-    """Carrega preços por posto do Supabase."""
-    db = _db_client()
-    if not db:
-        return pd.DataFrame()
-    try:
-        PAGE = 1000
-        rows: list = []
-        offset = 0
-        while True:
-            res = db.table("precos_posto_db") \
-                    .select("cnpj_norm,combustivel_pk,combustivel_label,"
-                            "preco,data_atualizacao") \
-                    .range(offset, offset + PAGE - 1).execute()
-            if not res.data:
-                break
-            rows.extend(res.data)
-            if len(res.data) < PAGE:
-                break
-            offset += PAGE
-
-        if not rows:
-            return pd.DataFrame()
-
-        df = pd.DataFrame(rows)
-        if "preco" in df.columns:
-            df["preco"] = pd.to_numeric(df["preco"], errors="coerce")
-        return df
-    except Exception:
-        return pd.DataFrame()
 
 
 # ── Histórico de Preços ────────────────────────────────────────────
@@ -910,7 +554,7 @@ else:
 
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
-    page_title="Estudo de Rede – Gestão de Frotas",
+    page_title="Fleet Network Intelligence",
     page_icon=_LOGO_PAGE_ICON,
     layout="wide",
     initial_sidebar_state="expanded",  # sempre aberta
@@ -1011,20 +655,21 @@ header[data-testid="stHeader"] {
     pointer-events: none;
 }
 .topbar-title {
-    font-size: 23px;
-    font-weight: 900;
-    letter-spacing: 0.3px;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.1px;
     text-shadow: 0 1px 4px rgba(0,0,0,0.30);
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.2;
 }
 .topbar-sub {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     opacity: 0.88;
     margin-top: 2px;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
+    letter-spacing: 0.5px;
     text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    white-space: normal;
 }
 .topbar-badge {
     margin-left: auto;
@@ -1881,34 +1526,36 @@ def _auth_login_page():
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 120px; height: 120px;
-        background: linear-gradient(135deg, rgba(13,71,161,0.7), rgba(25,118,210,0.5), rgba(0,200,150,0.25));
-        border: 2px solid rgba(100,181,246,0.5);
-        border-radius: 30px;
+        width: 200px; height: 134px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 20px;
         margin-bottom: 1.4rem;
         box-shadow:
-            0 12px 40px rgba(25,118,210,0.45),
-            0 4px 16px rgba(0,0,0,0.4),
-            inset 0 1px 0 rgba(255,255,255,0.2);
+            0 12px 40px rgba(0,0,0,0.35),
+            0 4px 16px rgba(0,0,0,0.3),
+            inset 0 1px 0 rgba(255,255,255,0.1);
         animation: logoPop 0.7s cubic-bezier(0.16,1,0.3,1) 0.2s both;
         position: relative;
         overflow: hidden;
+        padding: 10px;
     }
     .login-logo-ring::before {
         content: "";
         position: absolute;
         inset: 0;
-        background: radial-gradient(circle at 30% 30%, rgba(100,181,246,0.3) 0%, transparent 60%);
+        background: radial-gradient(circle at 30% 30%, rgba(100,181,246,0.08) 0%, transparent 70%);
         pointer-events: none;
     }
-    .login-logo-svg {
-        width: 72px; height: 72px;
+    .login-logo-img {
+        width: 100%; height: 100%;
+        object-fit: contain;
         position: relative; z-index: 1;
-        filter: drop-shadow(0 4px 12px rgba(25,118,210,0.6));
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
     }
     @keyframes logoPop {
-        from { opacity: 0; transform: scale(0.6) rotate(-10deg); }
-        to   { opacity: 1; transform: scale(1) rotate(0deg); }
+        from { opacity: 0; transform: scale(0.75); }
+        to   { opacity: 1; transform: scale(1); }
     }
 
     /* ── Título e subtítulo ── */
@@ -2059,63 +1706,67 @@ def _auth_login_page():
     </style>
     """, unsafe_allow_html=True)
 
+    # ── Carrega logo FNI como base64 ──────────────────────────────
+    import base64 as _b64, io as _io, pathlib as _pl
+    _logo_fni_b64 = ""
+    for _logo_candidate in [
+        _pl.Path(__file__).parent / "estudo-de-rede" / "Logo plataforma FNI.png",
+        _pl.Path(__file__).parent / "Logo plataforma FNI.png",
+    ]:
+        if _logo_candidate.exists():
+            try:
+                from PIL import Image as _PILImg
+                _img_fni = _PILImg.open(_logo_candidate)
+                _img_fni.thumbnail((400, 400), _PILImg.LANCZOS)
+                _buf_fni = _io.BytesIO()
+                _img_fni.save(_buf_fni, format="PNG", optimize=True)
+                _logo_fni_b64 = _b64.b64encode(_buf_fni.getvalue()).decode()
+            except Exception:
+                _logo_fni_b64 = _b64.b64encode(_logo_candidate.read_bytes()).decode()
+            break
+
+    _logo_fni_src = (
+        f"data:image/png;base64,{_logo_fni_b64}"
+        if _logo_fni_b64 else ""
+    )
+    _logo_fni_html = (
+        f"<img class='login-logo-img' src='{_logo_fni_src}' alt='FNI'/>"
+        if _logo_fni_src else
+        "<span style='font-size:48px'>🚛</span>"
+    )
+
     # ── Layout: coluna central ──
     _, _c, _ = st.columns([1, 2.4, 1])
     with _c:
         # ── Card principal ──
-        st.markdown("""
+        st.markdown(f"""
         <div class='login-card'>
           <div class='login-logo-ring'>
-            <svg class='login-logo-svg' viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <!-- Fundo do mapa -->
-              <rect x="6" y="10" width="60" height="52" rx="6" fill="rgba(13,71,161,0.6)" stroke="rgba(100,181,246,0.4)" stroke-width="1.2"/>
-              <!-- Grade do mapa -->
-              <line x1="6" y1="27" x2="66" y2="27" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
-              <line x1="6" y1="44" x2="66" y2="44" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
-              <line x1="24" y1="10" x2="24" y2="62" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
-              <line x1="48" y1="10" x2="48" y2="62" stroke="rgba(100,181,246,0.2)" stroke-width="0.8"/>
-              <!-- Rota principal (estrada) -->
-              <path d="M12 52 Q22 44 30 36 Q40 26 52 20" stroke="#64B5F6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 52 Q22 44 30 36 Q40 26 52 20" stroke="rgba(255,255,255,0.15)" stroke-width="5" stroke-linecap="round"/>
-              <!-- Rota secundária -->
-              <path d="M30 36 Q38 42 52 48" stroke="rgba(100,181,246,0.5)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3"/>
-              <!-- Marcador origem (verde) -->
-              <circle cx="12" cy="52" r="5" fill="#2E7D32" stroke="white" stroke-width="1.5"/>
-              <circle cx="12" cy="52" r="2.5" fill="white"/>
-              <!-- Marcador destino (vermelho) -->
-              <circle cx="52" cy="20" r="5" fill="#C62828" stroke="white" stroke-width="1.5"/>
-              <circle cx="52" cy="20" r="2.5" fill="white"/>
-              <!-- Posto intermediário (laranja) -->
-              <polygon points="30,31 33,38 27,38" fill="#FF8F00" stroke="white" stroke-width="1.2"/>
-              <!-- Legenda mini -->
-              <rect x="38" y="48" width="22" height="10" rx="3" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
-              <circle cx="43" cy="53" r="2" fill="#2E7D32"/>
-              <circle cx="53" cy="53" r="2" fill="#C62828"/>
-            </svg>
+            {_logo_fni_html}
           </div>
-          <div class='login-title'>Estudo de Rede</div>
-          <div class='login-badge'>Gestão de Frotas</div>
+          <div class='login-title'>Fleet Network Intelligence</div>
+          <div class='login-badge'>Plataforma estratégica de inteligência de rede</div>
           <div class='login-sub'>
-            Plataforma inteligente para análise de postos,<br>
-            roteirização e monitoramento de frota.
+            Transformando dados em decisões de rede.<br>
+            Análise de postos, roteirização e gestão de frota.
           </div>
 
           <div class='login-features'>
             <div class='login-feature'>
               <div class='login-feature-icon'>⛽</div>
-              <div class='login-feature-label'>Postos ANP</div>
+              <div class='login-feature-label'>Rede de Postos</div>
             </div>
             <div class='login-feature'>
-              <div class='login-feature-icon'>🗺️</div>
+              <div class='login-feature-icon'>🛣️</div>
               <div class='login-feature-label'>Roteirização</div>
             </div>
             <div class='login-feature'>
               <div class='login-feature-icon'>📊</div>
-              <div class='login-feature-label'>Dashboard</div>
+              <div class='login-feature-label'>Inteligência</div>
             </div>
             <div class='login-feature'>
               <div class='login-feature-icon'>🚛</div>
-              <div class='login-feature-label'>GF</div>
+              <div class='login-feature-label'>Análise Frota</div>
             </div>
           </div>
 
@@ -2958,8 +2609,7 @@ def _calcular_score_posto(
         if pd.notna(_p) and _p > 0:
             _diff = (_p - preco_ref_anp) / preco_ref_anp
             _s_preco = max(0.0, min(100.0, 50.0 - _diff * 500.0))
-            _det_preco = (f"{'+' if _diff >= 0 else ''}{_brl(_diff*100, 1)}% "
-                          f"vs ANP ({_brl(preco_ref_anp, 3)})")
+            _det_preco = f"{_diff:+.1%} vs ANP ({preco_ref_anp:.3f})"
 
     # ── Serviços (30%) ──────────────────────────────────────────────
     _s_svc = 0.0
@@ -2985,7 +2635,7 @@ def _calcular_score_posto(
             _d_km = 6371 * 2 * _math_mod.atan2(
                 _math_mod.sqrt(_a), _math_mod.sqrt(1 - _a))
             _s_dist   = max(0.0, min(100.0, 100.0 - _d_km))
-            _det_dist = f"{_brl(_d_km, 1)} km do ponto de busca"
+            _det_dist = f"{_d_km:.1f} km do ponto de busca"
 
     _score = 0.50 * _s_preco + 0.30 * _s_svc + 0.20 * _s_dist
     _grade = ("A" if _score >= 75 else
@@ -3049,6 +2699,175 @@ def _calcular_score_df(
     _df = df.copy()
     _df.insert(0, "⭐ Score", _scores)
     return _df
+
+
+# ── Otimização de Abastecimento v3 ─────────────────────────────────
+
+def _otimizar_rota_v3(
+    ests: list,
+    rcap: float,
+    raut: float,
+    rd: float,
+    pesos: dict,
+    fill_mode: str = "normal",
+    max_paradas: int = 30,
+) -> list:
+    """
+    Motor de otimização de abastecimento com métrica composta.
+
+    Parâmetros
+    ----------
+    ests       : candidatos ao longo da rota — cada dict deve ter:
+                 _km (km na rota), preco, _dev (desvio em km),
+                 grade (A/B/C/D, opcional), cnpj, label, ...
+    rcap       : capacidade do tanque (L)
+    raut       : autonomia (km/L)
+    rd         : distância total da rota (km)
+    pesos      : dict {"preco": float, "score": float, "desvio": float}
+                 (devem somar 1.0)
+    fill_mode  : "normal" → enche ao máximo quando vantajoso
+                 "minimo" → abastece o mínimo necessário em cada parada
+    max_paradas: limite de iterações de segurança
+
+    Retorna
+    -------
+    Lista de dicts de parada, cada um com todos os campos do candidato
+    mais: litros_sugeridos, custo_abast, fuel_chegada, pct_chegada,
+          fuel_apos, pct_apos, motivo, metrica_valor
+    """
+    if not ests or raut <= 0 or rcap <= 0:
+        return []
+
+    rmin         = rcap * 0.25          # nível mínimo (25 %)
+    alc_efetivo  = (rcap - rmin) * raut # alcance por ciclo (km)
+    PCT_BAIXO    = 0.65                 # % tanque — abaixo disso considera parar
+    VANT_PRECO   = 0.03                 # vantagem mínima de preço para look-ahead
+    LITROS_MIN   = 5                    # descarta paradas com < 5 L
+
+    # ── normalização de preço e score ──────────────────────────────
+    _precos = [e["preco"] for e in ests if "preco" in e]
+    _pmin   = min(_precos) if _precos else 0.0
+    _pmax   = max(_precos) if _precos else 1.0
+    _GRADE  = {"A": 1.0, "B": 0.75, "C": 0.5, "D": 0.25}
+
+    def _met(e: dict) -> float:
+        """Métrica composta: maior = melhor posto para parar."""
+        _p = 1.0 - (e["preco"] - _pmin) / max(_pmax - _pmin, 0.01)
+        _g = _GRADE.get(e.get("grade"), 0.25)
+        _d = 1.0 - min(e.get("_dev", 0.0) / 5.0, 1.0)
+        return pesos["preco"] * _p + pesos["score"] * _g + pesos["desvio"] * _d
+
+    # ── algoritmo greedy look-ahead ─────────────────────────────────
+    paradas: list = []
+    pos:   float  = 0.0
+    fuel:  float  = float(rcap)
+    seen: set     = set()
+    ult_preco     = None
+
+    for _ in range(max_paradas):
+        if pos >= rd:
+            break
+
+        can_go = (fuel - rmin) * raut
+        must   = pos + can_go
+
+        if must >= rd:
+            break  # chega ao destino sem parar
+
+        janela = [e for e in ests
+                  if pos < e["_km"] <= must and e["cnpj"] not in seen]
+
+        janela_ext = [e for e in ests
+                      if must < e["_km"] <= pos + alc_efetivo * 1.85
+                      and e["cnpj"] not in seen]
+
+        if not janela:
+            alem = [e for e in ests if e["_km"] > pos and e["cnpj"] not in seen]
+            if not alem:
+                break
+            best  = dict(min(alem, key=lambda x: x["_km"]))
+            best["motivo"] = "emergencia"
+            fill_tgt_km    = None
+        else:
+            best_obrig  = max(janela, key=_met)
+            fill_tgt_km = None
+
+            if janela_ext:
+                best_ext = max(janela_ext, key=_met)
+                # look-ahead: se o posto à frente tem métrica bem melhor E preço menor
+                if (_met(best_ext) > _met(best_obrig) * 1.05
+                        and best_ext.get("preco", 9999) < best_obrig.get("preco", 9999) * (1 - VANT_PRECO)):
+                    fill_tgt_km = best_ext["_km"]
+
+            best = dict(best_obrig)
+            best["motivo"] = "estrategico" if fill_tgt_km else "otimizado"
+
+        km_ate       = best["_km"] - pos
+        fuel_chegada = max(0.0, fuel - km_ate / raut)
+        pct_chegada  = fuel_chegada / rcap * 100
+
+        # pula se tanque ainda alto e posto não compensa
+        if (best.get("motivo") != "emergencia"
+                and pct_chegada >= PCT_BAIXO * 100
+                and ult_preco is not None
+                and best.get("preco", 9999) >= ult_preco * (1 - VANT_PRECO)
+                and not fill_tgt_km):
+            pos  = best["_km"]
+            fuel = fuel_chegada
+            seen.add(best["cnpj"])
+            continue
+
+        dist_rest = rd - best["_km"]
+
+        if fill_mode == "minimo":
+            # Abastece o mínimo para chegar ao próximo posto obrigatório
+            prox_obrig = [e for e in ests
+                          if e["_km"] > best["_km"] and e["cnpj"] not in seen]
+            if prox_obrig:
+                _prox_km = min(prox_obrig, key=lambda x: x["_km"])["_km"]
+                _dist_prox = _prox_km - best["_km"]
+                litros_nec = (_dist_prox / raut) * 1.10 + rmin - fuel_chegada
+            else:
+                litros_nec = (dist_rest / raut) * 1.15 + rmin - fuel_chegada
+        elif fill_tgt_km:
+            dist_tgt   = fill_tgt_km - best["_km"]
+            litros_nec = (dist_tgt / raut) * 1.10 + rmin - fuel_chegada
+        elif dist_rest <= alc_efetivo:
+            litros_nec = (dist_rest / raut) * 1.15 + rmin - fuel_chegada
+        else:
+            litros_nec = rcap - fuel_chegada
+
+        litros_fill = max(0.0, litros_nec)
+        litros_fill = min(litros_fill, rcap - fuel_chegada)
+        litros_fill = math.ceil(litros_fill)
+
+        if litros_fill < LITROS_MIN:
+            pos  = best["_km"]
+            fuel = fuel_chegada
+            seen.add(best["cnpj"])
+            continue
+
+        fuel_apos = min(fuel_chegada + litros_fill, rcap)
+        pct_apos  = fuel_apos / rcap * 100
+        custo_ab  = round(litros_fill * best.get("preco", 0.0), 2)
+
+        best.update({
+            "fuel_chegada":     round(fuel_chegada, 1),
+            "pct_chegada":      round(pct_chegada,  1),
+            "litros_sugeridos": int(litros_fill),
+            "custo_abast":      custo_ab,
+            "fuel_apos":        round(fuel_apos, 1),
+            "pct_apos":         round(pct_apos,  1),
+            "metrica_valor":    round(_met(best), 3),
+        })
+
+        seen.add(best["cnpj"])
+        paradas.append(best)
+        ult_preco = best.get("preco")
+        fuel      = fuel_apos
+        pos       = best["_km"]
+
+    return paradas
 
 
 # ── Relatório semanal de alertas ────────────────────────────────────
@@ -5316,354 +5135,6 @@ def gerar_pdf_roteirizacao(rot_res: dict, sugest: list, logo_b64: str = None) ->
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  PDF — COMPARATIVO DE ROTAS A vs B
-# ═══════════════════════════════════════════════════════════════════
-
-def gerar_pdf_comparativo_rotas(
-    dados_a: dict,
-    dados_b: dict,
-    label_orig: str = "Origem",
-    label_dest: str = "Destino",
-    dist_reta: float = 0.0,
-    logo_b64: str = None,
-) -> bytes:
-    """
-    Gera PDF do comparativo entre Rota A e Rota B.
-    dados_a / dados_b: dicts com dist_km, dur_min, n_gf, n_total,
-                       desvio_pct, preco_med, custo_est, via_label, coords.
-    """
-    try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib import colors
-        from reportlab.lib.units import cm
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-        from reportlab.platypus import (
-            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-            Image as RLImage, HRFlowable, KeepTogether,
-        )
-    except ImportError:
-        return b""
-
-    _buf = io.BytesIO()
-    doc  = SimpleDocTemplate(
-        _buf, pagesize=A4,
-        leftMargin=1.8*cm, rightMargin=1.8*cm,
-        topMargin=1.5*cm, bottomMargin=1.5*cm,
-    )
-    W, _ = A4
-    _w   = W - 3.6*cm
-
-    # ── Paleta de cores ────────────────────────────────────────────
-    _azul    = colors.HexColor("#0D47A1")
-    _azul2   = colors.HexColor("#1565C0")
-    _verde   = colors.HexColor("#1B5E20")
-    _laranja = colors.HexColor("#E65100")
-    _cinza   = colors.HexColor("#607D8B")
-    _cinzacl = colors.HexColor("#ECEFF1")
-    _branco  = colors.white
-    _cor_a   = colors.HexColor("#1565C0")   # Rota A — azul
-    _cor_b   = colors.HexColor("#E65100")   # Rota B — laranja
-
-    # ── Estilos ────────────────────────────────────────────────────
-    _sT  = ParagraphStyle("sT",  fontName="Helvetica-Bold",
-                          fontSize=16, textColor=_branco, spaceAfter=0)
-    _sSb = ParagraphStyle("sSb", fontName="Helvetica",
-                          fontSize=8,  textColor=colors.HexColor("#BBDEFB"), spaceAfter=0)
-    _sH2 = ParagraphStyle("sH2", fontName="Helvetica-Bold",
-                          fontSize=10, textColor=_azul, spaceBefore=10, spaceAfter=4)
-    _sN  = ParagraphStyle("sN",  fontName="Helvetica",
-                          fontSize=8.5, textColor=colors.HexColor("#37474F"), leading=13)
-    _sB  = ParagraphStyle("sB",  fontName="Helvetica-Bold",
-                          fontSize=8.5, textColor=colors.HexColor("#212121"), leading=13)
-    _sC  = ParagraphStyle("sC",  fontName="Helvetica",
-                          fontSize=7,  textColor=_cinza, alignment=TA_CENTER)
-    _sVA = ParagraphStyle("sVA", fontName="Helvetica-Bold",
-                          fontSize=9,  textColor=_cor_a)
-    _sVB = ParagraphStyle("sVB", fontName="Helvetica-Bold",
-                          fontSize=9,  textColor=_cor_b)
-    _sVN = ParagraphStyle("sVN", fontName="Helvetica",
-                          fontSize=8.5, textColor=_cinza)
-
-    story = []
-
-    # ── Cabeçalho colorido ─────────────────────────────────────────
-    _titulo = [
-        Paragraph("⚖️  Comparativo de Rotas Alternativas", _sT),
-        Paragraph("Gestão de Frotas – Estudo de Rede", _sSb),
-    ]
-    _data_p = Paragraph(
-        datetime.now().strftime("%d/%m/%Y  %H:%M"),
-        ParagraphStyle("dt", parent=_sSb, alignment=TA_RIGHT),
-    )
-    if logo_b64:
-        try:
-            _logo_io  = io.BytesIO(base64.b64decode(logo_b64))
-            _logo_img = RLImage(_logo_io, width=2.8*cm, height=1.3*cm)
-            _hdr_tbl  = Table(
-                [[_logo_img, _titulo, _data_p]],
-                colWidths=[3.0*cm, _w - 5.3*cm, 2.3*cm],
-            )
-        except Exception:
-            logo_b64 = None
-    if not logo_b64:
-        _hdr_tbl = Table([[_titulo, _data_p]],
-                         colWidths=[_w - 2.5*cm, 2.5*cm])
-
-    _hdr_tbl.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,-1), _azul),
-        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
-        ("LEFTPADDING",   (0,0), (-1,-1), 10),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 10),
-        ("TOPPADDING",    (0,0), (-1,-1), 10),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-    ]))
-    story.append(_hdr_tbl)
-    story.append(Spacer(1, 0.35*cm))
-
-    # ── Trajeto ────────────────────────────────────────────────────
-    story.append(Paragraph("📍 Trajeto", _sH2))
-    _traj_rows = [
-        [Paragraph("Origem",     _sN), Paragraph(label_orig[:60],   _sB)],
-        [Paragraph("Destino",    _sN), Paragraph(label_dest[:60],   _sB)],
-        [Paragraph("Via — Rota A", _sN), Paragraph(dados_a.get("via_label","Rota direta")[:60] or "Rota direta", _sB)],
-        [Paragraph("Via — Rota B", _sN), Paragraph(dados_b.get("via_label","—")[:60] or "—", _sB)],
-        [Paragraph("Linha reta O→D", _sN),
-         Paragraph(f"{f'{dist_reta:.1f}'.replace('.', ',')} km", _sB)],
-    ]
-    _traj_tbl = Table(_traj_rows, colWidths=[3.5*cm, _w - 3.5*cm])
-    _traj_tbl.setStyle(TableStyle([
-        ("ROWBACKGROUNDS", (0,0), (-1,-1), [_branco, _cinzacl]),
-        ("GRID",           (0,0), (-1,-1), 0.3, colors.HexColor("#CFD8DC")),
-        ("TOPPADDING",     (0,0), (-1,-1), 4),
-        ("BOTTOMPADDING",  (0,0), (-1,-1), 4),
-        ("LEFTPADDING",    (0,0), (-1,-1), 6),
-    ]))
-    story.append(_traj_tbl)
-    story.append(Spacer(1, 0.4*cm))
-
-    # ── Tabela comparativa ─────────────────────────────────────────
-    story.append(Paragraph("📊 Tabela Comparativa", _sH2))
-
-    def _fmt_dur(m):
-        m = float(m or 0)
-        return f"{int(m//60)}h {int(m%60)}min"
-
-    def _fmt_preco(p):
-        return (f"R$ {f'{p:.3f}'.replace('.', ',')}/L") if p else "—"
-
-    def _fmt_custo(c):
-        s = f"{c:,.2f}"
-        return f"R$ {s.replace(',','X').replace('.',',').replace('X','.')}" if c else "—"
-
-    def _fmt_desvio(d):
-        s = f"{abs(d):.1f}".replace(".", ",")
-        return f"+{s}%" if d >= 0 else f"-{s}%"
-
-    def _melhor_low(va, vb, fmt):
-        """Retorna célula destacando o menor (melhor)."""
-        if va is None or vb is None:
-            return Paragraph("—", _sN)
-        if va < vb:
-            return Paragraph(f"🟢 Rota A ({fmt(va)})", _sVA)
-        elif vb < va:
-            return Paragraph(f"🟠 Rota B ({fmt(vb)})", _sVB)
-        return Paragraph("Equivalente", _sN)
-
-    def _melhor_high(va, vb, fmt):
-        """Retorna célula destacando o maior (melhor)."""
-        if va is None or vb is None:
-            return Paragraph("—", _sN)
-        if va > vb:
-            return Paragraph(f"🟢 Rota A ({fmt(va)})", _sVA)
-        elif vb > va:
-            return Paragraph(f"🟠 Rota B ({fmt(vb)})", _sVB)
-        return Paragraph("Equivalente", _sN)
-
-    _dkA  = float(dados_a.get("dist_km",  0) or 0)
-    _dmA  = float(dados_a.get("dur_min",  0) or 0)
-    _ngfA = int(dados_a.get("n_gf",     0) or 0)
-    _ntA  = int(dados_a.get("n_total",  0) or 0)
-    _dvA  = float(dados_a.get("desvio_pct", 0) or 0)
-    _pA   = dados_a.get("preco_med")
-    _cA   = dados_a.get("custo_est")
-
-    _dkB  = float(dados_b.get("dist_km",  0) or 0)
-    _dmB  = float(dados_b.get("dur_min",  0) or 0)
-    _ngfB = int(dados_b.get("n_gf",     0) or 0)
-    _ntB  = int(dados_b.get("n_total",  0) or 0)
-    _dvB  = float(dados_b.get("desvio_pct", 0) or 0)
-    _pB   = dados_b.get("preco_med")
-    _cB   = dados_b.get("custo_est")
-
-    _hdr_cmp = [
-        Paragraph("<b>Critério</b>",   _sB),
-        Paragraph("<b>🟢 Rota A</b>",  ParagraphStyle("ha", parent=_sB, textColor=_cor_a)),
-        Paragraph("<b>🟠 Rota B</b>",  ParagraphStyle("hb", parent=_sB, textColor=_cor_b)),
-        Paragraph("<b>Melhor</b>",      _sB),
-    ]
-    _cmp_rows = [
-        _hdr_cmp,
-        [Paragraph("🛣️ Distância", _sN),
-         Paragraph(f"{f'{_dkA:.1f}'.replace('.', ',')} km", _sB),
-         Paragraph(f"{f'{_dkB:.1f}'.replace('.', ',')} km", _sB),
-         _melhor_low(_dkA, _dkB, lambda v: f"{f'{v:.1f}'.replace('.', ',')} km")],
-        [Paragraph("⏱️ Tempo", _sN),
-         Paragraph(_fmt_dur(_dmA), _sB),
-         Paragraph(_fmt_dur(_dmB), _sB),
-         _melhor_low(_dmA, _dmB, _fmt_dur)],
-        [Paragraph("⭐ Postos GF", _sN),
-         Paragraph(str(_ngfA), _sB),
-         Paragraph(str(_ngfB), _sB),
-         _melhor_high(_ngfA, _ngfB, str)],
-        [Paragraph("⛽ Total postos", _sN),
-         Paragraph(str(_ntA), _sB),
-         Paragraph(str(_ntB), _sB),
-         _melhor_high(_ntA, _ntB, str)],
-        [Paragraph("📐 Desvio", _sN),
-         Paragraph(_fmt_desvio(_dvA), _sB),
-         Paragraph(_fmt_desvio(_dvB), _sB),
-         _melhor_low(_dvA, _dvB, _fmt_desvio)],
-        [Paragraph("💰 Preço médio", _sN),
-         Paragraph(_fmt_preco(_pA), _sB),
-         Paragraph(_fmt_preco(_pB), _sB),
-         _melhor_low(_pA, _pB, _fmt_preco) if _pA and _pB else Paragraph("—", _sN)],
-        [Paragraph("🧾 Custo estimado", _sN),
-         Paragraph(_fmt_custo(_cA), _sB),
-         Paragraph(_fmt_custo(_cB), _sB),
-         _melhor_low(_cA, _cB, _fmt_custo) if _cA and _cB else Paragraph("—", _sN)],
-    ]
-
-    _cw_cmp = [3.5*cm, 3.2*cm, 3.2*cm, _w - 9.9*cm]
-    _tbl_cmp = Table(_cmp_rows, colWidths=_cw_cmp, repeatRows=1)
-    _tbl_cmp.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,0), _azul2),
-        ("TEXTCOLOR",     (0,0), (-1,0), _branco),
-        ("BACKGROUND",    (1,1), (1,-1), colors.HexColor("#E8F5E9")),  # col A verde claro
-        ("BACKGROUND",    (2,1), (2,-1), colors.HexColor("#FFF3E0")),  # col B laranja claro
-        ("ROWBACKGROUNDS",(0,1), (0,-1), [_branco, _cinzacl]),
-        ("ROWBACKGROUNDS",(3,1), (3,-1), [_branco, _cinzacl]),
-        ("GRID",          (0,0), (-1,-1), 0.4, colors.HexColor("#B0BEC5")),
-        ("FONTSIZE",      (0,0), (-1,-1), 8),
-        ("TOPPADDING",    (0,0), (-1,-1), 5),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
-        ("LEFTPADDING",   (0,0), (-1,-1), 6),
-        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
-    ]))
-    story.append(_tbl_cmp)
-    story.append(Spacer(1, 0.4*cm))
-
-    # ── Veredito ────────────────────────────────────────────────────
-    _vereditos = []
-    if _dkA and _dkB:
-        def _fkm(v): return f"{f'{v:.1f}'.replace('.', ',')} km"
-        if _dkA < _dkB:
-            _vereditos.append(f"Rota A é mais curta ({_fkm(_dkA)} vs {_fkm(_dkB)}, Δ {_fkm(_dkB-_dkA)}).")
-        elif _dkB < _dkA:
-            _vereditos.append(f"Rota B é mais curta ({_fkm(_dkB)} vs {_fkm(_dkA)}, Δ {_fkm(_dkA-_dkB)}).")
-        else:
-            _vereditos.append("Distâncias equivalentes.")
-    if _dmA and _dmB:
-        if _dmA < _dmB:
-            _vereditos.append(f"Rota A é mais rápida ({_fmt_dur(_dmA)} vs {_fmt_dur(_dmB)}).")
-        elif _dmB < _dmA:
-            _vereditos.append(f"Rota B é mais rápida ({_fmt_dur(_dmB)} vs {_fmt_dur(_dmA)}).")
-    if _ngfA != _ngfB:
-        _vv = "A" if _ngfA > _ngfB else "B"
-        _ng1, _ng2 = (_ngfA, _ngfB) if _ngfA > _ngfB else (_ngfB, _ngfA)
-        _vereditos.append(f"Rota {_vv} tem mais postos GF ({_ng1} vs {_ng2}).")
-    if _cA and _cB:
-        if _cA < _cB:
-            _vereditos.append(f"Rota A tem menor custo estimado ({_fmt_custo(_cA)} vs {_fmt_custo(_cB)}).")
-        elif _cB < _cA:
-            _vereditos.append(f"Rota B tem menor custo estimado ({_fmt_custo(_cB)} vs {_fmt_custo(_cA)}).")
-
-    if _vereditos:
-        story.append(Paragraph("🏆 Veredito", _sH2))
-        _vrd_rows = [[Paragraph(f"• {v}", _sN)] for v in _vereditos]
-        _vrd_tbl = Table(_vrd_rows, colWidths=[_w])
-        _vrd_tbl.setStyle(TableStyle([
-            ("ROWBACKGROUNDS", (0,0), (-1,-1), [colors.HexColor("#F9FBE7"), _branco]),
-            ("LEFTPADDING",    (0,0), (-1,-1), 8),
-            ("TOPPADDING",     (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING",  (0,0), (-1,-1), 4),
-        ]))
-        story.append(_vrd_tbl)
-        story.append(Spacer(1, 0.4*cm))
-
-    # ── Mapa das duas rotas ────────────────────────────────────────
-    _coords_a = dados_a.get("coords", [])
-    _coords_b = dados_b.get("coords", [])
-    _lat_o    = dados_a.get("lat_orig")
-    _lon_o    = dados_a.get("lon_orig")
-    _lat_d    = dados_a.get("lat_dest")
-    _lon_d    = dados_a.get("lon_dest")
-
-    if _coords_a and _lat_o and _lon_o and _lat_d and _lon_d:
-        try:
-            from staticmap import StaticMap, Line, CircleMarker
-            _W, _H = 860, 420
-            _sm = StaticMap(
-                _W, _H,
-                url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                headers={"User-Agent": "EstudoDeRede-ProFrotas/2.0"},
-            )
-            # Rota A — azul
-            _sm.add_line(Line(
-                [(float(c[1]), float(c[0])) for c in _coords_a],
-                "#1565C0", 4,
-            ))
-            # Rota B — laranja
-            if _coords_b:
-                _sm.add_line(Line(
-                    [(float(c[1]), float(c[0])) for c in _coords_b],
-                    "#E65100", 3,
-                ))
-                # Ponto de desvio B
-                _via_lat = dados_b.get("via_lat")
-                _via_lon = dados_b.get("via_lon")
-                if _via_lat and _via_lon:
-                    _sm.add_marker(CircleMarker((float(_via_lon), float(_via_lat)), "#E65100", 14))
-                    _sm.add_marker(CircleMarker((float(_via_lon), float(_via_lat)), "#ffffff", 6))
-            # Origem
-            _sm.add_marker(CircleMarker((float(_lon_o), float(_lat_o)), "#2E7D32", 18))
-            _sm.add_marker(CircleMarker((float(_lon_o), float(_lat_o)), "#ffffff",  7))
-            # Destino
-            _sm.add_marker(CircleMarker((float(_lon_d), float(_lat_d)), "#C62828", 18))
-            _sm.add_marker(CircleMarker((float(_lon_d), float(_lat_d)), "#ffffff",  7))
-
-            _img_map = _sm.render()
-            _buf_map = io.BytesIO()
-            _img_map.save(_buf_map, format="PNG")
-            _buf_map.seek(0)
-
-            story.append(Paragraph("🗺️ Mapa — Rotas A e B", _sH2))
-            _rl_map = RLImage(_buf_map, width=_w, height=_w * _H / _W)
-            story.append(_rl_map)
-            story.append(Paragraph(
-                "Azul = Rota A   |   Laranja = Rota B   |   "
-                "● Verde = Origem   |   ● Vermelho = Destino",
-                _sC,
-            ))
-            story.append(Spacer(1, 0.35*cm))
-        except Exception:
-            pass   # mapa opcional — ignora silenciosamente
-
-    # ── Rodapé ─────────────────────────────────────────────────────
-    story.append(HRFlowable(width=_w, thickness=0.5, color=_cinza))
-    story.append(Spacer(1, 0.15*cm))
-    story.append(Paragraph(
-        f"Gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')} · "
-        "Gestão de Frotas – Estudo de Rede · Documento gerado automaticamente",
-        _sC,
-    ))
-
-    doc.build(story)
-    _buf.seek(0)
-    return _buf.read()
-
-
-# ═══════════════════════════════════════════════════════════════════
 #  GPX — EXPORTAÇÃO DE ROTA PARA GPS / GOOGLE MAPS
 # ═══════════════════════════════════════════════════════════════════
 
@@ -6850,7 +6321,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 _mun_r   = str(_tr.get("municipio", ""))
                 _uf_r    = str(_tr.get("uf", ""))
                 _geo_r   = f"{_mun_r}/{_uf_r}" if _mun_r and _uf_r else _mun_r or _uf_r
-                _preco_str = f"R$ {_brl(_preco_r, 3)}/L" if _preco_r is not None else "—"
+                _preco_str = f"R$ {_preco_r:.3f}/L" if _preco_r is not None else "—"
                 _top5_hover.append(
                     f"<b>{_emoji_r} #{_rank_n} Mais Barato</b><br>"
                     f"{_nome_r}<br>"
@@ -8139,7 +7610,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-body'>"
                     f"<div class='cc-preco-label'>Preço médio</div>"
                     f"<div class='cc-preco'>R$ {_brl(preco, 3)}<span class='cc-unidade'>/L</span></div>"
-                    f"<div class='cc-litros'>{_brl(litros, 1)} L necessários</div>"
+                    f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
                     f"<div class='cc-custo-label'>Custo estimado</div>"
                     f"<div class='cc-custo'>R$ {_brl(custo)}</div>"
                     f"{econ}"
@@ -8185,7 +7656,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-body'>"
                     f"<div class='cc-preco-label'>Preço médio</div>"
                     f"<div class='cc-preco'>R$ {_brl(p_med_rota, 3)}<span class='cc-unidade'>/L</span></div>"
-                    f"<div class='cc-litros'>{_brl(litros, 1)} L necessários</div>"
+                    f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
                     f"<div class='cc-custo-label'>Custo estimado</div>"
                     f"<div class='cc-custo'>R$ {_brl(custo_med_val)}</div>"
                     f"</div></div>"
@@ -8219,7 +7690,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                             f"background:{'#e8f5e9' if _delta_pf<0 else '#ffebee'};"
                             f"border-radius:4px;padding:3px 6px;margin-top:6px;text-align:center'>"
                             f"{_d_sinal} R$ {_brl(abs(_delta_pf), 3)} "
-                            f"({_brl(abs(_delta_pct), 1)}%) {_d_txt} da média ANP</div>"
+                            f"({abs(_delta_pct):.1f}%) {_d_txt} da média ANP</div>"
                         )
                     _pf_dest = (_custo_pf is not None and
                                 all(v is None or _custo_pf <= v
@@ -8236,7 +7707,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                         f"<div class='cc-preco-label'>Preço médio real</div>"
                         f"<div class='cc-preco'>R$ {_brl(_p_pf_real, 3)}"
                         f"<span class='cc-unidade'>/L</span></div>"
-                        f"<div class='cc-litros'>{_brl(litros, 1)} L necessários</div>"
+                        f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
                         f"<div class='cc-custo-label'>Custo estimado</div>"
                         f"<div class='cc-custo'>R$ {_brl(_custo_pf)}</div>"
                         f"{_delta_html}"
@@ -8273,7 +7744,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 
             # Nota de rodapé
             st.caption(
-                f"*Cálculo baseado em {dist_km:.0f} km ÷ {_brl(consumo, 1)} km/L = {_brl(litros, 1)} litros."
+                f"*Cálculo baseado em {dist_km:.0f} km ÷ {consumo:.1f} km/L = {litros:.1f} litros."
                 f" Preços: ANP semana {semana or '—'}. Valores estimados.*"
             )
 
@@ -9156,8 +8627,8 @@ pf_badge_html = (
 st.markdown(f"""
 <div class="topbar">
   <div style="min-width:0;">
-    <div class="topbar-title">Estudo de Rede</div>
-    <div class="topbar-sub">Gestão de Frotas</div>
+    <div class="topbar-title">Plataforma estratégica de inteligência de rede</div>
+    <div class="topbar-sub">Transformando dados em decisões de rede</div>
   </div>
   {pf_badge_html}
 </div>
@@ -9246,7 +8717,7 @@ with st.sidebar:
               text-transform: uppercase;
               font-weight: 700;
               opacity: 0.75;
-          '>Estudo de Rede · ANP</div>
+          '>Fleet Network Intelligence</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -9257,7 +8728,7 @@ with st.sidebar:
         _email_u  = _auth_u.get("email",    "")
         _pic_u    = _auth_u.get("picture",  "")
         _prov_u   = _auth_u.get("provider", "")
-        _prov_ico = "🪟" if _prov_u == "microsoft" else "✅"
+        _prov_ico = "🪟" if _prov_u == "microsoft" else "🔴"
 
         # Avatar: foto de perfil ou iniciais
         if _pic_u:
@@ -9302,50 +8773,76 @@ with st.sidebar:
             st.session_state["_auth_user"] = None
             st.rerun()
 
-    # ── Auto-carregamento do Supabase ────────────────────────────────
+    # ── Auto-carregamento do repositório ─────────────────────
     # Tenta UMA VEZ por sessão — usa flag para não repetir
     if not st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("_repo_tentado"):
-        st.session_state["_repo_tentado"] = True
-        _cnpjs_db, _perfil_db, _coords_db = _db_carregar_postos_gf()
-        if _cnpjs_db:
-            st.session_state["cnpjs_pro_frotas"] = _cnpjs_db
-            st.session_state["_pf_fonte"]        = "supabase"
-            st.session_state["_pf_carregado_em"] = _agora()
-            if _perfil_db:
-                st.session_state["perfil_venda_map"] = _perfil_db
-                st.session_state["perfis_pf_lista"]  = sorted(set(_perfil_db.values()))
-            if _coords_db is not None and not _coords_db.empty:
-                st.session_state["pf_coords_df"] = _coords_db
-                _atualizar_servicos_pf(_coords_db)
-        elif not _db_client():
-            st.warning(
-                "⚠️ **Banco de dados não configurado.** "
-                "Acesse ⚙️ Configurações e faça upload das planilhas.",
-                icon="💾",
-            )
+        st.session_state["_repo_tentado"] = True   # evita loop
+        _cnpjs_repo, _msg_repo, _prev_repo, _perfil_repo, _coords_repo = _auto_carregar_pro_frotas_repo()
+        if _cnpjs_repo:
+            st.session_state["cnpjs_pro_frotas"]  = _cnpjs_repo
+            st.session_state["_pf_fonte"]         = "repo"
+            st.session_state["_pf_carregado_em"]  = _agora()
+        if _perfil_repo:
+            st.session_state["perfil_venda_map"]    = _perfil_repo
+            st.session_state["perfis_pf_lista"]     = sorted(set(_perfil_repo.values()))
+        if _coords_repo is not None and not _coords_repo.empty:
+            st.session_state["pf_coords_df"] = _coords_repo
+            _atualizar_servicos_pf(_coords_repo)
 
     # Reconstrói labels de serviços se pf_coords_df já existe mas labels ainda não foram gerados
+    # (ex: primeira rerun após cache hit)
     if ("pf_coords_df" in st.session_state
             and not st.session_state["pf_coords_df"].empty
             and not st.session_state.get("_servicos_pf_labels")):
         _atualizar_servicos_pf(st.session_state["pf_coords_df"])
 
+    # Fallback: CNPJs já carregados mas perfil_venda_map ou pf_coords_df ainda ausentes/vazio
+    # (ocorre quando o cache antigo não incluía lat/lon ou pf_coords_df foi armazenado vazio)
+    _pf_coords_ok = (
+        "pf_coords_df" in st.session_state
+        and not st.session_state["pf_coords_df"].empty
+    )
+    _needs_reload = (
+        st.session_state.get("cnpjs_pro_frotas") and (
+            not st.session_state.get("perfil_venda_map") or
+            not _pf_coords_ok
+        )
+    )
+    if _needs_reload and not st.session_state.get("_pf_coords_reload_feito"):
+        st.session_state["_pf_coords_reload_feito"] = True
+        _auto_carregar_pro_frotas_repo.clear()   # garante releitura com código atual
+        _cnpjs_r2, _, _, _perfil_r2, _coords_r2 = _auto_carregar_pro_frotas_repo()
+        if _perfil_r2:
+            st.session_state["perfil_venda_map"]  = _perfil_r2
+            st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r2.values()))
+        if _coords_r2 is not None and not _coords_r2.empty:
+            st.session_state["pf_coords_df"] = _coords_r2
+            _atualizar_servicos_pf(_coords_r2)
+
     # Auto-load Postos Cercados (uma vez por sessão)
     if not st.session_state.get("cnpjs_cercados") and not st.session_state.get("_cercados_tentado"):
         st.session_state["_cercados_tentado"] = True
-        _cnpjs_cer_db = _db_carregar_postos_cercados()
-        if _cnpjs_cer_db:
-            st.session_state["cnpjs_cercados"]         = _cnpjs_cer_db
-            st.session_state["_cercados_fonte"]        = "supabase"
-            st.session_state["_cercados_carregado_em"] = _agora()
+        _cnpjs_cer, _msg_cer, _ = _auto_carregar_cercados_repo()
+        if _cnpjs_cer:
+            st.session_state["cnpjs_cercados"]          = _cnpjs_cer
+            st.session_state["_cercados_fonte"]         = "repo"
+            st.session_state["_cercados_carregado_em"]  = _agora()
 
-    # Auto-load Preço Posto
+    # Auto-load Preço Posto — re-parseia se a versão do parser mudou
+    _pp_ver_atual = st.session_state.get("_pp_parser_ver")
+    if _pp_ver_atual != _PP_PARSER_VERSION:
+        # Parser foi atualizado: descarta dado antigo e re-parseia
+        st.session_state.pop("_pp_df", None)
+        st.session_state.pop("_pp_tentado", None)
+        _auto_carregar_precos_postos_repo.clear()
+        st.session_state["_pp_parser_ver"] = _PP_PARSER_VERSION
+
     if st.session_state.get("_pp_df") is None and not st.session_state.get("_pp_tentado"):
         st.session_state["_pp_tentado"] = True
-        _pp_df_db = _db_carregar_precos_posto()
-        if _pp_df_db is not None and not _pp_df_db.empty:
-            st.session_state["_pp_df"]          = _pp_df_db
-            st.session_state["_pp_fonte"]        = "supabase"
+        _pp_df_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
+        if _pp_df_tmp is not None:
+            st.session_state["_pp_df"]         = _pp_df_tmp
+            st.session_state["_pp_fonte"]       = "repo"
             st.session_state["_pp_carregado_em"] = _agora()
 
     # ── Modo de consulta — toggle buttons ─────────────────────
@@ -9657,6 +9154,29 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🧠 Inteligência", modo_override="🧠 Inteligência")
         st.rerun()
 
+    # ── Botão Documentação (largura total) ──────────────────────────
+    if st.button(
+        "📄 Documentação",
+        use_container_width=True,
+        type="primary" if _modo_atual == "📄 Documentação" else "secondary",
+        key="btn_documentacao",
+        help="Visualizar o manual de uso da plataforma",
+    ):
+        st.session_state["modo_selecionado"] = "📄 Documentação"
+        _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
+        st.rerun()
+
+    if st.button(
+        "🚛 Análise de Cliente",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🚛 Análise de Cliente" else "secondary",
+        key="btn_analise_cliente",
+        help="Análise de abastecimentos e custos da frota do cliente",
+    ):
+        st.session_state["modo_selecionado"] = "🚛 Análise de Cliente"
+        _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
+        st.rerun()
+
     # ── Botão Admin (visível só para o administrador) ─────────────
     _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
     if _email_atual.lower() == _ADMIN_EMAIL.lower():
@@ -9723,131 +9243,6 @@ with st.sidebar:
                 help="Filtra os postos Gestão de Frotas pelo perfil de venda. Postos não-GF sempre exibidos.",
             )
 
-        # ── Favoritos ─────────────────────────────────────────────────────
-        if "fav_cnpjs" not in st.session_state:
-            _favs_raw = _db_favoritos()
-            st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _favs_raw}
-
-        _filtro_apenas_favoritos_m1 = st.checkbox(
-            "⭐ Apenas Favoritos",
-            key="chk_apenas_fav_m1",
-            help="Exibe somente os postos que você marcou como favoritos",
-        )
-
-        # Painel de gerenciamento de favoritos
-        _fav_list = _db_favoritos() if st.session_state.get("fav_cnpjs") else []
-        # Salva no session_state para uso no filtro principal (todos os estados)
-        st.session_state["_fav_list_cache"] = _fav_list
-        if _fav_list:
-            with st.expander(f"⭐ Meus Favoritos ({len(_fav_list)})", expanded=False):
-                # Dados de contexto para score
-                _pp_df_fav    = st.session_state.get("_pp_df")
-                _coords_fav   = st.session_state.get("pf_coords_df", pd.DataFrame())
-                _svc_keys_fav = list(st.session_state.get("_servicos_pf_labels", {}).keys())
-
-                # Pré-normaliza CNPJ em _coords_fav para lookup correto
-                _coords_fav_idx: dict = {}
-                if not _coords_fav.empty and "cnpj" in _coords_fav.columns:
-                    _cf_tmp = _coords_fav.copy()
-                    _cf_tmp["_cnpj_n"] = (
-                        _cf_tmp["cnpj"].fillna("").str.replace(r'\D', '', regex=True)
-                    )
-                    _coords_fav_idx = {
-                        row["_cnpj_n"]: row
-                        for _, row in _cf_tmp.iterrows()
-                    }
-
-                # Mediana de preço POR COMBUSTÍVEL como referência correta
-                # (evita comparar o mínimo do posto contra média de fuels misturados)
-                _med_por_comb: dict = {}
-                if (_pp_df_fav is not None
-                        and "preco" in _pp_df_fav.columns
-                        and "combustivel_pk" in _pp_df_fav.columns):
-                    for _ck, _grp in _pp_df_fav.groupby("combustivel_pk"):
-                        _med = pd.to_numeric(
-                            _grp["preco"], errors="coerce").median()
-                        if pd.notna(_med) and _med > 0:
-                            _med_por_comb[str(_ck)] = float(_med)
-
-                for _fv in _fav_list:
-                    _cnpj_fv      = _fv.get("cnpj", "")
-                    _cnpj_fv_norm = re.sub(r'\D', '', str(_cnpj_fv))
-
-                    # Monta dict de linha para o score
-                    _row_sc: dict = dict(_fv)
-
-                    # Preço: compara cada combustível do posto com a mediana do mesmo fuel
-                    _preco_ref_fav: float | None = None
-                    if (_pp_df_fav is not None
-                            and "cnpj_norm" in _pp_df_fav.columns
-                            and _med_por_comb):
-                        _pp_fv = _pp_df_fav[
-                            _pp_df_fav["cnpj_norm"] == _cnpj_fv_norm
-                        ]
-                        if not _pp_fv.empty:
-                            _score_preco_list = []
-                            for _, _prow in _pp_fv.iterrows():
-                                _pk  = str(_prow.get("combustivel_pk", ""))
-                                _pv  = pd.to_numeric(_prow.get("preco"), errors="coerce")
-                                _ref = _med_por_comb.get(_pk)
-                                if pd.notna(_pv) and _pv > 0 and _ref:
-                                    _d = (_pv - _ref) / _ref
-                                    _score_preco_list.append(
-                                        max(0.0, min(100.0, 50.0 - _d * 500.0))
-                                    )
-                            if _score_preco_list:
-                                # Score médio dos combustíveis do posto;
-                                # usa referência sintética para passar ao calculador
-                                _avg_sp = sum(_score_preco_list) / len(_score_preco_list)
-                                # Injeta preço sintético que produz exatamente _avg_sp
-                                # via: preco_ref=1.0; diff = (p-1)/1 = p-1
-                                # avg_sp = 50 - (p-1)*500 → p = 1 + (50-avg_sp)/500
-                                _p_sintetico = 1.0 + (50.0 - _avg_sp) / 500.0
-                                _row_sc["_preco_posto"] = _p_sintetico
-                                _preco_ref_fav          = 1.0   # base normalizada
-
-                    # Serviços: lookup com CNPJ normalizado
-                    _cf_row = _coords_fav_idx.get(_cnpj_fv_norm)
-                    if _cf_row is not None:
-                        for _sc_col in _svc_keys_fav:
-                            if _sc_col in _cf_row:
-                                _row_sc[_sc_col] = bool(_cf_row[_sc_col])
-
-                    # Calcula score
-                    _sc_res = _calcular_score_posto(
-                        _row_sc,
-                        preco_ref_anp=_preco_ref_fav,
-                        lat_ref=None,
-                        lon_ref=None,
-                        servicos_keys=_svc_keys_fav,
-                        n_servicos_max=max(len(_svc_keys_fav), 1),
-                    )
-                    _badge_fv = _score_badge_html(
-                        _sc_res["score"], _sc_res["grade"],
-                        tooltip=(
-                            f"Preço: {_sc_res['score_preco']:.0f} · "
-                            f"Serviços: {_sc_res['score_servicos']:.0f}"
-                        ),
-                        size="small",
-                    )
-
-                    _fv_col1, _fv_col2 = st.columns([4, 1])
-                    with _fv_col1:
-                        st.markdown(
-                            f"<div style='font-size:11px;font-weight:600;line-height:1.3'>"
-                            f"{_fv.get('razao_social','—')[:35]}</div>"
-                            f"<div style='font-size:10px;color:#888'>"
-                            f"{_fv.get('municipio','')} / {_fv.get('uf','')}</div>"
-                            f"<div style='margin-top:3px'>{_badge_fv}</div>",
-                            unsafe_allow_html=True,
-                        )
-                    with _fv_col2:
-                        if st.button("✕", key=f"rm_fav_{_fv['cnpj']}",
-                                     help="Remover dos favoritos"):
-                            _db_remove_favorito(_fv["cnpj"])
-                            st.session_state["fav_cnpjs"].discard(_fv["cnpj"])
-                            st.rerun()
-
         # ── Filtros Avançados ─────────────────────────────────────────────
         _pp_df_adv   = st.session_state.get("_pp_df")
         _svc_cols    = st.session_state.get("_servicos_cols_disponiveis", [])
@@ -9890,7 +9285,7 @@ with st.sidebar:
                                     help="Exibe apenas postos com preço registrado dentro da faixa selecionada",
                                 )
                             else:
-                                st.caption(f"Preço único: R$ {_brl(_pmin, 3)}/L")
+                                st.caption(f"Preço único: R$ {_pmin:.3f}/L")
 
                 # ── Horário de Funcionamento ───────────────────────────
                 _filtro_24h_m1 = False
@@ -10329,7 +9724,7 @@ with st.sidebar:
                                     help="Exibe apenas postos com preço dentro da faixa selecionada",
                                 )
                             else:
-                                st.caption(f"Preço único: R$ {_brl(_pmin2, 3)}/L")
+                                st.caption(f"Preço único: R$ {_pmin2:.3f}/L")
 
                 _filtro_24h_m2 = False
                 if "funciona_24h" in _svc_cols_m2:
@@ -10383,39 +9778,6 @@ with st.sidebar:
             "</div>",
             unsafe_allow_html=True,
         )
-
-        # ── Seletor de Perfis de Veículo ─────────────────────────────────
-        _perfis_db = _db_perfis_veiculo()
-        if _perfis_db:
-            st.markdown("<div class='sb-label'>🚗 Perfis Salvos</div>", unsafe_allow_html=True)
-            _perfis_opcoes = ["— Selecione um perfil —"] + [
-                f"{p['nome']} · {p.get('placa','').upper() or '—'}" for p in _perfis_db
-            ]
-            _perfil_sel_idx = st.selectbox(
-                "Perfil de veículo",
-                range(len(_perfis_opcoes)),
-                format_func=lambda i: _perfis_opcoes[i],
-                key="rot_perfil_sel",
-                label_visibility="collapsed",
-            )
-            if _perfil_sel_idx and _perfil_sel_idx > 0:
-                _psel = _perfis_db[_perfil_sel_idx - 1]
-                _c_load, _c_del = st.columns([3, 1])
-                with _c_load:
-                    if st.button("⬇️ Carregar perfil", use_container_width=True,
-                                 key="btn_carregar_perfil"):
-                        st.session_state["rot_placa"]      = _psel.get("placa", "")
-                        st.session_state["rot_combustivel"] = _psel.get("combustivel", "")
-                        st.session_state["rot_capacidade"] = float(_psel.get("tanque") or 80.0)
-                        st.session_state["rot_autonomia"]  = float(_psel.get("autonomia") or 10.0)
-                        st.toast(f"✅ Perfil **{_psel['nome']}** carregado!", icon="🚛")
-                        st.rerun()
-                with _c_del:
-                    if st.button("🗑️", key="btn_del_perfil",
-                                 help="Excluir este perfil"):
-                        _db_deletar_perfil_veiculo(_psel["id"])
-                        st.toast("Perfil excluído", icon="🗑️")
-                        st.rerun()
 
         st.markdown("<div class='sb-label'>🚛 Dados do Veículo</div>", unsafe_allow_html=True)
 
@@ -10476,29 +9838,7 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
-        # ── Salvar como perfil de veículo ────────────────────────────────
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-        with st.expander("💾 Salvar como perfil", expanded=False):
-            _nome_perfil = st.text_input(
-                "Nome do perfil",
-                placeholder="Ex: Scania R450 / Bitrem / Carreta",
-                key="rot_nome_perfil",
-                label_visibility="visible",
-            )
-            if st.button("💾 Salvar perfil", use_container_width=True,
-                         key="btn_salvar_perfil_veiculo"):
-                _placa_atual  = str(st.session_state.get("rot_placa") or "")
-                _comb_atual   = str(st.session_state.get("rot_combustivel") or "")
-                _tank_atual   = float(st.session_state.get("rot_capacidade") or 80.0)
-                _aut_atual    = float(st.session_state.get("rot_autonomia") or 10.0)
-                _nome_final   = _nome_perfil.strip() or _placa_atual or "Veículo"
-                if _db_salvar_perfil_veiculo(_nome_final, _placa_atual, _comb_atual,
-                                             _tank_atual, _aut_atual):
-                    st.toast(f"✅ Perfil **{_nome_final}** salvo!", icon="🚛")
-                    st.rerun()
-                else:
-                    st.error("❌ Erro ao salvar. Verifique a conexão com o banco.")
-
         st.caption("💡 Configure a origem, destino e paradas na área principal →")
 
     # ── Defaults para variáveis do Modo 2 quando outro modo está ativo ────────
@@ -10580,11 +9920,10 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs = st.tabs(
+            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel = st.tabs(
                 ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
-                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso"]
+                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "🧠 Inteligência"]
             )
-            tab_intel = None  # aba removida de Configurações — disponível apenas no menu principal
 
         # ── Tab Gestão de Frotas ────────────────────────────────────
         if tab_pf is not None:
@@ -10592,9 +9931,11 @@ with st.sidebar:
             _pf_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_pf_ts}</span>"
                            if _pf_ts else "")
             if _pf_set:
-                _c = ("#e8f5e9","#a5d6a7","#2e7d32","✅")
+                _c = ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "repo" \
+                     else ("#fff8e1","#ffe082","#f57f17","⭐")
                 _src = (f"<span style='font-size:10px;opacity:.8'>"
-                        f"Fonte: banco de dados</span>")
+                        f"Fonte: <code>{ARQUIVO_PF_REPO}</code></span>"
+                        if _pf_fonte == "repo" else "")
                 st.markdown(
                     f"<div style='background:{_c[0]};border:1px solid {_c[1]};"
                     f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_c[2]}'>"
@@ -10604,57 +9945,63 @@ with st.sidebar:
                 )
             else:
                 st.markdown(
-                    "<div style='background:#fff3e0;border:1px solid #ffcc80;"
-                    "border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
-                    "⚠️ <b>Não carregado</b><br>"
-                    "<span style='font-size:10px'>Faça upload da planilha abaixo "
-                    "(somente administrador).</span></div>",
+                    f"<div style='background:#fff3e0;border:1px solid #ffcc80;"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
+                    f"⚠️ <b>Não carregado</b><br>"
+                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_PF_REPO}</code> "
+                    f"ou faça upload.</span></div>",
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            # Upload restrito ao administrador
-            _is_admin_pf = _db_email().lower() == _ADMIN_EMAIL.lower()
-            if not _is_admin_pf:
-                st.info("🔒 Upload disponível apenas para o administrador do sistema.")
-            else:
-                st.markdown("<small><b>Upload de nova planilha</b> — substitui dados no banco:</small>",
-                            unsafe_allow_html=True)
-                arquivo_pf = st.file_uploader(
-                    "Planilha Gestão de Frotas", type=["xlsx","xls","csv"],
-                    key="upload_pf", label_visibility="collapsed",
-                )
-                if arquivo_pf is not None:
-                    _pf_file_id = f"{arquivo_pf.name}_{arquivo_pf.size}"
-                    if st.session_state.get("_pf_last_upload_id") != _pf_file_id:
-                        with st.spinner("Lendo planilha…"):
-                            cnpjs_pf, msg_pf, preview_pf, perfil_pf, coords_pf = ler_planilha_pro_frotas(arquivo_pf)
-                        if cnpjs_pf is not None:
-                            with st.spinner("Salvando no banco de dados…"):
-                                _ok_pf, _msg_db_pf = _db_salvar_postos_gf(
-                                    coords_pf, cnpjs_pf, perfil_pf or {}, arquivo_pf.name
-                                )
-                            if _ok_pf:
-                                st.session_state["cnpjs_pro_frotas"]   = cnpjs_pf
-                                st.session_state["_pf_fonte"]           = "supabase"
-                                st.session_state["_pf_carregado_em"]    = _agora()
-                                st.session_state["_pf_last_upload_id"]  = _pf_file_id
-                                st.session_state["_repo_tentado"]       = True
-                                if perfil_pf:
-                                    st.session_state["perfil_venda_map"] = perfil_pf
-                                    st.session_state["perfis_pf_lista"]  = sorted(set(perfil_pf.values()))
-                                if coords_pf is not None and not coords_pf.empty:
-                                    st.session_state["pf_coords_df"] = coords_pf
-                                    _atualizar_servicos_pf(coords_pf)
-                                st.success(f"✅ {msg_pf} · {_msg_db_pf}")
-                                if preview_pf is not None:
-                                    with st.expander("Ver amostra dos CNPJs"):
-                                        st.dataframe(preview_pf, use_container_width=True)
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Erro ao salvar no banco: {_msg_db_pf}")
-                        else:
-                            st.error(msg_pf)
+            if st.button("🔄 Recarregar do repositório", use_container_width=True,
+                         help="Força nova leitura do pro_frotas.xlsx no GitHub",
+                         key="btn_reload_pf_cfg"):
+                _auto_carregar_pro_frotas_repo.clear()
+                with st.spinner(f"Lendo `{ARQUIVO_PF_REPO}`…"):
+                    _cnpjs_r, _msg_r, _prev_r, _perfil_r, _coords_r = _auto_carregar_pro_frotas_repo()
+                if _cnpjs_r:
+                    st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
+                    st.session_state["_pf_fonte"]        = "repo"
+                    st.session_state["_pf_carregado_em"] = _agora()
+                    if _perfil_r:
+                        st.session_state["perfil_venda_map"]  = _perfil_r
+                        st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r.values()))
+                    if _coords_r is not None and not _coords_r.empty:
+                        st.session_state["pf_coords_df"] = _coords_r
+                        _atualizar_servicos_pf(_coords_r)
+                    st.success(f"✅ {_msg_r}")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(_msg_r or f"❌ `{ARQUIVO_PF_REPO}` não encontrado.")
+            st.markdown("<small><b>Upload manual</b></small>", unsafe_allow_html=True)
+            arquivo_pf = st.file_uploader(
+                "Planilha Gestão de Frotas", type=["xlsx","xls","csv"],
+                key="upload_pf", label_visibility="collapsed",
+            )
+            if arquivo_pf is not None:
+                _pf_file_id = f"{arquivo_pf.name}_{arquivo_pf.size}"
+                if st.session_state.get("_pf_last_upload_id") != _pf_file_id:
+                    with st.spinner("Lendo planilha…"):
+                        cnpjs_pf, msg_pf, preview_pf, perfil_pf, coords_pf = ler_planilha_pro_frotas(arquivo_pf)
+                    if cnpjs_pf is not None:
+                        st.session_state["cnpjs_pro_frotas"]    = cnpjs_pf
+                        st.session_state["_pf_fonte"]            = "manual"
+                        st.session_state["_pf_carregado_em"]     = _agora()
+                        st.session_state["_pf_last_upload_id"]   = _pf_file_id
+                        if perfil_pf:
+                            st.session_state["perfil_venda_map"] = perfil_pf
+                            st.session_state["perfis_pf_lista"]  = sorted(set(perfil_pf.values()))
+                        if coords_pf is not None and not coords_pf.empty:
+                            st.session_state["pf_coords_df"] = coords_pf
+                            _atualizar_servicos_pf(coords_pf)
+                        st.success(msg_pf)
+                        if preview_pf is not None:
+                            with st.expander("Ver amostra dos CNPJs"):
+                                st.dataframe(preview_pf, use_container_width=True)
+                        st.rerun()
+                    else:
+                        st.error(msg_pf)
             if _pf_set:
                 if st.button("🗑️ Remover Gestão de Frotas", use_container_width=True,
                              key="btn_rm_pf_cfg"):
@@ -10668,62 +10015,70 @@ with st.sidebar:
             _cer_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_cer_ts}</span>"
                             if _cer_ts else "")
             if _cer_set:
+                _cc = ("#fff8e1","#ffe082","#e65100") if _cer_fonte == "manual" \
+                      else ("#fff3e0","#ffcc80","#bf360c")
+                _src_cer = (
+                    f"<span style='font-size:10px;opacity:.8'>"
+                    f"Fonte: <code>{ARQUIVO_CERCADOS_REPO}</code></span>"
+                    if _cer_fonte == "repo" else
+                    "<span style='font-size:10px;opacity:.8'>Carregado manualmente</span>"
+                )
                 st.markdown(
-                    f"<div style='background:#fff8e1;border:1px solid #ffe082;"
-                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
+                    f"<div style='background:{_cc[0]};border:1px solid {_cc[1]};"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_cc[2]}'>"
                     f"⚠️ <b>{_fmt_int(len(_cer_set))} postos cercados</b> identificados"
-                    f"{_cer_ts_html}<br>"
-                    f"<span style='font-size:10px;opacity:.8'>Fonte: banco de dados</span>"
-                    f"</div>",
+                    f"{_cer_ts_html}<br>{_src_cer}</div>",
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown(
-                    "<div style='background:#f5f5f5;border:1px solid #ddd;"
-                    "border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
-                    "Planilha não carregada.<br>"
-                    "<span style='font-size:10px'>Faça upload abaixo "
-                    "(somente administrador).</span></div>",
+                    f"<div style='background:#f5f5f5;border:1px solid #ddd;"
+                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
+                    f"Planilha não carregada.<br>"
+                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_CERCADOS_REPO}</code> "
+                    f"ao repositório ou faça upload manual.</span></div>",
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            # Upload restrito ao administrador
-            _is_admin_cer = _db_email().lower() == _ADMIN_EMAIL.lower()
-            if not _is_admin_cer:
-                st.info("🔒 Upload disponível apenas para o administrador do sistema.")
-            else:
-                st.markdown("<small><b>Upload de nova planilha</b> — substitui dados no banco:</small>",
-                            unsafe_allow_html=True)
-                arquivo_cer = st.file_uploader(
-                    "Planilha Postos Cercados", type=["xlsx","xls","csv"],
-                    key="upload_cercados", label_visibility="collapsed",
-                )
-                if arquivo_cer is not None:
-                    _cer_file_id = f"{arquivo_cer.name}_{arquivo_cer.size}"
-                    if st.session_state.get("_cer_last_upload_id") != _cer_file_id:
-                        with st.spinner("Lendo planilha…"):
-                            cnpjs_cer_up, msg_cer_up, prev_cer = ler_planilha_cercados(arquivo_cer)
-                        if cnpjs_cer_up is not None:
-                            with st.spinner("Salvando no banco de dados…"):
-                                _ok_cer, _msg_db_cer = _db_salvar_postos_cercados(
-                                    cnpjs_cer_up, arquivo_cer.name
-                                )
-                            if _ok_cer:
-                                st.session_state["cnpjs_cercados"]         = cnpjs_cer_up
-                                st.session_state["_cercados_fonte"]        = "supabase"
-                                st.session_state["_cercados_carregado_em"] = _agora()
-                                st.session_state["_cer_last_upload_id"]    = _cer_file_id
-                                st.session_state["_cercados_tentado"]      = True
-                                st.success(f"✅ {msg_cer_up} · {_msg_db_cer}")
-                                if prev_cer is not None:
-                                    with st.expander("Ver amostra"):
-                                        st.dataframe(prev_cer, use_container_width=True)
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Erro ao salvar no banco: {_msg_db_cer}")
-                        else:
-                            st.error(msg_cer_up)
+            if st.button("🔄 Recarregar do repositório", use_container_width=True,
+                         help=f"Força nova leitura de '{ARQUIVO_CERCADOS_REPO}' no GitHub",
+                         key="btn_reload_cercados"):
+                _auto_carregar_cercados_repo.clear()
+                with st.spinner(f"Lendo `{ARQUIVO_CERCADOS_REPO}`…"):
+                    _cnpjs_cer2, _msg_cer2, _ = _auto_carregar_cercados_repo()
+                if _cnpjs_cer2:
+                    st.session_state["cnpjs_cercados"]          = _cnpjs_cer2
+                    st.session_state["_cercados_fonte"]         = "repo"
+                    st.session_state["_cercados_carregado_em"]  = _agora()
+                    st.success(f"✅ {_msg_cer2}")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(_msg_cer2 or f"❌ `{ARQUIVO_CERCADOS_REPO}` não encontrado.")
+
+            st.markdown("<small><b>Upload manual</b> — substitui nesta sessão:</small>",
+                        unsafe_allow_html=True)
+            arquivo_cer = st.file_uploader(
+                "Planilha Postos Cercados", type=["xlsx","xls","csv"],
+                key="upload_cercados", label_visibility="collapsed",
+            )
+            if arquivo_cer is not None:
+                _cer_file_id = f"{arquivo_cer.name}_{arquivo_cer.size}"
+                if st.session_state.get("_cer_last_upload_id") != _cer_file_id:
+                    with st.spinner("Lendo planilha…"):
+                        cnpjs_cer_up, msg_cer_up, prev_cer = ler_planilha_cercados(arquivo_cer)
+                    if cnpjs_cer_up is not None:
+                        st.session_state["cnpjs_cercados"]          = cnpjs_cer_up
+                        st.session_state["_cercados_fonte"]         = "manual"
+                        st.session_state["_cercados_carregado_em"]  = _agora()
+                        st.session_state["_cer_last_upload_id"]     = _cer_file_id
+                        st.success(msg_cer_up)
+                        if prev_cer is not None:
+                            with st.expander("Ver amostra"):
+                                st.dataframe(prev_cer, use_container_width=True)
+                        st.rerun()
+                    else:
+                        st.error(msg_cer_up)
 
             if _cer_set:
                 if st.button("🗑️ Remover Cercados", use_container_width=True,
@@ -10808,45 +10163,53 @@ with st.sidebar:
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            # Upload restrito ao administrador
-            _is_admin_pp = _db_email().lower() == _ADMIN_EMAIL.lower()
-            if not _is_admin_pp:
-                st.info("🔒 Upload disponível apenas para o administrador do sistema.")
-            else:
-                st.markdown("<small><b>Upload de nova planilha</b> — substitui dados no banco:</small>",
-                            unsafe_allow_html=True)
-                arquivo_pp = st.file_uploader(
-                    "Planilha Preço Posto", type=["xlsx","xls","csv"],
-                    key="upload_pp", label_visibility="collapsed",
-                )
-                if arquivo_pp is not None:
-                    _pp_file_id = f"{arquivo_pp.name}_{arquivo_pp.size}"
-                    if st.session_state.get("_pp_last_upload_id") != _pp_file_id:
-                        with st.spinner("Lendo planilha…"):
-                            _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
-                        if _pp_up is not None:
-                            with st.spinner("Salvando no banco de dados…"):
-                                _ok_pp, _msg_db_pp = _db_salvar_precos_posto(
-                                    _pp_up, arquivo_pp.name
-                                )
-                            if _ok_pp:
-                                st.session_state["_pp_df"]            = _pp_up
-                                st.session_state["_pp_fonte"]          = "supabase"
-                                st.session_state["_pp_carregado_em"]   = _agora()
-                                st.session_state["_pp_last_upload_id"] = _pp_file_id
-                                st.session_state["_pp_tentado"]        = True
-                                # ── Auto-registro no histórico de inteligência ──
-                                try:
-                                    _hist_record_pp_df(_pp_up)
-                                except Exception:
-                                    pass
-                                st.success(f"✅ {_pp_msg_up} · {_msg_db_pp}")
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Erro ao salvar no banco: {_msg_db_pp}")
-                        else:
-                            st.error(_pp_msg_up)
+            if st.button("🔄 Recarregar do repositório", use_container_width=True,
+                         help=f"Força nova leitura de '{ARQUIVO_PP_REPO}' (cache 1 h)",
+                         key="btn_reload_pp"):
+                _auto_carregar_precos_postos_repo.clear()
+                st.session_state["_pp_tentado"] = False
+                with st.spinner(f"Lendo `{ARQUIVO_PP_REPO}`…"):
+                    _pp_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
+                if _pp_tmp is not None:
+                    st.session_state["_pp_df"]          = _pp_tmp
+                    st.session_state["_pp_fonte"]        = "repo"
+                    st.session_state["_pp_carregado_em"] = _agora()
+                    # ── Auto-registro no histórico de inteligência ──
+                    try:
+                        _hist_record_pp_df(_pp_tmp)
+                    except Exception:
+                        pass
+                    st.success(f"✅ {_pp_msg_tmp}")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(_pp_msg_tmp or f"❌ `{ARQUIVO_PP_REPO}` não encontrado.")
+            st.markdown("<small><b>Upload manual</b> — substitui nesta sessão:</small>",
+                        unsafe_allow_html=True)
+            arquivo_pp = st.file_uploader(
+                "Planilha Preço Posto", type=["xlsx","xls","csv"],
+                key="upload_pp", label_visibility="collapsed",
+            )
+            if arquivo_pp is not None:
+                # Evita loop infinito: só processa se for um arquivo novo
+                _pp_file_id = f"{arquivo_pp.name}_{arquivo_pp.size}"
+                if st.session_state.get("_pp_last_upload_id") != _pp_file_id:
+                    with st.spinner("Lendo planilha…"):
+                        _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
+                    if _pp_up is not None:
+                        st.session_state["_pp_df"]             = _pp_up
+                        st.session_state["_pp_fonte"]           = "manual"
+                        st.session_state["_pp_carregado_em"]    = _agora()
+                        st.session_state["_pp_last_upload_id"]  = _pp_file_id
+                        # ── Auto-registro no histórico de inteligência ──
+                        try:
+                            _hist_record_pp_df(_pp_up)
+                        except Exception:
+                            pass
+                        st.success(_pp_msg_up)
+                        st.rerun()
+                    else:
+                        st.error(_pp_msg_up)
             if _pp_df_sb is not None:
                 if st.button("🗑️ Remover Preços PP", use_container_width=True,
                              key="btn_rm_pp"):
@@ -11446,77 +10809,7 @@ with st.sidebar:
             st.session_state["_tour_ativo"] = True
             st.rerun()
 
-    # ── README — visualização do PDF de documentação ─────────────────────────
-    _doc_bytes, _doc_nome = _carregar_doc_pdf()
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    if _doc_bytes:
-        _col_doc_l, _col_doc_c, _col_doc_r = st.columns([1, 4, 1])
-        with _col_doc_c:
-            if st.button(
-                "📄 README — Documentação",
-                use_container_width=True,
-                key="btn_doc_pdf",
-                help="Visualizar documentação da aplicação",
-            ):
-                st.session_state["_doc_aberto"] = not st.session_state.get("_doc_aberto", False)
-                st.rerun()
-
-        # Exibe o PDF inline se aberto — renderizado como imagem (sem iframe, sem bloqueio)
-        if st.session_state.get("_doc_aberto") and _doc_bytes:
-            # Botão de download sempre disponível
-            st.download_button(
-                "⬇️ Baixar PDF",
-                data=_doc_bytes,
-                file_name=_doc_nome,
-                mime="application/pdf",
-                key="btn_doc_download",
-            )
-            try:
-                import fitz  # pymupdf
-                _pdf_doc   = fitz.open(stream=_doc_bytes, filetype="pdf")
-                _total_pgs = len(_pdf_doc)
-
-                if "doc_pagina_atual" not in st.session_state:
-                    st.session_state["doc_pagina_atual"] = 0
-                _pg_idx = st.session_state["doc_pagina_atual"]
-
-                # Navegação
-                _col_prev, _col_info, _col_next = st.columns([1, 2, 1])
-                with _col_prev:
-                    if st.button("◀ Anterior", use_container_width=True,
-                                 disabled=_pg_idx == 0, key="doc_pg_prev"):
-                        st.session_state["doc_pagina_atual"] -= 1
-                        st.rerun()
-                with _col_info:
-                    st.markdown(
-                        f"<p style='text-align:center;margin:6px 0;color:#555;font-size:13px'>"
-                        f"Página <b>{_pg_idx + 1}</b> de <b>{_total_pgs}</b></p>",
-                        unsafe_allow_html=True,
-                    )
-                with _col_next:
-                    if st.button("Próxima ▶", use_container_width=True,
-                                 disabled=_pg_idx >= _total_pgs - 1, key="doc_pg_next"):
-                        st.session_state["doc_pagina_atual"] += 1
-                        st.rerun()
-
-                # Renderiza página atual como imagem PNG
-                _page     = _pdf_doc[_pg_idx]
-                _mat      = fitz.Matrix(2.0, 2.0)
-                _pix      = _page.get_pixmap(matrix=_mat, alpha=False)
-                _img_bytes = _pix.tobytes("png")
-                _pdf_doc.close()
-                st.image(_img_bytes, use_container_width=True)
-
-            except ImportError:
-                st.info("📄 Para ver o PDF aqui, instale: `pip install pymupdf`")
-    else:
-        _col_doc_l, _col_doc_c, _col_doc_r = st.columns([1, 4, 1])
-        with _col_doc_c:
-            st.markdown(
-                "<div style='text-align:center;font-size:11px;color:#9E9E9E;padding:4px 0'>"
-                "📄 Documentação não encontrada</div>",
-                unsafe_allow_html=True,
-            )
+    # (documentação movida para tela principal — modo "📄 Documentação")
 
 # ═══════════════════════════════════════════════════════════════════
 #  TOUR DE ONBOARDING
@@ -12024,67 +11317,32 @@ if False:
 
 if modo == "📍 Por UF/Município":
 
-    # Modo Apenas Favoritos: não requer UF selecionada
-    _apenas_fav_sem_uf = _filtro_apenas_favoritos_m1 and not uf
-
-    if _apenas_fav_sem_uf:
-        # ── Constrói df_raw_full direto dos favoritos (todos os estados) ──
-        _fav_set_all  = st.session_state.get("fav_cnpjs", set())
-        _pf_all       = st.session_state.get("pf_coords_df", pd.DataFrame())
-        _fav_list_c   = st.session_state.get("_fav_list_cache", [])
-
-        _df_fav_pf = pd.DataFrame()
-        if not _pf_all.empty and "cnpj" in _pf_all.columns:
-            _df_fav_pf = _pf_all[
-                _pf_all["cnpj"].isin(_fav_set_all)
-            ].copy().reset_index(drop=True)
-
-        _cnpjs_em_pf = set(_df_fav_pf["cnpj"]) if not _df_fav_pf.empty else set()
-        _rows_extra_fav = []
-        for _ff in _fav_list_c:
-            if _ff["cnpj"] not in _cnpjs_em_pf and _ff.get("lat") and _ff.get("lon"):
-                _rows_extra_fav.append({
-                    "cnpj":        _ff["cnpj"],
-                    "_lat":        float(_ff["lat"]),
-                    "_lon":        float(_ff["lon"]),
-                    "razaoSocial": _ff.get("razao_social", ""),
-                    "municipio":   _ff.get("municipio", ""),
-                    "uf":          _ff.get("uf", ""),
-                    "distribuidora": "",
-                })
-
-        _df_extra_fav = pd.DataFrame(_rows_extra_fav) if _rows_extra_fav else pd.DataFrame()
-        _frames_fav   = [f for f in [_df_fav_pf, _df_extra_fav] if not f.empty]
-        df_raw_full   = pd.concat(_frames_fav, ignore_index=True) if _frames_fav else pd.DataFrame()
-        municipio_input = ""  # ignora filtro de município no modo favoritos
-
-    if uf or _apenas_fav_sem_uf:
+    if uf:
         # ── Carrega postos GF do estado diretamente da planilha (sem chamada à API ANP) ──
-        if not _apenas_fav_sem_uf:
-            if uf != st.session_state.get("_uf_carregada"):
-                _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
-                if not _pf_df_m1.empty:
-                    df_raw_full = _pf_df_m1[
-                        _pf_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
-                    ].copy().reset_index(drop=True)
-                else:
-                    df_raw_full = pd.DataFrame()
-                    st.warning(
-                        "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
-                        "Verifique a seção **Configurações** na barra lateral."
-                    )
+        if uf != st.session_state.get("_uf_carregada"):
+            _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
+            if not _pf_df_m1.empty:
+                df_raw_full = _pf_df_m1[
+                    _pf_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
+                ].copy().reset_index(drop=True)
+            else:
+                df_raw_full = pd.DataFrame()
+                st.warning(
+                    "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
+                    "Verifique a seção **Configurações** na barra lateral."
+                )
 
-                st.session_state["df_raw_full"]  = df_raw_full
-                st.session_state["_uf_carregada"] = uf
-                if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
-                    st.session_state["distribuidoras_disponiveis"] = sorted(
-                        df_raw_full["distribuidora"].dropna().unique().tolist())
-                st.session_state.pop("_df_marcado",      None)
-                st.session_state.pop("_df_marcado_key",  None)
-                st.session_state.pop("_pf_injetados_uf", None)
+            st.session_state["df_raw_full"]  = df_raw_full
+            st.session_state["_uf_carregada"] = uf
+            if not df_raw_full.empty and "distribuidora" in df_raw_full.columns:
+                st.session_state["distribuidoras_disponiveis"] = sorted(
+                    df_raw_full["distribuidora"].dropna().unique().tolist())
+            st.session_state.pop("_df_marcado",      None)
+            st.session_state.pop("_df_marcado_key",  None)
+            st.session_state.pop("_pf_injetados_uf", None)
 
-            # ── Lê df_raw_full do session_state ─────────────────────────
-            df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
+        # ── Lê df_raw_full do session_state ───────────────────────────
+        df_raw_full = st.session_state.get("df_raw_full", pd.DataFrame())
 
         # Filtra por município localmente (instantâneo, sem nova chamada à API)
         # Usa _sem_acento para que "Vitoria" encontre "VITÓRIA", "Ribeirao" → "RIBEIRÃO" etc.
@@ -12122,63 +11380,6 @@ if modo == "📍 Por UF/Município":
                 # Mantém postos sem preço cadastrado + postos dentro da faixa
                 _sem_preco_m1 = ~df_show["_cnpj_norm"].isin(_fuel_df_m1["cnpj_norm"])
                 df_show = df_show[_sem_preco_m1 | df_show["_cnpj_norm"].isin(_cnpj_ok_m1)]
-
-        # ── Filtro Apenas Favoritos ──────────────────────────────────────────
-        # Quando _apenas_fav_sem_uf, df_show já está correto (sem UF); não reprocessar.
-        if not _apenas_fav_sem_uf and _filtro_apenas_favoritos_m1 and st.session_state.get("fav_cnpjs"):
-            _fav_set_m1    = st.session_state["fav_cnpjs"]
-            _pf_coords_all = st.session_state.get("pf_coords_df", pd.DataFrame())
-
-            # 1. Postos favoritos em pf_coords_df, filtrados pela UF selecionada
-            _df_fav_pf = pd.DataFrame()
-            if not _pf_coords_all.empty and "cnpj" in _pf_coords_all.columns:
-                _df_fav_base = _pf_coords_all[
-                    _pf_coords_all["cnpj"].isin(_fav_set_m1)
-                ].copy()
-                if uf:
-                    _df_fav_base = _df_fav_base[
-                        _df_fav_base["uf"].fillna("").str.upper().str.strip() == uf.upper()
-                    ]
-                _df_fav_pf = _df_fav_base.reset_index(drop=True)
-
-            # 2. Postos favoritos que NÃO estão em pf_coords_df
-            #    (favoritos adicionados via Busca/ANP, com lat/lon gravado no banco)
-            _cnpjs_em_pf  = set(_df_fav_pf["cnpj"]) if not _df_fav_pf.empty else set()
-            _fav_list_c   = st.session_state.get("_fav_list_cache", [])
-            _rows_extra   = []
-            for _ff in _fav_list_c:
-                if _ff["cnpj"] not in _cnpjs_em_pf and _ff.get("lat") and _ff.get("lon"):
-                    # Respeita filtro de UF quando selecionada
-                    if uf and _ff.get("uf", "").upper().strip() != uf.upper():
-                        continue
-                    _rows_extra.append({
-                        "cnpj":        _ff["cnpj"],
-                        "_lat":        float(_ff["lat"]),
-                        "_lon":        float(_ff["lon"]),
-                        "razaoSocial": _ff.get("razao_social", ""),
-                        "municipio":   _ff.get("municipio", ""),
-                        "uf":          _ff.get("uf", ""),
-                        "distribuidora": "",
-                    })
-            _df_extra = pd.DataFrame(_rows_extra) if _rows_extra else pd.DataFrame()
-
-            # 3. Une, aplica filtro de município e prepara
-            _frames_fav = [f for f in [_df_fav_pf, _df_extra] if not f.empty]
-            if _frames_fav:
-                _df_fav_joined = pd.concat(_frames_fav, ignore_index=True)
-                if mun:
-                    _mun_norm_fav = _sem_acento(mun)
-                    _df_fav_joined = _df_fav_joined[
-                        _df_fav_joined["municipio"].fillna("").apply(
-                            lambda x: _mun_norm_fav in _sem_acento(x)
-                        )
-                    ]
-                df_show = preparar_df(
-                    _df_fav_joined,
-                    [], perfis_filtro=[], filtro_servicos=[], filtro_24h=False,
-                )
-            else:
-                df_show = pd.DataFrame()
 
         # ── Ranking Top 5 Mais Baratos ──────────────────────────────────────
         _fuel_rank_m1 = _fuel_sel_m1 if (_fuel_sel_m1 and _fuel_sel_m1 != "— Todos —") else None
@@ -12274,30 +11475,23 @@ if modo == "📍 Por UF/Município":
                 icon=None,
             )
 
-        tab_mapa, tab_dados, tab_analise, tab_scores = st.tabs([
+        tab_mapa, tab_dados, tab_analise = st.tabs([
             "🗺️  Mapa Interativo", "📋  Dados Tabulares",
-            "📊  Análise por Bandeira", "🏆  Melhores Scores"])
+            "📊  Análise por Bandeira"])
 
         with tab_mapa:
-            # Constrói o objeto do mapa (pesado) dentro do spinner
-            _mapa_obj_m1  = None
-            _mapa_err_m1  = None
             with st.spinner(f"🗺️ Carregando mapa — {_n(len(df_show))} postos…"):
                 try:
-                    _mapa_obj_m1 = criar_mapa(df_show)
-                except Exception as _mapa_err_m1:
-                    pass
-
-            if _mapa_err_m1:
-                st.error(
-                    f"❌ Erro ao gerar o mapa para **{uf}**.\n\n"
-                    f"**Detalhe:** `{type(_mapa_err_m1).__name__}: {_mapa_err_m1}`\n\n"
-                    "Tente recarregar a página ou selecionar outro estado."
-                )
-            elif _mapa_obj_m1 is not None:
-                # Renderiza o mapa FORA do spinner para que o banner de seleção
-                # apareça corretamente acima do mapa (igual ao Modo Busca)
-                _renderizar_mapa(_mapa_obj_m1, height=660, key="mapa_m1_main")
+                    _mapa_obj = criar_mapa(df_show)
+                    _renderizar_mapa(_mapa_obj, height=660, key="mapa_m1_main")
+                except Exception as _mapa_err:
+                    st.error(
+                        f"❌ Erro ao gerar o mapa para **{uf}**.\n\n"
+                        f"**Detalhe:** `{type(_mapa_err).__name__}: {_mapa_err}`\n\n"
+                        "Tente recarregar a página ou selecionar outro estado."
+                    )
+                    import traceback
+                    st.code(traceback.format_exc(), language="python")
 
             # ── Exportar mapa como PNG ─────────────────────────────
             _mc1, _mc2 = st.columns([5, 1])
@@ -12548,18 +11742,7 @@ if modo == "📍 Por UF/Município":
                             f"</div></div>",
                             unsafe_allow_html=True,
                         )
-                        _cnpj_r = "".join(c for c in str(_row_r.get("cnpj","")) if c.isdigit())
-                        _nome_r = str(_row_r.get("razaoSocial",""))
-                        _mun_r  = str(_row_r.get("municipio",""))
-                        _uf_r   = str(_row_r.get("uf",""))
-                        _lat_r  = float(_row_r.get("_lat", 0) or 0)
-                        _lon_r  = float(_row_r.get("_lon", 0) or 0)
-
-                        if "fav_cnpjs" not in st.session_state:
-                            st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _db_favoritos()}
-                        _e_fav_r = _cnpj_r in st.session_state["fav_cnpjs"]
-
-                        _c1r, _c2r, _c3r = st.columns([2, 2, 1])
+                        _c1r, _c2r = st.columns(2)
                         if _c1r.button(
                             "🟢 Definir como Origem",
                             key=f"set_orig_{_idx_r}",
@@ -12594,44 +11777,6 @@ if modo == "📍 Por UF/Município":
                             }
                             st.session_state.pop("_map_rota_result", None)
                             st.rerun()
-                        # ── Botão favorito ─────────────────────────────
-                        _fav_ico = "⭐" if _e_fav_r else "☆"
-                        if _c3r.button(
-                            _fav_ico,
-                            key=f"fav_m1_{_idx_r}",
-                            use_container_width=True,
-                            help="Remover dos favoritos" if _e_fav_r else "Adicionar aos favoritos",
-                        ):
-                            if _e_fav_r:
-                                _db_remove_favorito(_cnpj_r)
-                                st.session_state["fav_cnpjs"].discard(_cnpj_r)
-                                st.toast("Removido dos favoritos", icon="🔖")
-                            else:
-                                _db_add_favorito(_cnpj_r, _nome_r, _mun_r, _uf_r, _lat_r, _lon_r)
-                                st.session_state["fav_cnpjs"].add(_cnpj_r)
-                                st.toast("Adicionado aos favoritos!", icon="🌟")
-                            st.rerun()
-
-                        # ── Anotação rápida ────────────────────────────
-                        with st.expander("📝 Anotação", expanded=False):
-                            _nk = f"nota_posto_{_cnpj_r}"
-                            if _nk not in st.session_state:
-                                st.session_state[_nk] = _db_nota_posto(_cnpj_r)
-                            _nv = st.text_area(
-                                "Nota",
-                                value=st.session_state[_nk],
-                                height=90,
-                                key=f"ta_{_nk}_m1",
-                                placeholder="Contato, condições, restrições…",
-                                label_visibility="collapsed",
-                            )
-                            if st.button("💾 Salvar", key=f"sv_nota_{_cnpj_r}_m1",
-                                         use_container_width=True):
-                                if _db_salvar_nota_posto(_cnpj_r, _nv):
-                                    st.session_state[_nk] = _nv
-                                    st.toast("✅ Anotação salva!", icon="📝")
-                                else:
-                                    st.error("❌ Erro ao salvar.")
                 else:
                     st.warning("⚠️ Nenhum posto encontrado. Tente um nome diferente ou apenas parte do CNPJ.")
 
@@ -12788,206 +11933,6 @@ if modo == "📍 Por UF/Município":
                     pf_dist = df_show[df_show["_pro_frotas"]]["distribuidora"].value_counts().reset_index()
                     pf_dist.columns = ["Distribuidora","Gestão de Frotas"]
                     st.bar_chart(pf_dist.set_index("Distribuidora"), height=300)
-
-        with tab_scores:
-            # ── Base de postos para o ranking ─────────────────────────────
-            _pf_all_sc  = st.session_state.get("pf_coords_df", pd.DataFrame())
-            _pp_df_sc   = st.session_state.get("_pp_df")
-
-            if _pf_all_sc.empty:
-                st.info(
-                    "ℹ️ Carregue a planilha **Gestão de Frotas** em Configurações "
-                    "para visualizar o ranking de scores."
-                )
-            else:
-                _scope_sc = st.radio(
-                    "Postos a classificar:",
-                    ["🌎 Todos os postos carregados", "🔍 Apenas postos filtrados (vista atual)"],
-                    horizontal=True, key="radio_score_scope_m1",
-                )
-                _df_base_sc = (
-                    _pf_all_sc if "Todos" in _scope_sc
-                    else df_show if not df_show.empty
-                    else _pf_all_sc
-                )
-
-                # ── Mediana de preço POR COMBUSTÍVEL ─────────────────────
-                _med_comb_sc: dict = {}
-                if (_pp_df_sc is not None
-                        and "preco" in _pp_df_sc.columns
-                        and "combustivel_pk" in _pp_df_sc.columns):
-                    for _ck_sc, _grp_sc in _pp_df_sc.groupby("combustivel_pk"):
-                        _med_sc = pd.to_numeric(
-                            _grp_sc["preco"], errors="coerce").median()
-                        if pd.notna(_med_sc) and _med_sc > 0:
-                            _med_comb_sc[str(_ck_sc)] = float(_med_sc)
-
-                # ── Índice de score de preço por CNPJ ────────────────────
-                _preco_idx_sc: dict = {}   # cnpj_norm → score_preco (0-100)
-                if _pp_df_sc is not None and "cnpj_norm" in _pp_df_sc.columns and _med_comb_sc:
-                    for _cn_sc, _grp_cn in _pp_df_sc.groupby("cnpj_norm"):
-                        _sp_list_sc = []
-                        for _, _pr_sc in _grp_cn.iterrows():
-                            _pk_sc  = str(_pr_sc.get("combustivel_pk", ""))
-                            _pv_sc  = pd.to_numeric(_pr_sc.get("preco"), errors="coerce")
-                            _ref_sc = _med_comb_sc.get(_pk_sc)
-                            if pd.notna(_pv_sc) and _pv_sc > 0 and _ref_sc:
-                                _d_sc = (_pv_sc - _ref_sc) / _ref_sc
-                                _sp_list_sc.append(
-                                    max(0.0, min(100.0, 50.0 - _d_sc * 500.0))
-                                )
-                        if _sp_list_sc:
-                            _preco_idx_sc[str(_cn_sc)] = (
-                                sum(_sp_list_sc) / len(_sp_list_sc)
-                            )
-
-                # ── Calcula score para cada posto ─────────────────────────
-                _svc_keys_sc = list(
-                    st.session_state.get("_servicos_pf_labels", {}).keys()
-                )
-                _n_max_sc    = max(len(_svc_keys_sc), 1)
-
-                with st.spinner("🧮 Calculando scores…"):
-                    _rows_ranked_sc = []
-                    for _, _row_sc in _df_base_sc.iterrows():
-                        _rd = _row_sc.to_dict()
-                        _cn_norm_sc = re.sub(r'\D', '', str(_rd.get("cnpj", "")))
-
-                        _preco_ref_sc = None
-                        if _cn_norm_sc in _preco_idx_sc:
-                            _avg_sc  = _preco_idx_sc[_cn_norm_sc]
-                            _rd["_preco_posto"] = 1.0 + (50.0 - _avg_sc) / 500.0
-                            _preco_ref_sc = 1.0
-
-                        _sc = _calcular_score_posto(
-                            _rd,
-                            preco_ref_anp=_preco_ref_sc,
-                            lat_ref=None, lon_ref=None,
-                            servicos_keys=_svc_keys_sc,
-                            n_servicos_max=_n_max_sc,
-                        )
-                        _rows_ranked_sc.append({
-                            "score":          _sc["score"],
-                            "grade":          _sc["grade"],
-                            "score_preco":    round(_sc["score_preco"], 1),
-                            "score_servicos": round(_sc["score_servicos"], 1),
-                            "razaoSocial":    str(_rd.get("razaoSocial", "—")),
-                            "municipio":      str(_rd.get("municipio", "")),
-                            "uf":             str(_rd.get("uf", "")),
-                            "distribuidora":  str(_rd.get("distribuidora", "")),
-                            "cnpj":           str(_rd.get("cnpj", "")),
-                            "_pro_frotas":    bool(_rd.get("_pro_frotas", False)),
-                        })
-
-                _df_ranked_sc = (
-                    pd.DataFrame(_rows_ranked_sc)
-                    .sort_values("score", ascending=False)
-                    .head(50)
-                    .reset_index(drop=True)
-                )
-
-                # ── Header ───────────────────────────────────────────────
-                _n_base = len(_df_base_sc)
-                _tem_preco_sc = bool(_preco_idx_sc)
-                st.markdown(
-                    f"<div style='font-size:15px;font-weight:700;color:#1a237e;"
-                    f"margin-bottom:4px'>🏆 Top 50 Postos — Melhores Scores</div>"
-                    f"<div style='font-size:11px;color:#78909c;margin-bottom:12px'>"
-                    f"Universo: {_n(_n_base)} postos · "
-                    f"{'Preço comparado à mediana por combustível' if _tem_preco_sc else 'Sem dados de preço — score neutro (50)'}"
-                    f" · Distância: referência neutra</div>",
-                    unsafe_allow_html=True,
-                )
-
-                # ── Pódio — top 3 ────────────────────────────────────────
-                _podio_emojis = ["🥇","🥈","🥉"]
-                _podio_cols   = st.columns(3)
-                for _pi, (_pod_col, (_, _pr)) in enumerate(
-                    zip(_podio_cols, _df_ranked_sc.head(3).iterrows())
-                ):
-                    _bg_pd, _txt_pd, _brd_pd = _SCORE_CORES.get(
-                        _pr["grade"], ("#f5f5f5","#424242","#e0e0e0")
-                    )
-                    _pod_col.markdown(
-                        f"<div style='background:{_bg_pd};border:2px solid {_brd_pd};"
-                        f"border-radius:12px;padding:12px 10px;text-align:center'>"
-                        f"<div style='font-size:28px'>{_podio_emojis[_pi]}</div>"
-                        f"<div style='font-size:11px;font-weight:700;color:{_txt_pd};"
-                        f"margin:4px 0 2px;line-height:1.3'>{_pr['razaoSocial'][:30]}</div>"
-                        f"<div style='font-size:10px;color:#888'>"
-                        f"{_pr['municipio']} / {_pr['uf']}</div>"
-                        f"<div style='font-size:18px;font-weight:800;color:{_txt_pd};"
-                        f"margin-top:6px'>{_pr['score']:.0f} pts</div>"
-                        f"<div style='font-size:11px;font-weight:600;color:{_txt_pd}'>"
-                        f"Grau {_pr['grade']}</div>"
-                        f"<div style='font-size:10px;color:#999;margin-top:4px'>"
-                        f"💰 {_pr['score_preco']:.0f} · 🔧 {_pr['score_servicos']:.0f}</div>"
-                        f"</div>",
-                        unsafe_allow_html=True,
-                    )
-                st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-
-                # ── Tabela completa Top 50 ────────────────────────────────
-                _tbl_sc_rows = []
-                for _rk_sc, (_, _rw) in enumerate(
-                    _df_ranked_sc.iterrows(), start=1
-                ):
-                    _bg_t, _txt_t, _ = _SCORE_CORES.get(
-                        _rw["grade"], ("#f5f5f5","#424242","#e0e0e0")
-                    )
-                    _ic_t = _SCORE_ICONES.get(_rw["grade"], "⚪")
-                    _badge_t = (
-                        f"<span style='background:{_bg_t};color:{_txt_t};"
-                        f"border-radius:20px;padding:2px 8px;"
-                        f"font-size:11px;font-weight:700'>"
-                        f"{_ic_t} {_rw['score']:.0f} ({_rw['grade']})</span>"
-                    )
-                    _pf_mark = "⭐" if _rw["_pro_frotas"] else ""
-                    _tbl_sc_rows.append({
-                        "#":              _rk_sc,
-                        "Score":          _rw["score"],  # numérico — para ordenação
-                        "Grau":           f"{_ic_t} {_rw['grade']}",
-                        "Posto":          _rw["razaoSocial"][:40],
-                        "Cidade/UF":      f"{_rw['municipio']} / {_rw['uf']}",
-                        "Bandeira":       _rw["distribuidora"],
-                        "GF":             _pf_mark,
-                        "💰 Preço":       round(_rw["score_preco"], 1),
-                        "🔧 Serviços":    round(_rw["score_servicos"], 1),
-                    })
-
-                _df_tbl_sc = pd.DataFrame(_tbl_sc_rows)
-                st.dataframe(
-                    _df_tbl_sc,
-                    use_container_width=True,
-                    height=600,
-                    column_config={
-                        "#":           st.column_config.NumberColumn("#", width=40),
-                        "Score":       st.column_config.ProgressColumn(
-                            "Score", format="%.0f", min_value=0, max_value=100, width=120
-                        ),
-                        "Grau":        st.column_config.TextColumn("Grau", width=70),
-                        "Posto":       st.column_config.TextColumn("Posto", width=220),
-                        "Cidade/UF":   st.column_config.TextColumn("Cidade/UF", width=160),
-                        "Bandeira":    st.column_config.TextColumn("Bandeira", width=120),
-                        "GF":          st.column_config.TextColumn("GF ⭐", width=40),
-                        "💰 Preço":    st.column_config.NumberColumn("💰 Preço", format="%.1f", width=80),
-                        "🔧 Serviços": st.column_config.NumberColumn("🔧 Serviços", format="%.1f", width=80),
-                    },
-                    hide_index=True,
-                )
-
-                # ── Legenda ───────────────────────────────────────────────
-                st.markdown(
-                    "<div style='font-size:11px;color:#90a4ae;margin-top:6px'>"
-                    "🟢 <b>A</b> ≥ 75 pts &nbsp;|&nbsp; "
-                    "🔵 <b>B</b> 55–74 &nbsp;|&nbsp; "
-                    "🟡 <b>C</b> 35–54 &nbsp;|&nbsp; "
-                    "🔴 <b>D</b> &lt; 35 &nbsp;·&nbsp; "
-                    "💰 Preço vs mediana do combustível · 🔧 Serviços disponíveis · "
-                    "GF ⭐ = credenciado Gestão de Frotas"
-                    "</div>",
-                    unsafe_allow_html=True,
-                )
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
@@ -13266,8 +12211,8 @@ elif modo == "🗺️ Por Rota":
                 else:
                     st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
 
-        tab_m, tab_d, tab_comp = st.tabs([
-            "🗺️  Mapa da Rota", "📋  Postos na Rota", "⚖️  Comparativo de Rotas"])
+        tab_m, tab_d = st.tabs([
+            "🗺️  Mapa da Rota", "📋  Postos na Rota"])
 
         with tab_m:
             with st.spinner(f"🗺️ Carregando mapa da rota — {_n(len(df_show_r))} postos…"):
@@ -13489,471 +12434,6 @@ elif modo == "🗺️ Por Rota":
             st.download_button("⬇️ Baixar dados em CSV",
                                df_show_r.to_csv(index=False).encode("utf-8"),
                                "postos_rota.csv","text/csv", use_container_width=True)
-
-        with tab_comp:
-            # ════════════════════════════════════════════════════════════
-            #  Comparativo de Rotas Alternativas
-            # ════════════════════════════════════════════════════════════
-            st.markdown(
-                "<div style='font-size:15px;font-weight:700;color:#1a237e;"
-                "margin-bottom:2px'>⚖️ Comparativo de Rotas Alternativas</div>"
-                "<div style='font-size:11px;color:#78909c;margin-bottom:14px'>"
-                "Compare dois trajetos entre o mesmo par Origem/Destino. "
-                "A Rota A é o trajeto já calculado. "
-                "Defina um ponto de desvio para criar a Rota B.</div>",
-                unsafe_allow_html=True,
-            )
-
-            # ── Configuração do veículo para o comparativo ───────────────
-            with st.expander("⚙️ Configuração do Veículo", expanded=False):
-                _pp_df_comp_cfg = st.session_state.get("_pp_df")
-                _combs_comp = []
-                if _pp_df_comp_cfg is not None and "combustivel_label" in _pp_df_comp_cfg.columns:
-                    _combs_comp = sorted(
-                        _pp_df_comp_cfg["combustivel_label"].dropna().str.strip().unique().tolist()
-                    )
-
-                _cfg_c1, _cfg_c2 = st.columns(2)
-                # Autonomia
-                _aut_default = float(st.session_state.get("rot_autonomia") or
-                                     st.session_state.get("_comp_autonomia") or 10.0)
-                _aut_comp = _cfg_c1.number_input(
-                    "🚛 Autonomia do veículo (km/L)",
-                    min_value=1.0, max_value=100.0,
-                    value=_aut_default, step=0.5,
-                    key="comp_autonomia_input",
-                    help="Consumo médio do veículo. Usado para calcular o custo estimado de cada rota.",
-                )
-                st.session_state["_comp_autonomia"] = _aut_comp
-
-                # Combustível
-                _comb_default = st.session_state.get("rot_combustivel", "") or \
-                                st.session_state.get("_comp_combustivel", "")
-                _comb_idx = 0
-                _comb_opts_comp = ["— Todos os combustíveis —"] + _combs_comp
-                if _comb_default and _comb_default in _comb_opts_comp:
-                    _comb_idx = _comb_opts_comp.index(_comb_default)
-                _comb_comp = _cfg_c2.selectbox(
-                    "⛽ Combustível",
-                    _comb_opts_comp,
-                    index=_comb_idx,
-                    key="comp_combustivel_sel",
-                    help="Filtra os preços pelo combustível selecionado ao calcular o custo.",
-                )
-                if _comb_comp and _comb_comp != "— Todos os combustíveis —":
-                    st.session_state["_comp_combustivel"] = _comb_comp
-                else:
-                    _comb_comp = ""
-
-                if not _combs_comp:
-                    st.caption("ℹ️ Carregue a planilha de preços em Configurações para habilitar o seletor de combustível.")
-
-            # ── Linha reta O→D (referência de desvio) ────────────────────
-            def _hav_km(la1, lo1, la2, lo2):
-                _R = 6371.0
-                _dl = _math_mod.radians(la2 - la1)
-                _dlo = _math_mod.radians(lo2 - lo1)
-                _a = (_math_mod.sin(_dl/2)**2 +
-                      _math_mod.cos(_math_mod.radians(la1)) *
-                      _math_mod.cos(_math_mod.radians(la2)) *
-                      _math_mod.sin(_dlo/2)**2)
-                return _R * 2 * _math_mod.atan2(_math_mod.sqrt(_a), _math_mod.sqrt(1-_a))
-
-            _dist_reta_comp = _hav_km(lat_orig, lon_orig, lat_dest, lon_dest)
-
-            # ── Definir via point para Rota B ────────────────────────────
-            st.markdown("##### 🔵 Rota B — ponto intermediário alternativo")
-
-            # Lê seleção prévia antes de qualquer widget
-            _comp_via_sel = st.session_state.get("_comp_via_b_sel")
-
-            if _comp_via_sel:
-                # Via já escolhida: mostra confirmação + botão de limpar
-                _c_ok1, _c_ok2 = st.columns([4, 1])
-                _c_ok1.success(f"✅ Via B: **{_comp_via_sel['label']}**")
-                if _c_ok2.button("🗑️ Limpar via", key="btn_limpar_via_b",
-                                 use_container_width=True):
-                    st.session_state.pop("_comp_via_b_sel", None)
-                    st.session_state.pop("_comp_rota_b", None)
-                    st.rerun()
-            else:
-                # Via ainda não escolhida: exibe busca
-                _comp_via_txt = st.text_input(
-                    "Via intermediária (Rota B)",
-                    placeholder="Ex: Campinas, Londrina, Ribeirão Preto…",
-                    key="comp_via_b_txt",
-                    help="Digite uma cidade ou posto para desviar a Rota B",
-                    label_visibility="collapsed",
-                )
-                if _comp_via_txt and len(_comp_via_txt.strip()) >= 3:
-                    with st.spinner("🔍 Buscando localidades…"):
-                        _comp_sugs = (
-                            sugestoes_nominatim(_comp_via_txt)
-                            + buscar_posto_por_texto(_comp_via_txt, max_results=3)
-                        )
-                    if _comp_sugs:
-                        _comp_labels = [s["label"] for s in _comp_sugs]
-                        _comp_choice = st.selectbox(
-                            "Selecione o ponto de desvio:",
-                            ["— Selecione —"] + _comp_labels,
-                            key="comp_via_b_choice",
-                            label_visibility="collapsed",
-                        )
-                        if _comp_choice != "— Selecione —":
-                            _idx_c = _comp_labels.index(_comp_choice)
-                            # Grava e força re-render para mostrar estado "via escolhida"
-                            st.session_state["_comp_via_b_sel"] = _comp_sugs[_idx_c]
-                            st.rerun()
-                    else:
-                        st.caption("Nenhuma localidade encontrada. Tente outro termo.")
-
-            _btn_calc_b = st.button(
-                "🔄 Calcular Rota B",
-                disabled=(_comp_via_sel is None),
-                use_container_width=False,
-                key="btn_calc_rota_b",
-                type="primary",
-            )
-
-            if _btn_calc_b and _comp_via_sel:
-                with st.spinner(f"🗺️ Calculando Rota B via {_comp_via_sel['label']}…"):
-                    _cr_b, _dk_b, _dm_b, _lr_b = calcular_rota(
-                        lat_orig, lon_orig, lat_dest, lon_dest,
-                        waypoints=[[_comp_via_sel["lat"], _comp_via_sel["lon"]]],
-                    )
-                # Postos na Rota B
-                _pf_comp = st.session_state.get("pf_coords_df", pd.DataFrame())
-                _ufs_b   = ufs_ao_longo_rota(_cr_b)
-                _ufs_b_s = {u.upper() for u in _ufs_b}
-                _df_rb   = pd.DataFrame()
-                if not _pf_comp.empty:
-                    _pf_b_tmp = _pf_comp[
-                        _pf_comp["uf"].fillna("").str.upper().str.strip().isin(_ufs_b_s)
-                    ].copy()
-                    if not _pf_b_tmp.empty:
-                        _dists_b = dist_minima_rota_np(
-                            _pf_b_tmp["_lat"].values,
-                            _pf_b_tmp["_lon"].values,
-                            _cr_b,
-                        )
-                        _pf_b_tmp["_dist_rota"] = _dists_b
-                        _df_rb = preparar_df(
-                            _pf_b_tmp[_pf_b_tmp["_dist_rota"] <= raio_usado].copy(),
-                            [], perfis_filtro=[], filtro_servicos=[], filtro_24h=False,
-                        )
-                st.session_state["_comp_rota_b"] = {
-                    "coords":     _cr_b,
-                    "dist_km":    _dk_b,
-                    "dur_min":    _dm_b,
-                    "linha_reta": _lr_b,
-                    "df_rota":    _df_rb,
-                    "via":        _comp_via_sel,
-                }
-                # sem st.rerun() — o comparativo é renderizado na sequência
-
-            # ── Exibe comparativo quando Rota B está pronta ───────────────
-            _comp_b = st.session_state.get("_comp_rota_b")
-            if _comp_b:
-                _df_b   = _comp_b["df_rota"]
-                _dk_b   = float(_comp_b["dist_km"] or 0)
-                _dm_b   = float(_comp_b["dur_min"]  or 0)
-                _via_b  = _comp_b["via"]
-
-                # Custo estimado — usa autonomia e combustível definidos no comparativo
-                _aut_c  = float(st.session_state.get("_comp_autonomia") or
-                                st.session_state.get("rot_autonomia") or 10.0)
-                _comb_c = (st.session_state.get("_comp_combustivel") or
-                           st.session_state.get("rot_combustivel") or "")
-                _pp_c   = st.session_state.get("_pp_df")
-
-                def _preco_med_rota(df_r, comb_lbl, pp_df):
-                    if pp_df is None or df_r.empty or "cnpj" not in df_r.columns:
-                        return None
-                    _cn_s = set(
-                        df_r["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
-                    )
-                    _pp_f = pp_df[pp_df["cnpj_norm"].isin(_cn_s)]
-                    if comb_lbl and comb_lbl not in ("—", ""):
-                        _pp_f = _pp_f[
-                            _pp_f["combustivel_label"].str.strip() == comb_lbl
-                        ]
-                    if _pp_f.empty:
-                        return None
-                    return float(pd.to_numeric(_pp_f["preco"], errors="coerce").median())
-
-                _pa = _preco_med_rota(df_show_r, _comb_c, _pp_c)
-                _pb = _preco_med_rota(_df_b,    _comb_c, _pp_c)
-
-                def _custo_est(dist, aut, preco):
-                    if aut and preco and aut > 0:
-                        return round(dist / aut * preco, 2)
-                    return None
-
-                _ca = _custo_est(dist_km, _aut_c, _pa)
-                _cb_v = _custo_est(_dk_b,   _aut_c, _pb)
-                _dev_a = ((dist_km - _dist_reta_comp) / _dist_reta_comp * 100
-                          if _dist_reta_comp else 0)
-                _dev_b = ((_dk_b   - _dist_reta_comp) / _dist_reta_comp * 100
-                          if _dist_reta_comp else 0)
-
-                # ── Cards lado a lado ─────────────────────────────────────
-                _aut_info = f"{_brl(_aut_c, 1)} km/L"
-                _comb_info = f" · Combustível: <b>{_comb_c}</b>" if _comb_c and _comb_c not in ("", "—") else ""
-                _custo_ok = _pp_c is not None and not _pp_c.empty
-                _aviso_custo = (
-                    "" if _custo_ok else
-                    " &nbsp;·&nbsp; <span style='color:#e65100'>⚠️ Sem planilha de preços — custo não calculado</span>"
-                )
-                st.markdown(
-                    f"<div style='font-size:11px;color:#78909c;margin-bottom:10px'>"
-                    f"📐 Linha reta O→D: <b>{_brl(_dist_reta_comp, 1)} km</b> &nbsp;·&nbsp; "
-                    f"Autonomia: <b>{_aut_info}</b>{_comb_info}{_aviso_custo}"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-
-                _cA, _cB = st.columns(2)
-
-                def _fmtbr_card(v, dec=1):
-                    """Formata número no padrão pt-BR (ponto milhar, vírgula decimal)."""
-                    s = f"{v:,.{dec}f}"
-                    return s.replace(",", "X").replace(".", ",").replace("X", ".")
-
-                def _card_rota(col, titulo, cor_borda, cor_txt,
-                               rota_label, via_label,
-                               dist, dur, n_gf, n_total,
-                               desvio, preco_med, custo):
-                    _h_str = f"{int(dur//60)}h {int(dur%60):02d}min"
-                    _p_str = f"R$ {_fmtbr_card(preco_med, 3)}/L" if preco_med else "—"
-                    _c_str = f"R$ {_fmtbr_card(custo, 2)}" if custo else "—"
-                    _dev_str = (f"+{_fmtbr_card(desvio)}%"
-                                if desvio >= 0 else f"{_fmtbr_card(desvio)}%")
-                    col.markdown(
-                        f"<div style='border:2px solid {cor_borda};"
-                        f"border-radius:14px;padding:14px 16px;height:100%'>"
-                        f"<div style='font-size:15px;font-weight:800;color:{cor_txt};"
-                        f"margin-bottom:10px'>{titulo}</div>"
-                        f"<div style='font-size:11px;color:#555;margin-bottom:8px'>"
-                        f"📍 {rota_label}</div>"
-                        f"{'<div style=\"font-size:10px;color:#888;margin-bottom:8px\">🔀 Via: ' + via_label + '</div>' if via_label else ''}"
-                        f"<table style='width:100%;border-collapse:collapse;font-size:12px'>"
-                        f"<tr><td style='padding:4px 0;color:#666'>🛣️ Distância</td>"
-                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_fmtbr_card(dist)} km</td></tr>"
-                        f"<tr><td style='padding:4px 0;color:#666'>⏱️ Tempo</td>"
-                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_h_str}</td></tr>"
-                        f"<tr><td style='padding:4px 0;color:#666'>⭐ Postos GF</td>"
-                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{n_gf}</td></tr>"
-                        f"<tr><td style='padding:4px 0;color:#666'>⛽ Total postos</td>"
-                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{n_total}</td></tr>"
-                        f"<tr><td style='padding:4px 0;color:#666'>📐 Desvio</td>"
-                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_dev_str}</td></tr>"
-                        f"<tr><td style='padding:4px 0;color:#666'>💰 Preço médio</td>"
-                        f"<td style='padding:4px 0;font-weight:700;text-align:right'>{_p_str}</td></tr>"
-                        f"<tr><td style='padding:4px 0;color:#666'>🧾 Custo est.</td>"
-                        f"<td style='padding:4px 0;font-weight:700;color:#2e7d32;text-align:right'>{_c_str}</td></tr>"
-                        f"</table></div>",
-                        unsafe_allow_html=True,
-                    )
-
-                _via_a_label = " → ".join(
-                    [wp["label"][:20] for wp in st.session_state.get("_paradas_data", [])]
-                ) if st.session_state.get("_paradas_data") else ""
-
-                _card_rota(
-                    _cA, "🟢 Rota A", "#2e7d32", "#1b5e20",
-                    f"{label_orig[:25]} → {label_dest[:25]}", _via_a_label,
-                    dist_km, dur_min,
-                    n_pf(df_show_r), len(df_show_r),
-                    _dev_a, _pa, _ca,
-                )
-                _card_rota(
-                    _cB, "🔵 Rota B", "#1565c0", "#0d3c7d",
-                    f"{label_orig[:25]} → {label_dest[:25]}", _via_b["label"][:30],
-                    _dk_b, _dm_b,
-                    n_pf(_df_b), len(_df_b),
-                    _dev_b, _pb, _cb_v,
-                )
-
-                # ── Veredito ─────────────────────────────────────────────
-                st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-
-                def _fmtbr(v, dec=1):
-                    """Formata número no padrão pt-BR: ponto milhar, vírgula decimal."""
-                    s = f"{v:,.{dec}f}"          # ex: "1,813.6"
-                    return s.replace(",", "X").replace(".", ",").replace("X", ".")
-
-                _vereditos = []
-                if dist_km < _dk_b:
-                    _vereditos.append("🟢 **Rota A é mais curta** "
-                                      f"({_fmtbr(dist_km)} km vs {_fmtbr(_dk_b)} km, "
-                                      f"diferença: {_fmtbr(_dk_b - dist_km)} km)")
-                elif _dk_b < dist_km:
-                    _vereditos.append("🔵 **Rota B é mais curta** "
-                                      f"({_fmtbr(_dk_b)} km vs {_fmtbr(dist_km)} km, "
-                                      f"diferença: {_fmtbr(dist_km - _dk_b)} km)")
-                else:
-                    _vereditos.append("⚖️ Distâncias equivalentes.")
-
-                if dur_min < _dm_b:
-                    _vereditos.append(f"🟢 **Rota A é mais rápida** "
-                                      f"({int(dur_min//60)}h{int(dur_min%60):02d}min "
-                                      f"vs {int(_dm_b//60)}h{int(_dm_b%60):02d}min)")
-                elif _dm_b < dur_min:
-                    _vereditos.append(f"🔵 **Rota B é mais rápida** "
-                                      f"({int(_dm_b//60)}h{int(_dm_b%60):02d}min "
-                                      f"vs {int(dur_min//60)}h{int(dur_min%60):02d}min)")
-
-                if n_pf(df_show_r) > n_pf(_df_b):
-                    _vereditos.append(f"🟢 **Rota A tem mais postos GF** "
-                                      f"({n_pf(df_show_r)} vs {n_pf(_df_b)})")
-                elif n_pf(_df_b) > n_pf(df_show_r):
-                    _vereditos.append(f"🔵 **Rota B tem mais postos GF** "
-                                      f"({n_pf(_df_b)} vs {n_pf(df_show_r)})")
-
-                if _ca is not None and _cb_v is not None:
-                    if _ca < _cb_v:
-                        _vereditos.append(f"🟢 **Rota A tem menor custo estimado** "
-                                          f"(R$ {_fmtbr(_ca, 2)} vs R$ {_fmtbr(_cb_v, 2)})")
-                    elif _cb_v < _ca:
-                        _vereditos.append(f"🔵 **Rota B tem menor custo estimado** "
-                                          f"(R$ {_fmtbr(_cb_v, 2)} vs R$ {_fmtbr(_ca, 2)})")
-
-                if _vereditos:
-                    with st.expander("📊 Veredito do comparativo", expanded=True):
-                        for _v in _vereditos:
-                            st.markdown(f"- {_v}")
-
-                # ── Mapa com as duas rotas sobrepostas ────────────────────
-                st.markdown("#### 🗺️ Mapa — Rotas A e B")
-                if _comp_b.get("coords"):
-                    try:
-                        # Rota A: linha verde sólida (cor padrão)
-                        _m_comp = criar_mapa(
-                            df_show_r,
-                            coords_rota=coords_rota,
-                            lat_orig=lat_orig, lon_orig=lon_orig,
-                            lat_dest=lat_dest, lon_dest=lon_dest,
-                            label_orig=label_orig, label_dest=label_dest,
-                        )
-                        # Sobrepõe Rota B como trace Plotly (laranja tracejado)
-                        _cr_b_coords = _comp_b["coords"]
-                        if _cr_b_coords and len(_cr_b_coords) >= 2:
-                            _cr_b_ds = _downsample(_cr_b_coords, 500)
-                            _m_comp.add_trace(go.Scattermapbox(
-                                lat=[c[0] for c in _cr_b_ds],
-                                lon=[c[1] for c in _cr_b_ds],
-                                mode="lines",
-                                line=dict(width=4, color="#E65100"),
-                                hoverinfo="skip",
-                                name="Rota B",
-                                showlegend=True,
-                            ))
-                            # Marcador do ponto de desvio
-                            _m_comp.add_trace(go.Scattermapbox(
-                                lat=[_via_b["lat"]],
-                                lon=[_via_b["lon"]],
-                                mode="markers+text",
-                                marker=dict(size=14, color="#E65100"),
-                                text=[f"🔀 Via B: {_via_b['label'][:30]}"],
-                                textposition="top right",
-                                hoverinfo="text",
-                                name="Via B",
-                                showlegend=False,
-                            ))
-                        _renderizar_mapa(_m_comp, height=500, key="mapa_comp_ab")
-                    except Exception as _em_c:
-                        st.warning(f"Mapa não disponível: {_em_c}")
-                    st.caption(
-                        "🔵 Linha azul = Rota A  ·  🟠 Linha laranja = Rota B"
-                    )
-
-                # ── Botão Gerar PDF do Comparativo ───────────────────────
-                st.markdown(
-                    "<div style='height:8px'></div>",
-                    unsafe_allow_html=True,
-                )
-                # Chave de cache: muda se a rota mudar
-                _pdf_comp_sig = (
-                    f"{dist_km:.2f}_{dur_min:.0f}"
-                    f"_{_dk_b:.2f}_{_dm_b:.0f}"
-                    f"_{_via_b.get('label','')}"
-                )
-                if st.session_state.get("_pdf_comp_sig") != _pdf_comp_sig:
-                    st.session_state.pop("_pdf_comp_bytes", None)
-
-                _pdf_comp_cached = st.session_state.get("_pdf_comp_bytes")
-
-                _pc1, _pc2, _pc3 = st.columns([3, 2, 1])
-                if _pdf_comp_cached:
-                    _pc2.download_button(
-                        "⬇️ Baixar PDF do Comparativo",
-                        data=_pdf_comp_cached,
-                        file_name="comparativo_rotas.pdf",
-                        mime="application/pdf",
-                        key="dl_pdf_comp_rotas",
-                        use_container_width=True,
-                        type="primary",
-                    )
-                    if _pc3.button("🔄", key="btn_regen_pdf_comp",
-                                   help="Regerar PDF", use_container_width=True):
-                        st.session_state.pop("_pdf_comp_bytes", None)
-                        st.rerun()
-                else:
-                    if _pc2.button(
-                        "📄 Gerar PDF do Comparativo",
-                        key="btn_gerar_pdf_comp",
-                        use_container_width=True,
-                        type="secondary",
-                    ):
-                        with st.spinner("Gerando PDF do comparativo A vs B…"):
-                            _dados_pdf_a = {
-                                "dist_km":    dist_km,
-                                "dur_min":    dur_min,
-                                "n_gf":       n_pf(df_show_r),
-                                "n_total":    len(df_show_r),
-                                "desvio_pct": _dev_a,
-                                "preco_med":  _pa,
-                                "custo_est":  _ca,
-                                "via_label":  _via_a_label,
-                                "coords":     coords_rota,
-                                "lat_orig":   lat_orig,
-                                "lon_orig":   lon_orig,
-                                "lat_dest":   lat_dest,
-                                "lon_dest":   lon_dest,
-                                "via_lat":    None,
-                                "via_lon":    None,
-                            }
-                            _dados_pdf_b = {
-                                "dist_km":    _dk_b,
-                                "dur_min":    _dm_b,
-                                "n_gf":       n_pf(_df_b),
-                                "n_total":    len(_df_b),
-                                "desvio_pct": _dev_b,
-                                "preco_med":  _pb,
-                                "custo_est":  _cb_v,
-                                "via_label":  _via_b.get("label", ""),
-                                "coords":     _comp_b.get("coords", []),
-                                "lat_orig":   lat_orig,
-                                "lon_orig":   lon_orig,
-                                "lat_dest":   lat_dest,
-                                "lon_dest":   lon_dest,
-                                "via_lat":    _via_b.get("lat"),
-                                "via_lon":    _via_b.get("lon"),
-                            }
-                            try:
-                                _pdf_bytes_new = gerar_pdf_comparativo_rotas(
-                                    _dados_pdf_a,
-                                    _dados_pdf_b,
-                                    label_orig=label_orig,
-                                    label_dest=label_dest,
-                                    dist_reta=_dist_reta_comp,
-                                    logo_b64=_LOGO_B64,
-                                )
-                                st.session_state["_pdf_comp_bytes"] = _pdf_bytes_new
-                                st.session_state["_pdf_comp_sig"]   = _pdf_comp_sig
-                                st.rerun()
-                            except Exception as _epdf:
-                                st.error(f"Erro ao gerar PDF: {_epdf}")
 
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
@@ -14301,10 +12781,6 @@ elif modo == "🔍 Consulta por Posto":
                     unsafe_allow_html=True,
                 )
                 st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-                # Garante que fav_cnpjs está carregado
-                if "fav_cnpjs" not in st.session_state:
-                    st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _db_favoritos()}
-
                 for _idx_od, _row_od in _df_m3_od.iterrows():
                     _ic_od  = "⭐" if bool(_row_od.get("_pro_frotas")) else "⛽"
                     _nm_od  = str(_row_od.get("razaoSocial", "?"))[:50]
@@ -14321,13 +12797,10 @@ elif modo == "🔍 Consulta por Posto":
                     # Destaca quando já selecionado
                     _is_orig_od = (_m3_map_o or {}).get("cnpj") == _cn_od and _cn_od != "—"
                     _is_dest_od = (_m3_map_d or {}).get("cnpj") == _cn_od and _cn_od != "—"
-                    _e_fav_od   = _cn_od in st.session_state["fav_cnpjs"]
                     _brd_od = ("#43a047" if _is_orig_od else
-                               "#e53935" if _is_dest_od else
-                               "#f9a825" if _e_fav_od  else "#e0e0e0")
+                               "#e53935" if _is_dest_od else "#e0e0e0")
                     _bg_od  = ("#f1f8e9" if _is_orig_od else
-                               "#fff8f8" if _is_dest_od else
-                               "#fffde7" if _e_fav_od  else "#fff")
+                               "#fff8f8" if _is_dest_od else "#fff")
                     st.markdown(
                         f"<div style='background:{_bg_od};border:1px solid {_brd_od};"
                         f"border-radius:8px;padding:8px 12px;margin-bottom:4px;"
@@ -14339,9 +12812,9 @@ elif modo == "🔍 Consulta por Posto":
                         f"</div></div>",
                         unsafe_allow_html=True,
                     )
-                    _c1_od, _c2_od, _c3_od = st.columns(3)
+                    _c1_od, _c2_od = st.columns(2)
                     if _c1_od.button(
-                        "🟢 Origem" + (" ✔" if _is_orig_od else ""),
+                        "🟢 Definir Origem" + (" ✔" if _is_orig_od else ""),
                         key=f"m3_set_orig_{_idx_od}",
                         use_container_width=True,
                         type="primary" if not _m3_o_ok else "secondary",
@@ -14350,7 +12823,7 @@ elif modo == "🔍 Consulta por Posto":
                         st.session_state["_map_orig"] = _sel_od
                         st.rerun()
                     if _c2_od.button(
-                        "🔴 Destino" + (" ✔" if _is_dest_od else ""),
+                        "🔴 Definir Destino" + (" ✔" if _is_dest_od else ""),
                         key=f"m3_set_dest_{_idx_od}",
                         use_container_width=True,
                         type="primary" if not _m3_d_ok else "secondary",
@@ -14358,52 +12831,6 @@ elif modo == "🔍 Consulta por Posto":
                     ):
                         st.session_state["_map_dest"] = _sel_od
                         st.rerun()
-                    _fav_lbl_od = "⭐ Fav." if _e_fav_od else "☆ Fav."
-                    if _c3_od.button(
-                        _fav_lbl_od,
-                        key=f"m3_fav_{_idx_od}",
-                        use_container_width=True,
-                        help="Adicionar/remover dos favoritos",
-                    ):
-                        if _e_fav_od:
-                            _db_remove_favorito(_cn_od)
-                            st.session_state["fav_cnpjs"].discard(_cn_od)
-                            st.toast("Removido dos favoritos", icon="🔖")
-                        else:
-                            _db_add_favorito(
-                                _cn_od,
-                                str(_row_od.get("razaoSocial", "")),
-                                str(_row_od.get("municipio", "")),
-                                str(_row_od.get("uf", "")),
-                                float(_row_od.get("_lat") or 0),
-                                float(_row_od.get("_lon") or 0),
-                            )
-                            st.session_state["fav_cnpjs"].add(_cn_od)
-                            st.toast("Adicionado aos favoritos!", icon="🌟")
-                        st.rerun()
-
-                    # ── Anotação por posto ────────────────────────────
-                    _nota_key_od = f"nota_posto_{_cn_od}"
-                    if _nota_key_od not in st.session_state:
-                        st.session_state[_nota_key_od] = _db_nota_posto(_cn_od)
-                    _tem_nota_od = bool(st.session_state[_nota_key_od])
-                    _exp_lbl_od  = f"📝 Anotação{'  ✏️' if _tem_nota_od else ''}"
-                    with st.expander(_exp_lbl_od, expanded=False):
-                        _nota_val_od = st.text_area(
-                            "Nota",
-                            value=st.session_state[_nota_key_od],
-                            height=90,
-                            key=f"ta_m3_{_cn_od}_{_idx_od}",
-                            placeholder="Contato, condições, restrições…",
-                            label_visibility="collapsed",
-                        )
-                        if st.button("💾 Salvar", key=f"btn_nota_m3_{_cn_od}_{_idx_od}",
-                                     use_container_width=True):
-                            if _db_salvar_nota_posto(_cn_od, _nota_val_od):
-                                st.session_state[_nota_key_od] = _nota_val_od
-                                st.toast("✅ Anotação salva!", icon="📝")
-                            else:
-                                st.error("❌ Erro ao salvar.")
                 if len(_df_m3) > 8:
                     st.caption(f"Exibindo 8 de {len(_df_m3)} resultados. Refine a busca para ver mais.")
 
@@ -14451,54 +12878,6 @@ elif modo == "🔍 Consulta por Posto":
                         f"</table></div>",
                         unsafe_allow_html=True,
                     )
-                    # ── Favorito + Anotação (apenas resultado único) ───────────
-                    _cnpj_det = str(_r.get("cnpj", "")).replace(".", "").replace("/", "").replace("-", "")
-                    _nome_det = str(_r.get("razaoSocial", ""))
-                    _mun_det  = str(_r.get("municipio", ""))
-                    _uf_det   = str(_r.get("uf", ""))
-                    _lat_det  = float(_r.get("_lat", 0) or 0)
-                    _lon_det  = float(_r.get("_lon", 0) or 0)
-
-                    if "fav_cnpjs" not in st.session_state:
-                        st.session_state["fav_cnpjs"] = {r["cnpj"] for r in _db_favoritos()}
-
-                    _e_fav = _cnpj_det in st.session_state["fav_cnpjs"]
-                    _col_fav_a, _col_fav_b = st.columns([1, 1])
-                    with _col_fav_a:
-                        _fav_label = "⭐ Remover Favorito" if _e_fav else "☆ Adicionar Favorito"
-                        if st.button(_fav_label, use_container_width=True, key="btn_fav_det"):
-                            if _e_fav:
-                                _db_remove_favorito(_cnpj_det)
-                                st.session_state["fav_cnpjs"].discard(_cnpj_det)
-                                st.toast("Removido dos favoritos", icon="🔖")
-                            else:
-                                _db_add_favorito(_cnpj_det, _nome_det, _mun_det,
-                                                 _uf_det, _lat_det, _lon_det)
-                                st.session_state["fav_cnpjs"].add(_cnpj_det)
-                                st.toast("Adicionado aos favoritos!", icon="🌟")
-                            st.rerun()
-
-                    # ── Anotação interna ──────────────────────────────────────
-                    with st.expander("📝 Anotação interna", expanded=False):
-                        _nota_key = f"nota_posto_{_cnpj_det}"
-                        if _nota_key not in st.session_state:
-                            st.session_state[_nota_key] = _db_nota_posto(_cnpj_det)
-                        _nota_val = st.text_area(
-                            "Notas (contato, condições, restrições…)",
-                            value=st.session_state[_nota_key],
-                            height=120,
-                            key=f"ta_{_nota_key}",
-                            placeholder="Ex: Falar com João - (11) 99999-0000 · só atende caminhão com agendamento",
-                            label_visibility="collapsed",
-                        )
-                        if st.button("💾 Salvar anotação", key=f"btn_nota_{_cnpj_det}",
-                                     use_container_width=True):
-                            if _db_salvar_nota_posto(_cnpj_det, _nota_val):
-                                st.session_state[_nota_key] = _nota_val
-                                st.toast("✅ Anotação salva!", icon="📝")
-                            else:
-                                st.error("❌ Erro ao salvar. Verifique a conexão com o banco.")
-
                 else:
                     # Tabela para múltiplos resultados
                     _cols_m3 = [c for c in [
@@ -15450,12 +13829,12 @@ if modo == "📊 Dashboard":
                         # KPIs
                         _ac1, _ac2, _ac3, _ac4 = st.columns(4)
                         _ac1.metric("⚠️ Postos em Alerta", _fmt_int(_n_alertas),
-                                    delta=f"{_brl(_pct_alert, 1)}% da base",
+                                    delta=f"{_pct_alert:.1f}% da base",
                                     delta_color="inverse")
                         _ac2.metric("✅ Dentro da Média", _fmt_int(_n_ok),
-                                    delta=f"{_brl(100-_pct_alert, 1)}% da base")
-                        _ac3.metric("📈 Pior Desvio", f"+{_brl(_pior_diff*100, 1)}%" if _n_alertas > 0 else "—")
-                        _ac4.metric("📊 Desvio Médio", f"+{_brl(_media_diff*100, 1)}%" if _n_alertas > 0 else "—")
+                                    delta=f"{100-_pct_alert:.1f}% da base")
+                        _ac3.metric("📈 Pior Desvio", f"+{_pior_diff*100:.1f}%" if _n_alertas > 0 else "—")
+                        _ac4.metric("📊 Desvio Médio", f"+{_media_diff*100:.1f}%" if _n_alertas > 0 else "—")
 
                         if not _sem_anp:
                             st.caption(f"🔍 Referência ANP utilizada principalmente: **{_nivel_info}**")
@@ -15525,7 +13904,7 @@ if modo == "📊 Dashboard":
                                 _alerta_uf_disp = _alerta_uf[["uf_nome", "postos_alerta", "pior_desvio"]].copy()
                                 _alerta_uf_disp.columns = ["Estado", "Postos", "Pior Desvio"]
                                 _alerta_uf_disp["Pior Desvio"] = _alerta_uf_disp["Pior Desvio"].apply(
-                                    lambda v: f"+{_brl(v*100, 1)}%"
+                                    lambda v: f"+{v*100:.1f}%"
                                 )
                                 st.dataframe(_alerta_uf_disp, use_container_width=True, hide_index=True)
 
@@ -15559,7 +13938,7 @@ if modo == "📊 Dashboard":
 
                             if "Desvio %" in _top_piores_disp.columns:
                                 _top_piores_disp["Desvio %"] = _top_piores_disp["Desvio %"].apply(
-                                    lambda v: f"+{_brl(v*100, 1)}%" if pd.notna(v) else "—"
+                                    lambda v: f"+{v*100:.1f}%" if pd.notna(v) else "—"
                                 )
                             if "Desvio R$/L" in _top_piores_disp.columns:
                                 _top_piores_disp["Desvio R$/L"] = _top_piores_disp["Desvio R$/L"].apply(
@@ -15914,7 +14293,7 @@ if modo == "📊 Dashboard":
                                 f"Preço A":    f"R$ {_pa:.3f}".replace(".", ","),
                                 f"Preço B":    f"R$ {_pb:.3f}".replace(".", ","),
                                 "Δ R$/L":      f"{'+' if _diff >= 0 else ''}{_diff:.3f}".replace(".", ","),
-                                "Δ %":         f"{'+' if _diff_pct >= 0 else ''}{_brl(_diff_pct, 1)}%",
+                                "Δ %":         f"{'+' if _diff_pct >= 0 else ''}{_diff_pct:.1f}%",
                                 "Mais barato": (
                                     _label_a[:20] if _pa < _pb else
                                     (_label_b[:20] if _pb < _pa else "Igual")
@@ -16016,9 +14395,9 @@ if modo == "📊 Dashboard":
                         f"<ul style='font-size:12px;color:#333;margin:0;padding-left:16px'>"
                         f"<li><b>{_fmt_int(_m['n_postos'])}</b> postos GF credenciados</li>"
                         f"<li><b>{_fmt_int(_m['n_muns'])}</b> municípios atendidos "
-                        f"(<b>{_brl(_m['cob_pct'], 1)}%</b> de cobertura)</li>"
+                        f"(<b>{_m['cob_pct']:.1f}%</b> de cobertura)</li>"
                         f"<li><b>{_m['n_distrib']}</b> distribuidoras presentes</li>"
-                        f"<li>Média de <b>{_brl(_m['media_mun'], 1)}</b> posto(s)/município</li>"
+                        f"<li>Média de <b>{_m['media_mun']:.1f}</b> posto(s)/município</li>"
                         + _preco_item +
                         f"</ul></div>",
                         unsafe_allow_html=True,
@@ -16527,7 +14906,7 @@ elif modo == "🛣️ Roteirização":
         if _rot_placa: _v_parts.append(f"🚛 <b>{_rot_placa.upper()}</b>")
         if _rot_comb:  _v_parts.append(f"⛽ {_rot_comb}")
         if _rot_cap:   _v_parts.append(f"🛢 {_rot_cap:.0f} L")
-        if _rot_aut:   _v_parts.append(f"📏 {_brl(_rot_aut, 1)} km/L")
+        if _rot_aut:   _v_parts.append(f"📏 {_rot_aut:.1f} km/L")
         _v_parts.append(f"🔋 alcance ~{(_rot_cap - _rot_min) * _rot_aut:.0f} km")
         st.markdown(
             "<div style='background:linear-gradient(90deg,#e0f7fa,#f1f8e9);"
@@ -16862,135 +15241,62 @@ elif modo == "🛣️ Roteirização":
                     _ests.append({**_pc, "_km": _kma, "_dev": _perp})
             _ests.sort(key=lambda x: x["_km"])
 
+            # ── Enriquecer candidatos com grade A-D do histórico ────
+            _intel_grades: dict = {}
+            _intel_d_rot = _intel_load()
+            _hist_all_rot = _intel_d_rot.get("historico", {})
+            for _ec in _ests:
+                _cnpj_e = _ec.get("cnpj", "")
+                _hist_e = _hist_all_rot.get(_cnpj_e, [])
+                if _hist_e:
+                    _precos_e = [h["preco"] for h in _hist_e if h.get("preco")]
+                    _preco_med_e = sum(_precos_e) / len(_precos_e) if _precos_e else None
+                    if _preco_med_e:
+                        _sc_e = _calcular_score_posto(
+                            {"preco": _preco_med_e, "_lat": _ec.get("lat"),
+                             "_lon": _ec.get("lon")},
+                        )
+                        _intel_grades[_cnpj_e] = _sc_e.get("grade", "C")
+            # Fallback: grade C para quem não tem histórico
+            for _ec in _ests:
+                _ec["grade"] = _intel_grades.get(_ec.get("cnpj", ""), "C")
+
             # ════════════════════════════════════════════════════════
-            # ALGORITMO INTELIGENTE DE PARADAS — v2
-            # ────────────────────────────────────────────────────────
-            # Princípios:
-            #   1. Só para quando necessário (combustível abaixo de
-            #      65%) OU quando há vantagem real de preço.
-            #   2. Look-ahead: se há posto >3% mais barato além da
-            #      janela obrigatória, abastece o mínimo no posto
-            #      atual para "voar" até o mais barato.
-            #   3. Na última parada, abastece só o necessário para
-            #      o destino (sem encher o tanque desnecessariamente).
-            #   4. Evita paradas minúsculas (< 5 L) — descarta e
-            #      avança posição sem registrar parada.
+            # SELETOR DE ESTRATÉGIA DE OTIMIZAÇÃO
             # ════════════════════════════════════════════════════════
-            _alcance_efetivo = (_rcap - _rmin) * _raut   # km por ciclo
-            _PCT_BAIXO       = 0.65   # abaixo deste % considera parar voluntariamente
-            _PRECO_VANT      = 0.03   # vantagem mínima de preço para look-ahead (3%)
-            _LITROS_MIN_STOP = 5      # descarta paradas com < 5 L
+            _ESTRATEGIAS_DEF = {
+                "💰 Economia":        {"preco": 0.80, "score": 0.10, "desvio": 0.10,
+                                       "fill": "normal", "desc": "Minimiza custo total — prioriza sempre o posto mais barato"},
+                "⚖️ Equilíbrio":      {"preco": 0.50, "score": 0.30, "desvio": 0.20,
+                                       "fill": "normal", "desc": "Pondera preço, qualidade do posto (score A-D) e distância da rota"},
+                "⭐ Qualidade":       {"preco": 0.30, "score": 0.50, "desvio": 0.20,
+                                       "fill": "normal", "desc": "Prioriza postos com score A e B — pode custar um pouco mais"},
+                "🛑 Mínimas Paradas": {"preco": 0.80, "score": 0.10, "desvio": 0.10,
+                                       "fill": "minimo", "desc": "Para o mínimo de vezes — abastece só o necessário a cada parada"},
+            }
+            _est_key = st.radio(
+                "🎯 Estratégia de otimização",
+                list(_ESTRATEGIAS_DEF.keys()),
+                horizontal=True,
+                key="rot_estrategia",
+                help="Define como o motor escolhe em qual posto parar e quanto abastecer.",
+            )
+            _est_cfg = _ESTRATEGIAS_DEF[_est_key]
+            st.caption(f"ℹ️ {_est_cfg['desc']}")
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
-            _pos          = 0.0
-            _fuel         = float(_rcap)
-            _seen: set    = set()
-            _ultimo_preco = None      # último preço pago (para comparação)
+            # ── Pesos da estratégia selecionada ─────────────────────
+            _pesos_est = {k: _est_cfg[k] for k in ("preco", "score", "desvio")}
 
-            for _ in range(30):       # no máximo 30 paradas
-                if _pos >= _rd:
-                    break
-
-                # Até onde posso ir antes de atingir o mínimo?
-                _can_go = (_fuel - _rmin) * _raut
-                _must   = _pos + _can_go
-
-                if _must >= _rd:
-                    break             # alcança o destino sem parar
-
-                # ── Janela obrigatória: [_pos, _must] ──────────────
-                _janela = [e for e in _ests
-                           if _pos < e["_km"] <= _must
-                           and e["cnpj"] not in _seen]
-
-                # ── Janela estendida: além de _must, alcançável com
-                #    tanque cheio a partir de qualquer posto da janela
-                _janela_ext = [e for e in _ests
-                               if _must < e["_km"] <= _pos + _alcance_efetivo * 1.85
-                               and e["cnpj"] not in _seen]
-
-                if not _janela:
-                    # Emergência: pega o mais próximo disponível
-                    _alem = [e for e in _ests
-                             if e["_km"] > _pos and e["cnpj"] not in _seen]
-                    if not _alem:
-                        break
-                    _best = dict(min(_alem, key=lambda x: x["_km"]))
-                    _best["motivo"]    = "emergencia"
-                    _fill_target_km   = None
-                else:
-                    _best_obrig  = min(_janela, key=lambda x: x.get("preco", 9999))
-                    _preco_obrig = _best_obrig.get("preco", 9999)
-
-                    # ── Look-ahead: posto mais barato além da janela?
-                    _fill_target_km = None
-                    if _janela_ext:
-                        _best_ext  = min(_janela_ext, key=lambda x: x.get("preco", 9999))
-                        _preco_ext = _best_ext.get("preco", 9999)
-                        if _preco_ext < _preco_obrig * (1 - _PRECO_VANT):
-                            _fill_target_km = _best_ext["_km"]
-
-                    _best = dict(_best_obrig)
-                    _best["motivo"] = "estrategico" if _fill_target_km else "mais_barato"
-
-                # ── Combustível ao chegar no posto ─────────────────
-                _km_ate       = _best["_km"] - _pos
-                _fuel_chegada = max(0.0, _fuel - (_km_ate / _raut))
-                _pct_chegada  = (_fuel_chegada / _rcap * 100) if _rcap else 0.0
-
-                # ── Pula parada se tanque ainda alto e preço não compensa
-                if (_best.get("motivo") != "emergencia"
-                        and _pct_chegada >= _PCT_BAIXO * 100
-                        and _ultimo_preco is not None
-                        and _best.get("preco", 9999) >= _ultimo_preco * (1 - _PRECO_VANT)
-                        and not _fill_target_km):
-                    # Avança sem registrar parada
-                    _pos  = _best["_km"]
-                    _fuel = _fuel_chegada
-                    _seen.add(_best["cnpj"])   # evita revisitar
-                    continue
-
-                # ── Quantos litros abastecer? ───────────────────────
-                _dist_restante = _rd - _best["_km"]
-
-                if _fill_target_km:
-                    # Abastece mínimo para chegar ao posto mais barato à frente
-                    _dist_ate_target    = _fill_target_km - _best["_km"]
-                    _litros_necessarios = (_dist_ate_target / _raut) * 1.10 + _rmin
-                elif _dist_restante <= _alcance_efetivo:
-                    # Última parada: só o necessário para o destino + margem
-                    _litros_necessarios = (_dist_restante / _raut) * 1.15 + _rmin
-                else:
-                    # Parada intermediária: enche o tanque (máximo alcance)
-                    _litros_necessarios = _rcap
-
-                _litros_fill = max(0.0, _litros_necessarios - _fuel_chegada)
-                _litros_fill = min(_litros_fill, _rcap - _fuel_chegada)
-                _litros_fill = math.ceil(_litros_fill)
-
-                # Descarta paradas com abastecimento insignificante
-                if _litros_fill < _LITROS_MIN_STOP:
-                    _pos  = _best["_km"]
-                    _fuel = _fuel_chegada
-                    _seen.add(_best["cnpj"])
-                    continue
-
-                _fuel_apos = min(_fuel_chegada + _litros_fill, _rcap)
-                _pct_apos  = (_fuel_apos / _rcap * 100) if _rcap else 0.0
-                _custo_ab  = round(_litros_fill * _best.get("preco", 0.0), 2)
-
-                _best["fuel_chegada"]     = round(_fuel_chegada, 1)
-                _best["pct_chegada"]      = round(_pct_chegada, 1)
-                _best["litros_sugeridos"] = int(_litros_fill)
-                _best["custo_abast"]      = _custo_ab
-                _best["fuel_apos"]        = round(_fuel_apos, 1)
-                _best["pct_apos"]         = round(_pct_apos, 1)
-
-                _seen.add(_best["cnpj"])
-                _sugest.append(_best)
-                _ultimo_preco = _best.get("preco")
-
-                _fuel = _fuel_apos
-                _pos  = _best["_km"]
+            # ── Rodar otimizador v3 ──────────────────────────────────
+            _sugest = _otimizar_rota_v3(
+                ests      = _ests,
+                rcap      = _rcap,
+                raut      = _raut,
+                rd        = _rd,
+                pesos     = _pesos_est,
+                fill_mode = _est_cfg["fill"],
+            )
 
         # ── Tabs ─────────────────────────────────────────────────
         _t_mapa, _t_abast, _t_custo, _t_res = st.tabs(
@@ -17092,7 +15398,7 @@ elif modo == "🛣️ Roteirização":
                         f"<div style='font-size:11px;color:#555;margin-bottom:5px'>"
                         f"📍 {_ab.get('municipio','')} / {_ab.get('uf','')} &nbsp;·&nbsp; "
                         f"🛣 <b>{_ab.get('_km',0):.0f} km</b> da origem &nbsp;·&nbsp; "
-                        f"💰 <b>R$ {_brl(_preco_l, 3)}/L</b>"
+                        f"💰 <b>R$ {_preco_l:.3f}/L</b>"
                         f"</div>"
 
                         # Linha 3: nível tanque — chegada e saída
@@ -17105,7 +15411,7 @@ elif modo == "🛣️ Roteirização":
                         # Linha 4: custo + barra visual do tanque
                         f"<div style='display:flex;align-items:center;gap:10px'>"
                         f"<span style='font-size:12px;font-weight:700;color:{_cor_ab}'>"
-                        f"💵 Custo: R$ {_brl(_custo_p)}</span>"
+                        f"💵 Custo: R$ {_custo_p:.2f}</span>"
                         f"<div style='flex:1;background:#e0e0e0;border-radius:4px;height:8px;overflow:hidden'>"
                         f"<div style='width:{_bar_ap}%;background:{_bar_cor};height:100%;border-radius:4px'></div>"
                         f"</div>"
@@ -17185,6 +15491,70 @@ elif modo == "🛣️ Roteirização":
                     unsafe_allow_html=True,
                 )
 
+                # ── Comparativo de Estratégias ─────────────────────
+                st.markdown("#### ⚖️ Comparativo de Estratégias")
+                _cmp_ests = {
+                    "💰 Economia":        {"preco": 0.80, "score": 0.10, "desvio": 0.10, "fill": "normal"},
+                    "⚖️ Equilíbrio":      {"preco": 0.50, "score": 0.30, "desvio": 0.20, "fill": "normal"},
+                    "⭐ Qualidade":       {"preco": 0.30, "score": 0.50, "desvio": 0.20, "fill": "normal"},
+                    "🛑 Mín. Paradas":    {"preco": 0.80, "score": 0.10, "desvio": 0.10, "fill": "minimo"},
+                }
+                _cmp_cols = st.columns(len(_cmp_ests))
+                _cmp_resultados = {}
+                for _ci_e, (_cmp_nome, _cmp_cfg) in enumerate(_cmp_ests.items()):
+                    _cmp_pesos = {k: _cmp_cfg[k] for k in ("preco", "score", "desvio")}
+                    _cmp_sugest = _otimizar_rota_v3(
+                        ests=_ests, rcap=_rcap, raut=_raut, rd=_rd,
+                        pesos=_cmp_pesos, fill_mode=_cmp_cfg["fill"],
+                    )
+                    _cmp_custo   = sum(s.get("custo_abast", 0) for s in _cmp_sugest)
+                    _cmp_litros  = sum(s.get("litros_sugeridos", 0) for s in _cmp_sugest)
+                    _cmp_paradas = len(_cmp_sugest)
+                    _cmp_preco_m = _cmp_custo / _cmp_litros if _cmp_litros > 0 else 0
+                    _cmp_grades  = [s.get("grade", "C") for s in _cmp_sugest]
+                    _cmp_score_n = {"A": 4, "B": 3, "C": 2, "D": 1}
+                    _cmp_score_m = (sum(_cmp_score_n.get(g, 2) for g in _cmp_grades) /
+                                    len(_cmp_grades) if _cmp_grades else 2)
+                    _cmp_score_l = {4: "A", 3: "B", 2: "C", 1: "D"}
+                    _cmp_grade_m = _cmp_score_l.get(round(_cmp_score_m), "C")
+                    _cmp_resultados[_cmp_nome] = {
+                        "custo": _cmp_custo, "litros": _cmp_litros,
+                        "paradas": _cmp_paradas, "preco_medio": _cmp_preco_m,
+                        "grade_media": _cmp_grade_m,
+                    }
+                    _is_selected = (_cmp_nome.split()[0] == _est_key.split()[0])
+                    _brd = "3px solid #0D47A1" if _is_selected else "1px solid #ddd"
+                    _bg  = "#E3F2FD" if _is_selected else "#fafafa"
+                    _cmp_cols[_ci_e].markdown(
+                        f"<div style='background:{_bg};border:{_brd};border-radius:10px;"
+                        f"padding:10px;text-align:center;font-size:11px'>"
+                        f"<div style='font-weight:700;font-size:12px;margin-bottom:6px'>"
+                        f"{_cmp_nome}{'  ✓' if _is_selected else ''}</div>"
+                        f"<div style='color:#1B5E20;font-size:16px;font-weight:800'>"
+                        f"R$ {_brl(_cmp_custo, 2)}</div>"
+                        f"<div style='color:#555;margin-top:4px'>{_cmp_paradas} parada(s)</div>"
+                        f"<div style='color:#555'>{_cmp_litros} L</div>"
+                        f"<div style='color:#555'>Score médio: <b>{_cmp_grade_m}</b></div>"
+                        f"<div style='color:#777;font-size:10px'>"
+                        f"R$ {_brl(_cmp_preco_m, 3)}/L</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                # Destaque da economia vs pior caso
+                _custos_cmp = [v["custo"] for v in _cmp_resultados.values() if v["custo"] > 0]
+                if len(_custos_cmp) > 1:
+                    _custo_max_cmp = max(_custos_cmp)
+                    _custo_min_cmp = min(_custos_cmp)
+                    _eco_cmp = _custo_max_cmp - _custo_min_cmp
+                    if _eco_cmp > 0.5:
+                        st.success(
+                            f"💡 A diferença entre a estratégia mais econômica e a menos econômica "
+                            f"é de **R$ {_brl(_eco_cmp, 2)}** nesta rota."
+                        )
+                st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+                st.markdown("---")
+
                 # ── Caso sem paradas necessárias ──────────────────
                 if not _sugest and _preco_medio_gf:
                     _custo_sem_par = _consumo_total_l * _preco_medio_gf
@@ -17192,7 +15562,7 @@ elif modo == "🛣️ Roteirização":
                     _ck1.metric("💰 Custo estimado",
                                 f"R$ {_custo_sem_par:,.2f}".replace(",","X").replace(".",",").replace("X","."))
                     _ck2.metric("🛢 Consumo total",
-                                f"{_brl(_consumo_total_l, 1)} L")
+                                f"{_consumo_total_l:.1f} L")
                     _ck3.metric("📏 Custo/km",
                                 f"R$ {_custo_sem_par/_rd:.3f}".replace(".",",") if _rd > 0 else "—")
                     st.info(
@@ -17292,6 +15662,93 @@ elif modo == "🛣️ Roteirização":
                         _fig_acc.update_yaxes(showgrid=True, gridcolor="#E8F5E9",
                                               tickprefix="R$ ")
                         st.plotly_chart(_fig_acc, use_container_width=True)
+
+                    # ── Gráfico de nível do tanque ────────────────
+                    if len(_sugest) >= 1:
+                        st.markdown("#### 🛢 Nível do Tanque ao Longo da Rota")
+                        # Pontos: início + chegada e saída de cada parada + destino
+                        _tank_km    = [0.0]
+                        _tank_pct   = [100.0]   # tanque cheio na origem
+                        _tank_labels= [f"Origem: {_ro.get('label','')[:25]}"]
+                        _tank_cores = ["#2E7D32"]
+
+                        for _sp in _sugest:
+                            _km_sp = _sp.get("_km", 0)
+                            _pch   = _sp.get("pct_chegada", 0)
+                            _pap   = _sp.get("pct_apos",   0)
+                            _lbl   = _sp["label"][:28]
+                            _grade = _sp.get("grade", "C")
+                            _clr   = {"A": "#2E7D32", "B": "#1565C0",
+                                      "C": "#F57F17", "D": "#B71C1C"}.get(_grade, "#555")
+                            # chegada (antes de abastecer)
+                            _tank_km.append(_km_sp - 0.1)
+                            _tank_pct.append(_pch)
+                            _tank_labels.append(f"Chegada: {_lbl} ({_pch:.0f}%)")
+                            _tank_cores.append(_clr)
+                            # saída (depois de abastecer)
+                            _tank_km.append(_km_sp)
+                            _tank_pct.append(_pap)
+                            _tank_labels.append(
+                                f"Abast. {_sp.get('litros_sugeridos',0)} L → {_lbl} ({_pap:.0f}%)")
+                            _tank_cores.append(_clr)
+
+                        # consumo até o destino
+                        _km_ult  = _sugest[-1].get("_km", 0)
+                        _pct_ult = _sugest[-1].get("pct_apos", 100)
+                        _pct_dest = max(0, _pct_ult - (_rd - _km_ult) / _raut / _rcap * 100)
+                        _tank_km.append(_rd)
+                        _tank_pct.append(round(_pct_dest, 1))
+                        _tank_labels.append(f"Destino: {_rt.get('label','')[:25]} ({_pct_dest:.0f}%)")
+                        _tank_cores.append("#C62828")
+
+                        _fig_tank = go.Figure()
+                        # Área de fundo — zona de risco (< 25 %)
+                        _fig_tank.add_hrect(y0=0, y1=25,
+                                            fillcolor="rgba(244,67,54,0.08)",
+                                            line_width=0,
+                                            annotation_text="⚠️ Zona crítica (<25%)",
+                                            annotation_position="top left",
+                                            annotation_font_size=9,
+                                            annotation_font_color="#B71C1C")
+                        # Linha mínima
+                        _fig_tank.add_hline(y=25, line_dash="dash",
+                                            line_color="#EF5350", line_width=1.2,
+                                            annotation_text="Mín. 25%",
+                                            annotation_position="right",
+                                            annotation_font_color="#EF5350",
+                                            annotation_font_size=9)
+                        # Área do tanque
+                        _fig_tank.add_trace(go.Scatter(
+                            x=_tank_km, y=_tank_pct,
+                            mode="lines+markers",
+                            name="Nível do tanque",
+                            line=dict(color="#1565C0", width=2.5, shape="hv"),
+                            marker=dict(size=9, color=_tank_cores,
+                                        line=dict(color="white", width=1.5)),
+                            fill="tozeroy",
+                            fillcolor="rgba(21,101,192,0.12)",
+                            text=_tank_labels,
+                            hovertemplate="<b>%{text}</b><br>Km: %{x:.0f} km<extra></extra>",
+                        ))
+                        _fig_tank.update_layout(
+                            xaxis_title="Distância (km)",
+                            yaxis_title="Nível do tanque (%)",
+                            yaxis=dict(range=[0, 110], ticksuffix="%"),
+                            height=260,
+                            margin=dict(l=10, r=80, t=20, b=40),
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            font=dict(size=10),
+                            showlegend=False,
+                        )
+                        _fig_tank.update_xaxes(showgrid=True, gridcolor="#E3F2FD")
+                        _fig_tank.update_yaxes(showgrid=True, gridcolor="#E3F2FD")
+                        st.plotly_chart(_fig_tank, use_container_width=True)
+                        st.caption(
+                            "🟢 Verde = score A · 🔵 Azul = score B · "
+                            "🟡 Amarelo = score C · 🔴 Vermelho = score D. "
+                            "Os marcadores saltam verticalmente a cada abastecimento."
+                        )
 
                     # ── Breakdown por posto ───────────────────────
                     st.markdown("#### 🏢 Custo por Posto de Abastecimento")
@@ -17662,6 +16119,774 @@ elif modo == "🛣️ Roteirização":
                     st.toast("✅ Roteirização salva!", icon="💾")
                 else:
                     st.error("❌ Erro ao salvar.")
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Documentação
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "📄 Documentação":
+    import streamlit.components.v1 as _components
+
+    _doc_bytes, _doc_nome = _carregar_doc_pdf()
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#1565C0,#42A5F5);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "📄 Documentação</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Manual de uso da plataforma Estudo de Rede – Gestão de Frotas.</p>",
+        unsafe_allow_html=True,
+    )
+
+    if _doc_bytes:
+        # Botão de download em destaque
+        _col_dl_a, _col_dl_b, _col_dl_c = st.columns([3, 2, 3])
+        with _col_dl_b:
+            st.download_button(
+                "⬇️ Baixar PDF",
+                data=_doc_bytes,
+                file_name=_doc_nome,
+                mime="application/pdf",
+                use_container_width=True,
+                key="btn_doc_download_main",
+            )
+
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+        # Visualizador de PDF: renderiza páginas como imagens no servidor (sem iframe)
+        try:
+            import fitz  # pymupdf
+            _pdf_doc = fitz.open(stream=_doc_bytes, filetype="pdf")
+            _total_pgs = len(_pdf_doc)
+
+            # Controle de página via session_state
+            if "doc_pagina_atual" not in st.session_state:
+                st.session_state["doc_pagina_atual"] = 0
+
+            _pg_idx = st.session_state["doc_pagina_atual"]
+
+            # Navegação entre páginas
+            _col_prev, _col_info, _col_next = st.columns([1, 2, 1])
+            with _col_prev:
+                if st.button("◀ Anterior", use_container_width=True,
+                             disabled=_pg_idx == 0, key="doc_pg_prev"):
+                    st.session_state["doc_pagina_atual"] -= 1
+                    st.rerun()
+            with _col_info:
+                st.markdown(
+                    f"<p style='text-align:center;margin:6px 0;color:#555;font-size:13px'>"
+                    f"Página <b>{_pg_idx + 1}</b> de <b>{_total_pgs}</b></p>",
+                    unsafe_allow_html=True,
+                )
+            with _col_next:
+                if st.button("Próxima ▶", use_container_width=True,
+                             disabled=_pg_idx >= _total_pgs - 1, key="doc_pg_next"):
+                    st.session_state["doc_pagina_atual"] += 1
+                    st.rerun()
+
+            # Renderiza página atual como imagem (resolução 2x para nitidez)
+            _page = _pdf_doc[_pg_idx]
+            _mat  = fitz.Matrix(2.0, 2.0)
+            _pix  = _page.get_pixmap(matrix=_mat, alpha=False)
+            _img_bytes = _pix.tobytes("png")
+            _pdf_doc.close()
+
+            st.image(_img_bytes, use_container_width=True)
+
+        except ImportError:
+            st.warning(
+                "⚠️ Para visualizar o PDF inline, instale a biblioteca: "
+                "`pip install pymupdf`\n\n"
+                "Por enquanto, use o botão **⬇️ Baixar PDF** acima."
+            )
+        except Exception as _epdf_view:
+            st.error(f"❌ Erro ao renderizar PDF: {_epdf_view}")
+
+    else:
+        st.warning(
+            "📄 Arquivo de documentação não encontrado.\n\n"
+            "Certifique-se de que o arquivo **Gestao de Frotas.pdf** está na raiz do repositório."
+        )
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Análise de Cliente (Frota)
+# ═══════════════════════════════════════════════════════════════════
+elif modo == "🚛 Análise de Cliente":
+    import pandas as _pd
+    import numpy as _np
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.4rem;"
+        "background:linear-gradient(135deg,#1B5E20,#66BB6A);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🚛 Análise de Cliente — Frota</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 18px'>"
+        "Carregue a planilha de abastecimentos para obter análises de consumo, custos e detecção de desvios.</p>",
+        unsafe_allow_html=True,
+    )
+
+    # ── helper: converte número br (vírgula=decimal, ponto=milhar) ─
+    def _br2f(s):
+        if s is None:
+            return None
+        s = str(s).strip()
+        if s in ("-", "", "Não se aplica.", "Dados não encontrada.", "nan"):
+            return None
+        try:
+            if "," in s:
+                s = s.replace(".", "").replace(",", ".")
+            else:
+                s = s.replace(".", "")
+            return float(s)
+        except Exception:
+            return None
+
+    # ── helper: parse data dd/mm/aaaa ─────────────────────────────
+    def _parse_date(s):
+        if not s or str(s).strip() in ("-", ""):
+            return None
+        try:
+            return _pd.to_datetime(str(s).strip(), dayfirst=True).date()
+        except Exception:
+            return None
+
+    # ── helper: extrai lat/lon de "lat / lon" ─────────────────────
+    def _parse_latlon(s):
+        try:
+            pts = str(s).split("/")
+            return float(pts[0].strip()), float(pts[1].strip())
+        except Exception:
+            return None, None
+
+    # ── helper: converte df → lista de dicts para Supabase ────────
+    def _df_to_rows(df: _pd.DataFrame, nome_arq: str) -> list:
+        rows = []
+        for _, r in df.iterrows():
+            lat, lon = _parse_latlon(r.get("_latlon_posto", ""))
+            rows.append({
+                "id_transacao":       int(r["_id_transacao"]) if _pd.notna(r.get("_id_transacao")) else None,
+                "data_abastecimento": str(r["_data"]) if r.get("_data") else None,
+                "hora_abastecimento": str(r.get("_hora", "")),
+                "cnpj_frota":         str(r.get("_cnpj_frota", "")),
+                "razao_frota":        str(r.get("_razao_frota", "")),
+                "centro_custo":       str(r.get("_centro_custo", "")),
+                "cnpj_posto":         str(r.get("_cnpj_posto", "")),
+                "nome_posto":         str(r.get("_nome_posto", "")),
+                "cidade_posto":       str(r.get("_cidade_posto", "")),
+                "uf_posto":           str(r.get("_uf_posto", "")),
+                "placa":              str(r.get("_placa", "")),
+                "tipo_veiculo":       str(r.get("_tipo_veiculo", "")),
+                "nome_motorista":     str(r.get("_motorista", "")),
+                "hod_atual":          r.get("_hod_atual"),
+                "hod_anterior":       r.get("_hod_anterior"),
+                "km_percorrido":      r.get("_km_perc"),
+                "media_km_l":         r.get("_media_km_l"),
+                "produto":            str(r.get("_produto", "")),
+                "litros":             r.get("_litros"),
+                "preco_litro":        r.get("_preco_litro"),
+                "valor_combustivel":  r.get("_valor_comb"),
+                "valor_total":        r.get("_valor_total"),
+                "status_transacao":   str(r.get("_status", "")),
+                "lat_posto":          lat,
+                "lon_posto":          lon,
+                "nome_arquivo":       nome_arq,
+            })
+        return rows
+
+    # ── Fonte de dados: upload ou banco ───────────────────────────
+    _src_opcao = st.radio(
+        "Fonte dos dados:",
+        ["📂 Carregar arquivo", "☁️ Dados salvos no banco"],
+        horizontal=True,
+        key="frota_src_opcao",
+    )
+
+    _df_abast = None  # dataframe normalizado final
+
+    if _src_opcao == "📂 Carregar arquivo":
+        _arq = st.file_uploader(
+            "Selecione a planilha de abastecimentos (.xlsx / .csv)",
+            type=["xlsx", "xls", "csv"],
+            key="frota_upload",
+        )
+        if _arq:
+            try:
+                if _arq.name.lower().endswith(".csv"):
+                    _df_raw = _pd.read_csv(_arq, dtype=str)
+                else:
+                    _df_raw = _pd.read_excel(_arq, dtype=str)
+
+                # ── mapeamento de colunas do layout padrão ────────
+                _CM = {
+                    "_id_transacao":  "Id Transação",
+                    "_data":          "Data abastecimento",
+                    "_hora":          "Hora abastecimento",
+                    "_cnpj_frota":    "CNPJ Frota Matriz",
+                    "_razao_frota":   "Razão Social Frota Matriz",
+                    "_centro_custo":  "Nome Centro de Custo",
+                    "_cnpj_posto":    "CNPJ Estabelecimento Credenciado",
+                    "_nome_posto":    "Razão Social Estabelecimento Credenciado",
+                    "_cidade_posto":  "Cidade Estabelecimento Credenciado",
+                    "_uf_posto":      "UF Estabelecimento Credenciado",
+                    "_placa":         "Placa do Veículo",
+                    "_tipo_veiculo":  "Classificação do Veículo",
+                    "_motorista":     "Nome do Motorista",
+                    "_hod_atual":     "Hodômetro/ (KM)/Horímetro (h)",
+                    "_hod_anterior":  "Hodômetro (Km)/ Horímetro (H) Anterior",
+                    "_km_perc":       "Hodômetro (Km)/ Horímetro (H)  Percorrido",
+                    "_media_km_l":    "Média Km/L ou L/H",
+                    "_produto":       "Produto",
+                    "_litros":        "Litros",
+                    "_preco_litro":   "Vlr Unitário do Produto(R$)",
+                    "_valor_comb":    "Valor Total do Produto (R$)",
+                    "_valor_total":   "Vlr Total da Transação (R$)",
+                    "_status":        "Status",
+                    "_latlon_posto":  "Latitude/Longitude Posto",
+                }
+                _df = _pd.DataFrame()
+                for _alias, _col_orig in _CM.items():
+                    if _col_orig in _df_raw.columns:
+                        _df[_alias] = _df_raw[_col_orig]
+                    else:
+                        _df[_alias] = None
+
+                # ── conversões ────────────────────────────────────
+                _df["_data"]        = _df["_data"].apply(_parse_date)
+                _df["_hod_atual"]   = _df["_hod_atual"].apply(_br2f)
+                _df["_hod_anterior"]= _df["_hod_anterior"].apply(_br2f)
+                _df["_km_perc"]     = _df["_km_perc"].apply(_br2f)
+                _df["_media_km_l"]  = _df["_media_km_l"].apply(_br2f)
+                _df["_litros"]      = _df["_litros"].apply(_br2f)
+                _df["_preco_litro"] = _df["_preco_litro"].apply(_br2f)
+                _df["_valor_comb"]  = _df["_valor_comb"].apply(_br2f)
+                _df["_valor_total"] = _df["_valor_total"].apply(_br2f)
+                _df["_id_transacao"]= _pd.to_numeric(_df["_id_transacao"], errors="coerce")
+
+                _df_abast = _df.copy()
+                st.success(f"✅ **{len(_df_abast)}** registros carregados — {_df_abast['_placa'].nunique()} veículos")
+
+            except Exception as _ex_up:
+                st.error(f"❌ Erro ao ler arquivo: {_ex_up}")
+
+    else:  # banco
+        _rows_db = _db_carregar_abastecimentos()
+        if _rows_db:
+            _df_abast = _pd.DataFrame(_rows_db).rename(columns={
+                "id_transacao":       "_id_transacao",
+                "data_abastecimento": "_data",
+                "hora_abastecimento": "_hora",
+                "cnpj_frota":         "_cnpj_frota",
+                "razao_frota":        "_razao_frota",
+                "centro_custo":       "_centro_custo",
+                "cnpj_posto":         "_cnpj_posto",
+                "nome_posto":         "_nome_posto",
+                "cidade_posto":       "_cidade_posto",
+                "uf_posto":           "_uf_posto",
+                "placa":              "_placa",
+                "tipo_veiculo":       "_tipo_veiculo",
+                "nome_motorista":     "_motorista",
+                "hod_atual":          "_hod_atual",
+                "hod_anterior":       "_hod_anterior",
+                "km_percorrido":      "_km_perc",
+                "media_km_l":         "_media_km_l",
+                "produto":            "_produto",
+                "litros":             "_litros",
+                "preco_litro":        "_preco_litro",
+                "valor_combustivel":  "_valor_comb",
+                "valor_total":        "_valor_total",
+                "status_transacao":   "_status",
+                "lat_posto":          "_lat_posto",
+                "lon_posto":          "_lon_posto",
+                "nome_arquivo":       "_nome_arquivo",
+            })
+            _df_abast["_data"] = _pd.to_datetime(_df_abast["_data"], errors="coerce").dt.date
+            st.info(f"☁️ **{len(_df_abast)}** registros do banco — {_df_abast['_placa'].nunique()} veículos")
+        else:
+            st.warning("Nenhum dado salvo no banco ainda. Carregue um arquivo primeiro.")
+
+    # ═══════ ANÁLISES (só se há dados) ═══════════════════════════
+    if _df_abast is not None and len(_df_abast) > 0:
+
+        # ── filtro de período ─────────────────────────────────────
+        _datas_validas = [d for d in _df_abast["_data"] if d is not None]
+        if _datas_validas:
+            _d_min, _d_max = min(_datas_validas), max(_datas_validas)
+            _fc1, _fc2 = st.columns(2)
+            with _fc1:
+                _f_ini = st.date_input("📅 De", value=_d_min, min_value=_d_min, max_value=_d_max, key="frota_f_ini")
+            with _fc2:
+                _f_fim = st.date_input("até", value=_d_max, min_value=_d_min, max_value=_d_max, key="frota_f_fim")
+            _mask = _df_abast["_data"].apply(
+                lambda d: d is not None and _f_ini <= d <= _f_fim
+            )
+            _df = _df_abast[_mask].copy()
+        else:
+            _df = _df_abast.copy()
+
+        if len(_df) == 0:
+            st.warning("Nenhum registro no período selecionado.")
+        else:
+            # ── abas principais ───────────────────────────────────
+            _ta, _tb, _tc, _td, _te = st.tabs([
+                "📊 Resumo",
+                "🚗 Veículos",
+                "📈 Consumo & Custo/km",
+                "🚨 Alertas & Fraude",
+                "💡 Insights",
+            ])
+
+            # ════════════════════════════════════════════════════
+            # ABA 1 — RESUMO
+            # ════════════════════════════════════════════════════
+            with _ta:
+                # métricas
+                _total_litros  = _df["_litros"].sum(min_count=1) or 0
+                _total_gasto   = _df["_valor_total"].sum(min_count=1) or 0
+                _n_abast       = len(_df)
+                _n_veic        = _df["_placa"].nunique()
+                _preco_medio   = (_df["_preco_litro"].mean() if _df["_preco_litro"].notna().any() else 0)
+                _km_total      = _df["_km_perc"].sum(min_count=1) or 0
+
+                _mc1, _mc2, _mc3 = st.columns(3)
+                _mc1.metric("🧾 Transações", f"{_n_abast:,}".replace(",", "."))
+                _mc2.metric("🚗 Veículos", _n_veic)
+                _mc3.metric("⛽ Litros abastecidos", f"{_total_litros:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                _mc4, _mc5, _mc6 = st.columns(3)
+                _mc4.metric("💰 Gasto total (R$)", f"R$ {_total_gasto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                _mc5.metric("📊 Preço médio (R$/L)", f"R$ {_preco_medio:,.3f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                _km_disp = f"{_km_total:,.0f} km".replace(",", ".") if _km_total > 0 else "—"
+                _mc6.metric("🛣️ Km total registrado", _km_disp)
+
+                st.divider()
+                _col_g1, _col_g2 = st.columns(2)
+
+                # gráfico: mix de combustível
+                with _col_g1:
+                    _prod_grp = _df.groupby("_produto")["_litros"].sum().reset_index()
+                    _prod_grp.columns = ["Combustível", "Litros"]
+                    if len(_prod_grp) > 0:
+                        _fig_mix = go.Figure(go.Pie(
+                            labels=_prod_grp["Combustível"],
+                            values=_prod_grp["Litros"],
+                            hole=0.45,
+                            textinfo="label+percent",
+                            marker_colors=["#1565C0", "#2E7D32", "#F57F17", "#6A1B9A"][:len(_prod_grp)],
+                        ))
+                        _fig_mix.update_layout(
+                            title="⛽ Mix de Combustível (litros)",
+                            height=300, margin=dict(l=10, r=10, t=40, b=10),
+                            showlegend=False,
+                        )
+                        st.plotly_chart(_fig_mix, use_container_width=True)
+
+                # gráfico: gasto por centro de custo
+                with _col_g2:
+                    _cc_grp = _df.groupby("_centro_custo")["_valor_total"].sum().sort_values(ascending=True).reset_index()
+                    _cc_grp.columns = ["Centro de Custo", "Gasto (R$)"]
+                    if len(_cc_grp) > 0:
+                        _fig_cc = go.Figure(go.Bar(
+                            x=_cc_grp["Gasto (R$)"],
+                            y=_cc_grp["Centro de Custo"],
+                            orientation="h",
+                            marker_color="#1565C0",
+                            text=[f"R$ {v:,.0f}".replace(",", ".") for v in _cc_grp["Gasto (R$)"]],
+                            textposition="outside",
+                        ))
+                        _fig_cc.update_layout(
+                            title="💼 Gasto por Centro de Custo",
+                            height=300, margin=dict(l=10, r=80, t=40, b=10),
+                            xaxis_title="R$", yaxis_title="",
+                        )
+                        st.plotly_chart(_fig_cc, use_container_width=True)
+
+                # botão salvar no banco
+                if _src_opcao == "📂 Carregar arquivo" and _arq:
+                    st.divider()
+                    _c_sv1, _c_sv2 = st.columns([3, 1])
+                    with _c_sv2:
+                        if st.button("💾 Salvar no banco", use_container_width=True, key="frota_salvar_db"):
+                            _rows_para_salvar = _df_to_rows(_df_abast, _arq.name)
+                            with st.spinner("Salvando…"):
+                                _n_ok, _err_sv = _db_salvar_abastecimentos(_rows_para_salvar, _arq.name)
+                            if _err_sv:
+                                st.error(f"Erro: {_err_sv}")
+                            else:
+                                st.success(f"✅ {_n_ok} registros salvos no Supabase!")
+
+            # ════════════════════════════════════════════════════
+            # ABA 2 — VEÍCULOS
+            # ════════════════════════════════════════════════════
+            with _tb:
+                _veic_grp = _df.groupby("_placa").agg(
+                    tipo=("_tipo_veiculo", lambda x: x.mode().iloc[0] if len(x) > 0 else "—"),
+                    motoristas=("_motorista", lambda x: ", ".join(sorted(x.dropna().unique())[:3])),
+                    n_abast=("_id_transacao", "count"),
+                    litros=("_litros", "sum"),
+                    custo=("_valor_total", "sum"),
+                    km=("_km_perc", "sum"),
+                    consumo_medio=("_media_km_l", "mean"),
+                ).reset_index()
+
+                # custo por km calculado
+                _veic_grp["custo_km"] = _np.where(
+                    _veic_grp["km"] > 0,
+                    _veic_grp["custo"] / _veic_grp["km"],
+                    _np.nan
+                )
+                # preço médio pago por litro
+                _preco_veiculo = _df.groupby("_placa")["_preco_litro"].mean().reset_index()
+                _preco_veiculo.columns = ["_placa", "preco_medio"]
+                _veic_grp = _veic_grp.merge(_preco_veiculo, on="_placa", how="left")
+
+                _veic_grp = _veic_grp.sort_values("custo", ascending=False).reset_index(drop=True)
+
+                # formata para exibição
+                _veic_disp = _veic_grp.copy()
+                _veic_disp.columns = [
+                    "Placa", "Tipo", "Motoristas", "Abastec.",
+                    "Litros", "Gasto (R$)", "Km total",
+                    "Consumo (km/L)", "Custo/km (R$)", "R$/L médio"
+                ]
+                _veic_disp["Litros"]         = _veic_disp["Litros"].apply(lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["Gasto (R$)"]     = _veic_disp["Gasto (R$)"].apply(lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["Km total"]       = _veic_disp["Km total"].apply(lambda v: f"{v:,.0f}".replace(",", ".") if _pd.notna(v) and v > 0 else "—")
+                _veic_disp["Consumo (km/L)"] = _veic_disp["Consumo (km/L)"].apply(lambda v: f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) and v > 0 else "—")
+                _veic_disp["Custo/km (R$)"]  = _veic_disp["Custo/km (R$)"].apply(lambda v: f"R$ {v:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["R$/L médio"]     = _veic_disp["R$/L médio"].apply(lambda v: f"R$ {v:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+
+                st.dataframe(_veic_disp, use_container_width=True, hide_index=True)
+
+                # ranking custo/km (gráfico)
+                _ck_valid = _veic_grp.dropna(subset=["custo_km"]).sort_values("custo_km", ascending=False)
+                if len(_ck_valid) > 0:
+                    _fig_ck = go.Figure(go.Bar(
+                        x=_ck_valid["_placa"],
+                        y=_ck_valid["custo_km"],
+                        marker_color=[
+                            "#B71C1C" if v > _ck_valid["custo_km"].median() * 1.3 else
+                            "#F57F17" if v > _ck_valid["custo_km"].median() else
+                            "#2E7D32"
+                            for v in _ck_valid["custo_km"]
+                        ],
+                        text=[f"R$ {v:.3f}".replace(".", ",") for v in _ck_valid["custo_km"]],
+                        textposition="outside",
+                    ))
+                    _fig_ck.update_layout(
+                        title="💰 Custo por km por Veículo (R$/km)",
+                        height=350, margin=dict(l=10, r=10, t=45, b=10),
+                        yaxis_title="R$/km", xaxis_title="Placa",
+                    )
+                    st.plotly_chart(_fig_ck, use_container_width=True)
+                    st.caption("🟢 Abaixo da mediana  🟡 Acima da mediana  🔴 >30% acima da mediana")
+
+            # ════════════════════════════════════════════════════
+            # ABA 3 — CONSUMO & CUSTO/KM
+            # ════════════════════════════════════════════════════
+            with _tc:
+                _placas = sorted(_df["_placa"].dropna().unique().tolist())
+                _sel_placa = st.selectbox(
+                    "🚗 Veículo", ["— Todos —"] + _placas,
+                    key="frota_sel_placa_tc"
+                )
+                _df_vsel = _df if _sel_placa == "— Todos —" else _df[_df["_placa"] == _sel_placa]
+
+                # evolução consumo km/L por abastecimento
+                _df_cons = _df_vsel.dropna(subset=["_data", "_media_km_l"]).copy()
+                _df_cons = _df_cons[_df_cons["_media_km_l"] > 0].sort_values("_data")
+
+                if len(_df_cons) > 0:
+                    _fig_cons = go.Figure()
+                    if _sel_placa == "— Todos —":
+                        for _p in _placas[:10]:  # limita a 10 veículos no gráfico
+                            _df_p = _df_cons[_df_cons["_placa"] == _p]
+                            if len(_df_p) >= 1:
+                                _fig_cons.add_trace(go.Scatter(
+                                    x=[str(d) for d in _df_p["_data"]],
+                                    y=_df_p["_media_km_l"],
+                                    mode="lines+markers",
+                                    name=_p,
+                                ))
+                    else:
+                        _fig_cons.add_trace(go.Scatter(
+                            x=[str(d) for d in _df_cons["_data"]],
+                            y=_df_cons["_media_km_l"],
+                            mode="lines+markers+text",
+                            name=_sel_placa,
+                            marker_color="#1565C0",
+                            text=[f"{v:.2f}".replace(".", ",") for v in _df_cons["_media_km_l"]],
+                            textposition="top center",
+                        ))
+                        # linha de média
+                        _med_cons = _df_cons["_media_km_l"].mean()
+                        _fig_cons.add_hline(
+                            y=_med_cons, line_dash="dash", line_color="#F57F17",
+                            annotation_text=f"Média: {_med_cons:.2f} km/L".replace(".", ","),
+                            annotation_position="right",
+                        )
+
+                    _fig_cons.update_layout(
+                        title="📈 Consumo (km/L) por Abastecimento",
+                        height=360, margin=dict(l=10, r=10, t=45, b=10),
+                        yaxis_title="km/L", xaxis_title="Data",
+                        legend=dict(orientation="h", y=-0.2),
+                    )
+                    st.plotly_chart(_fig_cons, use_container_width=True)
+                else:
+                    st.info("Sem dados de consumo (km/L) suficientes para o filtro selecionado.")
+
+                # preço pago por litro por posto
+                st.subheader("💲 Preço pago por posto")
+                _df_preco = _df_vsel.dropna(subset=["_nome_posto", "_preco_litro"]).copy()
+                if len(_df_preco) > 0:
+                    _posto_preco = _df_preco.groupby("_nome_posto").agg(
+                        preco_medio=("_preco_litro", "mean"),
+                        n_abast=("_id_transacao", "count"),
+                        litros=("_litros", "sum"),
+                        cidade=("_cidade_posto", lambda x: x.mode().iloc[0] if len(x) > 0 else ""),
+                        uf=("_uf_posto", lambda x: x.mode().iloc[0] if len(x) > 0 else ""),
+                    ).sort_values("preco_medio").reset_index()
+
+                    _posto_preco["Posto"]     = _posto_preco["_nome_posto"].str[:40]
+                    _posto_preco["Cidade/UF"] = _posto_preco["cidade"] + "/" + _posto_preco["uf"]
+                    _posto_preco["R$/L"]      = _posto_preco["preco_medio"].apply(lambda v: f"R$ {v:.3f}".replace(".", ","))
+                    _posto_preco["Abastec."]  = _posto_preco["n_abast"]
+                    _posto_preco["Litros"]    = _posto_preco["litros"].apply(lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.dataframe(
+                        _posto_preco[["Posto", "Cidade/UF", "R$/L", "Abastec.", "Litros"]],
+                        use_container_width=True, hide_index=True
+                    )
+
+                # custo real por km — cruzamento preço + consumo
+                st.subheader("🔗 Custo real por km (preço × consumo)")
+                _df_custo_km = _df_vsel.dropna(subset=["_preco_litro", "_media_km_l"]).copy()
+                _df_custo_km = _df_custo_km[(_df_custo_km["_media_km_l"] > 0) & (_df_custo_km["_preco_litro"] > 0)]
+                if len(_df_custo_km) > 0:
+                    _df_custo_km["_custo_km_calc"] = _df_custo_km["_preco_litro"] / _df_custo_km["_media_km_l"]
+                    _custo_km_veiculo = _df_custo_km.groupby("_placa")["_custo_km_calc"].mean().sort_values(ascending=False).reset_index()
+                    _custo_km_veiculo.columns = ["Placa", "Custo/km (R$)"]
+                    _custo_km_veiculo["Custo/km (R$)"] = _custo_km_veiculo["Custo/km (R$)"].apply(
+                        lambda v: f"R$ {v:.4f}".replace(".", ",")
+                    )
+                    _custo_km_veiculo["⚠️"] = ""
+                    st.dataframe(_custo_km_veiculo, use_container_width=True, hide_index=True)
+                    st.caption("Custo/km = Preço R$/L ÷ Consumo km/L  |  Quanto custa cada quilômetro rodado")
+
+            # ════════════════════════════════════════════════════
+            # ABA 4 — ALERTAS & FRAUDE
+            # ════════════════════════════════════════════════════
+            with _td:
+                st.markdown(
+                    "<p style='font-size:13px;color:#555;margin-bottom:12px'>"
+                    "Análise automática de transações suspeitas com base em regras de desvio de consumo, "
+                    "hodômetro regressivo, volume inconsistente e múltiplos abastecimentos no dia.</p>",
+                    unsafe_allow_html=True,
+                )
+
+                _alertas = []
+
+                # ── média histórica por veículo (para baseline) ──
+                _media_veiculo = (
+                    _df.dropna(subset=["_media_km_l"])
+                    .groupby("_placa")["_media_km_l"]
+                    .mean()
+                    .to_dict()
+                )
+
+                for _, _row in _df.iterrows():
+                    _placa_r   = _row.get("_placa", "")
+                    _data_r    = _row.get("_data")
+                    _litros_r  = _row.get("_litros") or 0
+                    _km_r      = _row.get("_km_perc")
+                    _media_r   = _row.get("_media_km_l")
+                    _media_vei = _media_veiculo.get(_placa_r, 0)
+                    _status_r  = str(_row.get("_status", "")).strip()
+                    _id_r      = _row.get("_id_transacao", "")
+                    _posto_r   = str(_row.get("_nome_posto", ""))[:30]
+                    _motorista_r = str(_row.get("_motorista", ""))[:30]
+                    _valor_r   = _row.get("_valor_total") or 0
+
+                    # Regra 1: transação não autorizada
+                    if "não autorizado" in _status_r.lower():
+                        _alertas.append({
+                            "Severidade": "🔴 Alta",
+                            "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
+                            "Regra": "Transação não autorizada",
+                            "Detalhe": f"Status: {_status_r}",
+                            "Valor (R$)": _valor_r,
+                        })
+
+                    # Regra 2: hodômetro regressivo
+                    if _km_r is not None and _km_r < 0:
+                        _alertas.append({
+                            "Severidade": "🔴 Alta",
+                            "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
+                            "Regra": "Hodômetro regressivo",
+                            "Detalhe": f"Km percorrido = {_km_r:,.0f}".replace(",", "."),
+                            "Valor (R$)": _valor_r,
+                        })
+
+                    # Regra 3: volume alto para km muito baixo (< 20 km com > 30 L)
+                    if _km_r is not None and _km_r < 20 and _litros_r > 30:
+                        _alertas.append({
+                            "Severidade": "🟠 Média",
+                            "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
+                            "Regra": "Volume alto / km baixo",
+                            "Detalhe": f"{_litros_r:.1f} L para {_km_r:.0f} km".replace(".", ","),
+                            "Valor (R$)": _valor_r,
+                        })
+
+                    # Regra 4: consumo anormal (> 50% acima ou abaixo da média do veículo)
+                    if _media_r and _media_r > 0 and _media_vei > 0:
+                        _desvio_pct = abs(_media_r - _media_vei) / _media_vei
+                        if _desvio_pct > 0.50:
+                            _dir = "muito alto" if _media_r > _media_vei else "muito baixo"
+                            _alertas.append({
+                                "Severidade": "🟠 Média",
+                                "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
+                                "Regra": f"Consumo {_dir} ({_desvio_pct*100:.0f}% de desvio)",
+                                "Detalhe": f"Este abast.: {_media_r:.2f} km/L | Média veículo: {_media_vei:.2f} km/L".replace(".", ","),
+                                "Valor (R$)": _valor_r,
+                            })
+
+                # Regra 5: múltiplos abastecimentos no mesmo dia / mesmo veículo
+                _duplos = (
+                    _df.dropna(subset=["_placa", "_data"])
+                    .groupby(["_placa", "_data"])
+                    .size()
+                    .reset_index(name="cnt")
+                )
+                for _, _drow in _duplos[_duplos["cnt"] > 1].iterrows():
+                    _alertas.append({
+                        "Severidade": "🟡 Baixa",
+                        "Placa": _drow["_placa"], "Data": str(_drow["_data"]), "ID": "—",
+                        "Regra": "Múltiplos abastecimentos no dia",
+                        "Detalhe": f"{_drow['cnt']} abastecimentos em {_drow['_data']}",
+                        "Valor (R$)": None,
+                    })
+
+                # Exibição dos alertas
+                if _alertas:
+                    _df_alertas = _pd.DataFrame(_alertas)
+                    _df_alertas["Valor (R$)"] = _df_alertas["Valor (R$)"].apply(
+                        lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if v and _pd.notna(v) else "—"
+                    )
+                    _df_alertas = _df_alertas.sort_values("Severidade").reset_index(drop=True)
+
+                    _n_alta  = sum(1 for a in _alertas if "Alta"  in a["Severidade"])
+                    _n_media = sum(1 for a in _alertas if "Média" in a["Severidade"])
+                    _n_baixa = sum(1 for a in _alertas if "Baixa" in a["Severidade"])
+                    _al1, _al2, _al3 = st.columns(3)
+                    _al1.metric("🔴 Alertas Altos",  _n_alta)
+                    _al2.metric("🟠 Alertas Médios", _n_media)
+                    _al3.metric("🟡 Alertas Baixos", _n_baixa)
+                    st.divider()
+                    st.dataframe(_df_alertas, use_container_width=True, hide_index=True)
+                    st.caption(
+                        "**Regras aplicadas:** Transação não autorizada | Hodômetro regressivo | "
+                        "Volume alto / km baixo | Consumo anormal (±50% da média do veículo) | "
+                        "Múltiplos abastecimentos no dia"
+                    )
+                else:
+                    st.success("✅ Nenhum alerta identificado no período selecionado.")
+
+            # ════════════════════════════════════════════════════
+            # ABA 5 — INSIGHTS
+            # ════════════════════════════════════════════════════
+            with _te:
+                st.markdown("### 💡 Insights da Frota")
+
+                # ─ Insight 1: veículo com maior custo/km ─────────
+                _df_ins = _df.dropna(subset=["_preco_litro", "_media_km_l"]).copy()
+                _df_ins = _df_ins[(_df_ins["_media_km_l"] > 0) & (_df_ins["_preco_litro"] > 0)]
+                if len(_df_ins) > 0:
+                    _df_ins["_custo_km"] = _df_ins["_preco_litro"] / _df_ins["_media_km_l"]
+                    _ck_veic = _df_ins.groupby("_placa")["_custo_km"].mean()
+                    _pior_veic  = _ck_veic.idxmax()
+                    _melhor_veic = _ck_veic.idxmin()
+                    _i1, _i2 = st.columns(2)
+                    with _i1:
+                        st.markdown(
+                            f"<div style='background:#FFEBEE;border-left:4px solid #B71C1C;"
+                            f"padding:14px;border-radius:6px;margin-bottom:12px'>"
+                            f"<b>🔴 Maior custo/km</b><br>"
+                            f"<span style='font-size:22px;font-weight:700'>{_pior_veic}</span><br>"
+                            f"R$ {_ck_veic[_pior_veic]:.4f}/km".replace(".", ",") +
+                            f"</div>", unsafe_allow_html=True,
+                        )
+                    with _i2:
+                        st.markdown(
+                            f"<div style='background:#E8F5E9;border-left:4px solid #2E7D32;"
+                            f"padding:14px;border-radius:6px;margin-bottom:12px'>"
+                            f"<b>🟢 Menor custo/km</b><br>"
+                            f"<span style='font-size:22px;font-weight:700'>{_melhor_veic}</span><br>"
+                            f"R$ {_ck_veic[_melhor_veic]:.4f}/km".replace(".", ",") +
+                            f"</div>", unsafe_allow_html=True,
+                        )
+
+                # ─ Insight 2: posto mais caro vs mais barato ─────
+                _df_postos_ins = _df.dropna(subset=["_nome_posto", "_preco_litro"])
+                if len(_df_postos_ins) > 0:
+                    _p_preco = _df_postos_ins.groupby("_nome_posto")["_preco_litro"].mean()
+                    _posto_caro   = _p_preco.idxmax()
+                    _posto_barato = _p_preco.idxmin()
+                    _i3, _i4 = st.columns(2)
+                    with _i3:
+                        st.markdown(
+                            f"<div style='background:#FFF8E1;border-left:4px solid #F57F17;"
+                            f"padding:14px;border-radius:6px;margin-bottom:12px'>"
+                            f"<b>💸 Posto mais caro usado</b><br>"
+                            f"<span style='font-size:15px;font-weight:600'>{_posto_caro[:35]}</span><br>"
+                            f"R$ {_p_preco[_posto_caro]:.3f}/L".replace(".", ",") +
+                            f"</div>", unsafe_allow_html=True,
+                        )
+                    with _i4:
+                        st.markdown(
+                            f"<div style='background:#E3F2FD;border-left:4px solid #1565C0;"
+                            f"padding:14px;border-radius:6px;margin-bottom:12px'>"
+                            f"<b>💰 Posto mais barato usado</b><br>"
+                            f"<span style='font-size:15px;font-weight:600'>{_posto_barato[:35]}</span><br>"
+                            f"R$ {_p_preco[_posto_barato]:.3f}/L".replace(".", ",") +
+                            f"</div>", unsafe_allow_html=True,
+                        )
+
+                # ─ Insight 3: motoristas com maior gasto ─────────
+                _df_mot = _df.dropna(subset=["_motorista", "_valor_total"])
+                if len(_df_mot) > 0:
+                    st.markdown("#### 👤 Motoristas — Ranking de Gasto")
+                    _mot_rank = _df_mot.groupby("_motorista").agg(
+                        gasto=("_valor_total", "sum"),
+                        abastec=("_id_transacao", "count"),
+                        litros=("_litros", "sum"),
+                    ).sort_values("gasto", ascending=False).head(10).reset_index()
+                    _mot_rank.columns = ["Motorista", "Gasto (R$)", "Abastec.", "Litros"]
+                    _mot_rank["Gasto (R$)"] = _mot_rank["Gasto (R$)"].apply(
+                        lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    )
+                    _mot_rank["Litros"] = _mot_rank["Litros"].apply(
+                        lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—"
+                    )
+                    st.dataframe(_mot_rank, use_container_width=True, hide_index=True)
+
+                # ─ Insight 4: evolução de gasto no período ───────
+                _df_evol = _df.dropna(subset=["_data", "_valor_total"]).copy()
+                if len(_df_evol) > 0:
+                    st.markdown("#### 📅 Evolução do Gasto Diário")
+                    _evol_dia = _df_evol.groupby("_data")["_valor_total"].sum().reset_index()
+                    _evol_dia.columns = ["Data", "Gasto (R$)"]
+                    _evol_dia["Data_str"] = _evol_dia["Data"].apply(str)
+                    _fig_evol = go.Figure(go.Bar(
+                        x=_evol_dia["Data_str"],
+                        y=_evol_dia["Gasto (R$)"],
+                        marker_color="#1565C0",
+                        text=[f"R$ {v:,.0f}".replace(",", ".") for v in _evol_dia["Gasto (R$)"]],
+                        textposition="outside",
+                    ))
+                    _fig_evol.update_layout(
+                        height=300, margin=dict(l=10, r=10, t=20, b=10),
+                        yaxis_title="R$", xaxis_title="Data",
+                    )
+                    st.plotly_chart(_fig_evol, use_container_width=True)
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 if (
