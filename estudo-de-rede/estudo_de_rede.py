@@ -16766,14 +16766,36 @@ elif modo == "🚛 Análise de Cliente":
                 _df_custo_km = _df_custo_km[(_df_custo_km["_media_km_l"] > 0) & (_df_custo_km["_preco_litro"] > 0)]
                 if len(_df_custo_km) > 0:
                     _df_custo_km["_custo_km_calc"] = _df_custo_km["_preco_litro"] / _df_custo_km["_media_km_l"]
-                    _custo_km_veiculo = _df_custo_km.groupby("_placa")["_custo_km_calc"].mean().sort_values(ascending=False).reset_index()
-                    _custo_km_veiculo.columns = ["Placa", "Custo/km (R$)"]
-                    _custo_km_veiculo["Custo/km (R$)"] = _custo_km_veiculo["Custo/km (R$)"].apply(
-                        lambda v: f"R$ {v:.4f}".replace(".", ",")
-                    )
-                    _custo_km_veiculo["⚠️"] = ""
+                    _ck_agg = _df_custo_km.groupby("_placa").agg(
+                        custo_km=("_custo_km_calc", "mean"),
+                        preco_medio=("_preco_litro", "mean"),
+                        consumo_medio=("_media_km_l", "mean"),
+                    ).sort_values("custo_km", ascending=False).reset_index()
+                    # média geral para flag de desvio
+                    _ck_media_geral = _ck_agg["custo_km"].mean()
+                    _custo_km_veiculo = _pd.DataFrame({
+                        "Placa": _ck_agg["_placa"],
+                        "Custo/km (R$)": _ck_agg["custo_km"].apply(
+                            lambda v: f"R$ {v:.4f}".replace(".", ",")
+                        ),
+                        "Consumo médio (km/L)": _ck_agg["consumo_medio"].apply(
+                            lambda v: f"{v:.2f} km/L".replace(".", ",") if _pd.notna(v) else "—"
+                        ),
+                        "Preço médio (R$/L)": _ck_agg["preco_medio"].apply(
+                            lambda v: f"R$ {v:.3f}".replace(".", ",") if _pd.notna(v) else "—"
+                        ),
+                        "Status": _ck_agg["custo_km"].apply(
+                            lambda v: "🔴 Acima da média" if v > _ck_media_geral * 1.15
+                            else ("🟢 Abaixo da média" if v < _ck_media_geral * 0.85
+                            else "🟡 Na média")
+                        ),
+                    })
                     st.dataframe(_custo_km_veiculo, use_container_width=True, hide_index=True)
-                    st.caption("Custo/km = Preço R$/L ÷ Consumo km/L  |  Quanto custa cada quilômetro rodado")
+                    st.caption(
+                        f"Custo/km = Preço R$/L ÷ Consumo km/L  |  "
+                        f"Média da frota: R$ {_ck_media_geral:.4f}/km".replace(".", ",") +
+                        "  |  🔴 >15% acima  🟡 dentro  🟢 >15% abaixo"
+                    )
 
             # ════════════════════════════════════════════════════
             # ABA 4 — ALERTAS & FRAUDE
