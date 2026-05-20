@@ -1621,7 +1621,7 @@ def _auth_login_page():
     .login-features {
         display: flex;
         justify-content: center;
-        gap: 1.4rem;
+        gap: 1.2rem;
         margin-bottom: 1.8rem;
         animation: fadeUp 0.5s ease 0.45s both;
     }
@@ -1629,28 +1629,37 @@ def _auth_login_page():
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 5px;
+        gap: 8px;
+        cursor: default;
     }
     .login-feature-icon {
-        width: 38px; height: 38px;
-        background: rgba(255,255,255,0.07);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 11px;
+        width: 52px; height: 52px;
+        background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+        border: 1px solid rgba(100,181,246,0.22);
+        border-radius: 14px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 18px;
-        transition: transform 0.2s, background 0.2s;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+        transition: transform 0.22s cubic-bezier(0.4,0,0.2,1),
+                    box-shadow 0.22s, border-color 0.22s, background 0.22s;
     }
     .login-feature-icon:hover {
-        transform: translateY(-3px);
-        background: rgba(100,181,246,0.15);
+        transform: translateY(-4px);
+        background: linear-gradient(145deg, rgba(100,181,246,0.18), rgba(25,118,210,0.12));
+        border-color: rgba(100,181,246,0.5);
+        box-shadow: 0 8px 24px rgba(25,118,210,0.3), inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+    .login-feature-icon svg {
+        width: 26px; height: 26px;
     }
     .login-feature-label {
-        font-size: 0.65rem;
-        color: rgba(255,255,255,0.4);
-        font-weight: 500;
+        font-size: 0.62rem;
+        color: rgba(255,255,255,0.45);
+        font-weight: 600;
         text-align: center;
-        max-width: 60px;
-        line-height: 1.3;
+        max-width: 62px;
+        line-height: 1.35;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
     }
 
     /* ── Botões OAuth (override streamlit) — discreto ── */
@@ -1753,19 +1762,60 @@ def _auth_login_page():
 
           <div class='login-features'>
             <div class='login-feature'>
-              <div class='login-feature-icon'>⛽</div>
+              <div class='login-feature-icon'>
+                <!-- Bomba de combustível / Rede de Postos -->
+                <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="4" y="8" width="11" height="14" rx="1.5" stroke="rgba(100,181,246,0.9)" stroke-width="1.5"/>
+                  <rect x="6.5" y="10.5" width="6" height="4" rx="1" stroke="rgba(100,181,246,0.7)" stroke-width="1.2"/>
+                  <line x1="9.5" y1="22" x2="9.5" y2="8" stroke="rgba(100,181,246,0.4)" stroke-width="1" stroke-dasharray="1.5 1.5"/>
+                  <path d="M15 11 L19 9 L21 11 L21 17 C21 17.8 20.3 18 19.5 17.5" stroke="rgba(100,181,246,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="20" cy="10.5" r="1.2" fill="rgba(100,181,246,0.7)"/>
+                  <line x1="4" y1="22" x2="15" y2="22" stroke="rgba(100,181,246,0.9)" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
               <div class='login-feature-label'>Rede de Postos</div>
             </div>
             <div class='login-feature'>
-              <div class='login-feature-icon'>🛣️</div>
+              <div class='login-feature-icon'>
+                <!-- Rota otimizada / Roteirização -->
+                <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="5" cy="20" r="2.2" stroke="rgba(100,181,246,0.9)" stroke-width="1.4"/>
+                  <circle cx="21" cy="6" r="2.2" stroke="rgba(100,181,246,0.9)" stroke-width="1.4"/>
+                  <path d="M5 17.8 C5 13 10 13 13 13 C16 13 21 13 21 8.2" stroke="rgba(100,181,246,0.75)" stroke-width="1.4" stroke-linecap="round"/>
+                  <circle cx="13" cy="13" r="1.8" fill="rgba(100,181,246,0.15)" stroke="rgba(255,183,77,0.9)" stroke-width="1.3"/>
+                  <path d="M13 11.5 L13 10" stroke="rgba(255,183,77,0.7)" stroke-width="1" stroke-linecap="round"/>
+                  <path d="M14.2 11.8 L15.2 10.8" stroke="rgba(255,183,77,0.7)" stroke-width="1" stroke-linecap="round"/>
+                  <path d="M11.8 11.8 L10.8 10.8" stroke="rgba(255,183,77,0.7)" stroke-width="1" stroke-linecap="round"/>
+                </svg>
+              </div>
               <div class='login-feature-label'>Roteirização</div>
             </div>
             <div class='login-feature'>
-              <div class='login-feature-icon'>📊</div>
+              <div class='login-feature-icon'>
+                <!-- Analytics / Inteligência -->
+                <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="4" y="16" width="4" height="6" rx="1" fill="rgba(100,181,246,0.35)" stroke="rgba(100,181,246,0.85)" stroke-width="1.3"/>
+                  <rect x="11" y="10" width="4" height="12" rx="1" fill="rgba(100,181,246,0.35)" stroke="rgba(100,181,246,0.85)" stroke-width="1.3"/>
+                  <rect x="18" y="4" width="4" height="18" rx="1" fill="rgba(100,181,246,0.35)" stroke="rgba(100,181,246,0.85)" stroke-width="1.3"/>
+                  <path d="M5.5 15.5 L13 9 L20.5 3.5" stroke="rgba(255,183,77,0.8)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 1.5"/>
+                  <circle cx="13" cy="9" r="1.5" fill="rgba(255,183,77,0.9)"/>
+                </svg>
+              </div>
               <div class='login-feature-label'>Inteligência</div>
             </div>
             <div class='login-feature'>
-              <div class='login-feature-icon'>🚛</div>
+              <div class='login-feature-icon'>
+                <!-- Caminhão / Análise de Frota -->
+                <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="2" y="10" width="14" height="9" rx="1.5" stroke="rgba(100,181,246,0.9)" stroke-width="1.4"/>
+                  <path d="M16 13 L20.5 13 L23 16 L23 19 L16 19 Z" stroke="rgba(100,181,246,0.9)" stroke-width="1.4" stroke-linejoin="round"/>
+                  <circle cx="6.5" cy="20.5" r="2" stroke="rgba(100,181,246,0.9)" stroke-width="1.4"/>
+                  <circle cx="19.5" cy="20.5" r="2" stroke="rgba(100,181,246,0.9)" stroke-width="1.4"/>
+                  <line x1="8.5" y1="20.5" x2="17.5" y2="20.5" stroke="rgba(100,181,246,0.4)" stroke-width="1.2"/>
+                  <path d="M5 10 L5 7 L12 7 L12 10" stroke="rgba(100,181,246,0.5)" stroke-width="1.2" stroke-linejoin="round"/>
+                  <line x1="20.5" y1="13" x2="20.5" y2="16.5" stroke="rgba(100,181,246,0.4)" stroke-width="1" stroke-dasharray="1.5 1"/>
+                </svg>
+              </div>
               <div class='login-feature-label'>Análise Frota</div>
             </div>
           </div>
