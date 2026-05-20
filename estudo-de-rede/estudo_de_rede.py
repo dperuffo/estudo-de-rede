@@ -10580,10 +10580,11 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel = st.tabs(
+            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs = st.tabs(
                 ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
-                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "🧠 Inteligência"]
+                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso"]
             )
+            tab_intel = None  # aba removida de Configurações — disponível apenas no menu principal
 
         # ── Tab Gestão de Frotas ────────────────────────────────────
         if tab_pf is not None:
