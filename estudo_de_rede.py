@@ -17041,6 +17041,113 @@ elif modo == "🚛 Análise de Cliente":
                     "para a rede GF credenciada e compare com o mercado (ANP)."
                 )
 
+                # ════════════════════════════════════════════════
+                # WIDGET DE UPLOAD ANP (inline nesta aba)
+                # ════════════════════════════════════════════════
+                _anp_cache_inline = st.session_state.get("_precos_anp_cache", {})
+                _sheets_inline    = _anp_cache_inline.get("sheets")
+                _semana_inline    = _anp_cache_inline.get("semana", "")
+
+                if _sheets_inline is None:
+                    # ── Dados ANP não carregados: card de instrução + uploader ─
+                    st.markdown(
+                        "<div style='background:#e3f2fd;border-radius:10px;"
+                        "padding:14px 18px;border:1px solid #90caf9;margin-bottom:16px'>"
+                        "<div style='font-size:14px;font-weight:700;color:#1565c0;"
+                        "margin-bottom:10px'>📥 Carregar Preços de Referência ANP</div>"
+                        "<div style='display:flex;flex-direction:column;gap:7px'>"
+                        "<div style='display:flex;align-items:flex-start;gap:10px'>"
+                        "<div style='min-width:22px;height:22px;background:#1565c0;color:#fff;"
+                        "border-radius:50%;font-size:11px;font-weight:700;"
+                        "display:flex;align-items:center;justify-content:center'>1</div>"
+                        "<div style='font-size:13px;color:#1a1a1a;line-height:1.4'>"
+                        "Acesse <a href='https://www.gov.br/anp/pt-br/assuntos/"
+                        "precos-e-defesa-da-concorrencia/precos/"
+                        "levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas' "
+                        "target='_blank' style='color:#1565c0;font-weight:600'>"
+                        "gov.br/anp → Levantamento de Preços</a></div></div>"
+                        "<div style='display:flex;align-items:flex-start;gap:10px'>"
+                        "<div style='min-width:22px;height:22px;background:#1565c0;color:#fff;"
+                        "border-radius:50%;font-size:11px;font-weight:700;"
+                        "display:flex;align-items:center;justify-content:center'>2</div>"
+                        "<div style='font-size:13px;color:#1a1a1a;line-height:1.4'>"
+                        "Baixe o arquivo <b>resumo_semanal_lpc_*.xlsx</b> da última semana.</div>"
+                        "</div>"
+                        "<div style='display:flex;align-items:flex-start;gap:10px'>"
+                        "<div style='min-width:22px;height:22px;background:#1565c0;color:#fff;"
+                        "border-radius:50%;font-size:11px;font-weight:700;"
+                        "display:flex;align-items:center;justify-content:center'>3</div>"
+                        "<div style='font-size:13px;color:#1a1a1a;line-height:1.4'>"
+                        "Faça o upload abaixo — ficará disponível em toda a sessão.</div>"
+                        "</div></div></div>",
+                        unsafe_allow_html=True,
+                    )
+                    _arq_sv = st.file_uploader(
+                        "📎 Selecione o arquivo da ANP (resumo_semanal_lpc_*.xlsx)",
+                        type=["xlsx", "xls"],
+                        key="anp_uploader_sv",
+                        help="Planilha semanal da ANP com preços médios por estado/município",
+                    )
+                    if _arq_sv:
+                        with st.spinner("🔍 Processando planilha ANP…"):
+                            try:
+                                _sh_sv = _anp_processar_arquivo(io.BytesIO(_arq_sv.read()))
+                                if not _sh_sv:
+                                    st.error(
+                                        "❌ Nenhuma aba reconhecida. "
+                                        "Verifique se é a planilha correta da ANP."
+                                    )
+                                else:
+                                    _sem_sv = _arq_sv.name.replace(".xlsx", "").replace(".xls", "")
+                                    _cache_ant_sv = st.session_state.get("_precos_anp_cache", {})
+                                    if _cache_ant_sv.get("sheets") and _cache_ant_sv.get("semana") != _sem_sv:
+                                        st.session_state["_precos_anp_cache_anterior"] = _cache_ant_sv
+                                    st.session_state["_precos_anp_cache"] = {
+                                        "sheets": _sh_sv, "semana": _sem_sv
+                                    }
+                                    st.rerun()
+                            except Exception as _ex_sv:
+                                st.error(f"❌ Erro ao ler arquivo: {_ex_sv}")
+                else:
+                    # ── Dados carregados: badge compacto + opção de substituir ─
+                    with st.expander(
+                        f"✅ ANP carregada: **{_semana_inline}** · Clique para trocar",
+                        expanded=False,
+                    ):
+                        st.markdown(
+                            "<div style='font-size:12px;color:#555;margin-bottom:8px'>"
+                            "Para atualizar, baixe a planilha mais recente em "
+                            "<a href='https://www.gov.br/anp/pt-br/assuntos/"
+                            "precos-e-defesa-da-concorrencia/precos/"
+                            "levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas' "
+                            "target='_blank'>gov.br/anp → Levantamento de Preços</a> "
+                            "e faça upload abaixo.</div>",
+                            unsafe_allow_html=True,
+                        )
+                        _arq_sv2 = st.file_uploader(
+                            "📎 Substituir por arquivo mais recente",
+                            type=["xlsx", "xls"],
+                            key="anp_uploader_sv_sub",
+                        )
+                        if _arq_sv2:
+                            try:
+                                _sh_sv2 = _anp_processar_arquivo(io.BytesIO(_arq_sv2.read()))
+                                if _sh_sv2:
+                                    _sem_sv2 = _arq_sv2.name.replace(".xlsx", "").replace(".xls", "")
+                                    _ca2 = st.session_state.get("_precos_anp_cache", {})
+                                    if _ca2.get("sheets") and _ca2.get("semana") != _sem_sv2:
+                                        st.session_state["_precos_anp_cache_anterior"] = _ca2
+                                    st.session_state["_precos_anp_cache"] = {
+                                        "sheets": _sh_sv2, "semana": _sem_sv2
+                                    }
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Arquivo não reconhecido.")
+                            except Exception as _ex_sv2:
+                                st.error(f"❌ Erro: {_ex_sv2}")
+
+                st.divider()
+
                 # ── Formatador pt-BR interno ──────────────────────────────
                 def _sv_frs(v, decimais=2):
                     """Formata número como R$ em pt-BR. Retorna '—' se inválido."""
