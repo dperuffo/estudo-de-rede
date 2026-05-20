@@ -157,6 +157,51 @@ create table if not exists precos_posto_versoes (
     carregado_em  timestamptz default now()
 );
 
+-- ── 13. Abastecimentos de Frota (Análise de Cliente) ─────────────
+create table if not exists frota_abastecimentos (
+    id                  bigserial primary key,
+    usuario_email       text not null,
+    id_transacao        bigint,
+    data_abastecimento  date,
+    hora_abastecimento  text,
+    cnpj_frota          text,
+    razao_frota         text,
+    centro_custo        text,
+    cnpj_posto          text,
+    nome_posto          text,
+    cidade_posto        text,
+    uf_posto            text,
+    placa               text,
+    tipo_veiculo        text,
+    nome_motorista      text,
+    hod_atual           numeric,
+    hod_anterior        numeric,
+    km_percorrido       numeric,
+    media_km_l          numeric,
+    produto             text,
+    litros              numeric,
+    preco_litro         numeric,
+    valor_combustivel   numeric,
+    valor_total         numeric,
+    status_transacao    text,
+    lat_posto           numeric,
+    lon_posto           numeric,
+    nome_arquivo        text,
+    created_at          timestamptz default now(),
+    unique(usuario_email, id_transacao)
+);
+
+create table if not exists frota_uploads (
+    id            bigserial primary key,
+    usuario_email text not null,
+    nome_arquivo  text,
+    n_registros   int,
+    n_veiculos    int,
+    periodo_ini   date,
+    periodo_fim   date,
+    carregado_em  timestamptz default now()
+);
+
 -- ── Desabilita Row Level Security (app usa chave publishable) ─────
 alter table rotas_salvas           disable row level security;
 alter table historico_precos       disable row level security;
@@ -170,3 +215,5 @@ alter table postos_cercados_db     disable row level security;
 alter table postos_cercados_versoes disable row level security;
 alter table precos_posto_db        disable row level security;
 alter table precos_posto_versoes   disable row level security;
+alter table frota_abastecimentos   disable row level security;
+alter table frota_uploads          disable row level security;

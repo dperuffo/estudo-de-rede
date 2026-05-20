@@ -157,6 +157,61 @@ def _db_carregar_preferencias() -> dict:
     return {}
 
 
+# ── Frota: Abastecimentos ─────────────────────────────────────────
+
+def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, str]:
+    """
+    Salva lista de dicts de abastecimentos no Supabase.
+    Faz upsert usando (usuario_email, id_transacao) como chave única.
+    Retorna (n_salvos, mensagem_erro_ou_vazio).
+    """
+    db = _db_client()
+    if not db:
+        return 0, "Supabase não configurado"
+    email = _db_email()
+    if not email:
+        return 0, "Usuário não autenticado"
+    try:
+        for row in df_rows:
+            row["usuario_email"] = email
+        res = db.table("frota_abastecimentos").upsert(
+            df_rows,
+            on_conflict="usuario_email,id_transacao"
+        ).execute()
+        n = len(res.data) if res.data else 0
+        # Registra upload
+        if df_rows:
+            datas = [r.get("data_abastecimento") for r in df_rows if r.get("data_abastecimento")]
+            db.table("frota_uploads").insert({
+                "usuario_email": email,
+                "nome_arquivo":  nome_arquivo,
+                "n_registros":   len(df_rows),
+                "n_veiculos":    len({r.get("placa") for r in df_rows if r.get("placa")}),
+                "periodo_ini":   min(datas) if datas else None,
+                "periodo_fim":   max(datas) if datas else None,
+            }).execute()
+        return n, ""
+    except Exception as _e:
+        return 0, str(_e)
+
+
+def _db_carregar_abastecimentos() -> list:
+    """Carrega abastecimentos salvos do usuário no Supabase."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        res = db.table("frota_abastecimentos") \
+                .select("*") \
+                .eq("usuario_email", _db_email()) \
+                .order("data_abastecimento", desc=True) \
+                .limit(5000) \
+                .execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
 # ── Postos Favoritos ───────────────────────────────────────────────
 
 def _db_favoritos() -> list:
@@ -9104,6 +9159,17 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
         st.rerun()
 
+    if st.button(
+        "🚛 Análise de Cliente",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🚛 Análise de Cliente" else "secondary",
+        key="btn_analise_cliente",
+        help="Análise de abastecimentos e custos da frota do cliente",
+    ):
+        st.session_state["modo_selecionado"] = "🚛 Análise de Cliente"
+        _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
+        st.rerun()
+
     # ── Botão Admin (visível só para o administrador) ─────────────
     _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
     if _email_atual.lower() == _ADMIN_EMAIL.lower():
@@ -16135,6 +16201,685 @@ elif modo == "📄 Documentação":
             "📄 Arquivo de documentação não encontrado.\n\n"
             "Certifique-se de que o arquivo **Gestao de Frotas.pdf** está na raiz do repositório."
         )
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Análise de Cliente (Frota)
+# ═══════════════════════════════════════════════════════════════════
+elif modo == "🚛 Análise de Cliente":
+    import pandas as _pd
+    import numpy as _np
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.4rem;"
+        "background:linear-gradient(135deg,#1B5E20,#66BB6A);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🚛 Análise de Cliente — Frota</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 18px'>"
+        "Carregue a planilha de abastecimentos para obter análises de consumo, custos e detecção de desvios.</p>",
+        unsafe_allow_html=True,
+    )
+
+    # ── helper: converte número br (vírgula=decimal, ponto=milhar) ─
+    def _br2f(s):
+        if s is None:
+            return None
+        s = str(s).strip()
+        if s in ("-", "", "Não se aplica.", "Dados não encontrada.", "nan"):
+            return None
+        try:
+            if "," in s:
+                s = s.replace(".", "").replace(",", ".")
+            else:
+                s = s.replace(".", "")
+            return float(s)
+        except Exception:
+            return None
+
+    # ── helper: parse data dd/mm/aaaa ─────────────────────────────
+    def _parse_date(s):
+        if not s or str(s).strip() in ("-", ""):
+            return None
+        try:
+            return _pd.to_datetime(str(s).strip(), dayfirst=True).date()
+        except Exception:
+            return None
+
+    # ── helper: extrai lat/lon de "lat / lon" ─────────────────────
+    def _parse_latlon(s):
+        try:
+            pts = str(s).split("/")
+            return float(pts[0].strip()), float(pts[1].strip())
+        except Exception:
+            return None, None
+
+    # ── helper: converte df → lista de dicts para Supabase ────────
+    def _df_to_rows(df: _pd.DataFrame, nome_arq: str) -> list:
+        rows = []
+        for _, r in df.iterrows():
+            lat, lon = _parse_latlon(r.get("_latlon_posto", ""))
+            rows.append({
+                "id_transacao":       int(r["_id_transacao"]) if _pd.notna(r.get("_id_transacao")) else None,
+                "data_abastecimento": str(r["_data"]) if r.get("_data") else None,
+                "hora_abastecimento": str(r.get("_hora", "")),
+                "cnpj_frota":         str(r.get("_cnpj_frota", "")),
+                "razao_frota":        str(r.get("_razao_frota", "")),
+                "centro_custo":       str(r.get("_centro_custo", "")),
+                "cnpj_posto":         str(r.get("_cnpj_posto", "")),
+                "nome_posto":         str(r.get("_nome_posto", "")),
+                "cidade_posto":       str(r.get("_cidade_posto", "")),
+                "uf_posto":           str(r.get("_uf_posto", "")),
+                "placa":              str(r.get("_placa", "")),
+                "tipo_veiculo":       str(r.get("_tipo_veiculo", "")),
+                "nome_motorista":     str(r.get("_motorista", "")),
+                "hod_atual":          r.get("_hod_atual"),
+                "hod_anterior":       r.get("_hod_anterior"),
+                "km_percorrido":      r.get("_km_perc"),
+                "media_km_l":         r.get("_media_km_l"),
+                "produto":            str(r.get("_produto", "")),
+                "litros":             r.get("_litros"),
+                "preco_litro":        r.get("_preco_litro"),
+                "valor_combustivel":  r.get("_valor_comb"),
+                "valor_total":        r.get("_valor_total"),
+                "status_transacao":   str(r.get("_status", "")),
+                "lat_posto":          lat,
+                "lon_posto":          lon,
+                "nome_arquivo":       nome_arq,
+            })
+        return rows
+
+    # ── Fonte de dados: upload ou banco ───────────────────────────
+    _src_opcao = st.radio(
+        "Fonte dos dados:",
+        ["📂 Carregar arquivo", "☁️ Dados salvos no banco"],
+        horizontal=True,
+        key="frota_src_opcao",
+    )
+
+    _df_abast = None  # dataframe normalizado final
+
+    if _src_opcao == "📂 Carregar arquivo":
+        _arq = st.file_uploader(
+            "Selecione a planilha de abastecimentos (.xlsx / .csv)",
+            type=["xlsx", "xls", "csv"],
+            key="frota_upload",
+        )
+        if _arq:
+            try:
+                if _arq.name.lower().endswith(".csv"):
+                    _df_raw = _pd.read_csv(_arq, dtype=str)
+                else:
+                    _df_raw = _pd.read_excel(_arq, dtype=str)
+
+                # ── mapeamento de colunas do layout padrão ────────
+                _CM = {
+                    "_id_transacao":  "Id Transação",
+                    "_data":          "Data abastecimento",
+                    "_hora":          "Hora abastecimento",
+                    "_cnpj_frota":    "CNPJ Frota Matriz",
+                    "_razao_frota":   "Razão Social Frota Matriz",
+                    "_centro_custo":  "Nome Centro de Custo",
+                    "_cnpj_posto":    "CNPJ Estabelecimento Credenciado",
+                    "_nome_posto":    "Razão Social Estabelecimento Credenciado",
+                    "_cidade_posto":  "Cidade Estabelecimento Credenciado",
+                    "_uf_posto":      "UF Estabelecimento Credenciado",
+                    "_placa":         "Placa do Veículo",
+                    "_tipo_veiculo":  "Classificação do Veículo",
+                    "_motorista":     "Nome do Motorista",
+                    "_hod_atual":     "Hodômetro/ (KM)/Horímetro (h)",
+                    "_hod_anterior":  "Hodômetro (Km)/ Horímetro (H) Anterior",
+                    "_km_perc":       "Hodômetro (Km)/ Horímetro (H)  Percorrido",
+                    "_media_km_l":    "Média Km/L ou L/H",
+                    "_produto":       "Produto",
+                    "_litros":        "Litros",
+                    "_preco_litro":   "Vlr Unitário do Produto(R$)",
+                    "_valor_comb":    "Valor Total do Produto (R$)",
+                    "_valor_total":   "Vlr Total da Transação (R$)",
+                    "_status":        "Status",
+                    "_latlon_posto":  "Latitude/Longitude Posto",
+                }
+                _df = _pd.DataFrame()
+                for _alias, _col_orig in _CM.items():
+                    if _col_orig in _df_raw.columns:
+                        _df[_alias] = _df_raw[_col_orig]
+                    else:
+                        _df[_alias] = None
+
+                # ── conversões ────────────────────────────────────
+                _df["_data"]        = _df["_data"].apply(_parse_date)
+                _df["_hod_atual"]   = _df["_hod_atual"].apply(_br2f)
+                _df["_hod_anterior"]= _df["_hod_anterior"].apply(_br2f)
+                _df["_km_perc"]     = _df["_km_perc"].apply(_br2f)
+                _df["_media_km_l"]  = _df["_media_km_l"].apply(_br2f)
+                _df["_litros"]      = _df["_litros"].apply(_br2f)
+                _df["_preco_litro"] = _df["_preco_litro"].apply(_br2f)
+                _df["_valor_comb"]  = _df["_valor_comb"].apply(_br2f)
+                _df["_valor_total"] = _df["_valor_total"].apply(_br2f)
+                _df["_id_transacao"]= _pd.to_numeric(_df["_id_transacao"], errors="coerce")
+
+                _df_abast = _df.copy()
+                st.success(f"✅ **{len(_df_abast)}** registros carregados — {_df_abast['_placa'].nunique()} veículos")
+
+            except Exception as _ex_up:
+                st.error(f"❌ Erro ao ler arquivo: {_ex_up}")
+
+    else:  # banco
+        _rows_db = _db_carregar_abastecimentos()
+        if _rows_db:
+            _df_abast = _pd.DataFrame(_rows_db).rename(columns={
+                "id_transacao":       "_id_transacao",
+                "data_abastecimento": "_data",
+                "hora_abastecimento": "_hora",
+                "cnpj_frota":         "_cnpj_frota",
+                "razao_frota":        "_razao_frota",
+                "centro_custo":       "_centro_custo",
+                "cnpj_posto":         "_cnpj_posto",
+                "nome_posto":         "_nome_posto",
+                "cidade_posto":       "_cidade_posto",
+                "uf_posto":           "_uf_posto",
+                "placa":              "_placa",
+                "tipo_veiculo":       "_tipo_veiculo",
+                "nome_motorista":     "_motorista",
+                "hod_atual":          "_hod_atual",
+                "hod_anterior":       "_hod_anterior",
+                "km_percorrido":      "_km_perc",
+                "media_km_l":         "_media_km_l",
+                "produto":            "_produto",
+                "litros":             "_litros",
+                "preco_litro":        "_preco_litro",
+                "valor_combustivel":  "_valor_comb",
+                "valor_total":        "_valor_total",
+                "status_transacao":   "_status",
+                "lat_posto":          "_lat_posto",
+                "lon_posto":          "_lon_posto",
+                "nome_arquivo":       "_nome_arquivo",
+            })
+            _df_abast["_data"] = _pd.to_datetime(_df_abast["_data"], errors="coerce").dt.date
+            st.info(f"☁️ **{len(_df_abast)}** registros do banco — {_df_abast['_placa'].nunique()} veículos")
+        else:
+            st.warning("Nenhum dado salvo no banco ainda. Carregue um arquivo primeiro.")
+
+    # ═══════ ANÁLISES (só se há dados) ═══════════════════════════
+    if _df_abast is not None and len(_df_abast) > 0:
+
+        # ── filtro de período ─────────────────────────────────────
+        _datas_validas = [d for d in _df_abast["_data"] if d is not None]
+        if _datas_validas:
+            _d_min, _d_max = min(_datas_validas), max(_datas_validas)
+            _fc1, _fc2 = st.columns(2)
+            with _fc1:
+                _f_ini = st.date_input("📅 De", value=_d_min, min_value=_d_min, max_value=_d_max, key="frota_f_ini")
+            with _fc2:
+                _f_fim = st.date_input("até", value=_d_max, min_value=_d_min, max_value=_d_max, key="frota_f_fim")
+            _mask = _df_abast["_data"].apply(
+                lambda d: d is not None and _f_ini <= d <= _f_fim
+            )
+            _df = _df_abast[_mask].copy()
+        else:
+            _df = _df_abast.copy()
+
+        if len(_df) == 0:
+            st.warning("Nenhum registro no período selecionado.")
+        else:
+            # ── abas principais ───────────────────────────────────
+            _ta, _tb, _tc, _td, _te = st.tabs([
+                "📊 Resumo",
+                "🚗 Veículos",
+                "📈 Consumo & Custo/km",
+                "🚨 Alertas & Fraude",
+                "💡 Insights",
+            ])
+
+            # ════════════════════════════════════════════════════
+            # ABA 1 — RESUMO
+            # ════════════════════════════════════════════════════
+            with _ta:
+                # métricas
+                _total_litros  = _df["_litros"].sum(min_count=1) or 0
+                _total_gasto   = _df["_valor_total"].sum(min_count=1) or 0
+                _n_abast       = len(_df)
+                _n_veic        = _df["_placa"].nunique()
+                _preco_medio   = (_df["_preco_litro"].mean() if _df["_preco_litro"].notna().any() else 0)
+                _km_total      = _df["_km_perc"].sum(min_count=1) or 0
+
+                _mc1, _mc2, _mc3 = st.columns(3)
+                _mc1.metric("🧾 Transações", f"{_n_abast:,}".replace(",", "."))
+                _mc2.metric("🚗 Veículos", _n_veic)
+                _mc3.metric("⛽ Litros abastecidos", f"{_total_litros:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                _mc4, _mc5, _mc6 = st.columns(3)
+                _mc4.metric("💰 Gasto total (R$)", f"R$ {_total_gasto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                _mc5.metric("📊 Preço médio (R$/L)", f"R$ {_preco_medio:,.3f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                _km_disp = f"{_km_total:,.0f} km".replace(",", ".") if _km_total > 0 else "—"
+                _mc6.metric("🛣️ Km total registrado", _km_disp)
+
+                st.divider()
+                _col_g1, _col_g2 = st.columns(2)
+
+                # gráfico: mix de combustível
+                with _col_g1:
+                    _prod_grp = _df.groupby("_produto")["_litros"].sum().reset_index()
+                    _prod_grp.columns = ["Combustível", "Litros"]
+                    if len(_prod_grp) > 0:
+                        _fig_mix = go.Figure(go.Pie(
+                            labels=_prod_grp["Combustível"],
+                            values=_prod_grp["Litros"],
+                            hole=0.45,
+                            textinfo="label+percent",
+                            marker_colors=["#1565C0", "#2E7D32", "#F57F17", "#6A1B9A"][:len(_prod_grp)],
+                        ))
+                        _fig_mix.update_layout(
+                            title="⛽ Mix de Combustível (litros)",
+                            height=300, margin=dict(l=10, r=10, t=40, b=10),
+                            showlegend=False,
+                        )
+                        st.plotly_chart(_fig_mix, use_container_width=True)
+
+                # gráfico: gasto por centro de custo
+                with _col_g2:
+                    _cc_grp = _df.groupby("_centro_custo")["_valor_total"].sum().sort_values(ascending=True).reset_index()
+                    _cc_grp.columns = ["Centro de Custo", "Gasto (R$)"]
+                    if len(_cc_grp) > 0:
+                        _fig_cc = go.Figure(go.Bar(
+                            x=_cc_grp["Gasto (R$)"],
+                            y=_cc_grp["Centro de Custo"],
+                            orientation="h",
+                            marker_color="#1565C0",
+                            text=[f"R$ {v:,.0f}".replace(",", ".") for v in _cc_grp["Gasto (R$)"]],
+                            textposition="outside",
+                        ))
+                        _fig_cc.update_layout(
+                            title="💼 Gasto por Centro de Custo",
+                            height=300, margin=dict(l=10, r=80, t=40, b=10),
+                            xaxis_title="R$", yaxis_title="",
+                        )
+                        st.plotly_chart(_fig_cc, use_container_width=True)
+
+                # botão salvar no banco
+                if _src_opcao == "📂 Carregar arquivo" and _arq:
+                    st.divider()
+                    _c_sv1, _c_sv2 = st.columns([3, 1])
+                    with _c_sv2:
+                        if st.button("💾 Salvar no banco", use_container_width=True, key="frota_salvar_db"):
+                            _rows_para_salvar = _df_to_rows(_df_abast, _arq.name)
+                            with st.spinner("Salvando…"):
+                                _n_ok, _err_sv = _db_salvar_abastecimentos(_rows_para_salvar, _arq.name)
+                            if _err_sv:
+                                st.error(f"Erro: {_err_sv}")
+                            else:
+                                st.success(f"✅ {_n_ok} registros salvos no Supabase!")
+
+            # ════════════════════════════════════════════════════
+            # ABA 2 — VEÍCULOS
+            # ════════════════════════════════════════════════════
+            with _tb:
+                _veic_grp = _df.groupby("_placa").agg(
+                    tipo=("_tipo_veiculo", lambda x: x.mode().iloc[0] if len(x) > 0 else "—"),
+                    motoristas=("_motorista", lambda x: ", ".join(sorted(x.dropna().unique())[:3])),
+                    n_abast=("_id_transacao", "count"),
+                    litros=("_litros", "sum"),
+                    custo=("_valor_total", "sum"),
+                    km=("_km_perc", "sum"),
+                    consumo_medio=("_media_km_l", "mean"),
+                ).reset_index()
+
+                # custo por km calculado
+                _veic_grp["custo_km"] = _np.where(
+                    _veic_grp["km"] > 0,
+                    _veic_grp["custo"] / _veic_grp["km"],
+                    _np.nan
+                )
+                # preço médio pago por litro
+                _preco_veiculo = _df.groupby("_placa")["_preco_litro"].mean().reset_index()
+                _preco_veiculo.columns = ["_placa", "preco_medio"]
+                _veic_grp = _veic_grp.merge(_preco_veiculo, on="_placa", how="left")
+
+                _veic_grp = _veic_grp.sort_values("custo", ascending=False).reset_index(drop=True)
+
+                # formata para exibição
+                _veic_disp = _veic_grp.copy()
+                _veic_disp.columns = [
+                    "Placa", "Tipo", "Motoristas", "Abastec.",
+                    "Litros", "Gasto (R$)", "Km total",
+                    "Consumo (km/L)", "Custo/km (R$)", "R$/L médio"
+                ]
+                _veic_disp["Litros"]         = _veic_disp["Litros"].apply(lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["Gasto (R$)"]     = _veic_disp["Gasto (R$)"].apply(lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["Km total"]       = _veic_disp["Km total"].apply(lambda v: f"{v:,.0f}".replace(",", ".") if _pd.notna(v) and v > 0 else "—")
+                _veic_disp["Consumo (km/L)"] = _veic_disp["Consumo (km/L)"].apply(lambda v: f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) and v > 0 else "—")
+                _veic_disp["Custo/km (R$)"]  = _veic_disp["Custo/km (R$)"].apply(lambda v: f"R$ {v:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["R$/L médio"]     = _veic_disp["R$/L médio"].apply(lambda v: f"R$ {v:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+
+                st.dataframe(_veic_disp, use_container_width=True, hide_index=True)
+
+                # ranking custo/km (gráfico)
+                _ck_valid = _veic_grp.dropna(subset=["custo_km"]).sort_values("custo_km", ascending=False)
+                if len(_ck_valid) > 0:
+                    _fig_ck = go.Figure(go.Bar(
+                        x=_ck_valid["_placa"],
+                        y=_ck_valid["custo_km"],
+                        marker_color=[
+                            "#B71C1C" if v > _ck_valid["custo_km"].median() * 1.3 else
+                            "#F57F17" if v > _ck_valid["custo_km"].median() else
+                            "#2E7D32"
+                            for v in _ck_valid["custo_km"]
+                        ],
+                        text=[f"R$ {v:.3f}".replace(".", ",") for v in _ck_valid["custo_km"]],
+                        textposition="outside",
+                    ))
+                    _fig_ck.update_layout(
+                        title="💰 Custo por km por Veículo (R$/km)",
+                        height=350, margin=dict(l=10, r=10, t=45, b=10),
+                        yaxis_title="R$/km", xaxis_title="Placa",
+                    )
+                    st.plotly_chart(_fig_ck, use_container_width=True)
+                    st.caption("🟢 Abaixo da mediana  🟡 Acima da mediana  🔴 >30% acima da mediana")
+
+            # ════════════════════════════════════════════════════
+            # ABA 3 — CONSUMO & CUSTO/KM
+            # ════════════════════════════════════════════════════
+            with _tc:
+                _placas = sorted(_df["_placa"].dropna().unique().tolist())
+                _sel_placa = st.selectbox(
+                    "🚗 Veículo", ["— Todos —"] + _placas,
+                    key="frota_sel_placa_tc"
+                )
+                _df_vsel = _df if _sel_placa == "— Todos —" else _df[_df["_placa"] == _sel_placa]
+
+                # evolução consumo km/L por abastecimento
+                _df_cons = _df_vsel.dropna(subset=["_data", "_media_km_l"]).copy()
+                _df_cons = _df_cons[_df_cons["_media_km_l"] > 0].sort_values("_data")
+
+                if len(_df_cons) > 0:
+                    _fig_cons = go.Figure()
+                    if _sel_placa == "— Todos —":
+                        for _p in _placas[:10]:  # limita a 10 veículos no gráfico
+                            _df_p = _df_cons[_df_cons["_placa"] == _p]
+                            if len(_df_p) >= 1:
+                                _fig_cons.add_trace(go.Scatter(
+                                    x=[str(d) for d in _df_p["_data"]],
+                                    y=_df_p["_media_km_l"],
+                                    mode="lines+markers",
+                                    name=_p,
+                                ))
+                    else:
+                        _fig_cons.add_trace(go.Scatter(
+                            x=[str(d) for d in _df_cons["_data"]],
+                            y=_df_cons["_media_km_l"],
+                            mode="lines+markers+text",
+                            name=_sel_placa,
+                            marker_color="#1565C0",
+                            text=[f"{v:.2f}".replace(".", ",") for v in _df_cons["_media_km_l"]],
+                            textposition="top center",
+                        ))
+                        # linha de média
+                        _med_cons = _df_cons["_media_km_l"].mean()
+                        _fig_cons.add_hline(
+                            y=_med_cons, line_dash="dash", line_color="#F57F17",
+                            annotation_text=f"Média: {_med_cons:.2f} km/L".replace(".", ","),
+                            annotation_position="right",
+                        )
+
+                    _fig_cons.update_layout(
+                        title="📈 Consumo (km/L) por Abastecimento",
+                        height=360, margin=dict(l=10, r=10, t=45, b=10),
+                        yaxis_title="km/L", xaxis_title="Data",
+                        legend=dict(orientation="h", y=-0.2),
+                    )
+                    st.plotly_chart(_fig_cons, use_container_width=True)
+                else:
+                    st.info("Sem dados de consumo (km/L) suficientes para o filtro selecionado.")
+
+                # preço pago por litro por posto
+                st.subheader("💲 Preço pago por posto")
+                _df_preco = _df_vsel.dropna(subset=["_nome_posto", "_preco_litro"]).copy()
+                if len(_df_preco) > 0:
+                    _posto_preco = _df_preco.groupby("_nome_posto").agg(
+                        preco_medio=("_preco_litro", "mean"),
+                        n_abast=("_id_transacao", "count"),
+                        litros=("_litros", "sum"),
+                        cidade=("_cidade_posto", lambda x: x.mode().iloc[0] if len(x) > 0 else ""),
+                        uf=("_uf_posto", lambda x: x.mode().iloc[0] if len(x) > 0 else ""),
+                    ).sort_values("preco_medio").reset_index()
+
+                    _posto_preco["Posto"]     = _posto_preco["_nome_posto"].str[:40]
+                    _posto_preco["Cidade/UF"] = _posto_preco["cidade"] + "/" + _posto_preco["uf"]
+                    _posto_preco["R$/L"]      = _posto_preco["preco_medio"].apply(lambda v: f"R$ {v:.3f}".replace(".", ","))
+                    _posto_preco["Abastec."]  = _posto_preco["n_abast"]
+                    _posto_preco["Litros"]    = _posto_preco["litros"].apply(lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.dataframe(
+                        _posto_preco[["Posto", "Cidade/UF", "R$/L", "Abastec.", "Litros"]],
+                        use_container_width=True, hide_index=True
+                    )
+
+                # custo real por km — cruzamento preço + consumo
+                st.subheader("🔗 Custo real por km (preço × consumo)")
+                _df_custo_km = _df_vsel.dropna(subset=["_preco_litro", "_media_km_l"]).copy()
+                _df_custo_km = _df_custo_km[(_df_custo_km["_media_km_l"] > 0) & (_df_custo_km["_preco_litro"] > 0)]
+                if len(_df_custo_km) > 0:
+                    _df_custo_km["_custo_km_calc"] = _df_custo_km["_preco_litro"] / _df_custo_km["_media_km_l"]
+                    _custo_km_veiculo = _df_custo_km.groupby("_placa")["_custo_km_calc"].mean().sort_values(ascending=False).reset_index()
+                    _custo_km_veiculo.columns = ["Placa", "Custo/km (R$)"]
+                    _custo_km_veiculo["Custo/km (R$)"] = _custo_km_veiculo["Custo/km (R$)"].apply(
+                        lambda v: f"R$ {v:.4f}".replace(".", ",")
+                    )
+                    _custo_km_veiculo["⚠️"] = ""
+                    st.dataframe(_custo_km_veiculo, use_container_width=True, hide_index=True)
+                    st.caption("Custo/km = Preço R$/L ÷ Consumo km/L  |  Quanto custa cada quilômetro rodado")
+
+            # ════════════════════════════════════════════════════
+            # ABA 4 — ALERTAS & FRAUDE
+            # ════════════════════════════════════════════════════
+            with _td:
+                st.markdown(
+                    "<p style='font-size:13px;color:#555;margin-bottom:12px'>"
+                    "Análise automática de transações suspeitas com base em regras de desvio de consumo, "
+                    "hodômetro regressivo, volume inconsistente e múltiplos abastecimentos no dia.</p>",
+                    unsafe_allow_html=True,
+                )
+
+                _alertas = []
+
+                # ── média histórica por veículo (para baseline) ──
+                _media_veiculo = (
+                    _df.dropna(subset=["_media_km_l"])
+                    .groupby("_placa")["_media_km_l"]
+                    .mean()
+                    .to_dict()
+                )
+
+                for _, _row in _df.iterrows():
+                    _placa_r   = _row.get("_placa", "")
+                    _data_r    = _row.get("_data")
+                    _litros_r  = _row.get("_litros") or 0
+                    _km_r      = _row.get("_km_perc")
+                    _media_r   = _row.get("_media_km_l")
+                    _media_vei = _media_veiculo.get(_placa_r, 0)
+                    _status_r  = str(_row.get("_status", "")).strip()
+                    _id_r      = _row.get("_id_transacao", "")
+                    _posto_r   = str(_row.get("_nome_posto", ""))[:30]
+                    _motorista_r = str(_row.get("_motorista", ""))[:30]
+                    _valor_r   = _row.get("_valor_total") or 0
+
+                    # Regra 1: transação não autorizada
+                    if "não autorizado" in _status_r.lower():
+                        _alertas.append({
+                            "Severidade": "🔴 Alta",
+                            "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
+                            "Regra": "Transação não autorizada",
+                            "Detalhe": f"Status: {_status_r}",
+                            "Valor (R$)": _valor_r,
+                        })
+
+                    # Regra 2: hodômetro regressivo
+                    if _km_r is not None and _km_r < 0:
+                        _alertas.append({
+                            "Severidade": "🔴 Alta",
+                            "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
+                            "Regra": "Hodômetro regressivo",
+                            "Detalhe": f"Km percorrido = {_km_r:,.0f}".replace(",", "."),
+                            "Valor (R$)": _valor_r,
+                        })
+
+                    # Regra 3: volume alto para km muito baixo (< 20 km com > 30 L)
+                    if _km_r is not None and _km_r < 20 and _litros_r > 30:
+                        _alertas.append({
+                            "Severidade": "🟠 Média",
+                            "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
+                            "Regra": "Volume alto / km baixo",
+                            "Detalhe": f"{_litros_r:.1f} L para {_km_r:.0f} km".replace(".", ","),
+                            "Valor (R$)": _valor_r,
+                        })
+
+                    # Regra 4: consumo anormal (> 50% acima ou abaixo da média do veículo)
+                    if _media_r and _media_r > 0 and _media_vei > 0:
+                        _desvio_pct = abs(_media_r - _media_vei) / _media_vei
+                        if _desvio_pct > 0.50:
+                            _dir = "muito alto" if _media_r > _media_vei else "muito baixo"
+                            _alertas.append({
+                                "Severidade": "🟠 Média",
+                                "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
+                                "Regra": f"Consumo {_dir} ({_desvio_pct*100:.0f}% de desvio)",
+                                "Detalhe": f"Este abast.: {_media_r:.2f} km/L | Média veículo: {_media_vei:.2f} km/L".replace(".", ","),
+                                "Valor (R$)": _valor_r,
+                            })
+
+                # Regra 5: múltiplos abastecimentos no mesmo dia / mesmo veículo
+                _duplos = (
+                    _df.dropna(subset=["_placa", "_data"])
+                    .groupby(["_placa", "_data"])
+                    .size()
+                    .reset_index(name="cnt")
+                )
+                for _, _drow in _duplos[_duplos["cnt"] > 1].iterrows():
+                    _alertas.append({
+                        "Severidade": "🟡 Baixa",
+                        "Placa": _drow["_placa"], "Data": str(_drow["_data"]), "ID": "—",
+                        "Regra": "Múltiplos abastecimentos no dia",
+                        "Detalhe": f"{_drow['cnt']} abastecimentos em {_drow['_data']}",
+                        "Valor (R$)": None,
+                    })
+
+                # Exibição dos alertas
+                if _alertas:
+                    _df_alertas = _pd.DataFrame(_alertas)
+                    _df_alertas["Valor (R$)"] = _df_alertas["Valor (R$)"].apply(
+                        lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if v and _pd.notna(v) else "—"
+                    )
+                    _df_alertas = _df_alertas.sort_values("Severidade").reset_index(drop=True)
+
+                    _n_alta  = sum(1 for a in _alertas if "Alta"  in a["Severidade"])
+                    _n_media = sum(1 for a in _alertas if "Média" in a["Severidade"])
+                    _n_baixa = sum(1 for a in _alertas if "Baixa" in a["Severidade"])
+                    _al1, _al2, _al3 = st.columns(3)
+                    _al1.metric("🔴 Alertas Altos",  _n_alta)
+                    _al2.metric("🟠 Alertas Médios", _n_media)
+                    _al3.metric("🟡 Alertas Baixos", _n_baixa)
+                    st.divider()
+                    st.dataframe(_df_alertas, use_container_width=True, hide_index=True)
+                    st.caption(
+                        "**Regras aplicadas:** Transação não autorizada | Hodômetro regressivo | "
+                        "Volume alto / km baixo | Consumo anormal (±50% da média do veículo) | "
+                        "Múltiplos abastecimentos no dia"
+                    )
+                else:
+                    st.success("✅ Nenhum alerta identificado no período selecionado.")
+
+            # ════════════════════════════════════════════════════
+            # ABA 5 — INSIGHTS
+            # ════════════════════════════════════════════════════
+            with _te:
+                st.markdown("### 💡 Insights da Frota")
+
+                # ─ Insight 1: veículo com maior custo/km ─────────
+                _df_ins = _df.dropna(subset=["_preco_litro", "_media_km_l"]).copy()
+                _df_ins = _df_ins[(_df_ins["_media_km_l"] > 0) & (_df_ins["_preco_litro"] > 0)]
+                if len(_df_ins) > 0:
+                    _df_ins["_custo_km"] = _df_ins["_preco_litro"] / _df_ins["_media_km_l"]
+                    _ck_veic = _df_ins.groupby("_placa")["_custo_km"].mean()
+                    _pior_veic  = _ck_veic.idxmax()
+                    _melhor_veic = _ck_veic.idxmin()
+                    _i1, _i2 = st.columns(2)
+                    with _i1:
+                        st.markdown(
+                            f"<div style='background:#FFEBEE;border-left:4px solid #B71C1C;"
+                            f"padding:14px;border-radius:6px;margin-bottom:12px'>"
+                            f"<b>🔴 Maior custo/km</b><br>"
+                            f"<span style='font-size:22px;font-weight:700'>{_pior_veic}</span><br>"
+                            f"R$ {_ck_veic[_pior_veic]:.4f}/km".replace(".", ",") +
+                            f"</div>", unsafe_allow_html=True,
+                        )
+                    with _i2:
+                        st.markdown(
+                            f"<div style='background:#E8F5E9;border-left:4px solid #2E7D32;"
+                            f"padding:14px;border-radius:6px;margin-bottom:12px'>"
+                            f"<b>🟢 Menor custo/km</b><br>"
+                            f"<span style='font-size:22px;font-weight:700'>{_melhor_veic}</span><br>"
+                            f"R$ {_ck_veic[_melhor_veic]:.4f}/km".replace(".", ",") +
+                            f"</div>", unsafe_allow_html=True,
+                        )
+
+                # ─ Insight 2: posto mais caro vs mais barato ─────
+                _df_postos_ins = _df.dropna(subset=["_nome_posto", "_preco_litro"])
+                if len(_df_postos_ins) > 0:
+                    _p_preco = _df_postos_ins.groupby("_nome_posto")["_preco_litro"].mean()
+                    _posto_caro   = _p_preco.idxmax()
+                    _posto_barato = _p_preco.idxmin()
+                    _i3, _i4 = st.columns(2)
+                    with _i3:
+                        st.markdown(
+                            f"<div style='background:#FFF8E1;border-left:4px solid #F57F17;"
+                            f"padding:14px;border-radius:6px;margin-bottom:12px'>"
+                            f"<b>💸 Posto mais caro usado</b><br>"
+                            f"<span style='font-size:15px;font-weight:600'>{_posto_caro[:35]}</span><br>"
+                            f"R$ {_p_preco[_posto_caro]:.3f}/L".replace(".", ",") +
+                            f"</div>", unsafe_allow_html=True,
+                        )
+                    with _i4:
+                        st.markdown(
+                            f"<div style='background:#E3F2FD;border-left:4px solid #1565C0;"
+                            f"padding:14px;border-radius:6px;margin-bottom:12px'>"
+                            f"<b>💰 Posto mais barato usado</b><br>"
+                            f"<span style='font-size:15px;font-weight:600'>{_posto_barato[:35]}</span><br>"
+                            f"R$ {_p_preco[_posto_barato]:.3f}/L".replace(".", ",") +
+                            f"</div>", unsafe_allow_html=True,
+                        )
+
+                # ─ Insight 3: motoristas com maior gasto ─────────
+                _df_mot = _df.dropna(subset=["_motorista", "_valor_total"])
+                if len(_df_mot) > 0:
+                    st.markdown("#### 👤 Motoristas — Ranking de Gasto")
+                    _mot_rank = _df_mot.groupby("_motorista").agg(
+                        gasto=("_valor_total", "sum"),
+                        abastec=("_id_transacao", "count"),
+                        litros=("_litros", "sum"),
+                    ).sort_values("gasto", ascending=False).head(10).reset_index()
+                    _mot_rank.columns = ["Motorista", "Gasto (R$)", "Abastec.", "Litros"]
+                    _mot_rank["Gasto (R$)"] = _mot_rank["Gasto (R$)"].apply(
+                        lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    )
+                    _mot_rank["Litros"] = _mot_rank["Litros"].apply(
+                        lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—"
+                    )
+                    st.dataframe(_mot_rank, use_container_width=True, hide_index=True)
+
+                # ─ Insight 4: evolução de gasto no período ───────
+                _df_evol = _df.dropna(subset=["_data", "_valor_total"]).copy()
+                if len(_df_evol) > 0:
+                    st.markdown("#### 📅 Evolução do Gasto Diário")
+                    _evol_dia = _df_evol.groupby("_data")["_valor_total"].sum().reset_index()
+                    _evol_dia.columns = ["Data", "Gasto (R$)"]
+                    _evol_dia["Data_str"] = _evol_dia["Data"].apply(str)
+                    _fig_evol = go.Figure(go.Bar(
+                        x=_evol_dia["Data_str"],
+                        y=_evol_dia["Gasto (R$)"],
+                        marker_color="#1565C0",
+                        text=[f"R$ {v:,.0f}".replace(",", ".") for v in _evol_dia["Gasto (R$)"]],
+                        textposition="outside",
+                    ))
+                    _fig_evol.update_layout(
+                        height=300, margin=dict(l=10, r=10, t=20, b=10),
+                        yaxis_title="R$", xaxis_title="Data",
+                    )
+                    st.plotly_chart(_fig_evol, use_container_width=True)
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 if (
