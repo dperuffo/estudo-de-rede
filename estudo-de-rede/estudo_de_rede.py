@@ -16470,6 +16470,58 @@ elif modo == "🚛 Análise de Cliente":
     # ═══════ ANÁLISES (só se há dados) ═══════════════════════════
     if _df_abast is not None and len(_df_abast) > 0:
 
+        # ── Formatador de CNPJ (usado aqui e no banner) ───────────
+        def _fmt_cnpj(c: str) -> str:
+            d = "".join(filter(str.isdigit, str(c)))
+            if len(d) == 14:
+                return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
+            return str(c)
+
+        # ── Seletor de cliente (quando há múltiplos CNPJs) ────────
+        _col_cnpj_f  = next((c for c in ["_cnpj_frota", "cnpj_frota"] if c in _df_abast.columns), None)
+        _col_razao_f = next((c for c in ["_razao_frota", "razao_frota"] if c in _df_abast.columns), None)
+
+        if _col_cnpj_f:
+            _clientes_uniq = (
+                _df_abast[[_col_cnpj_f] + ([_col_razao_f] if _col_razao_f else [])]
+                .dropna(subset=[_col_cnpj_f])
+                .drop_duplicates(subset=[_col_cnpj_f])
+                .sort_values(_col_razao_f if _col_razao_f else _col_cnpj_f)
+            )
+
+            if len(_clientes_uniq) > 1:
+                # Monta dict cnpj → label para o selectbox
+                _opcoes_cli = {}
+                for _, _row_cli in _clientes_uniq.iterrows():
+                    _cnpj_op  = str(_row_cli[_col_cnpj_f]).strip()
+                    _razao_op = str(_row_cli[_col_razao_f]).strip() if _col_razao_f else _cnpj_op
+                    _opcoes_cli[_cnpj_op] = f"{_razao_op}  —  {_fmt_cnpj(_cnpj_op)}"
+
+                st.markdown(
+                    "<div style='background:linear-gradient(135deg,#E3F2FD,#EDE7F6);"
+                    "border:1px solid #90CAF9;border-radius:10px;"
+                    "padding:12px 18px;margin-bottom:14px'>"
+                    "<span style='font-size:13px;font-weight:700;color:#1565C0'>"
+                    "🏢 Selecione o cliente a analisar</span></div>",
+                    unsafe_allow_html=True,
+                )
+                _cnpj_sel = st.selectbox(
+                    "Cliente:",
+                    options=list(_opcoes_cli.keys()),
+                    format_func=lambda c: _opcoes_cli.get(c, c),
+                    key="frota_cliente_sel",
+                    label_visibility="collapsed",
+                )
+                # Filtra o DataFrame para o cliente escolhido
+                _df_abast = _df_abast[
+                    _df_abast[_col_cnpj_f].astype(str).str.strip() == _cnpj_sel
+                ].copy()
+                st.caption(
+                    f"📋 {len(_df_abast):,} registros do cliente selecionado — "
+                    f"{_df_abast['_placa'].nunique()} veículos"
+                    .replace(",", ".")
+                )
+
         # ── Banner do cliente (Razão Social + CNPJ) ───────────────
         _razao_cliente = ""
         _cnpj_cliente  = ""
@@ -16487,12 +16539,6 @@ elif modo == "🚛 Análise de Cliente":
                     break
 
         if _razao_cliente or _cnpj_cliente:
-            # Formata CNPJ: 00.000.000/0001-00
-            def _fmt_cnpj(c: str) -> str:
-                d = "".join(filter(str.isdigit, c))
-                if len(d) == 14:
-                    return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
-                return c
             _cnpj_fmt = _fmt_cnpj(_cnpj_cliente) if _cnpj_cliente else ""
             st.markdown(
                 f"""
