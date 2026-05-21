@@ -2771,6 +2771,15 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
         st.session_state.pop("_intel_loaded", None)
 
     # ── 2. Envia TODOS para o Supabase (ignora duplicatas via constraint) ──
+    # Deduplicar o lote ANTES de enviar: o Postgres rejeita batches em que
+    # duas linhas do mesmo INSERT conflitam entre si (código 21000).
+    if _supabase_registros:
+        _dedup: dict = {}
+        for _rec in _supabase_registros:
+            _k = (_rec["cnpj"], _rec["combustivel"], _rec["data_ref"])
+            _dedup[_k] = _rec          # última ocorrência vence
+        _supabase_registros = list(_dedup.values())
+
     if _supabase_registros:
         _db = _db_client()
         if _db:
