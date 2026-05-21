@@ -1717,78 +1717,8 @@ def _auth_login_page():
         z-index: 10;
     }
 
-    /* ── Botão Google: reposicionar para DENTRO do card ─────────────
-       Técnica: o element-container do card e o do botão são irmãos
-       adjacentes no stVerticalBlock. Usamos :has() + seletor + para
-       puxar o container do botão p/ cima (margem negativa) e alinhá-lo
-       ao card com mesmo max-width, padding horizontal e z-index.     ── */
-    div[data-testid="element-container"]:has(.login-card)
-        + div[data-testid="element-container"] {
-        margin-top: -2.4rem !important;
-        position: relative !important;
-        z-index: 20 !important;
-        max-width: 440px !important;
-        width: 100% !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding: 0 2.8rem 2rem !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Botão Google — estilo branco com sombra (sobrescreve regras anteriores) */
-    div[data-testid="element-container"]:has(.login-card)
-        + div[data-testid="element-container"]
-        [data-testid="stLinkButton"] a {
-        background: #ffffff !important;
-        color: #3c4043 !important;
-        border: 1px solid rgba(0,0,0,0.15) !important;
-        border-radius: 10px !important;
-        font-size: 0.875rem !important;
-        font-weight: 500 !important;
-        padding: 0.65rem 1.2rem !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        text-decoration: none !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 10px !important;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.2) !important;
-        transition: all 0.2s ease !important;
-        letter-spacing: 0.01em !important;
-    }
-    div[data-testid="element-container"]:has(.login-card)
-        + div[data-testid="element-container"]
-        [data-testid="stLinkButton"] a:hover {
-        background: #f8f8f8 !important;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.4) !important;
-        transform: translateY(-1px) !important;
-    }
-
-    /* Fallback: se authorize_button renderizar como stButton */
-    div[data-testid="element-container"]:has(.login-card)
-        + div[data-testid="element-container"]
-        div[data-testid="stButton"] > button {
-        background: #ffffff !important;
-        color: #3c4043 !important;
-        border: 1px solid rgba(0,0,0,0.15) !important;
-        border-radius: 10px !important;
-        font-size: 0.875rem !important;
-        font-weight: 500 !important;
-        padding: 0.65rem 1.2rem !important;
-        max-width: 100% !important;
-        width: 100% !important;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.35) !important;
-        transition: all 0.2s ease !important;
-    }
-    div[data-testid="element-container"]:has(.login-card)
-        + div[data-testid="element-container"]
-        div[data-testid="stButton"] > button:hover {
-        background: #f8f8f8 !important;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.4) !important;
-        transform: translateY(-1px) !important;
-        color: #3c4043 !important;
-    }
+    /* ── Oculta container original do botão após ser movido pelo JS ── */
+    .fni-btn-origin-hidden { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -1897,8 +1827,110 @@ def _auth_login_page():
             </div>
           </div>
 
-          <div class='login-divider' style='margin-bottom:0'><span>Acesso seguro</span></div>
+          <div class='login-divider' style='margin-bottom:0.9rem'><span>Acesso seguro</span></div>
+
+          <!-- Slot onde o botão Google será injetado via JS -->
+          <div id="fni-google-slot" style="min-height:50px;padding-bottom:0.4rem"></div>
+
         </div>
+
+        <style>
+        /* Botão Google dentro do slot — estilo Google branco */
+        #fni-google-slot [data-testid="stLinkButton"] a,
+        #fni-google-slot a {{
+            background: #ffffff !important;
+            color: #3c4043 !important;
+            border: 1px solid rgba(0,0,0,0.14) !important;
+            border-radius: 10px !important;
+            font-size: 0.9rem !important;
+            font-weight: 500 !important;
+            padding: 0.68rem 1.2rem !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 10px !important;
+            text-decoration: none !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.18) !important;
+            transition: background 0.18s, box-shadow 0.18s, transform 0.18s !important;
+            letter-spacing: 0.01em !important;
+        }}
+        #fni-google-slot [data-testid="stLinkButton"] a:hover,
+        #fni-google-slot a:hover {{
+            background: #f5f5f5 !important;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.38) !important;
+            transform: translateY(-1px) !important;
+        }}
+        #fni-google-slot [data-testid="stButton"] > button {{
+            background: #ffffff !important;
+            color: #3c4043 !important;
+            border: 1px solid rgba(0,0,0,0.14) !important;
+            border-radius: 10px !important;
+            font-size: 0.9rem !important;
+            font-weight: 500 !important;
+            padding: 0.68rem 1.2rem !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+            transition: background 0.18s, box-shadow 0.18s, transform 0.18s !important;
+        }}
+        #fni-google-slot [data-testid="stButton"] > button:hover {{
+            background: #f5f5f5 !important;
+            color: #3c4043 !important;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.38) !important;
+            transform: translateY(-1px) !important;
+        }}
+        /* Garante que o container do slot não vaza além do card */
+        #fni-google-slot > * {{
+            margin: 0 !important;
+            padding: 0 !important;
+        }}
+        </style>
+
+        <script>
+        (function() {{
+            var moved = false;
+            function tryMove() {{
+                if (moved) return;
+                var slot = document.getElementById('fni-google-slot');
+                if (!slot) return;
+                /* Busca qualquer stLinkButton ou stButton fora do slot */
+                var selectors = [
+                    '[data-testid="stLinkButton"]',
+                    '[data-testid="stButton"]'
+                ];
+                for (var s = 0; s < selectors.length; s++) {{
+                    var els = document.querySelectorAll(selectors[s]);
+                    for (var i = 0; i < els.length; i++) {{
+                        var el = els[i];
+                        if (slot.contains(el)) continue;
+                        /* Sobe até o element-container */
+                        var wrap = el;
+                        for (var p = 0; p < 8; p++) {{
+                            if (!wrap.parentElement) break;
+                            if (wrap.getAttribute('data-testid') === 'element-container') break;
+                            wrap = wrap.parentElement;
+                        }}
+                        if (!wrap || slot.contains(wrap)) continue;
+                        /* Move o elemento para dentro do slot */
+                        wrap.style.cssText = (wrap.style.cssText || '') +
+                            ';margin:0!important;padding:0!important;width:100%!important;';
+                        slot.appendChild(wrap);
+                        moved = true;
+                        return;
+                    }}
+                }}
+            }}
+            /* Polling a cada 80 ms por até 8 s */
+            var timer = setInterval(function() {{
+                tryMove();
+                if (moved) clearInterval(timer);
+            }}, 80);
+            setTimeout(function() {{ clearInterval(timer); }}, 8000);
+        }})();
+        </script>
         """, unsafe_allow_html=True)
 
         # ── Redirect URI ──
