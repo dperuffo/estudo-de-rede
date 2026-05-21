@@ -37,11 +37,14 @@ create table if not exists historico_precos (
 
 create index if not exists idx_precos_cnpj on historico_precos(cnpj);
 create index if not exists idx_precos_data on historico_precos(data_ref);
--- IMPORTANTE: deve ser CONSTRAINT (não apenas INDEX) para o PostgREST/Supabase
--- reconhecer o on_conflict no upsert via API REST.
+-- IMPORTANTE: deve ser UNIQUE CONSTRAINT (não apenas UNIQUE INDEX) para o
+-- PostgREST/Supabase reconhecer o on_conflict no upsert via API REST.
+-- Criamos o índice único primeiro e depois o promovemos a constraint:
+create unique index if not exists idx_precos_unico
+    on historico_precos(cnpj, combustivel, data_ref);
 alter table historico_precos
-    add constraint if not exists historico_precos_unico
-    unique (cnpj, combustivel, data_ref);
+    add constraint historico_precos_unico
+    unique using index idx_precos_unico;
 
 -- ── 3. Preferências do Usuário ────────────────────────────────────
 create table if not exists preferencias (
