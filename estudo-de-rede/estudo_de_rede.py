@@ -3116,6 +3116,242 @@ def _gerar_relatorio_alertas_xlsx(
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  ALERTAS INTELIGENTES — funções de análise avançada
+# ═══════════════════════════════════════════════════════════════════
+
+def _alerta_variacao_semanal(
+    hist_all: dict,
+    threshold_pct: float = 0.03,
+) -> "pd.DataFrame":
+    """
+    Detecta postos com piora abrupta de preço entre os dois últimos registros.
+    threshold_pct: variação mínima para disparar alerta (padrão 3%).
+    Retorna DataFrame com colunas de exibição + coluna _delta para ordenação.
+    """
+    rows = []
+    for cnpj, obs in hist_all.items():
+        by_comb: dict = {}
+        for o in obs:
+            comb = (o.get("combustivel") or "").strip()
+            by_comb.setdefault(comb, []).append(o)
+        for comb, obs_c in by_comb.items():
+            obs_sorted = sorted(obs_c, key=lambda x: x.get("data", ""))
+            if len(obs_sorted) < 2:
+                continue
+            last = obs_sorted[-1]
+            prev = obs_sorted[-2]
+            p1 = float(prev.get("preco") or 0)
+            p2 = float(last.get("preco") or 0)
+            if p1 <= 0 or p2 <= 0:
+                continue
+            delta_pct = (p2 - p1) / p1
+            if delta_pct >= threshold_pct:
+                rows.append({
+                    "CNPJ": cnpj,
+                    "Posto": (last.get("nome") or "—")[:40],
+                    "Município": last.get("municipio") or "—",
+                    "UF": last.get("uf") or "—",
+                    "Combustível": comb.title(),
+                    "Preço Ant. (R$/L)": round(p1, 3),
+                    "Preço Atual (R$/L)": round(p2, 3),
+                    "Variação": f"+{delta_pct * 100:.1f}%",
+                    "Período": f"{prev.get('data', '')} → {last.get('data', '')}",
+                    "_delta": delta_pct,
+                })
+    df = pd.DataFrame(rows) if rows else pd.DataFrame(
+        columns=["CNPJ", "Posto", "Município", "UF", "Combustível",
+                 "Preço Ant. (R$/L)", "Preço Atual (R$/L)", "Variação", "Período", "_delta"])
+    if not df.empty:
+        df = df.sort_values("_delta", ascending=False).reset_index(drop=True)
+    return df
+
+
+def _alerta_competitividade(
+    pp_df,
+    pf_cnpjs: set,
+    anp_sheets,
+    threshold_pct: float = 0.05,
+) -> "pd.DataFrame":
+    """
+    Detecta postos GF com preço acima de ANP + threshold (perda de competitividade).
+    pp_df    : DataFrame com cnpj_norm, combustivel_pk, combustivel_label, preco, uf.
+    pf_cnpjs : set de CNPJs que pertencem à rede GF.
+    anp_sheets: dicionário de sheets da planilha ANP.
+    threshold_pct: desvio mínimo acima do ANP para disparar alerta (padrão 5%).
+    """
+    if pp_df is None or pp_df.empty:
+        return pd.DataFrame()
+
+    df_gf = pp_df[pp_df["cnpj_norm"].isin(pf_cnpjs)].copy() if pf_cnpjs else pp_df.copy()
+    if df_gf.empty:
+        return pd.DataFrame()
+
+    all_ufs = (df_gf["uf"].dropna().unique().tolist()
+               if "uf" in df_gf.columns else [])
+    anp_por_uf: dict = {}
+    anp_nacional: dict = {}
+    if anp_sheets:
+        try:
+            if all_ufs:
+                anp_por_uf = _anp_precos_por_fuel_por_uf(anp_sheets, all_ufs)
+            anp_nacional = _anp_precos_por_fuel_brasil(anp_sheets)
+        except Exception:
+            pass
+
+    rows = []
+    for _, row in df_gf.iterrows():
+        pk = str(row.get("combustivel_pk") or "")
+        preco_gf = float(row.get("preco") or 0)
+        uf = str(row.get("uf") or "").strip().upper()
+        if preco_gf <= 0:
+            continue
+        pk_anp = _PP_PARA_ANP_PK.get(pk, pk)
+        # Tenta preço por UF, depois nacional
+        preco_anp = (anp_por_uf.get(pk_anp, {}).get(uf)
+                     or anp_por_uf.get(pk, {}).get(uf)
+                     or anp_nacional.get(pk_anp)
+                     or anp_nacional.get(pk))
+        if not preco_anp or preco_anp <= 0:
+            continue
+        delta_pct = (preco_gf - preco_anp) / preco_anp
+        if delta_pct > threshold_pct:
+            rows.append({
+                "CNPJ": row.get("cnpj_norm", ""),
+                "UF": uf,
+                "Combustível": (str(row.get("combustivel_label") or pk)).title(),
+                "Preço GF (R$/L)": round(preco_gf, 3),
+                "Ref. ANP (R$/L)": round(preco_anp, 3),
+                "Desvio": f"+{delta_pct * 100:.1f}%",
+                "Dif. (R$/L)": round(preco_gf - preco_anp, 3),
+                "_delta": delta_pct,
+            })
+    df = pd.DataFrame(rows) if rows else pd.DataFrame()
+    if not df.empty:
+        df = df.sort_values("_delta", ascending=False).reset_index(drop=True)
+    return df
+
+
+def _alerta_cobertura_geografica(pf_dash_df) -> "pd.DataFrame":
+    """
+    Identifica UFs com poucos postos GF ou cobertura municipal reduzida.
+    Classifica como Boa / Parcial / Crítica com base em postos e municípios cobertos.
+    """
+    _REGIOES_BR = {
+        "Norte":        ["AC", "AM", "AP", "PA", "RO", "RR", "TO"],
+        "Nordeste":     ["AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"],
+        "Centro-Oeste": ["DF", "GO", "MS", "MT"],
+        "Sudeste":      ["ES", "MG", "RJ", "SP"],
+        "Sul":          ["PR", "RS", "SC"],
+    }
+    # Municípios totais por UF (IBGE 2022)
+    _MUN_POR_UF = {
+        "AC": 22,  "AL": 102, "AM": 62,  "AP": 16,  "BA": 417,
+        "CE": 184, "DF": 1,   "ES": 78,  "GO": 246, "MA": 217,
+        "MG": 853, "MS": 79,  "MT": 141, "PA": 144, "PB": 223,
+        "PE": 185, "PI": 224, "PR": 399, "RJ": 92,  "RN": 167,
+        "RO": 52,  "RR": 15,  "RS": 497, "SC": 295, "SE": 75,
+        "SP": 645, "TO": 139,
+    }
+    if pf_dash_df is None or pf_dash_df.empty:
+        return pd.DataFrame()
+
+    df = pf_dash_df.copy()
+    uf_col  = next((c for c in ["uf", "UF"] if c in df.columns), None)
+    mun_col = next((c for c in ["municipio", "Municipio"] if c in df.columns), None)
+    if not uf_col:
+        return pd.DataFrame()
+
+    df["_uf"] = df[uf_col].fillna("").str.strip().str.upper()
+    df = df[df["_uf"].isin(_MUN_POR_UF)]
+
+    rows = []
+    for regiao, ufs_r in _REGIOES_BR.items():
+        for uf in ufs_r:
+            sub = df[df["_uf"] == uf]
+            n_postos = len(sub)
+            n_mun_cobertos = int(sub[mun_col].nunique()) if mun_col else None
+            n_mun_total = _MUN_POR_UF.get(uf, 0)
+            pct_cob = (n_mun_cobertos / n_mun_total * 100
+                       if n_mun_cobertos is not None and n_mun_total > 0 else None)
+            nivel = ("🟢 Boa"
+                     if (n_postos >= 10 and (pct_cob or 0) >= 20)
+                     else "🟡 Parcial" if n_postos >= 3
+                     else "🔴 Crítica")
+            rows.append({
+                "Região": regiao,
+                "UF": uf,
+                "Postos GF": n_postos,
+                "Municípios c/ GF": n_mun_cobertos if n_mun_cobertos is not None else "—",
+                "Total Municípios": n_mun_total,
+                "Cobertura %": f"{pct_cob:.1f}%" if pct_cob is not None else "—",
+                "Nível": nivel,
+                "_n_postos": n_postos,
+            })
+    result = pd.DataFrame(rows)
+    if not result.empty:
+        result = result.sort_values("_n_postos", ascending=True).reset_index(drop=True)
+    return result
+
+
+def _alerta_tendencia(
+    hist_all: dict,
+    min_obs: int = 3,
+    horizon_weeks: int = 4,
+    min_slope: float = 0.01,
+    min_r2: float = 0.40,
+) -> "pd.DataFrame":
+    """
+    Regressão linear sobre histórico de preços por posto/combustível.
+    Detecta postos com tendência de alta estatisticamente relevante (R² > min_r2).
+    horizon_weeks: quantas semanas à frente projetar.
+    """
+    rows = []
+    for cnpj, obs in hist_all.items():
+        by_comb: dict = {}
+        for o in obs:
+            comb = (o.get("combustivel") or "").strip()
+            by_comb.setdefault(comb, []).append(o)
+        for comb, obs_c in by_comb.items():
+            obs_sorted = sorted(obs_c, key=lambda x: x.get("data", ""))
+            precos = [float(o.get("preco") or 0) for o in obs_sorted]
+            precos = [p for p in precos if p > 0]
+            if len(precos) < min_obs:
+                continue
+            x = np.arange(len(precos), dtype=float)
+            y = np.array(precos)
+            try:
+                coef = np.polyfit(x, y, 1)
+                slope = float(coef[0])
+                y_pred = np.polyval(coef, x)
+                ss_res = float(np.sum((y - y_pred) ** 2))
+                ss_tot = float(np.sum((y - y.mean()) ** 2))
+                r2 = (1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+            except Exception:
+                continue
+            if slope >= min_slope and r2 >= min_r2:
+                ultimo = obs_sorted[-1]
+                preco_atual = precos[-1]
+                preco_proj = preco_atual + slope * horizon_weeks
+                rows.append({
+                    "CNPJ": cnpj,
+                    "Posto": (ultimo.get("nome") or "—")[:40],
+                    "Município": ultimo.get("municipio") or "—",
+                    "UF": ultimo.get("uf") or "—",
+                    "Combustível": comb.title(),
+                    "Preço Atual (R$/L)": round(preco_atual, 3),
+                    f"Proj. +{horizon_weeks}sem": round(preco_proj, 3),
+                    "Tendência (R$/L/sem)": round(slope, 4),
+                    "R²": round(r2, 2),
+                    "Obs.": len(precos),
+                    "_slope": slope,
+                })
+    df = pd.DataFrame(rows) if rows else pd.DataFrame()
+    if not df.empty:
+        df = df.sort_values("_slope", ascending=False).reset_index(drop=True)
+    return df
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  GESTÃO DE FROTAS — Upload e comparação de CNPJs
 # ═══════════════════════════════════════════════════════════════════
 
@@ -14703,82 +14939,440 @@ elif modo == "🧠 Inteligência":
         st.info("💡 O Score aparece como primeira coluna na tabela de dados do Modo **📍 Por UF/Município**. "
                 "Quanto mais dados da planilha Pró-Frotas e ANP estiverem carregados, mais preciso ele fica.")
 
-    # ══ ABA 3: Alertas ════════════════════════════════════════════
+    # ══ ABA 3: Alertas Inteligentes ═══════════════════════════════
     with _tab_alertas:
-        st.markdown("#### ⚠️ Configurar Limiares e Gerar Relatório")
         st.markdown(
-            "Defina o **preço máximo aceitável** para cada combustível. "
-            "Ao gerar o relatório, todos os postos da planilha GF que estiverem "
-            "**acima do limiar** serão listados no arquivo Excel."
+            "<p style='font-size:13px;color:#555;margin-bottom:10px'>"
+            "Central de alertas automatizados sobre preços, competitividade, "
+            "cobertura geográfica e tendências da rede GF.</p>",
+            unsafe_allow_html=True,
         )
 
-        _intel_d3    = _intel_load()
-        _limiar_cfg3 = _intel_d3.get("limiar", {})
+        # Dados compartilhados por todos os sub-alertas
+        _pp_df3      = st.session_state.get("_pp_df")
+        _anp_cache3  = st.session_state.get("_precos_anp_cache", {})
+        _sheets_a3   = _anp_cache3.get("sheets")
+        _pf_df3      = st.session_state.get("pf_coords_df", pd.DataFrame())
+        _pf_cnpjs3   = (set(_pf_df3["cnpj"].dropna().astype(str).str.strip())
+                        if not _pf_df3.empty and "cnpj" in _pf_df3.columns else set())
 
-        _COMBS_LIM3 = [
-            ("GASOLINA COMUM",    "⛽ Gasolina Comum",     5.80),
-            ("GASOLINA ADITIVADA","⛽ Gasolina Aditivada",  6.20),
-            ("ETANOL HIDRATADO",  "🌿 Etanol Hidratado",    4.00),
-            ("DIESEL S10",        "🚛 Diesel S10",          6.00),
-            ("DIESEL S500",       "🚛 Diesel S500",         5.90),
-        ]
-        _lim_novo3 = {}
-        _lca, _lcb = st.columns(2)
-        for _ci3, (_ck3, _clbl3, _cdef3) in enumerate(_COMBS_LIM3):
-            with (_lca if _ci3 % 2 == 0 else _lcb):
-                _lim_novo3[_ck3] = st.number_input(
-                    _clbl3,
-                    min_value=0.0, max_value=20.0,
-                    value=float(_limiar_cfg3.get(_ck3, _cdef3)),
-                    step=0.01, format="%.3f",
-                    key=f"intel_lim3_{_ck3}",
+        (
+            _sa_lim, _sa_var, _sa_comp, _sa_geo, _sa_tend,
+        ) = st.tabs([
+            "💸 Limiares de Preço",
+            "📉 Variação Semanal",
+            "🏆 Competitividade",
+            "🗺️ Cobertura Geográfica",
+            "📈 Tendência",
+        ])
+
+        # ── Sub-aba A: Limiares de Preço (funcionalidade original) ──
+        with _sa_lim:
+            st.markdown("##### Configurar Limiares e Gerar Relatório")
+            st.markdown(
+                "Defina o **preço máximo aceitável** para cada combustível. "
+                "Ao gerar o relatório, todos os postos da planilha GF que estiverem "
+                "**acima do limiar** serão listados no arquivo Excel."
+            )
+            _intel_d3    = _intel_load()
+            _limiar_cfg3 = _intel_d3.get("limiar", {})
+            _COMBS_LIM3 = [
+                ("GASOLINA COMUM",    "⛽ Gasolina Comum",     5.80),
+                ("GASOLINA ADITIVADA","⛽ Gasolina Aditivada",  6.20),
+                ("ETANOL HIDRATADO",  "🌿 Etanol Hidratado",    4.00),
+                ("DIESEL S10",        "🚛 Diesel S10",          6.00),
+                ("DIESEL S500",       "🚛 Diesel S500",         5.90),
+            ]
+            _lim_novo3 = {}
+            _lca, _lcb = st.columns(2)
+            for _ci3, (_ck3, _clbl3, _cdef3) in enumerate(_COMBS_LIM3):
+                with (_lca if _ci3 % 2 == 0 else _lcb):
+                    _lim_novo3[_ck3] = st.number_input(
+                        _clbl3,
+                        min_value=0.0, max_value=20.0,
+                        value=float(_limiar_cfg3.get(_ck3, _cdef3)),
+                        step=0.01, format="%.3f",
+                        key=f"intel_lim3_{_ck3}",
+                    )
+            _col_btn_a, _col_btn_b = st.columns([1, 1])
+            with _col_btn_a:
+                if st.button("💾 Salvar limiares", key="btn_intel3_salvar",
+                             use_container_width=True):
+                    _intel_d3["limiar"] = _lim_novo3
+                    _intel_save(_intel_d3)
+                    st.session_state.pop("_intel_loaded", None)
+                    st.success("✅ Limiares salvos.")
+            with _col_btn_b:
+                if st.button("📄 Gerar Relatório Excel",
+                             key="btn_intel3_gerar",
+                             use_container_width=True,
+                             type="primary"):
+                    if _pp_df3 is None or _pp_df3.empty:
+                        st.warning("⚠️ Carregue a planilha de Preços PP em Configurações.")
+                    else:
+                        with st.spinner("Gerando relatório…"):
+                            _bytes3, _fname3, _err3 = _gerar_relatorio_alertas_xlsx(
+                                _pp_df3, _lim_novo3)
+                        if _err3:
+                            st.error(f"❌ Erro: {_err3}")
+                        else:
+                            st.session_state["_intel_rel_bytes"] = _bytes3
+                            st.session_state["_intel_rel_fname"] = _fname3
+                            st.session_state.pop("_intel_loaded", None)
+                            st.rerun()
+            _bytes_dl3 = st.session_state.get("_intel_rel_bytes")
+            _fname_dl3 = st.session_state.get("_intel_rel_fname", "alertas.xlsx")
+            if _bytes_dl3:
+                st.markdown("---")
+                st.download_button(
+                    "⬇️ Baixar relatório gerado",
+                    data=_bytes_dl3,
+                    file_name=_fname_dl3,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_intel3_download",
+                )
+            if _pp_df3 is None:
+                st.info("ℹ️ Para gerar o relatório, carregue a planilha de **Preços PP** em "
+                        "**Configurações → 💲 Preços PP**.")
+
+        # ── Sub-aba B: Variação Semanal ──────────────────────────────
+        with _sa_var:
+            st.markdown("##### 📉 Alerta de Piora Abrupta de Preço")
+            st.markdown(
+                "Detecta postos que apresentaram **alta significativa** de preço "
+                "entre os dois últimos registros no histórico."
+            )
+            if _n_obs_pg == 0:
+                st.info(
+                    "ℹ️ Sem histórico de preços registrado ainda. "
+                    "Carregue a planilha PP em **Configurações** e clique em "
+                    "**Registrar preços atuais** na aba Histórico de Preços."
+                )
+            else:
+                _var_thresh = st.slider(
+                    "Limiar de variação (%)",
+                    min_value=1, max_value=20, value=3,
+                    key="intel_var_thresh",
+                    help="Postos com alta ≥ este valor aparecem no alerta.",
+                )
+                with st.spinner("Analisando variações semanais…"):
+                    _df_var = _alerta_variacao_semanal(
+                        _hist_all_pg, threshold_pct=_var_thresh / 100
+                    )
+                if _df_var.empty:
+                    st.success(
+                        f"✅ Nenhum posto com variação ≥ {_var_thresh}% entre os últimos dois registros."
+                    )
+                else:
+                    _nv = len(_df_var)
+                    _va1, _va2, _va3 = st.columns(3)
+                    _va1.metric("⚠️ Postos em alerta", _nv)
+                    _va2.metric("📈 Maior variação",
+                                f"+{_df_var['_delta'].max() * 100:.1f}%")
+                    _va3.metric("📊 Variação média",
+                                f"+{_df_var['_delta'].mean() * 100:.1f}%")
+                    st.divider()
+
+                    # Gráfico de barras por UF
+                    _uf_var = (
+                        _df_var.groupby("UF")["_delta"]
+                        .agg(postos="count", pior=lambda x: x.max())
+                        .reset_index()
+                        .sort_values("pior", ascending=False)
+                    )
+                    if len(_uf_var) > 1:
+                        _fig_var = go.Figure(go.Bar(
+                            x=_uf_var["UF"], y=(_uf_var["pior"] * 100).round(1),
+                            marker_color=[
+                                "#C62828" if v > 0.07 else "#EF6C00" if v > 0.04 else "#F9A825"
+                                for v in _uf_var["pior"]
+                            ],
+                            text=[f"+{v:.1f}%" for v in (_uf_var["pior"] * 100)],
+                            textposition="outside",
+                            hovertemplate="UF: %{x}<br>Pior desvio: %{y:.1f}%<extra></extra>",
+                        ))
+                        _fig_var.update_layout(
+                            title="Pior variação de preço por UF",
+                            xaxis_title="UF", yaxis_title="Variação (%)",
+                            height=320, margin=dict(t=40, b=20, l=20, r=20),
+                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                        )
+                        st.plotly_chart(_fig_var, use_container_width=True)
+
+                    _df_var_disp = _df_var.drop(columns=["_delta"])
+                    st.dataframe(_df_var_disp, use_container_width=True, hide_index=True)
+
+                    # Export CSV
+                    _csv_var = _df_var_disp.to_csv(index=False).encode("utf-8-sig")
+                    st.download_button(
+                        "📥 Exportar CSV",
+                        data=_csv_var,
+                        file_name=f"alerta_variacao_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        key="btn_export_var",
+                    )
+
+        # ── Sub-aba C: Competitividade ───────────────────────────────
+        with _sa_comp:
+            st.markdown("##### 🏆 Alerta de Perda de Competitividade")
+            st.markdown(
+                "Postos GF com preço **acima da referência ANP por UF**, "
+                "indicando possível perda de competitividade frente ao mercado."
+            )
+            _sem_pp3  = _pp_df3 is None or _pp_df3.empty
+            _sem_anp3 = _sheets_a3 is None
+
+            if _sem_pp3 and _sem_anp3:
+                st.info(
+                    "ℹ️ Carregue a **planilha de Preços PP** e a "
+                    "**planilha ANP** para ativar este alerta."
+                )
+            elif _sem_pp3:
+                st.info("ℹ️ Carregue a **planilha de Preços PP** em Configurações.")
+            elif _sem_anp3:
+                st.info("ℹ️ Carregue a **planilha ANP de Preços Semanais** em Configurações.")
+            else:
+                _comp_thresh = st.slider(
+                    "Desvio mínimo acima do ANP (%)",
+                    min_value=1, max_value=30, value=5,
+                    key="intel_comp_thresh",
+                    help="Postos com preço > ANP + este % são sinalizados.",
+                )
+                with st.spinner("Calculando competitividade vs. ANP…"):
+                    _df_comp = _alerta_competitividade(
+                        _pp_df3, _pf_cnpjs3, _sheets_a3,
+                        threshold_pct=_comp_thresh / 100,
+                    )
+                if _df_comp.empty:
+                    st.success(
+                        f"✅ Nenhum posto GF com preço > ANP + {_comp_thresh}%. "
+                        "Rede competitiva!"
+                    )
+                else:
+                    _nc = len(_df_comp)
+                    _ca1, _ca2, _ca3 = st.columns(3)
+                    _ca1.metric("⚠️ Postos acima do ANP", _nc)
+                    _ca2.metric("📈 Pior desvio",
+                                f"+{_df_comp['_delta'].max() * 100:.1f}%")
+                    _ca3.metric("📊 Desvio médio",
+                                f"+{_df_comp['_delta'].mean() * 100:.1f}%")
+                    st.divider()
+
+                    # Mapa de calor por UF
+                    _uf_comp = (
+                        _df_comp.groupby("UF")["_delta"]
+                        .agg(postos="count", pior=lambda x: x.max())
+                        .reset_index()
+                        .sort_values("pior", ascending=True)
+                    )
+                    if len(_uf_comp) > 0:
+                        _fig_comp = go.Figure(go.Bar(
+                            y=_uf_comp["UF"], x=(_uf_comp["pior"] * 100).round(1),
+                            orientation="h",
+                            marker_color=[
+                                "#C62828" if v > 0.15 else "#EF6C00" if v > 0.08 else "#F9A825"
+                                for v in _uf_comp["pior"]
+                            ],
+                            text=[f"+{v:.1f}%" for v in (_uf_comp["pior"] * 100)],
+                            textposition="outside",
+                            hovertemplate="UF: %{y}<br>Pior desvio: %{x:.1f}%<extra></extra>",
+                        ))
+                        _fig_comp.update_layout(
+                            title="Perda de Competitividade por UF (desvio vs ANP)",
+                            xaxis_title="Desvio (%)", yaxis_title="",
+                            height=max(280, len(_uf_comp) * 26 + 80),
+                            margin=dict(t=40, b=20, l=20, r=60),
+                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                        )
+                        st.plotly_chart(_fig_comp, use_container_width=True)
+
+                    _df_comp_disp = _df_comp.drop(columns=["_delta"])
+                    st.dataframe(_df_comp_disp, use_container_width=True, hide_index=True)
+                    _csv_comp = _df_comp_disp.to_csv(index=False).encode("utf-8-sig")
+                    st.download_button(
+                        "📥 Exportar CSV",
+                        data=_csv_comp,
+                        file_name=f"alerta_competitividade_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        key="btn_export_comp",
+                    )
+
+        # ── Sub-aba D: Cobertura Geográfica ─────────────────────────
+        with _sa_geo:
+            st.markdown("##### 🗺️ Alerta de Cobertura Geográfica")
+            st.markdown(
+                "Identifica estados e regiões com **poucos postos GF** ou "
+                "baixa penetração municipal, sinalizando oportunidades de expansão."
+            )
+            if _pf_df3.empty:
+                st.info(
+                    "ℹ️ Carregue a **planilha de Postos GF** em Configurações "
+                    "para ativar este alerta."
+                )
+            else:
+                with st.spinner("Analisando cobertura geográfica…"):
+                    _df_geo = _alerta_cobertura_geografica(_pf_df3)
+
+                if _df_geo.empty:
+                    st.warning("⚠️ Não foi possível calcular cobertura (dados insuficientes).")
+                else:
+                    _n_crit = int((_df_geo["Nível"] == "🔴 Crítica").sum())
+                    _n_parc = int((_df_geo["Nível"] == "🟡 Parcial").sum())
+                    _n_boa  = int((_df_geo["Nível"] == "🟢 Boa").sum())
+                    _ga1, _ga2, _ga3 = st.columns(3)
+                    _ga1.metric("🔴 Cobertura Crítica", _n_crit, help="0–2 postos no estado")
+                    _ga2.metric("🟡 Cobertura Parcial",  _n_parc, help="3–9 postos no estado")
+                    _ga3.metric("🟢 Boa Cobertura",      _n_boa,  help="≥10 postos + ≥20% municípios")
+                    st.divider()
+
+                    # Gráfico: postos por UF
+                    _df_geo_plot = _df_geo.sort_values("Postos GF", ascending=True).tail(27)
+                    _cores_geo = {
+                        "🔴 Crítica": "#C62828",
+                        "🟡 Parcial": "#EF6C00",
+                        "🟢 Boa":     "#2E7D32",
+                    }
+                    _fig_geo = go.Figure(go.Bar(
+                        y=_df_geo_plot["UF"],
+                        x=_df_geo_plot["Postos GF"],
+                        orientation="h",
+                        marker_color=[_cores_geo.get(n, "#888") for n in _df_geo_plot["Nível"]],
+                        text=_df_geo_plot["Postos GF"].astype(str),
+                        textposition="outside",
+                        hovertemplate=(
+                            "UF: %{y}<br>Postos GF: %{x}<br>"
+                            "<extra></extra>"
+                        ),
+                    ))
+                    _fig_geo.update_layout(
+                        title="Postos GF por UF (🔴 Crítica · 🟡 Parcial · 🟢 Boa)",
+                        xaxis_title="Postos GF", yaxis_title="",
+                        height=max(320, len(_df_geo_plot) * 22 + 80),
+                        margin=dict(t=40, b=20, l=30, r=40),
+                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                    )
+                    st.plotly_chart(_fig_geo, use_container_width=True)
+
+                    # Tabela detalhada — destaque críticos no topo
+                    _df_geo_disp = _df_geo.drop(columns=["_n_postos"]).sort_values(
+                        "Postos GF", ascending=True
+                    )
+                    st.dataframe(_df_geo_disp, use_container_width=True, hide_index=True)
+                    _csv_geo = _df_geo_disp.to_csv(index=False).encode("utf-8-sig")
+                    st.download_button(
+                        "📥 Exportar CSV",
+                        data=_csv_geo,
+                        file_name=f"alerta_cobertura_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        key="btn_export_geo",
+                    )
+
+        # ── Sub-aba E: Tendência de Preços ───────────────────────────
+        with _sa_tend:
+            st.markdown("##### 📈 Alerta de Tendência de Preços (Regressão)")
+            st.markdown(
+                "Regressão linear sobre o histórico de cada posto para detectar "
+                "postos com **tendência sustentada de alta** e projetar preços futuros."
+            )
+            if _n_obs_pg == 0:
+                st.info(
+                    "ℹ️ Sem histórico de preços. Carregue a planilha PP e registre "
+                    "pelo menos 3 semanas de dados na aba **Histórico de Preços**."
+                )
+            else:
+                _tcol1, _tcol2 = st.columns(2)
+                with _tcol1:
+                    _tend_min_obs = st.number_input(
+                        "Mínimo de observações por posto",
+                        min_value=2, max_value=12, value=3, step=1,
+                        key="intel_tend_min_obs",
+                        help="Postos com menos registros são ignorados.",
+                    )
+                with _tcol2:
+                    _tend_horizon = st.number_input(
+                        "Horizonte de projeção (semanas)",
+                        min_value=1, max_value=12, value=4, step=1,
+                        key="intel_tend_horizon",
+                        help="Quantas semanas à frente projetar o preço.",
+                    )
+                _tend_r2 = st.slider(
+                    "R² mínimo para incluir no alerta",
+                    min_value=0.20, max_value=0.95, value=0.40, step=0.05,
+                    format="%.2f",
+                    key="intel_tend_r2",
+                    help="Quanto maior o R², mais confiável a tendência linear.",
                 )
 
-        _col_btn_a, _col_btn_b = st.columns([1, 1])
-        with _col_btn_a:
-            if st.button("💾 Salvar limiares", key="btn_intel3_salvar",
-                         use_container_width=True):
-                _intel_d3["limiar"] = _lim_novo3
-                _intel_save(_intel_d3)
-                st.session_state.pop("_intel_loaded", None)
-                st.success("✅ Limiares salvos.")
+                with st.spinner("Calculando regressões de tendência…"):
+                    _df_tend = _alerta_tendencia(
+                        _hist_all_pg,
+                        min_obs=int(_tend_min_obs),
+                        horizon_weeks=int(_tend_horizon),
+                        min_r2=float(_tend_r2),
+                    )
 
-        with _col_btn_b:
-            _pp_df3 = st.session_state.get("_pp_df")
-            if st.button("📄 Gerar Relatório Excel",
-                         key="btn_intel3_gerar",
-                         use_container_width=True,
-                         type="primary"):
-                if _pp_df3 is None or _pp_df3.empty:
-                    st.warning("⚠️ Carregue a planilha de Preços PP em Configurações antes de gerar o relatório.")
+                if _df_tend.empty:
+                    st.success(
+                        "✅ Nenhum posto com tendência de alta estatisticamente "
+                        f"relevante (R² ≥ {_tend_r2:.2f}) no período analisado."
+                    )
                 else:
-                    with st.spinner("Gerando relatório…"):
-                        _bytes3, _fname3, _err3 = _gerar_relatorio_alertas_xlsx(
-                            _pp_df3, _lim_novo3)
-                    if _err3:
-                        st.error(f"❌ Erro: {_err3}")
-                    else:
-                        st.session_state["_intel_rel_bytes"] = _bytes3
-                        st.session_state["_intel_rel_fname"] = _fname3
-                        st.session_state.pop("_intel_loaded", None)
-                        st.rerun()
+                    _nt = len(_df_tend)
+                    _ta1, _ta2, _ta3 = st.columns(3)
+                    _ta1.metric("⚠️ Postos em tendência de alta", _nt)
+                    _ta2.metric(
+                        "📈 Maior inclinação",
+                        f"+{_df_tend['_slope'].max():.4f} R$/L/sem".replace(".", ","),
+                    )
+                    _ta3.metric(
+                        "🎯 R² médio",
+                        f"{_df_tend['R²'].mean():.2f}".replace(".", ","),
+                    )
+                    st.divider()
 
-        _bytes_dl3 = st.session_state.get("_intel_rel_bytes")
-        _fname_dl3 = st.session_state.get("_intel_rel_fname", "alertas.xlsx")
-        if _bytes_dl3:
-            st.markdown("---")
-            st.download_button(
-                "⬇️ Baixar relatório gerado",
-                data=_bytes_dl3,
-                file_name=_fname_dl3,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                key="btn_intel3_download",
-            )
+                    # Gráfico: inclinação por UF
+                    _uf_tend = (
+                        _df_tend.groupby("UF")["_slope"]
+                        .agg(postos="count", pior=lambda x: x.max())
+                        .reset_index()
+                        .sort_values("pior", ascending=False)
+                    )
+                    if len(_uf_tend) > 0:
+                        _fig_tend = go.Figure(go.Bar(
+                            x=_uf_tend["UF"],
+                            y=(_uf_tend["pior"] * 100).round(3),
+                            marker_color="#C62828",
+                            text=[f"+{v:.3f}%" for v in (_uf_tend["pior"] * 100)],
+                            textposition="outside",
+                            hovertemplate=(
+                                "UF: %{x}<br>"
+                                "Maior inclinação: %{y:.3f}%/sem<extra></extra>"
+                            ),
+                        ))
+                        _fig_tend.update_layout(
+                            title="Tendência de Alta por UF (inclinação R$/L/sem × 100)",
+                            xaxis_title="UF", yaxis_title="Inclinação (×100)",
+                            height=320, margin=dict(t=40, b=20, l=20, r=20),
+                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                        )
+                        st.plotly_chart(_fig_tend, use_container_width=True)
 
-        if not (st.session_state.get("_pp_df") is not None):
-            st.info("ℹ️ Para gerar o relatório, carregue a planilha de **Preços PP** em "
-                    "**Configurações → 💲 Preços PP**.")
+                    _df_tend_disp = _df_tend.drop(columns=["_slope"])
+                    st.dataframe(_df_tend_disp, use_container_width=True, hide_index=True)
+                    st.caption(
+                        "**Metodologia:** regressão linear (mínimos quadrados) sobre o histórico de "
+                        "preços semanais de cada posto. O coeficiente angular (slope) indica a variação "
+                        f"média esperada por semana. Projeção para +{int(_tend_horizon)} semanas."
+                    )
+                    _csv_tend = _df_tend_disp.to_csv(index=False).encode("utf-8-sig")
+                    st.download_button(
+                        "📥 Exportar CSV",
+                        data=_csv_tend,
+                        file_name=f"alerta_tendencia_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        key="btn_export_tend",
+                    )
 
 
 # ═══════════════════════════════════════════════════════════════════
