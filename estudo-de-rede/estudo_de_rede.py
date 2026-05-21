@@ -9231,48 +9231,58 @@ if st.button("​​", key="btn_tour_open_hidden"):   # dois zero-width spaces
 with st.sidebar:
 
     # ── Header do Sidebar — Logo FNI com gradiente ────────────────
+    # mix-blend-mode:screen remove o fundo escuro da logo, mostrando só
+    # o ícone e texto claros; brightness + drop-shadow ampliam o destaque.
     _fni_html_sb = (
         f"<img src='{_FNI_SRC}' style='"
-        f"height:72px;max-width:100%;object-fit:contain;"
-        f"filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35)) brightness(1.08);'>"
+        f"height:90px;max-width:88%;object-fit:contain;"
+        f"mix-blend-mode:screen;"
+        f"filter:brightness(2.2) contrast(1.1) "
+        f"drop-shadow(0 0 14px rgba(100,181,246,0.70)) "
+        f"drop-shadow(0 2px 6px rgba(0,0,0,0.5));'>"
         if _FNI_SRC else
-        "<span style='font-size:44px;line-height:1'>🚛</span>"
+        "<span style='font-size:50px;line-height:1'>🚛</span>"
     )
     st.markdown(f"""
     <div style='
         margin: -1rem -1rem 0 -1rem;
-        background: linear-gradient(150deg, #06102e 0%, #0d1b4b 35%, #0f2a72 65%, #0a1f5c 100%);
-        padding: 26px 20px 20px;
+        background: linear-gradient(160deg,
+            #0d1f55 0%, #1040a0 35%, #1565C0 65%, #0d3080 100%);
+        padding: 32px 20px 24px;
         text-align: center;
         position: relative;
         overflow: hidden;
     '>
-      <!-- Brilho radial sutil — espelha o fundo da tela de login -->
+      <!-- Halo de brilho atrás da logo -->
       <div style='
           position:absolute;top:0;left:0;right:0;bottom:0;
-          background: radial-gradient(ellipse 90% 70% at 50% 20%,
-              rgba(100,181,246,0.13) 0%, transparent 70%);
+          background:
+              radial-gradient(ellipse 70% 60% at 50% 45%,
+                  rgba(144,202,249,0.28) 0%, transparent 65%),
+              radial-gradient(ellipse 100% 40% at 50% 0%,
+                  rgba(21,101,192,0.35) 0%, transparent 70%);
           pointer-events:none;
       '></div>
-      <!-- Partículas decorativas mínimas -->
+      <!-- Partículas decorativas -->
       <div style='
           position:absolute;top:0;left:0;right:0;bottom:0;
           background-image:
-              radial-gradient(circle 1.5px at 20% 25%, rgba(255,255,255,0.18) 0%, transparent 100%),
-              radial-gradient(circle 1px  at 80% 60%, rgba(100,181,246,0.25) 0%, transparent 100%),
-              radial-gradient(circle 1px  at 55% 80%, rgba(255,255,255,0.12) 0%, transparent 100%);
+              radial-gradient(circle 1.5px at 15% 20%, rgba(255,255,255,0.25) 0%, transparent 100%),
+              radial-gradient(circle 1px  at 85% 55%, rgba(144,202,249,0.35) 0%, transparent 100%),
+              radial-gradient(circle 1px  at 60% 85%, rgba(255,255,255,0.18) 0%, transparent 100%),
+              radial-gradient(circle 2px  at 30% 70%, rgba(144,202,249,0.20) 0%, transparent 100%);
           pointer-events:none;
       '></div>
       <!-- Logo FNI -->
-      <div style='position:relative;z-index:1'>
+      <div style='position:relative;z-index:1;padding:0 8px'>
         {_fni_html_sb}
         <div style='
             font-size: 9px;
-            color: rgba(144,202,249,0.6);
-            margin-top: 9px;
-            letter-spacing: 1.8px;
+            color: rgba(186,225,255,0.75);
+            margin-top: 10px;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            font-weight: 600;
+            font-weight: 700;
         '>Inteligência de Rede</div>
       </div>
     </div>
