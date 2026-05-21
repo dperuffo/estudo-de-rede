@@ -6295,6 +6295,14 @@ def _popup(row):
     except Exception:
         pass
 
+    # ── Insights automáticos (preço vs ANP + tendência histórica) ─────
+    _insights_popup_html = ""
+    try:
+        _insights_popup = _gerar_insights_posto(row)
+        _insights_popup_html = _render_insights_html(_insights_popup, compact=True)
+    except Exception:
+        pass
+
     # ── Serviços disponíveis (colunas opcionais da planilha) ──────────
     _svc_badges = []
     if row.get("funciona_24h") is True:
@@ -6344,6 +6352,7 @@ def _popup(row):
         f"{_horario_html}"
         f"{dist_txt}"
         f"{_preco_posto_html}"
+        f"{_insights_popup_html}"
         f"{_svc_html}"
         f"{produtos_html}"
         f"{botoes_html}"
@@ -7255,6 +7264,212 @@ def _tendencia_badge(preco_atual, preco_anterior, inline=True):
         )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Insights automáticos — helpers reutilizáveis
+# _gerar_insights_posto : analisa preço vs ANP + tendência histórica do posto
+# _render_insights_html : formata como HTML (popup / inline)
+# _render_insights_st   : renderiza via st.markdown (painéis Streamlit)
+# _gerar_insights_comparativo : insights de nível agregado (GF vs ANP)
+# _render_insights_comparativo_st : renderiza barra de insights do comparativo
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _gerar_insights_posto(row: dict, sheets_anp: dict | None = None) -> list:
+    """Gera lista de insights automáticos para um posto específico.
+
+    Cruza preço cadastrado (_pp_df) × referência ANP × tendência histórica.
+    Retorna lista de dicts {emoji, texto, nivel: 'ok'|'warn'|'danger'|'info'}.
+    """
+    insights = []
+    try:
+        _pp_df = st.session_state.get("_pp_df")
+        if _pp_df is None or _pp_df.empty:
+            return insights
+
+        _cnpj = re.sub(r"\D", "", str(row.get("_cnpj_norm", row.get("cnpj", "")) or ""))
+        if not _cnpj or "cnpj_norm" not in _pp_df.columns:
+            return insights
+
+        _uf      = str(row.get("uf", "")).strip().upper()
+        _sheets  = sheets_anp or (st.session_state.get("_precos_anp_cache") or {}).get("sheets")
+        _pp_rows = _pp_df[_pp_df["cnpj_norm"] == _cnpj]
+        _hist_all = _intel_load().get("historico", {})
+        _hist_posto_raw = _hist_all.get(_cnpj, [])
+
+        for _, _pp_r in _pp_rows.iterrows():
+            _pk     = _anp_norm(str(_pp_r.get("combustivel_pk",
+                                               _pp_r.get("combustivel_label", ""))))
+            _comb   = str(_pp_r.get("combustivel_label", _pk)).strip() or _pk
+            _preco_p = float(_pp_r.get("preco") or 0)
+            if not _preco_p:
+                continue
+
+            # ── 1. Preço do posto vs referência ANP ──────────────────────
+            if _sheets:
+                _preco_anp = (
+                    (_anp_preco_uf(_sheets, _pk, _uf) if _uf else None)
+                    or _anp_preco_brasil(_sheets, _pk)
+                )
+                if _preco_anp and _preco_anp > 0:
+                    _delta_pct = (_preco_p - _preco_anp) / _preco_anp * 100
+                    if _delta_pct > 15:
+                        insights.append({
+                            "emoji": "⚠️",
+                            "texto": (f"Este posto está {_delta_pct:.0f}% acima da "
+                                      f"média ANP ({_comb})"),
+                            "nivel": "danger",
+                        })
+                    elif _delta_pct > 5:
+                        insights.append({
+                            "emoji": "🔶",
+                            "texto": (f"Preço {_delta_pct:.1f}% acima da referência "
+                                      f"ANP ({_comb})"),
+                            "nivel": "warn",
+                        })
+                    elif _delta_pct >= -5:
+                        insights.append({
+                            "emoji": "✅",
+                            "texto": f"Preço alinhado à referência ANP ({_comb})",
+                            "nivel": "ok",
+                        })
+                    else:
+                        insights.append({
+                            "emoji": "💚",
+                            "texto": (f"Preço {abs(_delta_pct):.1f}% abaixo da "
+                                      f"média ANP — boa opção! ({_comb})"),
+                            "nivel": "ok",
+                        })
+
+            # ── 2. Tendência histórica dos últimos registros do posto ─────
+            if len(_hist_posto_raw) >= 2:
+                _hist_comb = [
+                    h for h in _hist_posto_raw
+                    if _anp_norm(str(h.get("combustivel", ""))) == _pk
+                ]
+                _hist_sorted = sorted(_hist_comb, key=lambda h: h.get("data", ""))[-4:]
+                if len(_hist_sorted) >= 2:
+                    _p0 = float(_hist_sorted[0].get("preco") or 0)
+                    _p1 = float(_hist_sorted[-1].get("preco") or 0)
+                    if _p0 > 0 and _p1 > 0:
+                        _tend_pct = (_p1 - _p0) / _p0 * 100
+                        if _tend_pct > 2:
+                            insights.append({
+                                "emoji": "📈",
+                                "texto": (f"Tendência de alta nos últimos registros "
+                                          f"({_comb}: +{_tend_pct:.1f}%)"),
+                                "nivel": "warn",
+                            })
+                        elif _tend_pct < -2:
+                            insights.append({
+                                "emoji": "📉",
+                                "texto": (f"Tendência de queda de preço "
+                                          f"({_comb}: {_tend_pct:.1f}%)"),
+                                "nivel": "info",
+                            })
+    except Exception:
+        pass
+    return insights
+
+
+def _render_insights_html(insights: list, compact: bool = True) -> str:
+    """Converte lista de insights em HTML.
+
+    compact=True  → linhas com borda lateral (popups Folium)
+    compact=False → cards em painel (st.markdown)
+    """
+    if not insights:
+        return ""
+    _pal = {
+        "ok":     ("#e8f5e9", "#1b5e20", "#388e3c"),
+        "warn":   ("#fff8e1", "#e65100", "#f57c00"),
+        "danger": ("#ffebee", "#b71c1c", "#c62828"),
+        "info":   ("#e3f2fd", "#0d47a1", "#1565c0"),
+    }
+    if compact:
+        pills = ""
+        for ins in insights:
+            bg, fg, brd = _pal.get(ins["nivel"], _pal["info"])
+            pills += (
+                f"<div style='display:flex;align-items:flex-start;gap:5px;"
+                f"background:{bg};border-left:3px solid {brd};"
+                f"border-radius:0 5px 5px 0;padding:4px 7px;margin:2px 0;"
+                f"font-size:11px;color:{fg};font-weight:600;line-height:1.3'>"
+                f"{ins['emoji']} {ins['texto']}</div>"
+            )
+        return (
+            f"<hr style='margin:5px 0'>"
+            f"<div style='font-size:9.5px;font-weight:700;color:#888;"
+            f"letter-spacing:.6px;margin-bottom:3px'>💡 INSIGHTS AUTOMÁTICOS</div>"
+            f"{pills}"
+        )
+    else:
+        cards = ""
+        for ins in insights:
+            bg, fg, brd = _pal.get(ins["nivel"], _pal["info"])
+            cards += (
+                f"<div style='display:flex;align-items:center;gap:8px;"
+                f"background:{bg};border-left:4px solid {brd};"
+                f"border-radius:0 10px 10px 0;padding:8px 12px;margin:4px 0;"
+                f"font-size:13px;color:{fg};font-weight:600'>"
+                f"<span style='font-size:18px'>{ins['emoji']}</span>"
+                f"<span>{ins['texto']}</span></div>"
+            )
+        return (
+            f"<div style='background:#f8fafd;border-radius:10px;padding:10px 14px;"
+            f"margin:8px 0;border:1px solid #dde8f5'>"
+            f"<div style='font-size:11px;font-weight:700;color:#888;letter-spacing:.8px;"
+            f"margin-bottom:6px'>💡 INSIGHTS AUTOMÁTICOS</div>"
+            f"{cards}</div>"
+        )
+
+
+def _render_insights_st(insights: list) -> None:
+    """Renderiza insights via st.markdown (para seções Streamlit)."""
+    if not insights:
+        return
+    st.markdown(_render_insights_html(insights, compact=False), unsafe_allow_html=True)
+
+
+def _gerar_insights_comparativo(comparativo: list) -> list:
+    """Gera insights agregados para a visão Comparativo GF vs ANP."""
+    insights = []
+    try:
+        for item in comparativo:
+            _lbl  = item.get("combustivel_label", "")
+            _dpct = item.get("delta_pct", 0)
+            _eco  = item.get("economia_100l", 0)
+            if _dpct > 10:
+                insights.append({
+                    "emoji": "⚠️",
+                    "texto": (f"Frota paga {_dpct:.1f}% acima da ANP em "
+                              f"{_lbl} — renegociar credenciamentos"),
+                    "nivel": "danger",
+                })
+            elif _dpct > 3:
+                insights.append({
+                    "emoji": "🔶",
+                    "texto": (f"{_lbl} {_dpct:.1f}% acima da referência — "
+                              f"custo adicional de R$ {_brl(abs(_eco))}/100 L"),
+                    "nivel": "warn",
+                })
+            elif _dpct < -3:
+                insights.append({
+                    "emoji": "💚",
+                    "texto": (f"Frota economiza R$ {_brl(abs(_eco))}/100 L em "
+                              f"{_lbl} vs referência ANP"),
+                    "nivel": "ok",
+                })
+            else:
+                insights.append({
+                    "emoji": "✅",
+                    "texto": (f"{_lbl} alinhado à referência ANP "
+                              f"(desvio de {_dpct:+.1f}%)"),
+                    "nivel": "ok",
+                })
+    except Exception:
+        pass
+    return insights
+
+
 def _anp_col(df, *termos):
     """Retorna a primeira coluna cujo nome normalizado contenha qualquer dos termos."""
     for col in df.columns:
@@ -7928,6 +8143,10 @@ def _renderizar_comparativo_pf_anp(comparativo, subtitulo=""):
         css + f"<div class='cmp-grid'>{cards_html}</div>",
         unsafe_allow_html=True,
     )
+
+    # ── Barra de insights automáticos do comparativo ───────────────────
+    _cmp_insights = _gerar_insights_comparativo(comparativo)
+    _render_insights_st(_cmp_insights)
 
 
 def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
@@ -13785,6 +14004,9 @@ elif modo == "🔍 Consulta por Posto":
                         f"</table></div>",
                         unsafe_allow_html=True,
                     )
+                    # ── Insights automáticos (posto único — aba Detalhes) ──────
+                    _r_dict = _r.to_dict() if hasattr(_r, "to_dict") else dict(_r)
+                    _render_insights_st(_gerar_insights_posto(_r_dict))
                 else:
                     # Tabela para múltiplos resultados
                     _cols_m3 = [c for c in [
@@ -13908,6 +14130,9 @@ elif modo == "🔍 Consulta por Posto":
                             )
                             if _semana_m3:
                                 st.caption(f"Referência ANP: {_semana_m3}")
+                            # ── Insights automáticos (aba Preços — posto único) ────
+                            _r0_dict = _r0.to_dict() if hasattr(_r0, "to_dict") else dict(_r0)
+                            _render_insights_st(_gerar_insights_posto(_r0_dict))
                         st.divider()
 
                 # ── Seção 2: Tabela ANP completa (Modo 1 — sem calculadora) ──
