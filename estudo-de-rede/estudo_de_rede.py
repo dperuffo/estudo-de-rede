@@ -14932,11 +14932,12 @@ elif modo == "🧠 Inteligência":
                     f"<div class='intel-kpi-lbl'>📅 Semanas de histórico</div></div>",
                     unsafe_allow_html=True)
     with _ki4:
-        _last_rpt = _intel_d_pg.get("last_report","")
-        _last_rpt_fmt = _last_rpt[:10] if _last_rpt else "Nunca"
+        # Mostra a data do registro de preço mais recente no histórico
+        _last_upd = _datas_pg[-1] if _datas_pg else None
+        _last_upd_fmt = _last_upd if _last_upd else "Nunca"
         st.markdown(f"<div class='intel-kpi-card'>"
-                    f"<div class='intel-kpi-num' style='font-size:1.1rem'>{_last_rpt_fmt}</div>"
-                    f"<div class='intel-kpi-lbl'>📋 Último relatório</div></div>",
+                    f"<div class='intel-kpi-num' style='font-size:1.1rem'>{_last_upd_fmt}</div>"
+                    f"<div class='intel-kpi-lbl'>🕒 Última atualização</div></div>",
                     unsafe_allow_html=True)
 
     st.markdown("<div style='height:1.2rem'></div>", unsafe_allow_html=True)
