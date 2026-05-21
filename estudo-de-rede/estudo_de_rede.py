@@ -2649,10 +2649,13 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
         if _db:
             _erro_db: str = ""
             try:
-                # ignore_duplicates=True → ON CONFLICT DO NOTHING
-                # Funciona com qualquer UNIQUE CONSTRAINT ou UNIQUE INDEX.
+                # on_conflict especifica as colunas; ignore_duplicates=True
+                # gera ON CONFLICT (cols) DO NOTHING em vez de DO UPDATE.
+                # Ambos os parâmetros são necessários para o PostgREST respeitar
+                # a constraint e ignorar duplicatas silenciosamente.
                 _db.table("historico_precos").upsert(
                     _supabase_registros,
+                    on_conflict="cnpj,combustivel,data_ref",
                     ignore_duplicates=True,
                 ).execute()
                 st.session_state.pop("_hist_db_erro", None)
