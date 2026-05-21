@@ -1496,7 +1496,7 @@ def _auth_login_page():
         -webkit-backdrop-filter: blur(24px);
         border: 1px solid rgba(255, 255, 255, 0.14);
         border-radius: 28px;
-        padding: 3rem 2.8rem 2.4rem;
+        padding: 3rem 2.8rem 1.6rem;
         text-align: center;
         box-shadow:
             0 24px 64px rgba(0, 0, 0, 0.45),
@@ -1716,6 +1716,79 @@ def _auth_login_page():
         font-weight: 500;
         z-index: 10;
     }
+
+    /* ── Botão Google: reposicionar para DENTRO do card ─────────────
+       Técnica: o element-container do card e o do botão são irmãos
+       adjacentes no stVerticalBlock. Usamos :has() + seletor + para
+       puxar o container do botão p/ cima (margem negativa) e alinhá-lo
+       ao card com mesmo max-width, padding horizontal e z-index.     ── */
+    div[data-testid="element-container"]:has(.login-card)
+        + div[data-testid="element-container"] {
+        margin-top: -2.4rem !important;
+        position: relative !important;
+        z-index: 20 !important;
+        max-width: 440px !important;
+        width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding: 0 2.8rem 2rem !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Botão Google — estilo branco com sombra (sobrescreve regras anteriores) */
+    div[data-testid="element-container"]:has(.login-card)
+        + div[data-testid="element-container"]
+        [data-testid="stLinkButton"] a {
+        background: #ffffff !important;
+        color: #3c4043 !important;
+        border: 1px solid rgba(0,0,0,0.15) !important;
+        border-radius: 10px !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
+        padding: 0.65rem 1.2rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        text-decoration: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.2) !important;
+        transition: all 0.2s ease !important;
+        letter-spacing: 0.01em !important;
+    }
+    div[data-testid="element-container"]:has(.login-card)
+        + div[data-testid="element-container"]
+        [data-testid="stLinkButton"] a:hover {
+        background: #f8f8f8 !important;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.4) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* Fallback: se authorize_button renderizar como stButton */
+    div[data-testid="element-container"]:has(.login-card)
+        + div[data-testid="element-container"]
+        div[data-testid="stButton"] > button {
+        background: #ffffff !important;
+        color: #3c4043 !important;
+        border: 1px solid rgba(0,0,0,0.15) !important;
+        border-radius: 10px !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
+        padding: 0.65rem 1.2rem !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.35) !important;
+        transition: all 0.2s ease !important;
+    }
+    div[data-testid="element-container"]:has(.login-card)
+        + div[data-testid="element-container"]
+        div[data-testid="stButton"] > button:hover {
+        background: #f8f8f8 !important;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.4) !important;
+        transform: translateY(-1px) !important;
+        color: #3c4043 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -1824,7 +1897,7 @@ def _auth_login_page():
             </div>
           </div>
 
-          <div class='login-divider'><span>Acesso seguro</span></div>
+          <div class='login-divider' style='margin-bottom:0'><span>Acesso seguro</span></div>
         </div>
         """, unsafe_allow_html=True)
 
