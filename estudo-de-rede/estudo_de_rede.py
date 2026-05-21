@@ -2542,16 +2542,20 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
 
     _pp_df tem colunas: cnpj_norm, combustivel_pk, combustivel_label,
                         preco, data_atualizacao.
-    Retorna quantidade de novos registros adicionados ao histórico local.
+    Retorna quantidade de registros efetivamente novos no JSON local.
+
+    Design:
+    - Supabase recebe TODOS os registros válidos (o banco lida com deduplicação).
+    - JSON local só acumula registros realmente novos (evita crescimento ilimitado).
+    - Erros do Supabase são gravados em st.session_state["_hist_db_erro"]
+      para o UI exibir sem travar o fluxo.
     """
     if pp_df is None or pp_df.empty:
         return 0
 
-    # Data de referência: usa data_atualizacao se disponível, senão hoje
     _hoje = datetime.now().strftime("%Y-%m-%d")
 
-    # Lookup de localização: CNPJ → {razao_social, municipio, uf, lat, lon}
-    # Usamos pf_coords_df (postos GF) para enriquecer os registros no Supabase
+    # ── Lookup de localização: CNPJ → {razao_social, municipio, uf, lat, lon} ──
     _pf_lookup: dict = {}
     try:
         _pf_ss = st.session_state.get("pf_coords_df")
@@ -2563,8 +2567,8 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
                         "razao_social": str(_r.get("razaoSocial") or _r.get("razao_social") or ""),
                         "municipio":    str(_r.get("municipio") or ""),
                         "uf":           str(_r.get("uf") or ""),
-                        "lat":          _r.get("lat") or _r.get("_lat"),
-                        "lon":          _r.get("lon") or _r.get("_lon"),
+                        "lat":          float(_r["lat"]) if _r.get("lat") not in (None, "") else None,
+                        "lon":          float(_r["lon"]) if _r.get("lon") not in (None, "") else None,
                     }
     except Exception:
         pass
@@ -2572,8 +2576,13 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     intel = _intel_load()
     hist  = intel["historico"]
     novos = 0
-    # Acumula registros novos para envio em lote ao Supabase
-    _db_novos: list = []
+
+    # ── Listas separadas: uma para Supabase (todos), outra para JSON (novos) ──
+    # IMPORTANTE: a lista do Supabase inclui TODOS os registros válidos — não
+    # apenas os "novos" para o JSON local — porque o histórico local pode estar
+    # vazio após reinício do servidor mesmo que o Supabase já tenha os dados.
+    # O banco cuida da deduplicação via UNIQUE CONSTRAINT.
+    _supabase_registros: list = []
 
     for _, row in pp_df.iterrows():
         _cnpj = str(row.get("cnpj_norm", "") or "").strip()
@@ -2588,20 +2597,35 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
         if not _comb:
             continue
 
-        # Data: tenta usar data_atualizacao da planilha (YYYY-MM-DD)
         _data_raw = str(row.get("data_atualizacao", "") or "").strip()
         try:
             _data = pd.to_datetime(_data_raw, dayfirst=True).strftime("%Y-%m-%d")
         except Exception:
             _data = _hoje
 
+        _loc = _pf_lookup.get(_cnpj, {})
+
+        # ── Supabase: acumula todos (DB deduplica) ──
+        _supabase_registros.append({
+            "cnpj":         _cnpj,
+            "razao_social": _loc.get("razao_social", ""),
+            "municipio":    _loc.get("municipio", ""),
+            "uf":           _loc.get("uf", ""),
+            "combustivel":  _comb,
+            "preco":        round(float(_preco), 3),
+            "data_ref":     _data,
+            "lat":          _loc.get("lat"),
+            "lon":          _loc.get("lon"),
+            "fonte":        "PP",
+        })
+
+        # ── JSON local: só adiciona se realmente novo ──
         _lista = hist.setdefault(_cnpj, [])
         _ja_tem = any(
             e.get("data") == _data and e.get("combustivel") == _comb
             for e in _lista
         )
         if not _ja_tem:
-            _loc = _pf_lookup.get(_cnpj, {})
             _lista.append({
                 "data":        _data,
                 "preco":       round(float(_preco), 3),
@@ -2613,35 +2637,28 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
             if len(_lista) > 52:
                 _lista[:] = sorted(_lista, key=lambda e: e.get("data", ""))[-52:]
             novos += 1
-            # Prepara para gravação no Supabase
-            _db_novos.append({
-                "cnpj":        _cnpj,
-                "razao_social": _loc.get("razao_social", ""),
-                "municipio":   _loc.get("municipio", ""),
-                "uf":          _loc.get("uf", ""),
-                "combustivel": _comb,
-                "preco":       round(float(_preco), 3),
-                "data_ref":    _data,
-                "lat":         _loc.get("lat"),
-                "lon":         _loc.get("lon"),
-                "fonte":       "PP",
-            })
 
+    # ── 1. Persiste novos no JSON local ──
     if novos > 0:
-        # 1. Persiste no JSON local (cache rápido para a sessão)
         _intel_save(intel)
         st.session_state.pop("_intel_loaded", None)
 
-        # 2. Persiste no Supabase (armazenamento permanente)
+    # ── 2. Envia TODOS para o Supabase (ignora duplicatas via constraint) ──
+    if _supabase_registros:
         _db = _db_client()
-        if _db and _db_novos:
+        if _db:
+            _erro_db: str = ""
             try:
+                # ignore_duplicates=True → ON CONFLICT DO NOTHING
+                # Funciona com qualquer UNIQUE CONSTRAINT ou UNIQUE INDEX.
                 _db.table("historico_precos").upsert(
-                    _db_novos,
-                    on_conflict="cnpj,combustivel,data_ref",
+                    _supabase_registros,
+                    ignore_duplicates=True,
                 ).execute()
-            except Exception:
-                pass   # falha silenciosa — JSON local já garantiu o dado
+                st.session_state.pop("_hist_db_erro", None)
+            except Exception as _e:
+                _erro_db = str(_e)
+                st.session_state["_hist_db_erro"] = _erro_db
 
     return novos
 
@@ -14993,14 +15010,67 @@ elif modo == "🧠 Inteligência":
             # Registrar preços da planilha PP
             st.markdown("---")
             st.markdown("##### Registrar preços no histórico")
+
+            # ── Exibe erro do Supabase se houver ──────────────────────
+            _hist_db_erro = st.session_state.get("_hist_db_erro")
+            if _hist_db_erro:
+                st.error(
+                    f"⚠️ **Falha ao gravar no Supabase** — os dados foram salvos "
+                    f"apenas localmente (sessão atual).\n\n"
+                    f"Erro: `{_hist_db_erro}`\n\n"
+                    f"**Ação necessária:** verifique se a constraint de unicidade "
+                    f"existe na tabela `historico_precos`. Execute no SQL Editor do "
+                    f"Supabase:\n"
+                    f"```sql\n"
+                    f"ALTER TABLE historico_precos\n"
+                    f"  ADD CONSTRAINT IF NOT EXISTS historico_precos_unico\n"
+                    f"  UNIQUE (cnpj, combustivel, data_ref);\n"
+                    f"```\n"
+                    f"Depois clique em **↩️ Forçar sincronização** abaixo."
+                )
+
             _pp_df_pg = st.session_state.get("_pp_df")
             if _pp_df_pg is not None and not _pp_df_pg.empty:
                 st.caption(f"Planilha PP carregada: {_fmt_int(len(_pp_df_pg))} registros")
-                if st.button("🔄 Registrar preços atuais da planilha PP",
-                             key="btn_hist_reg_pg", use_container_width=True):
-                    _n_reg_pg = _hist_record_pp_df(_pp_df_pg)
-                    st.success(f"✅ {_n_reg_pg} novas observações registradas.")
-                    st.rerun()
+                _rb1, _rb2 = st.columns(2)
+                with _rb1:
+                    if st.button("🔄 Registrar preços atuais da planilha PP",
+                                 key="btn_hist_reg_pg", use_container_width=True):
+                        _n_reg_pg = _hist_record_pp_df(_pp_df_pg)
+                        if st.session_state.get("_hist_db_erro"):
+                            st.warning(
+                                f"⚠️ {_n_reg_pg} registros salvos localmente, "
+                                f"mas falhou no Supabase. Veja o erro acima."
+                            )
+                        else:
+                            st.success(
+                                f"✅ {_n_reg_pg} novas observações registradas "
+                                f"(local + Supabase)."
+                            )
+                        st.rerun()
+                with _rb2:
+                    if st.button("↩️ Forçar sincronização com Supabase",
+                                 key="btn_hist_force_sync", use_container_width=True,
+                                 help="Envia todos os registros da planilha PP ao Supabase, "
+                                      "ignorando o que já está no cache local. "
+                                      "Use se a tabela historico_precos estiver vazia no banco."):
+                        # Limpa o cache local para forçar todos como "novos"
+                        _intel_forced = _intel_load()
+                        _intel_forced["historico"] = {}
+                        _intel_save(_intel_forced)
+                        st.session_state.pop("_intel_loaded", None)
+                        _n_force = _hist_record_pp_df(_pp_df_pg)
+                        if st.session_state.get("_hist_db_erro"):
+                            st.error(
+                                f"❌ Supabase ainda falhando após sync forçado. "
+                                f"Erro: {st.session_state['_hist_db_erro']}"
+                            )
+                        else:
+                            st.success(
+                                f"✅ Sincronização forçada: {_n_force} registros "
+                                f"enviados ao Supabase com sucesso."
+                            )
+                        st.rerun()
             else:
                 st.info("Carregue a planilha de Preços PP em **Configurações → 💲 Preços PP** para ativar o registro automático de histórico.")
 
