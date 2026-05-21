@@ -9230,69 +9230,167 @@ if st.button("​​", key="btn_tour_open_hidden"):   # dois zero-width spaces
 
 with st.sidebar:
 
-    # ── Header do Sidebar — Logo FNI com gradiente ────────────────
-    # mix-blend-mode:screen remove o fundo escuro da logo, mostrando só
-    # o ícone e texto claros; brightness + drop-shadow ampliam o destaque.
-    _fni_html_sb = (
+    # ── Header do Sidebar — Logo FNI imponente ───────────────────────
+    # Design: fundo escuro profundo + spotlight radial central +
+    # painel glassmorphism flutuante + logo grande + rede decorativa SVG.
+    # mix-blend-mode:screen funde o fundo azul da logo com o gradiente.
+    _fni_img_tag = (
         f"<img src='{_FNI_SRC}' style='"
-        f"height:90px;max-width:88%;object-fit:contain;"
+        f"height:120px;max-width:92%;object-fit:contain;"
         f"mix-blend-mode:screen;"
-        f"filter:brightness(2.2) contrast(1.1) "
-        f"drop-shadow(0 0 14px rgba(100,181,246,0.70)) "
-        f"drop-shadow(0 2px 6px rgba(0,0,0,0.5));'>"
+        f"filter:brightness(2.5) contrast(1.15) saturate(1.1) "
+        f"drop-shadow(0 0 22px rgba(100,181,246,0.90)) "
+        f"drop-shadow(0 0 8px rgba(255,255,255,0.45));'>"
         if _FNI_SRC else
-        "<span style='font-size:50px;line-height:1'>🚛</span>"
+        "<span style='font-size:60px;line-height:1;display:block'>🚛</span>"
     )
     st.markdown(f"""
+<style>
+/* Animação de brilho pulsante na logo */
+@keyframes fni-pulse {{
+  0%,100% {{ opacity: 1; transform: scale(1); }}
+  50%      {{ opacity: 0.88; transform: scale(1.015); }}
+}}
+@keyframes fni-ray {{
+  0%   {{ opacity: 0.12; }}
+  50%  {{ opacity: 0.22; }}
+  100% {{ opacity: 0.12; }}
+}}
+.fni-logo-wrap img {{ animation: fni-pulse 4s ease-in-out infinite; }}
+.fni-ray {{ animation: fni-ray 3.5s ease-in-out infinite; }}
+</style>
+
+<div style='
+    margin: -1rem -1rem 0 -1rem;
+    background:
+        radial-gradient(ellipse 90% 55% at 50% 38%,
+            rgba(25,118,210,0.55) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 35% at 50% 15%,
+            rgba(100,181,246,0.18) 0%, transparent 70%),
+        linear-gradient(175deg,
+            #040d26 0%, #071840 20%,
+            #0b2660 45%, #0d1e50 70%,
+            #060f30 100%);
+    padding: 36px 16px 28px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    min-height: 210px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+'>
+
+  <!-- Linhas de rede decorativas (SVG) -->
+  <svg style='position:absolute;top:0;left:0;width:100%;height:100%;
+      pointer-events:none;opacity:0.13;' viewBox='0 0 300 210'
+      preserveAspectRatio='xMidYMid slice'>
+    <!-- Nós da rede -->
+    <circle cx='30'  cy='30'  r='2.5' fill='#90CAF9'/>
+    <circle cx='270' cy='40'  r='2'   fill='#90CAF9'/>
+    <circle cx='20'  cy='170' r='2'   fill='#90CAF9'/>
+    <circle cx='280' cy='175' r='2.5' fill='#90CAF9'/>
+    <circle cx='150' cy='15'  r='2'   fill='#90CAF9'/>
+    <circle cx='55'  cy='100' r='1.5' fill='#90CAF9'/>
+    <circle cx='245' cy='110' r='1.5' fill='#90CAF9'/>
+    <circle cx='150' cy='195' r='2'   fill='#90CAF9'/>
+    <circle cx='95'  cy='55'  r='1.5' fill='#64B5F6'/>
+    <circle cx='205' cy='60'  r='1.5' fill='#64B5F6'/>
+    <!-- Arestas da rede -->
+    <line x1='30'  y1='30'  x2='95'  y2='55'  stroke='#90CAF9' stroke-width='0.8'/>
+    <line x1='95'  y1='55'  x2='150' y2='15'  stroke='#90CAF9' stroke-width='0.8'/>
+    <line x1='150' y1='15'  x2='205' y2='60'  stroke='#90CAF9' stroke-width='0.8'/>
+    <line x1='205' y1='60'  x2='270' y2='40'  stroke='#90CAF9' stroke-width='0.8'/>
+    <line x1='30'  y1='30'  x2='20'  y2='170' stroke='#90CAF9' stroke-width='0.6'/>
+    <line x1='20'  y1='170' x2='55'  y2='100' stroke='#90CAF9' stroke-width='0.8'/>
+    <line x1='55'  y1='100' x2='95'  y2='55'  stroke='#64B5F6' stroke-width='0.7'/>
+    <line x1='245' y1='110' x2='270' y2='40'  stroke='#90CAF9' stroke-width='0.7'/>
+    <line x1='245' y1='110' x2='280' y2='175' stroke='#90CAF9' stroke-width='0.8'/>
+    <line x1='280' y1='175' x2='150' y2='195' stroke='#90CAF9' stroke-width='0.8'/>
+    <line x1='150' y1='195' x2='20'  y2='170' stroke='#90CAF9' stroke-width='0.7'/>
+    <line x1='205' y1='60'  x2='245' y2='110' stroke='#64B5F6' stroke-width='0.7'/>
+  </svg>
+
+  <!-- Raios de luz diagonais -->
+  <div class='fni-ray' style='
+      position:absolute;top:0;left:0;right:0;bottom:0;
+      background:
+          linear-gradient(125deg, transparent 30%,
+              rgba(100,181,246,0.18) 49%, transparent 51%),
+          linear-gradient(55deg,  transparent 30%,
+              rgba(100,181,246,0.12) 49%, transparent 51%);
+      pointer-events:none;
+  '></div>
+
+  <!-- Painel glassmorphism atrás da logo -->
+  <div style='
+      position:relative;z-index:2;
+      background: linear-gradient(145deg,
+          rgba(255,255,255,0.10) 0%,
+          rgba(100,181,246,0.08) 50%,
+          rgba(255,255,255,0.05) 100%);
+      border: 1px solid rgba(144,202,249,0.25);
+      border-radius: 20px;
+      padding: 18px 22px 14px;
+      margin: 0 auto 12px;
+      width: 88%;
+      box-shadow:
+          0 8px 32px rgba(0,0,0,0.45),
+          0 0 0 1px rgba(255,255,255,0.06) inset,
+          0 0 40px rgba(25,118,210,0.20);
+  '>
+    <!-- Spotlight interno atrás da logo -->
     <div style='
-        margin: -1rem -1rem 0 -1rem;
-        background: linear-gradient(160deg,
-            #0d1f55 0%, #1040a0 35%, #1565C0 65%, #0d3080 100%);
-        padding: 32px 20px 24px;
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-    '>
-      <!-- Halo de brilho atrás da logo -->
-      <div style='
-          position:absolute;top:0;left:0;right:0;bottom:0;
-          background:
-              radial-gradient(ellipse 70% 60% at 50% 45%,
-                  rgba(144,202,249,0.28) 0%, transparent 65%),
-              radial-gradient(ellipse 100% 40% at 50% 0%,
-                  rgba(21,101,192,0.35) 0%, transparent 70%);
-          pointer-events:none;
-      '></div>
-      <!-- Partículas decorativas -->
-      <div style='
-          position:absolute;top:0;left:0;right:0;bottom:0;
-          background-image:
-              radial-gradient(circle 1.5px at 15% 20%, rgba(255,255,255,0.25) 0%, transparent 100%),
-              radial-gradient(circle 1px  at 85% 55%, rgba(144,202,249,0.35) 0%, transparent 100%),
-              radial-gradient(circle 1px  at 60% 85%, rgba(255,255,255,0.18) 0%, transparent 100%),
-              radial-gradient(circle 2px  at 30% 70%, rgba(144,202,249,0.20) 0%, transparent 100%);
-          pointer-events:none;
-      '></div>
-      <!-- Logo FNI -->
-      <div style='position:relative;z-index:1;padding:0 8px'>
-        {_fni_html_sb}
-        <div style='
-            font-size: 9px;
-            color: rgba(186,225,255,0.75);
-            margin-top: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            font-weight: 700;
-        '>Inteligência de Rede</div>
-      </div>
-    </div>
-    <!-- Barra acento gradiente -->
-    <div style='
-        height: 3px;
-        margin: 0 -1rem 14px -1rem;
-        background: linear-gradient(90deg,
-            #0D47A1 0%, #1565C0 30%, #1976D2 60%, #E65100 100%);
+        position:absolute;top:0;left:0;right:0;bottom:0;border-radius:20px;
+        background: radial-gradient(ellipse 80% 65% at 50% 40%,
+            rgba(144,202,249,0.22) 0%, transparent 70%);
+        pointer-events:none;
     '></div>
+    <div class='fni-logo-wrap' style='position:relative;z-index:1'>
+      {_fni_img_tag}
+    </div>
+  </div>
+
+  <!-- Nome e tagline -->
+  <div style='position:relative;z-index:2'>
+    <div style='
+        font-size: 10.5px;
+        font-weight: 800;
+        letter-spacing: 3.5px;
+        text-transform: uppercase;
+        color: rgba(144,202,249,0.95);
+        margin-bottom: 4px;
+    '>Fleet Network Intelligence</div>
+    <!-- Linha divisória com brilho -->
+    <div style='
+        height: 1px;
+        width: 70%;
+        margin: 5px auto 7px;
+        background: linear-gradient(90deg,
+            transparent 0%, rgba(100,181,246,0.6) 30%,
+            rgba(100,181,246,0.8) 50%,
+            rgba(100,181,246,0.6) 70%, transparent 100%);
+    '></div>
+    <div style='
+        font-size: 8px;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: rgba(186,225,255,0.50);
+        font-weight: 600;
+    '>Inteligência de Rede</div>
+  </div>
+
+</div>
+
+<!-- Barra acento tripla -->
+<div style='margin:0 -1rem 14px -1rem'>
+  <div style='height:2px;background:linear-gradient(90deg,
+      #0D47A1 0%,#1565C0 25%,#1E88E5 50%,#1976D2 75%,#E65100 100%);'></div>
+  <div style='height:1px;background:linear-gradient(90deg,
+      transparent 0%,rgba(100,181,246,0.3) 30%,rgba(100,181,246,0.5) 50%,
+      rgba(100,181,246,0.3) 70%,transparent 100%);margin-top:1px;'></div>
+</div>
     """, unsafe_allow_html=True)
 
     # ── Card do usuário autenticado ────────────────────────────────
