@@ -15923,16 +15923,18 @@ if modo == "📊 Dashboard":
                             if str(k).startswith("serv") or str(k).startswith("Serv")
                         ]
                         _n_svc = len(_svcs)
+                        # Monta row dict com campos que _calcular_score_posto lê:
+                        # _preco_posto (preço do posto), _lat/_lon, e chaves de serviço
+                        _row_sc = {k: _pr[k] for k in _pr.index}
+                        if _preco_diesel is not None:
+                            _row_sc["_preco_posto"] = _preco_diesel
                         _res = _calcular_score_posto(
-                            preco_diesel=_preco_diesel,
-                            preco_anp_diesel=_anp_d,
-                            servicos_disponíveis=_svcs[:10],
-                            servicos_keys=None,
-                            n_servicos_max=max(_n_svc, 5),
-                            lat_posto=pd.to_numeric(_pr.get("_lat"), errors="coerce") if "_lat" in _pr.index else None,
+                            row=_row_sc,
+                            preco_ref_anp=_anp_d,
                             lat_ref=None,
-                            lon_posto=pd.to_numeric(_pr.get("_lon"), errors="coerce") if "_lon" in _pr.index else None,
                             lon_ref=None,
+                            servicos_keys=_svcs or None,
+                            n_servicos_max=max(_n_svc, 5) if _n_svc else 10,
                         )
                         _op_scores.append({
                             "cnpj": _c14,
@@ -16045,8 +16047,8 @@ if modo == "📊 Dashboard":
                             _uf_r = str(_pr.get("uf","")).strip().upper()
                             _macro_r = _OP_MACRO.get(_uf_r, "Outros")
                             _res = _calcular_score_posto(
-                                preco_diesel=None,
-                                preco_anp_diesel=_OP_ANP_DIESEL.get(_uf_r, 6.05),
+                                row={k: _pr[k] for k in _pr.index},
+                                preco_ref_anp=_OP_ANP_DIESEL.get(_uf_r, 6.05),
                             )
                             _op_sc_ab_list.append({
                                 "cnpj": _c14, "uf": _uf_r,
