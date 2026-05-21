@@ -13912,7 +13912,7 @@ if modo == "📊 Dashboard":
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
         # ── Tabs do dashboard ─────────────────────────────────────────────
-        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7 = st.tabs([
+        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8 = st.tabs([
             "📊 Cobertura por Estado",
             "🎯 Penetração vs ANP",
             "🗺️ Mapa de Densidade",
@@ -13920,6 +13920,7 @@ if modo == "📊 Dashboard":
             "⚠️ Alertas de Preço",
             "⚖️ Modo Comparativo",
             "👔 Executivo",
+            "🚦 Operacional",
         ])
 
         # ──────────────────────────────────────────────────────────────────
@@ -15468,6 +15469,615 @@ if modo == "📊 Dashboard":
                 "(Diesel ANP UF / máx nacional). "
                 "Quanto maior o score, maior o potencial de credenciamento de novos postos."
             )
+
+        # ══════════════════════════════════════════════════════════════
+        # TAB 8 — Dashboard Operacional (time de campo)
+        # ══════════════════════════════════════════════════════════════
+        with _dt8:
+
+            # ── Fontes de dados ───────────────────────────────────────
+            _op_pf   = _pf_dash.copy() if not _pf_dash.empty else pd.DataFrame()
+            _op_pp   = st.session_state.get("_pp_df")
+            _op_anp  = (st.session_state.get("_precos_anp_cache") or {}).get("sheets")
+
+            # mapeamento UF → Macrorregião
+            _OP_MACRO = {
+                "AC":"Norte","AM":"Norte","AP":"Norte","PA":"Norte",
+                "RO":"Norte","RR":"Norte","TO":"Norte",
+                "AL":"Nordeste","BA":"Nordeste","CE":"Nordeste","MA":"Nordeste",
+                "PB":"Nordeste","PE":"Nordeste","PI":"Nordeste","RN":"Nordeste","SE":"Nordeste",
+                "DF":"Centro-Oeste","GO":"Centro-Oeste","MS":"Centro-Oeste","MT":"Centro-Oeste",
+                "ES":"Sudeste","MG":"Sudeste","RJ":"Sudeste","SP":"Sudeste",
+                "PR":"Sul","RS":"Sul","SC":"Sul",
+            }
+            # preço ANP Diesel S10 por UF (referência)
+            _OP_ANP_DIESEL = {
+                "AC":6.48,"AL":6.18,"AM":6.35,"AP":6.40,"BA":6.12,"CE":6.08,
+                "DF":6.02,"ES":6.10,"GO":6.05,"MA":6.22,"MG":6.05,"MS":6.00,
+                "MT":6.08,"PA":6.30,"PB":6.10,"PE":6.12,"PI":6.18,"PR":5.98,
+                "RJ":6.15,"RN":6.08,"RO":6.25,"RR":6.45,"RS":5.95,"SC":5.97,
+                "SE":6.14,"SP":6.05,"TO":6.25,
+            }
+
+            st.markdown("""
+            <div style='background:linear-gradient(135deg,#0a2540 0%,#0d3d6b 60%,#0a3050 100%);
+                border-radius:16px;padding:1.6rem 2rem 1.2rem;margin-bottom:1.2rem;'>
+              <div style='font-size:1.4rem;font-weight:800;color:#ffffff;margin-bottom:0.3rem;'>
+                🚦 Dashboard Operacional
+              </div>
+              <div style='font-size:0.85rem;color:rgba(180,215,255,0.75);'>
+                Mapa de preços · Postos inconsistentes · Score por região · Distribuição A/B/C/D
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # ── Sem dados? ────────────────────────────────────────────
+            _op_sem_pf = _op_pf.empty
+            _op_sem_pp = _op_pp is None or (hasattr(_op_pp, "empty") and _op_pp.empty)
+
+            if _op_sem_pf:
+                st.warning(
+                    "⚠️ Importe a **Planilha de Postos GF** em Configurações "
+                    "para ativar o Dashboard Operacional."
+                )
+            else:
+                # ── Pré-processamento base ────────────────────────────
+                _op_pf["uf"]       = _op_pf["uf"].fillna("").str.strip().str.upper()
+                _op_pf["municipio"]= _op_pf["municipio"].fillna("").str.strip()
+                _op_pf["macro"]    = _op_pf["uf"].map(_OP_MACRO).fillna("Outros")
+                _op_pf_geo = _op_pf[
+                    pd.notna(_op_pf.get("_lat")) & pd.notna(_op_pf.get("_lon"))
+                ].copy() if "_lat" in _op_pf.columns else pd.DataFrame()
+
+                # ── Merge preços → postos ─────────────────────────────
+                _op_merged = pd.DataFrame()
+                if not _op_sem_pp and "cnpj_norm" in _op_pp.columns:
+                    _op_pf_key = _op_pf.copy()
+                    if "cnpj" in _op_pf_key.columns:
+                        _op_pf_key["cnpj_norm"] = (
+                            _op_pf_key["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
+                        )
+                    _op_pp_sel = _op_pp[[
+                        c for c in ["cnpj_norm","combustivel_pk","combustivel_label","preco"]
+                        if c in _op_pp.columns
+                    ]].copy()
+                    _op_pp_sel["preco"] = pd.to_numeric(
+                        _op_pp_sel["preco"], errors="coerce"
+                    )
+                    _op_pp_sel = _op_pp_sel[_op_pp_sel["preco"] > 0]
+                    if "cnpj_norm" in _op_pf_key.columns:
+                        _op_merged = _op_pp_sel.merge(
+                            _op_pf_key[["cnpj_norm","razaoSocial","municipio","uf","macro",
+                                        "_lat","_lon"] if "_lat" in _op_pf_key.columns
+                                        else ["cnpj_norm","razaoSocial","municipio","uf","macro"]],
+                            on="cnpj_norm", how="inner"
+                        )
+                        _op_merged["uf"] = _op_merged["uf"].fillna("").str.upper()
+
+                # ── Abas internas ─────────────────────────────────────
+                _op_t1, _op_t2, _op_t3, _op_t4 = st.tabs([
+                    "🌡️ Mapa de Preços",
+                    "⚡ Postos Inconsistentes",
+                    "⭐ Score por Região",
+                    "🏅 Distribuição A/B/C/D",
+                ])
+
+                # ══════════════════════════════════════════════════════
+                # SUB-TAB 1 — Mapa de Calor de Preços
+                # ══════════════════════════════════════════════════════
+                with _op_t1:
+                    if _op_merged.empty or "_lat" not in _op_merged.columns:
+                        st.info(
+                            "ℹ️ Carregue **Preços dos Postos GF** e confirme que os postos "
+                            "têm coordenadas para exibir o mapa."
+                        )
+                    else:
+                        # Seletor de combustível
+                        _op_fuels = sorted(_op_merged["combustivel_label"].dropna().unique()) \
+                            if "combustivel_label" in _op_merged.columns else []
+                        _op_fuel_sel = st.selectbox(
+                            "Combustível",
+                            _op_fuels or ["(sem dados)"],
+                            key="op_map_fuel",
+                        )
+                        _op_map_df = _op_merged[
+                            _op_merged["combustivel_label"] == _op_fuel_sel
+                        ].dropna(subset=["_lat","_lon","preco"]).copy()
+
+                        if _op_map_df.empty:
+                            st.warning("Sem dados com coordenadas para este combustível.")
+                        else:
+                            _op_p_min = _op_map_df["preco"].min()
+                            _op_p_max = _op_map_df["preco"].max()
+                            _op_p_med = _op_map_df["preco"].median()
+
+                            # KPIs rápidos
+                            _oc1, _oc2, _oc3, _oc4 = st.columns(4)
+                            _oc1.metric("⛽ Postos mapeados", _fmt_int(len(_op_map_df)))
+                            _oc2.metric("💰 Mín", f"R$ {_op_p_min:.3f}".replace(".",","))
+                            _oc3.metric("💰 Máx", f"R$ {_op_p_max:.3f}".replace(".",","))
+                            _oc4.metric("📊 Mediana", f"R$ {_op_p_med:.3f}".replace(".",","))
+
+                            # Colorscale: verde → amarelo → vermelho
+                            _op_map_df["_norm"] = (
+                                (_op_map_df["preco"] - _op_p_min) /
+                                max(_op_p_max - _op_p_min, 0.01)
+                            )
+                            _op_map_df["_cor"] = _op_map_df["_norm"].apply(
+                                lambda v: (
+                                    "#27AE60" if v < 0.33 else
+                                    "#F39C12" if v < 0.66 else
+                                    "#E74C3C"
+                                )
+                            )
+                            _op_map_df["_lbl"] = (
+                                _op_map_df.get("razaoSocial", pd.Series([""] * len(_op_map_df)))
+                                .fillna("").apply(lambda s: (s[:28]+"…") if len(s)>30 else s)
+                            )
+                            _op_map_df["_hover"] = (
+                                _op_map_df["_lbl"] + "<br>" +
+                                _op_map_df["municipio"].fillna("") + " · " +
+                                _op_map_df["uf"].fillna("") + "<br>" +
+                                "R$ " + _op_map_df["preco"].apply(
+                                    lambda v: f"{v:.3f}".replace(".",",")
+                                )
+                            )
+                            _fig_map_op = go.Figure()
+                            for _cor_grp, _cor_lbl in [
+                                ("#27AE60","Baixo (≤33%)"),
+                                ("#F39C12","Médio"),
+                                ("#E74C3C","Alto (≥66%)"),
+                            ]:
+                                _sub = _op_map_df[_op_map_df["_cor"] == _cor_grp]
+                                if _sub.empty:
+                                    continue
+                                _fig_map_op.add_trace(go.Scattermapbox(
+                                    lat=_sub["_lat"],
+                                    lon=_sub["_lon"],
+                                    mode="markers",
+                                    marker=dict(
+                                        size=10,
+                                        color=_cor_grp,
+                                        opacity=0.85,
+                                    ),
+                                    text=_sub["_hover"],
+                                    hovertemplate="%{text}<extra></extra>",
+                                    name=_cor_lbl,
+                                ))
+                            _fig_map_op.update_layout(
+                                mapbox_style="carto-positron",
+                                mapbox_zoom=3.8,
+                                mapbox_center={
+                                    "lat": float(_op_map_df["_lat"].mean()),
+                                    "lon": float(_op_map_df["_lon"].mean()),
+                                },
+                                margin=dict(l=0,r=0,t=0,b=0),
+                                height=480,
+                                legend=dict(
+                                    orientation="h", yanchor="bottom",
+                                    y=0.02, xanchor="right", x=0.99,
+                                    bgcolor="rgba(255,255,255,0.85)",
+                                    font=dict(size=11),
+                                ),
+                            )
+                            st.plotly_chart(_fig_map_op, use_container_width=True)
+                            st.caption(
+                                "🟢 Preço baixo (≤33% do range)  ·  "
+                                "🟡 Preço médio  ·  "
+                                "🔴 Preço alto (≥66% do range)"
+                            )
+
+                # ══════════════════════════════════════════════════════
+                # SUB-TAB 2 — Postos Inconsistentes
+                # ══════════════════════════════════════════════════════
+                with _op_t2:
+                    st.markdown(
+                        "##### ⚡ Postos com preços inconsistentes em relação ao ANP",
+                        unsafe_allow_html=False,
+                    )
+                    _op_tol = st.slider(
+                        "Tolerância de desvio vs ANP (%)",
+                        min_value=5, max_value=40, value=15, step=5,
+                        help="Postos com preço mais de X% acima ou abaixo do ANP são sinalizados.",
+                        key="op_tol_slider",
+                    )
+
+                    if _op_merged.empty:
+                        st.info(
+                            "ℹ️ Carregue a **Planilha de Preços dos Postos GF** "
+                            "para identificar postos inconsistentes."
+                        )
+                    else:
+                        # Para cada linha de preço, calcula desvio vs ANP diesel por UF
+                        _op_inc = _op_merged.copy()
+                        _op_inc["anp_ref"] = _op_inc["uf"].map(_OP_ANP_DIESEL).fillna(6.05)
+                        _op_inc["desvio_pct"] = (
+                            (_op_inc["preco"] - _op_inc["anp_ref"]) / _op_inc["anp_ref"] * 100
+                        )
+                        _op_inc["abs_desvio"] = _op_inc["desvio_pct"].abs()
+                        _op_inc_fil = _op_inc[
+                            _op_inc["abs_desvio"] > _op_tol
+                        ].copy().sort_values("abs_desvio", ascending=False)
+
+                        if _op_inc_fil.empty:
+                            st.success(
+                                f"✅ Nenhum posto com desvio superior a {_op_tol}% "
+                                "em relação ao preço ANP de referência."
+                            )
+                        else:
+                            st.error(
+                                f"⚠️ **{len(_op_inc_fil)} registros** com desvio "
+                                f"superior a {_op_tol}% do ANP"
+                            )
+                            # Gráfico de barras — top 20
+                            _op_top20 = _op_inc_fil.head(20).copy()
+                            _op_top20["_nome_curto"] = (
+                                _op_top20.get(
+                                    "razaoSocial",
+                                    pd.Series([""] * len(_op_top20))
+                                ).fillna(_op_top20.get("cnpj_norm","")).apply(
+                                    lambda s: (str(s)[:25]+"…") if len(str(s))>27 else str(s)
+                                )
+                            )
+                            _op_top20["_cor_inc"] = _op_top20["desvio_pct"].apply(
+                                lambda v: "#E74C3C" if v > 0 else "#3498DB"
+                            )
+                            _op_top20["_label"] = _op_top20["desvio_pct"].apply(
+                                lambda v: f"+{v:.1f}%" if v > 0 else f"{v:.1f}%"
+                            )
+                            _fig_inc = go.Figure()
+                            _fig_inc.add_trace(go.Bar(
+                                x=_op_top20["desvio_pct"],
+                                y=_op_top20["_nome_curto"],
+                                orientation="h",
+                                marker_color=_op_top20["_cor_inc"].tolist(),
+                                text=_op_top20["_label"],
+                                textposition="outside",
+                                hovertemplate=(
+                                    "<b>%{y}</b><br>"
+                                    "Desvio: %{x:.1f}%<br>"
+                                    "<extra></extra>"
+                                ),
+                            ))
+                            _fig_inc.update_layout(
+                                title="Top 20 postos com maior desvio vs ANP",
+                                xaxis_title="Desvio % vs ANP",
+                                yaxis=dict(autorange="reversed"),
+                                height=max(350, len(_op_top20) * 28),
+                                margin=dict(l=10,r=80,t=40,b=40),
+                                plot_bgcolor="white",
+                                paper_bgcolor="white",
+                                shapes=[dict(
+                                    type="line", x0=0, x1=0,
+                                    y0=-0.5, y1=len(_op_top20)-0.5,
+                                    line=dict(color="#888", width=1.5, dash="dot"),
+                                )],
+                            )
+                            st.plotly_chart(_fig_inc, use_container_width=True)
+
+                            # Tabela detalhada
+                            _op_tbl_cols = [
+                                c for c in [
+                                    "razaoSocial","municipio","uf",
+                                    "combustivel_label","preco","anp_ref","desvio_pct"
+                                ] if c in _op_inc_fil.columns
+                            ]
+                            _op_tbl = _op_inc_fil[_op_tbl_cols].copy()
+                            _op_tbl.columns = [
+                                {"razaoSocial":"Razão Social","municipio":"Município",
+                                 "uf":"UF","combustivel_label":"Combustível",
+                                 "preco":"Preço GF (R$)","anp_ref":"ANP Ref (R$)",
+                                 "desvio_pct":"Desvio (%)"}
+                                .get(c,c) for c in _op_tbl_cols
+                            ]
+                            if "Desvio (%)" in _op_tbl.columns:
+                                _op_tbl["Desvio (%)"] = _op_tbl["Desvio (%)"].apply(
+                                    lambda v: f"+{v:.1f}" if v > 0 else f"{v:.1f}"
+                                )
+                            for _cf in ["Preço GF (R$)","ANP Ref (R$)"]:
+                                if _cf in _op_tbl.columns:
+                                    _op_tbl[_cf] = _op_tbl[_cf].apply(
+                                        lambda v: f"{v:.3f}".replace(".",",")
+                                    )
+                            st.dataframe(_op_tbl, use_container_width=True, height=300)
+                            _op_csv_inc = _op_inc_fil.to_csv(index=False).encode("utf-8")
+                            st.download_button(
+                                "📥 Exportar inconsistentes (CSV)",
+                                data=_op_csv_inc,
+                                file_name="postos_inconsistentes.csv",
+                                mime="text/csv",
+                                key="op_dl_inc",
+                            )
+
+                # ══════════════════════════════════════════════════════
+                # SUB-TAB 3 — Score Médio por Região
+                # ══════════════════════════════════════════════════════
+                with _op_t3:
+                    st.markdown("##### ⭐ Score composto médio por região")
+
+                    # Calcular score para cada posto usando _calcular_score_posto
+                    _op_scores = []
+                    _op_pp_por_cnpj: dict = {}
+                    if not _op_sem_pp and hasattr(_op_pp, "iterrows"):
+                        for _, _r in _op_pp.iterrows():
+                            _ck = str(_r.get("cnpj_norm","")).strip()
+                            _prv= pd.to_numeric(_r.get("preco"), errors="coerce")
+                            _pk = str(_r.get("combustivel_pk","")).upper()
+                            if _ck and _prv > 0:
+                                _op_pp_por_cnpj.setdefault(_ck, {})[_pk] = float(_prv)
+
+                    for _, _pr in _op_pf.iterrows():
+                        _c14 = re.sub(r"\D", "", str(_pr.get("cnpj","") or ""))
+                        _uf_r = str(_pr.get("uf","")).strip().upper()
+                        _mun_r= str(_pr.get("municipio","")).strip()
+                        _macro_r = _OP_MACRO.get(_uf_r, "Outros")
+
+                        _precos_cnpj = _op_pp_por_cnpj.get(_c14, {})
+                        _preco_diesel = (
+                            _precos_cnpj.get("DIESEL S10") or
+                            _precos_cnpj.get("DIESEL COMUM") or
+                            _precos_cnpj.get("GASOLINA COMUM") or
+                            (list(_precos_cnpj.values())[0] if _precos_cnpj else None)
+                        )
+                        _anp_d = _OP_ANP_DIESEL.get(_uf_r, 6.05)
+                        _svcs  = [
+                            k for k in (_pr.index if hasattr(_pr,"index") else [])
+                            if str(k).startswith("serv") or str(k).startswith("Serv")
+                        ]
+                        _n_svc = len(_svcs)
+                        _res = _calcular_score_posto(
+                            preco_diesel=_preco_diesel,
+                            preco_anp_diesel=_anp_d,
+                            servicos_disponíveis=_svcs[:10],
+                            servicos_keys=None,
+                            n_servicos_max=max(_n_svc, 5),
+                            lat_posto=pd.to_numeric(_pr.get("_lat"), errors="coerce") if "_lat" in _pr.index else None,
+                            lat_ref=None,
+                            lon_posto=pd.to_numeric(_pr.get("_lon"), errors="coerce") if "_lon" in _pr.index else None,
+                            lon_ref=None,
+                        )
+                        _op_scores.append({
+                            "cnpj": _c14,
+                            "razaoSocial": str(_pr.get("razaoSocial","") or ""),
+                            "uf": _uf_r,
+                            "municipio": _mun_r,
+                            "macro": _macro_r,
+                            "score": _res["score"],
+                            "grade": _res["grade"],
+                        })
+
+                    _op_sc_df = pd.DataFrame(_op_scores) if _op_scores else pd.DataFrame()
+
+                    if _op_sc_df.empty:
+                        st.info("ℹ️ Carregue dados de postos para calcular scores.")
+                    else:
+                        _op_granul = st.radio(
+                            "Granularidade",
+                            ["Macrorregião","UF"],
+                            horizontal=True,
+                            key="op_score_gran",
+                        )
+                        _op_grp_col = "macro" if _op_granul == "Macrorregião" else "uf"
+
+                        _op_sc_grp = (
+                            _op_sc_df.groupby(_op_grp_col)
+                            .agg(
+                                score_medio=("score","mean"),
+                                n_postos=("cnpj","count"),
+                            )
+                            .reset_index()
+                            .sort_values("score_medio", ascending=False)
+                        )
+
+                        # KPIs globais
+                        _os_c1, _os_c2, _os_c3 = st.columns(3)
+                        _os_c1.metric("⭐ Score médio geral",
+                                      f"{_op_sc_df['score'].mean():.1f}")
+                        _os_c2.metric("🏆 Melhor região",
+                                      str(_op_sc_grp.iloc[0][_op_grp_col]) if not _op_sc_grp.empty else "—")
+                        _os_c3.metric("⚠️ Pior região",
+                                      str(_op_sc_grp.iloc[-1][_op_grp_col]) if not _op_sc_grp.empty else "—")
+
+                        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+                        # Gráfico de barras — score por região
+                        _op_sc_grp["_cor"] = _op_sc_grp["score_medio"].apply(
+                            lambda v: "#27AE60" if v >= 70 else "#F39C12" if v >= 45 else "#E74C3C"
+                        )
+                        _op_sc_grp["_lbl"] = _op_sc_grp["score_medio"].apply(
+                            lambda v: f"{v:.1f}"
+                        )
+                        _fig_score_reg = go.Figure()
+                        _fig_score_reg.add_trace(go.Bar(
+                            x=_op_sc_grp[_op_grp_col],
+                            y=_op_sc_grp["score_medio"],
+                            marker_color=_op_sc_grp["_cor"].tolist(),
+                            text=_op_sc_grp["_lbl"],
+                            textposition="outside",
+                            customdata=_op_sc_grp[["n_postos"]].values,
+                            hovertemplate=(
+                                "<b>%{x}</b><br>"
+                                "Score médio: %{y:.1f}<br>"
+                                "Postos: %{customdata[0]}<extra></extra>"
+                            ),
+                        ))
+                        _fig_score_reg.add_hline(
+                            y=70, line_dash="dot", line_color="#27AE60",
+                            annotation_text="A ≥70", annotation_position="right",
+                        )
+                        _fig_score_reg.add_hline(
+                            y=45, line_dash="dot", line_color="#F39C12",
+                            annotation_text="B ≥45", annotation_position="right",
+                        )
+                        _fig_score_reg.update_layout(
+                            yaxis=dict(range=[0, 100], title="Score médio"),
+                            xaxis_title=_op_granul,
+                            height=380,
+                            plot_bgcolor="white",
+                            paper_bgcolor="white",
+                            margin=dict(l=10, r=80, t=20, b=40),
+                        )
+                        st.plotly_chart(_fig_score_reg, use_container_width=True)
+
+                        # Tabela resumo
+                        _op_sc_tbl = _op_sc_grp[[_op_grp_col,"score_medio","n_postos"]].copy()
+                        _op_sc_tbl.columns = [_op_granul, "Score Médio", "Postos"]
+                        _op_sc_tbl["Score Médio"] = _op_sc_tbl["Score Médio"].apply(
+                            lambda v: f"{v:.1f}"
+                        )
+                        st.dataframe(_op_sc_tbl, use_container_width=True, hide_index=True)
+
+                # ══════════════════════════════════════════════════════
+                # SUB-TAB 4 — Distribuição A/B/C/D
+                # ══════════════════════════════════════════════════════
+                with _op_t4:
+                    st.markdown("##### 🏅 Distribuição de postos por categoria A / B / C / D")
+
+                    # Reutiliza _op_sc_df se já calculado, senão recalcula
+                    try:
+                        _op_sc_df_ab = _op_sc_df.copy()
+                    except NameError:
+                        _op_sc_df_ab = pd.DataFrame()
+
+                    if _op_sc_df_ab.empty:
+                        # Tentar calcular scores sem dados de preço
+                        _op_sc_ab_list = []
+                        for _, _pr in _op_pf.iterrows():
+                            _c14 = re.sub(r"\D", "", str(_pr.get("cnpj","") or ""))
+                            _uf_r = str(_pr.get("uf","")).strip().upper()
+                            _macro_r = _OP_MACRO.get(_uf_r, "Outros")
+                            _res = _calcular_score_posto(
+                                preco_diesel=None,
+                                preco_anp_diesel=_OP_ANP_DIESEL.get(_uf_r, 6.05),
+                            )
+                            _op_sc_ab_list.append({
+                                "cnpj": _c14, "uf": _uf_r,
+                                "macro": _macro_r,
+                                "score": _res["score"],
+                                "grade": _res["grade"],
+                            })
+                        _op_sc_df_ab = pd.DataFrame(_op_sc_ab_list) if _op_sc_ab_list else pd.DataFrame()
+
+                    if _op_sc_df_ab.empty or "grade" not in _op_sc_df_ab.columns:
+                        st.info("ℹ️ Sem dados suficientes para calcular distribuição de categorias.")
+                    else:
+                        _op_grade_cnt = (
+                            _op_sc_df_ab["grade"]
+                            .value_counts()
+                            .reindex(["A","B","C","D"], fill_value=0)
+                            .reset_index()
+                        )
+                        _op_grade_cnt.columns = ["Grade","Postos"]
+                        _op_grade_colors = {
+                            "A":"#27AE60","B":"#3498DB","C":"#F39C12","D":"#E74C3C"
+                        }
+                        _op_total_ab = _op_grade_cnt["Postos"].sum()
+
+                        # KPIs por grade
+                        _ocg1, _ocg2, _ocg3, _ocg4 = st.columns(4)
+                        for _gcol, _gr, _gico in [
+                            (_ocg1,"A","🟢"),(_ocg2,"B","🔵"),
+                            (_ocg3,"C","🟡"),(_ocg4,"D","🔴"),
+                        ]:
+                            _gn = int(_op_grade_cnt[_op_grade_cnt["Grade"]==_gr]["Postos"].sum())
+                            _gp = f"{_gn/_op_total_ab*100:.1f}%" if _op_total_ab > 0 else "—"
+                            _gcol.metric(
+                                f"{_gico} Categoria {_gr}",
+                                _fmt_int(_gn),
+                                _gp,
+                            )
+
+                        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+                        _op_col_pie, _op_col_bar = st.columns([1, 1])
+
+                        with _op_col_pie:
+                            # Donut
+                            _fig_donut = go.Figure(go.Pie(
+                                labels=_op_grade_cnt["Grade"],
+                                values=_op_grade_cnt["Postos"],
+                                hole=0.52,
+                                marker_colors=[
+                                    _op_grade_colors.get(g,"#aaa")
+                                    for g in _op_grade_cnt["Grade"]
+                                ],
+                                textinfo="label+percent",
+                                hovertemplate="<b>%{label}</b><br>%{value} postos<extra></extra>",
+                            ))
+                            _fig_donut.update_layout(
+                                title="Distribuição geral",
+                                height=340,
+                                margin=dict(l=10,r=10,t=40,b=10),
+                                showlegend=False,
+                            )
+                            st.plotly_chart(_fig_donut, use_container_width=True)
+
+                        with _op_col_bar:
+                            # Barras por UF — stacked grade
+                            _op_uf_grade = (
+                                _op_sc_df_ab.groupby(["uf","grade"])
+                                .size().reset_index(name="n")
+                            )
+                            _op_uf_tot = (
+                                _op_sc_df_ab.groupby("uf").size().reset_index(name="total")
+                            )
+                            _op_uf_grade = _op_uf_grade.merge(_op_uf_tot, on="uf")
+                            _op_uf_grade["pct"] = (
+                                _op_uf_grade["n"] / _op_uf_grade["total"] * 100
+                            )
+                            # Ordena UF por % grade A desc
+                            _op_uf_a = _op_uf_grade[_op_uf_grade["grade"]=="A"][["uf","pct"]]\
+                                .rename(columns={"pct":"pct_a"})
+                            _op_uf_order = (
+                                _op_uf_tot.merge(_op_uf_a, on="uf", how="left")
+                                .fillna(0)
+                                .sort_values("pct_a", ascending=False)["uf"]
+                                .tolist()
+                            )
+                            _fig_stk = go.Figure()
+                            for _gr in ["A","B","C","D"]:
+                                _sub = _op_uf_grade[_op_uf_grade["grade"]==_gr]
+                                _sub = _sub.set_index("uf").reindex(_op_uf_order).fillna(0).reset_index()
+                                _fig_stk.add_trace(go.Bar(
+                                    name=f"Grau {_gr}",
+                                    x=_sub["uf"],
+                                    y=_sub["pct"],
+                                    marker_color=_op_grade_colors.get(_gr,"#aaa"),
+                                    hovertemplate=(
+                                        "<b>%{x}</b><br>"
+                                        f"Grau {_gr}: " + "%{y:.1f}%<extra></extra>"
+                                    ),
+                                ))
+                            _fig_stk.update_layout(
+                                barmode="stack",
+                                title="% por categoria — UF",
+                                yaxis_title="%",
+                                xaxis_title="UF",
+                                height=340,
+                                margin=dict(l=10,r=10,t=40,b=40),
+                                plot_bgcolor="white",
+                                paper_bgcolor="white",
+                                legend=dict(orientation="h",y=1.12),
+                            )
+                            st.plotly_chart(_fig_stk, use_container_width=True)
+
+                        # Tabela detalhada por UF
+                        with st.expander("📋 Ver tabela completa por UF", expanded=False):
+                            _op_pvt = _op_uf_grade.pivot_table(
+                                index="uf", columns="grade", values="n", fill_value=0
+                            ).reset_index()
+                            _op_pvt.columns.name = None
+                            for _gc in ["A","B","C","D"]:
+                                if _gc not in _op_pvt.columns:
+                                    _op_pvt[_gc] = 0
+                            _op_pvt = _op_pvt[
+                                ["uf"] + [g for g in ["A","B","C","D"] if g in _op_pvt.columns]
+                            ]
+                            _op_pvt["Total"] = _op_pvt[
+                                [g for g in ["A","B","C","D"] if g in _op_pvt.columns]
+                            ].sum(axis=1)
+                            _op_pvt = _op_pvt.sort_values("A", ascending=False)
+                            st.dataframe(_op_pvt, use_container_width=True, hide_index=True)
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
