@@ -553,6 +553,27 @@ else:
     _LOGO_SIDEBAR   = '<span style="font-size:32px">⛽</span>'
     _LOGO_PAGE_ICON = "⛽"
 
+# ─── Logo plataforma FNI (sidebar principal + topbar) ─────────────
+import io as _io_fni
+_FNI_B64 = None
+_FNI_SRC = ""
+for _fni_nome in ["Logo plataforma FNI.png", "logo plataforma FNI.png",
+                  "Logo_FNI.png", "logo_fni.png"]:
+    _fni_cand = os.path.join(_DIR, _fni_nome)
+    if os.path.exists(_fni_cand):
+        try:
+            from PIL import Image as _PILFNI
+            _img_fni2 = _PILFNI.open(_fni_cand)
+            _img_fni2.thumbnail((500, 300), _PILFNI.LANCZOS)
+            _buf_fni2 = _io_fni.BytesIO()
+            _img_fni2.save(_buf_fni2, format="PNG", optimize=True)
+            _FNI_B64 = base64.b64encode(_buf_fni2.getvalue()).decode()
+        except Exception:
+            with open(_fni_cand, "rb") as _ff:
+                _FNI_B64 = base64.b64encode(_ff.read()).decode()
+        _FNI_SRC = f"data:image/png;base64,{_FNI_B64}"
+        break
+
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
     page_title="Fleet Network Intelligence",
@@ -9209,46 +9230,60 @@ if st.button("​​", key="btn_tour_open_hidden"):   # dois zero-width spaces
 
 with st.sidebar:
 
-    # ── Header do Sidebar — imagem banner ─────────────────────────
-    if _MENU_B64:
-        st.markdown(
-            # Imagem full-width sem margens, bordas arredondadas suaves
-            f"<div style='margin:-1rem -1rem 0 -1rem;overflow:hidden'>"
-            f"<img src='data:{_menu_mime};base64,{_MENU_B64}' "
-            f"style='width:100%;display:block;object-fit:cover;"
-            f"border-radius:0 0 8px 8px'>"
-            f"</div>"
-            # Barra separadora com gradiente alinhado ao tema azul/laranja dos botões
-            f"<div style='height:4px;margin:0 -1rem 12px -1rem;"
-            f"background:linear-gradient(90deg,#0D47A1 0%,#1565C0 40%,#1976D2 70%,#E65100 100%)'>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        # ── Fallback: logo Gestão de Frotas + subtítulo ─────────────────────
-        st.markdown(f"""
+    # ── Header do Sidebar — Logo FNI com gradiente ────────────────
+    _fni_html_sb = (
+        f"<img src='{_FNI_SRC}' style='"
+        f"height:72px;max-width:100%;object-fit:contain;"
+        f"filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35)) brightness(1.08);'>"
+        if _FNI_SRC else
+        "<span style='font-size:44px;line-height:1'>🚛</span>"
+    )
+    st.markdown(f"""
+    <div style='
+        margin: -1rem -1rem 0 -1rem;
+        background: linear-gradient(150deg, #06102e 0%, #0d1b4b 35%, #0f2a72 65%, #0a1f5c 100%);
+        padding: 26px 20px 20px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    '>
+      <!-- Brilho radial sutil — espelha o fundo da tela de login -->
+      <div style='
+          position:absolute;top:0;left:0;right:0;bottom:0;
+          background: radial-gradient(ellipse 90% 70% at 50% 20%,
+              rgba(100,181,246,0.13) 0%, transparent 70%);
+          pointer-events:none;
+      '></div>
+      <!-- Partículas decorativas mínimas -->
+      <div style='
+          position:absolute;top:0;left:0;right:0;bottom:0;
+          background-image:
+              radial-gradient(circle 1.5px at 20% 25%, rgba(255,255,255,0.18) 0%, transparent 100%),
+              radial-gradient(circle 1px  at 80% 60%, rgba(100,181,246,0.25) 0%, transparent 100%),
+              radial-gradient(circle 1px  at 55% 80%, rgba(255,255,255,0.12) 0%, transparent 100%);
+          pointer-events:none;
+      '></div>
+      <!-- Logo FNI -->
+      <div style='position:relative;z-index:1'>
+        {_fni_html_sb}
         <div style='
-            margin: -1rem -1rem 0 -1rem;
-            background: #ffffff;
-            padding: 22px 16px 14px;
-            text-align: center;
-            border-bottom: 4px solid transparent;
-            border-image: linear-gradient(90deg, #0d1b4b 0%, #1565c0 55%, #0288d1 100%) 1;
-            box-shadow: 0 4px 14px rgba(13,27,75,0.10);
-            margin-bottom: 14px;
-        '>
-          {_LOGO_SIDEBAR}
-          <div style='
-              font-size: 10px;
-              color: #1565c0;
-              margin-top: 9px;
-              letter-spacing: 1px;
-              text-transform: uppercase;
-              font-weight: 700;
-              opacity: 0.75;
-          '>Fleet Network Intelligence</div>
-        </div>
-        """, unsafe_allow_html=True)
+            font-size: 9px;
+            color: rgba(144,202,249,0.6);
+            margin-top: 9px;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            font-weight: 600;
+        '>Inteligência de Rede</div>
+      </div>
+    </div>
+    <!-- Barra acento gradiente -->
+    <div style='
+        height: 3px;
+        margin: 0 -1rem 14px -1rem;
+        background: linear-gradient(90deg,
+            #0D47A1 0%, #1565C0 30%, #1976D2 60%, #E65100 100%);
+    '></div>
+    """, unsafe_allow_html=True)
 
     # ── Card do usuário autenticado ────────────────────────────────
     _auth_u = st.session_state.get("_auth_user")
