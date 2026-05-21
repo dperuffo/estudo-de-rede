@@ -2783,34 +2783,26 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     if _supabase_registros:
         _db = _db_client()
         if _db:
-            try:
-                # Tentativa 1: batch com ignore_duplicates
-                # (algumas versões do PostgREST ignoram o header e usam DO UPDATE;
-                #  nesse caso cai no except abaixo e faz retry individual)
-                _db.table("historico_precos").upsert(
-                    _supabase_registros,
-                    on_conflict="cnpj,combustivel,data_ref",
-                    ignore_duplicates=True,
-                ).execute()
-                st.session_state.pop("_hist_db_erro", None)
-            except Exception as _e_batch:
-                # Tentativa 2: registro individual — 1 row nunca tem conflito interno
-                _falhas = 0
-                for _sr in _supabase_registros:
-                    try:
-                        _db.table("historico_precos").upsert(
-                            _sr,
-                            on_conflict="cnpj,combustivel,data_ref",
-                            ignore_duplicates=True,
-                        ).execute()
-                    except Exception:
+            # Estratégia: INSERT puro por registro, capturando violação de unicidade
+            # (23505) como "já existe — ignorar". Evita ON CONFLICT DO UPDATE
+            # que gera erro 21000 quando o PostgREST ignora ignore_duplicates=True.
+            _falhas = 0
+            _ultimo_erro = ""
+            for _sr in _supabase_registros:
+                try:
+                    _db.table("historico_precos").insert(_sr).execute()
+                except Exception as _ei:
+                    _emsg = str(_ei)
+                    # 23505 = unique_violation → registro já existe, ignorar
+                    if "23505" in _emsg or "duplicate" in _emsg.lower() or "unique" in _emsg.lower():
+                        pass
+                    else:
                         _falhas += 1
-                if _falhas == len(_supabase_registros):
-                    # Todas falharam — provavelmente problema de conexão/permissão
-                    st.session_state["_hist_db_erro"] = str(_e_batch)
-                else:
-                    # Pelo menos algumas gravaram — limpa o erro
-                    st.session_state.pop("_hist_db_erro", None)
+                        _ultimo_erro = _emsg
+            if _falhas > 0:
+                st.session_state["_hist_db_erro"] = _ultimo_erro
+            else:
+                st.session_state.pop("_hist_db_erro", None)
 
     return novos
 
