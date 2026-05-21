@@ -11681,89 +11681,261 @@ _TOUR_STEPS = [
 ]
 
 
-@st.dialog("🗺️ Guia de Uso — Estudo de Rede de Frotas", width="large")
+@st.dialog("🧭 Fleet Network Intelligence — Onboarding", width="large")
 def _tour_dialog():
-    _step   = st.session_state.get("_tour_step", 0)
-    _total  = len(_TOUR_STEPS)
-    _s      = _TOUR_STEPS[_step]
+    """Onboarding inteligente: quick actions + próximos passos + tutorial opcional."""
 
-    # ── Progresso ─────────────────────────────────────────────────────
-    _dots_html = "".join(
-        f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
-        f"background:{'#1565c0' if i==_step else '#ddd'};"
-        f"margin:0 3px;transition:background .2s'></span>"
-        for i in range(_total)
+    _ob_mode = st.session_state.get("_ob_mode", "welcome")  # "welcome" | "tutorial"
+
+    # ── Detecta estado dos dados ───────────────────────────────────────
+    _has_gf  = bool(st.session_state.get("cnpjs_pro_frotas") or
+                    not st.session_state.get("pf_coords_df", pd.DataFrame()).empty)
+    _has_anp = bool(st.session_state.get("_precos_anp_cache", {}).get("sheets"))
+    _has_pp  = (st.session_state.get("_pp_df") is not None and
+                not st.session_state.get("_pp_df", pd.DataFrame()).empty
+                if hasattr(st.session_state.get("_pp_df", None), "empty") else
+                st.session_state.get("_pp_df") is not None)
+    _has_hist = bool(
+        (st.session_state.get("_intel_data") or {}).get("historico") or
+        _intel_load().get("historico")
     )
-    st.markdown(
-        f"<div style='text-align:center;margin:-8px 0 10px'>{_dots_html}</div>"
-        f"<div style='text-align:center;font-size:11px;color:#999;margin-bottom:14px'>"
-        f"Passo {_step+1} de {_total}</div>",
-        unsafe_allow_html=True,
-    )
 
-    # ── Título + descrição ─────────────────────────────────────────────
-    st.markdown(
-        f"<div style='font-size:20px;font-weight:800;color:#1a1a1a;margin-bottom:10px'>"
-        f"{_s['icon']}  {_s['title']}</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(_s["desc"])
+    if _ob_mode == "welcome":
+        # ── Header ────────────────────────────────────────────────────
+        st.markdown("""
+<style>
+.ob-header {
+    background: linear-gradient(135deg, #040d26 0%, #0b2660 50%, #1040a0 100%);
+    border-radius: 14px; padding: 20px 24px 16px; margin-bottom: 20px; text-align: center;
+}
+.ob-title { font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.ob-sub   { font-size: 0.85rem; color: rgba(186,225,255,0.75); }
 
-    # ── Grid visual ────────────────────────────────────────────────────
-    _vis = _s["visual"]
-    _cols = st.columns(len(_vis))
-    for _ci, (_em, _lbl, _bg) in enumerate(_vis):
-        _cols[_ci].markdown(
-            f"<div style='background:{_bg};border-radius:10px;padding:14px 10px;"
-            f"text-align:center;border:1px solid rgba(0,0,0,.06);min-height:88px;"
-            f"display:flex;flex-direction:column;align-items:center;justify-content:center'>"
-            f"<div style='font-size:28px;margin-bottom:6px'>{_em}</div>"
-            f"<div style='font-size:11px;color:#333;font-weight:600;line-height:1.35'>{_lbl}</div>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+.ob-action-card {
+    background: #f7f9fd; border: 1.5px solid #dde8f5;
+    border-radius: 14px; padding: 16px 14px 12px; text-align: center;
+    transition: all .18s ease; cursor: pointer; height: 100%;
+}
+.ob-action-card:hover { border-color: #1040a0; background: #edf2fb;
+    box-shadow: 0 4px 14px rgba(16,64,160,.12); transform: translateY(-2px); }
+.ob-action-icon { font-size: 2rem; margin-bottom: 8px; display: block; }
+.ob-action-title { font-size: 13px; font-weight: 700; color: #0d1e50;
+    margin-bottom: 4px; line-height: 1.3; }
+.ob-action-desc  { font-size: 10.5px; color: #607d9e; line-height: 1.45; }
 
-    # ── Tips ───────────────────────────────────────────────────────────
-    st.markdown("<div style='margin-top:12px'>" +
-        "".join(
-            f"<span style='display:inline-flex;align-items:center;background:#e3f2fd;"
-            f"border:1px solid #90caf9;border-radius:8px;padding:5px 11px;"
-            f"font-size:11px;color:#0d47a1;margin:3px 4px 0 0'>{t}</span>"
-            for t in _s["tips"]
-        ) + "</div>", unsafe_allow_html=True)
+.ob-step-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f0f4ff; border: 1px solid #c5d5f5;
+    border-radius: 8px; padding: 5px 10px;
+    font-size: 11px; color: #1040a0; margin: 3px 4px 3px 0;
+}
+.ob-step-ok   { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+.ob-step-warn { background: #fff8e1; border-color: #ffe082; color: #f57f17; }
+</style>
+<div class='ob-header'>
+  <div class='ob-title'>👋 O que você quer fazer hoje?</div>
+  <div class='ob-sub'>Selecione um objetivo e vá direto ao ponto</div>
+</div>
+""", unsafe_allow_html=True)
 
-    st.markdown("---")
+        # ── Quick Actions — linha 1 ────────────────────────────────────
+        _oa1, _oa2, _oa3 = st.columns(3)
 
-    # ── Navegação ──────────────────────────────────────────────────────
-    _c1, _c2, _c3 = st.columns([1, 1, 2])
-    with _c1:
-        if _step > 0:
-            if st.button("← Anterior", use_container_width=True, key="tour_prev"):
-                st.session_state["_tour_step"] = _step - 1
-                st.rerun()
-    with _c2:
-        if st.button("Pular tour", use_container_width=True, key="tour_skip",
-                     help="Fechar o guia sem marcar como concluído"):
-            st.session_state["_tour_ativo"] = False
-            st.session_state.pop("_tour_step", None)
-            st.rerun()
-    with _c3:
-        _lbl_next = "✅ Concluir e fechar" if _step == _total - 1 else f"Próximo → ({_step+2}/{_total})"
-        if st.button(_lbl_next, type="primary", use_container_width=True, key="tour_next"):
-            if _step == _total - 1:
+        def _ob_card(col, icon, title, desc):
+            col.markdown(
+                f"<div class='ob-action-card'>"
+                f"<span class='ob-action-icon'>{icon}</span>"
+                f"<div class='ob-action-title'>{title}</div>"
+                f"<div class='ob-action-desc'>{desc}</div>"
+                f"</div>", unsafe_allow_html=True
+            )
+
+        _ob_card(_oa1, "🗺️", "Analisar uma Rota",
+                 "Trace origem→destino e veja postos GF no caminho")
+        _ob_card(_oa2, "💰", "Comparar Preços GF vs ANP",
+                 "Veja quais postos estão abaixo da média de mercado")
+        _ob_card(_oa3, "📊", "Abrir Dashboard Analítico",
+                 "KPIs de cobertura, penetração e saving mensal")
+
+        _cb1, _cb2, _cb3 = st.columns(3)
+        with _cb1:
+            if st.button("→ Ir para Rota", use_container_width=True,
+                         key="ob_go_rota", type="primary"):
+                st.session_state["modo_selecionado"] = "🗺️ Por Rota"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
+                st.rerun()
+        with _cb2:
+            if st.button("→ Comparar Preços", use_container_width=True,
+                         key="ob_go_precos", type="primary"):
+                st.session_state["modo_selecionado"] = "📍 Por UF/Município"
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.rerun()
+        with _cb3:
+            if st.button("→ Ver Dashboard", use_container_width=True,
+                         key="ob_go_dash", type="primary"):
+                st.session_state["modo_selecionado"] = "📊 Dashboard"
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.rerun()
+
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+        # ── Quick Actions — linha 2 ────────────────────────────────────
+        _oa4, _oa5, _oa6 = st.columns(3)
+        _ob_card(_oa4, "🧠", "Inteligência de Dados",
+                 "Histórico de preços, score A-D e alertas automáticos")
+        _ob_card(_oa5, "⛽", "Buscar Postos GF",
+                 "Localize postos credenciados por estado ou município")
+        _ob_card(_oa6, "🚛", "Roteirização de Frota",
+                 "Otimize paradas de abastecimento para um veículo ou frota")
+
+        _cb4, _cb5, _cb6 = st.columns(3)
+        with _cb4:
+            if st.button("→ Inteligência", use_container_width=True,
+                         key="ob_go_intel"):
+                st.session_state["modo_selecionado"] = "🧠 Inteligência"
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.rerun()
+        with _cb5:
+            if st.button("→ Buscar Postos", use_container_width=True,
+                         key="ob_go_busca"):
+                st.session_state["modo_selecionado"] = "📍 Por UF/Município"
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.rerun()
+        with _cb6:
+            if st.button("→ Roteirização", use_container_width=True,
+                         key="ob_go_roteir"):
+                st.session_state["modo_selecionado"] = "🚛 Roteirização"
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.rerun()
+
+        st.divider()
+
+        # ── Próximos Passos contextuais ────────────────────────────────
+        st.markdown("**📋 Próximos passos recomendados**")
+        _chips = []
+        if not _has_gf:
+            _chips.append(("warn", "① Carregue a planilha de Postos GF em ⚙️ Configurações"))
+        else:
+            _chips.append(("ok",   "✅ Postos GF carregados"))
+        if not _has_anp:
+            _chips.append(("warn", "② Carregue a planilha ANP (Preços Semanais)"))
+        else:
+            _chips.append(("ok",   "✅ ANP carregada"))
+        if not _has_pp:
+            _chips.append(("warn", "③ Carregue Preços por Posto (Configurações → 💲 Preços PP)"))
+        else:
+            _chips.append(("ok",   "✅ Preços PP carregados"))
+        if _has_gf and _has_anp and _has_pp:
+            _chips.append(("ok",   "🚀 Plataforma configurada! Explore todos os módulos."))
+
+        _chips_html = "".join(
+            f"<span class='ob-step-chip ob-step-{'ok' if c=='ok' else 'warn'}'>{t}</span>"
+            for c, t in _chips
+        )
+        st.markdown(f"<div style='margin:4px 0 8px'>{_chips_html}</div>",
+                    unsafe_allow_html=True)
+
+        # ── Rodapé ────────────────────────────────────────────────────
+        _rf1, _rf2 = st.columns([2, 1])
+        with _rf1:
+            if st.button("📖 Ver tutorial completo (8 passos)",
+                         use_container_width=True, key="ob_see_tutorial"):
+                st.session_state["_ob_mode"] = "tutorial"
+                st.session_state["_tour_step"] = 0
+                st.rerun()
+        with _rf2:
+            if st.button("Fechar", use_container_width=True, key="ob_close"):
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.session_state.pop("_ob_mode", None)
+                st.rerun()
+
+    else:
+        # ── Modo tutorial passo-a-passo (8 passos existentes) ──────────
+        _step  = st.session_state.get("_tour_step", 0)
+        _total = len(_TOUR_STEPS)
+        _s     = _TOUR_STEPS[_step]
+
+        _dots_html = "".join(
+            f"<span style='display:inline-block;width:10px;height:10px;border-radius:50%;"
+            f"background:{'#1040a0' if i==_step else '#dde8f5'};"
+            f"margin:0 3px;transition:background .2s'></span>"
+            for i in range(_total)
+        )
+        st.markdown(
+            f"<div style='text-align:center;margin-bottom:8px'>{_dots_html}</div>"
+            f"<div style='text-align:center;font-size:11px;color:#999;margin-bottom:14px'>"
+            f"Passo {_step+1} de {_total}</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div style='font-size:20px;font-weight:800;color:#1a1a1a;margin-bottom:10px'>"
+            f"{_s['icon']}  {_s['title']}</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(_s["desc"])
+
+        _vis  = _s["visual"]
+        _cols = st.columns(len(_vis))
+        for _ci, (_em, _lbl, _bg) in enumerate(_vis):
+            _cols[_ci].markdown(
+                f"<div style='background:{_bg};border-radius:10px;padding:14px 10px;"
+                f"text-align:center;border:1px solid rgba(0,0,0,.06);min-height:88px;"
+                f"display:flex;flex-direction:column;align-items:center;justify-content:center'>"
+                f"<div style='font-size:28px;margin-bottom:6px'>{_em}</div>"
+                f"<div style='font-size:11px;color:#333;font-weight:600;line-height:1.35'>{_lbl}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        st.markdown("<div style='margin-top:12px'>" +
+            "".join(
+                f"<span style='display:inline-flex;align-items:center;background:#e3f2fd;"
+                f"border:1px solid #90caf9;border-radius:8px;padding:5px 11px;"
+                f"font-size:11px;color:#0d47a1;margin:3px 4px 0 0'>{t}</span>"
+                for t in _s["tips"]
+            ) + "</div>", unsafe_allow_html=True)
+
+        st.markdown("---")
+        _tn1, _tn2, _tn3, _tn4 = st.columns([1, 1, 1, 2])
+        with _tn1:
+            if st.button("← Voltar", use_container_width=True, key="tour_back_ob"):
+                st.session_state["_ob_mode"] = "welcome"
                 st.session_state.pop("_tour_step", None)
-            else:
-                st.session_state["_tour_step"] = _step + 1
-            st.rerun()
+                st.rerun()
+        with _tn2:
+            if _step > 0:
+                if st.button("← Anterior", use_container_width=True, key="tour_prev"):
+                    st.session_state["_tour_step"] = _step - 1
+                    st.rerun()
+        with _tn3:
+            if st.button("Pular", use_container_width=True, key="tour_skip"):
+                st.session_state["_tour_ativo"] = False
+                st.session_state.pop("_tour_step", None)
+                st.session_state.pop("_ob_mode", None)
+                st.rerun()
+        with _tn4:
+            _lbl_next = "✅ Concluir" if _step == _total - 1 else f"Próximo → ({_step+2}/{_total})"
+            if st.button(_lbl_next, type="primary", use_container_width=True, key="tour_next"):
+                if _step == _total - 1:
+                    _marcar_tour_concluido()
+                    st.session_state["_tour_ativo"] = False
+                    st.session_state.pop("_tour_step", None)
+                    st.session_state.pop("_ob_mode", None)
+                else:
+                    st.session_state["_tour_step"] = _step + 1
+                st.rerun()
 
 
 if st.session_state.get("_tour_ativo", False):
+    st.session_state.setdefault("_ob_mode", "welcome")
+    st.session_state.setdefault("_tour_step", 0)
     _tour_dialog()
-    # garante step inicial
-    if "_tour_step" not in st.session_state:
-        st.session_state["_tour_step"] = 0
 
 
 # ── BLOCO ANTIGO REMOVIDO (era st.markdown com script JS — não funciona no Streamlit) ──
