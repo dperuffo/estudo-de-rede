@@ -13762,13 +13762,14 @@ if modo == "📊 Dashboard":
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
         # ── Tabs do dashboard ─────────────────────────────────────────────
-        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6 = st.tabs([
+        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7 = st.tabs([
             "📊 Cobertura por Estado",
             "🎯 Penetração vs ANP",
             "🗺️ Mapa de Densidade",
             "⛽ Combustíveis",
             "⚠️ Alertas de Preço",
             "⚖️ Modo Comparativo",
+            "👔 Executivo",
         ])
 
         # ──────────────────────────────────────────────────────────────────
@@ -14826,6 +14827,497 @@ if modo == "📊 Dashboard":
                         f"</ul></div>",
                         unsafe_allow_html=True,
                     )
+
+        # ══════════════════════════════════════════════════════════════════
+        # TAB 7 — DASHBOARD EXECUTIVO (C-Level)
+        # ══════════════════════════════════════════════════════════════════
+        with _dt7:
+            st.markdown(
+                "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+                "Visão consolidada para tomada de decisão estratégica: "
+                "custos, savings e oportunidades de expansão da rede GF.</p>",
+                unsafe_allow_html=True,
+            )
+
+            # ── Fontes de dados ────────────────────────────────────────────
+            _ex_pp     = st.session_state.get("_pp_df")
+            _ex_anp_c  = st.session_state.get("_precos_anp_cache", {})
+            _ex_sheets = _ex_anp_c.get("sheets")
+            _ex_hist   = (st.session_state.get("_intel_data") or {}).get("historico", {})
+
+            _EX_ANP_FALLBACK = {
+                "GASOLINA COMUM": 6.30, "DIESEL S10": 6.05,
+                "DIESEL COMUM": 5.95,   "ETANOL": 4.10, "GNV": 4.25,
+            }
+            _EX_DIESEL_UF = {
+                "AC": 6.48, "AL": 6.18, "AM": 6.45, "AP": 6.40, "BA": 6.12,
+                "CE": 6.10, "DF": 5.95, "ES": 6.02, "GO": 6.00, "MA": 6.30,
+                "MG": 5.98, "MS": 6.08, "MT": 6.22, "PA": 6.28, "PB": 6.16,
+                "PE": 6.15, "PI": 6.22, "PR": 5.88, "RJ": 6.18, "RN": 6.12,
+                "RO": 6.35, "RR": 6.50, "RS": 5.92, "SC": 5.85, "SE": 6.15,
+                "SP": 6.05, "TO": 6.25,
+            }
+
+            # Preços ANP nacionais (função real ou fallback hardcoded)
+            _ex_anp_nac: dict = {}
+            if _ex_sheets:
+                try:
+                    _ex_anp_nac = _anp_precos_por_fuel_brasil(_ex_sheets)
+                except Exception:
+                    pass
+            if not _ex_anp_nac:
+                _ex_anp_nac = dict(_EX_ANP_FALLBACK)
+
+            def _ex_get_anp_preco(label: str) -> float:
+                """Retorna preço ANP nacional para um combustível dado o label."""
+                lu = label.upper()
+                for k, v in _ex_anp_nac.items():
+                    if str(k).upper() in lu or lu in str(k).upper():
+                        return float(v)
+                for k, v in _EX_ANP_FALLBACK.items():
+                    if k in lu or lu in k:
+                        return float(v)
+                return 0.0
+
+            # ── KPIs Hero ─────────────────────────────────────────────────
+            st.markdown("### 📊 Visão Geral da Rede")
+            _eh1, _eh2, _eh3, _eh4 = st.columns(4)
+            _eh1.metric("⛽ Postos GF", _fmt_int(_total_gf), f"{_total_ufs} estados")
+            _eh2.metric(
+                "🏙️ Municípios", _fmt_int(_total_mun),
+                f"{_cobertura_br:.0f}% dos estados",
+            )
+
+            # Diesel GF médio vs ANP
+            _ex_diesel_gf = 0.0
+            if _ex_pp is not None and not _ex_pp.empty:
+                _ex_d_mask = (
+                    _ex_pp["combustivel_pk"].str.upper().str.contains("DIESEL", na=False)
+                )
+                if _ex_d_mask.any():
+                    _ex_diesel_gf = float(_ex_pp.loc[_ex_d_mask, "preco"].mean())
+            _ex_diesel_anp = float(
+                _ex_anp_nac.get("DIESEL S10")
+                or _ex_anp_nac.get("DIESEL COMUM")
+                or _EX_ANP_FALLBACK["DIESEL S10"]
+            )
+            if _ex_diesel_gf > 0:
+                _ex_d_delta = (_ex_diesel_gf - _ex_diesel_anp) / _ex_diesel_anp * 100
+                _eh3.metric(
+                    "🚛 Diesel Médio GF",
+                    f"R$ {_ex_diesel_gf:.3f}".replace(".", ","),
+                    f"{_ex_d_delta:+.1f}% vs ANP",
+                    delta_color="inverse",
+                )
+            else:
+                _eh3.metric("🚛 Diesel Médio GF", "—", "Sem dados de preço")
+
+            # Saving potencial/ano
+            if _ex_diesel_gf > 0 and _ex_diesel_anp > _ex_diesel_gf:
+                _ex_sav = (_ex_diesel_anp - _ex_diesel_gf) * 100 * 52 * _total_gf
+            else:
+                _ex_sav = 0.15 * 100 * 52 * _total_gf
+            _eh4.metric(
+                "💰 Saving Potencial/Ano",
+                f"R$ {_ex_sav / 1e6:.1f}M".replace(".", ","),
+                "base: 100 L/sem × postos GF",
+            )
+
+            st.markdown("---")
+
+            # ══ SEÇÃO 1 — Custo Médio GF vs ANP por Combustível ══════════
+            st.markdown("### ⛽ Custo Médio GF vs ANP por Combustível")
+
+            if _ex_pp is None or _ex_pp.empty:
+                st.info(
+                    "📋 Importe a **Planilha de Preços dos Postos GF** em "
+                    "Configurações → Preços dos Postos GF para ver a comparação."
+                )
+            else:
+                _ex_comb_avg = (
+                    _ex_pp.groupby("combustivel_label")["preco"]
+                    .mean().reset_index()
+                    .rename(columns={
+                        "combustivel_label": "Combustível",
+                        "preco": "Preço GF (R$/L)",
+                    })
+                    .sort_values("Preço GF (R$/L)", ascending=False)
+                )
+                _ex_comb_avg["ANP Ref (R$/L)"] = (
+                    _ex_comb_avg["Combustível"]
+                    .apply(_ex_get_anp_preco)
+                    .replace(0.0, None)
+                )
+                _ex_comb_avg["Delta (%)"] = _ex_comb_avg.apply(
+                    lambda r: (
+                        (r["Preço GF (R$/L)"] - r["ANP Ref (R$/L)"])
+                        / r["ANP Ref (R$/L)"] * 100
+                    ) if r["ANP Ref (R$/L)"] else None,
+                    axis=1,
+                )
+
+                _ex_fig_c = go.Figure()
+                _ex_fig_c.add_trace(go.Bar(
+                    name="Preço GF",
+                    x=_ex_comb_avg["Combustível"],
+                    y=_ex_comb_avg["Preço GF (R$/L)"],
+                    marker_color="#E65100",
+                    text=_ex_comb_avg["Preço GF (R$/L)"].apply(
+                        lambda v: f"R$ {v:.3f}".replace(".", ",")),
+                    textposition="outside",
+                ))
+                _ex_anp_vals = _ex_comb_avg["ANP Ref (R$/L)"].tolist()
+                if any(v is not None for v in _ex_anp_vals):
+                    _ex_fig_c.add_trace(go.Bar(
+                        name="Referência ANP",
+                        x=_ex_comb_avg["Combustível"],
+                        y=[v if v else 0 for v in _ex_anp_vals],
+                        marker_color="#1565C0",
+                        opacity=0.7,
+                        text=[
+                            f"R$ {v:.3f}".replace(".", ",") if v else "—"
+                            for v in _ex_anp_vals
+                        ],
+                        textposition="outside",
+                    ))
+                _ex_fig_c.update_layout(
+                    barmode="group",
+                    title="Preço Médio GF vs Referência ANP (R$/L)",
+                    yaxis_title="R$/L",
+                    height=380,
+                    margin=dict(l=10, r=10, t=45, b=60),
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    legend=dict(
+                        orientation="h", yanchor="bottom",
+                        y=1.02, xanchor="right", x=1,
+                    ),
+                    xaxis_tickangle=-20,
+                )
+                _ex_fig_c.update_yaxes(showgrid=True, gridcolor="#F3F3F3")
+                st.plotly_chart(_ex_fig_c, use_container_width=True)
+
+                # Cards de delta por combustível
+                _ex_delta_ok = _ex_comb_avg.dropna(subset=["Delta (%)"])
+                if not _ex_delta_ok.empty:
+                    _ex_dcols = st.columns(min(len(_ex_delta_ok), 4))
+                    for _ei, (_, _er) in enumerate(_ex_delta_ok.head(4).iterrows()):
+                        _exdv = _er["Delta (%)"]
+                        _exc  = ("#2E7D32" if _exdv < 0
+                                 else "#F57F17" if _exdv < 3 else "#B71C1C")
+                        _exi  = "✅" if _exdv < 0 else "⚠️" if _exdv < 3 else "🔴"
+                        _ex_dcols[_ei].markdown(
+                            f"<div style='border:1px solid {_exc};border-radius:8px;"
+                            f"padding:12px;text-align:center;background:#fafafa'>"
+                            f"<div style='font-size:12px;color:#555'>"
+                            f"{_er['Combustível']}</div>"
+                            f"<div style='font-size:22px;font-weight:700;color:{_exc}'>"
+                            f"{_exi} {_exdv:+.1f}%</div>"
+                            f"<div style='font-size:11px;color:#777'>"
+                            f"vs ANP nacional</div></div>",
+                            unsafe_allow_html=True,
+                        )
+
+            st.markdown("---")
+
+            # ══ SEÇÃO 2 — Saving Mensal Acumulado ════════════════════════
+            st.markdown("### 💰 Saving Mensal Acumulado")
+            st.caption(
+                "Evolução mensal do preço médio GF. "
+                "Barras 🟢 = abaixo do ANP (saving); 🔴 = acima do ANP (custo extra)."
+            )
+
+            if not _ex_hist:
+                st.info(
+                    "ℹ️ Histórico de preços vazio. Carregue planilhas de preços "
+                    "sequenciais em Configurações para construir a série temporal."
+                )
+            else:
+                _ex_rows_h = []
+                for _ecnpj, _erecords in _ex_hist.items():
+                    for _erec in (_erecords if isinstance(_erecords, list) else []):
+                        _edata  = str(_erec.get("data", "") or "")
+                        _epreco = float(_erec.get("preco", 0) or 0)
+                        _ecomb  = str(_erec.get("combustivel", "") or "").upper().strip()
+                        if _edata and _epreco > 0 and _ecomb:
+                            _ex_rows_h.append({
+                                "data": _edata,
+                                "preco": _epreco,
+                                "combustivel": _ecomb,
+                            })
+
+                if not _ex_rows_h:
+                    st.info("ℹ️ Histórico sem registros válidos de preço.")
+                else:
+                    _ex_hist_df = pd.DataFrame(_ex_rows_h)
+                    try:
+                        _ex_hist_df["mes"] = (
+                            pd.to_datetime(_ex_hist_df["data"], errors="coerce")
+                            .dt.to_period("M").astype(str)
+                        )
+                    except Exception:
+                        _ex_hist_df["mes"] = _ex_hist_df["data"].str[:7]
+                    _ex_hist_df = _ex_hist_df.dropna(subset=["mes"])
+
+                    _ex_combs_h = sorted(_ex_hist_df["combustivel"].unique().tolist())
+                    _ex_sel_sv  = st.selectbox(
+                        "Combustível:", ["Todos"] + _ex_combs_h,
+                        key="dt7_sel_comb_saving",
+                    )
+                    _ex_hdf = _ex_hist_df.copy()
+                    if _ex_sel_sv != "Todos":
+                        _ex_hdf = _ex_hdf[_ex_hdf["combustivel"] == _ex_sel_sv]
+
+                    _ex_mensal = (
+                        _ex_hdf.groupby("mes")["preco"]
+                        .mean().reset_index()
+                        .sort_values("mes")
+                    )
+                    _ex_mensal.columns = ["Mês", "Preço Médio GF"]
+
+                    _ex_anp_ref_sv = (
+                        _ex_get_anp_preco(_ex_sel_sv)
+                        if _ex_sel_sv != "Todos" else 0.0
+                    )
+
+                    _ex_bar_colors_sv = [
+                        "#2E7D32" if (_ex_anp_ref_sv and pv < _ex_anp_ref_sv)
+                        else ("#B71C1C" if _ex_anp_ref_sv else "#1565C0")
+                        for pv in _ex_mensal["Preço Médio GF"]
+                    ]
+                    _ex_fig_sv = go.Figure()
+                    _ex_fig_sv.add_trace(go.Bar(
+                        x=_ex_mensal["Mês"],
+                        y=_ex_mensal["Preço Médio GF"],
+                        marker_color=_ex_bar_colors_sv,
+                        name="Preço Médio GF",
+                        text=_ex_mensal["Preço Médio GF"].apply(
+                            lambda v: f"R$ {v:.3f}".replace(".", ",")),
+                        textposition="outside",
+                    ))
+                    if _ex_anp_ref_sv:
+                        _ex_fig_sv.add_hline(
+                            y=_ex_anp_ref_sv,
+                            line_dash="dash", line_color="#E65100",
+                            annotation_text=(
+                                f"ANP: R$ {_ex_anp_ref_sv:.3f}".replace(".", ",")),
+                            annotation_position="top left",
+                            annotation_font_size=11,
+                        )
+                    _ex_fig_sv.update_layout(
+                        title="Evolução Mensal do Preço Médio GF (R$/L)",
+                        yaxis_title="R$/L",
+                        height=350,
+                        margin=dict(l=10, r=10, t=45, b=40),
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                    )
+                    _ex_fig_sv.update_yaxes(showgrid=True, gridcolor="#F3F3F3")
+                    st.plotly_chart(_ex_fig_sv, use_container_width=True)
+
+                    if _ex_anp_ref_sv:
+                        _ex_sav_acc = float(
+                            (_ex_anp_ref_sv - _ex_mensal["Preço Médio GF"]).sum()
+                        )
+                        _ex_dir = "abaixo" if _ex_sav_acc > 0 else "acima"
+                        _ex_cor_s = "#2E7D32" if _ex_sav_acc > 0 else "#B71C1C"
+                        st.markdown(
+                            f"<div style='background:#f5f5f5;border-radius:8px;"
+                            f"padding:10px 16px;margin-top:8px'>"
+                            f"Saldo acumulado do período: "
+                            f"<b style='color:{_ex_cor_s}'>"
+                            f"R$ {abs(_ex_sav_acc):.3f}/L</b> "
+                            f"(rede GF {_ex_dir} do ANP em média)</div>",
+                            unsafe_allow_html=True,
+                        )
+
+            st.markdown("---")
+
+            # ══ SEÇÃO 3 — Cobertura da Rede por Macrorregião ════════════
+            st.markdown("### 🗺️ Cobertura da Rede por Macrorregião")
+
+            _EX_REGIOES = {
+                "Norte":        ["AC", "AM", "AP", "PA", "RO", "RR", "TO"],
+                "Nordeste":     ["AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"],
+                "Centro-Oeste": ["DF", "GO", "MS", "MT"],
+                "Sudeste":      ["ES", "MG", "RJ", "SP"],
+                "Sul":          ["PR", "RS", "SC"],
+            }
+            _EX_MUN_TOTAL = {
+                "Norte": 449, "Nordeste": 1794, "Centro-Oeste": 467,
+                "Sudeste": 1668, "Sul": 1191,
+            }
+
+            _ex_reg_rows = []
+            for _ereg, _eufs in _EX_REGIOES.items():
+                _ex_sub  = _df_valid[_df_valid["uf"].isin(_eufs)]
+                _ex_ngf  = len(_ex_sub)
+                _ex_nmun = int(
+                    _ex_sub["municipio"].replace("", pd.NA).dropna().nunique()
+                )
+                _ex_nmun_tot = _EX_MUN_TOTAL.get(_ereg, 1)
+                _ex_cob      = round(_ex_nmun / _ex_nmun_tot * 100, 1)
+                _ex_reg_rows.append({
+                    "Região":        _ereg,
+                    "Postos GF":     _ex_ngf,
+                    "Mun. c/ GF":    _ex_nmun,
+                    "Total Mun.":    _ex_nmun_tot,
+                    "Cobertura (%)": _ex_cob,
+                    "Estados c/ GF": int(_ex_sub["uf"].nunique()),
+                    "Total UFs":     len(_eufs),
+                })
+            _ex_reg_df = (
+                pd.DataFrame(_ex_reg_rows)
+                .sort_values("Cobertura (%)", ascending=False)
+                .reset_index(drop=True)
+            )
+
+            _ex_reg_colors = [
+                "#2E7D32" if v >= 30 else ("#F57F17" if v >= 10 else "#B71C1C")
+                for v in _ex_reg_df["Cobertura (%)"]
+            ]
+            _ex_fig_reg = go.Figure()
+            _ex_fig_reg.add_trace(go.Bar(
+                y=_ex_reg_df["Região"],
+                x=_ex_reg_df["Cobertura (%)"],
+                orientation="h",
+                marker_color=_ex_reg_colors,
+                text=_ex_reg_df["Cobertura (%)"].apply(lambda v: f"{v:.1f}%"),
+                textposition="outside",
+                hovertemplate="<b>%{y}</b><br>Cobertura: %{x:.1f}%<extra></extra>",
+            ))
+            _ex_fig_reg.update_layout(
+                title="Cobertura de Municípios com Postos GF por Região (%)",
+                xaxis_title="% dos municípios da região",
+                yaxis=dict(autorange="reversed"),
+                height=280,
+                margin=dict(l=10, r=80, t=45, b=30),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                font=dict(size=11),
+            )
+            _ex_fig_reg.update_xaxes(
+                showgrid=True, gridcolor="#E3F2FD", range=[0, 110])
+            st.plotly_chart(_ex_fig_reg, use_container_width=True)
+
+            _ex_rcols = st.columns(5)
+            for _ei, _er in _ex_reg_df.iterrows():
+                _ecob = _er["Cobertura (%)"]
+                _ecor = (
+                    "#2E7D32" if _ecob >= 30
+                    else "#F57F17" if _ecob >= 10 else "#B71C1C"
+                )
+                _ex_rcols[_ei].markdown(
+                    f"<div style='border-top:3px solid {_ecor};"
+                    f"padding:10px 4px;text-align:center'>"
+                    f"<div style='font-size:11px;color:#555;font-weight:700'>"
+                    f"{_er['Região']}</div>"
+                    f"<div style='font-size:20px;font-weight:700;color:{_ecor}'>"
+                    f"{_ecob:.1f}%</div>"
+                    f"<div style='font-size:10px;color:#777'>"
+                    f"{_fmt_int(_er['Postos GF'])} postos</div>"
+                    f"<div style='font-size:10px;color:#777'>"
+                    f"{_er['Estados c/ GF']}/{_er['Total UFs']} estados</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("---")
+
+            # ══ SEÇÃO 4 — Top Oportunidades de Expansão ═════════════════
+            st.markdown("### 🎯 Top Oportunidades de Expansão")
+            st.caption(
+                "Ranqueamento das UFs com maior potencial de expansão: "
+                "menor penetração GF e maior preço de mercado = maior oportunidade."
+            )
+
+            _ex_gf_uf       = _df_valid.groupby("uf").size().to_dict()
+            _ex_diesel_max  = max(_EX_DIESEL_UF.values())
+            _ex_oport       = []
+            for _euf, _eanp_ref in _ANP_REF_UF.items():
+                _egf_n      = _ex_gf_uf.get(_euf, 0)
+                _epen       = _egf_n / _eanp_ref * 100 if _eanp_ref else 0
+                _ediesel_uf = _EX_DIESEL_UF.get(_euf, 6.0)
+                _escore     = round(
+                    (1 - min(_epen / 100, 1))
+                    * (_ediesel_uf / _ex_diesel_max) * 100, 1,
+                )
+                _ex_oport.append({
+                    "UF":                _euf,
+                    "Estado":            _UF_NOME_DASH.get(_euf, _euf),
+                    "Postos GF":         _egf_n,
+                    "Penetração (%)":    round(_epen, 2),
+                    "Diesel ANP (R$/L)": _ediesel_uf,
+                    "Score":             _escore,
+                })
+
+            _ex_oport_df = (
+                pd.DataFrame(_ex_oport)
+                .sort_values("Score", ascending=False)
+                .reset_index(drop=True)
+            )
+            _ex_oport_df.index += 1
+
+            _ex_top10 = _ex_oport_df.head(10)
+            _ex_opp_colors = [
+                "#B71C1C" if s >= 80 else
+                "#E65100" if s >= 60 else
+                "#F57F17" if s >= 40 else "#1565C0"
+                for s in _ex_top10["Score"]
+            ]
+            _ex_fig_opp = go.Figure()
+            _ex_fig_opp.add_trace(go.Bar(
+                x=_ex_top10["Estado"],
+                y=_ex_top10["Score"],
+                marker_color=_ex_opp_colors,
+                text=_ex_top10["Score"].apply(lambda v: f"{v:.0f}"),
+                textposition="outside",
+                hovertemplate="<b>%{x}</b><br>Score: %{y:.0f}<br><extra></extra>",
+            ))
+            _ex_fig_opp.update_layout(
+                title="Top 10 Estados — Score de Oportunidade de Expansão",
+                yaxis_title="Score (0–100)",
+                height=350,
+                margin=dict(l=10, r=10, t=45, b=80),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                xaxis_tickangle=-30,
+            )
+            _ex_fig_opp.update_yaxes(
+                showgrid=True, gridcolor="#F3F3F3", range=[0, 110])
+            st.plotly_chart(_ex_fig_opp, use_container_width=True)
+
+            st.markdown("##### Ranking completo")
+            st.dataframe(
+                _ex_oport_df[[
+                    "UF", "Estado", "Postos GF",
+                    "Penetração (%)", "Diesel ANP (R$/L)", "Score",
+                ]],
+                use_container_width=True,
+                height=350,
+                column_config={
+                    "Score": st.column_config.ProgressColumn(
+                        "Score Oportunidade",
+                        min_value=0, max_value=100, format="%.0f",
+                    )
+                },
+            )
+            _ex_csv_dl = (
+                _ex_oport_df.reset_index(drop=True)
+                .to_csv(index=False).encode("utf-8-sig")
+            )
+            st.download_button(
+                label="📥 Exportar oportunidades (CSV)",
+                data=_ex_csv_dl,
+                file_name="oportunidades_expansao_gf.csv",
+                mime="text/csv",
+                key="dt7_dl_oport",
+            )
+            st.caption(
+                "💡 **Metodologia:** Score = (1 – penetração GF) × "
+                "(Diesel ANP UF / máx nacional). "
+                "Quanto maior o score, maior o potencial de credenciamento de novos postos."
+            )
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
