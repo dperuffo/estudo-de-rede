@@ -655,7 +655,8 @@ header[data-testid="stHeader"] {
 
 /* ══ TOPBAR ════════════════════════════════════════════════════════ */
 .topbar {
-    background: linear-gradient(100deg, #0D47A1 0%, #1565C0 35%, #1976D2 55%, #E65100 100%);
+    background: linear-gradient(100deg,
+        #040d26 0%, #071840 18%, #0b2660 45%, #1040a0 72%, #1565C0 100%);
     color: white;
     padding: 12px 28px;
     border-radius: 0 0 14px 14px;
@@ -663,7 +664,7 @@ header[data-testid="stHeader"] {
     display: flex;
     align-items: center;
     gap: 16px;
-    box-shadow: 0 4px 18px rgba(13,71,161,0.35), 0 2px 6px rgba(230,81,0,0.20);
+    box-shadow: 0 4px 18px rgba(4,13,38,0.55), 0 2px 8px rgba(16,64,160,0.30);
     flex-wrap: nowrap;
     position: relative;
     overflow: hidden;
@@ -785,14 +786,14 @@ hr { margin: 10px 0 !important; border-color: #c8d8e8 !important; }
     text-align: center !important;
 }
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #1565c0, #0d47a1);
+    background: linear-gradient(135deg, #040d26 0%, #0b2660 45%, #1040a0 75%, #1565C0 100%);
     border: none;
     font-size: 14px;
     padding: 10px 0;
 }
 .stButton > button[kind="primary"]:hover {
-    background: linear-gradient(135deg, #1976d2, #1565c0);
-    box-shadow: 0 4px 12px rgba(21,101,192,0.4);
+    background: linear-gradient(135deg, #071840 0%, #1040a0 50%, #1976D2 100%);
+    box-shadow: 0 4px 12px rgba(16,64,160,0.45);
 }
 
 /* ══ LOADING / ANIMAÇÕES ═══════════════════════════════════════════ */
@@ -813,7 +814,7 @@ iframe { animation: mapFadeIn 0.45s ease-in; }
     gap: 10px !important;
 }
 [data-testid="stProgress"] > div > div {
-    background: linear-gradient(90deg, #0d1b4b, #1565c0, #0288d1) !important;
+    background: linear-gradient(90deg, #040d26, #0b2660, #1040a0, #1565C0) !important;
     border-radius: 4px !important;
 }
 
@@ -9523,21 +9524,21 @@ with st.sidebar:
         st.markdown(
             "<div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'>"
             "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
-            "#0D47A1,#E65100)'></div>"
-            "<div style='font-size:9px;font-weight:700;color:#1565c0;"
+            "#040d26,#1040a0)'></div>"
+            "<div style='font-size:9px;font-weight:700;color:#0b2660;"
             "letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap'>"
             "Modo de Consulta</div>"
             "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
-            "#E65100,#0D47A1)'></div>"
+            "#1040a0,#040d26)'></div>"
             "</div>",
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
             "<div style='"
-            "background:linear-gradient(135deg,#0D47A1 0%,#1565C0 45%,#E65100 100%);"
+            "background:linear-gradient(135deg,#040d26 0%,#0b2660 50%,#1040a0 100%);"
             "border-radius:12px;padding:10px 14px 8px;margin-bottom:10px'>"
-            "<div style='color:rgba(255,255,255,.65);font-size:9px;font-weight:600;"
+            "<div style='color:rgba(144,202,249,.75);font-size:9px;font-weight:600;"
             "letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px'>Modo de Consulta</div>"
             "<div style='color:#fff;font-size:13px;font-weight:700;line-height:1.2'>"
             "Selecione como deseja buscar</div>"
@@ -9571,20 +9572,20 @@ with st.sidebar:
     font-weight: 700 !important;
 }
 
-/* ── ATIVO: gradiente azul → laranja ── */
+/* ── ATIVO: gradiente deep navy → rich blue ── */
 .st-key-btn_modo_estado    [data-testid="stBaseButton-primary"],
 .st-key-btn_modo_rota      [data-testid="stBaseButton-primary"],
 .st-key-btn_modo_consulta  [data-testid="stBaseButton-primary"] {
-    background: linear-gradient(135deg, #0D47A1 0%, #1565C0 50%, #E65100 100%) !important;
+    background: linear-gradient(135deg, #040d26 0%, #0b2660 40%, #1040a0 75%, #1565C0 100%) !important;
     border: none !important;
     color: #fff !important;
-    box-shadow: 0 3px 10px rgba(13,71,161,.40), 0 1px 3px rgba(230,81,0,.30) !important;
+    box-shadow: 0 3px 10px rgba(4,13,38,.55), 0 1px 3px rgba(16,64,160,.40) !important;
 }
 .st-key-btn_modo_estado    [data-testid="stBaseButton-primary"]:hover,
 .st-key-btn_modo_rota      [data-testid="stBaseButton-primary"]:hover,
 .st-key-btn_modo_consulta  [data-testid="stBaseButton-primary"]:hover {
-    background: linear-gradient(135deg, #1565C0 0%, #1976D2 50%, #F57C00 100%) !important;
-    box-shadow: 0 5px 14px rgba(13,71,161,.50) !important;
+    background: linear-gradient(135deg, #071840 0%, #1040a0 50%, #1976D2 100%) !important;
+    box-shadow: 0 5px 14px rgba(16,64,160,.55) !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_modo_estado    [data-testid="stBaseButton-primary"] p,
@@ -9593,21 +9594,21 @@ with st.sidebar:
     color: #fff !important;
 }
 
-/* ── INATIVO: outline azul, hover com leve gradiente ── */
+/* ── INATIVO: outline navy, hover com leve gradiente azul ── */
 .st-key-btn_modo_estado    [data-testid="stBaseButton-secondary"],
 .st-key-btn_modo_rota      [data-testid="stBaseButton-secondary"],
 .st-key-btn_modo_consulta  [data-testid="stBaseButton-secondary"] {
     background: rgba(255,255,255,.92) !important;
-    border: 2px solid #1565C0 !important;
-    color: #1565C0 !important;
+    border: 2px solid #1040a0 !important;
+    color: #0b2660 !important;
     box-shadow: none !important;
 }
 .st-key-btn_modo_estado    [data-testid="stBaseButton-secondary"]:hover,
 .st-key-btn_modo_rota      [data-testid="stBaseButton-secondary"]:hover,
 .st-key-btn_modo_consulta  [data-testid="stBaseButton-secondary"]:hover {
-    background: linear-gradient(135deg,rgba(13,71,161,.07) 0%,rgba(230,81,0,.07) 100%) !important;
-    border-color: #E65100 !important;
-    color: #E65100 !important;
+    background: linear-gradient(135deg,rgba(4,13,38,.06) 0%,rgba(16,64,160,.10) 100%) !important;
+    border-color: #1040a0 !important;
+    color: #071840 !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_modo_estado    [data-testid="stBaseButton-secondary"] p,
@@ -9624,12 +9625,12 @@ with st.sidebar:
 }
 .st-key-btn_modo_roteirizacao button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
 .st-key-btn_modo_roteirizacao [data-testid="stBaseButton-primary"] {
-    background: linear-gradient(135deg, #004D40 0%, #00796B 55%, #E65100 100%) !important;
+    background: linear-gradient(135deg, #004D40 0%, #00796B 60%, #0b2660 100%) !important;
     border: none !important; color: #fff !important;
-    box-shadow: 0 3px 10px rgba(0,77,64,.45), 0 1px 3px rgba(230,81,0,.25) !important;
+    box-shadow: 0 3px 10px rgba(0,77,64,.45), 0 1px 3px rgba(11,38,96,.25) !important;
 }
 .st-key-btn_modo_roteirizacao [data-testid="stBaseButton-primary"]:hover {
-    background: linear-gradient(135deg, #00695C 0%, #00897B 55%, #F57C00 100%) !important;
+    background: linear-gradient(135deg, #00695C 0%, #00897B 60%, #1040a0 100%) !important;
     transform: translateY(-1px) !important;
     box-shadow: 0 5px 14px rgba(0,77,64,.55) !important;
 }
@@ -9640,7 +9641,7 @@ with st.sidebar:
     box-shadow: none !important;
 }
 .st-key-btn_modo_roteirizacao [data-testid="stBaseButton-secondary"]:hover {
-    border-color: #E65100 !important; color: #E65100 !important;
+    border-color: #1040a0 !important; color: #0b2660 !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_modo_roteirizacao [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
@@ -9656,12 +9657,12 @@ with st.sidebar:
 }
 .st-key-btn_rotas_salvas button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"] {
-    background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #F57F17 100%) !important;
+    background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 60%, #0b2660 100%) !important;
     border: none !important; color: #fff !important;
     box-shadow: 0 3px 10px rgba(27,94,32,.40) !important;
 }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"]:hover {
-    background: linear-gradient(135deg, #2E7D32 0%, #388E3C 50%, #F9A825 100%) !important;
+    background: linear-gradient(135deg, #2E7D32 0%, #388E3C 60%, #1040a0 100%) !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"] p { color: #fff !important; }
@@ -9672,7 +9673,7 @@ with st.sidebar:
     box-shadow: none !important;
 }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-secondary"]:hover {
-    border-color: #F57F17 !important; color: #F57F17 !important;
+    border-color: #1040a0 !important; color: #0b2660 !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
@@ -9688,12 +9689,12 @@ with st.sidebar:
 }
 .st-key-btn_dashboard button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
 .st-key-btn_dashboard [data-testid="stBaseButton-primary"] {
-    background: linear-gradient(135deg, #0D47A1 0%, #1565C0 50%, #E65100 100%) !important;
+    background: linear-gradient(135deg, #040d26 0%, #0b2660 40%, #1040a0 75%, #1565C0 100%) !important;
     border: none !important; color: #fff !important;
-    box-shadow: 0 3px 10px rgba(13,71,161,.40) !important;
+    box-shadow: 0 3px 10px rgba(4,13,38,.50) !important;
 }
 .st-key-btn_dashboard [data-testid="stBaseButton-primary"]:hover {
-    background: linear-gradient(135deg, #1565C0 0%, #1976D2 50%, #F57C00 100%) !important;
+    background: linear-gradient(135deg, #071840 0%, #1040a0 50%, #1976D2 100%) !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_dashboard [data-testid="stBaseButton-primary"] p { color: #fff !important; }
@@ -9704,7 +9705,7 @@ with st.sidebar:
     box-shadow: none !important;
 }
 .st-key-btn_dashboard [data-testid="stBaseButton-secondary"]:hover {
-    border-color: #E65100 !important; color: #E65100 !important;
+    border-color: #1040a0 !important; color: #071840 !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_dashboard [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
@@ -9719,12 +9720,12 @@ with st.sidebar:
 }
 .st-key-btn_inteligencia button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
 .st-key-btn_inteligencia [data-testid="stBaseButton-primary"] {
-    background: linear-gradient(135deg, #4A148C 0%, #6A1B9A 50%, #0D47A1 100%) !important;
+    background: linear-gradient(135deg, #2D0073 0%, #4A148C 50%, #071840 100%) !important;
     border: none !important; color: #fff !important;
     box-shadow: 0 3px 10px rgba(74,20,140,.40) !important;
 }
 .st-key-btn_inteligencia [data-testid="stBaseButton-primary"]:hover {
-    background: linear-gradient(135deg, #6A1B9A 0%, #7B1FA2 50%, #1565C0 100%) !important;
+    background: linear-gradient(135deg, #4A148C 0%, #6A1B9A 55%, #0b2660 100%) !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_inteligencia [data-testid="stBaseButton-primary"] p { color: #fff !important; }
@@ -9735,7 +9736,7 @@ with st.sidebar:
     box-shadow: none !important;
 }
 .st-key-btn_inteligencia [data-testid="stBaseButton-secondary"]:hover {
-    border-color: #0D47A1 !important; color: #0D47A1 !important;
+    border-color: #4A148C !important; color: #2D0073 !important;
     transform: translateY(-1px) !important;
 }
 .st-key-btn_inteligencia [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
@@ -13967,7 +13968,7 @@ if modo == "📊 Dashboard":
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
-        "background:linear-gradient(135deg,#0D47A1,#E65100);"
+        "background:linear-gradient(135deg,#040d26,#0b2660,#1040a0,#1565C0);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
         "📊 Dashboard Analítico GF</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 14px'>"
