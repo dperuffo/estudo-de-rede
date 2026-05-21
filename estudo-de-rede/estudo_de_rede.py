@@ -16500,6 +16500,111 @@ elif modo == "🧠 Inteligência":
         _pf_cnpjs3   = (set(_pf_df3["cnpj"].dropna().astype(str).str.strip())
                         if not _pf_df3.empty and "cnpj" in _pf_df3.columns else set())
 
+        # ── Upload inline da ANP (Preços Semanais) ────────────────────
+        # Aparece como card compacto quando ANP não está carregada;
+        # quando carregada, mostra badge + expander para trocar.
+        # NÃO chama st.rerun() — atualiza _sheets_a3 na mesma render.
+        if _sheets_a3 is None:
+            st.markdown(
+                "<div style='"
+                "background:linear-gradient(135deg,#040d26 0%,#0b2660 100%);"
+                "border-radius:12px;padding:14px 18px 12px;margin-bottom:14px;"
+                "border:1px solid rgba(100,181,246,0.25);'>"
+                "<div style='color:rgba(144,202,249,0.9);font-size:11px;"
+                "font-weight:700;letter-spacing:1px;text-transform:uppercase;"
+                "margin-bottom:6px'>📋 Planilha ANP de Preços Semanais</div>"
+                "<div style='color:rgba(255,255,255,0.75);font-size:12px;'>"
+                "Faça o upload da planilha semanal da ANP para ativar as análises de "
+                "<b>competitividade</b>, <b>variação</b> e <b>tendência</b>. "
+                "Baixe em <a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos' "
+                "target='_blank' style='color:#90CAF9'>gov.br/anp</a>."
+                "</div></div>",
+                unsafe_allow_html=True,
+            )
+            _anp_up_intel = st.file_uploader(
+                "📎 Selecione a planilha ANP (resumo_semanal_lpc_*.xlsx)",
+                type=["xlsx", "xls"],
+                key="anp_uploader_intel_alertas",
+                help="Planilha semanal da ANP com preços médios por estado/município",
+                label_visibility="collapsed",
+            )
+            if _anp_up_intel is not None:
+                with st.spinner("🔍 Processando planilha ANP…"):
+                    try:
+                        _sh_intel = _anp_processar_arquivo(
+                            io.BytesIO(_anp_up_intel.read())
+                        )
+                        if not _sh_intel:
+                            st.error(
+                                "❌ Nenhuma aba reconhecida. "
+                                "Verifique se é a planilha correta da ANP."
+                            )
+                        else:
+                            _sem_intel = (
+                                _anp_up_intel.name
+                                .replace(".xlsx", "").replace(".xls", "")
+                            )
+                            _cache_ant_intel = st.session_state.get(
+                                "_precos_anp_cache", {}
+                            )
+                            if (_cache_ant_intel.get("sheets") and
+                                    _cache_ant_intel.get("semana") != _sem_intel):
+                                st.session_state["_precos_anp_cache_anterior"] = (
+                                    _cache_ant_intel
+                                )
+                            st.session_state["_precos_anp_cache"] = {
+                                "sheets": _sh_intel, "semana": _sem_intel
+                            }
+                            # Atualiza variável local sem st.rerun() (evita loop)
+                            _sheets_a3 = _sh_intel
+                            st.success(
+                                f"✅ ANP **{_sem_intel}** carregada — "
+                                "análises atualizadas abaixo."
+                            )
+                    except Exception as _ex_intel:
+                        st.error(f"❌ Erro ao ler arquivo ANP: {_ex_intel}")
+        else:
+            # ANP já carregada: badge compacto + opção de trocar
+            _sem_atual3 = _anp_cache3.get("semana", "—")
+            with st.expander(
+                f"✅ ANP carregada: **{_sem_atual3}** · Clique para atualizar",
+                expanded=False,
+            ):
+                st.markdown(
+                    "<div style='font-size:12px;color:#555;margin-bottom:8px'>"
+                    "Para substituir, carregue a planilha mais recente abaixo.</div>",
+                    unsafe_allow_html=True,
+                )
+                _anp_up_intel2 = st.file_uploader(
+                    "📎 Nova planilha ANP",
+                    type=["xlsx", "xls"],
+                    key="anp_uploader_intel_troca",
+                    label_visibility="collapsed",
+                )
+                if _anp_up_intel2 is not None:
+                    with st.spinner("🔍 Processando…"):
+                        try:
+                            _sh_i2 = _anp_processar_arquivo(
+                                io.BytesIO(_anp_up_intel2.read())
+                            )
+                            if _sh_i2:
+                                _sem_i2 = (
+                                    _anp_up_intel2.name
+                                    .replace(".xlsx", "").replace(".xls", "")
+                                )
+                                st.session_state["_precos_anp_cache_anterior"] = (
+                                    _anp_cache3
+                                )
+                                st.session_state["_precos_anp_cache"] = {
+                                    "sheets": _sh_i2, "semana": _sem_i2
+                                }
+                                _sheets_a3 = _sh_i2
+                                st.success(f"✅ ANP atualizada: **{_sem_i2}**")
+                            else:
+                                st.error("❌ Arquivo não reconhecido.")
+                        except Exception as _ex_i2:
+                            st.error(f"❌ {_ex_i2}")
+
         (
             _sa_lim, _sa_var, _sa_comp, _sa_geo, _sa_tend,
         ) = st.tabs([
@@ -16669,13 +16774,18 @@ elif modo == "🧠 Inteligência":
 
             if _sem_pp3 and _sem_anp3:
                 st.info(
-                    "ℹ️ Carregue a **planilha de Preços PP** e a "
-                    "**planilha ANP** para ativar este alerta."
+                    "ℹ️ Carregue a **planilha de Preços PP** (em ⚙️ Configurações) e a "
+                    "**planilha ANP** (acima ↑) para ativar este alerta."
                 )
             elif _sem_pp3:
-                st.info("ℹ️ Carregue a **planilha de Preços PP** em Configurações.")
+                st.info(
+                    "ℹ️ Carregue a **planilha de Preços PP** em ⚙️ Configurações → 💲 Preços PP."
+                )
             elif _sem_anp3:
-                st.info("ℹ️ Carregue a **planilha ANP de Preços Semanais** em Configurações.")
+                st.info(
+                    "ℹ️ Carregue a **planilha ANP de Preços Semanais** "
+                    "usando o widget acima ↑ (sem precisar ir a Configurações)."
+                )
             else:
                 _comp_thresh = st.slider(
                     "Desvio mínimo acima do ANP (%)",
