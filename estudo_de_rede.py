@@ -9401,43 +9401,104 @@ with st.sidebar:
         _email_u  = _auth_u.get("email",    "")
         _pic_u    = _auth_u.get("picture",  "")
         _prov_u   = _auth_u.get("provider", "")
-        _prov_ico = "🪟" if _prov_u == "microsoft" else "🔴"
 
-        # Avatar: foto de perfil ou iniciais
+        # Badge de provedor — estilo pill elegante
+        if _prov_u == "microsoft":
+            _prov_badge = (
+                "<span style='font-size:9px;font-weight:700;letter-spacing:0.5px;"
+                "color:rgba(100,181,246,0.90);background:rgba(16,64,160,0.35);"
+                "border:1px solid rgba(100,181,246,0.25);border-radius:6px;"
+                "padding:1px 6px;flex-shrink:0'>Microsoft</span>"
+            )
+        else:
+            _prov_badge = (
+                "<span style='font-size:9px;font-weight:700;letter-spacing:0.5px;"
+                "color:rgba(100,181,246,0.90);background:rgba(16,64,160,0.35);"
+                "border:1px solid rgba(100,181,246,0.25);border-radius:6px;"
+                "padding:1px 6px;flex-shrink:0'>Google</span>"
+            )
+
+        # Avatar: foto de perfil (com glow) ou iniciais em navy
         if _pic_u:
             _avatar_html = (
                 f"<img src='{_pic_u}' style='"
-                f"width:36px;height:36px;border-radius:50%;"
-                f"object-fit:cover;border:2px solid #e3e8f0'>"
+                f"width:42px;height:42px;border-radius:50%;object-fit:cover;"
+                f"border:2px solid rgba(100,181,246,0.55);"
+                f"box-shadow:0 0 10px rgba(16,64,160,0.45);flex-shrink:0'>"
             )
         else:
             _ini = "".join(w[0].upper() for w in _nome_u.split()[:2]) if _nome_u else "?"
             _avatar_html = (
-                f"<div style='width:36px;height:36px;border-radius:50%;"
-                f"background:#0D47A1;color:#fff;display:flex;align-items:center;"
-                f"justify-content:center;font-weight:700;font-size:13px;"
-                f"flex-shrink:0'>{_ini}</div>"
+                f"<div style='width:42px;height:42px;border-radius:50%;"
+                f"background:linear-gradient(135deg,#071840,#1040a0);"
+                f"color:#fff;display:flex;align-items:center;justify-content:center;"
+                f"font-weight:800;font-size:14px;flex-shrink:0;"
+                f"border:2px solid rgba(100,181,246,0.45);"
+                f"box-shadow:0 0 10px rgba(16,64,160,0.40)'>{_ini}</div>"
             )
 
+        # Nome truncado
+        _nome_curto = (_nome_u[:22] + "…") if len(_nome_u) > 24 else _nome_u
+        _email_curto = (_email_u[:26] + "…") if len(_email_u) > 28 else _email_u
+
         st.markdown(f"""
-        <div style='background:#f5f7fd;border:1px solid #dde3ee;border-radius:11px;
-                    padding:9px 11px;margin:4px 0 6px;
-                    display:flex;align-items:center;gap:9px'>
-          {_avatar_html}
-          <div style='min-width:0;flex:1;overflow:hidden'>
-            <div style='font-weight:600;font-size:12.5px;color:#1a237e;
-                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
-            >{_nome_u}</div>
-            <div style='font-size:10.5px;color:#607d8b;
-                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
-            >{_email_u}</div>
+<style>
+/* Botão Sair — estilo compacto integrado ao card */
+.st-key-btn_logout button {{
+    background: transparent !important;
+    border: 1px solid rgba(16,64,160,0.30) !important;
+    color: #4a6fa5 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    border-radius: 7px !important;
+    padding: 0 10px !important;
+    transition: all .18s ease !important;
+    letter-spacing: 0.3px !important;
+}}
+.st-key-btn_logout button:hover {{
+    background: linear-gradient(135deg,#040d26,#0b2660) !important;
+    border-color: rgba(100,181,246,0.40) !important;
+    color: #90CAF9 !important;
+    box-shadow: 0 2px 8px rgba(4,13,38,0.30) !important;
+}}
+.st-key-btn_logout button p {{
+    color: inherit !important;
+    font-size: 11px !important;
+    margin: 0 !important;
+}}
+</style>
+        <div style='
+            background: linear-gradient(135deg,
+                rgba(4,13,38,0.06) 0%, rgba(16,64,160,0.08) 100%);
+            border: 1px solid rgba(16,64,160,0.18);
+            border-radius: 13px;
+            padding: 10px 12px 8px;
+            margin: 4px 0 2px;
+        '>
+          <!-- Linha superior: avatar + info + badge -->
+          <div style='display:flex;align-items:center;gap:10px;margin-bottom:8px'>
+            {_avatar_html}
+            <div style='min-width:0;flex:1;overflow:hidden'>
+              <div style='font-weight:700;font-size:12.5px;color:#0d1e50;
+                          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                          line-height:1.3'>{_nome_curto}</div>
+              <div style='font-size:10px;color:#607d9e;margin-top:1px;
+                          white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+              >{_email_curto}</div>
+            </div>
+            {_prov_badge}
           </div>
-          <span title='{_prov_u}' style='font-size:15px;flex-shrink:0'>{_prov_ico}</span>
+          <!-- Linha divisória fina -->
+          <div style='height:1px;background:linear-gradient(90deg,
+              transparent,rgba(16,64,160,0.20),transparent);
+              margin-bottom:8px'></div>
         </div>
         """, unsafe_allow_html=True)
 
         if st.button(
-            "🚪 Sair",
+            "⎋ Sair da conta",
             use_container_width=True,
             type="secondary",
             key="btn_logout",
