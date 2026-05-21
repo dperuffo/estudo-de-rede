@@ -269,22 +269,23 @@ def _db_remove_favorito(cnpj: str) -> bool:
 # ── Histórico de Preços ────────────────────────────────────────────
 
 def _db_gravar_preco(cnpj: str, razao_social: str, municipio: str, uf: str,
-                     combustivel: str, preco: float, fonte: str = "ANP",
-                     lat: float = None, lon: float = None) -> bool:
-    """Grava snapshot de preço no histórico. Ignora duplicatas do mesmo dia."""
+                     combustivel: str, preco: float, fonte: str = "PP",
+                     lat: float = None, lon: float = None,
+                     data_ref: str = None) -> bool:
+    """Grava snapshot de preço no histórico. Ignora duplicatas (cnpj + combustivel + data_ref)."""
     db = _db_client()
     if not db or not cnpj or not preco:
         return False
     try:
         db.table("historico_precos").upsert({
             "cnpj":         cnpj,
-            "razao_social": razao_social,
-            "municipio":    municipio,
-            "uf":           uf,
+            "razao_social": razao_social or "",
+            "municipio":    municipio or "",
+            "uf":           uf or "",
             "combustivel":  combustivel,
             "preco":        round(float(preco), 3),
             "fonte":        fonte,
-            "data_ref":     datetime.now().strftime("%Y-%m-%d"),
+            "data_ref":     data_ref or datetime.now().strftime("%Y-%m-%d"),
             "lat":          lat,
             "lon":          lon,
         }, on_conflict="cnpj,combustivel,data_ref").execute()
@@ -2368,8 +2369,59 @@ _INTEL_PATH = _os_mod.path.join(
 
 # ── Persistência ────────────────────────────────────────────────────
 
+def _intel_seed_from_db(hist: dict) -> int:
+    """
+    Popula o histórico local a partir do Supabase quando o JSON está vazio.
+    Lê até 5.000 registros mais recentes e os converte para o formato interno.
+    Retorna quantidade de entradas adicionadas.
+    """
+    _db = _db_client()
+    if not _db:
+        return 0
+    try:
+        res = (_db.table("historico_precos")
+                  .select("cnpj,razao_social,municipio,uf,combustivel,preco,data_ref")
+                  .order("data_ref", desc=True)
+                  .limit(5000)
+                  .execute())
+        rows = res.data or []
+    except Exception:
+        return 0
+
+    adicionados = 0
+    for r in rows:
+        _cnpj = re.sub(r"\D", "", str(r.get("cnpj") or ""))
+        if len(_cnpj) != 14:
+            continue
+        _comb  = str(r.get("combustivel") or "").upper().strip()
+        _preco = float(r.get("preco") or 0)
+        _data  = str(r.get("data_ref") or "")[:10]
+        if not _comb or _preco <= 0 or not _data:
+            continue
+        _lista = hist.setdefault(_cnpj, [])
+        _ja = any(e.get("data") == _data and e.get("combustivel") == _comb
+                  for e in _lista)
+        if not _ja:
+            _lista.append({
+                "data":        _data,
+                "preco":       round(_preco, 3),
+                "combustivel": _comb,
+                "nome":        str(r.get("razao_social") or ""),
+                "municipio":   str(r.get("municipio") or ""),
+                "uf":          str(r.get("uf") or ""),
+            })
+            adicionados += 1
+    return adicionados
+
+
 def _intel_load() -> dict:
-    """Carrega dados de inteligência do JSON (cache por sessão)."""
+    """
+    Carrega dados de inteligência.
+    Ordem de prioridade:
+      1. Cache da sessão (mais rápido — evita releituras)
+      2. _intel_data.json local
+      3. Supabase historico_precos (fallback quando o JSON está vazio/inexistente)
+    """
     if st.session_state.get("_intel_loaded"):
         return st.session_state.get("_intel_data", {})
     try:
@@ -2383,6 +2435,19 @@ def _intel_load() -> dict:
     _data.setdefault("historico", {})   # {cnpj14: [{data, preco, combustivel, nome, municipio, uf}]}
     _data.setdefault("limiar",    {})   # {combustivel: float}
     _data.setdefault("last_report", None)
+
+    # Se o histórico local está vazio, tenta recuperar do Supabase
+    # (acontece quando o servidor reinicia e perde o _intel_data.json)
+    if not _data["historico"]:
+        _n_seed = _intel_seed_from_db(_data["historico"])
+        if _n_seed > 0:
+            # Persiste imediatamente no JSON local para próximas leituras
+            try:
+                with open(_INTEL_PATH, "w", encoding="utf-8") as _f:
+                    _json_mod.dump(_data, _f, ensure_ascii=False, separators=(",", ":"))
+            except Exception:
+                pass
+
     st.session_state["_intel_data"]   = _data
     st.session_state["_intel_loaded"] = True
     return _data
@@ -2473,11 +2538,11 @@ def _hist_record_lote(
 
 def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     """
-    Registra preços do _pp_df normalizado no histórico.
+    Registra preços do _pp_df normalizado no histórico local (JSON) E no Supabase.
 
     _pp_df tem colunas: cnpj_norm, combustivel_pk, combustivel_label,
                         preco, data_atualizacao.
-    Retorna quantidade de novos registros adicionados.
+    Retorna quantidade de novos registros adicionados ao histórico local.
     """
     if pp_df is None or pp_df.empty:
         return 0
@@ -2485,9 +2550,30 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     # Data de referência: usa data_atualizacao se disponível, senão hoje
     _hoje = datetime.now().strftime("%Y-%m-%d")
 
+    # Lookup de localização: CNPJ → {razao_social, municipio, uf, lat, lon}
+    # Usamos pf_coords_df (postos GF) para enriquecer os registros no Supabase
+    _pf_lookup: dict = {}
+    try:
+        _pf_ss = st.session_state.get("pf_coords_df")
+        if _pf_ss is not None and not _pf_ss.empty and "cnpj" in _pf_ss.columns:
+            for _, _r in _pf_ss.iterrows():
+                _c14 = re.sub(r"\D", "", str(_r.get("cnpj", "") or ""))
+                if len(_c14) == 14:
+                    _pf_lookup[_c14] = {
+                        "razao_social": str(_r.get("razaoSocial") or _r.get("razao_social") or ""),
+                        "municipio":    str(_r.get("municipio") or ""),
+                        "uf":           str(_r.get("uf") or ""),
+                        "lat":          _r.get("lat") or _r.get("_lat"),
+                        "lon":          _r.get("lon") or _r.get("_lon"),
+                    }
+    except Exception:
+        pass
+
     intel = _intel_load()
     hist  = intel["historico"]
     novos = 0
+    # Acumula registros novos para envio em lote ao Supabase
+    _db_novos: list = []
 
     for _, row in pp_df.iterrows():
         _cnpj = str(row.get("cnpj_norm", "") or "").strip()
@@ -2515,19 +2601,48 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
             for e in _lista
         )
         if not _ja_tem:
+            _loc = _pf_lookup.get(_cnpj, {})
             _lista.append({
                 "data":        _data,
                 "preco":       round(float(_preco), 3),
                 "combustivel": _comb,
+                "nome":        _loc.get("razao_social", ""),
+                "municipio":   _loc.get("municipio", ""),
+                "uf":          _loc.get("uf", ""),
             })
             if len(_lista) > 52:
                 _lista[:] = sorted(_lista, key=lambda e: e.get("data", ""))[-52:]
             novos += 1
+            # Prepara para gravação no Supabase
+            _db_novos.append({
+                "cnpj":        _cnpj,
+                "razao_social": _loc.get("razao_social", ""),
+                "municipio":   _loc.get("municipio", ""),
+                "uf":          _loc.get("uf", ""),
+                "combustivel": _comb,
+                "preco":       round(float(_preco), 3),
+                "data_ref":    _data,
+                "lat":         _loc.get("lat"),
+                "lon":         _loc.get("lon"),
+                "fonte":       "PP",
+            })
 
     if novos > 0:
+        # 1. Persiste no JSON local (cache rápido para a sessão)
         _intel_save(intel)
-        # Invalida o cache da sessão para que os KPIs sejam atualizados
         st.session_state.pop("_intel_loaded", None)
+
+        # 2. Persiste no Supabase (armazenamento permanente)
+        _db = _db_client()
+        if _db and _db_novos:
+            try:
+                _db.table("historico_precos").upsert(
+                    _db_novos,
+                    on_conflict="cnpj,combustivel,data_ref",
+                ).execute()
+            except Exception:
+                pass   # falha silenciosa — JSON local já garantiu o dado
+
     return novos
 
 
