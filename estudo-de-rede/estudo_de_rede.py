@@ -15093,7 +15093,9 @@ if modo == "📊 Dashboard":
             _ex_pp     = st.session_state.get("_pp_df")
             _ex_anp_c  = st.session_state.get("_precos_anp_cache", {})
             _ex_sheets = _ex_anp_c.get("sheets")
-            _ex_hist   = (st.session_state.get("_intel_data") or {}).get("historico", {})
+            # Carrega histórico via _intel_load() que busca do Supabase
+            # (session_state["_intel_data"] nunca é populado — chave errada)
+            _ex_hist   = _intel_load().get("historico", {})
 
             _EX_ANP_FALLBACK = {
                 "GASOLINA COMUM": 6.30, "DIESEL S10": 6.05,
