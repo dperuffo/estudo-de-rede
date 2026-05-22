@@ -21802,25 +21802,53 @@ elif modo == "🚛 Análise de Cliente":
                     _df_sv["_preco_gf_ref"] = _df_sv["_apk"].map(_gf_preco_med)
 
                     # ── Join com acordos vigentes (posto×frota×combustível) ──
+                    # Chave comum: cnpj normalizado 14 dígitos + apk via _PP_PARA_ANP_PK
+                    def _norm14(v):
+                        return re.sub(r"\D", "", str(v or "")).zfill(14)
+
+                    def _comb_to_apk(comb_str):
+                        """Mapeia nome do combustível (acordos) → mesma pk de _df_sv["_apk"]."""
+                        return _PP_PARA_ANP_PK.get(
+                            str(comb_str).upper().strip(),
+                            str(comb_str).upper().strip()
+                        )
+
                     if not _ac_vig_sv.empty and "_cnpj_posto" in _df_sv.columns:
-                        _df_sv["_cnpj_posto_norm"] = _df_sv["_cnpj_posto"].apply(
-                            lambda v: re.sub(r"\D", "", str(v or ""))
+                        _df_sv["_cnpj_posto_norm"] = _df_sv["_cnpj_posto"].apply(_norm14)
+                        _df_sv["_cnpj_frota_norm"] = (
+                            _df_sv["_cnpj_frota"].apply(_norm14)
+                            if "_cnpj_frota" in _df_sv.columns
+                            else _pd.Series("", index=_df_sv.index)
                         )
-                        _df_sv["_cnpj_frota_norm"] = _df_sv.get("_cnpj_frota", _pd.Series("", index=_df_sv.index)).apply(
-                            lambda v: re.sub(r"\D", "", str(v or ""))
-                        )
-                        # Monta lookup: (cnpj_posto, cnpj_frota, combustivel_pk) → preco_negociado
-                        _ac_lkp = {}
+
+                        # Monta dois lookups:
+                        #   _ac_lkp3: (cnpj_posto, cnpj_frota, apk) → preco  [match exato]
+                        #   _ac_lkp2: (cnpj_posto, apk)             → preco  [fallback sem frota]
+                        _ac_lkp3 = {}
+                        _ac_lkp2 = {}
                         for _, _acr in _ac_vig_sv.iterrows():
-                            _ck = (_acr.get("cnpj_posto",""), _acr.get("cnpj_frota",""),
-                                   _ACORDOS_PARA_PK.get(str(_acr.get("combustivel","")).lower(),
-                                                         str(_acr.get("combustivel","")).upper()))
-                            _ac_lkp[_ck] = float(_acr.get("preco_negociado") or 0)
+                            _cp  = _norm14(_acr.get("cnpj_posto",""))
+                            _cf  = _norm14(_acr.get("cnpj_frota",""))
+                            _apk = _comb_to_apk(_acr.get("combustivel",""))
+                            _pn  = float(_acr.get("preco_negociado") or 0)
+                            if _pn > 0:
+                                _ac_lkp3[(_cp, _cf, _apk)] = _pn
+                                # fallback: guarda apenas se ainda não existe
+                                # (preferir menor preço em caso de múltiplos acordos por posto)
+                                if (_cp, _apk) not in _ac_lkp2 or _pn < _ac_lkp2[(_cp, _apk)]:
+                                    _ac_lkp2[(_cp, _apk)] = _pn
+
                         def _get_preco_acord(row):
-                            _ck = (row.get("_cnpj_posto_norm",""),
-                                   row.get("_cnpj_frota_norm",""),
-                                   row.get("_apk",""))
-                            return _ac_lkp.get(_ck)
+                            _cp  = row.get("_cnpj_posto_norm","")
+                            _cf  = row.get("_cnpj_frota_norm","")
+                            _apk = row.get("_apk","")
+                            # Tenta match 3 vias primeiro
+                            _p = _ac_lkp3.get((_cp, _cf, _apk))
+                            if _p is None:
+                                # Fallback: match por posto+combustível (ignora frota)
+                                _p = _ac_lkp2.get((_cp, _apk))
+                            return _p
+
                         _df_sv["_preco_acordado"] = _df_sv.apply(_get_preco_acord, axis=1)
                     else:
                         _df_sv["_preco_acordado"] = _np.nan
