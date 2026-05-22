@@ -21986,6 +21986,52 @@ elif modo == "🚛 Análise de Cliente":
                         icon="🏁",
                     )
                 else:
+                    # ── Legenda: o que é Rede GF vs Fora da Rede ─────────
+                    _n_postos_gf = len(_rg_gf_cnpjs)
+                    st.markdown(
+                        f"""
+                        <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
+                          <div style="flex:1;min-width:240px;background:#e8f0fe;
+                                      border-left:5px solid #1565C0;border-radius:8px;
+                                      padding:14px 18px;">
+                            <div style="font-size:1rem;font-weight:800;color:#0d47a1;
+                                        margin-bottom:4px;">
+                              ✅ Rede GF — Postos Credenciados
+                            </div>
+                            <div style="font-size:.88rem;color:#1a237e;line-height:1.55">
+                              Postos que fazem parte da rede <b>Gestão de Frotas</b>
+                              e estão cadastrados no sistema.<br>
+                              <b>{_n_postos_gf:,} postos</b> ativos na rede.
+                            </div>
+                            <div style="margin-top:8px;font-size:.8rem;color:#1565C0;
+                                        background:#fff;border-radius:5px;padding:5px 10px;
+                                        display:inline-block;">
+                              CNPJ reconhecido · Condições negociadas · Preço acordado
+                            </div>
+                          </div>
+                          <div style="flex:1;min-width:240px;background:#fce4ec;
+                                      border-left:5px solid #c62828;border-radius:8px;
+                                      padding:14px 18px;">
+                            <div style="font-size:1rem;font-weight:800;color:#b71c1c;
+                                        margin-bottom:4px;">
+                              ❌ Fora da Rede — Postos Externos
+                            </div>
+                            <div style="font-size:.88rem;color:#7f0000;line-height:1.55">
+                              Postos onde a frota abasteceu mas que
+                              <b>não estão cadastrados</b> na rede GF.<br>
+                              Sem controle de preço · Sem condições negociadas.
+                            </div>
+                            <div style="margin-top:8px;font-size:.8rem;color:#c62828;
+                                        background:#fff;border-radius:5px;padding:5px 10px;
+                                        display:inline-block;">
+                              ⚠️ Risco de preço acima do mercado · Sem rastreabilidade
+                            </div>
+                          </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
                     # ── Classifica cada abastecimento ────────────────────
                     _rg_df = _df.copy()
                     _rg_df["_cnpj_norm"] = _rg_df["_cnpj_posto"].apply(
