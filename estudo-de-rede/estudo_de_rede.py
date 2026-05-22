@@ -2680,6 +2680,10 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     if pp_df is None or pp_df.empty:
         return 0
 
+    # Limpa erro anterior imediatamente — evita que erros de runs anteriores
+    # fiquem visíveis quando o Supabase não é chamado (pp_df vazio, sem conexão…)
+    st.session_state.pop("_hist_db_erro", None)
+
     _hoje = datetime.now().strftime("%Y-%m-%d")
 
     # ── Lookup de localização: CNPJ → {razao_social, municipio, uf, lat, lon} ──
@@ -2793,16 +2797,16 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
                     _db.table("historico_precos").insert(_sr).execute()
                 except Exception as _ei:
                     _emsg = str(_ei)
-                    # 23505 = unique_violation → registro já existe, ignorar
-                    if "23505" in _emsg or "duplicate" in _emsg.lower() or "unique" in _emsg.lower():
-                        pass
+                    # Só ignorar violação de unicidade real (código 23505)
+                    # NÃO ignorar outros erros como 21000, conexão, permissão etc.
+                    if "23505" in _emsg:
+                        pass   # registro já existe no banco — ok
                     else:
                         _falhas += 1
                         _ultimo_erro = _emsg
             if _falhas > 0:
                 st.session_state["_hist_db_erro"] = _ultimo_erro
-            else:
-                st.session_state.pop("_hist_db_erro", None)
+            # else: já foi limpo no início da função
 
     return novos
 
