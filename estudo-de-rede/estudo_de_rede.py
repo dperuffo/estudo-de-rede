@@ -2787,26 +2787,18 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     if _supabase_registros:
         _db = _db_client()
         if _db:
-            # Estratégia: INSERT puro por registro, capturando violação de unicidade
-            # (23505) como "já existe — ignorar". Evita ON CONFLICT DO UPDATE
-            # que gera erro 21000 quando o PostgREST ignora ignore_duplicates=True.
-            _falhas = 0
-            _ultimo_erro = ""
-            for _sr in _supabase_registros:
-                try:
-                    _db.table("historico_precos").insert(_sr).execute()
-                except Exception as _ei:
-                    _emsg = str(_ei)
-                    # Só ignorar violação de unicidade real (código 23505)
-                    # NÃO ignorar outros erros como 21000, conexão, permissão etc.
-                    if "23505" in _emsg:
-                        pass   # registro já existe no banco — ok
-                    else:
-                        _falhas += 1
-                        _ultimo_erro = _emsg
-            if _falhas > 0:
-                st.session_state["_hist_db_erro"] = _ultimo_erro
-            # else: já foi limpo no início da função
+            # Usa RPC fn_inserir_historico — função SQL que faz
+            # INSERT ... ON CONFLICT DO NOTHING diretamente no banco,
+            # contornando qualquer comportamento do driver PostgREST.
+            try:
+                import json as _json
+                _db.rpc(
+                    "fn_inserir_historico",
+                    {"p_data": _json.dumps(_supabase_registros, default=str)},
+                ).execute()
+                # erro já foi limpo no início da função
+            except Exception as _ei:
+                st.session_state["_hist_db_erro"] = str(_ei)
 
     return novos
 
