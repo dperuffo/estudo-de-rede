@@ -14478,7 +14478,7 @@ if modo == "📊 Dashboard":
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
         # ── Tabs do dashboard ─────────────────────────────────────────────
-        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8, _dt9 = st.tabs([
+        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8, _dt9, _dt10 = st.tabs([
             "📊 Cobertura por Estado",
             "🎯 Penetração vs ANP",
             "🗺️ Mapa de Densidade",
@@ -14488,6 +14488,7 @@ if modo == "📊 Dashboard":
             "👔 Executivo",
             "🚦 Operacional",
             "🛣️ Eficiência de Rotas",
+            "📈 Evolução Temporal",
         ])
 
         # ──────────────────────────────────────────────────────────────────
@@ -17027,6 +17028,388 @@ if modo == "📊 Dashboard":
             )
 
             st.dataframe(_rt_tbl, use_container_width=True, hide_index=True)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TAB 10 — 📈 Evolução Temporal
+    # ══════════════════════════════════════════════════════════════════════════
+    with _dt10:
+        # ── Header ───────────────────────────────────────────────────────────
+        st.markdown(
+            """
+            <div style="background:linear-gradient(90deg,#040d26,#0b2660);
+                        border-radius:10px;padding:18px 24px;margin-bottom:20px;">
+              <h3 style="color:#fff;margin:0;font-size:1.25rem;">
+                📈 Evolução Temporal de Preços
+              </h3>
+              <p style="color:#a8c4f0;margin:4px 0 0;font-size:.85rem;">
+                Tendência por região · Volatilidade · Ranking de estabilidade dos postos
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # ── Carrega histórico ─────────────────────────────────────────────────
+        _ev_intel  = _intel_load()
+        _ev_hist   = _ev_intel.get("historico") or {}
+
+        # Flatten {cnpj: [{data, preco, combustivel, nome, municipio, uf}]} → DataFrame
+        _ev_rows = []
+        for _ev_cnpj, _ev_entries in _ev_hist.items():
+            for _ev_e in (_ev_entries or []):
+                _ev_rows.append({
+                    "cnpj":       _ev_cnpj,
+                    "data":       _ev_e.get("data"),
+                    "preco":      _ev_e.get("preco"),
+                    "combustivel":_ev_e.get("combustivel", ""),
+                    "nome":       _ev_e.get("nome", ""),
+                    "municipio":  _ev_e.get("municipio", ""),
+                    "uf":         _ev_e.get("uf", ""),
+                })
+
+        if not _ev_rows:
+            st.info(
+                "Histórico de preços ainda vazio. "
+                "Carregue planilhas de postos para começar a acumular dados.",
+                icon="📈",
+            )
+        else:
+            _ev_df = pd.DataFrame(_ev_rows)
+            _ev_df["data"]  = pd.to_datetime(_ev_df["data"], errors="coerce")
+            _ev_df["preco"] = pd.to_numeric(_ev_df["preco"], errors="coerce")
+            _ev_df = _ev_df.dropna(subset=["data", "preco"])
+            _ev_df["semana"] = _ev_df["data"].dt.to_period("W").apply(lambda p: p.start_time)
+            _ev_df["mes"]    = _ev_df["data"].dt.to_period("M").apply(lambda p: p.start_time)
+
+            # ── Filtros ───────────────────────────────────────────────────────
+            _ev_fc1, _ev_fc2, _ev_fc3 = st.columns([2, 2, 2])
+            with _ev_fc1:
+                _ev_combs = sorted(_ev_df["combustivel"].dropna().unique().tolist())
+                _ev_comb_sel = st.selectbox(
+                    "⛽ Combustível", _ev_combs,
+                    key="ev_comb_sel",
+                )
+            with _ev_fc2:
+                _ev_ufs_disp = ["Todos"] + sorted(_ev_df["uf"].dropna().unique().tolist())
+                _ev_uf_sel = st.selectbox("🗺️ UF", _ev_ufs_disp, key="ev_uf_sel")
+            with _ev_fc3:
+                _ev_gran = st.selectbox(
+                    "📅 Granularidade", ["Semanal", "Mensal"],
+                    key="ev_gran_sel",
+                )
+
+            # Aplica filtros
+            _ev_filt = _ev_df[_ev_df["combustivel"] == _ev_comb_sel].copy()
+            if _ev_uf_sel != "Todos":
+                _ev_filt = _ev_filt[_ev_filt["uf"] == _ev_uf_sel]
+
+            _ev_periodo = "semana" if _ev_gran == "Semanal" else "mes"
+
+            if _ev_filt.empty:
+                st.warning("Nenhum dado para os filtros selecionados.", icon="⚠️")
+            else:
+                st.markdown("---")
+
+                # ══ SEÇÃO 1 — Tendência por região ═══════════════════════════
+                st.markdown("### 🗺️ Tendência de preço por UF")
+
+                _ev_tend = (
+                    _ev_filt.groupby(["uf", _ev_periodo])["preco"]
+                    .mean()
+                    .reset_index()
+                    .rename(columns={_ev_periodo: "periodo", "preco": "preco_medio"})
+                )
+
+                # Filtra UFs com pelo menos 2 pontos no tempo
+                _ev_uf_ok = (
+                    _ev_tend.groupby("uf")["periodo"].nunique()
+                    .where(lambda s: s >= 2)
+                    .dropna()
+                    .index.tolist()
+                )
+                _ev_tend_plot = _ev_tend[_ev_tend["uf"].isin(_ev_uf_ok)]
+
+                if _ev_tend_plot.empty:
+                    st.info(
+                        "Dados insuficientes para traçar tendências regionais. "
+                        "São necessários pelo menos 2 períodos por UF.",
+                        icon="🗺️",
+                    )
+                else:
+                    # Paleta de cores FNI
+                    _ev_cores = [
+                        "#1040a0","#1565C0","#1976D2","#42A5F5","#90CAF9",
+                        "#0b2660","#071840","#2979FF","#448AFF","#82B1FF",
+                    ]
+                    _ev_ufs_list = sorted(_ev_tend_plot["uf"].unique().tolist())
+                    _fig_tend = go.Figure()
+                    for _i_uf, _uf_t in enumerate(_ev_ufs_list):
+                        _uf_data = _ev_tend_plot[_ev_tend_plot["uf"] == _uf_t].sort_values("periodo")
+                        _fig_tend.add_trace(go.Scatter(
+                            x=_uf_data["periodo"],
+                            y=_uf_data["preco_medio"],
+                            mode="lines+markers",
+                            name=_uf_t,
+                            line=dict(color=_ev_cores[_i_uf % len(_ev_cores)], width=2),
+                            marker=dict(size=5),
+                            hovertemplate=(
+                                f"<b>{_uf_t}</b><br>"
+                                "Período: %{x|%d/%m/%Y}<br>"
+                                "Preço médio: R$ %{y:.3f}<extra></extra>"
+                            ),
+                        ))
+                    _fig_tend.update_layout(
+                        height=380,
+                        margin=dict(l=10, r=10, t=20, b=40),
+                        xaxis_title="Período",
+                        yaxis_title="R$/L",
+                        paper_bgcolor="white",
+                        plot_bgcolor="#f9fbff",
+                        legend=dict(
+                            orientation="h", yanchor="bottom", y=1.02,
+                            xanchor="left", x=0, font_size=11,
+                        ),
+                        font_size=11,
+                        hovermode="x unified",
+                    )
+                    st.plotly_chart(_fig_tend, use_container_width=True)
+
+                    # Insight: UF com maior alta no período
+                    try:
+                        _ev_delta_uf = (
+                            _ev_tend_plot.sort_values("periodo")
+                            .groupby("uf")
+                            .apply(lambda g: (g["preco_medio"].iloc[-1] - g["preco_medio"].iloc[0])
+                                   / g["preco_medio"].iloc[0] * 100)
+                            .sort_values(ascending=False)
+                        )
+                        if not _ev_delta_uf.empty:
+                            _uf_alta  = _ev_delta_uf.index[0]
+                            _uf_queda = _ev_delta_uf.index[-1]
+                            _pct_alta  = _ev_delta_uf.iloc[0]
+                            _pct_queda = _ev_delta_uf.iloc[-1]
+                            _ins_col1, _ins_col2 = st.columns(2)
+                            with _ins_col1:
+                                _cor_a = "#e53935" if _pct_alta > 0 else "#43a047"
+                                _ico_a = "📈" if _pct_alta > 0 else "📉"
+                                st.markdown(
+                                    f'<div style="background:#fff3f3;border-left:4px solid {_cor_a};'
+                                    f'border-radius:6px;padding:10px 14px;font-size:.9rem;">'
+                                    f'<b>{_ico_a} {_uf_alta}</b> — variação de <b>{_pct_alta:+.1f}%</b>'
+                                    f" no período</div>",
+                                    unsafe_allow_html=True,
+                                )
+                            with _ins_col2:
+                                _cor_q = "#43a047" if _pct_queda < 0 else "#e53935"
+                                _ico_q = "📉" if _pct_queda < 0 else "📈"
+                                st.markdown(
+                                    f'<div style="background:#f3fff3;border-left:4px solid {_cor_q};'
+                                    f'border-radius:6px;padding:10px 14px;font-size:.9rem;">'
+                                    f'<b>{_ico_q} {_uf_queda}</b> — variação de <b>{_pct_queda:+.1f}%</b>'
+                                    f" no período</div>",
+                                    unsafe_allow_html=True,
+                                )
+                    except Exception:
+                        pass
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # ══ SEÇÃO 2 — Volatilidade de preços ═════════════════════════
+                st.markdown("### 🌊 Volatilidade de preços por UF")
+                st.caption(
+                    "Desvio padrão do preço médio semanal/mensal por estado — "
+                    "quanto maior, mais instável o preço na região."
+                )
+
+                _ev_vol = (
+                    _ev_filt.groupby(["uf", _ev_periodo])["preco"]
+                    .mean()
+                    .reset_index()
+                    .groupby("uf")["preco"]
+                    .agg(media="mean", std="std", n="count")
+                    .reset_index()
+                    .dropna(subset=["std"])
+                )
+                _ev_vol = _ev_vol[_ev_vol["n"] >= 2].sort_values("std", ascending=False)
+
+                if _ev_vol.empty:
+                    st.info("Dados insuficientes para calcular volatilidade.", icon="🌊")
+                else:
+                    _ev_vol["cv"] = _ev_vol["std"] / _ev_vol["media"] * 100
+                    _ev_vol["cor_vol"] = _ev_vol["std"].apply(
+                        lambda v: "#e53935" if v > _ev_vol["std"].quantile(0.75)
+                        else ("#f57c00" if v > _ev_vol["std"].quantile(0.5) else "#43a047")
+                    )
+
+                    _vol_c1, _vol_c2 = st.columns(2)
+
+                    with _vol_c1:
+                        _fig_vol = go.Figure(go.Bar(
+                            x=_ev_vol["std"],
+                            y=_ev_vol["uf"],
+                            orientation="h",
+                            marker_color=_ev_vol["cor_vol"].tolist(),
+                            text=_ev_vol["std"].apply(lambda v: f"R$ {v:.4f}"),
+                            textposition="outside",
+                            hovertemplate=(
+                                "<b>%{y}</b><br>"
+                                "Desvio padrão: R$ %{x:.4f}<extra></extra>"
+                            ),
+                        ))
+                        _fig_vol.update_layout(
+                            height=max(280, len(_ev_vol) * 32),
+                            margin=dict(l=10, r=80, t=10, b=20),
+                            xaxis_title="Desvio padrão (R$/L)",
+                            paper_bgcolor="white",
+                            plot_bgcolor="#f9fbff",
+                            font_size=11,
+                        )
+                        st.plotly_chart(_fig_vol, use_container_width=True)
+
+                    with _vol_c2:
+                        # Gráfico de coeficiente de variação (%)
+                        _ev_vol_cv = _ev_vol.sort_values("cv", ascending=False)
+                        _ev_vol_cv["cor_cv"] = _ev_vol_cv["cv"].apply(
+                            lambda v: "#e53935" if v > 5 else ("#f57c00" if v > 2 else "#43a047")
+                        )
+                        _fig_cv = go.Figure(go.Bar(
+                            x=_ev_vol_cv["cv"],
+                            y=_ev_vol_cv["uf"],
+                            orientation="h",
+                            marker_color=_ev_vol_cv["cor_cv"].tolist(),
+                            text=_ev_vol_cv["cv"].apply(lambda v: f"{v:.1f}%"),
+                            textposition="outside",
+                            hovertemplate=(
+                                "<b>%{y}</b><br>"
+                                "Coef. variação: %{x:.1f}%<extra></extra>"
+                            ),
+                        ))
+                        _fig_cv.update_layout(
+                            height=max(280, len(_ev_vol_cv) * 32),
+                            margin=dict(l=10, r=60, t=10, b=20),
+                            xaxis_title="Coeficiente de variação (%)",
+                            paper_bgcolor="white",
+                            plot_bgcolor="#f9fbff",
+                            font_size=11,
+                        )
+                        st.caption("Coeficiente de variação = std / média (%). Verde < 2% · Laranja 2–5% · Vermelho > 5%")
+                        st.plotly_chart(_fig_cv, use_container_width=True)
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # ══ SEÇÃO 3 — Ranking de estabilidade por posto ══════════════
+                st.markdown("### 🏆 Ranking de estabilidade por posto")
+                st.caption(
+                    "Postos com histórico de pelo menos 3 registros, "
+                    "ordenados pelo menor coeficiente de variação de preço."
+                )
+
+                _ev_rank = (
+                    _ev_filt.groupby(["cnpj", "nome", "municipio", "uf"])["preco"]
+                    .agg(media="mean", std="std", n="count", min="min", max="max")
+                    .reset_index()
+                )
+                _ev_rank = _ev_rank[_ev_rank["n"] >= 3].copy()
+                _ev_rank["cv_pct"] = (_ev_rank["std"] / _ev_rank["media"] * 100).fillna(0)
+                _ev_rank["amplitude"] = _ev_rank["max"] - _ev_rank["min"]
+                _ev_rank = _ev_rank.sort_values("cv_pct")
+
+                if _ev_rank.empty:
+                    st.info(
+                        "Nenhum posto com 3 ou mais registros ainda. "
+                        "Continue carregando planilhas para acumular histórico.",
+                        icon="🏆",
+                    )
+                else:
+                    # Top 10 mais estáveis — cards visuais
+                    st.markdown("#### 🥇 Top 10 mais estáveis")
+                    _top10 = _ev_rank.head(10)
+                    _rank_cols = st.columns(min(5, len(_top10)))
+                    for _ri, (_ridx, _rrow) in enumerate(_top10.iterrows()):
+                        with _rank_cols[_ri % len(_rank_cols)]:
+                            _medal = ["🥇","🥈","🥉"] if _ri < 3 else [f"#{_ri+1}"]
+                            _medal = _medal[0] if _ri < 3 else f"#{_ri+1}"
+                            _cv_v = _rrow["cv_pct"]
+                            _cor_card = (
+                                "#e8f5e9" if _cv_v < 1
+                                else "#fff8e1" if _cv_v < 3
+                                else "#fce4ec"
+                            )
+                            _bord = (
+                                "#43a047" if _cv_v < 1
+                                else "#f57c00" if _cv_v < 3
+                                else "#e53935"
+                            )
+                            _nome_curto = (_rrow["nome"][:22] + "…") if len(_rrow["nome"]) > 22 else _rrow["nome"]
+                            st.markdown(
+                                f'<div style="background:{_cor_card};border:1.5px solid {_bord};'
+                                f'border-radius:8px;padding:10px 12px;margin-bottom:8px;'
+                                f'text-align:center;">'
+                                f'<div style="font-size:1.4rem">{_medal}</div>'
+                                f'<div style="font-weight:700;font-size:.82rem;color:#1a1a2e;'
+                                f'margin:4px 0 2px;line-height:1.2">{_nome_curto}</div>'
+                                f'<div style="font-size:.75rem;color:#555">{_rrow["municipio"]}/{_rrow["uf"]}</div>'
+                                f'<div style="font-size:.9rem;font-weight:700;color:{_bord};margin-top:6px">'
+                                f'CV {_cv_v:.2f}%</div>'
+                                f'<div style="font-size:.75rem;color:#777">R$ {_rrow["media"]:.3f} médio</div>'
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # Gráfico — CV dos top 20
+                    st.markdown("#### 📊 Distribuição de estabilidade (top 20 postos)")
+                    _top20 = _ev_rank.head(20).copy()
+                    _top20["label"] = _top20.apply(
+                        lambda r: (r["nome"][:25] + "…" if len(r["nome"]) > 25 else r["nome"])
+                        + f" ({r['uf']})",
+                        axis=1,
+                    )
+                    _top20["cor_rank"] = _top20["cv_pct"].apply(
+                        lambda v: "#43a047" if v < 1 else ("#f57c00" if v < 3 else "#e53935")
+                    )
+                    _fig_rank = go.Figure(go.Bar(
+                        x=_top20["cv_pct"],
+                        y=_top20["label"],
+                        orientation="h",
+                        marker_color=_top20["cor_rank"].tolist(),
+                        text=_top20["cv_pct"].apply(lambda v: f"{v:.2f}%"),
+                        textposition="outside",
+                        hovertemplate=(
+                            "<b>%{y}</b><br>"
+                            "CV: %{x:.2f}%<extra></extra>"
+                        ),
+                    ))
+                    _fig_rank.update_layout(
+                        height=max(400, len(_top20) * 26),
+                        margin=dict(l=10, r=70, t=10, b=20),
+                        xaxis_title="Coeficiente de variação (%)",
+                        paper_bgcolor="white",
+                        plot_bgcolor="#f9fbff",
+                        font_size=11,
+                    )
+                    st.plotly_chart(_fig_rank, use_container_width=True)
+
+                    # Tabela completa com busca
+                    st.markdown("#### 📋 Tabela completa de estabilidade")
+                    _ev_rank_tbl = _ev_rank[[
+                        "nome", "municipio", "uf", "n",
+                        "media", "std", "cv_pct", "min", "max", "amplitude",
+                    ]].copy()
+                    _ev_rank_tbl.columns = [
+                        "Posto", "Município", "UF", "Registros",
+                        "Preço médio", "Desvio padrão", "CV (%)",
+                        "Mínimo", "Máximo", "Amplitude",
+                    ]
+                    for _col_fmt in ["Preço médio", "Desvio padrão", "Mínimo", "Máximo", "Amplitude"]:
+                        _ev_rank_tbl[_col_fmt] = _ev_rank_tbl[_col_fmt].apply(
+                            lambda v: f"R$ {v:.4f}" if pd.notna(v) else "—"
+                        )
+                    _ev_rank_tbl["CV (%)"] = _ev_rank_tbl["CV (%)"].apply(
+                        lambda v: f"{v:.2f}%"
+                    )
+                    st.dataframe(_ev_rank_tbl, use_container_width=True, hide_index=True)
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
