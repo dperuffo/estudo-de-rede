@@ -262,6 +262,169 @@ def _db_carregar_postos_gf_df() -> "pd.DataFrame":
     return pd.DataFrame()
 
 
+# ── Acordos de Preço (Posto × Frota × Combustível) ────────────────
+
+# Mapeamento: nome do combustível na planilha de acordos → pk usado no sistema
+_ACORDOS_PARA_PK = {
+    "diesel s-10 comum":     "DIESEL S-10 COMUM",
+    "diesel s-10 aditivado": "DIESEL S-10 ADITIVADO",
+    "diesel s-500 comum":    "DIESEL S-500 COMUM",
+    "diesel s-500 aditivado":"DIESEL S-500 ADITIVADO",
+    "gasolina comum":        "GASOLINA COMUM",
+    "gasolina aditivada":    "GASOLINA ADITIVADA",
+    "gasolina alta octanagem":"GASOLINA PREMIUM",
+    "etanol comum":          "ETANOL HIDRATADO",
+    "etanol aditivado":      "ETANOL HIDRATADO ADITIVADO",
+    "gnv":                   "GNV",
+}
+
+_ACORDOS_GITHUB_URL = (
+    "https://raw.githubusercontent.com/dperuffo/estudo-de-rede"
+    "/master/Acordos.xlsx"
+)
+
+
+def _normalizar_cnpj_str(v) -> str:
+    """Normaliza qualquer valor para string de 14 dígitos (CNPJ)."""
+    return re.sub(r"\D", "", str(int(v)) if isinstance(v, float) else str(v or "")).zfill(14)
+
+
+def _db_carregar_acordos() -> "pd.DataFrame":
+    """
+    Carrega todos os acordos de preço do Supabase.
+    Fallback: baixa Acordos.xlsx do GitHub (sempre atualizado no repo).
+    Retorna DataFrame com colunas normalizadas.
+    """
+    db = _db_client()
+    if db:
+        try:
+            res = (
+                db.table("acordos_precos")
+                  .select("cnpj_posto,nome_posto,cnpj_frota,razao_social_frota,"
+                          "combustivel,preco_negociado,va_desconto,dt_vigencia")
+                  .limit(50000)
+                  .execute()
+            )
+            if res.data:
+                _df_ac = pd.DataFrame(res.data)
+                _df_ac["dt_vigencia"] = pd.to_datetime(
+                    _df_ac["dt_vigencia"], errors="coerce"
+                )
+                return _df_ac
+        except Exception:
+            pass
+    # Fallback: GitHub
+    try:
+        import requests as _req
+        _resp = _req.get(_ACORDOS_GITHUB_URL, timeout=15)
+        if _resp.status_code == 200:
+            import io as _io
+            _df_ac = pd.read_excel(_io.BytesIO(_resp.content), sheet_name=0)
+            _df_ac = _processar_acordos_df(_df_ac)
+            return _df_ac
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
+def _processar_acordos_df(df_raw: "pd.DataFrame") -> "pd.DataFrame":
+    """
+    Normaliza o DataFrame bruto da planilha de acordos para o formato interno.
+    """
+    _col_map = {
+        "cd_frota_ptov_preco":  "cd_frota_ptov_preco",
+        "ds_tipo_combustivel":  "combustivel",
+        "Preco Negociado":      "preco_negociado",
+        "va_desconto_vigente":  "va_desconto",
+        "CNPJ do Posto":        "cnpj_posto_raw",
+        "Nome do Posto":        "nome_posto",
+        "CNPJ da Frota":        "cnpj_frota_raw",
+        "nm_razao_social":      "razao_social_frota",
+        "dt_vigencia":          "dt_vigencia",
+    }
+    df = df_raw.rename(columns={k: v for k, v in _col_map.items() if k in df_raw.columns}).copy()
+    df["cnpj_posto"]  = df["cnpj_posto_raw"].apply(_normalizar_cnpj_str)
+    df["cnpj_frota"]  = df["cnpj_frota_raw"].apply(_normalizar_cnpj_str)
+    df["combustivel_pk"] = df["combustivel"].str.lower().map(_ACORDOS_PARA_PK).fillna(
+        df["combustivel"].str.upper()
+    )
+    df["dt_vigencia"] = pd.to_datetime(df["dt_vigencia"], errors="coerce")
+    df["preco_negociado"] = pd.to_numeric(df.get("preco_negociado", pd.Series(dtype=float)), errors="coerce")
+    df["va_desconto"]     = pd.to_numeric(df.get("va_desconto", pd.Series(dtype=float)), errors="coerce")
+    return df
+
+
+def _acordos_vigentes(df_acordos: "pd.DataFrame") -> "pd.DataFrame":
+    """
+    Retorna apenas o acordo mais recente por (cnpj_posto, cnpj_frota, combustivel).
+    Usado para comparações de preço atual.
+    """
+    if df_acordos.empty:
+        return df_acordos
+    return (
+        df_acordos.sort_values("dt_vigencia", ascending=False)
+        .drop_duplicates(subset=["cnpj_posto", "cnpj_frota", "combustivel"])
+        .reset_index(drop=True)
+    )
+
+
+def _db_salvar_acordos(df_raw: "pd.DataFrame", email: str, nome_arquivo: str) -> dict:
+    """
+    Salva acordos no Supabase com versionamento.
+    Retorna {'ok': True/False, 'n_inseridos': int, 'n_duplicados': int}.
+    """
+    db = _db_client()
+    if not db:
+        return {"ok": False, "n_inseridos": 0, "n_duplicados": 0}
+    try:
+        df = _processar_acordos_df(df_raw)
+        # Cria versão
+        v_res = db.table("acordos_versoes").insert({
+            "usuario_email": email,
+            "nome_arquivo":  nome_arquivo,
+            "n_registros":   len(df),
+            "n_postos":      df["cnpj_posto"].nunique(),
+            "n_frotas":      df["cnpj_frota"].nunique(),
+        }).execute()
+        versao_id = v_res.data[0]["id"] if v_res.data else None
+
+        _rows = []
+        for _, r in df.iterrows():
+            if pd.isna(r.get("dt_vigencia")):
+                continue
+            _rows.append({
+                "cd_frota_ptov_preco": int(r["cd_frota_ptov_preco"]) if pd.notna(r.get("cd_frota_ptov_preco")) else None,
+                "cnpj_posto":          r["cnpj_posto"],
+                "nome_posto":          str(r.get("nome_posto", "") or ""),
+                "cnpj_frota":          r["cnpj_frota"],
+                "razao_social_frota":  str(r.get("razao_social_frota", "") or ""),
+                "combustivel":         str(r.get("combustivel", "") or ""),
+                "preco_negociado":     float(r["preco_negociado"]) if pd.notna(r.get("preco_negociado")) else None,
+                "va_desconto":         float(r["va_desconto"]) if pd.notna(r.get("va_desconto")) else None,
+                "dt_vigencia":         r["dt_vigencia"].isoformat(),
+                "versao_id":           versao_id,
+            })
+
+        _n_ok = _n_dup = 0
+        _BATCH = 500
+        for _i in range(0, len(_rows), _BATCH):
+            _chunk = _rows[_i:_i + _BATCH]
+            try:
+                db.table("acordos_precos").upsert(
+                    _chunk,
+                    on_conflict="cnpj_posto,cnpj_frota,combustivel,dt_vigencia"
+                ).execute()
+                _n_ok += len(_chunk)
+            except Exception as _e:
+                if "duplicate" in str(_e).lower() or "23505" in str(_e):
+                    _n_dup += len(_chunk)
+                else:
+                    raise
+        return {"ok": True, "n_inseridos": _n_ok, "n_duplicados": _n_dup}
+    except Exception as _exc:
+        return {"ok": False, "erro": str(_exc), "n_inseridos": 0, "n_duplicados": 0}
+
+
 # ── Postos Favoritos ───────────────────────────────────────────────
 
 def _db_favoritos() -> list:
@@ -9859,6 +10022,12 @@ with st.sidebar:
             st.session_state["_pp_fonte"]       = "repo"
             st.session_state["_pp_carregado_em"] = _agora()
 
+    # ── Carrega acordos de preço (Supabase → fallback GitHub) ─────
+    if "acordos_df" not in st.session_state and not st.session_state.get("_acordos_tentado"):
+        st.session_state["_acordos_tentado"] = True
+        _ac_loaded = _db_carregar_acordos()
+        st.session_state["acordos_df"] = _ac_loaded
+
     # ── Modo de consulta — toggle buttons ─────────────────────
     # Banner: sutil quando Menu.jpg existe, com gradiente quando não existe
     if _MENU_B64:
@@ -10899,7 +11068,7 @@ with st.sidebar:
                         st.session_state["_cfg_senha_errada"] = True
                 if st.session_state.get("_cfg_senha_errada", False):
                     st.error("❌ Senha incorreta. Tente novamente.")
-            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = tab_logs = tab_intel = None
+            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = tab_logs = tab_intel = tab_acordos = None
         else:
             _col_cfg_lock, _ = st.columns([1, 5])
             with _col_cfg_lock:
@@ -10908,9 +11077,10 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel = st.tabs(
+            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel, tab_acordos = st.tabs(
                 ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
-                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "🧠 Inteligência"]
+                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "🧠 Inteligência",
+                 "🤝 Acordos de Preço"]
             )
 
         # ── Tab Gestão de Frotas ────────────────────────────────────
@@ -11783,6 +11953,102 @@ with st.sidebar:
                     use_container_width=True,
                     key="btn_intel_download_rel",
                 )
+
+        # ── Tab Acordos de Preço ──────────────────────────────────────────────
+        if tab_acordos is not None:
+         with tab_acordos:
+            st.markdown("#### 🤝 Acordos de Preço — Posto × Frota × Combustível")
+            st.caption(
+                "Preços negociados entre postos GF e clientes frota. "
+                "Usados em comparações com o preço a vista do posto e com a ANP."
+            )
+
+            # ── Status da base carregada ─────────────────────────────────────
+            if "acordos_df" not in st.session_state:
+                with st.spinner("Carregando acordos do banco de dados…"):
+                    _ac_df_load = _db_carregar_acordos()
+                    st.session_state["acordos_df"] = _ac_df_load
+
+            _ac_df: pd.DataFrame = st.session_state.get("acordos_df", pd.DataFrame())
+            _ac_vigentes = _acordos_vigentes(_ac_df) if not _ac_df.empty else pd.DataFrame()
+
+            if not _ac_df.empty:
+                _ac_n_reg    = len(_ac_df)
+                _ac_n_postos = _ac_df["cnpj_posto"].nunique() if "cnpj_posto" in _ac_df.columns else 0
+                _ac_n_frotas = _ac_df["cnpj_frota"].nunique() if "cnpj_frota" in _ac_df.columns else 0
+                _ac_dt_max   = pd.to_datetime(_ac_df["dt_vigencia"], errors="coerce").max() if "dt_vigencia" in _ac_df.columns else None
+                _ac_kc1, _ac_kc2, _ac_kc3, _ac_kc4 = st.columns(4)
+                _ac_kstyle = "border-radius:8px;padding:12px;text-align:center;background:#f0f4ff;border:1.5px solid #1040a0;"
+                _ac_kc1.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{_ac_n_reg:,}</div><div style="font-size:.78rem;color:#555">Acordos históricos</div></div>', unsafe_allow_html=True)
+                _ac_kc2.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{len(_ac_vigentes):,}</div><div style="font-size:.78rem;color:#555">Acordos vigentes</div></div>', unsafe_allow_html=True)
+                _ac_kc3.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{_ac_n_postos:,}</div><div style="font-size:.78rem;color:#555">Postos com acordo</div></div>', unsafe_allow_html=True)
+                _ac_kc4.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{_ac_n_frotas:,}</div><div style="font-size:.78rem;color:#555">Frotas cobertas</div></div>', unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+                if _ac_dt_max and pd.notna(_ac_dt_max):
+                    st.success(f"✅ Base de acordos carregada — vigência mais recente: **{_ac_dt_max.strftime('%d/%m/%Y %H:%M')}**")
+            else:
+                st.warning("⚠️ Nenhum acordo carregado. Faça upload abaixo ou aguarde o carregamento automático do repositório.")
+
+            st.markdown("---")
+
+            # ── Upload de nova planilha ──────────────────────────────────────
+            st.markdown("##### 📤 Atualizar base de acordos")
+            st.info(
+                "📌 Faça upload da planilha **Acordos.xlsx** sempre que houver atualização.\n\n"
+                "A base é gravada no banco de dados e ficará disponível para todos os usuários. "
+                "O repositório GitHub é mantido atualizado como fallback automático.",
+                icon="🤝",
+            )
+            _ac_upfile = st.file_uploader(
+                "Planilha de Acordos de Preço",
+                type=["xlsx", "xls"],
+                key="acordos_uploader",
+                help="Arquivo com colunas: CNPJ do Posto, CNPJ da Frota, ds_tipo_combustivel, Preco Negociado, dt_vigencia",
+            )
+            if _ac_upfile is not None:
+                _ac_fid = f"{_ac_upfile.name}_{_ac_upfile.size}"
+                if st.session_state.get("_ac_last_upload_id") != _ac_fid:
+                    with st.spinner(f"Processando {_ac_upfile.name}…"):
+                        try:
+                            _ac_raw = pd.read_excel(_ac_upfile, sheet_name=0)
+                            _ac_proc = _processar_acordos_df(_ac_raw)
+                            _ac_n_ok = len(_ac_proc)
+                            st.success(f"✅ Planilha lida: **{_ac_n_ok:,}** acordos encontrados.")
+
+                            with st.spinner("Gravando no banco de dados…"):
+                                _ac_email = st.session_state.get("usuario_email", "anonimo@fni")
+                                _ac_res = _db_salvar_acordos(_ac_raw, _ac_email, _ac_upfile.name)
+
+                            if _ac_res.get("ok"):
+                                st.success(
+                                    f"✅ **{_ac_res['n_inseridos']:,}** acordos gravados no Supabase "
+                                    f"({_ac_res['n_duplicados']:,} já existiam)."
+                                )
+                                st.session_state["acordos_df"] = _ac_proc
+                                st.session_state["_ac_last_upload_id"] = _ac_fid
+                            else:
+                                st.error(f"❌ Erro ao gravar: {_ac_res.get('erro','desconhecido')}")
+                        except Exception as _ac_exc:
+                            st.error(f"❌ Erro ao ler planilha: {_ac_exc}")
+
+            # ── Prévia dos acordos vigentes ──────────────────────────────────
+            if not _ac_vigentes.empty:
+                st.markdown("---")
+                st.markdown("##### 📋 Prévia dos acordos vigentes (mais recentes por posto×frota×combustível)")
+                _ac_show_cols = [c for c in
+                    ["cnpj_posto","nome_posto","cnpj_frota","razao_social_frota",
+                     "combustivel","preco_negociado","va_desconto","dt_vigencia"]
+                    if c in _ac_vigentes.columns]
+                _ac_show = _ac_vigentes[_ac_show_cols].copy()
+                _ac_show.columns = [
+                    {"cnpj_posto":"CNPJ Posto","nome_posto":"Nome Posto",
+                     "cnpj_frota":"CNPJ Frota","razao_social_frota":"Razão Social Frota",
+                     "combustivel":"Combustível","preco_negociado":"Preço Negociado",
+                     "va_desconto":"Desconto","dt_vigencia":"Vigência"}.get(c, c)
+                    for c in _ac_show_cols
+                ]
+                st.dataframe(_ac_show.head(200), use_container_width=True, height=320)
+                st.caption(f"Exibindo até 200 de {len(_ac_vigentes):,} acordos vigentes.")
 
     # ── Guia de Uso ───────────────────────────────────────────────────────────
     _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
@@ -21460,6 +21726,10 @@ elif modo == "🚛 Análise de Cliente":
                 _pp_df_sv       = st.session_state.get("_pp_df")
                 _pf_df_sv       = st.session_state.get("pf_coords_df", _pd.DataFrame())
 
+                # ── Acordos vigentes (preço negociado posto×frota×combustível)
+                _ac_df_sv = st.session_state.get("acordos_df", _pd.DataFrame())
+                _ac_vig_sv = _acordos_vigentes(_ac_df_sv) if not _ac_df_sv.empty else _pd.DataFrame()
+
                 # ── CNPJs da rede GF ──────────────────────────────────────
                 _cnpjs_gf_sv = set()
                 if not _pf_df_sv.empty:
@@ -21531,6 +21801,30 @@ elif modo == "🚛 Análise de Cliente":
                     _df_sv["_preco_anp"]    = _df_sv.apply(_get_anp_p_sv, axis=1)
                     _df_sv["_preco_gf_ref"] = _df_sv["_apk"].map(_gf_preco_med)
 
+                    # ── Join com acordos vigentes (posto×frota×combustível) ──
+                    if not _ac_vig_sv.empty and "_cnpj_posto" in _df_sv.columns:
+                        _df_sv["_cnpj_posto_norm"] = _df_sv["_cnpj_posto"].apply(
+                            lambda v: re.sub(r"\D", "", str(v or ""))
+                        )
+                        _df_sv["_cnpj_frota_norm"] = _df_sv.get("_cnpj_frota", _pd.Series("", index=_df_sv.index)).apply(
+                            lambda v: re.sub(r"\D", "", str(v or ""))
+                        )
+                        # Monta lookup: (cnpj_posto, cnpj_frota, combustivel_pk) → preco_negociado
+                        _ac_lkp = {}
+                        for _, _acr in _ac_vig_sv.iterrows():
+                            _ck = (_acr.get("cnpj_posto",""), _acr.get("cnpj_frota",""),
+                                   _ACORDOS_PARA_PK.get(str(_acr.get("combustivel","")).lower(),
+                                                         str(_acr.get("combustivel","")).upper()))
+                            _ac_lkp[_ck] = float(_acr.get("preco_negociado") or 0)
+                        def _get_preco_acord(row):
+                            _ck = (row.get("_cnpj_posto_norm",""),
+                                   row.get("_cnpj_frota_norm",""),
+                                   row.get("_apk",""))
+                            return _ac_lkp.get(_ck)
+                        _df_sv["_preco_acordado"] = _df_sv.apply(_get_preco_acord, axis=1)
+                    else:
+                        _df_sv["_preco_acordado"] = _np.nan
+
                     # Saving por transação
                     _df_sv["_saving_vs_anp"] = _df_sv.apply(
                         lambda r: (r["_preco_litro"] - r["_preco_anp"]) * r["_litros"]
@@ -21540,14 +21834,24 @@ elif modo == "🚛 Análise de Cliente":
                         lambda r: (r["_preco_litro"] - r["_preco_gf_ref"]) * r["_litros"]
                         if _pd.notna(r["_preco_gf_ref"]) else _np.nan, axis=1
                     )
+                    # Saving vs preço acordado = (pago - acordado) × litros
+                    # Positivo = pagou acima do acordo (perda); negativo = benefício
+                    _df_sv["_saving_vs_acord"] = _df_sv.apply(
+                        lambda r: (r["_preco_litro"] - r["_preco_acordado"]) * r["_litros"]
+                        if _pd.notna(r.get("_preco_acordado")) and r.get("_preco_acordado", 0) > 0
+                        else _np.nan, axis=1
+                    )
                 else:
-                    _df_sv["_preco_anp"]    = _np.nan
-                    _df_sv["_preco_gf_ref"] = _np.nan
-                    _df_sv["_saving_vs_anp"] = _np.nan
-                    _df_sv["_saving_vs_gf"]  = _np.nan
+                    _df_sv["_preco_anp"]      = _np.nan
+                    _df_sv["_preco_gf_ref"]   = _np.nan
+                    _df_sv["_preco_acordado"]  = _np.nan
+                    _df_sv["_saving_vs_anp"]   = _np.nan
+                    _df_sv["_saving_vs_gf"]    = _np.nan
+                    _df_sv["_saving_vs_acord"] = _np.nan
 
-                _tem_anp = _df_sv["_saving_vs_anp"].notna().any()
-                _tem_gf  = _df_sv["_saving_vs_gf"].notna().any()
+                _tem_anp   = _df_sv["_saving_vs_anp"].notna().any()
+                _tem_gf    = _df_sv["_saving_vs_gf"].notna().any()
+                _tem_acord = _df_sv["_saving_vs_acord"].notna().any() if "_saving_vs_acord" in _df_sv.columns else False
 
                 # ── Avisos de fontes indisponíveis ────────────────────────
                 if not _sheets_anp_sv:
@@ -21940,6 +22244,154 @@ elif modo == "🚛 Análise de Cliente":
                             f"</div>",
                             unsafe_allow_html=True,
                         )
+
+                # ════════════════════════════════════════════════
+                # BLOCO 3 — PREÇO ACORDADO VS PREÇO PAGO
+                # ════════════════════════════════════════════════
+                st.divider()
+                st.markdown("#### 🤝 Preço Acordado vs Preço Pago")
+                st.caption(
+                    "Compara o preço efetivamente pago nos abastecimentos com o preço "
+                    "negociado no acordo posto × frota × combustível. "
+                    "Desvios positivos indicam que a frota pagou acima do acordado."
+                )
+                if not _tem_acord:
+                    _ac_status = st.session_state.get("acordos_df", _pd.DataFrame())
+                    if _ac_status.empty:
+                        st.info(
+                            "📋 Base de acordos não carregada. "
+                            "Acesse **Configurações → 🤝 Acordos de Preço** para fazer upload "
+                            "da planilha **Acordos.xlsx**.",
+                            icon="🤝",
+                        )
+                    else:
+                        st.info(
+                            "Nenhum acordo encontrado para os CNPJs de posto e frota "
+                            "presentes nestes abastecimentos. Verifique se os CNPJs na "
+                            "planilha de acordos correspondem aos da base de abastecimentos.",
+                            icon="🔍",
+                        )
+                else:
+                    _df_ac_ok = _df_sv.dropna(subset=["_saving_vs_acord"]).copy()
+                    _ac_total_desvio = float(_df_ac_ok["_saving_vs_acord"].sum())
+                    _ac_n_trans      = len(_df_ac_ok)
+                    _ac_n_postos_ac  = _df_ac_ok["_cnpj_posto"].nunique() if "_cnpj_posto" in _df_ac_ok.columns else 0
+                    _ac_litros       = float(_df_ac_ok["_litros"].sum())
+
+                    # KPIs
+                    _ac_kc1, _ac_kc2, _ac_kc3, _ac_kc4 = st.columns(4)
+                    _ac_cor = "#e53935" if _ac_total_desvio > 0 else "#2e7d32"
+                    _ac_kc1.metric(
+                        "💸 Desvio total (pago − acordado)",
+                        _sv_frs(_ac_total_desvio),
+                        delta=None,
+                    )
+                    _ac_kc2.metric("📦 Transações com acordo", f"{_ac_n_trans:,}")
+                    _ac_kc3.metric("⛽ Litros sob acordo", _sv_frl(_ac_litros))
+                    _ac_kc4.metric("🏪 Postos com acordo", f"{_ac_n_postos_ac:,}")
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # Insight principal
+                    if abs(_ac_total_desvio) > 0:
+                        _ac_desvio_l = _ac_total_desvio / _ac_litros if _ac_litros > 0 else 0
+                        if _ac_total_desvio > 0:
+                            st.markdown(
+                                "<div style='background:#fff3f3;border-left:5px solid #e53935;"
+                                "border-radius:8px;padding:14px 18px;margin-bottom:14px'>"
+                                f"<b style='color:#c62828;font-size:15px'>⚠️ Frota pagou acima do preço acordado</b><br>"
+                                f"O desvio total foi de <b>{_sv_frs(_ac_total_desvio)}</b> "
+                                f"({_ac_n_trans:,} transações · {_sv_frl(_ac_litros)}). "
+                                f"Desvio médio por litro: <b>R$ {_ac_desvio_l:.4f}/L</b>.</div>",
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                "<div style='background:#f3fff3;border-left:5px solid #2e7d32;"
+                                "border-radius:8px;padding:14px 18px;margin-bottom:14px'>"
+                                f"<b style='color:#1b5e20;font-size:15px'>✅ Frota pagou abaixo do preço acordado</b><br>"
+                                f"O benefício total foi de <b>{_sv_frs(abs(_ac_total_desvio))}</b> "
+                                f"({_ac_n_trans:,} transações).</div>",
+                                unsafe_allow_html=True,
+                            )
+
+                    # Gráfico: desvio por combustível
+                    _ac_por_prod = (
+                        _df_ac_ok.groupby("_produto")
+                        .apply(lambda g: _pd.Series({
+                            "desvio":         g["_saving_vs_acord"].sum(),
+                            "preco_pago":     (g["_preco_litro"]*g["_litros"]).sum()/g["_litros"].sum(),
+                            "preco_acordado": (g["_preco_acordado"]*g["_litros"]).sum()/g["_litros"].sum(),
+                            "litros":         g["_litros"].sum(),
+                        }))
+                        .reset_index()
+                    )
+                    _ac_c1, _ac_c2 = st.columns(2)
+                    with _ac_c1:
+                        _fig_ac_bar = go.Figure(go.Bar(
+                            x=_ac_por_prod["_produto"],
+                            y=_ac_por_prod["desvio"],
+                            marker_color=[
+                                "#e53935" if v > 0 else "#2e7d32"
+                                for v in _ac_por_prod["desvio"]
+                            ],
+                            text=[f"R$ {v:,.0f}".replace(",", ".") for v in _ac_por_prod["desvio"]],
+                            textposition="outside",
+                        ))
+                        _fig_ac_bar.update_layout(
+                            title="Desvio Total por Combustível (R$)",
+                            height=320, margin=dict(l=10,r=10,t=40,b=10),
+                            yaxis_title="R$ (pago − acordado)",
+                            showlegend=False,
+                            paper_bgcolor="white", plot_bgcolor="#f9fbff",
+                        )
+                        st.plotly_chart(_fig_ac_bar, use_container_width=True)
+
+                    with _ac_c2:
+                        _fig_ac_comp = go.Figure()
+                        _fig_ac_comp.add_trace(go.Bar(
+                            name="Preço pago", x=_ac_por_prod["_produto"],
+                            y=_ac_por_prod["preco_pago"], marker_color="#ef5350",
+                        ))
+                        _fig_ac_comp.add_trace(go.Bar(
+                            name="Preço acordado", x=_ac_por_prod["_produto"],
+                            y=_ac_por_prod["preco_acordado"], marker_color="#1565C0",
+                        ))
+                        _fig_ac_comp.update_layout(
+                            title="Preço Pago vs Acordado (R$/L)",
+                            barmode="group", height=320,
+                            margin=dict(l=10,r=10,t=40,b=10),
+                            yaxis_title="R$/L",
+                            legend=dict(orientation="h", y=-0.22),
+                            paper_bgcolor="white", plot_bgcolor="#f9fbff",
+                        )
+                        st.plotly_chart(_fig_ac_comp, use_container_width=True)
+
+                    # Tabela detalhada por posto (top desvios)
+                    if "_cnpj_posto" in _df_ac_ok.columns and "_nome_posto" in _df_ac_ok.columns:
+                        st.markdown("##### 🏪 Postos com maior desvio entre preço pago e acordado")
+                        _ac_por_posto = (
+                            _df_ac_ok.groupby(["_cnpj_posto","_nome_posto"])
+                            .apply(lambda g: _pd.Series({
+                                "desvio":         g["_saving_vs_acord"].sum(),
+                                "preco_pago_med": (g["_preco_litro"]*g["_litros"]).sum()/g["_litros"].sum(),
+                                "preco_ac_med":   (g["_preco_acordado"]*g["_litros"]).sum()/g["_litros"].sum(),
+                                "litros":         g["_litros"].sum(),
+                                "transacoes":     len(g),
+                            }))
+                            .reset_index()
+                            .sort_values("desvio", ascending=False)
+                            .head(20)
+                        )
+                        _ac_tbl_show = _pd.DataFrame({
+                            "CNPJ Posto":      _ac_por_posto["_cnpj_posto"],
+                            "Nome Posto":      _ac_por_posto["_nome_posto"],
+                            "Desvio Total":    _ac_por_posto["desvio"].apply(_sv_frs),
+                            "Preço Pago (R$/L)":    _ac_por_posto["preco_pago_med"].apply(lambda v: f"R$ {v:.3f}".replace(".",",")),
+                            "Preço Acordado (R$/L)": _ac_por_posto["preco_ac_med"].apply(lambda v: f"R$ {v:.3f}".replace(".",",")),
+                            "Litros":          _ac_por_posto["litros"].apply(_sv_frl),
+                            "Transações":      _ac_por_posto["transacoes"],
+                        })
+                        st.dataframe(_ac_tbl_show, use_container_width=True, hide_index=True)
 
             # ════════════════════════════════════════════════════
             # ABA 7 — REDE GF vs FORA DA REDE

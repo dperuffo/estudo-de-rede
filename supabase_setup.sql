@@ -208,6 +208,40 @@ create table if not exists frota_uploads (
     carregado_em  timestamptz default now()
 );
 
+-- ── 14. Acordos de Preço (Posto × Frota × Combustível) ───────────
+-- Histórico completo de acordos negociados. O preço vigente para
+-- um dado (cnpj_posto, cnpj_frota, combustivel) é o registro com
+-- a maior dt_vigencia.
+create table if not exists acordos_precos (
+    id                  bigserial primary key,
+    cd_frota_ptov_preco bigint,
+    cnpj_posto          text not null,
+    nome_posto          text,
+    cnpj_frota          text not null,
+    razao_social_frota  text,
+    combustivel         text not null,
+    preco_negociado     numeric(10,3),
+    va_desconto         numeric(10,3),
+    dt_vigencia         timestamptz,
+    versao_id           bigint,
+    carregado_em        timestamptz default now(),
+    unique(cnpj_posto, cnpj_frota, combustivel, dt_vigencia)
+);
+
+create index if not exists idx_acordos_posto  on acordos_precos(cnpj_posto);
+create index if not exists idx_acordos_frota  on acordos_precos(cnpj_frota);
+create index if not exists idx_acordos_data   on acordos_precos(dt_vigencia);
+
+create table if not exists acordos_versoes (
+    id            bigserial primary key,
+    usuario_email text,
+    nome_arquivo  text,
+    n_registros   int,
+    n_postos      int,
+    n_frotas      int,
+    carregado_em  timestamptz default now()
+);
+
 -- ── Desabilita Row Level Security (app usa chave publishable) ─────
 alter table rotas_salvas           disable row level security;
 alter table historico_precos       disable row level security;
@@ -223,3 +257,5 @@ alter table precos_posto_db        disable row level security;
 alter table precos_posto_versoes   disable row level security;
 alter table frota_abastecimentos   disable row level security;
 alter table frota_uploads          disable row level security;
+alter table acordos_precos         disable row level security;
+alter table acordos_versoes        disable row level security;
