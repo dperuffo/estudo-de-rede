@@ -17932,11 +17932,15 @@ if modo == "📊 Dashboard":
                             "postos":     len(_uf_grp),
                         })
 
-                    _cx_comp = (
-                        pd.DataFrame(_cx_comp_rows)
-                        .dropna(subset=["delta_pct"])
-                        .sort_values("delta_pct", ascending=False)
-                    )
+                    _cx_comp_raw = pd.DataFrame(_cx_comp_rows)
+                    if _cx_comp_raw.empty or "delta_pct" not in _cx_comp_raw.columns:
+                        _cx_comp = pd.DataFrame()
+                    else:
+                        _cx_comp = (
+                            _cx_comp_raw
+                            .dropna(subset=["delta_pct"])
+                            .sort_values("delta_pct", ascending=False)
+                        )
 
                     if _cx_comp.empty:
                         st.info(
