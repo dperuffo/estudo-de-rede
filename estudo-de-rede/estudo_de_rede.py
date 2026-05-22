@@ -14478,7 +14478,7 @@ if modo == "📊 Dashboard":
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
         # ── Tabs do dashboard ─────────────────────────────────────────────
-        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8, _dt9, _dt10 = st.tabs([
+        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8, _dt9, _dt10, _dt11 = st.tabs([
             "📊 Cobertura por Estado",
             "🎯 Penetração vs ANP",
             "🗺️ Mapa de Densidade",
@@ -14489,6 +14489,7 @@ if modo == "📊 Dashboard":
             "🚦 Operacional",
             "🛣️ Eficiência de Rotas",
             "📈 Evolução Temporal",
+            "🔀 Cruzamentos Avançados",
         ])
 
         # ──────────────────────────────────────────────────────────────────
@@ -17410,6 +17411,665 @@ if modo == "📊 Dashboard":
                         lambda v: f"{v:.2f}%"
                     )
                     st.dataframe(_ev_rank_tbl, use_container_width=True, hide_index=True)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TAB 11 — 🔀 Cruzamentos Avançados
+    # ══════════════════════════════════════════════════════════════════════════
+    with _dt11:
+        # ── Header ───────────────────────────────────────────────────────────
+        st.markdown(
+            """
+            <div style="background:linear-gradient(90deg,#040d26,#1040a0);
+                        border-radius:10px;padding:18px 24px;margin-bottom:20px;">
+              <h3 style="color:#fff;margin:0;font-size:1.25rem;">
+                🔀 Cruzamentos Avançados — Preço × Localização × Concorrência
+              </h3>
+              <p style="color:#a8c4f0;margin:4px 0 0;font-size:.85rem;">
+                Regiões caras vs baratas · Clusters de oportunidade · GF vs ANP por UF
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # ── Carrega fontes de dados ──────────────────────────────────────────
+        _cx_pp_df   = st.session_state.get("_pp_df")
+        _cx_anp_cache = st.session_state.get("_precos_anp_cache", {})
+        _cx_sheets  = _cx_anp_cache.get("sheets")
+
+        _cx_tem_pp  = _cx_pp_df is not None and not _cx_pp_df.empty
+        _cx_tem_anp = bool(_cx_sheets)
+
+        if not _cx_tem_pp:
+            st.info(
+                "Carregue a planilha de Preço Posto em **Configurações** "
+                "para habilitar os cruzamentos analíticos.",
+                icon="🔀",
+            )
+        else:
+            # ── Seletor de combustível (global para o tab) ───────────────────
+            _cx_fuels = sorted(
+                _cx_pp_df["combustivel_pk"].dropna().unique().tolist()
+            )
+            _cx_fuel_labels = {
+                f: (_cx_pp_df.loc[_cx_pp_df["combustivel_pk"] == f, "combustivel_label"]
+                    .iloc[0] if "combustivel_label" in _cx_pp_df.columns else f)
+                for f in _cx_fuels
+            }
+            _cx_flt_col, _cx_info_col = st.columns([2, 5])
+            with _cx_flt_col:
+                _cx_fuel_sel = st.selectbox(
+                    "⛽ Combustível para análise",
+                    options=_cx_fuels,
+                    format_func=lambda f: _cx_fuel_labels.get(f, f),
+                    key="cx_fuel_sel",
+                )
+
+            with _cx_info_col:
+                if not _cx_tem_anp:
+                    st.warning(
+                        "⚠️ Planilha ANP não carregada — análise GF vs Concorrência ficará limitada. "
+                        "Carregue a ANP em **Configurações → Dados ANP** para habilitar o cruzamento completo.",
+                        icon="📋",
+                    )
+
+            # Filtra por combustível selecionado
+            _cx_filt = _cx_pp_df[_cx_pp_df["combustivel_pk"] == _cx_fuel_sel].copy()
+            _cx_filt["preco"] = pd.to_numeric(_cx_filt.get("preco", pd.Series(dtype=float)), errors="coerce")
+            _cx_filt = _cx_filt.dropna(subset=["preco", "uf"])
+
+            # Preço ANP por UF para o combustível selecionado
+            _cx_anp_por_uf: dict = {}
+            _cx_anp_brasil: float | None = None
+            if _cx_tem_anp:
+                _cx_all_ufs = _cx_filt["uf"].dropna().unique().tolist()
+                try:
+                    _cx_anp_raw = _anp_precos_por_fuel_por_uf(_cx_sheets, _cx_all_ufs)
+                    _cx_fuel_anp = _PP_PARA_ANK = _PP_PARA_ANP_PK.get(_cx_fuel_sel, _cx_fuel_sel)
+                    _cx_anp_por_uf = _cx_anp_raw.get(_cx_fuel_anp, {})
+                    if not _cx_anp_por_uf:
+                        _cx_anp_por_uf = _cx_anp_raw.get(_cx_fuel_sel, {})
+                    _cx_anp_brasil_d = _anp_precos_por_fuel_brasil(_cx_sheets)
+                    _cx_anp_brasil = (
+                        _cx_anp_brasil_d.get(_cx_fuel_anp)
+                        or _cx_anp_brasil_d.get(_cx_fuel_sel)
+                    )
+                except Exception:
+                    pass
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── Sub-abas ─────────────────────────────────────────────────────
+            _cx_t1, _cx_t2, _cx_t3 = st.tabs([
+                "🗺️ Regiões caras vs baratas",
+                "🎯 Clusters de oportunidade",
+                "⚖️ GF vs Concorrência",
+            ])
+
+            # ================================================================
+            # SUB-ABA 1 — Regiões caras vs baratas
+            # ================================================================
+            with _cx_t1:
+                st.markdown("##### 🗺️ Preço médio GF por UF")
+                st.caption(
+                    "Quanto cada estado está pagando em média no combustível selecionado "
+                    "nos postos credenciados à frota."
+                )
+
+                _cx_reg = (
+                    _cx_filt.groupby("uf")["preco"]
+                    .agg(media="mean", n="count", std="std", minv="min", maxv="max")
+                    .reset_index()
+                    .rename(columns={"media": "preco_medio", "n": "postos", "std": "variacao",
+                                     "minv": "minimo", "maxv": "maximo"})
+                    .sort_values("preco_medio", ascending=False)
+                )
+
+                if _cx_reg.empty:
+                    st.info("Sem dados de preço por UF para este combustível.", icon="🗺️")
+                else:
+                    _med_geral = _cx_reg["preco_medio"].mean()
+                    _p25 = _cx_reg["preco_medio"].quantile(0.25)
+                    _p75 = _cx_reg["preco_medio"].quantile(0.75)
+
+                    # Cor por quartil
+                    def _cor_preco(v):
+                        if v >= _p75:
+                            return "#e53935"   # caro
+                        elif v <= _p25:
+                            return "#43a047"   # barato
+                        else:
+                            return "#f57c00"   # médio
+
+                    _cx_reg["cor"] = _cx_reg["preco_medio"].apply(_cor_preco)
+                    _cx_reg["categoria"] = _cx_reg["preco_medio"].apply(
+                        lambda v: "🔴 Caro" if v >= _p75 else ("🟢 Barato" if v <= _p25 else "🟡 Médio")
+                    )
+
+                    # Gráfico barras
+                    _fig_reg = go.Figure()
+                    _fig_reg.add_trace(go.Bar(
+                        x=_cx_reg["uf"],
+                        y=_cx_reg["preco_medio"],
+                        marker_color=_cx_reg["cor"].tolist(),
+                        text=_cx_reg["preco_medio"].apply(lambda v: f"R$ {v:.3f}"),
+                        textposition="outside",
+                        hovertemplate=(
+                            "<b>%{x}</b><br>"
+                            "Preço médio: R$ %{y:.4f}<br>"
+                            "<extra></extra>"
+                        ),
+                        name="Preço médio GF",
+                    ))
+                    # Linha da média geral
+                    _fig_reg.add_hline(
+                        y=_med_geral,
+                        line_dash="dash",
+                        line_color="#1040a0",
+                        annotation_text=f"Média geral R$ {_med_geral:.3f}",
+                        annotation_position="top right",
+                        annotation_font_size=11,
+                    )
+                    # Linha ANP Brasil
+                    if _cx_anp_brasil:
+                        _fig_reg.add_hline(
+                            y=_cx_anp_brasil,
+                            line_dash="dot",
+                            line_color="#7B1FA2",
+                            annotation_text=f"ANP Brasil R$ {_cx_anp_brasil:.3f}",
+                            annotation_position="bottom right",
+                            annotation_font_size=11,
+                        )
+                    _fig_reg.update_layout(
+                        height=420,
+                        margin=dict(l=10, r=10, t=30, b=20),
+                        xaxis_title="UF",
+                        yaxis_title="R$/L",
+                        paper_bgcolor="white",
+                        plot_bgcolor="#f9fbff",
+                        font_size=11,
+                        showlegend=False,
+                    )
+                    st.plotly_chart(_fig_reg, use_container_width=True)
+
+                    # Cards de destaque
+                    _dc1, _dc2, _dc3 = st.columns(3)
+                    _uf_mais_caro  = _cx_reg.iloc[0]
+                    _uf_mais_bar   = _cx_reg.iloc[-1]
+                    _spread        = _uf_mais_caro["preco_medio"] - _uf_mais_bar["preco_medio"]
+                    _kpi_s = (
+                        "background:#fff3f3;border:1.5px solid #e53935;"
+                        "border-radius:8px;padding:12px 16px;text-align:center;"
+                    )
+                    _kpi_g = (
+                        "background:#f3fff3;border:1.5px solid #43a047;"
+                        "border-radius:8px;padding:12px 16px;text-align:center;"
+                    )
+                    _kpi_b = (
+                        "background:#f0f4ff;border:1.5px solid #1040a0;"
+                        "border-radius:8px;padding:12px 16px;text-align:center;"
+                    )
+                    with _dc1:
+                        st.markdown(
+                            f'<div style="{_kpi_s}">'
+                            f'<div style="font-size:.8rem;color:#555">🔴 UF mais cara</div>'
+                            f'<div style="font-size:1.4rem;font-weight:700;color:#e53935">'
+                            f'{_uf_mais_caro["uf"]}</div>'
+                            f'<div style="font-size:1rem;font-weight:600">'
+                            f'R$ {_uf_mais_caro["preco_medio"]:.3f}</div>'
+                            f'<div style="font-size:.75rem;color:#888">'
+                            f'{int(_uf_mais_caro["postos"])} postos</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _dc2:
+                        st.markdown(
+                            f'<div style="{_kpi_g}">'
+                            f'<div style="font-size:.8rem;color:#555">🟢 UF mais barata</div>'
+                            f'<div style="font-size:1.4rem;font-weight:700;color:#43a047">'
+                            f'{_uf_mais_bar["uf"]}</div>'
+                            f'<div style="font-size:1rem;font-weight:600">'
+                            f'R$ {_uf_mais_bar["preco_medio"]:.3f}</div>'
+                            f'<div style="font-size:.75rem;color:#888">'
+                            f'{int(_uf_mais_bar["postos"])} postos</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _dc3:
+                        st.markdown(
+                            f'<div style="{_kpi_b}">'
+                            f'<div style="font-size:.8rem;color:#555">↕️ Spread entre extremos</div>'
+                            f'<div style="font-size:1.4rem;font-weight:700;color:#1040a0">'
+                            f'R$ {_spread:.3f}</div>'
+                            f'<div style="font-size:.75rem;color:#888">'
+                            f'= {_spread / _uf_mais_bar["preco_medio"] * 100:.1f}% de diferença</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # Tabela completa
+                    _cx_reg_tbl = _cx_reg[["uf", "categoria", "preco_medio",
+                                           "minimo", "maximo", "variacao", "postos"]].copy()
+                    _cx_reg_tbl.columns = ["UF", "Categoria", "Preço médio", "Mínimo",
+                                           "Máximo", "Desvio padrão", "Postos"]
+                    for _c in ["Preço médio", "Mínimo", "Máximo", "Desvio padrão"]:
+                        _cx_reg_tbl[_c] = _cx_reg_tbl[_c].apply(
+                            lambda v: f"R$ {v:.4f}" if pd.notna(v) else "—"
+                        )
+                    st.dataframe(_cx_reg_tbl, use_container_width=True, hide_index=True)
+
+                    # Mapa de calor geográfico (scatter por UF lat/lon estimado)
+                    if "lat" in _cx_filt.columns and "lon" in _cx_filt.columns:
+                        st.markdown("##### 🌎 Dispersão geográfica de preços")
+                        _cx_map_df = _cx_filt.dropna(subset=["lat", "lon", "preco"]).copy()
+                        _cx_map_df["lat"] = pd.to_numeric(_cx_map_df["lat"], errors="coerce")
+                        _cx_map_df["lon"] = pd.to_numeric(_cx_map_df["lon"], errors="coerce")
+                        _cx_map_df = _cx_map_df.dropna(subset=["lat", "lon"])
+                        if not _cx_map_df.empty:
+                            _cx_map_df["nome_posto"] = (
+                                _cx_map_df.get("razao_social", _cx_map_df.get("nome", "Posto"))
+                                .fillna("Posto")
+                            )
+                            _fig_mapa_preco = go.Figure(go.Scattermapbox(
+                                lat=_cx_map_df["lat"],
+                                lon=_cx_map_df["lon"],
+                                mode="markers",
+                                marker=dict(
+                                    size=8,
+                                    color=_cx_map_df["preco"],
+                                    colorscale=[[0, "#43a047"], [0.5, "#f57c00"], [1, "#e53935"]],
+                                    showscale=True,
+                                    colorbar=dict(title="R$/L", thickness=12),
+                                    opacity=0.85,
+                                ),
+                                text=_cx_map_df.apply(
+                                    lambda r: f"{r['nome_posto']}<br>{r['uf']} — R$ {r['preco']:.3f}",
+                                    axis=1,
+                                ),
+                                hoverinfo="text",
+                            ))
+                            _fig_mapa_preco.update_layout(
+                                mapbox=dict(style="carto-positron", zoom=3.5,
+                                            center=dict(lat=-15.7, lon=-47.9)),
+                                height=480,
+                                margin=dict(l=0, r=0, t=0, b=0),
+                            )
+                            st.plotly_chart(_fig_mapa_preco, use_container_width=True)
+
+            # ================================================================
+            # SUB-ABA 2 — Clusters de oportunidade
+            # ================================================================
+            with _cx_t2:
+                st.markdown("##### 🎯 Clusters de oportunidade por município")
+                st.caption(
+                    "Municípios agrupados por faixa de preço GF. "
+                    "🟢 Oportunidade = preço abaixo da média nacional. "
+                    "🔴 Atenção = preço acima da média nacional."
+                )
+
+                if "municipio" not in _cx_filt.columns:
+                    st.info("Coluna 'municipio' não encontrada nos dados.", icon="🎯")
+                else:
+                    # Agrupa por município
+                    _cx_mun = (
+                        _cx_filt.groupby(["uf", "municipio"])
+                        .agg(
+                            preco_medio=("preco", "mean"),
+                            postos=("preco", "count"),
+                            lat=("lat", "mean") if "lat" in _cx_filt.columns else ("preco", "first"),
+                            lon=("lon", "mean") if "lon" in _cx_filt.columns else ("preco", "first"),
+                        )
+                        .reset_index()
+                    )
+                    _cx_med_nac = _cx_mun["preco_medio"].mean()
+
+                    # Delta vs média nacional
+                    _cx_mun["delta_vs_media"] = (
+                        (_cx_mun["preco_medio"] - _cx_med_nac) / _cx_med_nac * 100
+                    )
+                    _cx_mun["cluster"] = _cx_mun["delta_vs_media"].apply(
+                        lambda v: "🔴 Caro (>+5%)" if v > 5
+                        else ("🟡 Acima da média (+2% a +5%)" if v > 2
+                        else ("🟢 Abaixo da média (-2% a +2%)" if v > -2
+                        else "🟢 Barato (<-2%)"))
+                    )
+
+                    # Contagem de postos por cluster
+                    _cx_cl_cnt = (
+                        _cx_mun.groupby("cluster")["postos"].sum()
+                        .reset_index()
+                        .sort_values("postos", ascending=False)
+                    )
+
+                    _cl_pie_col, _cl_bar_col = st.columns([2, 3])
+
+                    with _cl_pie_col:
+                        _cor_clusters = {
+                            "🔴 Caro (>+5%)":               "#e53935",
+                            "🟡 Acima da média (+2% a +5%)": "#f57c00",
+                            "🟢 Abaixo da média (-2% a +2%)":"#66BB6A",
+                            "🟢 Barato (<-2%)":              "#1B5E20",
+                        }
+                        _fig_cl_pie = go.Figure(go.Pie(
+                            labels=_cx_cl_cnt["cluster"],
+                            values=_cx_cl_cnt["postos"],
+                            hole=0.52,
+                            marker_colors=[
+                                _cor_clusters.get(cl, "#999")
+                                for cl in _cx_cl_cnt["cluster"]
+                            ],
+                            textinfo="label+percent",
+                            textfont_size=11,
+                        ))
+                        _fig_cl_pie.update_layout(
+                            height=300,
+                            margin=dict(l=0, r=0, t=10, b=0),
+                            showlegend=False,
+                            paper_bgcolor="white",
+                        )
+                        st.plotly_chart(_fig_cl_pie, use_container_width=True)
+
+                    with _cl_bar_col:
+                        # Top 15 municípios de oportunidade (mais baratos)
+                        _cx_oport = (
+                            _cx_mun.sort_values("delta_vs_media").head(15).copy()
+                        )
+                        _cx_oport["label_mun"] = (
+                            _cx_oport["municipio"].str[:20]
+                            + " (" + _cx_oport["uf"] + ")"
+                        )
+                        _fig_oport = go.Figure(go.Bar(
+                            x=_cx_oport["delta_vs_media"],
+                            y=_cx_oport["label_mun"],
+                            orientation="h",
+                            marker_color=_cx_oport["delta_vs_media"].apply(
+                                lambda v: "#43a047" if v < 0 else "#f57c00"
+                            ).tolist(),
+                            text=_cx_oport["delta_vs_media"].apply(
+                                lambda v: f"{v:+.1f}%"
+                            ),
+                            textposition="outside",
+                            hovertemplate=(
+                                "<b>%{y}</b><br>"
+                                "Delta vs média: %{x:+.2f}%<extra></extra>"
+                            ),
+                        ))
+                        _fig_oport.update_layout(
+                            height=350,
+                            margin=dict(l=10, r=70, t=10, b=20),
+                            xaxis_title="Δ% vs média nacional",
+                            paper_bgcolor="white",
+                            plot_bgcolor="#f9fbff",
+                            font_size=11,
+                            title="Top 15 municípios mais baratos",
+                            title_font_size=12,
+                        )
+                        st.plotly_chart(_fig_oport, use_container_width=True)
+
+                    # Mapa de clusters
+                    if "lat" in _cx_mun.columns and "lon" in _cx_mun.columns:
+                        _cx_mun_map = _cx_mun.dropna(subset=["lat", "lon"]).copy()
+                        _cx_mun_map["lat"] = pd.to_numeric(_cx_mun_map["lat"], errors="coerce")
+                        _cx_mun_map["lon"] = pd.to_numeric(_cx_mun_map["lon"], errors="coerce")
+                        _cx_mun_map = _cx_mun_map.dropna(subset=["lat", "lon"])
+                        if not _cx_mun_map.empty:
+                            st.markdown("##### 🌎 Mapa de clusters por município")
+                            _fig_cl_map = go.Figure(go.Scattermapbox(
+                                lat=_cx_mun_map["lat"],
+                                lon=_cx_mun_map["lon"],
+                                mode="markers",
+                                marker=dict(
+                                    size=_cx_mun_map["postos"].clip(upper=30) + 5,
+                                    color=_cx_mun_map["delta_vs_media"],
+                                    colorscale=[[0, "#43a047"], [0.4, "#f9f9f9"],
+                                                [0.7, "#f57c00"], [1, "#e53935"]],
+                                    cmin=-10,
+                                    cmax=10,
+                                    showscale=True,
+                                    colorbar=dict(
+                                        title="Δ% vs média",
+                                        thickness=12,
+                                        ticksuffix="%",
+                                    ),
+                                    opacity=0.85,
+                                ),
+                                text=_cx_mun_map.apply(
+                                    lambda r: (
+                                        f"{r['municipio']}/{r['uf']}<br>"
+                                        f"Preço médio: R$ {r['preco_medio']:.3f}<br>"
+                                        f"Delta: {r['delta_vs_media']:+.1f}%<br>"
+                                        f"Postos: {int(r['postos'])}"
+                                    ),
+                                    axis=1,
+                                ),
+                                hoverinfo="text",
+                            ))
+                            _fig_cl_map.update_layout(
+                                mapbox=dict(style="carto-positron", zoom=3.5,
+                                            center=dict(lat=-15.7, lon=-47.9)),
+                                height=500,
+                                margin=dict(l=0, r=0, t=0, b=0),
+                            )
+                            st.plotly_chart(_fig_cl_map, use_container_width=True)
+
+                    # Tabela de clusters
+                    st.markdown("##### 📋 Tabela completa de municípios")
+                    _cx_mun_tbl = _cx_mun[[
+                        "municipio", "uf", "cluster", "preco_medio",
+                        "delta_vs_media", "postos",
+                    ]].sort_values("delta_vs_media").copy()
+                    _cx_mun_tbl.columns = [
+                        "Município", "UF", "Cluster", "Preço médio", "Δ% vs média", "Postos"
+                    ]
+                    _cx_mun_tbl["Preço médio"] = _cx_mun_tbl["Preço médio"].apply(
+                        lambda v: f"R$ {v:.4f}"
+                    )
+                    _cx_mun_tbl["Δ% vs média"] = _cx_mun_tbl["Δ% vs média"].apply(
+                        lambda v: f"{v:+.2f}%"
+                    )
+                    st.dataframe(_cx_mun_tbl, use_container_width=True, hide_index=True)
+
+            # ================================================================
+            # SUB-ABA 3 — GF vs Concorrência (ANP)
+            # ================================================================
+            with _cx_t3:
+                st.markdown("##### ⚖️ Preço médio GF vs referência ANP por UF")
+
+                if not _cx_tem_anp:
+                    st.warning(
+                        "Planilha ANP não carregada. Carregue em "
+                        "**Configurações → Dados ANP** para ver este cruzamento.",
+                        icon="⚠️",
+                    )
+                else:
+                    # Monta comparativo GF vs ANP por UF
+                    _cx_comp_rows = []
+                    for _uf_c, _uf_grp in _cx_filt.groupby("uf"):
+                        _gf_med = float(_uf_grp["preco"].mean())
+                        _anp_ref = (
+                            _cx_anp_por_uf.get(_uf_c)
+                            or _cx_anp_brasil
+                        )
+                        _delta_abs  = (_gf_med - _anp_ref) if _anp_ref else None
+                        _delta_pct  = (_delta_abs / _anp_ref * 100) if _anp_ref else None
+                        _cx_comp_rows.append({
+                            "uf":         _uf_c,
+                            "gf_med":     _gf_med,
+                            "anp_ref":    _anp_ref,
+                            "delta_abs":  _delta_abs,
+                            "delta_pct":  _delta_pct,
+                            "nivel_anp":  "UF" if _cx_anp_por_uf.get(_uf_c) else "Brasil",
+                            "postos":     len(_uf_grp),
+                        })
+
+                    _cx_comp = (
+                        pd.DataFrame(_cx_comp_rows)
+                        .dropna(subset=["delta_pct"])
+                        .sort_values("delta_pct", ascending=False)
+                    )
+
+                    if _cx_comp.empty:
+                        st.info(
+                            "Sem referência ANP para as UFs carregadas. "
+                            "Verifique se a planilha ANP contém dados para estes estados.",
+                            icon="⚖️",
+                        )
+                    else:
+                        # KPIs de topo
+                        _n_caros   = (_cx_comp["delta_pct"] > 5).sum()
+                        _n_baratos = (_cx_comp["delta_pct"] < -2).sum()
+                        _n_ok      = len(_cx_comp) - _n_caros - _n_baratos
+                        _med_delta = _cx_comp["delta_pct"].mean()
+
+                        _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+                        _ks = "border-radius:8px;padding:12px;text-align:center;"
+                        with _kc1:
+                            st.markdown(
+                                f'<div style="{_ks}background:#fff3f3;border:1.5px solid #e53935">'
+                                f'<div style="font-size:1.6rem;font-weight:700;color:#e53935">{_n_caros}</div>'
+                                f'<div style="font-size:.8rem;color:#555">UFs com GF caro<br>(>+5% vs ANP)</div>'
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                        with _kc2:
+                            st.markdown(
+                                f'<div style="{_ks}background:#f3fff3;border:1.5px solid #43a047">'
+                                f'<div style="font-size:1.6rem;font-weight:700;color:#43a047">{_n_baratos}</div>'
+                                f'<div style="font-size:.8rem;color:#555">UFs com GF barato<br>(<-2% vs ANP)</div>'
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                        with _kc3:
+                            st.markdown(
+                                f'<div style="{_ks}background:#fff8e1;border:1.5px solid #f57c00">'
+                                f'<div style="font-size:1.6rem;font-weight:700;color:#f57c00">{_n_ok}</div>'
+                                f'<div style="font-size:.8rem;color:#555">UFs na faixa<br>competitiva</div>'
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                        with _kc4:
+                            _cor_d = "#e53935" if _med_delta > 2 else ("#43a047" if _med_delta < 0 else "#f57c00")
+                            st.markdown(
+                                f'<div style="{_ks}background:#f0f4ff;border:1.5px solid #1040a0">'
+                                f'<div style="font-size:1.6rem;font-weight:700;color:{_cor_d}">'
+                                f'{_med_delta:+.1f}%</div>'
+                                f'<div style="font-size:.8rem;color:#555">Delta médio<br>GF vs ANP</div>'
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+
+                        st.markdown("<br>", unsafe_allow_html=True)
+
+                        # Gráfico waterfall-style: delta GF vs ANP por UF
+                        _cx_comp["cor_delta"] = _cx_comp["delta_pct"].apply(
+                            lambda v: "#e53935" if v > 5
+                            else ("#f57c00" if v > 0
+                            else "#43a047")
+                        )
+                        _fig_comp = go.Figure()
+                        _fig_comp.add_trace(go.Bar(
+                            x=_cx_comp["uf"],
+                            y=_cx_comp["delta_pct"],
+                            marker_color=_cx_comp["cor_delta"].tolist(),
+                            text=_cx_comp["delta_pct"].apply(lambda v: f"{v:+.1f}%"),
+                            textposition="outside",
+                            name="Delta GF vs ANP",
+                            hovertemplate=(
+                                "<b>%{x}</b><br>"
+                                "Delta: %{y:+.2f}%<br>"
+                                "<extra></extra>"
+                            ),
+                        ))
+                        _fig_comp.add_hline(
+                            y=0,
+                            line_color="#1040a0",
+                            line_width=1.5,
+                            annotation_text="Paridade com ANP",
+                            annotation_position="top left",
+                            annotation_font_size=11,
+                        )
+                        _fig_comp.add_hrect(
+                            y0=-2, y1=5,
+                            fillcolor="#e8f5e9",
+                            opacity=0.15,
+                            annotation_text="Zona competitiva",
+                            annotation_position="top right",
+                            annotation_font_size=10,
+                        )
+                        _fig_comp.update_layout(
+                            height=400,
+                            margin=dict(l=10, r=10, t=30, b=20),
+                            xaxis_title="UF",
+                            yaxis_title="Δ% GF vs ANP",
+                            paper_bgcolor="white",
+                            plot_bgcolor="#f9fbff",
+                            font_size=11,
+                            showlegend=False,
+                        )
+                        st.plotly_chart(_fig_comp, use_container_width=True)
+
+                        # Painel de alerta — UFs onde GF está caro
+                        _cx_alertas = _cx_comp[_cx_comp["delta_pct"] > 5].sort_values(
+                            "delta_pct", ascending=False
+                        )
+                        if not _cx_alertas.empty:
+                            st.markdown("---")
+                            st.markdown("#### ⚠️ Atenção — UFs onde GF está acima da ANP em mais de 5%")
+                            for _, _ar in _cx_alertas.iterrows():
+                                _eco_100 = abs(_ar["delta_abs"] or 0) * 100
+                                st.markdown(
+                                    f'<div style="background:#fff3f3;border-left:4px solid #e53935;'
+                                    f'border-radius:6px;padding:10px 14px;margin-bottom:8px;">'
+                                    f'<b>🔴 {_ar["uf"]}</b> — GF R$ {_ar["gf_med"]:.3f} vs ANP '
+                                    f'R$ {_ar["anp_ref"]:.3f} '
+                                    f'(<b>{_ar["delta_pct"]:+.1f}%</b>) · '
+                                    f'Potencial de economia: <b>R$ {_eco_100:.2f} por 100 litros</b> · '
+                                    f'{int(_ar["postos"])} postos · '
+                                    f'Ref. ANP: {_ar["nivel_anp"]}'
+                                    f"</div>",
+                                    unsafe_allow_html=True,
+                                )
+
+                        # Oportunidades — UFs onde GF está abaixo da ANP
+                        _cx_oprt = _cx_comp[_cx_comp["delta_pct"] < -2].sort_values("delta_pct")
+                        if not _cx_oprt.empty:
+                            st.markdown("---")
+                            st.markdown("#### 💚 Destaque — UFs onde GF está abaixo da ANP (vantagem competitiva)")
+                            for _, _or in _cx_oprt.iterrows():
+                                _sav_100 = abs(_or["delta_abs"] or 0) * 100
+                                st.markdown(
+                                    f'<div style="background:#f3fff3;border-left:4px solid #43a047;'
+                                    f'border-radius:6px;padding:10px 14px;margin-bottom:8px;">'
+                                    f'<b>💚 {_or["uf"]}</b> — GF R$ {_or["gf_med"]:.3f} vs ANP '
+                                    f'R$ {_or["anp_ref"]:.3f} '
+                                    f'(<b>{_or["delta_pct"]:+.1f}%</b>) · '
+                                    f'Saving vs ANP: <b>R$ {_sav_100:.2f} por 100 litros</b> · '
+                                    f'{int(_or["postos"])} postos'
+                                    f"</div>",
+                                    unsafe_allow_html=True,
+                                )
+
+                        # Tabela completa
+                        st.markdown("---")
+                        st.markdown("##### 📋 Tabela GF vs ANP por UF")
+                        _cx_tbl_comp = _cx_comp[[
+                            "uf", "gf_med", "anp_ref", "delta_abs",
+                            "delta_pct", "nivel_anp", "postos",
+                        ]].copy()
+                        _cx_tbl_comp.columns = [
+                            "UF", "GF médio (R$/L)", "ANP ref. (R$/L)",
+                            "Delta (R$/L)", "Delta (%)", "Nível ANP", "Postos GF",
+                        ]
+                        for _cc in ["GF médio (R$/L)", "ANP ref. (R$/L)", "Delta (R$/L)"]:
+                            _cx_tbl_comp[_cc] = _cx_tbl_comp[_cc].apply(
+                                lambda v: f"R$ {v:.4f}" if pd.notna(v) else "—"
+                            )
+                        _cx_tbl_comp["Delta (%)"] = _cx_tbl_comp["Delta (%)"].apply(
+                            lambda v: f"{v:+.2f}%" if pd.notna(v) else "—"
+                        )
+                        st.dataframe(_cx_tbl_comp, use_container_width=True, hide_index=True)
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
