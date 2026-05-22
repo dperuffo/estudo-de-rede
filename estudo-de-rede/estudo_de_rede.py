@@ -10129,32 +10129,6 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
         st.rerun()
 
-    # ── Botão Documentação (largura total) ──────────────────────────
-    if st.button(
-        "📄 Documentação",
-        use_container_width=True,
-        type="primary" if _modo_atual == "📄 Documentação" else "secondary",
-        key="btn_documentacao",
-        help="Visualizar o manual de uso da plataforma",
-    ):
-        st.session_state["modo_selecionado"] = "📄 Documentação"
-        _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
-        st.rerun()
-
-    # ── Botão Admin (visível só para o administrador) ─────────────
-    _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
-    if _email_atual.lower() == _ADMIN_EMAIL.lower():
-        st.divider()
-        if st.button(
-            "🔐 Admin",
-            use_container_width=True,
-            type="primary" if _modo_atual == "🔐 Admin" else "secondary",
-            key="btn_admin",
-            help="Painel de controle de acesso de usuários",
-        ):
-            st.session_state["modo_selecionado"] = "🔐 Admin"
-            st.rerun()
-
     modo = _modo_atual
     st.divider()
 
@@ -11773,7 +11747,31 @@ with st.sidebar:
             st.session_state["_tour_ativo"] = True
             st.rerun()
 
-    # (documentação movida para tela principal — modo "📄 Documentação")
+    # ── Botão Documentação (após Guia de Uso) ───────────────────────
+    if st.button(
+        "📄 Documentação",
+        use_container_width=True,
+        type="primary" if _modo_atual == "📄 Documentação" else "secondary",
+        key="btn_documentacao",
+        help="Visualizar o manual de uso da plataforma",
+    ):
+        st.session_state["modo_selecionado"] = "📄 Documentação"
+        _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
+        st.rerun()
+
+    # ── Botão Admin (após Guia de Uso, visível só para o admin) ─────
+    _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
+    if _email_atual.lower() == _ADMIN_EMAIL.lower():
+        st.divider()
+        if st.button(
+            "🔐 Admin",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🔐 Admin" else "secondary",
+            key="btn_admin",
+            help="Painel de controle de acesso de usuários",
+        ):
+            st.session_state["modo_selecionado"] = "🔐 Admin"
+            st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════
 #  TOUR DE ONBOARDING
