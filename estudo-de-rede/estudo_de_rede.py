@@ -330,27 +330,124 @@ def _db_carregar_acordos() -> "pd.DataFrame":
 def _processar_acordos_df(df_raw: "pd.DataFrame") -> "pd.DataFrame":
     """
     Normaliza o DataFrame bruto da planilha de acordos para o formato interno.
+    Tolerante a variações nos nomes das colunas.
     """
+    # ── Mapeamento de colunas com aliases alternativos ────────────────
     _col_map = {
-        "cd_frota_ptov_preco":  "cd_frota_ptov_preco",
-        "ds_tipo_combustivel":  "combustivel",
-        "Preco Negociado":      "preco_negociado",
-        "va_desconto_vigente":  "va_desconto",
-        "CNPJ do Posto":        "cnpj_posto_raw",
-        "Nome do Posto":        "nome_posto",
-        "CNPJ da Frota":        "cnpj_frota_raw",
-        "nm_razao_social":      "razao_social_frota",
-        "dt_vigencia":          "dt_vigencia",
+        # cd_frota_ptov_preco
+        "cd_frota_ptov_preco":   "cd_frota_ptov_preco",
+        "CD_FROTA_PTOV_PRECO":   "cd_frota_ptov_preco",
+        # combustivel
+        "ds_tipo_combustivel":   "combustivel",
+        "DS_TIPO_COMBUSTIVEL":   "combustivel",
+        "Combustivel":           "combustivel",
+        "combustivel":           "combustivel",
+        "COMBUSTIVEL":           "combustivel",
+        "Tipo Combustivel":      "combustivel",
+        # preco negociado
+        "Preco Negociado":       "preco_negociado",
+        "preco_negociado":       "preco_negociado",
+        "PRECO_NEGOCIADO":       "preco_negociado",
+        "Preço Negociado":       "preco_negociado",
+        "preco negociado":       "preco_negociado",
+        # desconto
+        "va_desconto_vigente":   "va_desconto",
+        "VA_DESCONTO_VIGENTE":   "va_desconto",
+        "va_desconto":           "va_desconto",
+        # CNPJ posto
+        "CNPJ do Posto":         "cnpj_posto_raw",
+        "cnpj_posto":            "cnpj_posto_raw",
+        "CNPJ_POSTO":            "cnpj_posto_raw",
+        "CNPJ Posto":            "cnpj_posto_raw",
+        "cnpj do posto":         "cnpj_posto_raw",
+        # Nome posto
+        "Nome do Posto":         "nome_posto",
+        "nome_posto":            "nome_posto",
+        "NOME_POSTO":            "nome_posto",
+        "Nome Posto":            "nome_posto",
+        # CNPJ frota
+        "CNPJ da Frota":         "cnpj_frota_raw",
+        "cnpj_frota":            "cnpj_frota_raw",
+        "CNPJ_FROTA":            "cnpj_frota_raw",
+        "CNPJ Frota":            "cnpj_frota_raw",
+        "cnpj da frota":         "cnpj_frota_raw",
+        # Razão social frota
+        "nm_razao_social":       "razao_social_frota",
+        "NM_RAZAO_SOCIAL":       "razao_social_frota",
+        "razao_social_frota":    "razao_social_frota",
+        "Razao Social":          "razao_social_frota",
+        # dt_vigencia
+        "dt_vigencia":           "dt_vigencia",
+        "DT_VIGENCIA":           "dt_vigencia",
+        "Data Vigencia":         "dt_vigencia",
+        "Data Vigência":         "dt_vigencia",
+        "Vigencia":              "dt_vigencia",
     }
     df = df_raw.rename(columns={k: v for k, v in _col_map.items() if k in df_raw.columns}).copy()
-    df["cnpj_posto"]  = df["cnpj_posto_raw"].apply(_normalizar_cnpj_str)
-    df["cnpj_frota"]  = df["cnpj_frota_raw"].apply(_normalizar_cnpj_str)
-    df["combustivel_pk"] = df["combustivel"].str.lower().map(_ACORDOS_PARA_PK).fillna(
-        df["combustivel"].str.upper()
+
+    # ── Fallback por substring se colunas obrigatórias ainda faltam ──
+    def _find_col(df, keywords):
+        """Retorna o primeiro nome de coluna que contenha qualquer keyword (case-insensitive)."""
+        for _kw in keywords:
+            for _c in df.columns:
+                if _kw.lower() in str(_c).lower():
+                    return _c
+        return None
+
+    if "cnpj_posto_raw" not in df.columns:
+        _fc = _find_col(df, ["cnpj_posto", "cnpj posto", "cnpjposto"])
+        if _fc:
+            df.rename(columns={_fc: "cnpj_posto_raw"}, inplace=True)
+    if "cnpj_frota_raw" not in df.columns:
+        _fc = _find_col(df, ["cnpj_frota", "cnpj frota", "cnpjfrota"])
+        if _fc:
+            df.rename(columns={_fc: "cnpj_frota_raw"}, inplace=True)
+    if "combustivel" not in df.columns:
+        _fc = _find_col(df, ["combustivel", "combustível", "tipo_comb"])
+        if _fc:
+            df.rename(columns={_fc: "combustivel"}, inplace=True)
+    if "preco_negociado" not in df.columns:
+        _fc = _find_col(df, ["preco_negociado", "preco negociado", "preço negociado", "preco"])
+        if _fc:
+            df.rename(columns={_fc: "preco_negociado"}, inplace=True)
+    if "dt_vigencia" not in df.columns:
+        _fc = _find_col(df, ["dt_vigencia", "vigencia", "vigência", "data_vigencia"])
+        if _fc:
+            df.rename(columns={_fc: "dt_vigencia"}, inplace=True)
+
+    # ── Normaliza CNPJs ───────────────────────────────────────────────
+    df["cnpj_posto"] = (
+        df["cnpj_posto_raw"].apply(_normalizar_cnpj_str)
+        if "cnpj_posto_raw" in df.columns
+        else pd.Series([""] * len(df))
     )
-    df["dt_vigencia"] = pd.to_datetime(df["dt_vigencia"], errors="coerce")
-    df["preco_negociado"] = pd.to_numeric(df.get("preco_negociado", pd.Series(dtype=float)), errors="coerce")
-    df["va_desconto"]     = pd.to_numeric(df.get("va_desconto", pd.Series(dtype=float)), errors="coerce")
+    df["cnpj_frota"] = (
+        df["cnpj_frota_raw"].apply(_normalizar_cnpj_str)
+        if "cnpj_frota_raw" in df.columns
+        else pd.Series([""] * len(df))
+    )
+
+    # ── Demais colunas ────────────────────────────────────────────────
+    if "combustivel" in df.columns:
+        df["combustivel_pk"] = df["combustivel"].str.lower().map(_ACORDOS_PARA_PK).fillna(
+            df["combustivel"].str.upper()
+        )
+    else:
+        df["combustivel"] = ""
+        df["combustivel_pk"] = ""
+
+    df["dt_vigencia"] = pd.to_datetime(
+        df["dt_vigencia"] if "dt_vigencia" in df.columns else pd.Series(dtype="object"),
+        errors="coerce",
+    )
+    df["preco_negociado"] = pd.to_numeric(
+        df["preco_negociado"] if "preco_negociado" in df.columns else pd.Series(dtype=float),
+        errors="coerce",
+    )
+    df["va_desconto"] = pd.to_numeric(
+        df["va_desconto"] if "va_desconto" in df.columns else pd.Series(dtype=float),
+        errors="coerce",
+    )
     return df
 
 
@@ -11963,6 +12060,85 @@ with st.sidebar:
                 "Usados em comparações com o preço a vista do posto e com a ANP."
             )
 
+            # ── Verificação das tabelas no banco ─────────────────────────────
+            def _ac_verificar_tabelas():
+                db = _db_client()
+                if not db:
+                    return {"ok": False, "erro": "Sem conexão com o banco de dados (SUPABASE_URL/KEY não configurados)."}
+                _status = {}
+                for _tbl in ["acordos_precos", "acordos_versoes"]:
+                    try:
+                        db.table(_tbl).select("id").limit(1).execute()
+                        _status[_tbl] = True
+                    except Exception as _e:
+                        _status[_tbl] = str(_e)
+                return _status
+
+            # Diagnóstico rápido (cacheado na sessão)
+            if "acordos_db_status" not in st.session_state:
+                with st.spinner("Verificando tabelas no banco…"):
+                    st.session_state["acordos_db_status"] = _ac_verificar_tabelas()
+
+            _ac_db_status = st.session_state.get("acordos_db_status", {})
+            _ac_tabelas_ok = (
+                _ac_db_status.get("acordos_precos") is True
+                and _ac_db_status.get("acordos_versoes") is True
+            )
+
+            if not _ac_tabelas_ok:
+                # Identifica o problema
+                _ac_erros = [
+                    f"**{_t}**: {_ac_db_status.get(_t)}"
+                    for _t in ["acordos_precos", "acordos_versoes"]
+                    if _ac_db_status.get(_t) is not True
+                ]
+                st.error(
+                    "❌ **As tabelas de acordos não foram encontradas no banco de dados.**\n\n"
+                    + "\n\n".join(_ac_erros),
+                    icon="🗄️",
+                )
+                st.markdown(
+                    "**Para criar as tabelas, acesse o painel do Supabase → SQL Editor e execute:**"
+                )
+                _ac_sql_criar = """-- Execute no Supabase → SQL Editor
+
+CREATE TABLE IF NOT EXISTS acordos_precos (
+    id                  BIGSERIAL PRIMARY KEY,
+    cd_frota_ptov_preco BIGINT,
+    cnpj_posto          TEXT NOT NULL,
+    nome_posto          TEXT,
+    cnpj_frota          TEXT NOT NULL,
+    razao_social_frota  TEXT,
+    combustivel         TEXT NOT NULL,
+    preco_negociado     NUMERIC(10,3),
+    va_desconto         NUMERIC(10,3),
+    dt_vigencia         TIMESTAMPTZ,
+    versao_id           BIGINT,
+    carregado_em        TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(cnpj_posto, cnpj_frota, combustivel, dt_vigencia)
+);
+
+CREATE TABLE IF NOT EXISTS acordos_versoes (
+    id            BIGSERIAL PRIMARY KEY,
+    usuario_email TEXT,
+    nome_arquivo  TEXT,
+    n_registros   INT,
+    n_postos      INT,
+    n_frotas      INT,
+    carregado_em  TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE acordos_precos  DISABLE ROW LEVEL SECURITY;
+ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
+                st.code(_ac_sql_criar, language="sql")
+                if st.button("🔄 Verificar novamente após criar as tabelas", key="ac_recheck"):
+                    del st.session_state["acordos_db_status"]
+                    st.rerun()
+            else:
+                st.success("✅ Tabelas de acordos encontradas no banco de dados.", icon="🗄️")
+
+            st.markdown("---")
+
             # ── Status da base carregada ─────────────────────────────────────
             if "acordos_df" not in st.session_state:
                 with st.spinner("Carregando acordos do banco de dados…"):
@@ -11987,7 +12163,7 @@ with st.sidebar:
                 if _ac_dt_max and pd.notna(_ac_dt_max):
                     st.success(f"✅ Base de acordos carregada — vigência mais recente: **{_ac_dt_max.strftime('%d/%m/%Y %H:%M')}**")
             else:
-                st.warning("⚠️ Nenhum acordo carregado. Faça upload abaixo ou aguarde o carregamento automático do repositório.")
+                st.warning("⚠️ Nenhum acordo no banco ainda. Faça upload abaixo.")
 
             st.markdown("---")
 
@@ -11999,21 +12175,43 @@ with st.sidebar:
                 "O repositório GitHub é mantido atualizado como fallback automático.",
                 icon="🤝",
             )
-            _ac_upfile = st.file_uploader(
-                "Planilha de Acordos de Preço",
-                type=["xlsx", "xls"],
-                key="acordos_uploader",
-                help="Arquivo com colunas: CNPJ do Posto, CNPJ da Frota, ds_tipo_combustivel, Preco Negociado, dt_vigencia",
-            )
-            if _ac_upfile is not None:
-                _ac_fid = f"{_ac_upfile.name}_{_ac_upfile.size}"
-                if st.session_state.get("_ac_last_upload_id") != _ac_fid:
-                    with st.spinner(f"Processando {_ac_upfile.name}…"):
+
+            if not _ac_tabelas_ok:
+                st.warning(
+                    "⚠️ Crie as tabelas no Supabase (SQL acima) antes de fazer o upload.",
+                    icon="⚠️",
+                )
+            else:
+                _ac_upfile = st.file_uploader(
+                    "Planilha de Acordos de Preço",
+                    type=["xlsx", "xls"],
+                    key="acordos_uploader",
+                    help="Arquivo com colunas: CNPJ do Posto, CNPJ da Frota, ds_tipo_combustivel, Preco Negociado, dt_vigencia",
+                )
+                if _ac_upfile is not None:
+                    _ac_fid = f"{_ac_upfile.name}_{_ac_upfile.size}"
+                    if st.session_state.get("_ac_last_upload_id") != _ac_fid:
                         try:
+                            # Lê e mostra diagnóstico das colunas
                             _ac_raw = pd.read_excel(_ac_upfile, sheet_name=0)
-                            _ac_proc = _processar_acordos_df(_ac_raw)
+                            st.info(
+                                f"📄 Arquivo lido: **{len(_ac_raw):,}** linhas, "
+                                f"**{len(_ac_raw.columns)}** colunas: "
+                                f"`{'`, `'.join(_ac_raw.columns[:10].tolist())}`"
+                                + (" …" if len(_ac_raw.columns) > 10 else ""),
+                                icon="📄",
+                            )
+
+                            with st.spinner(f"Processando {_ac_upfile.name}…"):
+                                _ac_proc = _processar_acordos_df(_ac_raw)
+
                             _ac_n_ok = len(_ac_proc)
-                            st.success(f"✅ Planilha lida: **{_ac_n_ok:,}** acordos encontrados.")
+                            _ac_n_cnpj_posto = _ac_proc["cnpj_posto"].nunique() if "cnpj_posto" in _ac_proc.columns else 0
+                            _ac_n_cnpj_frota = _ac_proc["cnpj_frota"].nunique() if "cnpj_frota" in _ac_proc.columns else 0
+                            st.success(
+                                f"✅ Planilha processada: **{_ac_n_ok:,}** acordos · "
+                                f"**{_ac_n_cnpj_posto}** postos · **{_ac_n_cnpj_frota}** frotas."
+                            )
 
                             with st.spinner("Gravando no banco de dados…"):
                                 _ac_email = st.session_state.get("usuario_email", "anonimo@fni")
@@ -12022,14 +12220,25 @@ with st.sidebar:
                             if _ac_res.get("ok"):
                                 st.success(
                                     f"✅ **{_ac_res['n_inseridos']:,}** acordos gravados no Supabase "
-                                    f"({_ac_res['n_duplicados']:,} já existiam)."
+                                    f"({_ac_res.get('n_duplicados', 0):,} já existiam / atualizados)."
                                 )
                                 st.session_state["acordos_df"] = _ac_proc
                                 st.session_state["_ac_last_upload_id"] = _ac_fid
+                                st.rerun()
                             else:
-                                st.error(f"❌ Erro ao gravar: {_ac_res.get('erro','desconhecido')}")
+                                _ac_err_msg = _ac_res.get("erro", "desconhecido")
+                                st.error(
+                                    f"❌ **Erro ao gravar no banco:**\n\n`{_ac_err_msg}`\n\n"
+                                    "Verifique se as tabelas foram criadas corretamente no Supabase "
+                                    "e se as credenciais (SUPABASE_URL e SUPABASE_KEY) estão configuradas.",
+                                    icon="❌",
+                                )
                         except Exception as _ac_exc:
-                            st.error(f"❌ Erro ao ler planilha: {_ac_exc}")
+                            st.error(
+                                f"❌ **Erro ao processar a planilha:**\n\n`{_ac_exc}`\n\n"
+                                "Verifique se o arquivo é um xlsx válido e se contém as colunas necessárias.",
+                                icon="❌",
+                            )
 
             # ── Prévia dos acordos vigentes ──────────────────────────────────
             if not _ac_vigentes.empty:
