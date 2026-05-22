@@ -17433,9 +17433,23 @@ if modo == "📊 Dashboard":
         )
 
         # ── Carrega fontes de dados ──────────────────────────────────────────
-        _cx_pp_df   = st.session_state.get("_pp_df")
+        _cx_pp_raw    = st.session_state.get("_pp_df")
+        _cx_pf_df     = st.session_state.get("pf_coords_df", pd.DataFrame())
         _cx_anp_cache = st.session_state.get("_precos_anp_cache", {})
-        _cx_sheets  = _cx_anp_cache.get("sheets")
+        _cx_sheets    = _cx_anp_cache.get("sheets")
+
+        # Enriquece _pp_df com uf/municipio/lat/lon vindos de pf_coords_df
+        _cx_pp_df = _cx_pp_raw
+        if _cx_pp_raw is not None and not _cx_pp_raw.empty \
+                and not _cx_pf_df.empty and "cnpj_norm" in _cx_pf_df.columns:
+            _cx_geo_cols = [c for c in
+                            ["cnpj_norm", "uf", "municipio",
+                             "_lat", "_lon", "lat", "lon", "razaoSocial"]
+                            if c in _cx_pf_df.columns]
+            _cx_geo = _cx_pf_df[_cx_geo_cols].drop_duplicates("cnpj_norm").copy()
+            # normaliza nomes de lat/lon
+            _cx_geo.rename(columns={"_lat": "lat", "_lon": "lon"}, inplace=True)
+            _cx_pp_df = _cx_pp_raw.merge(_cx_geo, on="cnpj_norm", how="left")
 
         _cx_tem_pp  = _cx_pp_df is not None and not _cx_pp_df.empty
         _cx_tem_anp = bool(_cx_sheets)
@@ -17475,8 +17489,20 @@ if modo == "📊 Dashboard":
 
             # Filtra por combustível selecionado
             _cx_filt = _cx_pp_df[_cx_pp_df["combustivel_pk"] == _cx_fuel_sel].copy()
-            _cx_filt["preco"] = pd.to_numeric(_cx_filt.get("preco", pd.Series(dtype=float)), errors="coerce")
-            _cx_filt = _cx_filt.dropna(subset=["preco", "uf"])
+            _cx_filt["preco"] = pd.to_numeric(
+                _cx_filt["preco"] if "preco" in _cx_filt.columns else pd.Series(dtype=float),
+                errors="coerce",
+            )
+            if "uf" not in _cx_filt.columns:
+                _cx_filt["uf"] = None
+            if "municipio" not in _cx_filt.columns:
+                _cx_filt["municipio"] = None
+            if "lat" not in _cx_filt.columns:
+                _cx_filt["lat"] = None
+            if "lon" not in _cx_filt.columns:
+                _cx_filt["lon"] = None
+            _cx_filt = _cx_filt.dropna(subset=["preco"])
+            _cx_filt = _cx_filt[_cx_filt["uf"].notna()]
 
             # Preço ANP por UF para o combustível selecionado
             _cx_anp_por_uf: dict = {}
@@ -17713,14 +17739,16 @@ if modo == "📊 Dashboard":
                     st.info("Coluna 'municipio' não encontrada nos dados.", icon="🎯")
                 else:
                     # Agrupa por município
+                    _cx_agg_dict = {
+                        "preco_medio": ("preco", "mean"),
+                        "postos":      ("preco", "count"),
+                    }
+                    if _cx_filt["lat"].notna().any():
+                        _cx_agg_dict["lat"] = ("lat", "mean")
+                        _cx_agg_dict["lon"] = ("lon", "mean")
                     _cx_mun = (
                         _cx_filt.groupby(["uf", "municipio"])
-                        .agg(
-                            preco_medio=("preco", "mean"),
-                            postos=("preco", "count"),
-                            lat=("lat", "mean") if "lat" in _cx_filt.columns else ("preco", "first"),
-                            lon=("lon", "mean") if "lon" in _cx_filt.columns else ("preco", "first"),
-                        )
+                        .agg(**_cx_agg_dict)
                         .reset_index()
                     )
                     _cx_med_nac = _cx_mun["preco_medio"].mean()
