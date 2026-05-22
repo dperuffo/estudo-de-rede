@@ -14480,7 +14480,7 @@ if modo == "📊 Dashboard":
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
         # ── Tabs do dashboard ─────────────────────────────────────────────
-        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8 = st.tabs([
+        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8, _dt9 = st.tabs([
             "📊 Cobertura por Estado",
             "🎯 Penetração vs ANP",
             "🗺️ Mapa de Densidade",
@@ -14489,6 +14489,7 @@ if modo == "📊 Dashboard":
             "⚖️ Modo Comparativo",
             "👔 Executivo",
             "🚦 Operacional",
+            "🛣️ Eficiência de Rotas",
         ])
 
         # ──────────────────────────────────────────────────────────────────
@@ -16650,6 +16651,384 @@ if modo == "📊 Dashboard":
                             ].sum(axis=1)
                             _op_pvt = _op_pvt.sort_values("A", ascending=False)
                             st.dataframe(_op_pvt, use_container_width=True, hide_index=True)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TAB 9 — 🛣️ Eficiência de Rotas
+    # ══════════════════════════════════════════════════════════════════════════
+    with _dt9:
+        # ── Header banner ────────────────────────────────────────────────────
+        st.markdown(
+            """
+            <div style="background:linear-gradient(90deg,#040d26,#1040a0);
+                        border-radius:10px;padding:18px 24px;margin-bottom:20px;">
+              <h3 style="color:#fff;margin:0;font-size:1.25rem;">
+                🛣️ Dashboard de Eficiência de Rotas
+              </h3>
+              <p style="color:#a8c4f0;margin:4px 0 0;font-size:.85rem;">
+                Análise de KM médio, desvios vs rota ideal, custo estimado e postos utilizados
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # ── Carrega rotas salvas ─────────────────────────────────────────────
+        _rt_todas = []
+        try:
+            _rt_todas = _carregar_rotas_salvas() or []
+        except Exception:
+            _rt_todas = []
+
+        _rt_validas = [
+            r for r in _rt_todas
+            if r.get("tipo") in ("rota", "roteirizacao")
+            and r.get("dist_km") not in (None, 0, "")
+        ]
+
+        if not _rt_validas:
+            st.info(
+                "Nenhuma rota salva encontrada. "
+                "Salve rotas nos Modos 1 ou 2 para visualizar o dashboard.",
+                icon="🛣️",
+            )
+        else:
+            import math as _math_rt
+
+            # ── Função auxiliar Haversine ────────────────────────────────────
+            def _haversine(lat1, lon1, lat2, lon2):
+                _R = 6371.0
+                _d_lat = _math_rt.radians(lat2 - lat1)
+                _d_lon = _math_rt.radians(lon2 - lon1)
+                _a = (_math_rt.sin(_d_lat / 2) ** 2
+                      + _math_rt.cos(_math_rt.radians(lat1))
+                      * _math_rt.cos(_math_rt.radians(lat2))
+                      * _math_rt.sin(_d_lon / 2) ** 2)
+                return _R * 2 * _math_rt.atan2(_math_rt.sqrt(_a), _math_rt.sqrt(1 - _a))
+
+            # ── Monta DataFrame de rotas ─────────────────────────────────────
+            _rt_rows = []
+            for _rt in _rt_validas:
+                _dist = float(_rt.get("dist_km") or 0)
+                _dur  = float(_rt.get("dur_min") or 0)
+                _nome = (_rt.get("nome") or
+                         f"{_rt.get('label_orig','?')} → {_rt.get('label_dest','?')}")
+                _tipo = _rt.get("tipo", "rota")
+                _data = str(_rt.get("criado_em",""))[:10]
+
+                # Distância linha-reta (ideal) via Haversine
+                _lat_o = _rt.get("lat_orig") or _rt.get("lat_o")
+                _lon_o = _rt.get("lon_orig") or _rt.get("lon_o")
+                _lat_d = _rt.get("lat_dest") or _rt.get("lat_d")
+                _lon_d = _rt.get("lon_dest") or _rt.get("lon_d")
+                _ideal = None
+                try:
+                    if all(v not in (None, "") for v in [_lat_o, _lon_o, _lat_d, _lon_d]):
+                        _ideal = _haversine(
+                            float(_lat_o), float(_lon_o),
+                            float(_lat_d), float(_lon_d),
+                        )
+                except Exception:
+                    _ideal = None
+
+                _desvio_pct = None
+                if _ideal and _ideal > 0:
+                    _desvio_pct = (_dist - _ideal) / _ideal * 100
+
+                # Custo estimado
+                _autonomia   = float(_rt.get("autonomia") or 10)
+                _comb_tipo   = _rt.get("combustivel") or "Gasolina Comum"
+                _litros_total = _dist / _autonomia if _autonomia > 0 else 0
+
+                # Tenta pegar preço médio do combustível da frota
+                _preco_comb = None
+                try:
+                    _pp_rt = _intel_load()
+                    if _pp_rt is not None and not _pp_rt.empty:
+                        _col_match = [
+                            c for c in _pp_rt.columns
+                            if _comb_tipo.lower() in str(c).lower()
+                        ]
+                        if _col_match:
+                            _serie = pd.to_numeric(
+                                _pp_rt[_col_match[0]], errors="coerce"
+                            ).dropna()
+                            if not _serie.empty:
+                                _preco_comb = float(_serie.mean())
+                except Exception:
+                    _preco_comb = None
+
+                # Fallback: usa preço do abastecimento da rota
+                if _preco_comb is None:
+                    try:
+                        _abast = _rt.get("abastecimentos") or []
+                        _precos_ab = [
+                            float(a["preco"]) for a in _abast
+                            if a.get("preco") not in (None, "", 0)
+                        ]
+                        if _precos_ab:
+                            _preco_comb = sum(_precos_ab) / len(_precos_ab)
+                    except Exception:
+                        pass
+
+                _custo_est = (
+                    _litros_total * _preco_comb
+                    if _preco_comb and _litros_total
+                    else None
+                )
+
+                # Postos utilizados (roteirizacao)
+                _n_paradas = 0
+                _postos_rt = []
+                try:
+                    _paradas_rt = _rt.get("paradas") or []
+                    _n_paradas  = len(_paradas_rt)
+                    for _p in _paradas_rt:
+                        _label_p = (_p.get("razaoSocial")
+                                    or _p.get("label")
+                                    or _p.get("cnpj",""))
+                        if _label_p:
+                            _postos_rt.append(_label_p)
+                except Exception:
+                    pass
+
+                _rt_rows.append({
+                    "nome":       _nome,
+                    "tipo":       _tipo,
+                    "data":       _data,
+                    "dist_km":    _dist,
+                    "dur_min":    _dur,
+                    "dist_ideal": _ideal,
+                    "desvio_pct": _desvio_pct,
+                    "litros":     _litros_total,
+                    "preco_comb": _preco_comb,
+                    "custo_est":  _custo_est,
+                    "n_paradas":  _n_paradas,
+                    "postos":     _postos_rt,
+                    "autonomia":  _autonomia,
+                    "comb_tipo":  _comb_tipo,
+                })
+
+            _rt_df = pd.DataFrame(_rt_rows)
+
+            # ── KPI cards ────────────────────────────────────────────────────
+            _rt_total   = len(_rt_df)
+            _rt_km_med  = _rt_df["dist_km"].mean()
+            _rt_dur_med = _rt_df["dur_min"].mean()
+            _rt_custo_med = (
+                _rt_df["custo_est"].dropna().mean()
+                if _rt_df["custo_est"].notna().any() else None
+            )
+
+            _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+            _kpi_css = (
+                "background:linear-gradient(135deg,#071840,#1040a0);"
+                "border-radius:10px;padding:16px 20px;text-align:center;color:#fff;"
+            )
+            with _kc1:
+                st.markdown(
+                    f'<div style="{_kpi_css}">'
+                    f'<div style="font-size:2rem;font-weight:700">{_rt_total}</div>'
+                    f'<div style="font-size:.8rem;color:#a8c4f0">Rotas salvas</div>'
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            with _kc2:
+                st.markdown(
+                    f'<div style="{_kpi_css}">'
+                    f'<div style="font-size:2rem;font-weight:700">{_rt_km_med:.0f} km</div>'
+                    f'<div style="font-size:.8rem;color:#a8c4f0">KM médio por rota</div>'
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            with _kc3:
+                _dur_h = int(_rt_dur_med // 60)
+                _dur_m = int(_rt_dur_med % 60)
+                st.markdown(
+                    f'<div style="{_kpi_css}">'
+                    f'<div style="font-size:2rem;font-weight:700">{_dur_h}h{_dur_m:02d}</div>'
+                    f'<div style="font-size:.8rem;color:#a8c4f0">Duração média</div>'
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            with _kc4:
+                _custo_txt = (
+                    f"R$ {_rt_custo_med:,.0f}" if _rt_custo_med else "—"
+                )
+                st.markdown(
+                    f'<div style="{_kpi_css}">'
+                    f'<div style="font-size:2rem;font-weight:700">{_custo_txt}</div>'
+                    f'<div style="font-size:.8rem;color:#a8c4f0">Custo médio est.</div>'
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── Gráficos: linha 1 ─────────────────────────────────────────────
+            _gcol1, _gcol2 = st.columns(2)
+
+            # Chart 1 — KM por rota (últimas 15)
+            with _gcol1:
+                st.markdown("##### 📏 KM por rota (últimas 15)")
+                _rt_km15 = _rt_df.tail(15).copy()
+                _rt_km15["nome_curto"] = _rt_km15["nome"].apply(
+                    lambda n: (n[:28] + "…") if len(n) > 28 else n
+                )
+                _fig_km = go.Figure(go.Bar(
+                    x=_rt_km15["dist_km"],
+                    y=_rt_km15["nome_curto"],
+                    orientation="h",
+                    marker_color="#1565C0",
+                    text=_rt_km15["dist_km"].apply(lambda v: f"{v:.0f} km"),
+                    textposition="outside",
+                ))
+                _fig_km.update_layout(
+                    height=380,
+                    margin=dict(l=10, r=60, t=10, b=20),
+                    xaxis_title="km",
+                    paper_bgcolor="white",
+                    plot_bgcolor="#f9fbff",
+                    font_size=11,
+                )
+                st.plotly_chart(_fig_km, use_container_width=True)
+
+            # Chart 2 — Desvio vs rota ideal
+            with _gcol2:
+                st.markdown("##### 📐 Desvio vs rota ideal (%)")
+                _rt_dev = _rt_df.dropna(subset=["desvio_pct"]).tail(15).copy()
+                if _rt_dev.empty:
+                    st.info(
+                        "Sem coordenadas suficientes para calcular desvio.",
+                        icon="📐",
+                    )
+                else:
+                    _rt_dev["nome_curto"] = _rt_dev["nome"].apply(
+                        lambda n: (n[:28] + "…") if len(n) > 28 else n
+                    )
+                    _rt_dev["cor_dev"] = _rt_dev["desvio_pct"].apply(
+                        lambda v: "#e53935" if v > 50 else ("#f57c00" if v > 20 else "#43a047")
+                    )
+                    _fig_dev = go.Figure(go.Bar(
+                        x=_rt_dev["desvio_pct"],
+                        y=_rt_dev["nome_curto"],
+                        orientation="h",
+                        marker_color=_rt_dev["cor_dev"].tolist(),
+                        text=_rt_dev["desvio_pct"].apply(lambda v: f"+{v:.0f}%" if v >= 0 else f"{v:.0f}%"),
+                        textposition="outside",
+                    ))
+                    _fig_dev.update_layout(
+                        height=380,
+                        margin=dict(l=10, r=60, t=10, b=20),
+                        xaxis_title="% acima da linha reta",
+                        paper_bgcolor="white",
+                        plot_bgcolor="#f9fbff",
+                        font_size=11,
+                    )
+                    st.plotly_chart(_fig_dev, use_container_width=True)
+
+            # ── Gráficos: linha 2 ─────────────────────────────────────────────
+            _gcol3, _gcol4 = st.columns(2)
+
+            # Chart 3 — Custo estimado por rota
+            with _gcol3:
+                st.markdown("##### 💰 Custo estimado por rota (R$)")
+                _rt_custo = _rt_df.dropna(subset=["custo_est"]).tail(15).copy()
+                if _rt_custo.empty:
+                    st.info(
+                        "Custo não disponível — carregue preços de postos "
+                        "para habilitar este gráfico.",
+                        icon="💰",
+                    )
+                else:
+                    _rt_custo["nome_curto"] = _rt_custo["nome"].apply(
+                        lambda n: (n[:28] + "…") if len(n) > 28 else n
+                    )
+                    _fig_custo = go.Figure(go.Bar(
+                        x=_rt_custo["custo_est"],
+                        y=_rt_custo["nome_curto"],
+                        orientation="h",
+                        marker_color="#0b2660",
+                        text=_rt_custo["custo_est"].apply(lambda v: f"R$ {v:,.0f}"),
+                        textposition="outside",
+                    ))
+                    _fig_custo.update_layout(
+                        height=380,
+                        margin=dict(l=10, r=80, t=10, b=20),
+                        xaxis_title="R$",
+                        paper_bgcolor="white",
+                        plot_bgcolor="#f9fbff",
+                        font_size=11,
+                    )
+                    st.plotly_chart(_fig_custo, use_container_width=True)
+
+            # Chart 4 — Postos mais utilizados
+            with _gcol4:
+                st.markdown("##### ⛽ Postos mais utilizados em rotas")
+                _todos_postos_rt = []
+                for _rr in _rt_rows:
+                    _todos_postos_rt.extend(_rr.get("postos") or [])
+
+                if not _todos_postos_rt:
+                    st.info(
+                        "Nenhum posto registrado nas rotas salvas. "
+                        "Use o Modo 2 (Roteirização) para salvar rotas com paradas.",
+                        icon="⛽",
+                    )
+                else:
+                    _postos_cnt = (
+                        pd.Series(_todos_postos_rt)
+                        .value_counts()
+                        .head(10)
+                        .reset_index()
+                    )
+                    _postos_cnt.columns = ["posto", "qtd"]
+                    _postos_cnt["posto_curto"] = _postos_cnt["posto"].apply(
+                        lambda n: (n[:30] + "…") if len(n) > 30 else n
+                    )
+                    _fig_postos = go.Figure(go.Bar(
+                        x=_postos_cnt["qtd"],
+                        y=_postos_cnt["posto_curto"],
+                        orientation="h",
+                        marker_color="#1040a0",
+                        text=_postos_cnt["qtd"].astype(str),
+                        textposition="outside",
+                    ))
+                    _fig_postos.update_layout(
+                        height=380,
+                        margin=dict(l=10, r=40, t=10, b=20),
+                        xaxis_title="Aparições em rotas",
+                        paper_bgcolor="white",
+                        plot_bgcolor="#f9fbff",
+                        font_size=11,
+                    )
+                    st.plotly_chart(_fig_postos, use_container_width=True)
+
+            # ── Tabela detalhada ──────────────────────────────────────────────
+            st.markdown("---")
+            st.markdown("##### 📋 Detalhamento de todas as rotas")
+
+            _rt_tbl = _rt_df[[
+                "nome", "tipo", "data", "dist_km",
+                "dur_min", "desvio_pct", "custo_est",
+                "n_paradas", "autonomia", "comb_tipo",
+            ]].copy()
+            _rt_tbl.columns = [
+                "Rota", "Tipo", "Data", "KM real",
+                "Duração (min)", "Desvio %", "Custo est. (R$)",
+                "Paradas", "Autonomia (km/L)", "Combustível",
+            ]
+            _rt_tbl["KM real"]         = _rt_tbl["KM real"].apply(lambda v: f"{v:.1f}")
+            _rt_tbl["Duração (min)"]   = _rt_tbl["Duração (min)"].apply(
+                lambda v: f"{int(v//60)}h{int(v%60):02d}" if pd.notna(v) else "—"
+            )
+            _rt_tbl["Desvio %"]        = _rt_tbl["Desvio %"].apply(
+                lambda v: (f"+{v:.0f}%" if v >= 0 else f"{v:.0f}%") if pd.notna(v) else "—"
+            )
+            _rt_tbl["Custo est. (R$)"] = _rt_tbl["Custo est. (R$)"].apply(
+                lambda v: f"R$ {v:,.0f}" if pd.notna(v) else "—"
+            )
+
+            st.dataframe(_rt_tbl, use_container_width=True, hide_index=True)
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
