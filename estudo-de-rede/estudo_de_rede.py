@@ -212,6 +212,56 @@ def _db_carregar_abastecimentos() -> list:
         return []
 
 
+# ── Rede GF — postos_gf ───────────────────────────────────────────
+
+def _db_carregar_cnpjs_postos_gf() -> set:
+    """
+    Retorna set de CNPJs (14 dígitos, normalizado) da rede GF
+    lidos da tabela postos_gf no Supabase.
+    Fallback: usa pf_coords_df do session_state se o banco falhar.
+    """
+    db = _db_client()
+    if db:
+        try:
+            res = db.table("postos_gf").select("cnpj").limit(20000).execute()
+            if res.data:
+                return {
+                    re.sub(r"\D", "", str(r.get("cnpj", "")))
+                    for r in res.data
+                    if r.get("cnpj")
+                }
+        except Exception:
+            pass
+    # fallback: session_state
+    _pf = st.session_state.get("pf_coords_df")
+    if _pf is not None and not _pf.empty and "cnpj_norm" in _pf.columns:
+        return set(_pf["cnpj_norm"].dropna().tolist())
+    return set()
+
+
+def _db_carregar_postos_gf_df() -> "pd.DataFrame":
+    """
+    Retorna DataFrame completo da rede GF (cnpj, razao_social,
+    municipio, uf, lat, lon) lido da tabela postos_gf no Supabase.
+    """
+    db = _db_client()
+    if db:
+        try:
+            res = db.table("postos_gf") \
+                    .select("cnpj,razao_social,municipio,uf,lat,lon") \
+                    .limit(20000) \
+                    .execute()
+            if res.data:
+                _df_gf = pd.DataFrame(res.data)
+                _df_gf["cnpj_norm"] = _df_gf["cnpj"].apply(
+                    lambda v: re.sub(r"\D", "", str(v or ""))
+                )
+                return _df_gf
+        except Exception:
+            pass
+    return pd.DataFrame()
+
+
 # ── Postos Favoritos ───────────────────────────────────────────────
 
 def _db_favoritos() -> list:
@@ -21910,14 +21960,14 @@ elif modo == "🚛 Análise de Cliente":
                     unsafe_allow_html=True,
                 )
 
-                # ── Carrega CNPJs da rede GF ─────────────────────────────
-                _rg_pf = st.session_state.get("pf_coords_df", _pd.DataFrame())
-                _rg_gf_cnpjs: set = set()
+                # ── Carrega CNPJs da rede GF do banco (postos_gf) ───────────
+                # Usa cache na sessão para não bater no banco a cada rerun
+                if "rg_gf_cnpjs_cache" not in st.session_state:
+                    st.session_state["rg_gf_cnpjs_cache"] = _db_carregar_cnpjs_postos_gf()
+                _rg_gf_cnpjs: set = st.session_state["rg_gf_cnpjs_cache"]
+
                 _rg_gf_preco: dict = {}   # {cnpj_norm: {produto_pk: preco}}
                 _rg_pp_df = st.session_state.get("_pp_df")
-
-                if not _rg_pf.empty and "cnpj_norm" in _rg_pf.columns:
-                    _rg_gf_cnpjs = set(_rg_pf["cnpj_norm"].dropna().tolist())
 
                 # Monta tabela de preços GF por CNPJ+produto (opcional)
                 if _rg_pp_df is not None and not _rg_pp_df.empty:
@@ -21930,8 +21980,9 @@ elif modo == "🚛 Análise de Cliente":
 
                 if not _rg_gf_cnpjs:
                     st.info(
-                        "Rede GF não carregada. Carregue a planilha de postos em "
-                        "**Configurações** para ativar esta análise.",
+                        "Nenhum posto da rede GF encontrado no banco de dados. "
+                        "Verifique se a tabela **postos_gf** está populada no Supabase "
+                        "ou carregue a planilha em **Configurações**.",
                         icon="🏁",
                     )
                 else:
