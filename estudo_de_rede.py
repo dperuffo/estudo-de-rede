@@ -214,9 +214,21 @@ def _db_carregar_abastecimentos() -> list:
 
 # ── Rede GF — postos_gf ───────────────────────────────────────────
 
+def _normalizar_cnpj14(v) -> str:
+    """Normaliza qualquer valor para string de exatamente 14 dígitos com zero-padding."""
+    _s = str(v or "")
+    # Se for float com .0, converte para int primeiro para evitar "22912349000132.0"
+    if "." in _s:
+        try:
+            _s = str(int(float(_s)))
+        except Exception:
+            pass
+    return re.sub(r"\D", "", _s).zfill(14)
+
+
 def _db_carregar_cnpjs_postos_gf() -> set:
     """
-    Retorna set de CNPJs (14 dígitos, normalizado) da rede GF
+    Retorna set de CNPJs (14 dígitos, zero-padded) da rede GF
     lidos da tabela postos_gf no Supabase.
     Fallback: usa pf_coords_df do session_state se o banco falhar.
     """
@@ -226,7 +238,7 @@ def _db_carregar_cnpjs_postos_gf() -> set:
             res = db.table("postos_gf").select("cnpj").limit(20000).execute()
             if res.data:
                 return {
-                    re.sub(r"\D", "", str(r.get("cnpj", "")))
+                    _normalizar_cnpj14(r.get("cnpj", ""))
                     for r in res.data
                     if r.get("cnpj")
                 }
@@ -235,7 +247,7 @@ def _db_carregar_cnpjs_postos_gf() -> set:
     # fallback: session_state
     _pf = st.session_state.get("pf_coords_df")
     if _pf is not None and not _pf.empty and "cnpj_norm" in _pf.columns:
-        return set(_pf["cnpj_norm"].dropna().tolist())
+        return {_normalizar_cnpj14(c) for c in _pf["cnpj_norm"].dropna()}
     return set()
 
 
@@ -11244,6 +11256,8 @@ with st.sidebar:
                         st.session_state["_pf_fonte"]            = "manual"
                         st.session_state["_pf_carregado_em"]     = _agora()
                         st.session_state["_pf_last_upload_id"]   = _pf_file_id
+                        # Invalida cache da rede GF para reincorporar novos CNPJs
+                        st.session_state.pop("rg_gf_cnpjs_cache", None)
                         if perfil_pf:
                             st.session_state["perfil_venda_map"] = perfil_pf
                             st.session_state["perfis_pf_lista"]  = sorted(set(perfil_pf.values()))
@@ -12224,6 +12238,9 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                                 )
                                 st.session_state["acordos_df"] = _ac_proc
                                 st.session_state["_ac_last_upload_id"] = _ac_fid
+                                # Invalida cache da rede GF para reincorporar
+                                # os CNPJs de acordos na próxima classificação
+                                st.session_state.pop("rg_gf_cnpjs_cache", None)
                                 st.rerun()
                             else:
                                 _ac_err_msg = _ac_res.get("erro", "desconhecido")
@@ -23227,11 +23244,40 @@ elif modo == "🚛 Análise de Cliente":
                     unsafe_allow_html=True,
                 )
 
-                # ── Carrega CNPJs da rede GF do banco (postos_gf) ───────────
-                # Usa cache na sessão para não bater no banco a cada rerun
+                # ── Carrega CNPJs da rede GF — três fontes combinadas ───────
+                # Fonte 1: tabela postos_gf no Supabase (arquivo GF carregado)
+                # Fonte 2: acordos_precos — qualquer posto com acordo negociado
+                #          é necessariamente credenciado GF
+                # Fonte 3: cnpjs_pro_frotas (session_state do arquivo em memória)
+                # Todas normalizadas para 14 dígitos com zero-padding.
                 if "rg_gf_cnpjs_cache" not in st.session_state:
-                    st.session_state["rg_gf_cnpjs_cache"] = _db_carregar_cnpjs_postos_gf()
-                _rg_gf_cnpjs: set = st.session_state["rg_gf_cnpjs_cache"]
+                    _rg_base = _db_carregar_cnpjs_postos_gf()   # Fonte 1
+                    st.session_state["rg_gf_cnpjs_cache"] = _rg_base
+
+                _rg_gf_cnpjs: set = set(st.session_state["rg_gf_cnpjs_cache"])
+
+                # Fonte 2 — acordos de preço (postos com acórdão são GF por definição)
+                _ac_df_rg = st.session_state.get("acordos_df", pd.DataFrame())
+                if not _ac_df_rg.empty and "cnpj_posto" in _ac_df_rg.columns:
+                    _ac_cnpjs_rg = {
+                        _normalizar_cnpj14(c)
+                        for c in _ac_df_rg["cnpj_posto"].dropna()
+                        if str(c).strip()
+                    }
+                    _rg_gf_cnpjs |= _ac_cnpjs_rg
+                else:
+                    _ac_cnpjs_rg = set()
+
+                # Fonte 3 — session_state (arquivo GF carregado em memória)
+                _ss_cnpjs_rg = {
+                    _normalizar_cnpj14(c)
+                    for c in st.session_state.get("cnpjs_pro_frotas", set())
+                    if str(c).strip()
+                }
+                _rg_gf_cnpjs |= _ss_cnpjs_rg
+
+                # Remove entradas vazias ou inválidas (menos de 11 dígitos)
+                _rg_gf_cnpjs = {c for c in _rg_gf_cnpjs if len(c) >= 11}
 
                 _rg_gf_preco: dict = {}   # {cnpj_norm: {produto_pk: preco}}
                 _rg_pp_df = st.session_state.get("_pp_df")
@@ -23247,12 +23293,51 @@ elif modo == "🚛 Análise de Cliente":
 
                 if not _rg_gf_cnpjs:
                     st.info(
-                        "Nenhum posto da rede GF encontrado no banco de dados. "
-                        "Verifique se a tabela **postos_gf** está populada no Supabase "
-                        "ou carregue a planilha em **Configurações**.",
+                        "Nenhum posto da rede GF encontrado. "
+                        "Carregue a planilha GF em **Configurações → Gestão de Frotas** "
+                        "e/ou a planilha de **Acordos de Preço** para habilitar esta análise.",
                         icon="🏁",
                     )
                 else:
+                    # ── Diagnóstico das fontes (expander) ────────────────
+                    _n_fonte_banco  = len(st.session_state.get("rg_gf_cnpjs_cache", set()))
+                    _n_fonte_acordos = len(_ac_cnpjs_rg)
+                    _n_fonte_ss     = len(_ss_cnpjs_rg)
+                    with st.expander("🔍 Diagnóstico da rede GF — fontes e cobertura", expanded=False):
+                        st.markdown(
+                            f"**Total de CNPJs GF reconhecidos: {len(_rg_gf_cnpjs):,}**\n\n"
+                            f"- 🗄️ Tabela `postos_gf` (banco Supabase): **{_n_fonte_banco:,}** CNPJs\n"
+                            f"- 🤝 Tabela `acordos_precos` (postos com acordo = GF por definição): **{_n_fonte_acordos:,}** CNPJs\n"
+                            f"- 📄 Arquivo GF em memória (sessão): **{_n_fonte_ss:,}** CNPJs\n\n"
+                            "Se um posto credenciado aparecer como 'Fora da Rede', verifique se o CNPJ "
+                            "consta em pelo menos uma dessas fontes. Você pode pesquisar abaixo:"
+                        )
+                        _diag_cnpj_input = st.text_input(
+                            "Verificar CNPJ específico (somente dígitos ou formatado):",
+                            placeholder="Ex: 22.912.349/0001-32",
+                            key="rg_diag_cnpj",
+                        )
+                        if _diag_cnpj_input:
+                            _diag_norm = _normalizar_cnpj14(_diag_cnpj_input)
+                            _diag_em_banco  = _diag_norm in st.session_state.get("rg_gf_cnpjs_cache", set())
+                            _diag_em_acordos = _diag_norm in _ac_cnpjs_rg
+                            _diag_em_ss     = _diag_norm in _ss_cnpjs_rg
+                            _diag_no_set    = _diag_norm in _rg_gf_cnpjs
+                            st.markdown(
+                                f"**CNPJ normalizado:** `{_diag_norm}`\n\n"
+                                f"- 🗄️ Em `postos_gf` (banco): {'✅ SIM' if _diag_em_banco else '❌ NÃO'}\n"
+                                f"- 🤝 Em `acordos_precos`: {'✅ SIM' if _diag_em_acordos else '❌ NÃO'}\n"
+                                f"- 📄 Em arquivo GF (sessão): {'✅ SIM' if _diag_em_ss else '❌ NÃO'}\n"
+                                f"- **Classificado como GF:** {'✅ SIM — Rede GF' if _diag_no_set else '❌ NÃO — Fora da Rede'}"
+                            )
+                            if not _diag_no_set:
+                                st.warning(
+                                    "Este CNPJ não foi encontrado em nenhuma das fontes. "
+                                    "Certifique-se de que: (1) o arquivo GF carregado em Configurações contém este posto, "
+                                    "ou (2) a planilha de Acordos inclui este CNPJ na coluna 'CNPJ do Posto'.",
+                                    icon="⚠️",
+                                )
+
                     # ── Legenda proeminente ───────────────────────────────
                     _n_postos_gf = len(_rg_gf_cnpjs)
                     _rg_legenda_html = (
@@ -23279,8 +23364,11 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
 
                     # ── Classifica cada abastecimento ────────────────────
                     _rg_df = _df.copy()
+                    # Usa _normalizar_cnpj14 (14 dígitos, zero-padded) igual
+                    # ao set _rg_gf_cnpjs — elimina falsos negativos por
+                    # diferença de formato (float, zeros à esquerda, etc.)
                     _rg_df["_cnpj_norm"] = _rg_df["_cnpj_posto"].apply(
-                        lambda v: normalizar_cnpj(str(v or ""))
+                        lambda v: _normalizar_cnpj14(str(v or ""))
                     )
                     _rg_df["_na_rede"] = _rg_df["_cnpj_norm"].isin(_rg_gf_cnpjs)
                     _rg_df["_litros"]      = _pd.to_numeric(_rg_df["_litros"], errors="coerce").fillna(0)
