@@ -22298,16 +22298,13 @@ elif modo == "🚛 Análise de Cliente":
                     with _rg_ra:
                         st.markdown("##### 🏪 Top postos fora da rede mais usados")
                         st.caption("Candidatos a incorporar à rede GF")
+                        _rg_gasto_col = "_valor_total" if "_valor_total" in _rg_fora.columns else "_litros"
                         _rg_top_postos = (
                             _rg_fora.groupby(["_cnpj_posto", "_nome_posto", "_uf_posto"])
                             .agg(
                                 transacoes=("_litros","count"),
                                 litros=("_litros","sum"),
-                                gasto=(
-                                    "_valor_total","sum"
-                                    if "_valor_total" in _rg_fora.columns
-                                    else "_litros"
-                                ),
+                                gasto=(_rg_gasto_col, "sum"),
                             )
                             .reset_index()
                             .sort_values("litros", ascending=False)
