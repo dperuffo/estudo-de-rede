@@ -20761,13 +20761,14 @@ elif modo == "🚛 Análise de Cliente":
             st.warning("Nenhum registro no período selecionado.")
         else:
             # ── abas principais ───────────────────────────────────
-            _ta, _tb, _tc, _td, _te, _tf = st.tabs([
+            _ta, _tb, _tc, _td, _te, _tf, _tg = st.tabs([
                 "📊 Resumo",
                 "🚗 Veículos",
                 "📈 Consumo & Custo/km",
                 "🚨 Alertas & Fraude",
                 "💡 Insights",
                 "💰 Contratos & Savings",
+                "🏁 Rede GF vs Fora da Rede",
             ])
 
             # ════════════════════════════════════════════════════
@@ -21889,6 +21890,465 @@ elif modo == "🚛 Análise de Cliente":
                             f"</div>",
                             unsafe_allow_html=True,
                         )
+
+            # ════════════════════════════════════════════════════
+            # ABA 7 — REDE GF vs FORA DA REDE
+            # ════════════════════════════════════════════════════
+            with _tg:
+                st.markdown(
+                    """
+                    <div style="background:linear-gradient(90deg,#040d26,#1040a0);
+                                border-radius:10px;padding:16px 22px;margin-bottom:18px;">
+                      <h3 style="color:#fff;margin:0;font-size:1.15rem;">
+                        🏁 Rede GF vs Fora da Rede
+                      </h3>
+                      <p style="color:#a8c4f0;margin:4px 0 0;font-size:.83rem;">
+                        Taxa de adesão à rede credenciada · Diferença de preço · Saving perdido
+                      </p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                # ── Carrega CNPJs da rede GF ─────────────────────────────
+                _rg_pf = st.session_state.get("pf_coords_df", _pd.DataFrame())
+                _rg_gf_cnpjs: set = set()
+                _rg_gf_preco: dict = {}   # {cnpj_norm: {produto_pk: preco}}
+                _rg_pp_df = st.session_state.get("_pp_df")
+
+                if not _rg_pf.empty and "cnpj_norm" in _rg_pf.columns:
+                    _rg_gf_cnpjs = set(_rg_pf["cnpj_norm"].dropna().tolist())
+
+                # Monta tabela de preços GF por CNPJ+produto (opcional)
+                if _rg_pp_df is not None and not _rg_pp_df.empty:
+                    for _, _rr in _rg_pp_df.iterrows():
+                        _rk = str(_rr.get("cnpj_norm",""))
+                        _rpk = str(_rr.get("combustivel_pk",""))
+                        _rp  = _rr.get("preco")
+                        if _rk and _rpk and _rp:
+                            _rg_gf_preco.setdefault(_rk, {})[_rpk] = float(_rp)
+
+                if not _rg_gf_cnpjs:
+                    st.info(
+                        "Rede GF não carregada. Carregue a planilha de postos em "
+                        "**Configurações** para ativar esta análise.",
+                        icon="🏁",
+                    )
+                else:
+                    # ── Classifica cada abastecimento ────────────────────
+                    _rg_df = _df.copy()
+                    _rg_df["_cnpj_norm"] = _rg_df["_cnpj_posto"].apply(
+                        lambda v: normalizar_cnpj(str(v or ""))
+                    )
+                    _rg_df["_na_rede"] = _rg_df["_cnpj_norm"].isin(_rg_gf_cnpjs)
+                    _rg_df["_litros"]      = _pd.to_numeric(_rg_df["_litros"], errors="coerce").fillna(0)
+                    _rg_df["_preco_litro"] = _pd.to_numeric(_rg_df["_preco_litro"], errors="coerce")
+                    _rg_df["_valor_total"] = _pd.to_numeric(_rg_df.get("_valor_total", _pd.Series(dtype=float)), errors="coerce").fillna(0)
+
+                    _rg_dentro = _rg_df[_rg_df["_na_rede"]]
+                    _rg_fora   = _rg_df[~_rg_df["_na_rede"]]
+
+                    _n_total    = len(_rg_df)
+                    _n_dentro   = len(_rg_dentro)
+                    _n_fora     = len(_rg_fora)
+                    _l_total    = _rg_df["_litros"].sum()
+                    _l_dentro   = _rg_dentro["_litros"].sum()
+                    _l_fora     = _rg_fora["_litros"].sum()
+                    _v_dentro   = (_rg_dentro["_preco_litro"] * _rg_dentro["_litros"]).sum()
+                    _v_fora     = (_rg_fora["_preco_litro"]   * _rg_fora["_litros"]).sum()
+                    _v_total    = _v_dentro + _v_fora
+                    _taxa_vol   = (_l_dentro / _l_total * 100) if _l_total > 0 else 0
+                    _taxa_tx    = (_n_dentro / _n_total * 100) if _n_total > 0 else 0
+
+                    _pm_dentro  = (_v_dentro / _l_dentro) if _l_dentro > 0 else None
+                    _pm_fora    = (_v_fora   / _l_fora)   if _l_fora   > 0 else None
+                    _delta_preco = ((_pm_fora - _pm_dentro)
+                                    if _pm_dentro and _pm_fora else None)
+
+                    # Saving perdido = (preço fora - preço dentro) × litros fora
+                    _saving_perdido = (
+                        _delta_preco * _l_fora
+                        if _delta_preco and _delta_preco > 0 else 0.0
+                    )
+
+                    def _rfmt(v): return f"R$ {v:,.2f}".replace(",","X").replace(".",",").replace("X",".")
+                    def _lfmt(v): return f"{v:,.0f} L".replace(",",".")
+
+                    # ── KPIs ─────────────────────────────────────────────
+                    _rg_k1, _rg_k2, _rg_k3, _rg_k4, _rg_k5 = st.columns(5)
+                    _ks = "border-radius:9px;padding:13px 10px;text-align:center;margin-bottom:4px;"
+
+                    def _kcard(col, bg, bord, val, label, sub=""):
+                        col.markdown(
+                            f'<div style="{_ks}background:{bg};border:1.5px solid {bord}">'
+                            f'<div style="font-size:1.5rem;font-weight:800;color:{bord}">{val}</div>'
+                            f'<div style="font-size:.77rem;color:#444;line-height:1.3">{label}</div>'
+                            f'{f"<div style=font-size:.72rem;color:#777>{sub}</div>" if sub else ""}'
+                            f'</div>', unsafe_allow_html=True)
+
+                    _cor_taxa  = "#43a047" if _taxa_vol >= 80 else ("#f57c00" if _taxa_vol >= 50 else "#e53935")
+                    _kcard(_rg_k1, "#f0f4ff", "#1040a0",
+                           f"{_taxa_tx:.0f}%", "Transações na rede",
+                           f"{_n_dentro:,} de {_n_total:,}".replace(",","."))
+                    _kcard(_rg_k2, "#f0f4ff", _cor_taxa,
+                           f"{_taxa_vol:.0f}%", "Volume na rede (L)",
+                           f"{_lfmt(_l_dentro)} de {_lfmt(_l_total)}")
+                    _kcard(_rg_k3, "#f3fff3" if not _pm_dentro else "#f3fff3", "#43a047",
+                           f"R$ {_pm_dentro:.3f}".replace(".",",") if _pm_dentro else "—",
+                           "Preço médio dentro", "R$/L na rede GF")
+                    _kcard(_rg_k4,
+                           "#fff3f3" if (_pm_fora and _pm_dentro and _pm_fora > _pm_dentro) else "#f3fff3",
+                           "#e53935" if (_pm_fora and _pm_dentro and _pm_fora > _pm_dentro) else "#43a047",
+                           f"R$ {_pm_fora:.3f}".replace(".",",") if _pm_fora else "—",
+                           "Preço médio fora", "R$/L fora da rede")
+                    _kcard(_rg_k5,
+                           "#fff3f3" if _saving_perdido > 0 else "#f3fff3",
+                           "#e53935" if _saving_perdido > 0 else "#43a047",
+                           _rfmt(_saving_perdido) if _saving_perdido else "R$ 0",
+                           "Saving perdido (fora)", "excesso pago fora da rede")
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # ── Insight principal ─────────────────────────────────
+                    if _delta_preco and _l_fora > 0:
+                        if _delta_preco > 0:
+                            _dias_rg = max(1,
+                                (_pd.to_datetime(_rg_df["_data"].max(), errors="coerce") -
+                                 _pd.to_datetime(_rg_df["_data"].min(), errors="coerce")).days
+                            ) if _rg_df["_data"].notna().any() else 1
+                            _saving_anual_rg = _saving_perdido / _dias_rg * 365
+                            st.markdown(
+                                f"<div style='background:#fff3f3;border-left:5px solid #e53935;"
+                                f"border-radius:8px;padding:14px 18px;'>"
+                                f"<b style='color:#c62828;font-size:15px'>⚠️ Atenção: a frota pagou mais fora da rede GF</b><br>"
+                                f"Abastecimentos fora da rede custaram em média "
+                                f"<b>R$ {_delta_preco:.3f}/L a mais</b> ({_lfmt(_l_fora)} litros). "
+                                f"O excesso pago no período foi de <b>{_rfmt(_saving_perdido)}</b>. "
+                                f"Projeção anual: <b>{_rfmt(_saving_anual_rg)}</b>."
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                f"<div style='background:#f3fff3;border-left:5px solid #43a047;"
+                                f"border-radius:8px;padding:14px 18px;'>"
+                                f"<b style='color:#2e7d32;font-size:15px'>✅ Postos fora da rede foram mais baratos neste período</b><br>"
+                                f"Preço médio fora da rede (R$ {_pm_fora:.3f}/L) ficou "
+                                f"<b>R$ {abs(_delta_preco):.3f}/L abaixo</b> da média da rede GF."
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # ── Gráficos linha 1 ─────────────────────────────────
+                    _rg_c1, _rg_c2 = st.columns(2)
+
+                    with _rg_c1:
+                        st.markdown("##### 🔵 Volume por origem (litros)")
+                        _fig_pie_vol = go.Figure(go.Pie(
+                            labels=["✅ Rede GF", "❌ Fora da rede"],
+                            values=[_l_dentro, _l_fora],
+                            hole=0.52,
+                            marker_colors=["#1565C0", "#e53935"],
+                            textinfo="label+percent",
+                            textfont_size=12,
+                            hovertemplate="%{label}<br>%{value:,.0f} L<extra></extra>",
+                        ))
+                        _fig_pie_vol.update_layout(
+                            height=280, showlegend=False,
+                            margin=dict(l=0,r=0,t=10,b=0),
+                            paper_bgcolor="white",
+                        )
+                        st.plotly_chart(_fig_pie_vol, use_container_width=True)
+
+                    with _rg_c2:
+                        st.markdown("##### 💰 Gasto por origem (R$)")
+                        _fig_pie_val = go.Figure(go.Pie(
+                            labels=["✅ Rede GF", "❌ Fora da rede"],
+                            values=[_v_dentro, _v_fora],
+                            hole=0.52,
+                            marker_colors=["#1565C0", "#e53935"],
+                            textinfo="label+percent",
+                            textfont_size=12,
+                            hovertemplate="%{label}<br>R$ %{value:,.2f}<extra></extra>",
+                        ))
+                        _fig_pie_val.update_layout(
+                            height=280, showlegend=False,
+                            margin=dict(l=0,r=0,t=10,b=0),
+                            paper_bgcolor="white",
+                        )
+                        st.plotly_chart(_fig_pie_val, use_container_width=True)
+
+                    # ── Evolução mensal: dentro vs fora ──────────────────
+                    st.markdown("##### 📅 Evolução mensal — volume dentro vs fora da rede")
+                    _rg_df["_mes"] = _pd.to_datetime(
+                        _rg_df["_data"], errors="coerce"
+                    ).dt.to_period("M").astype(str)
+                    _rg_mensal = (
+                        _rg_df.groupby(["_mes", "_na_rede"])["_litros"]
+                        .sum().reset_index()
+                    )
+                    _rg_dentro_m = _rg_mensal[_rg_mensal["_na_rede"]].rename(columns={"_litros":"dentro"})
+                    _rg_fora_m   = _rg_mensal[~_rg_mensal["_na_rede"]].rename(columns={"_litros":"fora"})
+                    _rg_men_mrg  = _pd.merge(
+                        _rg_dentro_m[["_mes","dentro"]],
+                        _rg_fora_m[["_mes","fora"]],
+                        on="_mes", how="outer",
+                    ).sort_values("_mes").fillna(0)
+
+                    if not _rg_men_mrg.empty:
+                        _fig_men = go.Figure()
+                        _fig_men.add_trace(go.Bar(
+                            x=_rg_men_mrg["_mes"], y=_rg_men_mrg["dentro"],
+                            name="✅ Rede GF", marker_color="#1565C0",
+                            hovertemplate="%{x}<br>%{y:,.0f} L na rede<extra></extra>",
+                        ))
+                        _fig_men.add_trace(go.Bar(
+                            x=_rg_men_mrg["_mes"], y=_rg_men_mrg["fora"],
+                            name="❌ Fora da rede", marker_color="#e53935",
+                            hovertemplate="%{x}<br>%{y:,.0f} L fora<extra></extra>",
+                        ))
+                        _fig_men.update_layout(
+                            barmode="stack", height=300,
+                            margin=dict(l=10,r=10,t=10,b=30),
+                            xaxis_title="Mês", yaxis_title="Litros",
+                            paper_bgcolor="white", plot_bgcolor="#f9fbff",
+                            legend=dict(orientation="h", y=1.08),
+                            font_size=11,
+                        )
+                        st.plotly_chart(_fig_men, use_container_width=True)
+
+                    # ── Preço médio por produto: dentro vs fora ──────────
+                    st.markdown("##### ⛽ Preço médio pago — rede GF vs fora — por combustível")
+                    _rg_prod = (
+                        _rg_df.groupby(["_produto","_na_rede"])
+                        .apply(lambda g: (g["_preco_litro"]*g["_litros"]).sum() / g["_litros"].sum()
+                               if g["_litros"].sum() > 0 else _pd.NA)
+                        .reset_index(name="preco_medio")
+                        .dropna(subset=["preco_medio"])
+                    )
+                    _rg_prod_in  = _rg_prod[_rg_prod["_na_rede"]].rename(columns={"preco_medio":"dentro"})
+                    _rg_prod_out = _rg_prod[~_rg_prod["_na_rede"]].rename(columns={"preco_medio":"fora"})
+                    _rg_prod_mrg = _pd.merge(
+                        _rg_prod_in[["_produto","dentro"]],
+                        _rg_prod_out[["_produto","fora"]],
+                        on="_produto", how="outer",
+                    )
+                    if not _rg_prod_mrg.empty:
+                        _fig_prod = go.Figure()
+                        _fig_prod.add_trace(go.Bar(
+                            name="✅ Rede GF", x=_rg_prod_mrg["_produto"],
+                            y=_rg_prod_mrg["dentro"], marker_color="#1565C0",
+                            text=_rg_prod_mrg["dentro"].apply(
+                                lambda v: f"R$ {v:.3f}".replace(".",",") if _pd.notna(v) else "—"
+                            ), textposition="outside",
+                        ))
+                        _fig_prod.add_trace(go.Bar(
+                            name="❌ Fora da rede", x=_rg_prod_mrg["_produto"],
+                            y=_rg_prod_mrg["fora"], marker_color="#e53935",
+                            text=_rg_prod_mrg["fora"].apply(
+                                lambda v: f"R$ {v:.3f}".replace(".",",") if _pd.notna(v) else "—"
+                            ), textposition="outside",
+                        ))
+                        _fig_prod.update_layout(
+                            barmode="group", height=320,
+                            margin=dict(l=10,r=10,t=10,b=20),
+                            yaxis_title="R$/L",
+                            paper_bgcolor="white", plot_bgcolor="#f9fbff",
+                            legend=dict(orientation="h", y=1.08),
+                            font_size=11,
+                        )
+                        st.plotly_chart(_fig_prod, use_container_width=True)
+
+                    st.markdown("---")
+
+                    # ── Rankings ─────────────────────────────────────────
+                    _rg_ra, _rg_rb = st.columns(2)
+
+                    with _rg_ra:
+                        st.markdown("##### 🏪 Top postos fora da rede mais usados")
+                        st.caption("Candidatos a incorporar à rede GF")
+                        _rg_top_postos = (
+                            _rg_fora.groupby(["_cnpj_posto", "_nome_posto", "_uf_posto"])
+                            .agg(
+                                transacoes=("_litros","count"),
+                                litros=("_litros","sum"),
+                                gasto=(
+                                    "_valor_total","sum"
+                                    if "_valor_total" in _rg_fora.columns
+                                    else "_litros"
+                                ),
+                            )
+                            .reset_index()
+                            .sort_values("litros", ascending=False)
+                            .head(10)
+                        )
+                        if not _rg_top_postos.empty:
+                            _fig_tp = go.Figure(go.Bar(
+                                x=_rg_top_postos["litros"],
+                                y=(_rg_top_postos["_nome_posto"].str[:24]
+                                   + " (" + _rg_top_postos["_uf_posto"] + ")"),
+                                orientation="h",
+                                marker_color="#e53935",
+                                text=_rg_top_postos["litros"].apply(
+                                    lambda v: f"{v:,.0f} L".replace(",",".")
+                                ),
+                                textposition="outside",
+                                hovertemplate="%{y}<br>%{x:,.0f} L<extra></extra>",
+                            ))
+                            _fig_tp.update_layout(
+                                height=350,
+                                margin=dict(l=10,r=80,t=10,b=10),
+                                xaxis_title="Litros",
+                                paper_bgcolor="white", plot_bgcolor="#f9fbff",
+                                font_size=10,
+                            )
+                            st.plotly_chart(_fig_tp, use_container_width=True)
+                        else:
+                            st.success("Todos os abastecimentos foram na rede GF! 🎉")
+
+                    with _rg_rb:
+                        st.markdown("##### 🧑‍✈️ Motoristas que mais abasteceram fora da rede")
+                        _col_mot = "_motorista" if "_motorista" in _rg_df.columns else None
+                        if _col_mot:
+                            _rg_mot = (
+                                _rg_df.groupby(_col_mot)
+                                .apply(lambda g: _pd.Series({
+                                    "total_l":  g["_litros"].sum(),
+                                    "fora_l":   g.loc[~g["_na_rede"],"_litros"].sum(),
+                                }))
+                                .reset_index()
+                            )
+                            _rg_mot["pct_fora"] = (
+                                _rg_mot["fora_l"] / _rg_mot["total_l"] * 100
+                            ).fillna(0)
+                            _rg_mot = (
+                                _rg_mot[_rg_mot["fora_l"] > 0]
+                                .sort_values("fora_l", ascending=False)
+                                .head(10)
+                            )
+                            if not _rg_mot.empty:
+                                _fig_mot = go.Figure(go.Bar(
+                                    x=_rg_mot["fora_l"],
+                                    y=_rg_mot[_col_mot].str[:22],
+                                    orientation="h",
+                                    marker_color=_rg_mot["pct_fora"].apply(
+                                        lambda v: "#e53935" if v>50 else "#f57c00"
+                                    ).tolist(),
+                                    text=_rg_mot["pct_fora"].apply(
+                                        lambda v: f"{v:.0f}% fora"
+                                    ),
+                                    textposition="outside",
+                                    hovertemplate="%{y}<br>%{x:,.0f} L fora<extra></extra>",
+                                ))
+                                _fig_mot.update_layout(
+                                    height=350,
+                                    margin=dict(l=10,r=90,t=10,b=10),
+                                    xaxis_title="Litros fora da rede",
+                                    paper_bgcolor="white", plot_bgcolor="#f9fbff",
+                                    font_size=10,
+                                )
+                                st.plotly_chart(_fig_mot, use_container_width=True)
+                            else:
+                                st.success("Nenhum motorista abasteceu fora da rede! 🎉")
+
+                    # ── Mapa ─────────────────────────────────────────────
+                    _rg_has_coord = (
+                        "_lat_posto" in _rg_df.columns
+                        and "_lon_posto" in _rg_df.columns
+                        and _rg_df["_lat_posto"].notna().any()
+                    )
+                    if _rg_has_coord:
+                        st.markdown("---")
+                        st.markdown("##### 🌎 Mapa de abastecimentos — rede vs fora")
+                        _rg_map = _rg_df.copy()
+                        _rg_map["_lat_posto"] = _pd.to_numeric(_rg_map["_lat_posto"], errors="coerce")
+                        _rg_map["_lon_posto"] = _pd.to_numeric(_rg_map["_lon_posto"], errors="coerce")
+                        _rg_map = _rg_map.dropna(subset=["_lat_posto","_lon_posto"])
+                        _rg_map_grp = (
+                            _rg_map.groupby(
+                                ["_cnpj_posto","_nome_posto","_uf_posto",
+                                 "_lat_posto","_lon_posto","_na_rede"]
+                            ).agg(
+                                litros=("_litros","sum"),
+                                transacoes=("_litros","count"),
+                            ).reset_index()
+                        )
+                        _fig_map_rg = go.Figure()
+                        for _rg_in_rede, _grp_cor, _grp_lbl in [
+                            (True,  "#1565C0", "✅ Rede GF"),
+                            (False, "#e53935", "❌ Fora da rede"),
+                        ]:
+                            _sg = _rg_map_grp[_rg_map_grp["_na_rede"] == _rg_in_rede]
+                            if _sg.empty:
+                                continue
+                            _fig_map_rg.add_trace(go.Scattermapbox(
+                                lat=_sg["_lat_posto"],
+                                lon=_sg["_lon_posto"],
+                                mode="markers",
+                                name=_grp_lbl,
+                                marker=dict(
+                                    size=(_sg["litros"].clip(upper=5000) / 500 + 7).clip(upper=22),
+                                    color=_grp_cor,
+                                    opacity=0.85,
+                                ),
+                                text=_sg.apply(
+                                    lambda r: (
+                                        f"{r['_nome_posto']}<br>"
+                                        f"{r['_uf_posto']}<br>"
+                                        f"{_lfmt(r['litros'])} · "
+                                        f"{int(r['transacoes'])} transações"
+                                    ), axis=1,
+                                ),
+                                hoverinfo="text",
+                            ))
+                        _fig_map_rg.update_layout(
+                            mapbox=dict(
+                                style="carto-positron", zoom=3.5,
+                                center=dict(lat=-15.7, lon=-47.9),
+                            ),
+                            height=500,
+                            margin=dict(l=0,r=0,t=0,b=0),
+                            legend=dict(
+                                orientation="h", y=1.04, x=0,
+                                bgcolor="rgba(255,255,255,0.85)",
+                            ),
+                        )
+                        st.plotly_chart(_fig_map_rg, use_container_width=True)
+
+                    # ── Tabela detalhada ──────────────────────────────────
+                    st.markdown("---")
+                    st.markdown("##### 📋 Detalhamento por posto — todos os abastecimentos")
+                    _rg_tbl = (
+                        _rg_df.groupby(
+                            ["_na_rede","_cnpj_posto","_nome_posto",
+                             "_uf_posto","_produto"]
+                        ).agg(
+                            transacoes=("_litros","count"),
+                            litros=("_litros","sum"),
+                            preco_medio=("_preco_litro","mean"),
+                        )
+                        .reset_index()
+                        .sort_values(["_na_rede","litros"], ascending=[True,False])
+                    )
+                    _rg_tbl["Origem"] = _rg_tbl["_na_rede"].map(
+                        {True: "✅ Rede GF", False: "❌ Fora da rede"}
+                    )
+                    _rg_tbl_show = _pd.DataFrame({
+                        "Origem":       _rg_tbl["Origem"],
+                        "CNPJ Posto":   _rg_tbl["_cnpj_posto"].apply(_fmt_cnpj),
+                        "Nome Posto":   _rg_tbl["_nome_posto"],
+                        "UF":           _rg_tbl["_uf_posto"],
+                        "Combustível":  _rg_tbl["_produto"],
+                        "Transações":   _rg_tbl["transacoes"],
+                        "Litros":       _rg_tbl["litros"].apply(_lfmt),
+                        "Preço médio":  _rg_tbl["preco_medio"].apply(
+                            lambda v: f"R$ {v:.3f}".replace(".",",")
+                            if _pd.notna(v) else "—"
+                        ),
+                    })
+                    st.dataframe(_rg_tbl_show, use_container_width=True, hide_index=True)
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 if (
