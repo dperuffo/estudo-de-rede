@@ -21988,81 +21988,27 @@ elif modo == "🚛 Análise de Cliente":
                 else:
                     # ── Legenda proeminente ───────────────────────────────
                     _n_postos_gf = len(_rg_gf_cnpjs)
-                    st.markdown(
-                        f"""
-                        <div style="background:#f8f9ff;border:2px solid #c5cae9;
-                                    border-radius:12px;padding:18px 20px;margin-bottom:22px;">
-
-                          <div style="font-size:.72rem;font-weight:800;letter-spacing:2px;
-                                      color:#5c6bc0;text-transform:uppercase;margin-bottom:12px;">
-                            📖 &nbsp;COMO INTERPRETAR ESTE RELATÓRIO
-                          </div>
-
-                          <div style="display:flex;gap:14px;flex-wrap:wrap;">
-
-                            <!-- REDE GF -->
-                            <div style="flex:1;min-width:260px;
-                                        background:#1565C0;border-radius:10px;
-                                        padding:18px 20px;color:#fff;">
-                              <div style="font-size:2rem;margin-bottom:6px;">✅</div>
-                              <div style="font-size:1.1rem;font-weight:900;
-                                          letter-spacing:.3px;margin-bottom:8px;">
-                                REDE GF
-                              </div>
-                              <div style="font-size:.95rem;font-weight:700;
-                                          background:rgba(255,255,255,.15);
-                                          border-radius:6px;padding:6px 10px;
-                                          margin-bottom:10px;">
-                                Posto credenciado ao programa
-                              </div>
-                              <div style="font-size:.83rem;color:#bbdefb;line-height:1.6">
-                                O CNPJ do posto consta na base de postos parceiros da
-                                <b style="color:#fff">Gestão de Frotas</b>.<br>
-                                Abastecimentos com <b style="color:#fff">preço e condições
-                                negociadas</b> previamente.
-                              </div>
-                              <div style="margin-top:12px;font-size:.8rem;
-                                          background:rgba(255,255,255,.2);
-                                          border-radius:6px;padding:6px 12px;
-                                          display:inline-block;font-weight:700;">
-                                🏪 {_n_postos_gf:,} postos na rede
-                              </div>
-                            </div>
-
-                            <!-- FORA DA REDE -->
-                            <div style="flex:1;min-width:260px;
-                                        background:#b71c1c;border-radius:10px;
-                                        padding:18px 20px;color:#fff;">
-                              <div style="font-size:2rem;margin-bottom:6px;">❌</div>
-                              <div style="font-size:1.1rem;font-weight:900;
-                                          letter-spacing:.3px;margin-bottom:8px;">
-                                FORA DA REDE
-                              </div>
-                              <div style="font-size:.95rem;font-weight:700;
-                                          background:rgba(255,255,255,.15);
-                                          border-radius:6px;padding:6px 10px;
-                                          margin-bottom:10px;">
-                                Posto NÃO credenciado ao programa
-                              </div>
-                              <div style="font-size:.83rem;color:#ffcdd2;line-height:1.6">
-                                O CNPJ do posto <b style="color:#fff">não consta</b> na
-                                base de postos parceiros.<br>
-                                Abastecimento realizado <b style="color:#fff">sem controle
-                                de preço</b>, sem contrato e sem rastreabilidade.
-                              </div>
-                              <div style="margin-top:12px;font-size:.8rem;
-                                          background:rgba(255,255,255,.2);
-                                          border-radius:6px;padding:6px 12px;
-                                          display:inline-block;font-weight:700;">
-                                ⚠️ Risco de preço acima do mercado
-                              </div>
-                            </div>
-
-                          </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
+                    _rg_legenda_html = (
+"<div style='background:#f8f9ff;border:2px solid #c5cae9;border-radius:12px;padding:18px 20px;margin-bottom:22px;'>"
+"<div style='font-size:.72rem;font-weight:800;letter-spacing:2px;color:#5c6bc0;text-transform:uppercase;margin-bottom:12px;'>📖 &nbsp;COMO INTERPRETAR ESTE RELATÓRIO</div>"
+"<div style='display:flex;gap:14px;flex-wrap:wrap;'>"
+"<div style='flex:1;min-width:260px;background:#1565C0;border-radius:10px;padding:18px 20px;color:#fff;'>"
+"<div style='font-size:2rem;margin-bottom:6px;'>✅</div>"
+"<div style='font-size:1.1rem;font-weight:900;letter-spacing:.3px;margin-bottom:8px;'>REDE GF</div>"
+"<div style='font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);border-radius:6px;padding:6px 10px;margin-bottom:10px;'>Posto credenciado ao programa</div>"
+"<div style='font-size:.83rem;color:#bbdefb;line-height:1.6;'>O CNPJ do posto consta na base de postos parceiros da <b style='color:#fff'>Gestão de Frotas</b>.<br>Abastecimentos com <b style='color:#fff'>preço e condições negociadas</b> previamente.</div>"
+f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;display:inline-block;font-weight:700;'>🏪 {_n_postos_gf:,} postos na rede</div>"
+"</div>"
+"<div style='flex:1;min-width:260px;background:#b71c1c;border-radius:10px;padding:18px 20px;color:#fff;'>"
+"<div style='font-size:2rem;margin-bottom:6px;'>❌</div>"
+"<div style='font-size:1.1rem;font-weight:900;letter-spacing:.3px;margin-bottom:8px;'>FORA DA REDE</div>"
+"<div style='font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);border-radius:6px;padding:6px 10px;margin-bottom:10px;'>Posto NÃO credenciado ao programa</div>"
+"<div style='font-size:.83rem;color:#ffcdd2;line-height:1.6;'>O CNPJ do posto <b style='color:#fff'>não consta</b> na base de postos parceiros.<br>Abastecimento realizado <b style='color:#fff'>sem controle de preço</b>, sem contrato e sem rastreabilidade.</div>"
+"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;display:inline-block;font-weight:700;'>⚠️ Risco de preço acima do mercado</div>"
+"</div>"
+"</div></div>"
                     )
+                    st.markdown(_rg_legenda_html, unsafe_allow_html=True)
 
                     # ── Classifica cada abastecimento ────────────────────
                     _rg_df = _df.copy()
