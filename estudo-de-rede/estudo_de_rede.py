@@ -17346,6 +17346,211 @@ if modo == "📊 Dashboard":
 
             st.dataframe(_rt_tbl, use_container_width=True, hide_index=True)
 
+            # ── Seção: Dados Reais de Frota por Veículo ──────────────────────
+            st.markdown("---")
+            st.markdown("### 🚛 Eficiência Real por Veículo — Dados do Banco de Abastecimentos")
+            st.caption(
+                "KM percorrido, consumo (km/L) e litros abastecidos por placa, "
+                "carregados diretamente dos registros de abastecimento salvos."
+            )
+
+            _rt9_abast_rows = []
+            try:
+                _rt9_abast_rows = _db_carregar_abastecimentos()
+            except Exception:
+                _rt9_abast_rows = []
+
+            if not _rt9_abast_rows:
+                st.info(
+                    "Nenhum abastecimento salvo no banco ainda. "
+                    "Carregue a planilha de abastecimentos na seção **🚛 Análise de Cliente** "
+                    "para complementar este dashboard com dados reais de km e consumo por veículo.",
+                    icon="🚛",
+                )
+            else:
+                _rt9_df = pd.DataFrame(_rt9_abast_rows)
+                for _rt9_c in ["km_percorrido", "media_km_l", "litros", "preco_litro", "valor_total"]:
+                    if _rt9_c in _rt9_df.columns:
+                        _rt9_df[_rt9_c] = pd.to_numeric(_rt9_df[_rt9_c], errors="coerce")
+
+                if "placa" not in _rt9_df.columns:
+                    st.warning("Coluna 'placa' não encontrada nos dados de abastecimento.", icon="⚠️")
+                else:
+                    # Agregação por placa
+                    _rt9_agg = {}
+                    _rt9_agg["abastecimentos"] = ("placa", "count")
+                    if "km_percorrido" in _rt9_df.columns:
+                        _rt9_agg["km_total"] = ("km_percorrido", "sum")
+                        _rt9_agg["km_med"]   = ("km_percorrido", "mean")
+                    if "media_km_l" in _rt9_df.columns:
+                        _rt9_agg["media_km_l"] = ("media_km_l", "mean")
+                    if "litros" in _rt9_df.columns:
+                        _rt9_agg["litros_total"] = ("litros", "sum")
+                    if "preco_litro" in _rt9_df.columns:
+                        _rt9_agg["preco_med"] = ("preco_litro", "mean")
+                    if "valor_total" in _rt9_df.columns:
+                        _rt9_agg["custo_total"] = ("valor_total", "sum")
+
+                    _sort_col = "litros_total" if "litros_total" in _rt9_agg else "abastecimentos"
+                    _rt9_veic = (
+                        _rt9_df.groupby("placa")
+                        .agg(**_rt9_agg)
+                        .reset_index()
+                        .sort_values(_sort_col, ascending=False)
+                    )
+
+                    # KPIs de topo
+                    _rv1, _rv2, _rv3, _rv4 = st.columns(4)
+                    _rv_css = (
+                        "background:linear-gradient(135deg,#004d00,#1b5e20);"
+                        "border-radius:10px;padding:16px 20px;text-align:center;color:#fff;"
+                    )
+                    with _rv1:
+                        st.markdown(
+                            f'<div style="{_rv_css}">'
+                            f'<div style="font-size:2rem;font-weight:700">{len(_rt9_veic)}</div>'
+                            f'<div style="font-size:.8rem;color:#a5d6a7">Veículos com dados</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _rv2:
+                        _rv_km_t = _rt9_df["km_percorrido"].sum() if "km_percorrido" in _rt9_df.columns else 0
+                        st.markdown(
+                            f'<div style="{_rv_css}">'
+                            f'<div style="font-size:2rem;font-weight:700">{_rv_km_t:,.0f} km</div>'
+                            f'<div style="font-size:.8rem;color:#a5d6a7">KM total percorrido</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _rv3:
+                        _rv_mg = _rt9_df["media_km_l"].mean() if "media_km_l" in _rt9_df.columns else None
+                        _rv_mg_txt = f"{_rv_mg:.1f} km/L" if _rv_mg and pd.notna(_rv_mg) else "—"
+                        st.markdown(
+                            f'<div style="{_rv_css}">'
+                            f'<div style="font-size:2rem;font-weight:700">{_rv_mg_txt}</div>'
+                            f'<div style="font-size:.8rem;color:#a5d6a7">Média km/L frota</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _rv4:
+                        _rv_lit = _rt9_df["litros"].sum() if "litros" in _rt9_df.columns else 0
+                        st.markdown(
+                            f'<div style="{_rv_css}">'
+                            f'<div style="font-size:2rem;font-weight:700">{_rv_lit:,.0f} L</div>'
+                            f'<div style="font-size:.8rem;color:#a5d6a7">Total abastecido</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # Gráficos
+                    _rv_gc1, _rv_gc2 = st.columns(2)
+
+                    with _rv_gc1:
+                        st.markdown("##### 🏎️ KM médio por abastecimento — top 15 veículos")
+                        if "km_med" in _rt9_veic.columns:
+                            _rv_top15 = _rt9_veic.dropna(subset=["km_med"]).head(15).copy()
+                            _fig_rv_km = go.Figure(go.Bar(
+                                x=_rv_top15["km_med"],
+                                y=_rv_top15["placa"],
+                                orientation="h",
+                                marker_color="#2e7d32",
+                                text=_rv_top15["km_med"].apply(lambda v: f"{v:.0f} km"),
+                                textposition="outside",
+                            ))
+                            _fig_rv_km.update_layout(
+                                height=380,
+                                margin=dict(l=10, r=70, t=10, b=20),
+                                xaxis_title="KM médio por abast.",
+                                paper_bgcolor="white",
+                                plot_bgcolor="#f9fff9",
+                                font_size=11,
+                            )
+                            st.plotly_chart(_fig_rv_km, use_container_width=True)
+                        else:
+                            st.info("Coluna km_percorrido não disponível nos dados.", icon="📏")
+
+                    with _rv_gc2:
+                        st.markdown("##### ⛽ Consumo médio km/L — top 15 veículos")
+                        if "media_km_l" in _rt9_veic.columns:
+                            _rv_top15_kml = (
+                                _rt9_veic.dropna(subset=["media_km_l"])
+                                .sort_values("media_km_l", ascending=False)
+                                .head(15).copy()
+                            )
+                            _rv_q33 = float(_rt9_veic["media_km_l"].quantile(0.33) or 0)
+                            _rv_q66 = float(_rt9_veic["media_km_l"].quantile(0.66) or 0)
+                            _rv_top15_kml["cor_kml"] = _rv_top15_kml["media_km_l"].apply(
+                                lambda v: "#43a047" if v >= _rv_q66 else ("#f57c00" if v >= _rv_q33 else "#e53935")
+                            )
+                            _fig_rv_kml = go.Figure(go.Bar(
+                                x=_rv_top15_kml["media_km_l"],
+                                y=_rv_top15_kml["placa"],
+                                orientation="h",
+                                marker_color=_rv_top15_kml["cor_kml"].tolist(),
+                                text=_rv_top15_kml["media_km_l"].apply(lambda v: f"{v:.1f} km/L"),
+                                textposition="outside",
+                            ))
+                            _fig_rv_kml.update_layout(
+                                height=380,
+                                margin=dict(l=10, r=90, t=10, b=20),
+                                xaxis_title="km/L",
+                                paper_bgcolor="white",
+                                plot_bgcolor="#f9fff9",
+                                font_size=11,
+                            )
+                            st.plotly_chart(_fig_rv_kml, use_container_width=True)
+                        else:
+                            st.info("Coluna media_km_l não disponível nos dados.", icon="⛽")
+
+                    # Tabela completa de eficiência por veículo
+                    st.markdown("##### 📋 Tabela de eficiência por veículo")
+                    _rv_tbl_cols = ["placa", "abastecimentos"]
+                    _rv_tbl_rename = {"placa": "Placa", "abastecimentos": "Abastecimentos"}
+                    if "km_total" in _rt9_veic.columns:
+                        _rv_tbl_cols.append("km_total")
+                        _rv_tbl_rename["km_total"] = "KM total"
+                    if "media_km_l" in _rt9_veic.columns:
+                        _rv_tbl_cols.append("media_km_l")
+                        _rv_tbl_rename["media_km_l"] = "Média km/L"
+                    if "litros_total" in _rt9_veic.columns:
+                        _rv_tbl_cols.append("litros_total")
+                        _rv_tbl_rename["litros_total"] = "Total abast. (L)"
+                    if "preco_med" in _rt9_veic.columns:
+                        _rv_tbl_cols.append("preco_med")
+                        _rv_tbl_rename["preco_med"] = "Preço médio (R$/L)"
+                    if "custo_total" in _rt9_veic.columns:
+                        _rv_tbl_cols.append("custo_total")
+                        _rv_tbl_rename["custo_total"] = "Custo total (R$)"
+
+                    _rv_tbl = (
+                        _rt9_veic[[c for c in _rv_tbl_cols if c in _rt9_veic.columns]]
+                        .rename(columns=_rv_tbl_rename)
+                        .copy()
+                    )
+                    if "KM total" in _rv_tbl.columns:
+                        _rv_tbl["KM total"] = _rv_tbl["KM total"].apply(
+                            lambda v: f"{v:,.0f}" if pd.notna(v) else "—"
+                        )
+                    if "Média km/L" in _rv_tbl.columns:
+                        _rv_tbl["Média km/L"] = _rv_tbl["Média km/L"].apply(
+                            lambda v: f"{v:.1f}" if pd.notna(v) else "—"
+                        )
+                    if "Total abast. (L)" in _rv_tbl.columns:
+                        _rv_tbl["Total abast. (L)"] = _rv_tbl["Total abast. (L)"].apply(
+                            lambda v: f"{v:,.0f}" if pd.notna(v) else "—"
+                        )
+                    if "Preço médio (R$/L)" in _rv_tbl.columns:
+                        _rv_tbl["Preço médio (R$/L)"] = _rv_tbl["Preço médio (R$/L)"].apply(
+                            lambda v: f"R$ {v:.3f}" if pd.notna(v) else "—"
+                        )
+                    if "Custo total (R$)" in _rv_tbl.columns:
+                        _rv_tbl["Custo total (R$)"] = _rv_tbl["Custo total (R$)"].apply(
+                            lambda v: f"R$ {v:,.0f}" if pd.notna(v) else "—"
+                        )
+                    st.dataframe(_rv_tbl, use_container_width=True, hide_index=True)
+
     # ══════════════════════════════════════════════════════════════════════════
     # TAB 10 — 📈 Evolução Temporal
     # ══════════════════════════════════════════════════════════════════════════
@@ -17475,6 +17680,56 @@ if modo == "📊 Dashboard":
                                 "Preço médio: R$ %{y:.3f}<extra></extra>"
                             ),
                         ))
+                    # ── Série "Preço real pago" — dados de abastecimentos ────
+                    try:
+                        _ev_abast_rows = _db_carregar_abastecimentos()
+                        if _ev_abast_rows:
+                            _ev_ab_df = pd.DataFrame(_ev_abast_rows)
+                            _ev_ab_df["preco_litro"] = pd.to_numeric(
+                                _ev_ab_df.get("preco_litro", pd.Series(dtype=float)),
+                                errors="coerce",
+                            )
+                            _ev_ab_df["data_abastecimento"] = pd.to_datetime(
+                                _ev_ab_df.get("data_abastecimento"), errors="coerce"
+                            )
+                            _ev_ab_df = _ev_ab_df.dropna(subset=["preco_litro", "data_abastecimento"])
+                            if not _ev_ab_df.empty:
+                                _ev_ab_df["semana"] = _ev_ab_df["data_abastecimento"].dt.to_period("W").apply(
+                                    lambda p: p.start_time
+                                )
+                                _ev_ab_df["mes"] = _ev_ab_df["data_abastecimento"].dt.to_period("M").apply(
+                                    lambda p: p.start_time
+                                )
+                                # Filtra UF se selecionada
+                                if _ev_uf_sel != "Todos" and "uf_posto" in _ev_ab_df.columns:
+                                    _ev_ab_filt = _ev_ab_df[_ev_ab_df["uf_posto"] == _ev_uf_sel]
+                                else:
+                                    _ev_ab_filt = _ev_ab_df.copy()
+                                if not _ev_ab_filt.empty:
+                                    _ev_ab_serie = (
+                                        _ev_ab_filt.groupby(_ev_periodo)["preco_litro"]
+                                        .mean()
+                                        .reset_index()
+                                        .rename(columns={_ev_periodo: "periodo", "preco_litro": "preco_real"})
+                                        .sort_values("periodo")
+                                    )
+                                    if len(_ev_ab_serie) >= 1:
+                                        _fig_tend.add_trace(go.Scatter(
+                                            x=_ev_ab_serie["periodo"],
+                                            y=_ev_ab_serie["preco_real"],
+                                            mode="lines+markers",
+                                            name="💰 Preço real pago (frota)",
+                                            line=dict(color="#e65100", width=3, dash="dash"),
+                                            marker=dict(size=7, symbol="diamond"),
+                                            hovertemplate=(
+                                                "<b>💰 Preço real pago</b><br>"
+                                                "Período: %{x|%d/%m/%Y}<br>"
+                                                "Média: R$ %{y:.3f}<extra></extra>"
+                                            ),
+                                        ))
+                    except Exception:
+                        pass
+
                     _fig_tend.update_layout(
                         height=380,
                         margin=dict(l=10, r=10, t=20, b=40),
@@ -17842,10 +18097,11 @@ if modo == "📊 Dashboard":
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ── Sub-abas ─────────────────────────────────────────────────────
-            _cx_t1, _cx_t2, _cx_t3 = st.tabs([
+            _cx_t1, _cx_t2, _cx_t3, _cx_t4 = st.tabs([
                 "🗺️ Regiões caras vs baratas",
                 "🎯 Clusters de oportunidade",
                 "⚖️ GF vs Concorrência",
+                "🚛 Frota Real",
             ])
 
             # ================================================================
@@ -18418,6 +18674,328 @@ if modo == "📊 Dashboard":
                             lambda v: f"{v:+.2f}%" if pd.notna(v) else "—"
                         )
                         st.dataframe(_cx_tbl_comp, use_container_width=True, hide_index=True)
+
+            # ================================================================
+            # SUB-ABA 4 — Frota Real
+            # ================================================================
+            with _cx_t4:
+                st.markdown("##### 🚛 Onde a frota realmente abastece")
+                st.caption(
+                    "Mapa de calor dos postos visitados pela frota, ranking dos mais utilizados "
+                    "e preço médio real pago por UF comparado à referência ANP."
+                )
+
+                # Carrega abastecimentos do banco
+                _cx4_rows = []
+                try:
+                    _cx4_rows = _db_carregar_abastecimentos()
+                except Exception:
+                    _cx4_rows = []
+
+                if not _cx4_rows:
+                    st.info(
+                        "Nenhum abastecimento salvo no banco. "
+                        "Carregue a planilha de abastecimentos na seção **🚛 Análise de Cliente** "
+                        "para habilitar esta análise.",
+                        icon="🚛",
+                    )
+                else:
+                    _cx4_df = pd.DataFrame(_cx4_rows)
+                    for _cx4_c in ["preco_litro", "litros", "valor_total", "lat_posto", "lon_posto"]:
+                        if _cx4_c in _cx4_df.columns:
+                            _cx4_df[_cx4_c] = pd.to_numeric(_cx4_df[_cx4_c], errors="coerce")
+
+                    # ── KPIs de topo ─────────────────────────────────────────
+                    _cx4_k1, _cx4_k2, _cx4_k3, _cx4_k4 = st.columns(4)
+                    _cx4_css = (
+                        "background:linear-gradient(135deg,#1a237e,#283593);"
+                        "border-radius:10px;padding:14px 18px;text-align:center;color:#fff;"
+                    )
+                    with _cx4_k1:
+                        _cx4_n_ab = len(_cx4_df)
+                        st.markdown(
+                            f'<div style="{_cx4_css}">'
+                            f'<div style="font-size:1.8rem;font-weight:700">{_cx4_n_ab:,}</div>'
+                            f'<div style="font-size:.8rem;color:#c5cae9">Abastecimentos</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _cx4_k2:
+                        _cx4_n_postos = _cx4_df["cnpj_posto"].nunique() if "cnpj_posto" in _cx4_df.columns else 0
+                        st.markdown(
+                            f'<div style="{_cx4_css}">'
+                            f'<div style="font-size:1.8rem;font-weight:700">{_cx4_n_postos}</div>'
+                            f'<div style="font-size:.8rem;color:#c5cae9">Postos distintos</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _cx4_k3:
+                        _cx4_n_ufs = _cx4_df["uf_posto"].nunique() if "uf_posto" in _cx4_df.columns else 0
+                        st.markdown(
+                            f'<div style="{_cx4_css}">'
+                            f'<div style="font-size:1.8rem;font-weight:700">{_cx4_n_ufs}</div>'
+                            f'<div style="font-size:.8rem;color:#c5cae9">UFs cobertas</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with _cx4_k4:
+                        _cx4_preco_med = (
+                            _cx4_df["preco_litro"].mean()
+                            if "preco_litro" in _cx4_df.columns else None
+                        )
+                        _cx4_preco_txt = f"R$ {_cx4_preco_med:.3f}" if _cx4_preco_med and pd.notna(_cx4_preco_med) else "—"
+                        st.markdown(
+                            f'<div style="{_cx4_css}">'
+                            f'<div style="font-size:1.8rem;font-weight:700">{_cx4_preco_txt}</div>'
+                            f'<div style="font-size:.8rem;color:#c5cae9">Preço médio pago</div>'
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # ── Mapa de calor — postos onde a frota abastece ─────────
+                    if "lat_posto" in _cx4_df.columns and "lon_posto" in _cx4_df.columns:
+                        _cx4_map_df = _cx4_df.dropna(subset=["lat_posto", "lon_posto"]).copy()
+                        _cx4_map_df = _cx4_map_df[
+                            (_cx4_map_df["lat_posto"].abs() > 0.001) &
+                            (_cx4_map_df["lon_posto"].abs() > 0.001)
+                        ]
+                        if not _cx4_map_df.empty:
+                            st.markdown("##### 🌎 Mapa de calor — postos visitados pela frota")
+                            st.caption(
+                                "Tamanho do marcador = frequência de visitas. "
+                                "Cor = preço médio pago (verde = mais barato, vermelho = mais caro)."
+                            )
+                            # Agrega por posto (lat/lon)
+                            _cx4_posto_agg_dict = {
+                                "visitas": ("cnpj_posto" if "cnpj_posto" in _cx4_map_df.columns else "lat_posto", "count"),
+                                "preco_med": ("preco_litro", "mean"),
+                                "lat": ("lat_posto", "first"),
+                                "lon": ("lon_posto", "first"),
+                            }
+                            _cx4_grp_col = "cnpj_posto" if "cnpj_posto" in _cx4_map_df.columns else "nome_posto"
+                            if _cx4_grp_col in _cx4_map_df.columns:
+                                _cx4_posto_pts = (
+                                    _cx4_map_df.groupby(_cx4_grp_col)
+                                    .agg(
+                                        visitas=(_cx4_grp_col, "count"),
+                                        preco_med=("preco_litro", "mean"),
+                                        lat=("lat_posto", "first"),
+                                        lon=("lon_posto", "first"),
+                                        nome=(
+                                            "nome_posto" if "nome_posto" in _cx4_map_df.columns
+                                            else _cx4_grp_col, "first"
+                                        ),
+                                    )
+                                    .reset_index()
+                                    .dropna(subset=["lat", "lon"])
+                                )
+                            else:
+                                _cx4_posto_pts = _cx4_map_df[["lat_posto", "lon_posto", "preco_litro"]].copy()
+                                _cx4_posto_pts.columns = ["lat", "lon", "preco_med"]
+                                _cx4_posto_pts["visitas"] = 1
+                                _cx4_posto_pts["nome"] = "Posto"
+
+                            if not _cx4_posto_pts.empty:
+                                _cx4_posto_pts["preco_med"] = pd.to_numeric(
+                                    _cx4_posto_pts["preco_med"], errors="coerce"
+                                )
+                                _cx4_posto_pts["nome_str"] = _cx4_posto_pts.get(
+                                    "nome", pd.Series(["Posto"] * len(_cx4_posto_pts))
+                                ).fillna("Posto")
+                                _fig_cx4_map = go.Figure(go.Scattermapbox(
+                                    lat=_cx4_posto_pts["lat"],
+                                    lon=_cx4_posto_pts["lon"],
+                                    mode="markers",
+                                    marker=dict(
+                                        size=(_cx4_posto_pts["visitas"].clip(upper=50) / 50 * 20 + 6),
+                                        color=_cx4_posto_pts["preco_med"],
+                                        colorscale=[[0, "#43a047"], [0.5, "#f57c00"], [1, "#e53935"]],
+                                        showscale=True,
+                                        colorbar=dict(title="R$/L pago", thickness=12),
+                                        opacity=0.85,
+                                    ),
+                                    text=_cx4_posto_pts.apply(
+                                        lambda r: (
+                                            f"{r.get('nome_str','Posto')}<br>"
+                                            f"Visitas: {int(r['visitas'])}<br>"
+                                            f"Preço médio pago: R$ {r['preco_med']:.3f}"
+                                            if pd.notna(r.get("preco_med")) else
+                                            f"{r.get('nome_str','Posto')}<br>Visitas: {int(r['visitas'])}"
+                                        ),
+                                        axis=1,
+                                    ),
+                                    hoverinfo="text",
+                                ))
+                                _fig_cx4_map.update_layout(
+                                    mapbox=dict(
+                                        style="carto-positron",
+                                        zoom=3.5,
+                                        center=dict(lat=-15.7, lon=-47.9),
+                                    ),
+                                    height=500,
+                                    margin=dict(l=0, r=0, t=0, b=0),
+                                )
+                                st.plotly_chart(_fig_cx4_map, use_container_width=True)
+                    else:
+                        st.info(
+                            "Coordenadas (lat_posto/lon_posto) não disponíveis nos dados "
+                            "— o mapa não pode ser exibido.",
+                            icon="🗺️",
+                        )
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # ── Ranking de postos mais utilizados ────────────────────
+                    _cx4_rank_col, _cx4_uf_col = st.columns([3, 2])
+
+                    with _cx4_rank_col:
+                        st.markdown("##### 🏆 Ranking de postos mais utilizados")
+                        _cx4_grp = "nome_posto" if "nome_posto" in _cx4_df.columns else "cnpj_posto"
+                        if _cx4_grp in _cx4_df.columns:
+                            _cx4_rank = (
+                                _cx4_df.groupby(_cx4_grp)
+                                .agg(
+                                    visitas=(_cx4_grp, "count"),
+                                    preco_med=("preco_litro", "mean"),
+                                    litros_total=("litros", "sum"),
+                                )
+                                .reset_index()
+                                .sort_values("visitas", ascending=False)
+                                .head(15)
+                            )
+                            _cx4_rank["nome_curto"] = _cx4_rank[_cx4_grp].apply(
+                                lambda n: (str(n)[:30] + "…") if len(str(n)) > 30 else str(n)
+                            )
+                            _fig_cx4_rank = go.Figure(go.Bar(
+                                x=_cx4_rank["visitas"],
+                                y=_cx4_rank["nome_curto"],
+                                orientation="h",
+                                marker_color="#283593",
+                                text=_cx4_rank["visitas"].astype(str),
+                                textposition="outside",
+                                hovertemplate=(
+                                    "<b>%{y}</b><br>"
+                                    "Visitas: %{x}<extra></extra>"
+                                ),
+                            ))
+                            _fig_cx4_rank.update_layout(
+                                height=420,
+                                margin=dict(l=10, r=40, t=10, b=20),
+                                xaxis_title="Abastecimentos",
+                                paper_bgcolor="white",
+                                plot_bgcolor="#f5f5ff",
+                                font_size=11,
+                            )
+                            st.plotly_chart(_fig_cx4_rank, use_container_width=True)
+                        else:
+                            st.info("Coluna de nome/CNPJ do posto não encontrada nos dados.", icon="🏆")
+
+                    with _cx4_uf_col:
+                        st.markdown("##### 📊 Preço médio pago por UF vs ANP")
+                        if "uf_posto" in _cx4_df.columns and "preco_litro" in _cx4_df.columns:
+                            _cx4_uf_grp = (
+                                _cx4_df.groupby("uf_posto")["preco_litro"]
+                                .agg(preco_real="mean", visitas="count")
+                                .reset_index()
+                                .rename(columns={"uf_posto": "uf"})
+                                .sort_values("preco_real", ascending=False)
+                            )
+                            # Compara com ANP (se disponível)
+                            _cx4_fuel_anp_key = None
+                            if _cx_tem_anp and _cx4_df.get("produto") is not None:
+                                _cx4_produto_top = (
+                                    _cx4_df["produto"].value_counts().index[0]
+                                    if "produto" in _cx4_df.columns and not _cx4_df["produto"].dropna().empty
+                                    else None
+                                )
+                                if _cx4_produto_top:
+                                    _cx4_fuel_anp_key = _PP_PARA_ANP_PK.get(
+                                        str(_cx4_produto_top).upper().strip()
+                                    )
+
+                            _cx4_anp_uf_dict = {}
+                            if _cx_tem_anp and _cx4_fuel_anp_key:
+                                try:
+                                    _cx4_raw_anp = _anp_precos_por_fuel_por_uf(
+                                        _cx_sheets, _cx4_uf_grp["uf"].tolist()
+                                    )
+                                    _cx4_anp_uf_dict = _cx4_raw_anp.get(_cx4_fuel_anp_key, {})
+                                except Exception:
+                                    pass
+
+                            _cx4_uf_grp["anp_ref"] = _cx4_uf_grp["uf"].map(_cx4_anp_uf_dict)
+                            _cx4_uf_grp["delta_pct"] = (
+                                (_cx4_uf_grp["preco_real"] - _cx4_uf_grp["anp_ref"])
+                                / _cx4_uf_grp["anp_ref"] * 100
+                            ).where(_cx4_uf_grp["anp_ref"].notna())
+
+                            _fig_cx4_uf = go.Figure()
+                            _fig_cx4_uf.add_trace(go.Bar(
+                                x=_cx4_uf_grp["uf"],
+                                y=_cx4_uf_grp["preco_real"],
+                                name="Preço pago (frota)",
+                                marker_color="#e65100",
+                                text=_cx4_uf_grp["preco_real"].apply(lambda v: f"R$ {v:.3f}"),
+                                textposition="outside",
+                                hovertemplate=(
+                                    "<b>%{x}</b><br>"
+                                    "Preço pago: R$ %{y:.3f}<extra></extra>"
+                                ),
+                            ))
+                            if _cx4_uf_grp["anp_ref"].notna().any():
+                                _fig_cx4_uf.add_trace(go.Scatter(
+                                    x=_cx4_uf_grp["uf"],
+                                    y=_cx4_uf_grp["anp_ref"],
+                                    mode="markers",
+                                    name="Referência ANP",
+                                    marker=dict(color="#7B1FA2", size=10, symbol="diamond"),
+                                    hovertemplate=(
+                                        "<b>%{x}</b><br>"
+                                        "ANP ref: R$ %{y:.3f}<extra></extra>"
+                                    ),
+                                ))
+                            _fig_cx4_uf.update_layout(
+                                height=420,
+                                margin=dict(l=10, r=10, t=20, b=20),
+                                xaxis_title="UF",
+                                yaxis_title="R$/L",
+                                paper_bgcolor="white",
+                                plot_bgcolor="#f5f5ff",
+                                legend=dict(
+                                    orientation="h", yanchor="bottom", y=1.02,
+                                    xanchor="left", x=0, font_size=10,
+                                ),
+                                font_size=11,
+                                barmode="group",
+                            )
+                            st.plotly_chart(_fig_cx4_uf, use_container_width=True)
+                        else:
+                            st.info(
+                                "Colunas uf_posto / preco_litro não encontradas nos dados.",
+                                icon="📊",
+                            )
+
+                    # ── Tabela de preço pago vs ANP por UF ───────────────────
+                    if "uf_posto" in _cx4_df.columns and "preco_litro" in _cx4_df.columns:
+                        st.markdown("---")
+                        st.markdown("##### 📋 Tabela: preço real pago por UF")
+                        _cx4_tbl = _cx4_uf_grp.copy()
+                        _cx4_tbl.columns = [
+                            "UF", "Preço real (R$/L)", "Abastecimentos",
+                            "ANP ref. (R$/L)", "Δ% vs ANP",
+                        ]
+                        _cx4_tbl["Preço real (R$/L)"] = _cx4_tbl["Preço real (R$/L)"].apply(
+                            lambda v: f"R$ {v:.3f}" if pd.notna(v) else "—"
+                        )
+                        _cx4_tbl["ANP ref. (R$/L)"] = _cx4_tbl["ANP ref. (R$/L)"].apply(
+                            lambda v: f"R$ {v:.3f}" if pd.notna(v) else "—"
+                        )
+                        _cx4_tbl["Δ% vs ANP"] = _cx4_tbl["Δ% vs ANP"].apply(
+                            lambda v: f"{v:+.1f}%" if pd.notna(v) else "—"
+                        )
+                        st.dataframe(_cx4_tbl, use_container_width=True, hide_index=True)
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
