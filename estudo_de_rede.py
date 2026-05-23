@@ -15267,7 +15267,7 @@ if modo == "📊 Dashboard":
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
         # ── Tabs do dashboard ─────────────────────────────────────────────
-        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8, _dt9, _dt10, _dt11 = st.tabs([
+        _dt1, _dt2, _dt3, _dt4, _dt5, _dt6, _dt7, _dt8, _dt9, _dt10, _dt11, _dt12 = st.tabs([
             "📊 Cobertura por Estado",
             "🎯 Penetração vs ANP",
             "🗺️ Mapa de Densidade",
@@ -15279,6 +15279,7 @@ if modo == "📊 Dashboard":
             "🛣️ Eficiência de Rotas",
             "📈 Evolução Temporal",
             "🔀 Cruzamentos Avançados",
+            "🗺️ Cobertura × Demanda",
         ])
 
         # ──────────────────────────────────────────────────────────────────
@@ -19469,6 +19470,335 @@ if modo == "📊 Dashboard":
                             lambda v: f"{v:+.1f}%" if pd.notna(v) else "—"
                         )
                         st.dataframe(_cx4_tbl, use_container_width=True, hide_index=True)
+
+    # TAB 12 — 🗺️ Cobertura × Demanda
+    # ══════════════════════════════════════════════════════════════════════════
+    with _dt12:
+        # ── Header ───────────────────────────────────────────────────────────
+        st.markdown(
+            """
+            <div style="background:linear-gradient(90deg,#0a2e1a,#1a7a40);
+                        border-radius:10px;padding:18px 24px;margin-bottom:20px;">
+              <h3 style="color:#fff;margin:0;font-size:1.25rem;">
+                🗺️ Cobertura × Demanda — Expansão Estratégica da Rede
+              </h3>
+              <p style="color:#a8f0c4;margin:4px 0 0;font-size:.85rem;">
+                Cruza rotas frequentes com ausência de postos GF · Identifica gaps críticos · Sugere expansão da rede
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # ── Carregar dados ────────────────────────────────────────────────────
+        _d12_rotas = _carregar_rotas_salvas()          # lista de rotas salvas
+        _d12_abast = _db_carregar_abastecimentos()     # abastecimentos históricos
+        _d12_gf    = pf_coords_df.copy() if not pf_coords_df.empty else pd.DataFrame()
+
+        # ── Coordenadas de centróides dos estados (lat/lon aproximados) ───────
+        _UF_CENTROID = {
+            "AC": (-9.02,  -70.81), "AL": (-9.57,  -36.78), "AM": (-3.47,  -65.10),
+            "AP": ( 1.41,  -51.77), "BA": (-12.57, -41.70), "CE": (-5.20,  -39.53),
+            "DF": (-15.78, -47.93), "ES": (-19.19, -40.34), "GO": (-15.83, -49.62),
+            "MA": (-5.42,  -45.44), "MG": (-18.51, -44.55), "MS": (-20.51, -54.54),
+            "MT": (-12.64, -55.42), "PA": (-3.79,  -52.48), "PB": (-7.12,  -36.72),
+            "PE": (-8.38,  -37.86), "PI": (-7.72,  -42.73), "PR": (-24.89, -51.55),
+            "RJ": (-22.25, -42.66), "RN": (-5.81,  -36.59), "RO": (-10.83, -63.34),
+            "RR": ( 1.99,  -61.33), "RS": (-30.03, -53.33), "SC": (-27.25, -50.22),
+            "SE": (-10.57, -37.45), "SP": (-22.25, -48.63), "TO": (-10.25, -48.25),
+        }
+
+        # ── Construir mapa de demanda por UF ─────────────────────────────────
+        # Demanda = nº de rotas que passam por cada UF + abastecimentos nessa UF
+        _d12_demanda: dict[str, float] = {uf: 0.0 for uf in _UF_CENTROID}
+
+        # Contribuição de rotas salvas
+        if _d12_rotas:
+            for _rota in _d12_rotas:
+                _ufs_rota = []
+                # Tentar extrair UFs dos waypoints / origem / destino
+                for _campo in ("origem_uf", "destino_uf", "uf"):
+                    _uf_v = _rota.get(_campo, "")
+                    if _uf_v and str(_uf_v).upper() in _d12_demanda:
+                        _ufs_rota.append(str(_uf_v).upper())
+                # Waypoints
+                for _wp in _rota.get("waypoints", []):
+                    _wuf = _wp.get("uf", "")
+                    if _wuf and str(_wuf).upper() in _d12_demanda:
+                        _ufs_rota.append(str(_wuf).upper())
+                for _u in set(_ufs_rota):
+                    _d12_demanda[_u] = _d12_demanda.get(_u, 0) + 1.0
+
+        # Contribuição de abastecimentos históricos
+        if _d12_abast:
+            for _ab in _d12_abast:
+                _ab_uf = str(_ab.get("uf", "") or "").upper().strip()
+                if _ab_uf in _d12_demanda:
+                    _d12_demanda[_ab_uf] = _d12_demanda.get(_ab_uf, 0) + 0.5
+
+        # ── Construir mapa de cobertura GF por UF ────────────────────────────
+        _d12_cobertura: dict[str, int] = {uf: 0 for uf in _UF_CENTROID}
+        if not _d12_gf.empty:
+            _uf_col_gf = next(
+                (c for c in _d12_gf.columns if c.lower() in ("uf", "estado", "sg_uf")),
+                None,
+            )
+            if _uf_col_gf:
+                for _uf_gf, _cnt_gf in _d12_gf[_uf_col_gf].str.upper().value_counts().items():
+                    if _uf_gf in _d12_cobertura:
+                        _d12_cobertura[_uf_gf] = int(_cnt_gf)
+
+        # ── Calcular gap score ────────────────────────────────────────────────
+        # gap = demanda_normalizada × (1 − cobertura_normalizada)
+        _d12_dem_max   = max(_d12_demanda.values()) or 1.0
+        _d12_cob_max   = max(_d12_cobertura.values()) or 1.0
+
+        _d12_rows = []
+        for _uf in sorted(_UF_CENTROID.keys()):
+            _dem  = _d12_demanda.get(_uf, 0.0)
+            _cob  = _d12_cobertura.get(_uf, 0)
+            _dem_n = _dem / _d12_dem_max
+            _cob_n = _cob / _d12_cob_max
+            _gap  = round(_dem_n * (1.0 - _cob_n), 4)
+            _lat, _lon = _UF_CENTROID[_uf]
+            _d12_rows.append({
+                "UF": _uf,
+                "lat": _lat,
+                "lon": _lon,
+                "Demanda (rotas+abast)": round(_dem, 1),
+                "Postos GF": _cob,
+                "Gap Score": _gap,
+            })
+
+        _d12_df = pd.DataFrame(_d12_rows).sort_values("Gap Score", ascending=False).reset_index(drop=True)
+
+        # Classificação de prioridade
+        def _d12_prioridade(gap):
+            if gap >= 0.60:  return "🔴 Crítico"
+            if gap >= 0.35:  return "🟠 Alto"
+            if gap >= 0.15:  return "🟡 Médio"
+            return "🟢 Baixo"
+
+        _d12_df["Prioridade"] = _d12_df["Gap Score"].apply(_d12_prioridade)
+        _d12_df["Ação sugerida"] = _d12_df.apply(
+            lambda r: (
+                "Abrir posto urgente"   if r["Gap Score"] >= 0.60 else
+                "Avaliar nova unidade"  if r["Gap Score"] >= 0.35 else
+                "Monitorar crescimento" if r["Gap Score"] >= 0.15 else
+                "Cobertura adequada"
+            ),
+            axis=1,
+        )
+
+        # ── KPIs ──────────────────────────────────────────────────────────────
+        _d12_n_rotas   = len(_d12_rotas) if _d12_rotas else 0
+        _d12_n_critico = int((_d12_df["Gap Score"] >= 0.35).sum())
+        _d12_top_uf    = _d12_df.iloc[0]["UF"] if not _d12_df.empty else "—"
+        _d12_n_gf_tot  = int(_d12_df["Postos GF"].sum())
+
+        _k1, _k2, _k3, _k4 = st.columns(4)
+        with _k1:
+            st.metric("🛣️ Rotas analisadas", f"{_d12_n_rotas}")
+        with _k2:
+            st.metric("⚠️ UFs com gap alto/crítico", f"{_d12_n_critico}")
+        with _k3:
+            st.metric("🥇 UF prioritária", _d12_top_uf)
+        with _k4:
+            st.metric("⛽ Total postos GF", f"{_d12_n_gf_tot}")
+
+        st.divider()
+
+        # ── Mapa de bolhas ────────────────────────────────────────────────────
+        st.markdown("#### 🗺️ Mapa de Gaps — Demanda vs Cobertura GF")
+        st.caption("Tamanho da bolha = demanda; Cor = severidade do gap (verde → vermelho)")
+
+        if not _d12_df.empty and _d12_df["Demanda (rotas+abast)"].sum() > 0:
+            import plotly.express as _px12
+            _d12_map_df = _d12_df[_d12_df["Demanda (rotas+abast)"] > 0].copy()
+            _d12_fig_map = _px12.scatter_geo(
+                _d12_map_df,
+                lat="lat",
+                lon="lon",
+                size="Demanda (rotas+abast)",
+                color="Gap Score",
+                color_continuous_scale=["#1a7a40", "#f5c518", "#e03030"],
+                range_color=[0, 1],
+                hover_name="UF",
+                hover_data={
+                    "lat": False,
+                    "lon": False,
+                    "Demanda (rotas+abast)": True,
+                    "Postos GF": True,
+                    "Gap Score": ":.3f",
+                    "Prioridade": True,
+                },
+                size_max=45,
+                scope="south america",
+                title="Cobertura × Demanda por UF",
+            )
+            _d12_fig_map.update_geos(
+                center={"lat": -15, "lon": -52},
+                projection_scale=3.2,
+                showland=True,
+                landcolor="#1a2035",
+                showocean=True,
+                oceancolor="#0d1525",
+                showcountries=True,
+                countrycolor="#334",
+                showsubunits=True,
+                subunitcolor="#445",
+                bgcolor="rgba(0,0,0,0)",
+            )
+            _d12_fig_map.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font_color="#e0e0e0",
+                coloraxis_colorbar=dict(title="Gap Score", tickfont=dict(color="#e0e0e0")),
+                margin=dict(l=0, r=0, t=40, b=0),
+                height=500,
+            )
+            st.plotly_chart(_d12_fig_map, use_container_width=True)
+        else:
+            st.info(
+                "ℹ️ Sem dados de rotas ou abastecimentos para gerar o mapa de demanda. "
+                "Salve rotas ou registre abastecimentos para ver o mapa.",
+                icon="🗺️",
+            )
+
+        st.divider()
+
+        # ── Gráfico de barras — Top 15 UFs por Gap Score ──────────────────────
+        _col_bar, _col_tbl = st.columns([1, 1], gap="medium")
+
+        with _col_bar:
+            st.markdown("#### 📊 Top 15 UFs — Prioridade de Expansão")
+            _d12_top15 = _d12_df.head(15).copy()
+            if not _d12_top15.empty:
+
+                _bar_cores = [
+                    "#e03030" if g >= 0.60 else
+                    "#f5a623" if g >= 0.35 else
+                    "#f5c518" if g >= 0.15 else
+                    "#1a7a40"
+                    for g in _d12_top15["Gap Score"]
+                ]
+                _d12_fig_bar = go.Figure(
+                    go.Bar(
+                        x=_d12_top15["UF"],
+                        y=_d12_top15["Gap Score"],
+                        marker_color=_bar_cores,
+                        text=[f"{v:.3f}" for v in _d12_top15["Gap Score"]],
+                        textposition="outside",
+                        hovertemplate=(
+                            "<b>%{x}</b><br>"
+                            "Gap Score: %{y:.3f}<br>"
+                            "<extra></extra>"
+                        ),
+                    )
+                )
+                _d12_fig_bar.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font_color="#e0e0e0",
+                    xaxis=dict(title="UF", tickfont=dict(color="#ccc")),
+                    yaxis=dict(title="Gap Score", range=[0, 1.1], tickfont=dict(color="#ccc")),
+                    margin=dict(l=10, r=10, t=30, b=10),
+                    height=350,
+                )
+                st.plotly_chart(_d12_fig_bar, use_container_width=True)
+                # Legenda de cores
+                st.markdown(
+                    "<small>"
+                    "🔴 Crítico ≥0,60 &nbsp;|&nbsp; "
+                    "🟠 Alto ≥0,35 &nbsp;|&nbsp; "
+                    "🟡 Médio ≥0,15 &nbsp;|&nbsp; "
+                    "🟢 Baixo &lt;0,15"
+                    "</small>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.info("Sem dados suficientes para o gráfico.")
+
+        # ── Tabela detalhada ──────────────────────────────────────────────────
+        with _col_tbl:
+            st.markdown("#### 📋 Detalhamento por UF")
+            _d12_tbl_show = _d12_df[[
+                "UF", "Demanda (rotas+abast)", "Postos GF", "Gap Score",
+                "Prioridade", "Ação sugerida",
+            ]].copy()
+            _d12_tbl_show["Gap Score"] = _d12_tbl_show["Gap Score"].apply(
+                lambda v: f"{_br_num(v, 3)}"
+            )
+            _d12_tbl_show["Demanda (rotas+abast)"] = _d12_tbl_show["Demanda (rotas+abast)"].apply(
+                lambda v: f"{_br_num(v, 1)}"
+            )
+            st.dataframe(
+                _d12_tbl_show,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "UF":                     st.column_config.TextColumn("UF",              width=55),
+                    "Demanda (rotas+abast)":  st.column_config.TextColumn("Demanda",          width=85),
+                    "Postos GF":              st.column_config.NumberColumn("GF",             width=55),
+                    "Gap Score":              st.column_config.TextColumn("Gap",              width=65),
+                    "Prioridade":             st.column_config.TextColumn("Prioridade",       width=110),
+                    "Ação sugerida":          st.column_config.TextColumn("Ação sugerida",    width=180),
+                },
+            )
+
+        st.divider()
+
+        # ── Insights automáticos ──────────────────────────────────────────────
+        st.markdown("#### 💡 Insights Estratégicos")
+        _d12_criticos = _d12_df[_d12_df["Gap Score"] >= 0.60]["UF"].tolist()
+        _d12_altos    = _d12_df[(_d12_df["Gap Score"] >= 0.35) & (_d12_df["Gap Score"] < 0.60)]["UF"].tolist()
+        _d12_sem_gf   = _d12_df[_d12_df["Postos GF"] == 0]["UF"].tolist()
+
+        _d12_insights = []
+
+        if _d12_criticos:
+            _ufs_str = ", ".join(_d12_criticos[:5])
+            _d12_insights.append(
+                f"🔴 **Expansão urgente**: As UFs **{_ufs_str}** apresentam alta demanda e baixíssima cobertura GF — "
+                f"são candidatas prioritárias para abertura imediata de novos postos."
+            )
+
+        if _d12_altos:
+            _ufs_str2 = ", ".join(_d12_altos[:4])
+            _d12_insights.append(
+                f"🟠 **Avaliação estratégica**: **{_ufs_str2}** têm gap relevante — recomenda-se avaliar parceiros "
+                f"ou franquias locais para aumentar a presença GF sem investimento próprio elevado."
+            )
+
+        if _d12_sem_gf:
+            _ufs_str3 = ", ".join(_d12_sem_gf[:6])
+            _d12_insights.append(
+                f"⚠️ **Sem nenhum posto GF**: As UFs **{_ufs_str3}** não possuem cobertura GF cadastrada. "
+                f"Mesmo com demanda baixa, a ausência total impede atendimento mínimo na região."
+            )
+
+        if not _d12_insights:
+            _d12_insights.append(
+                "✅ **Cobertura equilibrada**: Não foram identificados gaps críticos com os dados atuais. "
+                "Salve mais rotas e registre abastecimentos para uma análise mais precisa."
+            )
+
+        for _ins in _d12_insights:
+            st.info(_ins)
+
+        # Nota metodológica
+        with st.expander("ℹ️ Como o Gap Score é calculado"):
+            st.markdown(
+                """
+                **Gap Score** = `demanda_normalizada × (1 − cobertura_normalizada)`
+
+                - **Demanda**: soma de rotas salvas que passam pela UF + 0,5 por abastecimento histórico nessa UF.
+                - **Cobertura**: número de postos GF cadastrados na UF.
+                - Ambos são normalizados pelo valor máximo do conjunto (escala 0–1).
+                - Um Gap Score próximo de **1,0** indica alta demanda combinada com ausência quase total de postos GF → prioridade máxima de expansão.
+                - Um Gap Score próximo de **0,0** indica baixa demanda ou boa cobertura já existente.
+                """
+            )
 
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
