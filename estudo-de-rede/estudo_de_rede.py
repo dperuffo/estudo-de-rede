@@ -3138,15 +3138,16 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     if _supabase_registros:
         _db = _db_client()
         if _db:
-            # Usa RPC fn_inserir_historico — função SQL que faz
-            # INSERT ... ON CONFLICT DO NOTHING diretamente no banco,
-            # contornando qualquer comportamento do driver PostgREST.
+            # Upsert direto em lotes de 200 — o banco deduplica via
+            # UNIQUE (cnpj, combustivel, data_ref).  Se a constraint ainda
+            # não existir, o INSERT acontece normalmente (sem dedup).
             try:
-                import json as _json
-                _db.rpc(
-                    "fn_inserir_historico",
-                    {"p_data": _json.dumps(_supabase_registros, default=str)},
-                ).execute()
+                _CHUNK = 200
+                for _i in range(0, len(_supabase_registros), _CHUNK):
+                    _db.table("historico_precos").upsert(
+                        _supabase_registros[_i: _i + _CHUNK],
+                        on_conflict="cnpj,combustivel,data_ref",
+                    ).execute()
                 # erro já foi limpo no início da função
             except Exception as _ei:
                 st.session_state["_hist_db_erro"] = str(_ei)
@@ -19447,12 +19448,13 @@ elif modo == "🧠 Inteligência":
                     f"⚠️ **Falha ao gravar no Supabase** — os dados foram salvos "
                     f"apenas localmente (sessão atual).\n\n"
                     f"Erro: `{_hist_db_erro}`\n\n"
-                    f"**Ação necessária:** verifique se a constraint de unicidade "
-                    f"existe na tabela `historico_precos`. Execute no SQL Editor do "
-                    f"Supabase:\n"
+                    f"**Ação necessária:** crie a constraint de unicidade na tabela "
+                    f"`historico_precos` executando no SQL Editor do Supabase:\n"
                     f"```sql\n"
+                    f"-- Execute apenas UMA vez. Se retornar erro dizendo que a\n"
+                    f"-- constraint já existe, ignore — tudo está correto.\n"
                     f"ALTER TABLE historico_precos\n"
-                    f"  ADD CONSTRAINT IF NOT EXISTS historico_precos_unico\n"
+                    f"  ADD CONSTRAINT historico_precos_unico\n"
                     f"  UNIQUE (cnpj, combustivel, data_ref);\n"
                     f"```\n"
                     f"Depois clique em **↩️ Forçar sincronização** abaixo."
