@@ -20066,7 +20066,7 @@ if modo == "📊 Dashboard":
                                 [0.6, "#f9a825"], [0.85, "#e65100"],
                                 [1.0, "#b71c1c"],
                             ],
-                            text=_ts_pivot.applymap(
+                            text=_ts_pivot.map(
                                 lambda v: f"R$ {v:.3f}".replace(".", ",") if pd.notna(v) else ""
                             ).values,
                             texttemplate="%{text}",
