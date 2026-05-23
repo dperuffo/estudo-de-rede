@@ -19441,7 +19441,21 @@ elif modo == "🧠 Inteligência":
             st.markdown("---")
             st.markdown("##### Registrar preços no histórico")
 
-            # ── Exibe erro do Supabase se houver ──────────────────────
+            # ── Feedback persistente pós-rerun (toast sobrevive ao st.rerun) ──
+            _hist_toast = st.session_state.pop("_hist_toast", None)
+            if _hist_toast:
+                _tp = _hist_toast.get("type", "info")
+                _tm = _hist_toast.get("msg", "")
+                if _tp == "success":
+                    st.success(_tm)
+                elif _tp == "warning":
+                    st.warning(_tm)
+                elif _tp == "error":
+                    st.error(_tm)
+                else:
+                    st.info(_tm)
+
+            # ── Exibe erro persistente do Supabase se houver ──────────
             _hist_db_erro = st.session_state.get("_hist_db_erro")
             if _hist_db_erro:
                 st.error(
@@ -19469,15 +19483,23 @@ elif modo == "🧠 Inteligência":
                                  key="btn_hist_reg_pg", use_container_width=True):
                         _n_reg_pg = _hist_record_pp_df(_pp_df_pg)
                         if st.session_state.get("_hist_db_erro"):
-                            st.warning(
-                                f"⚠️ {_n_reg_pg} registros salvos localmente, "
-                                f"mas falhou no Supabase. Veja o erro acima."
-                            )
+                            st.session_state["_hist_toast"] = {
+                                "type": "warning",
+                                "msg": (
+                                    f"⚠️ {_n_reg_pg} registro(s) salvos localmente, "
+                                    f"mas a gravação no Supabase falhou. Veja o erro abaixo."
+                                ),
+                            }
                         else:
-                            st.success(
-                                f"✅ {_n_reg_pg} novas observações registradas "
-                                f"(local + Supabase)."
-                            )
+                            st.session_state["_hist_toast"] = {
+                                "type": "success",
+                                "msg": (
+                                    f"✅ {_n_reg_pg} nova(s) observação(ões) registrada(s) "
+                                    f"com sucesso (local + Supabase)."
+                                    if _n_reg_pg > 0
+                                    else "ℹ️ Nenhum registro novo — todos já estavam no histórico."
+                                ),
+                            }
                         st.rerun()
                 with _rb2:
                     if st.button("↩️ Forçar sincronização com Supabase",
@@ -19492,15 +19514,22 @@ elif modo == "🧠 Inteligência":
                         st.session_state.pop("_intel_loaded", None)
                         _n_force = _hist_record_pp_df(_pp_df_pg)
                         if st.session_state.get("_hist_db_erro"):
-                            st.error(
-                                f"❌ Supabase ainda falhando após sync forçado. "
-                                f"Erro: {st.session_state['_hist_db_erro']}"
-                            )
+                            st.session_state["_hist_toast"] = {
+                                "type": "error",
+                                "msg": (
+                                    f"❌ Supabase ainda falhando após sincronização forçada. "
+                                    f"Verifique o erro acima e confirme se a constraint "
+                                    f"`historico_precos_unico` foi criada no banco."
+                                ),
+                            }
                         else:
-                            st.success(
-                                f"✅ Sincronização forçada: {_n_force} registros "
-                                f"enviados ao Supabase com sucesso."
-                            )
+                            st.session_state["_hist_toast"] = {
+                                "type": "success",
+                                "msg": (
+                                    f"✅ Sincronização forçada concluída: "
+                                    f"{_n_force} registro(s) enviado(s) ao Supabase com sucesso."
+                                ),
+                            }
                         st.rerun()
             else:
                 st.info("Carregue a planilha de Preços PP em **Configurações → 💲 Preços PP** para ativar o registro automático de histórico.")
