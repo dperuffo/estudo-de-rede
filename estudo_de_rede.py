@@ -19493,7 +19493,7 @@ if modo == "📊 Dashboard":
         # ── Carregar dados ────────────────────────────────────────────────────
         _d12_rotas = _carregar_rotas_salvas()          # lista de rotas salvas
         _d12_abast = _db_carregar_abastecimentos()     # abastecimentos históricos
-        _d12_gf    = pf_coords_df.copy() if not pf_coords_df.empty else pd.DataFrame()
+        _d12_gf    = st.session_state.get("pf_coords_df", pd.DataFrame()).copy()
 
         # ── Coordenadas de centróides dos estados (lat/lon aproximados) ───────
         _UF_CENTROID = {
