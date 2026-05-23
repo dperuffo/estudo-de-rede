@@ -20107,6 +20107,11 @@ if modo == "📊 Dashboard":
                             "#7b61ff", "#ffd700", "#00e676", "#ff6b6b",
                             "#00bfff", "#ff9800",
                         ]
+                        _FILLS_COMB = [
+                            "rgba(123,97,255,0.08)", "rgba(255,215,0,0.08)",
+                            "rgba(0,230,118,0.08)", "rgba(255,107,107,0.08)",
+                            "rgba(0,191,255,0.08)", "rgba(255,152,0,0.08)",
+                        ]
                         for _i_cb, _cb in enumerate(sorted(_ts_vol_df["combustivel"].unique())):
                             _sub_cb = _ts_vol_df[_ts_vol_df["combustivel"] == _cb].sort_values("mês")
                             _ts_fig_vol.add_trace(go.Scatter(
@@ -20117,9 +20122,7 @@ if modo == "📊 Dashboard":
                                 line=dict(color=_CORES_COMB[_i_cb % len(_CORES_COMB)], width=2),
                                 marker=dict(size=5),
                                 fill="tozeroy",
-                                fillcolor=_CORES_COMB[_i_cb % len(_CORES_COMB)].replace(
-                                    "#", "rgba("
-                                ) + ",0.08)" if "#" in _CORES_COMB[_i_cb % len(_CORES_COMB)] else "rgba(0,0,0,0.05)",
+                                fillcolor=_FILLS_COMB[_i_cb % len(_FILLS_COMB)],
                                 hovertemplate=f"<b>{_cb}</b><br>%{{x|%b/%Y}}<br>σ = R$ %{{y:.4f}}<extra></extra>",
                             ))
                         _ts_fig_vol.update_layout(
