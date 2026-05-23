@@ -30,6 +30,35 @@ from matplotlib.lines import Line2D
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ═══════════════════════════════════════════════════════════════════
+#  FORMATAÇÃO NUMÉRICA — Padrão Brasileiro (pt-BR)
+#  Separador decimal: vírgula  |  Separador de milhar: ponto
+#  Exemplos:  1234.56 → "1.234,56"  |  1234 → "1.234"
+# ═══════════════════════════════════════════════════════════════════
+
+def _br_num(v, d: int = 2) -> str:
+    """Número decimal no padrão BR: 1.234,56 (sem prefixo de moeda)."""
+    try:
+        return f"{float(v):,.{d}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (TypeError, ValueError):
+        return "—"
+
+
+def _br_moeda(v, d: int = 2) -> str:
+    """Valor monetário no padrão BR: R$ 1.234,56."""
+    try:
+        return "R$ " + f"{float(v):,.{d}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (TypeError, ValueError):
+        return "R$ —"
+
+
+def _br_int(v) -> str:
+    """Inteiro com separador de milhar BR: 1.234."""
+    try:
+        return f"{int(round(float(v))):,}".replace(",", ".")
+    except (TypeError, ValueError):
+        return "—"
+
+# ═══════════════════════════════════════════════════════════════════
 #  SUPABASE — Banco de Dados para Persistência
 # ═══════════════════════════════════════════════════════════════════
 
@@ -5529,7 +5558,7 @@ def _gerar_card_rota_png(rot_res: dict, sugest: list) -> bytes:
 
     if _cap and _aut:
         _y = _stat(_y, "🛢️", "Tanque/Aut.",
-                   f"{_cap:.0f} L / {_aut:.0f} km")
+                   f"{_br_int(_cap)} L / {_br_int(_aut)} km")
 
     n_par = len(rot_res.get("paradas", []))
     if n_par:
@@ -5824,9 +5853,9 @@ def gerar_pdf_roteirizacao(rot_res: dict, sugest: list, logo_b64: str = None) ->
         [Paragraph("🚛 Placa",    _sN), Paragraph(_placa,          _sB),
          Paragraph("⛽ Combustível",_sN),Paragraph(_comb,           _sB)],
         [Paragraph("🛢 Tanque",   _sN), Paragraph(f"{_cap:.0f} L",  _sB),
-         Paragraph("📏 Autonomia",_sN), Paragraph(f"{_aut:.0f} km/tanque" if _aut else "—", _sB)],
+         Paragraph("📏 Autonomia",_sN), Paragraph(f"{_br_int(_aut)} km/tanque" if _aut else "—", _sB)],
         [Paragraph("⚠️ Nível mín.",_sN),Paragraph(f"{_rmin_v:.0f} L ({25:.0f}%)", _sB),
-         Paragraph("🎯 Alcance ef.",_sN),Paragraph(f"{_range_v:.0f} km" if _range_v else "—", _sB)],
+         Paragraph("🎯 Alcance ef.",_sN),Paragraph(f"{_br_int(_range_v)} km" if _range_v else "—", _sB)],
     ]
     _cw = _w / 4
     _tbl_param = Table(_param_rows, colWidths=[_cw]*4, hAlign="LEFT")
@@ -5935,13 +5964,13 @@ def gerar_pdf_roteirizacao(rot_res: dict, sugest: list, logo_b64: str = None) ->
                 Paragraph(str(_i), _sN),
                 Paragraph(str(_s.get("label",""))[:35], _sN),
                 Paragraph(f"{_s.get('municipio','')} / {_s.get('uf','')}", _sN),
-                Paragraph(f"{_s.get('_km',0):.0f} km", _sN),
+                Paragraph(f"{_br_int(_s.get('_km',0))} km", _sN),
                 Paragraph(f"{_f_ch:.0f} L\n({_p_ch:.0f}%)", _sN),
-                Paragraph(f"R$ {_preco:.3f}".replace(".",","), _sN),
+                Paragraph(_br_moeda(_preco, 3), _sN),
                 Paragraph(str(_litros) + " L",
                           ParagraphStyle("lf", parent=_sN, textColor=_cor_m,
                                          fontName="Helvetica-Bold")),
-                Paragraph(f"R$ {_custo_s:.2f}".replace(".",","),
+                Paragraph(_br_moeda(_custo_s, 2),
                           ParagraphStyle("cf", parent=_sN, textColor=_cor_m,
                                          fontName="Helvetica-Bold")),
                 Paragraph(f"{_f_ap:.0f} L\n({_p_ap:.0f}%)", _sN),
@@ -6055,7 +6084,7 @@ def gerar_gpx_roteirizacao(rot_res: dict, sugest: list) -> bytes:
     meta = ET.SubElement(gpx, "metadata")
     ET.SubElement(meta, "name").text   = _nome
     ET.SubElement(meta, "desc").text   = (
-        f"Rota: {rot_res.get('dist_km',0):.0f} km · "
+        f"Rota: {_br_int(rot_res.get('dist_km',0))} km · "
         f"{len(sugest)} parada(s) de abastecimento · "
         f"Placa: {rot_res.get('placa','—')}"
     )
@@ -6107,7 +6136,7 @@ def gerar_gpx_roteirizacao(rot_res: dict, sugest: list) -> bytes:
     if _rc and len(_rc) >= 2:
         trk = ET.SubElement(gpx, "trk")
         ET.SubElement(trk, "name").text = _nome
-        ET.SubElement(trk, "desc").text = f"Rota calculada · {rot_res.get('dist_km',0):.0f} km"
+        ET.SubElement(trk, "desc").text = f"Rota calculada · {_br_int(rot_res.get('dist_km',0))} km"
         trkseg = ET.SubElement(trk, "trkseg")
         # Limita a 2000 pontos para manter o arquivo leve
         _step = max(1, len(_rc) // 2000)
@@ -8712,7 +8741,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-body'>"
                     f"<div class='cc-preco-label'>Preço médio</div>"
                     f"<div class='cc-preco'>R$ {_brl(preco, 3)}<span class='cc-unidade'>/L</span></div>"
-                    f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                    f"<div class='cc-litros'>{_br_num(litros, 1)} L necessários</div>"
                     f"<div class='cc-custo-label'>Custo estimado</div>"
                     f"<div class='cc-custo'>R$ {_brl(custo)}</div>"
                     f"{econ}"
@@ -8758,7 +8787,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                     f"<div class='cc-body'>"
                     f"<div class='cc-preco-label'>Preço médio</div>"
                     f"<div class='cc-preco'>R$ {_brl(p_med_rota, 3)}<span class='cc-unidade'>/L</span></div>"
-                    f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                    f"<div class='cc-litros'>{_br_num(litros, 1)} L necessários</div>"
                     f"<div class='cc-custo-label'>Custo estimado</div>"
                     f"<div class='cc-custo'>R$ {_brl(custo_med_val)}</div>"
                     f"</div></div>"
@@ -8809,7 +8838,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
                         f"<div class='cc-preco-label'>Preço médio real</div>"
                         f"<div class='cc-preco'>R$ {_brl(_p_pf_real, 3)}"
                         f"<span class='cc-unidade'>/L</span></div>"
-                        f"<div class='cc-litros'>{litros:.1f} L necessários</div>"
+                        f"<div class='cc-litros'>{_br_num(litros, 1)} L necessários</div>"
                         f"<div class='cc-custo-label'>Custo estimado</div>"
                         f"<div class='cc-custo'>R$ {_brl(_custo_pf)}</div>"
                         f"{_delta_html}"
@@ -8846,7 +8875,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 
             # Nota de rodapé
             st.caption(
-                f"*Cálculo baseado em {dist_km:.0f} km ÷ {consumo:.1f} km/L = {litros:.1f} litros."
+                f"*Cálculo baseado em {_br_int(dist_km)} km ÷ {_br_num(consumo, 1)} km/L = {_br_num(litros, 1)} litros."
                 f" Preços: ANP semana {semana or '—'}. Valores estimados.*"
             )
 
@@ -11100,7 +11129,7 @@ with st.sidebar:
             f"<div style='background:#e0f7fa;border:1px solid #80deea;border-radius:6px;"
             f"padding:7px 10px;font-size:11px;color:#004D40;margin-top:4px;line-height:1.6'>"
             f"⚠️ <b>Nível mínimo:</b> {_min_sb:.0f} L (25%)<br>"
-            f"📏 <b>Alcance efetivo:</b> {_range_sb:.0f} km</div>",
+            f"📏 <b>Alcance efetivo:</b> {_br_int(_range_sb)} km</div>",
             unsafe_allow_html=True,
         )
 
@@ -12170,7 +12199,7 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                 _ac_kc1, _ac_kc2, _ac_kc3, _ac_kc4 = st.columns(4)
                 _ac_kstyle = "border-radius:8px;padding:12px;text-align:center;background:#f0f4ff;border:1.5px solid #1040a0;"
                 _ac_kc1.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{_ac_n_reg:,}</div><div style="font-size:.78rem;color:#555">Acordos históricos</div></div>', unsafe_allow_html=True)
-                _ac_kc2.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{len(_ac_vigentes):,}</div><div style="font-size:.78rem;color:#555">Acordos vigentes</div></div>', unsafe_allow_html=True)
+                _ac_kc2.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{_br_int(len(_ac_vigentes))}</div><div style="font-size:.78rem;color:#555">Acordos vigentes</div></div>', unsafe_allow_html=True)
                 _ac_kc3.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{_ac_n_postos:,}</div><div style="font-size:.78rem;color:#555">Postos com acordo</div></div>', unsafe_allow_html=True)
                 _ac_kc4.markdown(f'<div style="{_ac_kstyle}"><div style="font-size:1.4rem;font-weight:800;color:#1040a0">{_ac_n_frotas:,}</div><div style="font-size:.78rem;color:#555">Frotas cobertas</div></div>', unsafe_allow_html=True)
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -12209,7 +12238,7 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                             # Lê e mostra diagnóstico das colunas
                             _ac_raw = pd.read_excel(_ac_upfile, sheet_name=0)
                             st.info(
-                                f"📄 Arquivo lido: **{len(_ac_raw):,}** linhas, "
+                                f"📄 Arquivo lido: **{_br_int(len(_ac_raw))}** linhas, "
                                 f"**{len(_ac_raw.columns)}** colunas: "
                                 f"`{'`, `'.join(_ac_raw.columns[:10].tolist())}`"
                                 + (" …" if len(_ac_raw.columns) > 10 else ""),
@@ -12274,7 +12303,7 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                     for c in _ac_show_cols
                 ]
                 st.dataframe(_ac_show.head(200), use_container_width=True, height=320)
-                st.caption(f"Exibindo até 200 de {len(_ac_vigentes):,} acordos vigentes.")
+                st.caption(f"Exibindo até 200 de {_br_int(len(_ac_vigentes))} acordos vigentes.")
 
     # ── Guia de Uso ───────────────────────────────────────────────────────────
     _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
@@ -15266,7 +15295,7 @@ if modo == "📊 Dashboard":
                     x=_comb_df["Combustível"],
                     y=_comb_df["Preço Médio (R$/L)"],
                     marker_color="#E65100",
-                    text=_comb_df["Preço Médio (R$/L)"].apply(lambda v: f"R$ {v:.3f}".replace(".",",")),
+                    text=_comb_df["Preço Médio (R$/L)"].apply(lambda v: _br_moeda(v, 3)),
                     textposition="outside",
                     name="Preço Médio",
                     error_y=dict(
@@ -15292,7 +15321,7 @@ if modo == "📊 Dashboard":
                 # Tabela de combustíveis
                 st.markdown("##### Detalhamento por Combustível")
                 for col in ["Preço Médio (R$/L)","Mín (R$/L)","Máx (R$/L)"]:
-                    _comb_df[col] = _comb_df[col].apply(lambda v: f"R$ {v:.3f}".replace(".",","))
+                    _comb_df[col] = _comb_df[col].apply(lambda v: _br_moeda(v, 3))
                 st.dataframe(_comb_df.reset_index(drop=True), use_container_width=True)
 
         # ──────────────────────────────────────────────────────────────────
@@ -15629,12 +15658,12 @@ if modo == "📊 Dashboard":
                                 )
                             if "Desvio R$/L" in _top_piores_disp.columns:
                                 _top_piores_disp["Desvio R$/L"] = _top_piores_disp["Desvio R$/L"].apply(
-                                    lambda v: f"+R$ {v:.3f}".replace(".", ",") if pd.notna(v) and v > 0 else "—"
+                                    lambda v: f"+R$ {_br_num(v, 3)}".replace(".", ",") if pd.notna(v) and v > 0 else "—"
                                 )
                             for _fc in ["Preço GF (R$/L)", "Ref. ANP (R$/L)"]:
                                 if _fc in _top_piores_disp.columns:
                                     _top_piores_disp[_fc] = _top_piores_disp[_fc].apply(
-                                        lambda v: f"R$ {v:.3f}".replace(".", ",") if pd.notna(v) else "—"
+                                        lambda v: _br_moeda(v, 3) if pd.notna(v) else "—"
                                     )
 
                             st.dataframe(
@@ -15938,7 +15967,7 @@ if modo == "📊 Dashboard":
                         x=_all_combs,
                         y=[_precos_a.get(c) for c in _all_combs],
                         marker_color="#1565C0",
-                        text=[f"R$ {_precos_a[c]:.3f}".replace(".", ",")
+                        text=[_br_moeda(_precos_a[c], 3)
                               if c in _precos_a else "" for c in _all_combs],
                         textposition="outside",
                         hovertemplate="<b>%{x}</b><br>%{fullData.name}: R$ %{y:.3f}<extra></extra>",
@@ -15948,7 +15977,7 @@ if modo == "📊 Dashboard":
                         x=_all_combs,
                         y=[_precos_b.get(c) for c in _all_combs],
                         marker_color="#C62828",
-                        text=[f"R$ {_precos_b[c]:.3f}".replace(".", ",")
+                        text=[_br_moeda(_precos_b[c], 3)
                               if c in _precos_b else "" for c in _all_combs],
                         textposition="outside",
                         hovertemplate="<b>%{x}</b><br>%{fullData.name}: R$ %{y:.3f}<extra></extra>",
@@ -15977,8 +16006,8 @@ if modo == "📊 Dashboard":
                             _diff_pct = (_diff / _pb * 100) if _pb else 0
                             _delta_rows.append({
                                 "Combustível": _c,
-                                f"Preço A":    f"R$ {_pa:.3f}".replace(".", ","),
-                                f"Preço B":    f"R$ {_pb:.3f}".replace(".", ","),
+                                f"Preço A":    _br_moeda(_pa, 3),
+                                f"Preço B":    _br_moeda(_pb, 3),
                                 "Δ R$/L":      f"{'+' if _diff >= 0 else ''}{_diff:.3f}".replace(".", ","),
                                 "Δ %":         f"{'+' if _diff_pct >= 0 else ''}{_diff_pct:.1f}%",
                                 "Mais barato": (
@@ -16169,7 +16198,7 @@ if modo == "📊 Dashboard":
                 _ex_d_delta = (_ex_diesel_gf - _ex_diesel_anp) / _ex_diesel_anp * 100
                 _eh3.metric(
                     "🚛 Diesel Médio GF",
-                    f"R$ {_ex_diesel_gf:.3f}".replace(".", ","),
+                    _br_moeda(_ex_diesel_gf, 3),
                     f"{_ex_d_delta:+.1f}% vs ANP",
                     delta_color="inverse",
                 )
@@ -16227,7 +16256,7 @@ if modo == "📊 Dashboard":
                     y=_ex_comb_avg["Preço GF (R$/L)"],
                     marker_color="#E65100",
                     text=_ex_comb_avg["Preço GF (R$/L)"].apply(
-                        lambda v: f"R$ {v:.3f}".replace(".", ",")),
+                        lambda v: _br_moeda(v, 3)),
                     textposition="outside",
                 ))
                 _ex_anp_vals = _ex_comb_avg["ANP Ref (R$/L)"].tolist()
@@ -16239,7 +16268,7 @@ if modo == "📊 Dashboard":
                         marker_color="#1565C0",
                         opacity=0.7,
                         text=[
-                            f"R$ {v:.3f}".replace(".", ",") if v else "—"
+                            _br_moeda(v, 3) if v else "—"
                             for v in _ex_anp_vals
                         ],
                         textposition="outside",
@@ -16356,7 +16385,7 @@ if modo == "📊 Dashboard":
                         marker_color=_ex_bar_colors_sv,
                         name="Preço Médio GF",
                         text=_ex_mensal["Preço Médio GF"].apply(
-                            lambda v: f"R$ {v:.3f}".replace(".", ",")),
+                            lambda v: _br_moeda(v, 3)),
                         textposition="outside",
                     ))
                     if _ex_anp_ref_sv:
@@ -16390,7 +16419,7 @@ if modo == "📊 Dashboard":
                             f"padding:10px 16px;margin-top:8px'>"
                             f"Saldo acumulado do período: "
                             f"<b style='color:{_ex_cor_s}'>"
-                            f"R$ {abs(_ex_sav_acc):.3f}/L</b> "
+                            f"R$ {_br_num(abs(_ex_sav_acc), 3)}/L</b> "
                             f"(rede GF {_ex_dir} do ANP em média)</div>",
                             unsafe_allow_html=True,
                         )
@@ -16707,9 +16736,9 @@ if modo == "📊 Dashboard":
                             # KPIs rápidos
                             _oc1, _oc2, _oc3, _oc4 = st.columns(4)
                             _oc1.metric("⛽ Postos mapeados", _fmt_int(len(_op_map_df)))
-                            _oc2.metric("💰 Mín", f"R$ {_op_p_min:.3f}".replace(".",","))
-                            _oc3.metric("💰 Máx", f"R$ {_op_p_max:.3f}".replace(".",","))
-                            _oc4.metric("📊 Mediana", f"R$ {_op_p_med:.3f}".replace(".",","))
+                            _oc2.metric("💰 Mín", _br_moeda(_op_p_min, 3))
+                            _oc3.metric("💰 Máx", _br_moeda(_op_p_max, 3))
+                            _oc4.metric("📊 Mediana", _br_moeda(_op_p_med, 3))
 
                             # Colorscale: verde → amarelo → vermelho
                             _op_map_df["_norm"] = (
@@ -16732,7 +16761,7 @@ if modo == "📊 Dashboard":
                                 _op_map_df["municipio"].fillna("") + " · " +
                                 _op_map_df["uf"].fillna("") + "<br>" +
                                 "R$ " + _op_map_df["preco"].apply(
-                                    lambda v: f"{v:.3f}".replace(".",",")
+                                    lambda v: f"{_br_num(v, 3)}"
                                 )
                             )
                             _fig_map_op = go.Figure()
@@ -16890,7 +16919,7 @@ if modo == "📊 Dashboard":
                             for _cf in ["Preço GF (R$)","ANP Ref (R$)"]:
                                 if _cf in _op_tbl.columns:
                                     _op_tbl[_cf] = _op_tbl[_cf].apply(
-                                        lambda v: f"{v:.3f}".replace(".",",")
+                                        lambda v: f"{_br_num(v, 3)}"
                                     )
                             st.dataframe(_op_tbl, use_container_width=True, height=300)
                             _op_csv_inc = _op_inc_fil.to_csv(index=False).encode("utf-8")
@@ -17377,7 +17406,7 @@ if modo == "📊 Dashboard":
             with _kc2:
                 st.markdown(
                     f'<div style="{_kpi_css}">'
-                    f'<div style="font-size:2rem;font-weight:700">{_rt_km_med:.0f} km</div>'
+                    f'<div style="font-size:2rem;font-weight:700">{_br_int(_rt_km_med)} km</div>'
                     f'<div style="font-size:.8rem;color:#a8c4f0">KM médio por rota</div>'
                     f"</div>",
                     unsafe_allow_html=True,
@@ -17421,7 +17450,7 @@ if modo == "📊 Dashboard":
                     y=_rt_km15["nome_curto"],
                     orientation="h",
                     marker_color="#1565C0",
-                    text=_rt_km15["dist_km"].apply(lambda v: f"{v:.0f} km"),
+                    text=_rt_km15["dist_km"].apply(lambda v: f"{_br_int(v)} km"),
                     textposition="outside",
                 ))
                 _fig_km.update_layout(
@@ -17490,7 +17519,7 @@ if modo == "📊 Dashboard":
                         y=_rt_custo["nome_curto"],
                         orientation="h",
                         marker_color="#0b2660",
-                        text=_rt_custo["custo_est"].apply(lambda v: f"R$ {v:,.0f}"),
+                        text=_rt_custo["custo_est"].apply(lambda v: f"R$ {_br_num(v, 0)}"),
                         textposition="outside",
                     ))
                     _fig_custo.update_layout(
@@ -17567,7 +17596,7 @@ if modo == "📊 Dashboard":
                 lambda v: (f"+{v:.0f}%" if v >= 0 else f"{v:.0f}%") if pd.notna(v) else "—"
             )
             _rt_tbl["Custo est. (R$)"] = _rt_tbl["Custo est. (R$)"].apply(
-                lambda v: f"R$ {v:,.0f}" if pd.notna(v) else "—"
+                lambda v: f"R$ {_br_num(v, 0)}" if pd.notna(v) else "—"
             )
 
             st.dataframe(_rt_tbl, use_container_width=True, hide_index=True)
@@ -17682,7 +17711,7 @@ if modo == "📊 Dashboard":
                                 y=_rv_top15["placa"],
                                 orientation="h",
                                 marker_color="#2e7d32",
-                                text=_rv_top15["km_med"].apply(lambda v: f"{v:.0f} km"),
+                                text=_rv_top15["km_med"].apply(lambda v: f"{_br_int(v)} km"),
                                 textposition="outside",
                             ))
                             _fig_rv_km.update_layout(
@@ -17757,7 +17786,7 @@ if modo == "📊 Dashboard":
                     )
                     if "KM total" in _rv_tbl.columns:
                         _rv_tbl["KM total"] = _rv_tbl["KM total"].apply(
-                            lambda v: f"{v:,.0f}" if pd.notna(v) else "—"
+                            lambda v: f"{_br_num(v, 0)}" if pd.notna(v) else "—"
                         )
                     if "Média km/L" in _rv_tbl.columns:
                         _rv_tbl["Média km/L"] = _rv_tbl["Média km/L"].apply(
@@ -17765,15 +17794,15 @@ if modo == "📊 Dashboard":
                         )
                     if "Total abast. (L)" in _rv_tbl.columns:
                         _rv_tbl["Total abast. (L)"] = _rv_tbl["Total abast. (L)"].apply(
-                            lambda v: f"{v:,.0f}" if pd.notna(v) else "—"
+                            lambda v: f"{_br_num(v, 0)}" if pd.notna(v) else "—"
                         )
                     if "Preço médio (R$/L)" in _rv_tbl.columns:
                         _rv_tbl["Preço médio (R$/L)"] = _rv_tbl["Preço médio (R$/L)"].apply(
-                            lambda v: f"R$ {v:.3f}" if pd.notna(v) else "—"
+                            lambda v: f"R$ {_br_num(v, 3)}" if pd.notna(v) else "—"
                         )
                     if "Custo total (R$)" in _rv_tbl.columns:
                         _rv_tbl["Custo total (R$)"] = _rv_tbl["Custo total (R$)"].apply(
-                            lambda v: f"R$ {v:,.0f}" if pd.notna(v) else "—"
+                            lambda v: f"R$ {_br_num(v, 0)}" if pd.notna(v) else "—"
                         )
                     st.dataframe(_rv_tbl, use_container_width=True, hide_index=True)
 
@@ -18047,7 +18076,7 @@ if modo == "📊 Dashboard":
                             y=_ev_vol["uf"],
                             orientation="h",
                             marker_color=_ev_vol["cor_vol"].tolist(),
-                            text=_ev_vol["std"].apply(lambda v: f"R$ {v:.4f}"),
+                            text=_ev_vol["std"].apply(lambda v: f"R$ {_br_num(v, 4)}"),
                             textposition="outside",
                             hovertemplate=(
                                 "<b>%{y}</b><br>"
@@ -18202,7 +18231,7 @@ if modo == "📊 Dashboard":
                     ]
                     for _col_fmt in ["Preço médio", "Desvio padrão", "Mínimo", "Máximo", "Amplitude"]:
                         _ev_rank_tbl[_col_fmt] = _ev_rank_tbl[_col_fmt].apply(
-                            lambda v: f"R$ {v:.4f}" if pd.notna(v) else "—"
+                            lambda v: f"R$ {_br_num(v, 4)}" if pd.notna(v) else "—"
                         )
                     _ev_rank_tbl["CV (%)"] = _ev_rank_tbl["CV (%)"].apply(
                         lambda v: f"{v:.2f}%"
@@ -18376,7 +18405,7 @@ if modo == "📊 Dashboard":
                         x=_cx_reg["uf"],
                         y=_cx_reg["preco_medio"],
                         marker_color=_cx_reg["cor"].tolist(),
-                        text=_cx_reg["preco_medio"].apply(lambda v: f"R$ {v:.3f}"),
+                        text=_cx_reg["preco_medio"].apply(lambda v: f"R$ {_br_num(v, 3)}"),
                         textposition="outside",
                         hovertemplate=(
                             "<b>%{x}</b><br>"
@@ -18480,7 +18509,7 @@ if modo == "📊 Dashboard":
                                            "Máximo", "Desvio padrão", "Postos"]
                     for _c in ["Preço médio", "Mínimo", "Máximo", "Desvio padrão"]:
                         _cx_reg_tbl[_c] = _cx_reg_tbl[_c].apply(
-                            lambda v: f"R$ {v:.4f}" if pd.notna(v) else "—"
+                            lambda v: f"R$ {_br_num(v, 4)}" if pd.notna(v) else "—"
                         )
                     st.dataframe(_cx_reg_tbl, use_container_width=True, hide_index=True)
 
@@ -18509,7 +18538,7 @@ if modo == "📊 Dashboard":
                                     opacity=0.85,
                                 ),
                                 text=_cx_map_df.apply(
-                                    lambda r: f"{r['nome_posto']}<br>{r['uf']} — R$ {r['preco']:.3f}",
+                                    lambda r: f"{r['nome_posto']}<br>{r['uf']} — R$ {_br_num(r['preco'], 3)}",
                                     axis=1,
                                 ),
                                 hoverinfo="text",
@@ -18664,7 +18693,7 @@ if modo == "📊 Dashboard":
                                 text=_cx_mun_map.apply(
                                     lambda r: (
                                         f"{r['municipio']}/{r['uf']}<br>"
-                                        f"Preço médio: R$ {r['preco_medio']:.3f}<br>"
+                                        f"Preço médio: R$ {_br_num(r['preco_medio'], 3)}<br>"
                                         f"Delta: {r['delta_vs_media']:+.1f}%<br>"
                                         f"Postos: {int(r['postos'])}"
                                     ),
@@ -18690,7 +18719,7 @@ if modo == "📊 Dashboard":
                         "Município", "UF", "Cluster", "Preço médio", "Δ% vs média", "Postos"
                     ]
                     _cx_mun_tbl["Preço médio"] = _cx_mun_tbl["Preço médio"].apply(
-                        lambda v: f"R$ {v:.4f}"
+                        lambda v: f"R$ {_br_num(v, 4)}"
                     )
                     _cx_mun_tbl["Δ% vs média"] = _cx_mun_tbl["Δ% vs média"].apply(
                         lambda v: f"{v:+.2f}%"
@@ -18894,7 +18923,7 @@ if modo == "📊 Dashboard":
                         ]
                         for _cc in ["GF médio (R$/L)", "ANP ref. (R$/L)", "Delta (R$/L)"]:
                             _cx_tbl_comp[_cc] = _cx_tbl_comp[_cc].apply(
-                                lambda v: f"R$ {v:.4f}" if pd.notna(v) else "—"
+                                lambda v: f"R$ {_br_num(v, 4)}" if pd.notna(v) else "—"
                             )
                         _cx_tbl_comp["Delta (%)"] = _cx_tbl_comp["Delta (%)"].apply(
                             lambda v: f"{v:+.2f}%" if pd.notna(v) else "—"
@@ -19046,7 +19075,7 @@ if modo == "📊 Dashboard":
                                         lambda r: (
                                             f"{r.get('nome_str','Posto')}<br>"
                                             f"Visitas: {int(r['visitas'])}<br>"
-                                            f"Preço médio pago: R$ {r['preco_med']:.3f}"
+                                            f"Preço médio pago: R$ {_br_num(r['preco_med'], 3)}"
                                             if pd.notna(r.get("preco_med")) else
                                             f"{r.get('nome_str','Posto')}<br>Visitas: {int(r['visitas'])}"
                                         ),
@@ -19163,7 +19192,7 @@ if modo == "📊 Dashboard":
                                 y=_cx4_uf_grp["preco_real"],
                                 name="Preço pago (frota)",
                                 marker_color="#e65100",
-                                text=_cx4_uf_grp["preco_real"].apply(lambda v: f"R$ {v:.3f}"),
+                                text=_cx4_uf_grp["preco_real"].apply(lambda v: f"R$ {_br_num(v, 3)}"),
                                 textposition="outside",
                                 hovertemplate=(
                                     "<b>%{x}</b><br>"
@@ -19213,10 +19242,10 @@ if modo == "📊 Dashboard":
                             "ANP ref. (R$/L)", "Δ% vs ANP",
                         ]
                         _cx4_tbl["Preço real (R$/L)"] = _cx4_tbl["Preço real (R$/L)"].apply(
-                            lambda v: f"R$ {v:.3f}" if pd.notna(v) else "—"
+                            lambda v: f"R$ {_br_num(v, 3)}" if pd.notna(v) else "—"
                         )
                         _cx4_tbl["ANP ref. (R$/L)"] = _cx4_tbl["ANP ref. (R$/L)"].apply(
-                            lambda v: f"R$ {v:.3f}" if pd.notna(v) else "—"
+                            lambda v: f"R$ {_br_num(v, 3)}" if pd.notna(v) else "—"
                         )
                         _cx4_tbl["Δ% vs ANP"] = _cx4_tbl["Δ% vs ANP"].apply(
                             lambda v: f"{v:+.1f}%" if pd.notna(v) else "—"
@@ -20249,7 +20278,7 @@ elif modo == "🛣️ Roteirização":
         if _rot_comb:  _v_parts.append(f"⛽ {_rot_comb}")
         if _rot_cap:   _v_parts.append(f"🛢 {_rot_cap:.0f} L")
         if _rot_aut:   _v_parts.append(f"📏 {_rot_aut:.1f} km/L")
-        _v_parts.append(f"🔋 alcance ~{(_rot_cap - _rot_min) * _rot_aut:.0f} km")
+        _v_parts.append(f"🔋 alcance ~{_br_int((_rot_cap - _rot_min) * _rot_aut)} km")
         st.markdown(
             "<div style='background:linear-gradient(90deg,#e0f7fa,#f1f8e9);"
             "border:1px solid #80deea;border-radius:8px;padding:7px 14px;"
@@ -20684,7 +20713,7 @@ elif modo == "🛣️ Roteirização":
             elif not _sugest:
                 st.success(
                     f"✅ Nenhuma parada necessária — alcance efetivo "
-                    f"(~{_range_avail:.0f} km) é suficiente para os {_rd:.0f} km desta rota.")
+                    f"(~{_br_int(_range_avail)} km) é suficiente para os {_br_int(_rd)} km desta rota.")
             else:
                 _n_ab         = len(_sugest)
                 _custo_total  = sum(s.get("custo_abast", 0) for s in _sugest)
@@ -20739,7 +20768,7 @@ elif modo == "🛣️ Roteirização":
                         # Linha 2: localização + km + preço
                         f"<div style='font-size:11px;color:#555;margin-bottom:5px'>"
                         f"📍 {_ab.get('municipio','')} / {_ab.get('uf','')} &nbsp;·&nbsp; "
-                        f"🛣 <b>{_ab.get('_km',0):.0f} km</b> da origem &nbsp;·&nbsp; "
+                        f"🛣 <b>{_br_int(_ab.get('_km',0))} km</b> da origem &nbsp;·&nbsp; "
                         f"💰 <b>R$ {_preco_l:.3f}/L</b>"
                         f"</div>"
 
@@ -20906,10 +20935,10 @@ elif modo == "🛣️ Roteirização":
                     _ck2.metric("🛢 Consumo total",
                                 f"{_consumo_total_l:.1f} L")
                     _ck3.metric("📏 Custo/km",
-                                f"R$ {_custo_sem_par/_rd:.3f}".replace(".",",") if _rd > 0 else "—")
+                                _br_moeda(_custo_sem_par/_rd, 3) if _rd > 0 else "—")
                     st.info(
-                        f"✅ O alcance efetivo do veículo (~{_range_avail:.0f} km) cobre toda a rota "
-                        f"({_rd:.0f} km). O custo é calculado com base no preço médio dos postos GF "
+                        f"✅ O alcance efetivo do veículo (~{_br_int(_range_avail)} km) cobre toda a rota "
+                        f"({_br_int(_rd)} km). O custo é calculado com base no preço médio dos postos GF "
                         f"para **{_rcomb}**."
                     )
 
@@ -20928,7 +20957,7 @@ elif modo == "🛣️ Roteirização":
                     )
                     _kc3.metric(
                         "📏 Custo por km",
-                        f"R$ {_custo_km:.4f}".replace(".",",") if _custo_km > 0 else "—",
+                        _br_moeda(_custo_km, 4) if _custo_km > 0 else "—",
                         help="Custo de abastecimento dividido pela distância total",
                     )
                     _kc4.metric(
@@ -21111,7 +21140,7 @@ elif modo == "🛣️ Roteirização":
                         orientation="h",
                         marker_color=_cores_bk,
                         text=[
-                            f"R$ {c:.2f}  ({l}L @ R$ {p:.3f}/L)"
+                            f"R$ {_br_num(c, 2)}  ({l}L @ R$ {_br_num(p, 3)}/L)"
                             .replace(".",",")
                             for c, l, p in zip(_custos_bk, _litros_bk, _precos_bk)
                         ],
@@ -21162,7 +21191,7 @@ elif modo == "🛣️ Roteirização":
                             x=_comp_nomes,
                             y=_comp_vals,
                             marker_color=_comp_cores,
-                            text=[f"R$ {v:.3f}".replace(".", ",") for v in _comp_vals],
+                            text=[_br_moeda(v, 3) for v in _comp_vals],
                             textposition="outside",
                             hovertemplate="<b>%{x}</b><br>R$ %{y:.3f}/L<extra></extra>",
                         ))
@@ -21222,8 +21251,8 @@ elif modo == "🛣️ Roteirização":
                             "#":         _id,
                             "Posto":     _sp["label"][:35],
                             "Município": f"{_sp.get('municipio','')} / {_sp.get('uf','')}",
-                            "Km na rota":f"{_sp.get('_km',0):.0f} km",
-                            "Preço R$/L": f"R$ {_sp.get('preco',0):.3f}".replace(".",","),
+                            "Km na rota":f"{_br_int(_sp.get('_km',0))} km",
+                            "Preço R$/L": _br_moeda(_sp.get('preco',0), 3),
                             "Litros":    f"{_sp.get('litros_sugeridos',0):.0f} L",
                             "Custo":     f"R$ {_sp.get('custo_abast',0):,.2f}".replace(",","X").replace(".",",").replace("X","."),
                             "Nível após":f"{_sp.get('pct_apos',0):.0f}% ({_sp.get('fuel_apos',0):.0f} L)",
@@ -21276,7 +21305,7 @@ elif modo == "🛣️ Roteirização":
                 ("🚛 Placa",         _rot_res.get("placa","") or "—"),
                 ("🛢 Consumo total", f"{_rd/_raut:.0f} L" if _raut else "—"),
                 ("🛢 Total abastec.",f"{_litros_r} L" if _sugest else "—"),
-                ("💰 Custo abast.",  f"R$ {_custo_r:.2f}".replace(".",",") if _custo_r else "—"),
+                ("💰 Custo abast.",  _br_moeda(_custo_r, 2) if _custo_r else "—"),
                 ("⛽ Paradas abast.", str(len(_sugest)) if _sugest else "Nenhuma"),
             ]:
                 _cr1, _cr2 = st.columns([3, 4])
@@ -21809,7 +21838,7 @@ elif modo == "🚛 Análise de Cliente":
                     _df_abast[_col_cnpj_f].astype(str).str.strip() == _cnpj_sel
                 ].copy()
                 st.caption(
-                    f"📋 {len(_df_abast):,} registros do cliente selecionado — "
+                    f"📋 {_br_int(len(_df_abast))} registros do cliente selecionado — "
                     f"{_df_abast['_placa'].nunique()} veículos"
                     .replace(",", ".")
                 )
@@ -21945,7 +21974,7 @@ elif modo == "🚛 Análise de Cliente":
                             y=_cc_grp["Centro de Custo"],
                             orientation="h",
                             marker_color="#1565C0",
-                            text=[f"R$ {v:,.0f}".replace(",", ".") for v in _cc_grp["Gasto (R$)"]],
+                            text=[f"R$ {_br_num(v, 0)}".replace(",", ".") for v in _cc_grp["Gasto (R$)"]],
                             textposition="outside",
                         ))
                         _fig_cc.update_layout(
@@ -22004,11 +22033,11 @@ elif modo == "🚛 Análise de Cliente":
                     "Consumo (km/L)", "Custo/km (R$)", "R$/L médio"
                 ]
                 _veic_disp["Litros"]         = _veic_disp["Litros"].apply(lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
-                _veic_disp["Gasto (R$)"]     = _veic_disp["Gasto (R$)"].apply(lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
-                _veic_disp["Km total"]       = _veic_disp["Km total"].apply(lambda v: f"{v:,.0f}".replace(",", ".") if _pd.notna(v) and v > 0 else "—")
+                _veic_disp["Gasto (R$)"]     = _veic_disp["Gasto (R$)"].apply(lambda v: f"R$ {_br_num(v, 2)}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["Km total"]       = _veic_disp["Km total"].apply(lambda v: f"{_br_num(v, 0)}".replace(",", ".") if _pd.notna(v) and v > 0 else "—")
                 _veic_disp["Consumo (km/L)"] = _veic_disp["Consumo (km/L)"].apply(lambda v: f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) and v > 0 else "—")
-                _veic_disp["Custo/km (R$)"]  = _veic_disp["Custo/km (R$)"].apply(lambda v: f"R$ {v:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
-                _veic_disp["R$/L médio"]     = _veic_disp["R$/L médio"].apply(lambda v: f"R$ {v:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["Custo/km (R$)"]  = _veic_disp["Custo/km (R$)"].apply(lambda v: f"R$ {_br_num(v, 3)}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
+                _veic_disp["R$/L médio"]     = _veic_disp["R$/L médio"].apply(lambda v: f"R$ {_br_num(v, 3)}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—")
 
                 st.dataframe(_veic_disp, use_container_width=True, hide_index=True)
 
@@ -22024,7 +22053,7 @@ elif modo == "🚛 Análise de Cliente":
                             "#2E7D32"
                             for v in _ck_valid["custo_km"]
                         ],
-                        text=[f"R$ {v:.3f}".replace(".", ",") for v in _ck_valid["custo_km"]],
+                        text=[_br_moeda(v, 3) for v in _ck_valid["custo_km"]],
                         textposition="outside",
                     ))
                     _fig_ck.update_layout(
@@ -22069,7 +22098,7 @@ elif modo == "🚛 Análise de Cliente":
                             mode="lines+markers+text",
                             name=_sel_placa,
                             marker_color="#1565C0",
-                            text=[f"{v:.2f}".replace(".", ",") for v in _df_cons["_media_km_l"]],
+                            text=[f"{_br_num(v, 2)}" for v in _df_cons["_media_km_l"]],
                             textposition="top center",
                         ))
                         # linha de média
@@ -22104,7 +22133,7 @@ elif modo == "🚛 Análise de Cliente":
 
                     _posto_preco["Posto"]     = _posto_preco["_nome_posto"].str[:40]
                     _posto_preco["Cidade/UF"] = _posto_preco["cidade"] + "/" + _posto_preco["uf"]
-                    _posto_preco["R$/L"]      = _posto_preco["preco_medio"].apply(lambda v: f"R$ {v:.3f}".replace(".", ","))
+                    _posto_preco["R$/L"]      = _posto_preco["preco_medio"].apply(lambda v: _br_moeda(v, 3))
                     _posto_preco["Abastec."]  = _posto_preco["n_abast"]
                     _posto_preco["Litros"]    = _posto_preco["litros"].apply(lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     st.dataframe(
@@ -22214,7 +22243,7 @@ elif modo == "🚛 Análise de Cliente":
                             "Severidade": "🟠 Média",
                             "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
                             "Regra": "Volume alto / km baixo",
-                            "Detalhe": f"{_litros_r:.1f} L para {_km_r:.0f} km".replace(".", ","),
+                            "Detalhe": f"{_br_num(_litros_r, 1)} L para {_br_int(_km_r)} km",
                             "Valor (R$)": _valor_r,
                         })
 
@@ -22251,7 +22280,7 @@ elif modo == "🚛 Análise de Cliente":
                 if _alertas:
                     _df_alertas = _pd.DataFrame(_alertas)
                     _df_alertas["Valor (R$)"] = _df_alertas["Valor (R$)"].apply(
-                        lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if v and _pd.notna(v) else "—"
+                        lambda v: f"R$ {_br_num(v, 2)}".replace(",", "X").replace(".", ",").replace("X", ".") if v and _pd.notna(v) else "—"
                     )
                     _df_alertas = _df_alertas.sort_values("Severidade").reset_index(drop=True)
 
@@ -22343,7 +22372,7 @@ elif modo == "🚛 Análise de Cliente":
                     ).sort_values("gasto", ascending=False).head(10).reset_index()
                     _mot_rank.columns = ["Motorista", "Gasto (R$)", "Abastec.", "Litros"]
                     _mot_rank["Gasto (R$)"] = _mot_rank["Gasto (R$)"].apply(
-                        lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        lambda v: f"R$ {_br_num(v, 2)}".replace(",", "X").replace(".", ",").replace("X", ".")
                     )
                     _mot_rank["Litros"] = _mot_rank["Litros"].apply(
                         lambda v: f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".") if _pd.notna(v) else "—"
@@ -22361,7 +22390,7 @@ elif modo == "🚛 Análise de Cliente":
                         x=_evol_dia["Data_str"],
                         y=_evol_dia["Gasto (R$)"],
                         marker_color="#1565C0",
-                        text=[f"R$ {v:,.0f}".replace(",", ".") for v in _evol_dia["Gasto (R$)"]],
+                        text=[f"R$ {_br_num(v, 0)}".replace(",", ".") for v in _evol_dia["Gasto (R$)"]],
                         textposition="outside",
                     ))
                     _fig_evol.update_layout(
@@ -22518,7 +22547,7 @@ elif modo == "🚛 Análise de Cliente":
                 def _sv_frl(v):
                     """Formata litros em pt-BR."""
                     try:
-                        return f"{float(v):,.0f} L".replace(",", ".")
+                        return f"{_br_num(float(v), 0)} L".replace(",", ".")
                     except Exception:
                         return "—"
 
@@ -22760,7 +22789,7 @@ elif modo == "🚛 Análise de Cliente":
                     )
                     _c3.metric(
                         "Diferença por litro",
-                        f"R$ {abs(_sv_anp_litro):.3f}/L".replace(".", ","),
+                        f"R$ {_br_num(abs(_sv_anp_litro), 3)}/L".replace(".", ","),
                         delta=(
                             "paga ACIMA do mercado"
                             if _sv_anp_litro > 0
@@ -22808,7 +22837,7 @@ elif modo == "🚛 Análise de Cliente":
                                 for v in _anp_por_prod["saving"]
                             ],
                             text=[
-                                f"R$ {v:,.0f}".replace(",", ".")
+                                f"R$ {_br_num(v, 0)}".replace(",", ".")
                                 for v in _anp_por_prod["saving"]
                             ],
                             textposition="outside",
@@ -22869,19 +22898,19 @@ elif modo == "🚛 Análise de Cliente":
                         _df_uf_anp_show = _pd.DataFrame({
                             "UF": _df_uf_anp["_uf_posto"],
                             "Litros": _df_uf_anp["litros"].apply(
-                                lambda v: f"{v:,.0f}".replace(",", ".")
+                                lambda v: f"{_br_num(v, 0)}".replace(",", ".")
                             ),
                             "Preço Pago (R$/L)": _df_uf_anp["preco_pago"].apply(
-                                lambda v: f"R$ {v:.3f}".replace(".", ",")
+                                lambda v: _br_moeda(v, 3)
                             ),
                             "Preço ANP (R$/L)": _df_uf_anp["preco_anp"].apply(
-                                lambda v: f"R$ {v:.3f}".replace(".", ",")
+                                lambda v: _br_moeda(v, 3)
                             ),
                             "Impacto (R$)": _df_uf_anp["saving"].apply(
                                 lambda v: (
-                                    f"▲ R$ {abs(v):,.2f}"
+                                    f"▲ R$ {_br_num(abs(v), 2)}"
                                     if v > 0
-                                    else f"▼ R$ {abs(v):,.2f}"
+                                    else f"▼ R$ {_br_num(abs(v), 2)}"
                                 ).replace(",", "X").replace(".", ",").replace("X", ".")
                             ),
                             "Status": _df_uf_anp["saving"].apply(
@@ -22985,7 +23014,7 @@ elif modo == "🚛 Análise de Cliente":
                                 for v in _gf_por_prod["saving"]
                             ],
                             text=[
-                                f"R$ {v:,.0f}".replace(",", ".")
+                                f"R$ {_br_num(v, 0)}".replace(",", ".")
                                 for v in _gf_por_prod["saving"]
                             ],
                             textposition="outside",
@@ -23030,7 +23059,7 @@ elif modo == "🚛 Análise de Cliente":
                         _sv_tab_rows.append({
                             "Combustível": _apk_sv.title(),
                             "Preço médio GF (R$/L)": (
-                                f"R$ {_p_gf_sv:.3f}".replace(".", ",")
+                                _br_moeda(_p_gf_sv, 3)
                             ),
                             "Postos na rede": _n_pos,
                         })
@@ -23048,7 +23077,7 @@ elif modo == "🚛 Análise de Cliente":
                     _litros_sv_fmt = f"{_litros_gf:,.0f}".replace(",", ".")
                     _sv_tot_fmt = _sv_frs(abs(_saving_total))
                     _sv_ano_fmt = _sv_frs(abs(_saving_anual))
-                    _pct_fmt    = f"{abs(_pct_sv):.1f}".replace(".", ",")
+                    _pct_fmt    = f"{_br_num(abs(_pct_sv), 1)}"
 
                     if _saving_total > 0:
                         st.markdown(
@@ -23166,7 +23195,7 @@ elif modo == "🚛 Análise de Cliente":
                                 "#e53935" if v > 0 else "#2e7d32"
                                 for v in _ac_por_prod["desvio"]
                             ],
-                            text=[f"R$ {v:,.0f}".replace(",", ".") for v in _ac_por_prod["desvio"]],
+                            text=[f"R$ {_br_num(v, 0)}".replace(",", ".") for v in _ac_por_prod["desvio"]],
                             textposition="outside",
                         ))
                         _fig_ac_bar.update_layout(
@@ -23218,8 +23247,8 @@ elif modo == "🚛 Análise de Cliente":
                             "CNPJ Posto":      _ac_por_posto["_cnpj_posto"],
                             "Nome Posto":      _ac_por_posto["_nome_posto"],
                             "Desvio Total":    _ac_por_posto["desvio"].apply(_sv_frs),
-                            "Preço Pago (R$/L)":    _ac_por_posto["preco_pago_med"].apply(lambda v: f"R$ {v:.3f}".replace(".",",")),
-                            "Preço Acordado (R$/L)": _ac_por_posto["preco_ac_med"].apply(lambda v: f"R$ {v:.3f}".replace(".",",")),
+                            "Preço Pago (R$/L)":    _ac_por_posto["preco_pago_med"].apply(lambda v: _br_moeda(v, 3)),
+                            "Preço Acordado (R$/L)": _ac_por_posto["preco_ac_med"].apply(lambda v: _br_moeda(v, 3)),
                             "Litros":          _ac_por_posto["litros"].apply(_sv_frl),
                             "Transações":      _ac_por_posto["transacoes"],
                         })
@@ -23305,7 +23334,7 @@ elif modo == "🚛 Análise de Cliente":
                     _n_fonte_ss     = len(_ss_cnpjs_rg)
                     with st.expander("🔍 Diagnóstico da rede GF — fontes e cobertura", expanded=False):
                         st.markdown(
-                            f"**Total de CNPJs GF reconhecidos: {len(_rg_gf_cnpjs):,}**\n\n"
+                            f"**Total de CNPJs GF reconhecidos: {_br_int(len(_rg_gf_cnpjs))}**\n\n"
                             f"- 🗄️ Tabela `postos_gf` (banco Supabase): **{_n_fonte_banco:,}** CNPJs\n"
                             f"- 🤝 Tabela `acordos_precos` (postos com acordo = GF por definição): **{_n_fonte_acordos:,}** CNPJs\n"
                             f"- 📄 Arquivo GF em memória (sessão): **{_n_fonte_ss:,}** CNPJs\n\n"
@@ -23401,8 +23430,8 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                         if _delta_preco and _delta_preco > 0 else 0.0
                     )
 
-                    def _rfmt(v): return f"R$ {v:,.2f}".replace(",","X").replace(".",",").replace("X",".")
-                    def _lfmt(v): return f"{v:,.0f} L".replace(",",".")
+                    def _rfmt(v): return f"R$ {_br_num(v, 2)}".replace(",","X").replace(".",",").replace("X",".")
+                    def _lfmt(v): return f"{_br_num(v, 0)} L".replace(",",".")
 
                     # ── KPIs ─────────────────────────────────────────────
                     _rg_k1, _rg_k2, _rg_k3, _rg_k4, _rg_k5 = st.columns(5)
@@ -23424,12 +23453,12 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                            f"{_taxa_vol:.0f}%", "Volume na rede (L)",
                            f"{_lfmt(_l_dentro)} de {_lfmt(_l_total)}")
                     _kcard(_rg_k3, "#f3fff3" if not _pm_dentro else "#f3fff3", "#43a047",
-                           f"R$ {_pm_dentro:.3f}".replace(".",",") if _pm_dentro else "—",
+                           _br_moeda(_pm_dentro, 3) if _pm_dentro else "—",
                            "Preço médio dentro", "R$/L na rede GF")
                     _kcard(_rg_k4,
                            "#fff3f3" if (_pm_fora and _pm_dentro and _pm_fora > _pm_dentro) else "#f3fff3",
                            "#e53935" if (_pm_fora and _pm_dentro and _pm_fora > _pm_dentro) else "#43a047",
-                           f"R$ {_pm_fora:.3f}".replace(".",",") if _pm_fora else "—",
+                           _br_moeda(_pm_fora, 3) if _pm_fora else "—",
                            "Preço médio fora", "R$/L fora da rede")
                     _kcard(_rg_k5,
                            "#fff3f3" if _saving_perdido > 0 else "#f3fff3",
@@ -23464,7 +23493,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                                 f"border-radius:8px;padding:14px 18px;'>"
                                 f"<b style='color:#2e7d32;font-size:15px'>✅ Postos fora da rede foram mais baratos neste período</b><br>"
                                 f"Preço médio fora da rede (R$ {_pm_fora:.3f}/L) ficou "
-                                f"<b>R$ {abs(_delta_preco):.3f}/L abaixo</b> da média da rede GF."
+                                f"<b>R$ {_br_num(abs(_delta_preco), 3)}/L abaixo</b> da média da rede GF."
                                 f"</div>",
                                 unsafe_allow_html=True,
                             )
@@ -23571,14 +23600,14 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                             name="✅ Rede GF", x=_rg_prod_mrg["_produto"],
                             y=_rg_prod_mrg["dentro"], marker_color="#1565C0",
                             text=_rg_prod_mrg["dentro"].apply(
-                                lambda v: f"R$ {v:.3f}".replace(".",",") if _pd.notna(v) else "—"
+                                lambda v: _br_moeda(v, 3) if _pd.notna(v) else "—"
                             ), textposition="outside",
                         ))
                         _fig_prod.add_trace(go.Bar(
                             name="❌ Fora da rede", x=_rg_prod_mrg["_produto"],
                             y=_rg_prod_mrg["fora"], marker_color="#e53935",
                             text=_rg_prod_mrg["fora"].apply(
-                                lambda v: f"R$ {v:.3f}".replace(".",",") if _pd.notna(v) else "—"
+                                lambda v: _br_moeda(v, 3) if _pd.notna(v) else "—"
                             ), textposition="outside",
                         ))
                         _fig_prod.update_layout(
@@ -23619,7 +23648,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                                 orientation="h",
                                 marker_color="#e53935",
                                 text=_rg_top_postos["litros"].apply(
-                                    lambda v: f"{v:,.0f} L".replace(",",".")
+                                    lambda v: f"{_br_num(v, 0)} L".replace(",",".")
                                 ),
                                 textposition="outside",
                                 hovertemplate="%{y}<br>%{x:,.0f} L<extra></extra>",
@@ -23771,7 +23800,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                         "Transações":   _rg_tbl["transacoes"],
                         "Litros":       _rg_tbl["litros"].apply(_lfmt),
                         "Preço médio":  _rg_tbl["preco_medio"].apply(
-                            lambda v: f"R$ {v:.3f}".replace(".",",")
+                            lambda v: _br_moeda(v, 3)
                             if _pd.notna(v) else "—"
                         ),
                     })
