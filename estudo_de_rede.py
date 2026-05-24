@@ -2569,9 +2569,9 @@ def _auth_login_page():
 
         # ── Redirect URI ──
         try:
-            _redir = st.secrets.get("redirect_uri", "http://localhost:8501")
+            _redir = st.secrets.get("redirect_uri") or "https://fleetnetworkintelligence.streamlit.app/"
         except Exception:
-            _redir = "http://localhost:8501"
+            _redir = "https://fleetnetworkintelligence.streamlit.app/"
 
         # ── Botão Google ──
         if _OAUTH_GOOGLE_OK:
