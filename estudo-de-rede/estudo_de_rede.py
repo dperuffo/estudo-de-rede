@@ -13857,6 +13857,397 @@ if modo == "📍 Por UF/Município":
                     unsafe_allow_html=True,
                 )
 
+                st.divider()
+
+                # ══════════════════════════════════════════════════════
+                # 🔮 SIMULADOR DE SCORE PREDITIVO
+                # ══════════════════════════════════════════════════════
+                with st.expander("🔮 Simulador de Score Preditivo — Inteligência Avançada", expanded=False):
+                    st.markdown(
+                        """
+                        <div style="background:linear-gradient(90deg,#1a0a35,#3d1a7a);
+                                    border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+                          <h4 style="color:#fff;margin:0;font-size:1.05rem;">
+                            🔮 Score Preditivo & Simulação de Preço
+                          </h4>
+                          <p style="color:#d4b8f5;margin:4px 0 0;font-size:.82rem;">
+                            Selecione um posto · Ajuste o preço · Veja o novo score instantaneamente
+                            · Calcule quanto falta para subir de grade
+                          </p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    if _df_ranked_sc.empty:
+                        st.info("Sem postos no ranking para simular.")
+                    else:
+                        # ── Seletor de posto ──────────────────────────────────
+                        _sim_opcoes = [
+                            f"{r['grade']} {r['score']:.0f}pts · {r['razaoSocial'][:35]} ({r['uf']})"
+                            for _, r in _df_ranked_sc.iterrows()
+                        ]
+                        _sim_idx = st.selectbox(
+                            "📍 Posto para simular",
+                            range(len(_sim_opcoes)),
+                            format_func=lambda i: _sim_opcoes[i],
+                            key="sim_posto_sel",
+                        )
+                        _sim_row = _df_ranked_sc.iloc[_sim_idx]
+
+                        # Dados do posto selecionado
+                        _sim_cnpj_fmt   = _sim_row["cnpj_fmt"]
+                        _sim_nome       = _sim_row["razaoSocial"]
+                        _sim_grade      = _sim_row["grade"]
+                        _sim_score      = float(_sim_row["score"])
+                        _sim_s_preco    = float(_sim_row["score_preco"])    # 0-100
+                        _sim_s_svc      = float(_sim_row["score_servicos"]) # 0-100
+                        # score_distancia não está em _df_ranked_sc — derivar:
+                        # score = 0.5*s_p + 0.3*s_svc + 0.2*s_dist
+                        # → s_dist = (score - 0.5*s_p - 0.3*s_svc) / 0.2
+                        _sim_s_dist = round(
+                            max(0.0, min(100.0,
+                                (_sim_score - 0.5 * _sim_s_preco - 0.3 * _sim_s_svc) / 0.2
+                            )), 1
+                        )
+
+                        # Referência de preço: usa mediana do combustível mais comum deste CNPJ
+                        _sim_cnpj_norm = re.sub(r"\D", "", _sim_cnpj_fmt)
+                        _sim_med_ref   = None
+                        _sim_preco_atual = None
+                        if _pp_df_sc is not None and "cnpj_norm" in _pp_df_sc.columns:
+                            _sim_sub = _pp_df_sc[_pp_df_sc["cnpj_norm"] == _sim_cnpj_norm]
+                            if not _sim_sub.empty and "preco" in _sim_sub.columns:
+                                _sim_preco_atual = pd.to_numeric(
+                                    _sim_sub["preco"], errors="coerce").dropna().mean()
+                                _sim_comb_principal = (
+                                    _sim_sub["combustivel_pk"].value_counts().idxmax()
+                                    if "combustivel_pk" in _sim_sub.columns else None
+                                )
+                                if _sim_comb_principal and _sim_comb_principal in _med_comb_sc:
+                                    _sim_med_ref = _med_comb_sc[_sim_comb_principal]
+
+                        # Fallback: se não tem preço real, usar diff implícita pelo score_preco
+                        # s_preco = 50 - diff*500 → diff = (50 - s_preco)/500
+                        # p = mediana*(1 + diff) → se mediana ≈ 6.0 (estimativa)
+                        _sim_med_fallback = _sim_med_ref or (
+                            list(_med_comb_sc.values())[0] if _med_comb_sc else 6.0
+                        )
+                        if _sim_preco_atual is None or pd.isna(_sim_preco_atual):
+                            _diff_impl = (50.0 - _sim_s_preco) / 500.0
+                            _sim_preco_atual = round(_sim_med_fallback * (1 + _diff_impl), 3)
+
+                        _sim_med_ref = _sim_med_ref or _sim_med_fallback
+
+                        # ── Layout: score atual | slider | score simulado ─────
+                        _sc1, _sc2, _sc3 = st.columns([1, 1.2, 1])
+
+                        with _sc1:
+                            st.markdown("**📊 Score atual**")
+                            _bg_sim, _txt_sim, _ = _SCORE_CORES.get(
+                                _sim_grade, ("#f5f5f5", "#424242", "#e0e0e0"))
+                            st.markdown(
+                                f"<div style='background:{_bg_sim};border-radius:12px;"
+                                f"padding:16px;text-align:center;margin-bottom:8px'>"
+                                f"<div style='font-size:2.2rem;font-weight:900;"
+                                f"color:{_txt_sim}'>{_SCORE_ICONES.get(_sim_grade,'⚪')} "
+                                f"{_sim_grade}</div>"
+                                f"<div style='font-size:1.4rem;color:{_txt_sim};"
+                                f"font-weight:700'>{_sim_score:.1f} pts</div>"
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                            st.caption(f"💰 Preço: {_br_num(_sim_preco_atual, 3)} R$/L")
+                            st.caption(f"📊 Score preço: {_sim_s_preco:.1f}/100")
+                            st.caption(f"🔧 Score serviços: {_sim_s_svc:.1f}/100")
+                            st.caption(f"📍 Score distância: {_sim_s_dist:.1f}/100")
+
+                        with _sc2:
+                            st.markdown("**⚙️ Simulação de ajuste**")
+                            _sim_delta = st.slider(
+                                "Ajuste de preço (R$/L)",
+                                min_value=-2.00,
+                                max_value=+2.00,
+                                value=0.00,
+                                step=0.01,
+                                format="R$ %.2f",
+                                key="sim_delta_preco",
+                                help="Negativo = redução de preço · Positivo = aumento",
+                            )
+                            _sim_preco_novo = round(_sim_preco_atual + _sim_delta, 3)
+                            st.caption(
+                                f"Preço simulado: **R$ {_br_num(_sim_preco_novo, 3)}/L**"
+                            )
+
+                            # Recalcular s_preco com novo preço
+                            _sim_diff_novo  = (_sim_preco_novo - _sim_med_ref) / _sim_med_ref
+                            _sim_s_preco_novo = max(0.0, min(100.0,
+                                50.0 - _sim_diff_novo * 500.0))
+                            _sim_score_novo = round(
+                                0.5 * _sim_s_preco_novo + 0.3 * _sim_s_svc + 0.2 * _sim_s_dist,
+                                1
+                            )
+                            _sim_grade_novo = (
+                                "A" if _sim_score_novo >= 75 else
+                                "B" if _sim_score_novo >= 55 else
+                                "C" if _sim_score_novo >= 35 else "D"
+                            )
+
+                            # Barra de progresso visual
+                            _sim_pct = min(1.0, _sim_score_novo / 100.0)
+                            _barra_cor = (
+                                "#27AE60" if _sim_grade_novo == "A" else
+                                "#3498DB" if _sim_grade_novo == "B" else
+                                "#F39C12" if _sim_grade_novo == "C" else "#E74C3C"
+                            )
+                            st.markdown(
+                                f"<div style='background:#2a2a3a;border-radius:8px;"
+                                f"height:14px;margin:10px 0'>"
+                                f"<div style='background:{_barra_cor};border-radius:8px;"
+                                f"height:14px;width:{_sim_pct*100:.1f}%'></div></div>",
+                                unsafe_allow_html=True,
+                            )
+                            st.caption("A ≥ 75 · B ≥ 55 · C ≥ 35 · D < 35")
+
+                        with _sc3:
+                            st.markdown("**🎯 Score simulado**")
+                            _bg_sn, _txt_sn, _ = _SCORE_CORES.get(
+                                _sim_grade_novo, ("#f5f5f5", "#424242", "#e0e0e0"))
+                            _delta_score = _sim_score_novo - _sim_score
+                            _seta = "▲" if _delta_score > 0 else ("▼" if _delta_score < 0 else "=")
+                            st.markdown(
+                                f"<div style='background:{_bg_sn};border-radius:12px;"
+                                f"padding:16px;text-align:center;margin-bottom:8px'>"
+                                f"<div style='font-size:2.2rem;font-weight:900;"
+                                f"color:{_txt_sn}'>{_SCORE_ICONES.get(_sim_grade_novo,'⚪')} "
+                                f"{_sim_grade_novo}</div>"
+                                f"<div style='font-size:1.4rem;color:{_txt_sn};"
+                                f"font-weight:700'>{_sim_score_novo:.1f} pts</div>"
+                                f"<div style='font-size:.9rem;color:{_txt_sn};margin-top:4px'>"
+                                f"{_seta} {abs(_delta_score):.1f} pts</div>"
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                            if _sim_grade_novo != _sim_grade:
+                                st.success(
+                                    f"🎉 Mudou de **{_sim_grade}** → **{_sim_grade_novo}**!"
+                                )
+                            else:
+                                st.info(f"Mantém grade **{_sim_grade}**")
+
+                        st.divider()
+
+                        # ── Breakeven por grade ────────────────────────────────
+                        st.markdown("**🎯 Quanto falta para subir de grade?**")
+
+                        _GRADE_THRESH = {"A": 75.0, "B": 55.0, "C": 35.0}
+                        _GRADE_NEXT   = {"D": "C", "C": "B", "B": "A"}
+                        _sim_be_cols  = st.columns(3)
+
+                        for _gi, (_tg, _thr) in enumerate(
+                            [("C", 35.0), ("B", 55.0), ("A", 75.0)]
+                        ):
+                            with _sim_be_cols[_gi]:
+                                if _sim_score >= _thr:
+                                    _bg_be, _tx_be, _ = _SCORE_CORES.get(_tg, ("#eee","#333","#ccc"))
+                                    st.markdown(
+                                        f"<div style='background:{_bg_be};border-radius:8px;"
+                                        f"padding:10px;text-align:center'>"
+                                        f"<b style='color:{_tx_be}'>"
+                                        f"{_SCORE_ICONES.get(_tg,'')} Grade {_tg}</b><br>"
+                                        f"<span style='color:{_tx_be};font-size:.85rem'>"
+                                        f"✅ Já atingido</span></div>",
+                                        unsafe_allow_html=True,
+                                    )
+                                else:
+                                    # Calcula Δpreço necessário para atingir _thr
+                                    # score = 0.5*s_p + 0.3*s_svc + 0.2*s_dist = _thr
+                                    _sp_needed = (_thr - 0.3*_sim_s_svc - 0.2*_sim_s_dist) / 0.5
+                                    if _sp_needed > 100.0:
+                                        _msg_be = "❌ Impossível só com preço"
+                                        _delta_be = None
+                                    else:
+                                        _sp_needed = max(0.0, _sp_needed)
+                                        _diff_needed = (50.0 - _sp_needed) / 500.0
+                                        _p_needed    = _sim_med_ref * (1.0 + _diff_needed)
+                                        _delta_be    = round(_p_needed - _sim_preco_atual, 3)
+                                        if _delta_be < 0:
+                                            _msg_be = (
+                                                f"Reduzir **R$ {_br_num(abs(_delta_be), 3)}/L**"
+                                            )
+                                        else:
+                                            _msg_be = f"Aumentar R$ {_br_num(_delta_be, 3)}/L"
+
+                                    _bg_be, _tx_be, _ = _SCORE_CORES.get(_tg, ("#eee","#333","#ccc"))
+                                    st.markdown(
+                                        f"<div style='background:{_bg_be};border-radius:8px;"
+                                        f"padding:10px;text-align:center'>"
+                                        f"<b style='color:{_tx_be}'>"
+                                        f"{_SCORE_ICONES.get(_tg,'')} Grade {_tg}</b><br>"
+                                        f"<span style='color:{_tx_be};font-size:.82rem'>"
+                                        f"{_msg_be}</span></div>",
+                                        unsafe_allow_html=True,
+                                    )
+
+                        st.divider()
+
+                        # ── Projeção de score futuro ───────────────────────────
+                        st.markdown("**📅 Projeção de Score — próximos 90 dias**")
+                        st.caption(
+                            "Baseado na tendência histórica de preço do posto · "
+                            "Serviços e distância constantes"
+                        )
+
+                        # Buscar histórico de preço do CNPJ no intel
+                        _sim_intel  = _intel_load()
+                        _sim_hist   = (_sim_intel.get("historico") or {}).get(
+                            _sim_cnpj_norm, []
+                        )
+                        _sim_hist_df = pd.DataFrame(_sim_hist) if _sim_hist else pd.DataFrame()
+
+                        if not _sim_hist_df.empty and "data" in _sim_hist_df.columns:
+                            _sim_hist_df["data"]  = pd.to_datetime(
+                                _sim_hist_df["data"], errors="coerce")
+                            _sim_hist_df["preco"] = pd.to_numeric(
+                                _sim_hist_df["preco"], errors="coerce")
+                            _sim_hist_df = _sim_hist_df.dropna(
+                                subset=["data","preco"]).sort_values("data")
+
+                        if not _sim_hist_df.empty and len(_sim_hist_df) >= 3:
+                            import numpy as _np_sim
+                            _xs_sim = (
+                                _sim_hist_df["data"] - _sim_hist_df["data"].min()
+                            ).dt.days.values.astype(float)
+                            _ys_sim = _sim_hist_df["preco"].values
+
+                            try:
+                                _pol_sim = _np_sim.polyfit(_xs_sim, _ys_sim, 1)
+                                _slope   = _pol_sim[0]  # R$/dia
+
+                                # Gera pontos históricos + projeção 90 dias
+                                _x_max_hist = _xs_sim.max()
+                                _x_proj     = _np_sim.linspace(
+                                    _xs_sim.min(), _x_max_hist + 90, 50)
+                                _y_proj     = _np_sim.polyval(_pol_sim, _x_proj)
+
+                                # Converte em datas e scores
+                                _data_min_sim = _sim_hist_df["data"].min()
+                                _datas_proj   = pd.to_datetime(
+                                    _x_proj, unit="D", origin=_data_min_sim)
+
+                                # Calcular score para cada preço projetado
+                                def _preco_to_score(p, med, s_svc, s_dist):
+                                    _d = (p - med) / med if med > 0 else 0
+                                    _sp = max(0., min(100., 50. - _d * 500.))
+                                    return 0.5*_sp + 0.3*s_svc + 0.2*s_dist
+
+                                _scores_proj = [
+                                    _preco_to_score(p, _sim_med_ref, _sim_s_svc, _sim_s_dist)
+                                    for p in _y_proj
+                                ]
+
+                                _sim_fig_proj = go.Figure()
+
+                                # Linha histórica de score real
+                                _scores_hist_real = [
+                                    _preco_to_score(p, _sim_med_ref, _sim_s_svc, _sim_s_dist)
+                                    for p in _ys_sim
+                                ]
+                                _sim_fig_proj.add_trace(go.Scatter(
+                                    x=_sim_hist_df["data"],
+                                    y=_scores_hist_real,
+                                    name="Score histórico",
+                                    mode="lines+markers",
+                                    line=dict(color="#7b61ff", width=2),
+                                    marker=dict(size=5),
+                                ))
+
+                                # Separar histórico vs projeção
+                                _mask_proj = _x_proj > _x_max_hist
+                                _mask_hist = ~_mask_proj
+
+                                # Projeção futura
+                                _sim_fig_proj.add_trace(go.Scatter(
+                                    x=_datas_proj[_mask_proj],
+                                    y=[_scores_proj[i] for i in range(len(_scores_proj)) if _mask_proj[i]],
+                                    name="Projeção",
+                                    mode="lines",
+                                    line=dict(color="#ffd700", width=2, dash="dash"),
+                                ))
+
+                                # Linhas de threshold de grade
+                                for _thr_g, _thr_v, _thr_c in [
+                                    ("A", 75, "#27AE60"), ("B", 55, "#3498DB"),
+                                    ("C", 35, "#F39C12"),
+                                ]:
+                                    _sim_fig_proj.add_hline(
+                                        y=_thr_v, line_dash="dot",
+                                        line_color=_thr_c, opacity=0.5,
+                                        annotation_text=f" {_thr_g}",
+                                        annotation_font_color=_thr_c,
+                                    )
+
+                                _sim_fig_proj.update_layout(
+                                    paper_bgcolor="rgba(0,0,0,0)",
+                                    plot_bgcolor="rgba(0,0,0,0)",
+                                    font_color="#e0e0e0",
+                                    xaxis=dict(title="Data", tickfont=dict(color="#ccc"), gridcolor="#223"),
+                                    yaxis=dict(
+                                        title="Score", range=[0, 105],
+                                        tickfont=dict(color="#ccc"), gridcolor="#223"),
+                                    legend=dict(font=dict(color="#ccc")),
+                                    margin=dict(l=10, r=10, t=20, b=10),
+                                    height=300,
+                                )
+                                st.plotly_chart(_sim_fig_proj, use_container_width=True)
+
+                                # KPIs de projeção
+                                _score_30  = round(_preco_to_score(
+                                    _np_sim.polyval(_pol_sim, _x_max_hist + 30),
+                                    _sim_med_ref, _sim_s_svc, _sim_s_dist), 1)
+                                _score_60  = round(_preco_to_score(
+                                    _np_sim.polyval(_pol_sim, _x_max_hist + 60),
+                                    _sim_med_ref, _sim_s_svc, _sim_s_dist), 1)
+                                _score_90  = round(_preco_to_score(
+                                    _np_sim.polyval(_pol_sim, _x_max_hist + 90),
+                                    _sim_med_ref, _sim_s_svc, _sim_s_dist), 1)
+
+                                _pk1, _pk2, _pk3 = st.columns(3)
+                                for _pk, _pd_v, _psc in [
+                                    (_pk1, 30, _score_30),
+                                    (_pk2, 60, _score_60),
+                                    (_pk3, 90, _score_90),
+                                ]:
+                                    _pg = ("A" if _psc >= 75 else "B" if _psc >= 55
+                                           else "C" if _psc >= 35 else "D")
+                                    _pk.metric(
+                                        f"Daqui {_pd_v} dias",
+                                        f"{_SCORE_ICONES.get(_pg,'')} {_pg} — {_psc:.1f} pts",
+                                        f"{'▲' if _psc > _sim_score else '▼'} "
+                                        f"{abs(_psc - _sim_score):.1f} pts",
+                                    )
+
+                                if abs(_slope) > 0.0001:
+                                    _tend_msg = (
+                                        f"📈 Preço está **subindo {_br_num(_slope*30,3)} R$/mês** "
+                                        f"→ score tende a **cair** se a mediana não acompanhar."
+                                        if _slope > 0 else
+                                        f"📉 Preço está **caindo {_br_num(abs(_slope)*30,3)} R$/mês** "
+                                        f"→ score tende a **subir** nos próximos meses."
+                                    )
+                                    st.info(_tend_msg)
+
+                            except Exception:
+                                st.info(
+                                    "Dados históricos insuficientes para calcular tendência."
+                                )
+                        else:
+                            st.info(
+                                "ℹ️ Histórico de preço deste posto ainda não acumulado. "
+                                "Carregue planilhas periodicamente para ativar a projeção futura.",
+                                icon="📅",
+                            )
+
     else:
         # Mapa vazio centrado no Brasil + instrução informativa
         _renderizar_mapa(criar_mapa(pd.DataFrame()), height=680, key="mapa_m1_vazio")
