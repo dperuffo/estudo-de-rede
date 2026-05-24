@@ -1193,7 +1193,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",  # sempre aberta
 )
-st.sidebar.markdown("🔴 **VERSÃO DEBUG 2024**")
 
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
@@ -11062,7 +11061,6 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
         st.rerun()
 
-    st.markdown("**DEBUG1: antes de Relatórios**")
     if st.button(
         "📋 Relatórios",
         use_container_width=True,
@@ -11073,7 +11071,6 @@ with st.sidebar:
         st.session_state["modo_selecionado"] = "📋 Relatórios"
         _log_acesso("MODO_SELECIONADO", "📋 Relatórios", modo_override="📋 Relatórios")
         st.rerun()
-    st.markdown("**🔧 DEBUG: chegou aqui**")
 
     if st.button(
         "🔌 API & Integrações",
