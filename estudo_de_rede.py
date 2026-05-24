@@ -10596,6 +10596,20 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🧠 Inteligência", modo_override="🧠 Inteligência")
         st.rerun()
 
+    _var_badge_sb = (" 🔔" if st.session_state.get("_pp_variacao") is not None
+                     and not st.session_state["_pp_variacao"].empty else "")
+    if st.button(
+        f"📊 Variação de Preços{_var_badge_sb}",
+        use_container_width=True,
+        type="primary" if _modo_atual == "📊 Variação de Preços" else "secondary",
+        key="btn_variacao_precos",
+        help="Compara nova carga de preços com a anterior — detecta altas, quedas e novos postos",
+    ):
+        st.session_state["modo_selecionado"] = "📊 Variação de Preços"
+        _log_acesso("MODO_SELECIONADO", "📊 Variação de Preços",
+                    modo_override="📊 Variação de Preços")
+        st.rerun()
+
     if st.button(
         "🚛 Análise de Cliente",
         use_container_width=True,
@@ -11336,14 +11350,12 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            _var_badge = (" 🔔" if st.session_state.get("_pp_variacao") is not None
-                          and not st.session_state["_pp_variacao"].empty else "")
-            (tab_pf, tab_cer, tab_pp, tab_base, tab_anp,
-             tab_logs, tab_intel, tab_acordos, tab_variacao) = st.tabs(
+            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel, tab_acordos = st.tabs(
                 ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
                  "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "🧠 Inteligência",
-                 "🤝 Acordos de Preço", f"🔔 Variação de Preços{_var_badge}"]
+                 "🤝 Acordos de Preço"]
             )
+            tab_variacao = None  # movida para menu principal
 
         # ── Tab Gestão de Frotas ────────────────────────────────────
         if tab_pf is not None:
@@ -23574,6 +23586,292 @@ elif modo == "📄 Documentação":
             "📄 Arquivo de documentação não encontrado.\n\n"
             "Certifique-se de que o arquivo **Gestao de Frotas.pdf** está na raiz do repositório."
         )
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Variação de Preços
+# ═══════════════════════════════════════════════════════════════════
+elif modo == "📊 Variação de Preços":
+
+    _vp_df = st.session_state.get("_pp_variacao")
+    _vp_ts = st.session_state.get("_pp_variacao_ts", "")
+
+    st.markdown(
+        """
+        <div style="background:linear-gradient(90deg,#1a0a2e,#3d1a7a);
+                    border-radius:10px;padding:18px 24px;margin-bottom:20px;">
+          <h3 style="color:#fff;margin:0;font-size:1.25rem;">
+            📊 Variação de Preços — Nova Carga vs Anterior
+          </h3>
+          <p style="color:#d4b8f5;margin:4px 0 0;font-size:.85rem;">
+            Comparação automática gerada a cada upload · Detecta altas, quedas, novos e removidos
+          </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if _vp_df is None or _vp_df.empty:
+        st.info(
+            "ℹ️ Nenhuma variação registrada ainda. "
+            "Faça upload de uma nova planilha de preços em **Configurações → Preços PP** — "
+            "o sistema comparará automaticamente com a carga anterior.",
+            icon="🔔",
+        )
+        if st.button("⚙️ Ir para Configurações", key="btn_ir_config_vp"):
+            st.session_state["modo_selecionado"] = "⚙️ Configurações"
+            st.rerun()
+    else:
+        if _vp_ts:
+            st.caption(f"🕐 Gerado em: {_vp_ts}")
+
+        # ── KPIs ──────────────────────────────────────────────────────
+        _vp_alta  = _vp_df[_vp_df["Status"] == "🔺 Alta"]
+        _vp_queda = _vp_df[_vp_df["Status"] == "🔻 Queda"]
+        _vp_novo  = _vp_df[_vp_df["Status"] == "🆕 Novo"]
+        _vp_rem   = _vp_df[_vp_df["Status"] == "🗑️ Removido"]
+        _vp_sem   = _vp_df[_vp_df["Status"] == "➡️ Sem alteração"]
+
+        _vk1, _vk2, _vk3, _vk4, _vk5 = st.columns(5)
+        _vk1.metric("🔺 Altas",         len(_vp_alta),
+                    f"máx +R$ {_br_num(_vp_alta['Δ R$'].max(), 3)}"
+                    if not _vp_alta.empty else None)
+        _vk2.metric("🔻 Quedas",         len(_vp_queda),
+                    f"máx −R$ {_br_num(abs(_vp_queda['Δ R$'].min()), 3)}"
+                    if not _vp_queda.empty else None)
+        _vk3.metric("🆕 Novos",          len(_vp_novo))
+        _vk4.metric("🗑️ Removidos",      len(_vp_rem))
+        _vk5.metric("➡️ Sem alteração",  len(_vp_sem))
+
+        st.divider()
+
+        # ── Filtros ────────────────────────────────────────────────────
+        _vf1, _vf2, _vf3 = st.columns([2, 2, 2])
+        with _vf1:
+            _vp_status_all = sorted(_vp_df["Status"].unique().tolist())
+            _vp_status_sel = st.multiselect(
+                "Status", _vp_status_all,
+                default=[s for s in _vp_status_all if s != "➡️ Sem alteração"],
+                key="vp_status_sel_m",
+            )
+        with _vf2:
+            _vp_combs_all = sorted(_vp_df["Combustível"].dropna().unique().tolist())
+            _vp_combs_sel = st.multiselect(
+                "Combustível", _vp_combs_all, default=_vp_combs_all,
+                key="vp_combs_sel_m",
+            )
+        with _vf3:
+            _vp_ufs_all = sorted(
+                _vp_df["UF"].replace("—", pd.NA).dropna().unique().tolist()
+            )
+            _vp_ufs_sel = st.multiselect(
+                "UF", _vp_ufs_all, default=_vp_ufs_all,
+                key="vp_ufs_sel_m",
+            ) if _vp_ufs_all else []
+
+        _vp_filt = _vp_df.copy()
+        if _vp_status_sel:
+            _vp_filt = _vp_filt[_vp_filt["Status"].isin(_vp_status_sel)]
+        if _vp_combs_sel:
+            _vp_filt = _vp_filt[_vp_filt["Combustível"].isin(_vp_combs_sel)]
+        if _vp_ufs_sel:
+            _vp_filt = _vp_filt[_vp_filt["UF"].isin(_vp_ufs_sel + ["—"])]
+
+        # ── Gráfico top 15 ─────────────────────────────────────────────
+        _vp_com_delta = _vp_filt[_vp_filt["Δ R$"].notna()].copy()
+        if not _vp_com_delta.empty:
+            _vp_top15 = _vp_com_delta.assign(_abs=lambda d: d["Δ R$"].abs()).nlargest(15, "_abs")
+            _vp_top15["Label"] = (
+                _vp_top15["Nome"].str[:22] + " · " + _vp_top15["Combustível"]
+            )
+            _vp_fig_m = go.Figure(go.Bar(
+                x=_vp_top15["Label"],
+                y=_vp_top15["Δ R$"],
+                marker_color=["#e03030" if v > 0 else "#1a7a40" for v in _vp_top15["Δ R$"]],
+                text=[
+                    (f"+R$ {_br_num(v,3)}" if v >= 0 else f"−R$ {_br_num(abs(v),3)}")
+                    for v in _vp_top15["Δ R$"]
+                ],
+                textposition="outside",
+                hovertemplate="<b>%{x}</b><br>Δ = R$ %{y:+.4f}<extra></extra>",
+            ))
+            _vp_fig_m.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font_color="#e0e0e0",
+                title="Top 15 Maiores Variações (R$/L)",
+                xaxis=dict(tickangle=-35, tickfont=dict(size=10, color="#ccc")),
+                yaxis=dict(title="Δ R$/L", tickfont=dict(color="#ccc"), gridcolor="#223"),
+                margin=dict(l=10, r=10, t=50, b=10),
+                height=380,
+            )
+            st.plotly_chart(_vp_fig_m, use_container_width=True)
+
+        st.divider()
+
+        # ── Tabela completa ─────────────────────────────────────────────
+        st.markdown(f"**{len(_vp_filt)} registro(s)**")
+        _vp_disp_m = _vp_filt.copy()
+        for _col_pm in ("Preço Ant.", "Preço Novo"):
+            _vp_disp_m[_col_pm] = _vp_disp_m[_col_pm].apply(
+                lambda v: f"R$ {_br_num(v, 3)}" if pd.notna(v) else "—"
+            )
+        _vp_disp_m["Δ R$"] = _vp_disp_m["Δ R$"].apply(
+            lambda v: (f"+R$ {_br_num(v,3)}" if v >= 0 else f"−R$ {_br_num(abs(v),3)}")
+            if pd.notna(v) else "—"
+        )
+        _vp_disp_m["Δ%"] = _vp_disp_m["Δ%"].apply(
+            lambda v: f"{'+' if v >= 0 else ''}{_br_num(v,2)}%"
+            if pd.notna(v) else "—"
+        )
+        st.dataframe(
+            _vp_disp_m,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "CNPJ":        st.column_config.TextColumn("CNPJ",       width=155),
+                "Nome":        st.column_config.TextColumn("Posto",       width=240),
+                "UF":          st.column_config.TextColumn("UF",          width=50),
+                "Combustível": st.column_config.TextColumn("Combustível", width=130),
+                "Preço Ant.":  st.column_config.TextColumn("Preço Ant.",  width=115),
+                "Preço Novo":  st.column_config.TextColumn("Preço Novo",  width=115),
+                "Δ R$":        st.column_config.TextColumn("Δ R$",        width=115),
+                "Δ%":          st.column_config.TextColumn("Δ%",          width=90),
+                "Status":      st.column_config.TextColumn("Status",       width=135),
+            },
+        )
+
+        st.divider()
+
+        # ── Exportar ────────────────────────────────────────────────────
+        st.markdown("**📥 Exportar relatório**")
+        _vexp1, _vexp2 = st.columns(2)
+
+        with _vexp1:
+            try:
+                import io as _io_vpm
+                import openpyxl as _opxl_vpm
+                from openpyxl.styles import PatternFill as _PFm, Font as _Fntm, Alignment as _Alnm
+                _xls_buf_m = _io_vpm.BytesIO()
+                with pd.ExcelWriter(_xls_buf_m, engine="openpyxl") as _xw_m:
+                    _vp_filt.to_excel(_xw_m, index=False, sheet_name="Variação Preços")
+                    _ws_m = _xw_m.sheets["Variação Preços"]
+                    _hdr_fill_m = _PFm(fill_type="solid", fgColor="1A0A35")
+                    _hdr_font_m = _Fntm(color="FFFFFF", bold=True, size=10)
+                    for cell in _ws_m[1]:
+                        cell.fill = _hdr_fill_m
+                        cell.font = _hdr_font_m
+                        cell.alignment = _Alnm(horizontal="center")
+                    _STATUS_FILL_M = {
+                        "🔺 Alta": "FFDDDD", "🔻 Queda": "DDFFDD",
+                        "🆕 Novo": "DDEEFF", "🗑️ Removido": "F5F5F5",
+                        "➡️ Sem alteração": "FFFFFF",
+                    }
+                    _sc_idx_m = list(_vp_filt.columns).index("Status") + 1
+                    for _ri_m, _row_m in enumerate(_ws_m.iter_rows(
+                            min_row=2, max_row=_ws_m.max_row), start=2):
+                        _st_m = _ws_m.cell(_ri_m, _sc_idx_m).value or ""
+                        _fgm  = _STATUS_FILL_M.get(_st_m, "FFFFFF")
+                        for cell in _row_m:
+                            cell.fill = _PFm(fill_type="solid", fgColor=_fgm)
+                            cell.alignment = _Alnm(vertical="center")
+                    for col in _ws_m.columns:
+                        _mw = max(len(str(c.value or "")) for c in col) + 4
+                        _ws_m.column_dimensions[col[0].column_letter].width = min(_mw, 40)
+                _xls_buf_m.seek(0)
+                st.download_button(
+                    label="📊 Baixar Excel (.xlsx)",
+                    data=_xls_buf_m.getvalue(),
+                    file_name=f"variacao_precos_{_vp_ts[:10] if _vp_ts else 'export'}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                )
+            except Exception as _e_xlsm:
+                st.warning(f"Export Excel indisponível: {_e_xlsm}")
+
+        with _vexp2:
+            try:
+                from reportlab.lib.pagesizes import A4, landscape
+                from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+                from reportlab.lib import colors as _rlc_m
+                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.lib.units import cm
+                import io as _io_pdfm
+
+                _pdf_buf_m = _io_pdfm.BytesIO()
+                _doc_m = SimpleDocTemplate(
+                    _pdf_buf_m, pagesize=landscape(A4),
+                    leftMargin=1.5*cm, rightMargin=1.5*cm,
+                    topMargin=1.5*cm, bottomMargin=1.5*cm,
+                )
+                _styles_m = getSampleStyleSheet()
+                _story_m  = []
+                _story_m.append(Paragraph(
+                    f"<b>Variação de Preços — {_vp_ts}</b>", _styles_m["Title"]))
+                _story_m.append(Spacer(1, 0.3*cm))
+                _story_m.append(Paragraph(
+                    f"{len(_vp_filt)} registro(s) · {len(_vp_alta)} alta(s) · "
+                    f"{len(_vp_queda)} queda(s) · {len(_vp_novo)} novo(s) · "
+                    f"{len(_vp_rem)} removido(s)", _styles_m["Normal"]))
+                _story_m.append(Spacer(1, 0.4*cm))
+
+                _pdf_cols_m = ["CNPJ","Nome","UF","Combustível",
+                               "Preço Ant.","Preço Novo","Δ R$","Δ%","Status"]
+                _pdf_data_m = [_pdf_cols_m]
+                for _, _prm in _vp_filt.iterrows():
+                    _pdf_data_m.append([
+                        str(_prm.get("CNPJ","") or ""),
+                        str(_prm.get("Nome","") or "")[:28],
+                        str(_prm.get("UF","") or ""),
+                        str(_prm.get("Combustível","") or ""),
+                        f"R$ {_br_num(_prm['Preço Ant.'],3)}" if pd.notna(_prm.get("Preço Ant.")) else "—",
+                        f"R$ {_br_num(_prm['Preço Novo'],3)}" if pd.notna(_prm.get("Preço Novo")) else "—",
+                        (f"+{_br_num(_prm['Δ R$'],3)}" if (_prm.get("Δ R$") or 0) >= 0
+                         else f"−{_br_num(abs(_prm['Δ R$']),3)}") if pd.notna(_prm.get("Δ R$")) else "—",
+                        (f"{'+' if (_prm.get('Δ%') or 0) >= 0 else ''}{_br_num(_prm['Δ%'],2)}%")
+                        if pd.notna(_prm.get("Δ%")) else "—",
+                        str(_prm.get("Status","") or ""),
+                    ])
+                _SC_CLR_M = {
+                    "🔺 Alta": _rlc_m.HexColor("#FFDDDD"),
+                    "🔻 Queda": _rlc_m.HexColor("#DDFFDD"),
+                    "🆕 Novo": _rlc_m.HexColor("#DDEEFF"),
+                    "🗑️ Removido": _rlc_m.HexColor("#F0F0F0"),
+                    "➡️ Sem alteração": _rlc_m.white,
+                }
+                _cws_m = [3.8*cm,5.2*cm,1*cm,2.5*cm,2.3*cm,2.3*cm,2.2*cm,1.8*cm,3.2*cm]
+                _tbl_m = Table(_pdf_data_m, colWidths=_cws_m, repeatRows=1)
+                _ts_m  = [
+                    ("BACKGROUND",(0,0),(-1,0),_rlc_m.HexColor("#1A0A35")),
+                    ("TEXTCOLOR",(0,0),(-1,0),_rlc_m.white),
+                    ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),
+                    ("FONTSIZE",(0,0),(-1,-1),7),
+                    ("GRID",(0,0),(-1,-1),0.3,_rlc_m.HexColor("#CCCCCC")),
+                    ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+                ]
+                for _ri_p, _rp in enumerate(_pdf_data_m[1:], start=1):
+                    _sc_p = _rp[-1]
+                    _ts_m.append(("BACKGROUND",(0,_ri_p),(-1,_ri_p),
+                                  _SC_CLR_M.get(_sc_p, _rlc_m.white)))
+                _tbl_m.setStyle(TableStyle(_ts_m))
+                _story_m.append(_tbl_m)
+                _doc_m.build(_story_m)
+                _pdf_buf_m.seek(0)
+                st.download_button(
+                    label="📄 Baixar PDF",
+                    data=_pdf_buf_m.getvalue(),
+                    file_name=f"variacao_precos_{_vp_ts[:10] if _vp_ts else 'export'}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+            except Exception as _e_pdfm:
+                st.warning(f"Export PDF indisponível: {_e_pdfm}")
+
+        st.markdown("")
+        if st.button("🗑️ Limpar variação registrada", key="btn_clear_vp_m",
+                     use_container_width=True):
+            st.session_state.pop("_pp_variacao", None)
+            st.session_state.pop("_pp_variacao_ts", None)
+            st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Análise de Cliente (Frota)
