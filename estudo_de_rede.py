@@ -11071,6 +11071,7 @@ with st.sidebar:
         st.session_state["modo_selecionado"] = "📋 Relatórios"
         _log_acesso("MODO_SELECIONADO", "📋 Relatórios", modo_override="📋 Relatórios")
         st.rerun()
+    st.markdown("**🔧 DEBUG: chegou aqui**")
 
     if st.button(
         "🔌 API & Integrações",
