@@ -3155,6 +3155,126 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     return novos
 
 
+def _comparar_cargas_precos(
+    df_novo: "pd.DataFrame",
+    df_ant:  "pd.DataFrame",
+    pf_df:   "pd.DataFrame | None" = None,
+) -> "pd.DataFrame":
+    """
+    Compara duas cargas de preço (_pp_df) e retorna DataFrame de variações.
+
+    Colunas retornadas:
+        CNPJ · Nome · UF · Combustível · Preço Ant. · Preço Novo
+        · Δ R$ · Δ% · Status (Alta / Queda / Sem Alteração / Novo / Removido)
+    """
+    _KEY = ["cnpj_norm", "combustivel_pk"]
+
+    # Normaliza colunas mínimas
+    def _prep(df):
+        if df is None or df.empty:
+            return pd.DataFrame(columns=_KEY + ["preco", "combustivel_label"])
+        d = df.copy()
+        for c in _KEY + ["preco"]:
+            if c not in d.columns:
+                d[c] = None
+        d["preco"] = pd.to_numeric(d["preco"], errors="coerce")
+        return d
+
+    _n = _prep(df_novo)
+    _a = _prep(df_ant)
+
+    # Agrega por posto × combustível (média se houver duplicatas)
+    _n_agg = _n.groupby(_KEY).agg(
+        preco_novo=("preco", "mean"),
+        combustivel_label=("combustivel_label", "first"),
+    ).reset_index()
+    _a_agg = _a.groupby(_KEY).agg(
+        preco_ant=("preco", "mean"),
+    ).reset_index()
+
+    # Merge full outer
+    _merged = _n_agg.merge(_a_agg, on=_KEY, how="outer")
+
+    # Enriquecer com nome/UF a partir de pf_df
+    _nome_map: dict = {}
+    _uf_map:   dict = {}
+    if pf_df is not None and not pf_df.empty:
+        _cn_col = next((c for c in pf_df.columns
+                        if c.lower() in ("cnpj", "cnpj_norm")), None)
+        _nm_col = next((c for c in pf_df.columns
+                        if c.lower() in ("razaosocial", "razão social", "nome")), None)
+        _uf_col = next((c for c in pf_df.columns if c.lower() == "uf"), None)
+        if _cn_col and _nm_col:
+            for _, r in pf_df.iterrows():
+                _k = re.sub(r"\D", "", str(r[_cn_col]))
+                if _k:
+                    _nome_map[_k] = str(r[_nm_col])
+                    if _uf_col:
+                        _uf_map[_k] = str(r[_uf_col])
+
+    rows = []
+    for _, r in _merged.iterrows():
+        _cnpj   = str(r["cnpj_norm"])
+        _comb   = str(r.get("combustivel_label") or r["combustivel_pk"])
+        _pant   = r.get("preco_ant")
+        _pnov   = r.get("preco_novo")
+        _pant_ok = pd.notna(_pant) and _pant > 0
+        _pnov_ok = pd.notna(_pnov) and _pnov > 0
+
+        if _pnov_ok and not _pant_ok:
+            _status = "🆕 Novo"
+            _delta_r = None
+            _delta_p = None
+        elif _pant_ok and not _pnov_ok:
+            _status = "🗑️ Removido"
+            _delta_r = None
+            _delta_p = None
+        else:
+            _d = round(float(_pnov) - float(_pant), 4)
+            _dp = round(_d / float(_pant) * 100, 2) if _pant else 0
+            if _d > 0.001:
+                _status = "🔺 Alta"
+            elif _d < -0.001:
+                _status = "🔻 Queda"
+            else:
+                _status = "➡️ Sem alteração"
+            _delta_r = _d
+            _delta_p = _dp
+
+        # Formatar CNPJ
+        _cn14 = _cnpj.zfill(14)
+        _cnpj_fmt = (
+            f"{_cn14[:2]}.{_cn14[2:5]}.{_cn14[5:8]}/{_cn14[8:12]}-{_cn14[12:14]}"
+            if len(_cn14) == 14 else _cnpj
+        )
+
+        rows.append({
+            "CNPJ":          _cnpj_fmt,
+            "Nome":          _nome_map.get(_cnpj, "—"),
+            "UF":            _uf_map.get(_cnpj, "—"),
+            "Combustível":   _comb,
+            "Preço Ant.":    round(float(_pant), 4) if _pant_ok else None,
+            "Preço Novo":    round(float(_pnov), 4) if _pnov_ok else None,
+            "Δ R$":          round(_delta_r, 4) if _delta_r is not None else None,
+            "Δ%":            round(_delta_p, 2) if _delta_p is not None else None,
+            "Status":        _status,
+        })
+
+    df_out = pd.DataFrame(rows)
+    if df_out.empty:
+        return df_out
+
+    # Ordenar: Alta primeiro (maior Δ absoluto), depois Queda, Novo, Removido, Sem alteração
+    _ord = {"🔺 Alta": 0, "🔻 Queda": 1, "🆕 Novo": 2, "🗑️ Removido": 3, "➡️ Sem alteração": 4}
+    df_out["_ord"] = df_out["Status"].map(_ord).fillna(5)
+    df_out["_abs"] = df_out["Δ R$"].abs().fillna(0)
+    df_out = (df_out
+              .sort_values(["_ord", "_abs"], ascending=[True, False])
+              .drop(columns=["_ord", "_abs"])
+              .reset_index(drop=True))
+    return df_out
+
+
 def _hist_get_posto(cnpj: str, combustivel: str = None) -> list:
     """Retorna histórico de preços de um posto (lista de dicts)."""
     _cnpj_n   = re.sub(r"\D", "", str(cnpj or ""))
@@ -11216,10 +11336,13 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel, tab_acordos = st.tabs(
+            _var_badge = (" 🔔" if st.session_state.get("_pp_variacao") is not None
+                          and not st.session_state["_pp_variacao"].empty else "")
+            (tab_pf, tab_cer, tab_pp, tab_base, tab_anp,
+             tab_logs, tab_intel, tab_acordos, tab_variacao) = st.tabs(
                 ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
                  "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "🧠 Inteligência",
-                 "🤝 Acordos de Preço"]
+                 "🤝 Acordos de Preço", f"🔔 Variação de Preços{_var_badge}"]
             )
 
         # ── Tab Gestão de Frotas ────────────────────────────────────
@@ -11470,6 +11593,17 @@ with st.sidebar:
                 with st.spinner(f"Lendo `{ARQUIVO_PP_REPO}`…"):
                     _pp_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
                 if _pp_tmp is not None:
+                    # ── Comparação com carga anterior ──
+                    _pp_ant_repo = st.session_state.get("_pp_df")
+                    if _pp_ant_repo is not None and not _pp_ant_repo.empty:
+                        try:
+                            _pf_ref_repo = st.session_state.get("pf_coords_df")
+                            _var_df_repo = _comparar_cargas_precos(
+                                _pp_tmp, _pp_ant_repo, _pf_ref_repo)
+                            st.session_state["_pp_variacao"]      = _var_df_repo
+                            st.session_state["_pp_variacao_ts"]   = _agora()
+                        except Exception:
+                            pass
                     st.session_state["_pp_df"]          = _pp_tmp
                     st.session_state["_pp_fonte"]        = "repo"
                     st.session_state["_pp_carregado_em"] = _agora()
@@ -11496,6 +11630,17 @@ with st.sidebar:
                     with st.spinner("Lendo planilha…"):
                         _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
                     if _pp_up is not None:
+                        # ── Comparação com carga anterior ──
+                        _pp_ant_up = st.session_state.get("_pp_df")
+                        if _pp_ant_up is not None and not _pp_ant_up.empty:
+                            try:
+                                _pf_ref_up = st.session_state.get("pf_coords_df")
+                                _var_df_up = _comparar_cargas_precos(
+                                    _pp_up, _pp_ant_up, _pf_ref_up)
+                                st.session_state["_pp_variacao"]    = _var_df_up
+                                st.session_state["_pp_variacao_ts"] = _agora()
+                            except Exception:
+                                pass
                         st.session_state["_pp_df"]             = _pp_up
                         st.session_state["_pp_fonte"]           = "manual"
                         st.session_state["_pp_carregado_em"]    = _agora()
@@ -12345,6 +12490,343 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
             st.session_state["modo_selecionado"] = "🔐 Admin"
             st.rerun()
 
+        # ── Tab Variação de Preços ─────────────────────────────────
+        if tab_variacao is not None:
+         with tab_variacao:
+            _vp_df = st.session_state.get("_pp_variacao")
+            _vp_ts = st.session_state.get("_pp_variacao_ts", "")
+
+            st.markdown(
+                """
+                <div style="background:linear-gradient(90deg,#1a0a2e,#3d1a7a);
+                            border-radius:8px;padding:14px 18px;margin-bottom:14px;">
+                  <h4 style="color:#fff;margin:0;font-size:1rem;">
+                    🔔 Variação de Preços — Nova Carga vs Anterior
+                  </h4>
+                  <p style="color:#d4b8f5;margin:3px 0 0;font-size:.8rem;">
+                    Comparação automática gerada a cada upload de planilha de preços
+                  </p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if _vp_df is None or _vp_df.empty:
+                st.info(
+                    "ℹ️ Nenhuma variação registrada ainda. "
+                    "Faça upload de uma nova planilha de preços — o sistema comparará "
+                    "automaticamente com a carga anterior.",
+                    icon="🔔",
+                )
+            else:
+                if _vp_ts:
+                    st.caption(f"🕐 Gerado em: {_vp_ts}")
+
+                # ── KPIs ──────────────────────────────────────────────
+                _vp_alta  = _vp_df[_vp_df["Status"] == "🔺 Alta"]
+                _vp_queda = _vp_df[_vp_df["Status"] == "🔻 Queda"]
+                _vp_novo  = _vp_df[_vp_df["Status"] == "🆕 Novo"]
+                _vp_rem   = _vp_df[_vp_df["Status"] == "🗑️ Removido"]
+                _vp_sem   = _vp_df[_vp_df["Status"] == "➡️ Sem alteração"]
+
+                _vk1, _vk2, _vk3, _vk4, _vk5 = st.columns(5)
+                _vk1.metric("🔺 Altas",        len(_vp_alta),
+                            f"máx +R$ {_br_num(_vp_alta['Δ R$'].max(), 3)}"
+                            if not _vp_alta.empty else None)
+                _vk2.metric("🔻 Quedas",        len(_vp_queda),
+                            f"máx −R$ {_br_num(abs(_vp_queda['Δ R$'].min()), 3)}"
+                            if not _vp_queda.empty else None)
+                _vk3.metric("🆕 Novos",         len(_vp_novo))
+                _vk4.metric("🗑️ Removidos",     len(_vp_rem))
+                _vk5.metric("➡️ Sem alteração", len(_vp_sem))
+
+                st.divider()
+
+                # ── Filtros ────────────────────────────────────────────
+                _vf1, _vf2, _vf3 = st.columns([2, 2, 2])
+                with _vf1:
+                    _vp_status_all = sorted(_vp_df["Status"].unique().tolist())
+                    _vp_status_sel = st.multiselect(
+                        "Status", _vp_status_all,
+                        default=[s for s in _vp_status_all
+                                 if s not in ("➡️ Sem alteração",)],
+                        key="vp_status_sel",
+                    )
+                with _vf2:
+                    _vp_combs_all = sorted(_vp_df["Combustível"].dropna().unique().tolist())
+                    _vp_combs_sel = st.multiselect(
+                        "Combustível", _vp_combs_all,
+                        default=_vp_combs_all,
+                        key="vp_combs_sel",
+                    )
+                with _vf3:
+                    _vp_ufs_all = sorted(_vp_df["UF"].replace("—", pd.NA).dropna().unique().tolist())
+                    _vp_ufs_sel = st.multiselect(
+                        "UF", _vp_ufs_all,
+                        default=_vp_ufs_all,
+                        key="vp_ufs_sel",
+                    ) if _vp_ufs_all else []
+
+                _vp_filt = _vp_df.copy()
+                if _vp_status_sel:
+                    _vp_filt = _vp_filt[_vp_filt["Status"].isin(_vp_status_sel)]
+                if _vp_combs_sel:
+                    _vp_filt = _vp_filt[_vp_filt["Combustível"].isin(_vp_combs_sel)]
+                if _vp_ufs_sel:
+                    _vp_filt = _vp_filt[
+                        _vp_filt["UF"].isin(_vp_ufs_sel + ["—"])
+                    ]
+
+                # ── Tabela colorida ────────────────────────────────────
+                st.markdown(f"**{len(_vp_filt)} registro(s) encontrado(s)**")
+
+                # Formatar colunas de preço para exibição
+                _vp_disp = _vp_filt.copy()
+                for _col_p in ("Preço Ant.", "Preço Novo"):
+                    _vp_disp[_col_p] = _vp_disp[_col_p].apply(
+                        lambda v: f"R$ {_br_num(v, 3)}" if pd.notna(v) else "—"
+                    )
+                _vp_disp["Δ R$"] = _vp_disp["Δ R$"].apply(
+                    lambda v: (f"+R$ {_br_num(v,3)}" if v > 0
+                               else f"−R$ {_br_num(abs(v),3)}")
+                    if pd.notna(v) else "—"
+                )
+                _vp_disp["Δ%"] = _vp_disp["Δ%"].apply(
+                    lambda v: f"{'+' if v>=0 else ''}{_br_num(v,2)}%"
+                    if pd.notna(v) else "—"
+                )
+
+                st.dataframe(
+                    _vp_disp,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "CNPJ":        st.column_config.TextColumn("CNPJ",        width=155),
+                        "Nome":        st.column_config.TextColumn("Posto",        width=220),
+                        "UF":          st.column_config.TextColumn("UF",           width=50),
+                        "Combustível": st.column_config.TextColumn("Combustível",  width=120),
+                        "Preço Ant.":  st.column_config.TextColumn("Preço Ant.",   width=110),
+                        "Preço Novo":  st.column_config.TextColumn("Preço Novo",   width=110),
+                        "Δ R$":        st.column_config.TextColumn("Δ R$",         width=110),
+                        "Δ%":          st.column_config.TextColumn("Δ%",           width=90),
+                        "Status":      st.column_config.TextColumn("Status",        width=130),
+                    },
+                )
+
+                st.divider()
+
+                # ── Gráfico: top 15 maiores variações (abs) ─────────────
+                _vp_com_delta = _vp_filt[_vp_filt["Δ R$"].notna()].copy()
+                if not _vp_com_delta.empty:
+                    _vp_com_delta["_abs"] = _vp_com_delta["Δ R$"].abs()
+                    _vp_top15 = _vp_com_delta.nlargest(15, "_abs").copy()
+                    _vp_top15["Label"] = (
+                        _vp_top15["Nome"].str[:20] + " · " + _vp_top15["Combustível"]
+                    )
+                    _cores_bar = [
+                        "#e03030" if v > 0 else "#1a7a40"
+                        for v in _vp_top15["Δ R$"]
+                    ]
+                    _vp_fig = go.Figure(go.Bar(
+                        x=_vp_top15["Label"],
+                        y=_vp_top15["Δ R$"],
+                        marker_color=_cores_bar,
+                        text=[
+                            (f"+R$ {_br_num(v,3)}" if v>=0 else f"−R$ {_br_num(abs(v),3)}")
+                            for v in _vp_top15["Δ R$"]
+                        ],
+                        textposition="outside",
+                        hovertemplate=(
+                            "<b>%{x}</b><br>Δ = R$ %{y:+.4f}<extra></extra>"
+                        ),
+                    ))
+                    _vp_fig.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        font_color="#e0e0e0",
+                        title="Top 15 Maiores Variações (R$/L)",
+                        xaxis=dict(tickangle=-35, tickfont=dict(size=10, color="#ccc")),
+                        yaxis=dict(title="Δ R$/L", tickfont=dict(color="#ccc"),
+                                   gridcolor="#223"),
+                        margin=dict(l=10, r=10, t=40, b=10),
+                        height=380,
+                    )
+                    st.plotly_chart(_vp_fig, use_container_width=True)
+
+                st.divider()
+
+                # ── Exportar Excel ─────────────────────────────────────
+                st.markdown("**📥 Exportar relatório**")
+                _exp1, _exp2 = st.columns(2)
+
+                with _exp1:
+                    # Excel
+                    try:
+                        import io as _io_vp
+                        import openpyxl as _opxl_vp
+                        from openpyxl.styles import (
+                            PatternFill as _PF_vp, Font as _Fnt_vp,
+                            Alignment as _Aln_vp, Border as _Brd_vp,
+                            Side as _Side_vp,
+                        )
+                        _vp_export = _vp_filt.copy()
+                        # Formatar Δ R$ e Δ% como número para Excel
+                        _xls_buf = _io_vp.BytesIO()
+                        with pd.ExcelWriter(_xls_buf, engine="openpyxl") as _xw:
+                            _vp_export.to_excel(_xw, index=False, sheet_name="Variação Preços")
+                            _ws = _xw.sheets["Variação Preços"]
+
+                            # Cabeçalho
+                            _hdr_fill = _PF_vp(fill_type="solid", fgColor="1A0A35")
+                            _hdr_font = _Fnt_vp(color="FFFFFF", bold=True, size=10)
+                            for cell in _ws[1]:
+                                cell.fill = _hdr_fill
+                                cell.font = _hdr_font
+                                cell.alignment = _Aln_vp(horizontal="center", vertical="center")
+
+                            # Cor por status
+                            _STATUS_FILL = {
+                                "🔺 Alta":          "FFDDDD",
+                                "🔻 Queda":         "DDFFDD",
+                                "🆕 Novo":          "DDEEFF",
+                                "🗑️ Removido":      "F5F5F5",
+                                "➡️ Sem alteração": "FFFFFF",
+                            }
+                            _status_col_idx = (
+                                list(_vp_export.columns).index("Status") + 1
+                            )
+                            for row_idx, row in enumerate(_ws.iter_rows(
+                                    min_row=2, max_row=_ws.max_row), start=2):
+                                _st_val = _ws.cell(row_idx, _status_col_idx).value or ""
+                                _fgc = _STATUS_FILL.get(_st_val, "FFFFFF")
+                                _fill = _PF_vp(fill_type="solid", fgColor=_fgc)
+                                for cell in row:
+                                    cell.fill = _fill
+                                    cell.alignment = _Aln_vp(vertical="center")
+
+                            # Auto-width
+                            for col in _ws.columns:
+                                _max_w = max(
+                                    len(str(cell.value or "")) for cell in col
+                                ) + 4
+                                _ws.column_dimensions[col[0].column_letter].width = min(_max_w, 40)
+
+                        _xls_buf.seek(0)
+                        st.download_button(
+                            label="📊 Baixar Excel (.xlsx)",
+                            data=_xls_buf.getvalue(),
+                            file_name=f"variacao_precos_{_vp_ts[:10] if _vp_ts else 'export'}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                        )
+                    except Exception as _e_xls:
+                        st.warning(f"Export Excel indisponível: {_e_xls}")
+
+                with _exp2:
+                    # PDF via reportlab
+                    try:
+                        from reportlab.lib.pagesizes import A4, landscape
+                        from reportlab.platypus import (
+                            SimpleDocTemplate, Table, TableStyle,
+                            Paragraph, Spacer,
+                        )
+                        from reportlab.lib import colors as _rl_colors
+                        from reportlab.lib.styles import getSampleStyleSheet
+                        from reportlab.lib.units import cm
+                        import io as _io_pdf
+
+                        _pdf_buf = _io_pdf.BytesIO()
+                        _doc = SimpleDocTemplate(
+                            _pdf_buf,
+                            pagesize=landscape(A4),
+                            leftMargin=1.5*cm, rightMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=1.5*cm,
+                        )
+                        _styles = getSampleStyleSheet()
+                        _story  = []
+
+                        # Título
+                        _story.append(Paragraph(
+                            f"<b>Variação de Preços — {_vp_ts}</b>",
+                            _styles["Title"],
+                        ))
+                        _story.append(Spacer(1, 0.3*cm))
+                        _story.append(Paragraph(
+                            f"{len(_vp_filt)} registro(s) · "
+                            f"{len(_vp_alta)} alta(s) · {len(_vp_queda)} queda(s) · "
+                            f"{len(_vp_novo)} novo(s) · {len(_vp_rem)} removido(s)",
+                            _styles["Normal"],
+                        ))
+                        _story.append(Spacer(1, 0.4*cm))
+
+                        # Tabela
+                        _pdf_cols = ["CNPJ","Nome","UF","Combustível",
+                                     "Preço Ant.","Preço Novo","Δ R$","Δ%","Status"]
+                        _pdf_data = [_pdf_cols]
+                        for _, _pr in _vp_filt.iterrows():
+                            _pdf_data.append([
+                                str(_pr.get("CNPJ","") or ""),
+                                str(_pr.get("Nome","") or "")[:30],
+                                str(_pr.get("UF","") or ""),
+                                str(_pr.get("Combustível","") or ""),
+                                f"R$ {_br_num(_pr['Preço Ant.'],3)}" if pd.notna(_pr.get("Preço Ant.")) else "—",
+                                f"R$ {_br_num(_pr['Preço Novo'],3)}" if pd.notna(_pr.get("Preço Novo")) else "—",
+                                (f"+{_br_num(_pr['Δ R$'],3)}" if (_pr.get("Δ R$") or 0)>=0
+                                 else f"−{_br_num(abs(_pr['Δ R$']),3)}")
+                                if pd.notna(_pr.get("Δ R$")) else "—",
+                                (f"{'+' if (_pr.get('Δ%') or 0)>=0 else ''}{_br_num(_pr['Δ%'],2)}%")
+                                if pd.notna(_pr.get("Δ%")) else "—",
+                                str(_pr.get("Status","") or ""),
+                            ])
+
+                        _STATUS_CLR = {
+                            "🔺 Alta":          _rl_colors.HexColor("#FFDDDD"),
+                            "🔻 Queda":         _rl_colors.HexColor("#DDFFDD"),
+                            "🆕 Novo":          _rl_colors.HexColor("#DDEEFF"),
+                            "🗑️ Removido":      _rl_colors.HexColor("#F0F0F0"),
+                            "➡️ Sem alteração": _rl_colors.white,
+                        }
+                        _col_ws  = [3.8*cm,5.5*cm,1*cm,2.5*cm,2.3*cm,2.3*cm,2.2*cm,1.8*cm,3.2*cm]
+                        _tbl_pdf = Table(_pdf_data, colWidths=_col_ws, repeatRows=1)
+                        _tbl_style = [
+                            ("BACKGROUND", (0,0), (-1,0), _rl_colors.HexColor("#1A0A35")),
+                            ("TEXTCOLOR",  (0,0), (-1,0), _rl_colors.white),
+                            ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
+                            ("FONTSIZE",   (0,0), (-1,-1), 7),
+                            ("ROWBACKGROUND", (0,1), (-1,-1), _rl_colors.white),
+                            ("GRID", (0,0), (-1,-1), 0.3, _rl_colors.HexColor("#CCCCCC")),
+                            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+                        ]
+                        # Colorir linhas por status
+                        for _ri, _row_p in enumerate(_pdf_data[1:], start=1):
+                            _st_p = _row_p[-1]
+                            _clr_p = _STATUS_CLR.get(_st_p, _rl_colors.white)
+                            _tbl_style.append(
+                                ("BACKGROUND", (0,_ri), (-1,_ri), _clr_p)
+                            )
+                        _tbl_pdf.setStyle(TableStyle(_tbl_style))
+                        _story.append(_tbl_pdf)
+
+                        _doc.build(_story)
+                        _pdf_buf.seek(0)
+                        st.download_button(
+                            label="📄 Baixar PDF",
+                            data=_pdf_buf.getvalue(),
+                            file_name=f"variacao_precos_{_vp_ts[:10] if _vp_ts else 'export'}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                        )
+                    except Exception as _e_pdf:
+                        st.warning(f"Export PDF indisponível: {_e_pdf}")
+
+                # Botão para limpar
+                st.markdown("")
+                if st.button("🗑️ Limpar variação registrada", key="btn_clear_variacao",
+                             use_container_width=True):
+                    st.session_state.pop("_pp_variacao", None)
+                    st.session_state.pop("_pp_variacao_ts", None)
+                    st.rerun()
+
 # ═══════════════════════════════════════════════════════════════════
 #  TOUR DE ONBOARDING
 # ═══════════════════════════════════════════════════════════════════
@@ -13015,6 +13497,95 @@ if False:
 })();
 </script>
 """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  BANNER GLOBAL — Variação de Preços entre Cargas
+# ═══════════════════════════════════════════════════════════════════
+
+_var_df_global = st.session_state.get("_pp_variacao")
+if _var_df_global is not None and not _var_df_global.empty:
+    _var_ts = st.session_state.get("_pp_variacao_ts", "")
+    _n_alta   = int((_var_df_global["Status"] == "🔺 Alta").sum())
+    _n_queda  = int((_var_df_global["Status"] == "🔻 Queda").sum())
+    _n_novo   = int((_var_df_global["Status"] == "🆕 Novo").sum())
+    _n_rem    = int((_var_df_global["Status"] == "🗑️ Removido").sum())
+    _n_total  = _n_alta + _n_queda + _n_novo + _n_rem
+
+    # Cor do banner: vermelho se há altas, verde se só quedas, cinza se neutro
+    _banner_cor = (
+        "#7a1a1a" if _n_alta > 0 else
+        "#0a3a1a" if _n_queda > 0 else
+        "#1a2035"
+    )
+    _banner_icone = "🔺" if _n_alta > 0 else ("🔻" if _n_queda > 0 else "🔔")
+
+    st.markdown(
+        f"""
+        <div style="background:{_banner_cor};border:1px solid #444;border-radius:10px;
+                    padding:12px 20px;margin-bottom:16px;display:flex;
+                    align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="font-size:1.5rem">{_banner_icone}</div>
+          <div style="flex:1;min-width:200px">
+            <b style="color:#fff;font-size:.95rem">
+              Variação de Preços Detectada — nova carga vs anterior
+            </b><br>
+            <span style="color:#ccc;font-size:.82rem">
+              {_n_alta} alta(s) &nbsp;·&nbsp; {_n_queda} queda(s) &nbsp;·&nbsp;
+              {_n_novo} novo(s) &nbsp;·&nbsp; {_n_rem} removido(s)
+              {"&nbsp;·&nbsp; " + _var_ts if _var_ts else ""}
+            </span>
+          </div>
+          <span style="color:#aaa;font-size:.78rem">
+            Veja detalhes em <b>Configurações → Variação de Preços</b>
+          </span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Linha de destaque: maiores altas e maiores quedas
+    _top_alta  = (_var_df_global[_var_df_global["Status"] == "🔺 Alta"]
+                  .nlargest(3, "Δ R$"))
+    _top_queda = (_var_df_global[_var_df_global["Status"] == "🔻 Queda"]
+                  .nsmallest(3, "Δ R$"))
+
+    if not _top_alta.empty or not _top_queda.empty:
+        _bc1, _bc2 = st.columns(2)
+        with _bc1:
+            if not _top_alta.empty:
+                st.markdown(
+                    "<small><b style='color:#ff6b6b'>🔺 Maiores altas</b></small>",
+                    unsafe_allow_html=True,
+                )
+                for _, _r in _top_alta.iterrows():
+                    _nm = (_r["Nome"][:28] + "…") if len(_r["Nome"]) > 28 else _r["Nome"]
+                    st.markdown(
+                        f"<small>• <b>{_nm}</b> ({_r['Combustível']}) "
+                        f"+R$ {_br_num(_r['Δ R$'], 3)}</small>",
+                        unsafe_allow_html=True,
+                    )
+        with _bc2:
+            if not _top_queda.empty:
+                st.markdown(
+                    "<small><b style='color:#00e676'>🔻 Maiores quedas</b></small>",
+                    unsafe_allow_html=True,
+                )
+                for _, _r in _top_queda.iterrows():
+                    _nm = (_r["Nome"][:28] + "…") if len(_r["Nome"]) > 28 else _r["Nome"]
+                    st.markdown(
+                        f"<small>• <b>{_nm}</b> ({_r['Combustível']}) "
+                        f"−R$ {_br_num(abs(_r['Δ R$']), 3)}</small>",
+                        unsafe_allow_html=True,
+                    )
+
+    if st.button("✕ Dispensar notificação", key="btn_dispensar_variacao",
+                 help="Remove o banner desta sessão"):
+        st.session_state.pop("_pp_variacao", None)
+        st.session_state.pop("_pp_variacao_ts", None)
+        st.rerun()
+
+    st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════
