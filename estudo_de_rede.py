@@ -13549,7 +13549,7 @@ if _var_df_global is not None and not _var_df_global.empty:
             </span>
           </div>
           <span style="color:#aaa;font-size:.78rem">
-            Veja detalhes em <b>Configurações → Variação de Preços</b>
+            Veja detalhes em <b>📊 Variação de Preços</b> no menu lateral
           </span>
         </div>
         """,
