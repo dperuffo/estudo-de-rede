@@ -23680,34 +23680,45 @@ elif modo == "🤖 Recomendador IA":
             _rb_cols = st.columns(min(3, len(_top_bal)), gap="medium")
             for _ri, _rr in _top_bal.iterrows():
                 with _rb_cols[_ri]:
-                    _medal_b = _MEDAL[_ri]
-                    _bg_b = ("#1a2e1a" if _ri == 0 else "#1a1a2e" if _ri == 1 else "#2e1a1a")
-                    _bd_b = ("#00e676" if _ri == 0 else "#7b61ff" if _ri == 1 else "#ff6b6b")
-                    _pname_b = _rr["nome"][:30] + ("…" if len(_rr["nome"]) > 30 else "")
-                    _loc_b   = f"{_rr['municipio']}/{_rr['uf']}" if _rr["municipio"] else _rr["uf"]
+                    _medal_b  = _MEDAL[_ri]
+                    _bg_b     = ("#1a2e1a" if _ri == 0 else "#1a1a2e" if _ri == 1 else "#2e1a1a")
+                    _bd_b     = ("#00e676" if _ri == 0 else "#7b61ff" if _ri == 1 else "#ff6b6b")
+                    _txt_b    = ("#000" if _ri == 0 else "#fff" if _ri == 1 else "#fff")
+                    _pname_b  = _rr["nome"][:30] + ("…" if len(_rr["nome"]) > 30 else "")
+                    _loc_b    = f"{_rr['municipio']}/{_rr['uf']}" if _rr["municipio"] else _rr["uf"]
+                    # pré-computar badges condicionais
+                    _badge_ac = (
+                        "<div style='margin-top:6px;font-size:.72rem;color:#aaa'>"
+                        "&#128221; Acordo vigente</div>"
+                        if _rr["acordo"] else ""
+                    )
+                    _badge_gf = (
+                        "<div style='font-size:.72rem;color:#aaa'>&#11088; Pro Frotas</div>"
+                        if _rr["is_gf"] else ""
+                    )
+                    _freq_val = int(_rr["freq"])
+                    _badge_fr = (
+                        f"<div style='font-size:.72rem;color:#aaa'>"
+                        f"&#128666; Usado {_freq_val}x pela frota</div>"
+                        if _freq_val > 0 else ""
+                    )
                     st.markdown(
-                        f"""<div style="background:{_bg_b};border-radius:12px;
-                            padding:16px;border:2px solid {_bd_b};text-align:center">
-                          <div style="font-size:2rem">{_medal_b}</div>
-                          <div style="font-weight:900;color:#fff;font-size:.95rem;
-                               margin:6px 0">{_pname_b}</div>
-                          <div style="color:#aaa;font-size:.78rem">{_loc_b}</div>
-                          <div style="margin:10px 0 4px">
-                            <span style="background:{_bd_b};color:#000;border-radius:20px;
-                                  padding:3px 14px;font-weight:700;font-size:.88rem">
-                              Score Total: {_rr['i_total']:.1f}
-                            </span>
-                          </div>
-                          <div style="color:#ccc;font-size:.75rem;margin-top:8px;
-                               line-height:1.6">
-                            💰 Custo: <b>{_rr['i_custo']:.0f}</b> &nbsp;
-                            ⭐ Qual: <b>{_rr['i_qual']:.0f}</b> &nbsp;
-                            🔒 Conf: <b>{_rr['i_conf']:.0f}</b>
-                          </div>
-                          {"<div style='margin-top:6px;font-size:.72rem;color:#aaa'>📜 Acordo vigente</div>" if _rr['acordo'] else ""}
-                          {"<div style='font-size:.72rem;color:#aaa'>⭐ Pro Frotas</div>" if _rr['is_gf'] else ""}
-                          {"<div style='font-size:.72rem;color:#aaa'>🚛 Usado " + str(_rr['freq']) + "× pela frota</div>" if _rr['freq'] > 0 else ""}
-                        </div>""",
+                        f'<div style="background:{_bg_b};border-radius:12px;'
+                        f'padding:16px;border:2px solid {_bd_b};text-align:center">'
+                        f'<div style="font-size:2rem">{_medal_b}</div>'
+                        f'<div style="font-weight:900;color:#fff;font-size:.95rem;'
+                        f'margin:6px 0">{_pname_b}</div>'
+                        f'<div style="color:#aaa;font-size:.78rem">{_loc_b}</div>'
+                        f'<div style="margin:10px 0 4px">'
+                        f'<span style="background:{_bd_b};color:{_txt_b};border-radius:20px;'
+                        f'padding:3px 14px;font-weight:700;font-size:.88rem">'
+                        f'Score Total: {_rr["i_total"]:.1f}</span></div>'
+                        f'<div style="color:#ccc;font-size:.75rem;margin-top:8px;line-height:1.6">'
+                        f'&#128176; Custo: <b>{_rr["i_custo"]:.0f}</b> &nbsp;'
+                        f'&#11088; Qual: <b>{_rr["i_qual"]:.0f}</b> &nbsp;'
+                        f'&#128274; Conf: <b>{_rr["i_conf"]:.0f}</b></div>'
+                        f'{_badge_ac}{_badge_gf}{_badge_fr}'
+                        f'</div>',
                         unsafe_allow_html=True,
                     )
 
