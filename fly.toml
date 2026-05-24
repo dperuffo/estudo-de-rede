@@ -1,21 +1,27 @@
 # ════════════════════════════════════════════════════
-#  fly.toml — Configuração de deploy no fly.io
-#  App: Estudo de Rede – Pró-Frotas
+#  fly.toml — Fleet Network Intelligence
+#  Deploy no fly.io  |  Região: gru (São Paulo)
 #
-#  ATENÇÃO: mude o nome do app abaixo se quiser
-#  um endereço personalizado (ex: minha-empresa-frotas)
+#  Arquitetura:
+#    nginx :80  →  proxy reverso
+#      /api/*  →  FastAPI  :8000
+#      /*      →  Streamlit :8501
 # ════════════════════════════════════════════════════
 
 app            = "estudo-de-rede-profrotas"
-primary_region = "gru"   # São Paulo, Brasil
+primary_region = "gru"
 
 [build]
 
 [env]
-  PORT = "8501"
+  PORT          = "80"
+  API_PORT      = "8000"
+  ST_PORT       = "8501"
+  # JWT_SECRET, API_USER, API_PASS, SUPABASE_URL, SUPABASE_KEY
+  # → defina como secrets: fly secrets set JWT_SECRET=... API_PASS=...
 
 [http_service]
-  internal_port        = 8501
+  internal_port        = 80
   force_https          = true
   auto_stop_machines   = true
   auto_start_machines  = true
@@ -24,8 +30,8 @@ primary_region = "gru"   # São Paulo, Brasil
 
   [http_service.concurrency]
     type       = "connections"
-    hard_limit = 25
-    soft_limit = 20
+    hard_limit = 30
+    soft_limit = 25
 
 [[vm]]
   memory   = "1gb"

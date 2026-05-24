@@ -22,3 +22,8 @@ staticmap>=0.5.4          # mapa de rota no card PNG
 Pillow>=10.0.0            # manipulação de imagem no card PNG
 supabase>=2.3.0           # banco de dados para persistência
 pymupdf>=1.23.0           # renderização de PDF como imagens (visualizador sem iframe)
+# ── API Server (FastAPI) ──────────────────────────────────────────
+fastapi>=0.111.0          # framework REST API
+uvicorn[standard]>=0.29.0 # servidor ASGI
+python-jose[cryptography]>=3.3.0  # JWT Bearer auth
+passlib[bcrypt]>=1.7.4    # hashing de senhas (para futura gestão de usuários API)
