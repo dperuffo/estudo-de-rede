@@ -11061,6 +11061,17 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
         st.rerun()
 
+    if st.button(
+        "📋 Relatórios",
+        use_container_width=True,
+        type="primary" if _modo_atual == "📋 Relatórios" else "secondary",
+        key="btn_relatorios",
+        help="Relatórios executivos, oportunidades comerciais e performance por posto",
+    ):
+        st.session_state["modo_selecionado"] = "📋 Relatórios"
+        _log_acesso("MODO_SELECIONADO", "📋 Relatórios", modo_override="📋 Relatórios")
+        st.rerun()
+
     modo = _modo_atual
     st.divider()
 
@@ -26988,6 +26999,898 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                         ),
                     })
                     st.dataframe(_rg_tbl_show, use_container_width=True, hide_index=True)
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Relatórios e Exportações Evoluídas
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "📋 Relatórios":
+
+    import calendar as _calendar_mod
+    from datetime import timedelta as _td
+
+    # ── Cabeçalho ─────────────────────────────────────────────────
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#1A237E,#283593);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "📋 Relatórios e Exportações</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Relatório executivo mensal · Oportunidades comerciais · Performance por posto</p>",
+        unsafe_allow_html=True,
+    )
+
+    _rlt1, _rlt2, _rlt3 = st.tabs([
+        "📊 Relatório Executivo",
+        "🌎 Oportunidades Comerciais",
+        "⭐ Performance por Posto",
+    ])
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 1 — RELATÓRIO EXECUTIVO MENSAL
+    # ════════════════════════════════════════════════════════════════
+    with _rlt1:
+
+        st.markdown(
+            "<div style='background:linear-gradient(90deg,#E8EAF6,#fff);"
+            "border-left:4px solid #3949AB;border-radius:0 8px 8px 0;"
+            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1A237E'>"
+            "Gera um PDF executivo consolidado com evolução de preços, savings estimados "
+            "e alertas de risco para o período selecionado.</div>",
+            unsafe_allow_html=True,
+        )
+
+        # ── Filtros ────────────────────────────────────────────────
+        _re_c1, _re_c2, _re_c3, _re_c4 = st.columns([2, 2, 3, 3])
+        _hoje_re  = datetime.now()
+        _anos_re  = list(range(_hoje_re.year - 2, _hoje_re.year + 1))
+        _meses_re = {
+            1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",
+            7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro",
+        }
+        with _re_c1:
+            _re_ano = st.selectbox("Ano", _anos_re,
+                                   index=_anos_re.index(_hoje_re.year),
+                                   key="re_ano")
+        with _re_c2:
+            _re_mes = st.selectbox("Mês", list(_meses_re.keys()),
+                                   format_func=lambda m: _meses_re[m],
+                                   index=_hoje_re.month - 1,
+                                   key="re_mes")
+        with _re_c3:
+            _ufs_re_lista = ["Todas"] + sorted(UFS)
+            _re_uf = st.selectbox("UF", _ufs_re_lista, key="re_uf")
+        with _re_c4:
+            _re_comb_opts = ["Todos"] + [
+                "GASOLINA COMUM", "GASOLINA ADITIVADA",
+                "ÓLEO DIESEL", "ÓLEO DIESEL S10", "ETANOL",
+            ]
+            _re_comb = st.selectbox("Combustível", _re_comb_opts, key="re_comb")
+
+        # ── Carregar dados históricos ──────────────────────────────
+        _intel_re = _intel_load()
+        _hist_re  = _intel_re.get("historico", {})  # {cnpj: [{data, preco, combustivel, nome, municipio, uf}]}
+
+        # Filtrar por período
+        _re_data_ini = f"{_re_ano}-{_re_mes:02d}-01"
+        _re_data_fim = f"{_re_ano}-{_re_mes:02d}-{_calendar_mod.monthrange(_re_ano, _re_mes)[1]:02d}"
+
+        _re_rows = []
+        for _cnpj_re, _events_re in _hist_re.items():
+            for _ev in (_events_re if isinstance(_events_re, list) else []):
+                _dt_ev = str(_ev.get("data", "") or _ev.get("data_ref", ""))[:10]
+                if not (_re_data_ini <= _dt_ev <= _re_data_fim):
+                    continue
+                _comb_ev = str(_ev.get("combustivel", "")).upper().strip()
+                if _re_comb != "Todos" and _comb_ev != _re_comb.upper().strip():
+                    continue
+                _uf_ev = str(_ev.get("uf", "")).upper().strip()
+                if _re_uf != "Todas" and _uf_ev != _re_uf:
+                    continue
+                _re_rows.append({
+                    "cnpj":       _cnpj_re,
+                    "nome":       str(_ev.get("nome") or _ev.get("razao_social", ""))[:40],
+                    "municipio":  str(_ev.get("municipio", "")),
+                    "uf":         _uf_ev,
+                    "combustivel":_comb_ev,
+                    "preco":      float(_ev.get("preco") or 0),
+                    "data":       _dt_ev,
+                })
+
+        _re_df = pd.DataFrame(_re_rows) if _re_rows else pd.DataFrame()
+
+        if _re_df.empty:
+            st.info(
+                f"Nenhum registro de preço encontrado para "
+                f"**{_meses_re[_re_mes]}/{_re_ano}**"
+                + (f" · UF {_re_uf}" if _re_uf != "Todas" else "")
+                + (f" · {_re_comb}" if _re_comb != "Todos" else "")
+                + ".\n\nCarregue preços via Configurações → Preços PP para gerar o relatório."
+            )
+        else:
+            _re_df["preco"] = pd.to_numeric(_re_df["preco"], errors="coerce")
+            _re_df["data"]  = pd.to_datetime(_re_df["data"], errors="coerce")
+            _re_df = _re_df.dropna(subset=["preco", "data"])
+            _re_df = _re_df[_re_df["preco"] > 0]
+
+            # ── KPIs do período ─────────────────────────────────────
+            _re_n_postos  = _re_df["cnpj"].nunique()
+            _re_n_reg     = len(_re_df)
+            _re_preco_med = _re_df["preco"].mean()
+            _re_preco_min = _re_df["preco"].min()
+            _re_preco_max = _re_df["preco"].max()
+            _re_n_ufs     = _re_df["uf"].nunique()
+
+            _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+            _kc1.metric("⛽ Postos monitorados", _br_int(_re_n_postos))
+            _kc2.metric("📊 Registros de preço", _br_int(_re_n_reg))
+            _kc3.metric("💰 Preço médio", _br_moeda(_re_preco_med, 3))
+            _kc4.metric("🗺️ UFs cobertas", str(_re_n_ufs))
+
+            # ── Seção 1 — Evolução de Preços ────────────────────────
+            st.markdown("#### 📈 Evolução de Preços")
+            _re_evolucao = (
+                _re_df.groupby(["data", "combustivel"])["preco"]
+                .mean().reset_index()
+            )
+            if not _re_evolucao.empty:
+                _fig_re_ev = go.Figure()
+                for _cb_ev, _gdf in _re_evolucao.groupby("combustivel"):
+                    _gdf = _gdf.sort_values("data")
+                    _fig_re_ev.add_trace(go.Scatter(
+                        x=_gdf["data"], y=_gdf["preco"],
+                        mode="lines+markers", name=_cb_ev[:30],
+                        line=dict(width=2),
+                    ))
+                _fig_re_ev.update_layout(
+                    height=300, margin=dict(l=0, r=0, t=10, b=0),
+                    yaxis_title="R$/L",
+                    xaxis_title="",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                )
+                st.plotly_chart(_fig_re_ev, use_container_width=True)
+
+            # ── Seção 2 — Savings Estimados ─────────────────────────
+            st.markdown("#### 💰 Savings Estimados vs Preço Mercado")
+            _re_por_comb = _re_df.groupby("combustivel")["preco"].agg(
+                preco_medio="mean", n_postos="count"
+            ).reset_index()
+
+            # Referência de mercado — usa o percentil 75 como "preço fora da rede"
+            _saving_rows = []
+            for _, _rw in _re_por_comb.iterrows():
+                _comb_key = _rw["combustivel"]
+                _precos_comb = _re_df[_re_df["combustivel"] == _comb_key]["preco"]
+                _ref_mercado = float(_precos_comb.quantile(0.75))
+                _preco_gf    = float(_rw["preco_medio"])
+                _saving_pct  = (_ref_mercado - _preco_gf) / _ref_mercado * 100 if _ref_mercado > 0 else 0
+                _saving_rows.append({
+                    "Combustível":   _comb_key,
+                    "Preço GF (R$/L)": _br_moeda(_preco_gf, 3),
+                    "Ref. Mercado (p75)": _br_moeda(_ref_mercado, 3),
+                    "Saving Estimado": f"{_saving_pct:+.1f}%".replace(".", ","),
+                    "Postos":        _br_int(int(_rw["n_postos"])),
+                })
+            if _saving_rows:
+                st.dataframe(
+                    pd.DataFrame(_saving_rows),
+                    use_container_width=True, hide_index=True,
+                )
+
+            # ── Seção 3 — Riscos ────────────────────────────────────
+            st.markdown("#### 🚨 Alertas de Risco")
+            _riscos_re: list = []
+
+            # Risco 1: alta variação de preço no período
+            _var_por_posto = (
+                _re_df.groupby(["cnpj", "nome"])["preco"]
+                .agg(std="std", mean="mean", n="count")
+                .reset_index()
+            )
+            _var_por_posto = _var_por_posto[_var_por_posto["n"] >= 2]
+            _var_por_posto["cv"] = _var_por_posto["std"] / _var_por_posto["mean"] * 100
+            _alta_var = _var_por_posto[_var_por_posto["cv"] > 3].sort_values("cv", ascending=False)
+            if not _alta_var.empty:
+                _riscos_re.append({
+                    "🚨 Tipo": "Alta Variação de Preço",
+                    "📊 Qtd":  _br_int(len(_alta_var)),
+                    "📝 Detalhe": f"{len(_alta_var)} postos com CV > 3% — instabilidade de preço detectada",
+                })
+
+            # Risco 2: postos com preço muito acima da média
+            _media_geral = float(_re_df["preco"].mean())
+            _desvio = float(_re_df["preco"].std())
+            _acima  = _re_df[_re_df["preco"] > _media_geral + 2 * _desvio]
+            if not _acima.empty:
+                _riscos_re.append({
+                    "🚨 Tipo": "Preço Muito Acima da Média",
+                    "📊 Qtd":  _br_int(_acima["cnpj"].nunique()),
+                    "📝 Detalhe": f"Preços > {_br_moeda(_media_geral + 2 * _desvio, 3)} (média + 2σ)",
+                })
+
+            # Risco 3: UFs sem postos
+            _ufs_com_postos = set(_re_df["uf"].dropna().unique())
+            _ufs_sem = [u for u in UFS if u not in _ufs_com_postos]
+            if _ufs_sem:
+                _riscos_re.append({
+                    "🚨 Tipo": "UFs sem Cobertura GF",
+                    "📊 Qtd":  str(len(_ufs_sem)),
+                    "📝 Detalhe": ", ".join(sorted(_ufs_sem)[:10])
+                                 + (" ..." if len(_ufs_sem) > 10 else ""),
+                })
+
+            if _riscos_re:
+                st.dataframe(pd.DataFrame(_riscos_re),
+                             use_container_width=True, hide_index=True)
+            else:
+                st.success("✅ Nenhum alerta de risco identificado para o período.")
+
+            # ── Gerar PDF ───────────────────────────────────────────
+            st.markdown("---")
+            _re_btn_pdf = st.button(
+                "📄 Gerar PDF Executivo",
+                use_container_width=True,
+                type="primary",
+                key="btn_gerar_pdf_exec",
+            )
+
+            if _re_btn_pdf:
+                with st.spinner("Gerando PDF..."):
+                    try:
+                        from reportlab.lib.pagesizes import A4
+                        from reportlab.lib import colors as _rl_colors
+                        from reportlab.lib.units import cm
+                        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+                        from reportlab.platypus import (
+                            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+                            HRFlowable,
+                        )
+
+                        _pdf_buf = io.BytesIO()
+                        _doc_re  = SimpleDocTemplate(
+                            _pdf_buf, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=1.8*cm, bottomMargin=1.8*cm,
+                        )
+                        _stls = getSampleStyleSheet()
+                        _sTit = ParagraphStyle("sTit", parent=_stls["Normal"],
+                            fontSize=16, fontName="Helvetica-Bold",
+                            textColor=_rl_colors.HexColor("#1A237E"),
+                            spaceAfter=4, alignment=TA_CENTER)
+                        _sH2e = ParagraphStyle("sH2e", parent=_stls["Normal"],
+                            fontSize=12, fontName="Helvetica-Bold",
+                            textColor=_rl_colors.HexColor("#283593"),
+                            spaceBefore=10, spaceAfter=4)
+                        _sNe  = ParagraphStyle("sNe", parent=_stls["Normal"],
+                            fontSize=9, fontName="Helvetica", spaceAfter=2)
+                        _sSub = ParagraphStyle("sSub", parent=_stls["Normal"],
+                            fontSize=10, fontName="Helvetica",
+                            textColor=_rl_colors.grey, alignment=TA_CENTER)
+
+                        _story_re = []
+                        _story_re.append(Paragraph("Fleet Network Intelligence", _sTit))
+                        _story_re.append(Paragraph(
+                            f"Relatório Executivo — {_meses_re[_re_mes]}/{_re_ano}"
+                            + (f" · UF {_re_uf}" if _re_uf != "Todas" else "")
+                            + (f" · {_re_comb}" if _re_comb != "Todos" else ""),
+                            _sSub,
+                        ))
+                        _story_re.append(Spacer(1, 0.3*cm))
+                        _story_re.append(HRFlowable(width="100%", thickness=2,
+                                                     color=_rl_colors.HexColor("#283593")))
+                        _story_re.append(Spacer(1, 0.4*cm))
+
+                        # KPIs
+                        _story_re.append(Paragraph("Indicadores do Período", _sH2e))
+                        _kpi_data = [
+                            ["Postos Monitorados", "Registros", "Preço Médio", "UFs Cobertas"],
+                            [_br_int(_re_n_postos), _br_int(_re_n_reg),
+                             _br_moeda(_re_preco_med, 3), str(_re_n_ufs)],
+                        ]
+                        _kpi_tbl = Table(_kpi_data, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
+                        _kpi_tbl.setStyle(TableStyle([
+                            ("BACKGROUND", (0, 0), (-1, 0), _rl_colors.HexColor("#283593")),
+                            ("TEXTCOLOR",  (0, 0), (-1, 0), _rl_colors.white),
+                            ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+                            ("FONTSIZE",   (0, 0), (-1, -1), 9),
+                            ("ALIGN",      (0, 0), (-1, -1), "CENTER"),
+                            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+                             [_rl_colors.HexColor("#EEF1FB"), _rl_colors.white]),
+                            ("GRID",       (0, 0), (-1, -1), 0.5, _rl_colors.HexColor("#BDBDBD")),
+                            ("TOPPADDING", (0, 0), (-1, -1), 5),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                        ]))
+                        _story_re.append(_kpi_tbl)
+                        _story_re.append(Spacer(1, 0.4*cm))
+
+                        # Evolução de Preços (tabela resumida)
+                        _story_re.append(Paragraph("Evolução de Preços", _sH2e))
+                        _ev_por_comb = (
+                            _re_df.groupby("combustivel")["preco"]
+                            .agg(minimo="min", media="mean", maximo="max")
+                            .reset_index()
+                        )
+                        _ev_hdr = ["Combustível", "Mínimo (R$/L)", "Médio (R$/L)", "Máximo (R$/L)"]
+                        _ev_rows_pdf = [_ev_hdr]
+                        for _, _rr in _ev_por_comb.iterrows():
+                            _ev_rows_pdf.append([
+                                str(_rr["combustivel"])[:30],
+                                _br_moeda(_rr["minimo"], 3),
+                                _br_moeda(_rr["media"],  3),
+                                _br_moeda(_rr["maximo"], 3),
+                            ])
+                        _ev_tbl = Table(_ev_rows_pdf, colWidths=[6*cm, 3.5*cm, 3.5*cm, 3.5*cm])
+                        _ev_tbl.setStyle(TableStyle([
+                            ("BACKGROUND", (0, 0), (-1, 0), _rl_colors.HexColor("#3949AB")),
+                            ("TEXTCOLOR",  (0, 0), (-1, 0), _rl_colors.white),
+                            ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+                            ("FONTSIZE",   (0, 0), (-1, -1), 9),
+                            ("ALIGN",      (1, 1), (-1, -1), "RIGHT"),
+                            ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+                             [_rl_colors.HexColor("#F5F5F5"), _rl_colors.white]),
+                            ("GRID",       (0, 0), (-1, -1), 0.5, _rl_colors.HexColor("#BDBDBD")),
+                            ("TOPPADDING", (0, 0), (-1, -1), 4),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                        ]))
+                        _story_re.append(_ev_tbl)
+                        _story_re.append(Spacer(1, 0.4*cm))
+
+                        # Savings
+                        if _saving_rows:
+                            _story_re.append(Paragraph("Savings Estimados", _sH2e))
+                            _sv_hdr = ["Combustível", "Preço GF (R$/L)", "Ref. Mercado", "Saving"]
+                            _sv_rows_pdf = [_sv_hdr]
+                            for _sr in _saving_rows:
+                                _sv_rows_pdf.append([
+                                    str(_sr["Combustível"])[:30],
+                                    str(_sr["Preço GF (R$/L)"]),
+                                    str(_sr["Ref. Mercado (p75)"]),
+                                    str(_sr["Saving Estimado"]),
+                                ])
+                            _sv_tbl = Table(_sv_rows_pdf, colWidths=[5.5*cm, 4*cm, 4*cm, 3*cm])
+                            _sv_tbl.setStyle(TableStyle([
+                                ("BACKGROUND", (0, 0), (-1, 0), _rl_colors.HexColor("#1B5E20")),
+                                ("TEXTCOLOR",  (0, 0), (-1, 0), _rl_colors.white),
+                                ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+                                ("FONTSIZE",   (0, 0), (-1, -1), 9),
+                                ("ALIGN",      (1, 1), (-1, -1), "RIGHT"),
+                                ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+                                 [_rl_colors.HexColor("#E8F5E9"), _rl_colors.white]),
+                                ("GRID",       (0, 0), (-1, -1), 0.5, _rl_colors.HexColor("#BDBDBD")),
+                                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                            ]))
+                            _story_re.append(_sv_tbl)
+                            _story_re.append(Spacer(1, 0.4*cm))
+
+                        # Riscos
+                        if _riscos_re:
+                            _story_re.append(Paragraph("Alertas de Risco", _sH2e))
+                            for _rk in _riscos_re:
+                                _story_re.append(Paragraph(
+                                    f"<b>{_rk['🚨 Tipo']}</b> ({_rk['📊 Qtd']} ocorrências): "
+                                    f"{_rk['📝 Detalhe']}", _sNe))
+
+                        _story_re.append(Spacer(1, 0.5*cm))
+                        _story_re.append(HRFlowable(width="100%", thickness=1,
+                                                     color=_rl_colors.HexColor("#BDBDBD")))
+                        _story_re.append(Paragraph(
+                            f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · "
+                            "Fleet Network Intelligence",
+                            ParagraphStyle("sFooter", parent=_stls["Normal"],
+                                fontSize=7, textColor=_rl_colors.grey, alignment=TA_CENTER),
+                        ))
+
+                        _doc_re.build(_story_re)
+                        _pdf_bytes_re = _pdf_buf.getvalue()
+
+                        st.download_button(
+                            label="⬇️ Baixar Relatório Executivo PDF",
+                            data=_pdf_bytes_re,
+                            file_name=f"relatorio_executivo_{_re_ano}_{_re_mes:02d}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                        )
+                    except Exception as _e_pdf_re:
+                        st.error(f"❌ Erro ao gerar PDF: {_e_pdf_re}")
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 2 — OPORTUNIDADES COMERCIAIS
+    # ════════════════════════════════════════════════════════════════
+    with _rlt2:
+
+        st.markdown(
+            "<div style='background:linear-gradient(90deg,#E8F5E9,#fff);"
+            "border-left:4px solid #2E7D32;border-radius:0 8px 8px 0;"
+            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1B5E20'>"
+            "Identifica regiões sem cobertura da rede GF, postos estratégicos e "
+            "potenciais parceiros para expansão da rede.</div>",
+            unsafe_allow_html=True,
+        )
+
+        _oc_t1, _oc_t2, _oc_t3 = st.tabs([
+            "🗺️ Regiões sem Cobertura",
+            "📌 Postos Estratégicos",
+            "🤝 Potenciais Parceiros",
+        ])
+
+        # ── Dados base ──────────────────────────────────────────────
+        _pf_coords_oc = st.session_state.get("pf_coords_df", pd.DataFrame())
+        _pp_df_oc     = st.session_state.get("_pp_df")
+        _intel_oc     = _intel_load()
+        _hist_oc      = _intel_oc.get("historico", {})
+        _cnpjs_pf_oc  = st.session_state.get("cnpjs_pro_frotas", set())
+
+        # UFs com postos GF
+        _ufs_com_gf = set()
+        if not _pf_coords_oc.empty and "uf" in _pf_coords_oc.columns:
+            _ufs_com_gf = set(_pf_coords_oc["uf"].dropna().str.upper().str.strip().unique())
+
+        # ── Sub-tab 1 — Regiões sem Cobertura ─────────────────────
+        with _oc_t1:
+            _ufs_sem_gf = sorted([u for u in UFS if u not in _ufs_com_gf])
+            _ufs_poucos = []
+            if not _pf_coords_oc.empty and "uf" in _pf_coords_oc.columns:
+                _cnt_por_uf = _pf_coords_oc.groupby(
+                    _pf_coords_oc["uf"].str.upper().str.strip()
+                ).size()
+                _ufs_poucos = sorted(
+                    _cnt_por_uf[_cnt_por_uf < 3].index.tolist()
+                )
+
+            _oc1a, _oc1b = st.columns(2)
+            with _oc1a:
+                st.markdown(
+                    f"<div style='background:#fff3e0;border:1px solid #FFB300;"
+                    f"border-radius:8px;padding:10px 14px;text-align:center'>"
+                    f"<div style='font-size:2rem;font-weight:800;color:#E65100'>"
+                    f"{len(_ufs_sem_gf)}</div>"
+                    f"<div style='font-size:12px;color:#BF360C'>"
+                    f"UFs <b>sem nenhum</b> posto GF</div></div>",
+                    unsafe_allow_html=True,
+                )
+            with _oc1b:
+                st.markdown(
+                    f"<div style='background:#fce4ec;border:1px solid #EF9A9A;"
+                    f"border-radius:8px;padding:10px 14px;text-align:center'>"
+                    f"<div style='font-size:2rem;font-weight:800;color:#B71C1C'>"
+                    f"{len(_ufs_poucos)}</div>"
+                    f"<div style='font-size:12px;color:#880E4F'>"
+                    f"UFs com <b>menos de 3</b> postos GF</div></div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+            if _ufs_sem_gf:
+                st.markdown("##### 🚫 UFs sem cobertura GF")
+                _uf_sem_cols = st.columns(6)
+                for _i_uf, _uf_sg in enumerate(_ufs_sem_gf):
+                    with _uf_sem_cols[_i_uf % 6]:
+                        st.markdown(
+                            f"<div style='background:#FFEEEE;border:1px solid #EF9A9A;"
+                            f"border-radius:6px;padding:4px 8px;text-align:center;"
+                            f"font-size:11px;font-weight:700;color:#B71C1C;"
+                            f"margin-bottom:4px'>{_uf_sg}</div>",
+                            unsafe_allow_html=True,
+                        )
+
+            if _ufs_poucos:
+                st.markdown("##### ⚠️ UFs com cobertura insuficiente (< 3 postos)")
+                _df_uf_poucos = pd.DataFrame([
+                    {
+                        "UF": _uf_p,
+                        "Postos GF": int(_cnt_por_uf.get(_uf_p, 0)),
+                        "Oportunidade": "🔴 Alta" if int(_cnt_por_uf.get(_uf_p, 0)) == 1
+                                        else "🟠 Média",
+                    }
+                    for _uf_p in _ufs_poucos
+                ])
+                st.dataframe(_df_uf_poucos, use_container_width=True, hide_index=True)
+
+            if not _ufs_sem_gf and not _ufs_poucos:
+                st.success("✅ Todos os estados têm cobertura GF adequada (≥ 3 postos).")
+
+            # Mapa de cobertura por UF
+            if not _pf_coords_oc.empty:
+                st.markdown("##### 🗺️ Distribuição de postos GF por UF")
+                if "uf" in _pf_coords_oc.columns:
+                    _map_uf_cnt = _pf_coords_oc.groupby(
+                        _pf_coords_oc["uf"].str.upper().str.strip()
+                    ).size().reset_index(name="postos")
+                    _map_uf_cnt.columns = ["UF", "Postos GF"]
+                    _map_uf_cnt = _map_uf_cnt.sort_values("Postos GF", ascending=False)
+                    _fig_bar_uf = go.Figure(go.Bar(
+                        x=_map_uf_cnt["UF"],
+                        y=_map_uf_cnt["Postos GF"],
+                        marker_color=[
+                            "#B71C1C" if v < 3 else "#FFA000" if v < 6 else "#2E7D32"
+                            for v in _map_uf_cnt["Postos GF"]
+                        ],
+                        text=_map_uf_cnt["Postos GF"],
+                        textposition="outside",
+                    ))
+                    _fig_bar_uf.update_layout(
+                        height=280, margin=dict(l=0, r=0, t=10, b=0),
+                        xaxis_title="", yaxis_title="Postos GF",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        paper_bgcolor="rgba(0,0,0,0)",
+                    )
+                    st.plotly_chart(_fig_bar_uf, use_container_width=True)
+                    st.caption("🔴 < 3 postos · 🟠 3-5 postos · 🟢 ≥ 6 postos")
+
+        # ── Sub-tab 2 — Postos Estratégicos ───────────────────────
+        with _oc_t2:
+            st.markdown(
+                "Postos da rede ANP (não GF) que aparecem no histórico de preços "
+                "com preço competitivo — candidatos a parceria ou monitoramento prioritário."
+            )
+            if _pp_df_oc is not None and not _pf_coords_oc.empty:
+                # Postos no _pp_df que NÃO são GF
+                _cnpjs_gf_str = {str(c).zfill(14) for c in _cnpjs_pf_oc}
+                _pp_not_gf = _pp_df_oc[
+                    ~_pp_df_oc.get("cnpj_norm", pd.Series(dtype=str)).isin(_cnpjs_gf_str)
+                ] if "cnpj_norm" in _pp_df_oc.columns else pd.DataFrame()
+
+                if not _pp_not_gf.empty:
+                    # Agrupa por posto
+                    _grp_ng = (
+                        _pp_not_gf.groupby(
+                            ["cnpj_norm"] + [
+                                c for c in ["razaoSocial", "municipio", "uf"]
+                                if c in _pp_not_gf.columns
+                            ]
+                        )["preco"].mean().reset_index()
+                    )
+                    # Compara com média da UF dos postos GF
+                    _media_uf_gf = {}
+                    if "uf" in _pf_coords_oc.columns and "preco" in _pp_df_oc.columns:
+                        _gf_preco_uf = _pp_df_oc[
+                            _pp_df_oc.get("cnpj_norm", pd.Series(dtype=str)).isin(_cnpjs_gf_str)
+                        ] if "cnpj_norm" in _pp_df_oc.columns else pd.DataFrame()
+                        if not _gf_preco_uf.empty and "uf" in _gf_preco_uf.columns:
+                            _media_uf_gf = dict(
+                                _gf_preco_uf.groupby("uf")["preco"].mean()
+                            )
+
+                    _est_rows = []
+                    for _, _r_ng in _grp_ng.iterrows():
+                        _uf_ng   = str(_r_ng.get("uf", "")).upper()
+                        _preco_ng = float(_r_ng["preco"]) if pd.notna(_r_ng["preco"]) else None
+                        _med_gf_uf = _media_uf_gf.get(_uf_ng)
+                        _competit  = "—"
+                        if _preco_ng and _med_gf_uf and _med_gf_uf > 0:
+                            _diff_p = (_preco_ng - _med_gf_uf) / _med_gf_uf * 100
+                            _competit = f"{_diff_p:+.1f}%".replace(".", ",")
+                        _est_rows.append({
+                            "CNPJ":       str(_r_ng.get("cnpj_norm", "")).zfill(14),
+                            "Posto":      str(_r_ng.get("razaoSocial", ""))[:35],
+                            "Município":  str(_r_ng.get("municipio", "")),
+                            "UF":         _uf_ng,
+                            "Preço médio": _br_moeda(_preco_ng, 3) if _preco_ng else "—",
+                            "vs Rede GF": _competit,
+                        })
+
+                    if _est_rows:
+                        _df_est = pd.DataFrame(_est_rows)
+                        st.markdown(
+                            f"**{_br_int(len(_df_est))} postos não-GF** identificados no histórico de preços:"
+                        )
+                        st.dataframe(_df_est, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Nenhum posto fora da rede GF encontrado nos dados de preço carregados.")
+                else:
+                    st.info("Todos os postos com preço carregado já fazem parte da rede GF.")
+            else:
+                st.info(
+                    "Carregue os **Preços PP** e os **postos GF** via Configurações "
+                    "para identificar postos estratégicos."
+                )
+
+        # ── Sub-tab 3 — Potenciais Parceiros ─────────────────────
+        with _oc_t3:
+            st.markdown(
+                "Postos fora da rede GF que aparecem no histórico de preços com "
+                "preços abaixo da média do mercado — candidatos a convite de parceria."
+            )
+            _parc_rows = []
+            for _cnpj_hi, _evts_hi in _hist_oc.items():
+                _cnpj_clean = str(_cnpj_hi).replace(".", "").replace("/", "").replace("-", "").zfill(14)
+                if _cnpj_clean in {str(c).zfill(14) for c in _cnpjs_pf_oc}:
+                    continue  # já é GF
+                _precos_hi = [float(e["preco"]) for e in _evts_hi
+                              if isinstance(e, dict) and e.get("preco")]
+                if len(_precos_hi) < 2:
+                    continue
+                _med_hi = sum(_precos_hi) / len(_precos_hi)
+                _var_hi = (max(_precos_hi) - min(_precos_hi)) / _med_hi * 100 if _med_hi > 0 else 0
+                _uf_hi  = str((_evts_hi[0].get("uf") or "")) if _evts_hi else ""
+                _nome_hi= str((_evts_hi[0].get("nome") or _evts_hi[0].get("razao_social", "")))[:35]
+                _parc_rows.append({
+                    "CNPJ":          _cnpj_clean,
+                    "Posto":         _nome_hi,
+                    "UF":            _uf_hi.upper(),
+                    "Preço médio":   _br_moeda(_med_hi, 3),
+                    "Variação (%)":  f"{_var_hi:.1f}%".replace(".", ","),
+                    "Histórico":     f"{len(_precos_hi)} registros",
+                    "Potencial":     "🟢 Alto" if _var_hi < 3 else "🟡 Médio",
+                })
+
+            if _parc_rows:
+                _df_parc = pd.DataFrame(_parc_rows).sort_values("Preço médio")
+                st.markdown(
+                    f"**{_br_int(len(_df_parc))} potenciais parceiros** identificados no histórico:"
+                )
+                # Filtro rápido
+                _parc_uf_filt = st.multiselect(
+                    "Filtrar por UF", sorted(set(_df_parc["UF"])),
+                    placeholder="Todas as UFs",
+                    key="parc_uf_filt",
+                )
+                if _parc_uf_filt:
+                    _df_parc = _df_parc[_df_parc["UF"].isin(_parc_uf_filt)]
+                st.dataframe(_df_parc, use_container_width=True, hide_index=True)
+            else:
+                st.info(
+                    "Nenhum potencial parceiro identificado ainda. "
+                    "Registre mais preços via upload de Preços PP para enriquecer o histórico."
+                )
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 3 — PERFORMANCE POR POSTO
+    # ════════════════════════════════════════════════════════════════
+    with _rlt3:
+
+        st.markdown(
+            "<div style='background:linear-gradient(90deg,#FFF8E1,#fff);"
+            "border-left:4px solid #F9A825;border-radius:0 8px 8px 0;"
+            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#E65100'>"
+            "Analisa a evolução do score, competitividade de preço e consistência "
+            "de cada posto GF ao longo do tempo.</div>",
+            unsafe_allow_html=True,
+        )
+
+        _intel_perf = _intel_load()
+        _hist_perf  = _intel_perf.get("historico", {})
+
+        if not _hist_perf:
+            st.info(
+                "Nenhum histórico de preços disponível. "
+                "Carregue preços via Configurações → Preços PP para ativar este relatório."
+            )
+        else:
+            # ── Seletor de posto ─────────────────────────────────────
+            _postos_hist = []
+            for _cnpj_p, _evts_p in _hist_perf.items():
+                if isinstance(_evts_p, list) and _evts_p:
+                    _nome_p = str(_evts_p[0].get("nome") or _evts_p[0].get("razao_social", ""))[:45]
+                    _uf_p   = str(_evts_p[0].get("uf", ""))
+                    _postos_hist.append({
+                        "cnpj":  _cnpj_p,
+                        "label": f"{_nome_p} ({_uf_p}) — {_cnpj_p}",
+                    })
+            _postos_hist.sort(key=lambda x: x["label"])
+
+            if not _postos_hist:
+                st.info("Nenhum posto com histórico de preços encontrado.")
+            else:
+                _opts_postos = [p["label"] for p in _postos_hist]
+                _sel_posto_idx = st.selectbox(
+                    "📍 Selecionar Posto",
+                    range(len(_opts_postos)),
+                    format_func=lambda i: _opts_postos[i],
+                    key="perf_posto_sel",
+                )
+                _sel_posto = _postos_hist[_sel_posto_idx]
+                _evts_sel  = _hist_perf.get(_sel_posto["cnpj"], [])
+
+                if not _evts_sel:
+                    st.warning("Nenhum histórico encontrado para este posto.")
+                else:
+                    # Constrói DataFrame do histórico do posto
+                    _df_posto_hist = pd.DataFrame([
+                        {
+                            "data":        pd.to_datetime(str(e.get("data") or e.get("data_ref", ""))[:10], errors="coerce"),
+                            "preco":       float(e.get("preco") or 0),
+                            "combustivel": str(e.get("combustivel", "")).upper().strip(),
+                            "municipio":   str(e.get("municipio", "")),
+                            "uf":          str(e.get("uf", "")).upper(),
+                        }
+                        for e in _evts_sel if isinstance(e, dict)
+                    ])
+                    _df_posto_hist = _df_posto_hist.dropna(subset=["data"])
+                    _df_posto_hist = _df_posto_hist[_df_posto_hist["preco"] > 0]
+                    _df_posto_hist = _df_posto_hist.sort_values("data")
+
+                    _pp1, _pp2, _pp3 = st.tabs([
+                        "📈 Evolução do Score",
+                        "⚡ Competitividade",
+                        "🎯 Consistência",
+                    ])
+
+                    # ── Sub-tab — Evolução do Score ─────────────────
+                    with _pp1:
+                        st.markdown(
+                            "**Como o preço deste posto evoluiu ao longo do tempo** "
+                            "e qual seria seu score em cada período."
+                        )
+                        # Calcula score simplificado ao longo do tempo (preço vs média histórica)
+                        _preco_geral_med = float(_df_posto_hist["preco"].mean())
+                        _df_posto_hist["score_preco"] = _df_posto_hist["preco"].apply(
+                            lambda _p: max(0, min(100, 75 - ((_p - _preco_geral_med) / max(_preco_geral_med, 0.01)) * 200))
+                        )
+                        _df_posto_hist["grade"] = _df_posto_hist["score_preco"].apply(
+                            lambda s: "A" if s >= 75 else "B" if s >= 55 else "C" if s >= 35 else "D"
+                        )
+
+                        _fig_score = go.Figure()
+                        _fig_score.add_trace(go.Scatter(
+                            x=_df_posto_hist["data"],
+                            y=_df_posto_hist["score_preco"],
+                            mode="lines+markers",
+                            name="Score",
+                            line=dict(color="#1565C0", width=2),
+                            fill="tozeroy",
+                            fillcolor="rgba(21,101,192,0.1)",
+                            hovertemplate="Data: %{x|%d/%m/%Y}<br>Score: %{y:.0f}<extra></extra>",
+                        ))
+                        # Linhas de referência para grades
+                        for _g_val, _g_lbl, _g_col in [(75, "A", "#2E7D32"), (55, "B", "#F9A825"), (35, "C", "#E65100")]:
+                            _fig_score.add_hline(y=_g_val, line_dash="dot",
+                                                  annotation_text=f" Grau {_g_lbl}",
+                                                  line_color=_g_col, annotation_font_size=9)
+                        _fig_score.update_layout(
+                            height=280, margin=dict(l=0, r=0, t=10, b=0),
+                            yaxis=dict(range=[0, 105], title="Score"),
+                            xaxis_title="",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                        )
+                        st.plotly_chart(_fig_score, use_container_width=True)
+
+                        # Distribuição de grades
+                        _grade_cnt = _df_posto_hist["grade"].value_counts().reset_index()
+                        _grade_cnt.columns = ["Grau", "Registros"]
+                        _grade_cnt["Cor"] = _grade_cnt["Grau"].map(
+                            {"A": "#2E7D32", "B": "#F9A825", "C": "#E65100", "D": "#B71C1C"}
+                        )
+                        _pcm1, _pcm2, _pcm3, _pcm4 = st.columns(4)
+                        for _gc_i, _gc_row in _grade_cnt.iterrows():
+                            _col_g = [_pcm1, _pcm2, _pcm3, _pcm4][min(_gc_i, 3)]
+                            _col_g.metric(
+                                f"Grau {_gc_row['Grau']}",
+                                f"{_gc_row['Registros']} registros",
+                            )
+
+                    # ── Sub-tab — Competitividade ──────────────────
+                    with _pp2:
+                        st.markdown(
+                            "**Preço deste posto vs média do histórico completo** "
+                            "por combustível."
+                        )
+                        _combust_disp = sorted(_df_posto_hist["combustivel"].unique())
+                        _comb_sel_p = st.selectbox(
+                            "Combustível", _combust_disp,
+                            key="perf_comb_sel",
+                        )
+                        _df_comb_sel = _df_posto_hist[_df_posto_hist["combustivel"] == _comb_sel_p]
+
+                        if not _df_comb_sel.empty:
+                            # Média geral do mesmo combustível em todos os postos do histórico
+                            _precos_todos_comb = []
+                            for _ev_all in _hist_perf.values():
+                                if isinstance(_ev_all, list):
+                                    for _ev_it in _ev_all:
+                                        if (isinstance(_ev_it, dict)
+                                                and str(_ev_it.get("combustivel","")).upper().strip() == _comb_sel_p
+                                                and _ev_it.get("preco")):
+                                            _precos_todos_comb.append(float(_ev_it["preco"]))
+                            _media_todos = sum(_precos_todos_comb) / len(_precos_todos_comb) if _precos_todos_comb else None
+
+                            _fig_comp = go.Figure()
+                            _fig_comp.add_trace(go.Scatter(
+                                x=_df_comb_sel["data"],
+                                y=_df_comb_sel["preco"],
+                                mode="lines+markers",
+                                name="Preço do Posto",
+                                line=dict(color="#1565C0", width=2),
+                                hovertemplate="Data: %{x|%d/%m/%Y}<br>R$ %{y:.3f}<extra></extra>",
+                            ))
+                            if _media_todos:
+                                _fig_comp.add_hline(
+                                    y=_media_todos,
+                                    line_dash="dash",
+                                    annotation_text=f" Média rede ({_br_moeda(_media_todos, 3)})",
+                                    line_color="#E65100",
+                                    annotation_font_size=9,
+                                )
+                            _fig_comp.update_layout(
+                                height=280, margin=dict(l=0, r=0, t=10, b=0),
+                                yaxis_title="R$/L",
+                                xaxis_title="",
+                                plot_bgcolor="rgba(0,0,0,0)",
+                                paper_bgcolor="rgba(0,0,0,0)",
+                            )
+                            st.plotly_chart(_fig_comp, use_container_width=True)
+
+                            # Resumo competitividade
+                            _preco_med_posto = float(_df_comb_sel["preco"].mean())
+                            if _media_todos and _media_todos > 0:
+                                _diff_comp = (_preco_med_posto - _media_todos) / _media_todos * 100
+                                _sinal = "🟢 Abaixo" if _diff_comp < 0 else "🔴 Acima"
+                                st.markdown(
+                                    f"**Preço médio do posto:** {_br_moeda(_preco_med_posto, 3)} · "
+                                    f"**Média da rede:** {_br_moeda(_media_todos, 3)} · "
+                                    f"**Posição:** {_sinal} da média em "
+                                    f"**{abs(_diff_comp):.1f}%**"
+                                )
+
+                    # ── Sub-tab — Consistência ─────────────────────
+                    with _pp3:
+                        st.markdown(
+                            "**Quão estável é o preço deste posto** — postos com baixo "
+                            "coeficiente de variação (CV) são mais previsíveis para planejamento."
+                        )
+                        _consist_rows = []
+                        for _cb_cs in sorted(_df_posto_hist["combustivel"].unique()):
+                            _df_cs = _df_posto_hist[_df_posto_hist["combustivel"] == _cb_cs]
+                            if len(_df_cs) < 2:
+                                continue
+                            _med_cs = float(_df_cs["preco"].mean())
+                            _std_cs = float(_df_cs["preco"].std())
+                            _cv_cs  = _std_cs / _med_cs * 100 if _med_cs > 0 else 0
+                            _consist_rows.append({
+                                "Combustível":      _cb_cs,
+                                "Registros":        str(len(_df_cs)),
+                                "Preço mínimo":     _br_moeda(_df_cs["preco"].min(), 3),
+                                "Preço médio":      _br_moeda(_med_cs, 3),
+                                "Preço máximo":     _br_moeda(_df_cs["preco"].max(), 3),
+                                "Desvio padrão":    _br_moeda(_std_cs, 4),
+                                "CV (%)":           f"{_cv_cs:.2f}%".replace(".", ","),
+                                "Consistência":     (
+                                    "🟢 Alta" if _cv_cs < 2 else
+                                    "🟡 Média" if _cv_cs < 5 else
+                                    "🔴 Baixa"
+                                ),
+                            })
+
+                        if _consist_rows:
+                            st.dataframe(
+                                pd.DataFrame(_consist_rows),
+                                use_container_width=True,
+                                hide_index=True,
+                            )
+                            # Boxplot de preços por combustível
+                            _fig_box = go.Figure()
+                            for _cb_bx in sorted(_df_posto_hist["combustivel"].unique()):
+                                _v_bx = _df_posto_hist[
+                                    _df_posto_hist["combustivel"] == _cb_bx
+                                ]["preco"].tolist()
+                                if _v_bx:
+                                    _fig_box.add_trace(go.Box(
+                                        y=_v_bx, name=_cb_bx[:20],
+                                        boxpoints="all", jitter=0.4,
+                                        marker_size=5,
+                                    ))
+                            _fig_box.update_layout(
+                                height=260,
+                                margin=dict(l=0, r=0, t=10, b=0),
+                                yaxis_title="R$/L",
+                                plot_bgcolor="rgba(0,0,0,0)",
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                showlegend=False,
+                            )
+                            st.plotly_chart(_fig_box, use_container_width=True)
+                            st.caption(
+                                "🟢 CV < 2% = Alta consistência · "
+                                "🟡 CV 2-5% = Consistência média · "
+                                "🔴 CV > 5% = Preço instável"
+                            )
+                        else:
+                            st.info("Histórico insuficiente para calcular consistência (mínimo 2 registros por combustível).")
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 if (
