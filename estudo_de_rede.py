@@ -10596,6 +10596,17 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🧠 Inteligência", modo_override="🧠 Inteligência")
         st.rerun()
 
+    if st.button(
+        "🤖 Recomendador IA",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🤖 Recomendador IA" else "secondary",
+        key="btn_recomendador",
+        help="Melhor posto por custo, qualidade e confiabilidade — baseado em histórico e comportamento da frota",
+    ):
+        st.session_state["modo_selecionado"] = "🤖 Recomendador IA"
+        _log_acesso("MODO_SELECIONADO", "🤖 Recomendador IA", modo_override="🤖 Recomendador IA")
+        st.rerun()
+
     _var_badge_sb = (" 🔔" if st.session_state.get("_pp_variacao") is not None
                      and not st.session_state["_pp_variacao"].empty else "")
     if st.button(
@@ -23586,6 +23597,557 @@ elif modo == "📄 Documentação":
             "📄 Arquivo de documentação não encontrado.\n\n"
             "Certifique-se de que o arquivo **Gestao de Frotas.pdf** está na raiz do repositório."
         )
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Recomendador IA
+# ═══════════════════════════════════════════════════════════════════
+elif modo == "🤖 Recomendador IA":
+    import numpy as _np_rec
+
+    st.markdown(
+        """
+        <div style="background:linear-gradient(90deg,#0a1628,#1a3a6a);
+                    border-radius:10px;padding:18px 24px;margin-bottom:20px;">
+          <h3 style="color:#fff;margin:0;font-size:1.25rem;">
+            🤖 Recomendador Inteligente de Postos
+          </h3>
+          <p style="color:#a8c4f0;margin:4px 0 0;font-size:.85rem;">
+            Motor multi-critério · Custo total · Qualidade · Confiabilidade
+            · Baseado em histórico de preços e comportamento real da frota
+          </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ── Carregar todas as fontes de dados ────────────────────────────
+    _rec_pf      = st.session_state.get("pf_coords_df", pd.DataFrame())
+    _rec_pp      = st.session_state.get("_pp_df")
+    _rec_intel   = _intel_load()
+    _rec_hist    = _rec_intel.get("historico") or {}
+    _rec_abast   = _db_carregar_abastecimentos()
+    _rec_acordos = _db_carregar_acordos()
+
+    if _rec_pf.empty:
+        st.info(
+            "ℹ️ Carregue a planilha **Gestão de Frotas** em Configurações "
+            "para ativar o Recomendador IA.",
+            icon="🤖",
+        )
+    else:
+        # ── Filtros ──────────────────────────────────────────────────
+        _rf1, _rf2, _rf3 = st.columns([2, 2, 2])
+        with _rf1:
+            _rec_ufs_all = sorted(
+                _rec_pf["uf"].dropna().str.upper().unique().tolist()
+                if "uf" in _rec_pf.columns else []
+            )
+            _rec_uf_sel = st.multiselect(
+                "📍 UF(s) de interesse",
+                _rec_ufs_all,
+                default=_rec_ufs_all[:5] if len(_rec_ufs_all) >= 5 else _rec_ufs_all,
+                key="rec_uf_sel",
+            )
+        with _rf2:
+            _rec_combs_pp = []
+            if _rec_pp is not None and "combustivel_label" in _rec_pp.columns:
+                _rec_combs_pp = sorted(
+                    _rec_pp["combustivel_label"].dropna().str.strip().unique().tolist()
+                )
+            _rec_comb_sel = st.selectbox(
+                "⛽ Combustível principal",
+                _rec_combs_pp or ["Diesel S10", "Diesel", "Gasolina"],
+                key="rec_comb_sel",
+            )
+        with _rf3:
+            _rec_top_n = st.slider(
+                "🏆 Top N postos por objetivo",
+                min_value=3, max_value=10, value=5,
+                key="rec_top_n",
+            )
+
+        # ── Pré-computar índices auxiliares ──────────────────────────
+
+        # 1. Mediana de preço do combustível selecionado
+        _rec_med_ref = None
+        if _rec_pp is not None and "preco" in _rec_pp.columns:
+            _rec_pp_comb = _rec_pp[
+                _rec_pp.get("combustivel_label", _rec_pp.get("combustivel_pk", pd.Series()))
+                .str.strip() == _rec_comb_sel
+            ] if "combustivel_label" in _rec_pp.columns else _rec_pp
+            _rec_med_ref = pd.to_numeric(
+                _rec_pp_comb["preco"], errors="coerce"
+            ).median()
+            if pd.isna(_rec_med_ref):
+                _rec_med_ref = None
+
+        # 2. Mapa de preço atual por CNPJ (média do combustível selecionado)
+        _rec_preco_map: dict[str, float] = {}
+        if _rec_pp is not None and "cnpj_norm" in _rec_pp.columns:
+            _col_comb_pp = (
+                "combustivel_label" if "combustivel_label" in _rec_pp.columns
+                else "combustivel_pk"
+            )
+            for _cn_r, _grp_r in _rec_pp.groupby("cnpj_norm"):
+                _sub_c = _grp_r[_grp_r[_col_comb_pp].str.strip() == _rec_comb_sel]
+                if not _sub_c.empty:
+                    _pv_r = pd.to_numeric(_sub_c["preco"], errors="coerce").mean()
+                    if pd.notna(_pv_r):
+                        _rec_preco_map[str(_cn_r)] = float(_pv_r)
+
+        # 3. Estatísticas do histórico por CNPJ
+        _rec_hist_stats: dict[str, dict] = {}
+        for _h_cnpj, _h_list in _rec_hist.items():
+            _h_prices = [
+                float(e["preco"]) for e in (_h_list or [])
+                if e.get("preco") and (
+                    _rec_comb_sel.lower() in str(e.get("combustivel","")).lower()
+                    or not _rec_comb_sel
+                )
+            ]
+            _h_dates  = sorted([e["data"] for e in (_h_list or []) if e.get("data")])
+            if _h_prices:
+                _sigma    = float(_np_rec.std(_h_prices)) if len(_h_prices) > 1 else 0.0
+                _n_obs    = len(_h_prices)
+                _span_days = 0
+                if len(_h_dates) >= 2:
+                    try:
+                        _d0 = pd.to_datetime(_h_dates[0])
+                        _d1 = pd.to_datetime(_h_dates[-1])
+                        _span_days = (_d1 - _d0).days
+                    except Exception:
+                        pass
+                # Tendência linear (slope R$/dia)
+                _slope_r = 0.0
+                if len(_h_prices) >= 3:
+                    try:
+                        _xs_h = _np_rec.arange(len(_h_prices), dtype=float)
+                        _slope_r = float(_np_rec.polyfit(_xs_h, _h_prices, 1)[0])
+                    except Exception:
+                        pass
+                _rec_hist_stats[_h_cnpj] = {
+                    "sigma":      _sigma,
+                    "n_obs":      _n_obs,
+                    "span_days":  _span_days,
+                    "slope":      _slope_r,  # R$/dia
+                    "preco_med":  float(_np_rec.mean(_h_prices)),
+                }
+
+        # 4. Frequência de uso da frota por CNPJ
+        _rec_freq_map: dict[str, int]   = {}
+        _rec_vol_map:  dict[str, float] = {}
+        if _rec_abast:
+            for _ab in _rec_abast:
+                _ab_cnpj = re.sub(r"\D", "", str(_ab.get("cnpj_posto") or ""))
+                if not _ab_cnpj:
+                    continue
+                _rec_freq_map[_ab_cnpj] = _rec_freq_map.get(_ab_cnpj, 0) + 1
+                _ab_lit = pd.to_numeric(_ab.get("litros", 0), errors="coerce") or 0
+                _rec_vol_map[_ab_cnpj]  = _rec_vol_map.get(_ab_cnpj, 0.0) + float(_ab_lit)
+
+        # 5. Acordos vigentes por CNPJ + combustível
+        _rec_acordo_map: dict[str, float] = {}
+        if _rec_acordos is not None and not _rec_acordos.empty:
+            _ac_comb_col = next(
+                (c for c in _rec_acordos.columns if "combustivel" in c.lower()), None
+            )
+            for _, _ac_r in _rec_acordos.iterrows():
+                _ac_cn = re.sub(r"\D", "", str(_ac_r.get("cnpj_posto","") or ""))
+                _ac_pr = pd.to_numeric(_ac_r.get("preco_negociado"), errors="coerce")
+                if _ac_cn and pd.notna(_ac_pr):
+                    _rec_acordo_map[_ac_cn] = float(_ac_pr)
+
+        # 6. Serviços por CNPJ
+        _svc_keys_rec = list(st.session_state.get("_servicos_pf_labels", {}).keys())
+        _n_max_rec    = max(len(_svc_keys_rec), 1)
+
+        # ── Motor de scoring ─────────────────────────────────────────
+        # Para cada posto GF filtrado, calcula 3 índices (0-100 cada)
+
+        _rec_cn_col = next(
+            (c for c in _rec_pf.columns if c.lower() in ("cnpj","cnpj_norm")), None
+        )
+        _rec_nm_col = next(
+            (c for c in _rec_pf.columns
+             if c.lower() in ("razaosocial","razão social","nome")), None
+        )
+        _rec_uf_col = next(
+            (c for c in _rec_pf.columns if c.lower() == "uf"), None
+        )
+        _rec_mu_col = next(
+            (c for c in _rec_pf.columns if c.lower() in ("municipio","município")), None
+        )
+
+        # Filtra por UF selecionada
+        _rec_df_base = _rec_pf.copy()
+        if _rec_uf_sel and _rec_uf_col:
+            _rec_df_base = _rec_df_base[
+                _rec_df_base[_rec_uf_col].str.upper().isin(_rec_uf_sel)
+            ]
+
+        # Normaliza helpers
+        _freq_max = max(_rec_freq_map.values()) if _rec_freq_map else 1
+        _vol_max  = max(_rec_vol_map.values())  if _rec_vol_map  else 1
+        _sigma_vals = [v["sigma"] for v in _rec_hist_stats.values() if v["sigma"] > 0]
+        _sigma_max  = max(_sigma_vals) if _sigma_vals else 1.0
+
+        _rec_scores = []
+        for _, _pr_r in _rec_df_base.iterrows():
+            _cn14 = re.sub(r"\D", "", str(_pr_r.get(_rec_cn_col or "cnpj", ""))).zfill(14) if _rec_cn_col else ""
+            _cn_norm = _cn14
+            _nome_r  = str(_pr_r.get(_rec_nm_col, "—")) if _rec_nm_col else "—"
+            _uf_r    = str(_pr_r.get(_rec_uf_col, "")) if _rec_uf_col else ""
+            _mun_r   = str(_pr_r.get(_rec_mu_col, "")) if _rec_mu_col else ""
+
+            # ── Índice CUSTO (0-100, maior = mais barato) ────────────
+            _preco_r  = _rec_preco_map.get(_cn_norm)
+            _acordo_r = _rec_acordo_map.get(_cn_norm)
+            _preco_ef = _acordo_r if _acordo_r else _preco_r  # usa preço negociado se houver
+            _hist_r   = _rec_hist_stats.get(_cn_norm, {})
+
+            _i_custo  = 50.0  # neutro
+            _custo_motivo = []
+            if _preco_ef and _rec_med_ref and _rec_med_ref > 0:
+                _diff_pct = (_preco_ef - _rec_med_ref) / _rec_med_ref
+                _i_preco  = max(0.0, min(100.0, 50.0 - _diff_pct * 500.0))
+                _i_custo  = _i_preco
+                if _diff_pct < -0.01:
+                    _custo_motivo.append(
+                        f"preço {abs(_diff_pct)*100:.1f}% abaixo da mediana "
+                        f"(R$ {_br_num(_preco_ef, 3)})"
+                    )
+                elif _diff_pct > 0.01:
+                    _custo_motivo.append(
+                        f"preço {_diff_pct*100:.1f}% acima da mediana "
+                        f"(R$ {_br_num(_preco_ef, 3)})"
+                    )
+                else:
+                    _custo_motivo.append(
+                        f"preço na mediana (R$ {_br_num(_preco_ef, 3)})"
+                    )
+            if _acordo_r:
+                _i_custo  = min(100.0, _i_custo + 8.0)  # bônus por acordo
+                _custo_motivo.append("tem acordo de preço negociado ✅")
+            if _hist_r.get("slope", 0) < -0.001:
+                _i_custo = min(100.0, _i_custo + 5.0)   # bônus tendência de queda
+                _custo_motivo.append("tendência de queda de preço 📉")
+            elif _hist_r.get("slope", 0) > 0.002:
+                _i_custo = max(0.0, _i_custo - 5.0)
+                _custo_motivo.append("tendência de alta de preço ⚠️")
+
+            # ── Índice QUALIDADE (0-100) ─────────────────────────────
+            _n_svc_r  = sum(1 for s in _svc_keys_rec if _pr_r.get(s))
+            _i_svc    = min(100.0, _n_svc_r / _n_max_rec * 100.0) if _n_max_rec else 50.0
+            _is_gf    = bool(_pr_r.get("_pro_frotas", False))
+            _i_gf_bon = 15.0 if _is_gf else 0.0
+            # Uso recorrente pela frota = qualidade validada
+            _freq_r   = _rec_freq_map.get(_cn_norm, 0)
+            _i_uso    = min(30.0, _freq_r / _freq_max * 30.0)
+            _i_qual   = min(100.0, _i_svc * 0.55 + _i_gf_bon + _i_uso)
+            _qual_motivo = []
+            if _n_svc_r > 0:
+                _qual_motivo.append(f"{_n_svc_r} serviço(s) disponível(is)")
+            if _is_gf:
+                _qual_motivo.append("credenciado Pro Frotas ⭐")
+            if _freq_r > 0:
+                _qual_motivo.append(
+                    f"usado {_freq_r}× pela frota"
+                )
+
+            # ── Índice CONFIABILIDADE (0-100) ────────────────────────
+            _sigma_r   = _hist_r.get("sigma", None)
+            _n_obs_r   = _hist_r.get("n_obs", 0)
+            _span_r    = _hist_r.get("span_days", 0)
+            _i_conf    = 30.0  # base baixa sem histórico
+            _conf_motivo = []
+            if _sigma_r is not None and _sigma_max > 0:
+                # Estabilidade: 0 = muito instável, 100 = perfeitamente estável
+                _i_estab = max(0.0, min(100.0, 100.0 - (_sigma_r / _sigma_max * 100.0)))
+                _i_conf  = _i_estab * 0.50
+                if _sigma_r < 0.05:
+                    _conf_motivo.append("preço muito estável 🔒")
+                elif _sigma_r > 0.20:
+                    _conf_motivo.append("preço volátil ⚠️")
+            if _n_obs_r > 0:
+                _i_conf += min(25.0, _n_obs_r / 20.0 * 25.0)
+                _conf_motivo.append(f"{_n_obs_r} observações históricas")
+            if _span_r > 30:
+                _i_conf += min(15.0, _span_r / 365.0 * 15.0)
+                _conf_motivo.append(f"{_span_r} dias de histórico")
+            if _freq_r > 2:
+                _i_conf = min(100.0, _i_conf + 10.0)
+                _conf_motivo.append("posto já testado pela frota")
+            _i_conf = min(100.0, _i_conf)
+
+            if not _custo_motivo:
+                _custo_motivo.append("sem dados de preço disponíveis")
+            if not _qual_motivo:
+                _qual_motivo.append("dados de qualidade não mapeados")
+            if not _conf_motivo:
+                _conf_motivo.append("ainda sem histórico de preço")
+
+            _cn14_fmt = (
+                f"{_cn14[:2]}.{_cn14[2:5]}.{_cn14[5:8]}/{_cn14[8:12]}-{_cn14[12:14]}"
+                if len(_cn14) == 14 else _cn_norm
+            )
+
+            _rec_scores.append({
+                "cnpj":         _cn_norm,
+                "cnpj_fmt":     _cn14_fmt,
+                "nome":         _nome_r,
+                "uf":           _uf_r,
+                "municipio":    _mun_r,
+                "i_custo":      round(_i_custo, 1),
+                "i_qual":       round(_i_qual, 1),
+                "i_conf":       round(_i_conf, 1),
+                "preco_ef":     _preco_ef,
+                "acordo":       bool(_acordo_r),
+                "freq":         _freq_r,
+                "n_obs":        _n_obs_r,
+                "sigma":        round(_sigma_r, 4) if _sigma_r is not None else None,
+                "slope":        round(_hist_r.get("slope", 0), 5),
+                "n_svc":        _n_svc_r,
+                "is_gf":        _is_gf,
+                "motivo_custo": " · ".join(_custo_motivo),
+                "motivo_qual":  " · ".join(_qual_motivo),
+                "motivo_conf":  " · ".join(_conf_motivo),
+            })
+
+        _rec_df = pd.DataFrame(_rec_scores) if _rec_scores else pd.DataFrame()
+
+        if _rec_df.empty:
+            st.warning("Nenhum posto encontrado para os filtros selecionados.", icon="⚠️")
+        else:
+            # KPIs globais
+            _rk1, _rk2, _rk3, _rk4 = st.columns(4)
+            _rk1.metric("⛽ Postos analisados", len(_rec_df))
+            _rk2.metric("💰 Com dados de preço",
+                        int(_rec_df["preco_ef"].notna().sum()))
+            _rk3.metric("📜 Com acordo negociado",
+                        int(_rec_df["acordo"].sum()))
+            _rk4.metric("🚛 Usados pela frota",
+                        int((_rec_df["freq"] > 0).sum()))
+
+            st.divider()
+
+            # ── Três colunas: Top N por objetivo ─────────────────────
+            _MEDAL = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+
+            def _rec_card(rank, row, score_col, score_label, cor_fundo, cor_texto):
+                _medal = _MEDAL[rank] if rank < len(_MEDAL) else f"#{rank+1}"
+                _pname = row["nome"][:32] + ("…" if len(row["nome"]) > 32 else "")
+                _loc   = f"{row['municipio']}/{row['uf']}" if row["municipio"] else row["uf"]
+                _score = row[score_col]
+                _grau  = ("A" if _score >= 75 else "B" if _score >= 55
+                           else "C" if _score >= 35 else "D")
+                _p_txt = (f"R$ {_br_num(row['preco_ef'], 3)}/L"
+                          if row["preco_ef"] else "sem preço")
+                _motivo = row[f"motivo_{score_col.split('_')[1]}"]
+                st.markdown(
+                    f"""<div style="background:{cor_fundo};border-radius:10px;
+                        padding:12px 14px;margin-bottom:8px;border-left:4px solid {cor_texto}">
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <span style="font-size:1.2rem">{_medal}</span>
+                        <span style="background:{cor_texto};color:#fff;border-radius:12px;
+                              padding:2px 10px;font-size:.75rem;font-weight:700">{_grau} · {_score:.0f}pts</span>
+                      </div>
+                      <div style="font-weight:700;color:#fff;margin:6px 0 2px;
+                           font-size:.92rem">{_pname}</div>
+                      <div style="color:#ccc;font-size:.78rem">{_loc}</div>
+                      <div style="color:#aaa;font-size:.75rem;margin-top:2px">{_p_txt}</div>
+                      <div style="color:#bbb;font-size:.72rem;margin-top:6px;
+                           border-top:1px solid rgba(255,255,255,.1);padding-top:6px">
+                        {_motivo}
+                      </div>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+
+            _col_c, _col_q, _col_r = st.columns(3, gap="medium")
+
+            with _col_c:
+                st.markdown(
+                    "<div style='text-align:center;background:#0d2a10;border-radius:8px;"
+                    "padding:10px;margin-bottom:12px'>"
+                    "<b style='color:#00e676;font-size:1rem'>💰 Melhor Custo Total</b><br>"
+                    "<small style='color:#88c;'>Preço + acordos + tendência</small></div>",
+                    unsafe_allow_html=True,
+                )
+                _top_custo = _rec_df.nlargest(_rec_top_n, "i_custo").reset_index(drop=True)
+                for _ri, _rr in _top_custo.iterrows():
+                    _rec_card(_ri, _rr, "i_custo", "Custo", "#0d2a10", "#00e676")
+
+            with _col_q:
+                st.markdown(
+                    "<div style='text-align:center;background:#0d1a3a;border-radius:8px;"
+                    "padding:10px;margin-bottom:12px'>"
+                    "<b style='color:#64b5f6;font-size:1rem'>⭐ Melhor Qualidade</b><br>"
+                    "<small style='color:#88c;'>Serviços + GF + uso da frota</small></div>",
+                    unsafe_allow_html=True,
+                )
+                _top_qual = _rec_df.nlargest(_rec_top_n, "i_qual").reset_index(drop=True)
+                for _ri, _rr in _top_qual.iterrows():
+                    _rec_card(_ri, _rr, "i_qual", "Qualidade", "#0d1a3a", "#64b5f6")
+
+            with _col_r:
+                st.markdown(
+                    "<div style='text-align:center;background:#2a1a0d;border-radius:8px;"
+                    "padding:10px;margin-bottom:12px'>"
+                    "<b style='color:#ffb74d;font-size:1rem'>🔒 Mais Confiável</b><br>"
+                    "<small style='color:#88c;'>Estabilidade + histórico + frota</small></div>",
+                    unsafe_allow_html=True,
+                )
+                _top_conf = _rec_df.nlargest(_rec_top_n, "i_conf").reset_index(drop=True)
+                for _ri, _rr in _top_conf.iterrows():
+                    _rec_card(_ri, _rr, "i_conf", "Confiabilidade", "#2a1a0d", "#ffb74d")
+
+            st.divider()
+
+            # ── Recomendação balanceada + radar ───────────────────────
+            st.markdown("#### 🎯 Recomendação Balanceada (Custo 40% · Qualidade 35% · Confiabilidade 25%)")
+
+            _rec_df["i_total"] = (
+                _rec_df["i_custo"] * 0.40
+                + _rec_df["i_qual"]  * 0.35
+                + _rec_df["i_conf"]  * 0.25
+            ).round(1)
+
+            _top_bal = _rec_df.nlargest(3, "i_total").reset_index(drop=True)
+
+            _rb_cols = st.columns(min(3, len(_top_bal)), gap="medium")
+            for _ri, _rr in _top_bal.iterrows():
+                with _rb_cols[_ri]:
+                    _medal_b = _MEDAL[_ri]
+                    _bg_b = ("#1a2e1a" if _ri == 0 else "#1a1a2e" if _ri == 1 else "#2e1a1a")
+                    _bd_b = ("#00e676" if _ri == 0 else "#7b61ff" if _ri == 1 else "#ff6b6b")
+                    _pname_b = _rr["nome"][:30] + ("…" if len(_rr["nome"]) > 30 else "")
+                    _loc_b   = f"{_rr['municipio']}/{_rr['uf']}" if _rr["municipio"] else _rr["uf"]
+                    st.markdown(
+                        f"""<div style="background:{_bg_b};border-radius:12px;
+                            padding:16px;border:2px solid {_bd_b};text-align:center">
+                          <div style="font-size:2rem">{_medal_b}</div>
+                          <div style="font-weight:900;color:#fff;font-size:.95rem;
+                               margin:6px 0">{_pname_b}</div>
+                          <div style="color:#aaa;font-size:.78rem">{_loc_b}</div>
+                          <div style="margin:10px 0 4px">
+                            <span style="background:{_bd_b};color:#000;border-radius:20px;
+                                  padding:3px 14px;font-weight:700;font-size:.88rem">
+                              Score Total: {_rr['i_total']:.1f}
+                            </span>
+                          </div>
+                          <div style="color:#ccc;font-size:.75rem;margin-top:8px;
+                               line-height:1.6">
+                            💰 Custo: <b>{_rr['i_custo']:.0f}</b> &nbsp;
+                            ⭐ Qual: <b>{_rr['i_qual']:.0f}</b> &nbsp;
+                            🔒 Conf: <b>{_rr['i_conf']:.0f}</b>
+                          </div>
+                          {"<div style='margin-top:6px;font-size:.72rem;color:#aaa'>📜 Acordo vigente</div>" if _rr['acordo'] else ""}
+                          {"<div style='font-size:.72rem;color:#aaa'>⭐ Pro Frotas</div>" if _rr['is_gf'] else ""}
+                          {"<div style='font-size:.72rem;color:#aaa'>🚛 Usado " + str(_rr['freq']) + "× pela frota</div>" if _rr['freq'] > 0 else ""}
+                        </div>""",
+                        unsafe_allow_html=True,
+                    )
+
+            # ── Radar chart do posto #1 balanceado ────────────────────
+            if not _top_bal.empty:
+                st.markdown("")
+                _r1 = _top_bal.iloc[0]
+                st.markdown(
+                    f"**🕸️ Perfil de {_r1['nome'][:40]} — posto mais equilibrado**"
+                )
+                _radar_cats = ["💰 Custo", "⭐ Qualidade", "🔒 Confiabilidade",
+                               "🚛 Uso Frota", "📊 Histórico"]
+                _freq_norm_r1 = min(100.0, _r1["freq"] / _freq_max * 100.0) if _freq_max else 0
+                _hist_norm_r1 = min(100.0, _r1["n_obs"] / 20.0 * 100.0)
+                _radar_vals   = [
+                    _r1["i_custo"], _r1["i_qual"], _r1["i_conf"],
+                    round(_freq_norm_r1, 1), round(_hist_norm_r1, 1),
+                ]
+                _radar_vals_closed = _radar_vals + [_radar_vals[0]]
+                _radar_cats_closed = _radar_cats  + [_radar_cats[0]]
+
+                import plotly.graph_objects as _go_rad
+                _fig_radar = _go_rad.Figure()
+                _fig_radar.add_trace(_go_rad.Scatterpolar(
+                    r=_radar_vals_closed,
+                    theta=_radar_cats_closed,
+                    fill="toself",
+                    fillcolor="rgba(0,230,118,0.15)",
+                    line=dict(color="#00e676", width=2),
+                    name=_r1["nome"][:25],
+                ))
+                _fig_radar.update_layout(
+                    polar=dict(
+                        bgcolor="rgba(0,0,0,0)",
+                        radialaxis=dict(
+                            visible=True, range=[0, 100],
+                            tickfont=dict(color="#888"),
+                            gridcolor="#333",
+                        ),
+                        angularaxis=dict(tickfont=dict(color="#ccc"), gridcolor="#333"),
+                    ),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    font_color="#e0e0e0",
+                    showlegend=False,
+                    margin=dict(l=60, r=60, t=40, b=40),
+                    height=340,
+                )
+                st.plotly_chart(_fig_radar, use_container_width=True)
+
+            st.divider()
+
+            # ── Tabela completa ───────────────────────────────────────
+            with st.expander("📋 Ver ranking completo de todos os postos", expanded=False):
+                _rec_tbl = _rec_df[[
+                    "cnpj_fmt","nome","uf","i_custo","i_qual","i_conf","i_total",
+                    "preco_ef","acordo","freq","n_obs","sigma",
+                ]].copy().sort_values("i_total", ascending=False).reset_index(drop=True)
+                _rec_tbl.columns = [
+                    "CNPJ","Posto","UF","Custo","Qualidade","Confiab.","Total",
+                    "Preço R$/L","Acordo","Uso Frota","Obs. Hist.","σ Preço",
+                ]
+                _rec_tbl["Preço R$/L"] = _rec_tbl["Preço R$/L"].apply(
+                    lambda v: f"R$ {_br_num(v,3)}" if pd.notna(v) else "—"
+                )
+                _rec_tbl["σ Preço"] = _rec_tbl["σ Preço"].apply(
+                    lambda v: f"{_br_num(v,4)}" if pd.notna(v) else "—"
+                )
+                _rec_tbl["Acordo"] = _rec_tbl["Acordo"].map({True:"✅",False:""})
+                st.dataframe(
+                    _rec_tbl,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "CNPJ":     st.column_config.TextColumn(width=155),
+                        "Posto":    st.column_config.TextColumn(width=220),
+                        "UF":       st.column_config.TextColumn(width=50),
+                        "Custo":    st.column_config.ProgressColumn("Custo",    min_value=0, max_value=100, format="%.0f"),
+                        "Qualidade":st.column_config.ProgressColumn("Qualidade",min_value=0, max_value=100, format="%.0f"),
+                        "Confiab.": st.column_config.ProgressColumn("Confiab.", min_value=0, max_value=100, format="%.0f"),
+                        "Total":    st.column_config.ProgressColumn("Total",    min_value=0, max_value=100, format="%.0f"),
+                    },
+                )
+
+            # ── Nota metodológica ─────────────────────────────────────
+            with st.expander("ℹ️ Como o Recomendador IA funciona"):
+                st.markdown(
+                    """
+                    **Fontes de dados cruzadas:**
+                    - Planilha Gestão de Frotas (serviços, certificação Pro Frotas)
+                    - Planilha de Preços PP (preço atual por combustível)
+                    - Histórico de preços acumulado (inteligência local)
+                    - Abastecimentos da frota (frequência e volume real de uso)
+                    - Acordos de preço negociados (desconto aplicado)
+
+                    **Três índices (0-100):**
+                    - **💰 Custo Total**: preço atual vs mediana · bônus se há acordo · bônus/penalidade pela tendência histórica
+                    - **⭐ Qualidade**: serviços disponíveis (55%) · certificação Pro Frotas (15%) · uso recorrente pela frota (30%)
+                    - **🔒 Confiabilidade**: estabilidade de preço (σ baixo = melhor) · quantidade de observações históricas · posto já testado pela frota
+
+                    **Score balanceado**: Custo 40% · Qualidade 35% · Confiabilidade 25%
+                    """
+                )
+
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Variação de Preços
