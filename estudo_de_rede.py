@@ -646,6 +646,61 @@ def _db_remove_favorito(cnpj: str) -> bool:
         return False
 
 
+# ── Perfis de Veículo (Roteirização) ──────────────────────────────
+
+def _db_perfis_veiculo() -> list:
+    """Lista perfis de veículo salvos pelo usuário."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        res = db.table("perfis_veiculo") \
+                .select("*") \
+                .eq("usuario_email", _db_email()) \
+                .order("criado_em", desc=False) \
+                .execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def _db_salvar_perfil_veiculo(nome: str, placa: str, combustivel: str,
+                               tanque: float, autonomia: float) -> bool:
+    """Salva um novo perfil de veículo."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("perfis_veiculo").insert({
+            "usuario_email": _db_email(),
+            "nome":          nome.strip() or placa or "Veículo",
+            "placa":         placa.strip().upper(),
+            "combustivel":   combustivel,
+            "tanque":        tanque,
+            "autonomia":     autonomia,
+            "criado_em":     datetime.now().isoformat(),
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _db_deletar_perfil_veiculo(perfil_id) -> bool:
+    """Remove um perfil de veículo."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("perfis_veiculo") \
+          .delete() \
+          .eq("id", perfil_id) \
+          .eq("usuario_email", _db_email()) \
+          .execute()
+        return True
+    except Exception:
+        return False
+
+
 # ── Histórico de Preços ────────────────────────────────────────────
 
 def _db_gravar_preco(cnpj: str, razao_social: str, municipio: str, uf: str,
@@ -11594,6 +11649,39 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
+        # ── Seletor de Perfis de Veículo ─────────────────────────────────
+        _perfis_db = _db_perfis_veiculo()
+        if _perfis_db:
+            st.markdown("<div class='sb-label'>🚗 Perfis Salvos</div>", unsafe_allow_html=True)
+            _perfis_opcoes = ["— Selecione um perfil —"] + [
+                f"{p['nome']} · {p.get('placa','').upper() or '—'}" for p in _perfis_db
+            ]
+            _perfil_sel_idx = st.selectbox(
+                "Perfil de veículo",
+                range(len(_perfis_opcoes)),
+                format_func=lambda i: _perfis_opcoes[i],
+                key="rot_perfil_sel",
+                label_visibility="collapsed",
+            )
+            if _perfil_sel_idx and _perfil_sel_idx > 0:
+                _psel = _perfis_db[_perfil_sel_idx - 1]
+                _c_load, _c_del = st.columns([3, 1])
+                with _c_load:
+                    if st.button("⬇️ Carregar perfil", use_container_width=True,
+                                 key="btn_carregar_perfil"):
+                        st.session_state["rot_placa"]       = _psel.get("placa", "")
+                        st.session_state["rot_combustivel"] = _psel.get("combustivel", "")
+                        st.session_state["rot_capacidade"]  = float(_psel.get("tanque") or 80.0)
+                        st.session_state["rot_autonomia"]   = float(_psel.get("autonomia") or 10.0)
+                        st.toast(f"✅ Perfil **{_psel['nome']}** carregado!", icon="🚛")
+                        st.rerun()
+                with _c_del:
+                    if st.button("🗑️", key="btn_del_perfil",
+                                 help="Excluir este perfil"):
+                        _db_deletar_perfil_veiculo(_psel["id"])
+                        st.toast("Perfil excluído", icon="🗑️")
+                        st.rerun()
+
         st.markdown("<div class='sb-label'>🚛 Dados do Veículo</div>", unsafe_allow_html=True)
 
         st.text_input(
@@ -11653,7 +11741,28 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
+        # ── Salvar como perfil de veículo ────────────────────────────────
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        with st.expander("💾 Salvar como perfil", expanded=False):
+            _nome_perfil = st.text_input(
+                "Nome do perfil",
+                placeholder="Ex: Scania R450 / Bitrem / Carreta",
+                key="rot_nome_perfil",
+            )
+            if st.button("💾 Salvar perfil", use_container_width=True,
+                         key="btn_salvar_perfil_veiculo"):
+                _placa_atual = str(st.session_state.get("rot_placa") or "")
+                _comb_atual  = str(st.session_state.get("rot_combustivel") or "")
+                _tank_atual  = float(st.session_state.get("rot_capacidade") or 80.0)
+                _aut_atual   = float(st.session_state.get("rot_autonomia") or 10.0)
+                _nome_final  = _nome_perfil.strip() or _placa_atual or "Veículo"
+                if _db_salvar_perfil_veiculo(_nome_final, _placa_atual, _comb_atual,
+                                             _tank_atual, _aut_atual):
+                    st.toast(f"✅ Perfil **{_nome_final}** salvo!", icon="🚛")
+                    st.rerun()
+                else:
+                    st.error("❌ Erro ao salvar. Verifique a conexão com o banco.")
+
         st.caption("💡 Configure a origem, destino e paradas na área principal →")
 
     # ── Defaults para variáveis do Modo 2 quando outro modo está ativo ────────
