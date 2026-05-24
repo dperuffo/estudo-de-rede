@@ -1193,6 +1193,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",  # sempre aberta
 )
+st.sidebar.markdown("🔴 **VERSÃO DEBUG 2024**")
 
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
@@ -11061,6 +11062,7 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
         st.rerun()
 
+    st.markdown("**DEBUG1: antes de Relatórios**")
     if st.button(
         "📋 Relatórios",
         use_container_width=True,
@@ -11070,6 +11072,18 @@ with st.sidebar:
     ):
         st.session_state["modo_selecionado"] = "📋 Relatórios"
         _log_acesso("MODO_SELECIONADO", "📋 Relatórios", modo_override="📋 Relatórios")
+        st.rerun()
+    st.markdown("**🔧 DEBUG: chegou aqui**")
+
+    if st.button(
+        "🔌 API & Integrações",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🔌 API & Integrações" else "secondary",
+        key="btn_api_integracoes",
+        help="Documentação da API REST — integre ERPs e sistemas de logística",
+    ):
+        st.session_state["modo_selecionado"] = "🔌 API & Integrações"
+        _log_acesso("MODO_SELECIONADO", "🔌 API & Integrações", modo_override="🔌 API & Integrações")
         st.rerun()
 
     modo = _modo_atual
@@ -27891,6 +27905,767 @@ elif modo == "📋 Relatórios":
                             )
                         else:
                             st.info("Histórico insuficiente para calcular consistência (mínimo 2 registros por combustível).")
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — API & Integrações
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "🔌 API & Integrações":
+
+    import urllib.parse as _urlparse
+
+    _BASE_URL = "https://estudo-de-rede-profrotas.fly.dev"
+    _API_BASE = f"{_BASE_URL}/api/v1"
+
+    # ── Cabeçalho ──────────────────────────────────────────────────
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#0D47A1,#1565C0);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🔌 API & Integrações</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "REST API com autenticação JWT · Integração com ERPs e sistemas de logística</p>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Tabs principais ────────────────────────────────────────────
+    _api_t1, _api_t2, _api_t3, _api_t4 = st.tabs([
+        "📖 Endpoints",
+        "🔐 Autenticação",
+        "💻 Exemplos de Código",
+        "⚙️ Configuração do Servidor",
+    ])
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 1 — ENDPOINTS (Swagger-like)
+    # ════════════════════════════════════════════════════════════════
+    with _api_t1:
+
+        # Link para Swagger externo
+        st.markdown(
+            f"<div style='background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;"
+            f"padding:10px 16px;margin-bottom:16px;font-size:12px'>"
+            f"📚 <b>Swagger UI interativo:</b> "
+            f"<a href='{_BASE_URL}/api/docs' target='_blank'>{_BASE_URL}/api/docs</a>"
+            f" &nbsp;·&nbsp; "
+            f"<b>ReDoc:</b> <a href='{_BASE_URL}/api/redoc' target='_blank'>{_BASE_URL}/api/redoc</a>"
+            f" &nbsp;·&nbsp; "
+            f"<b>OpenAPI JSON:</b> <a href='{_BASE_URL}/api/openapi.json' target='_blank'>openapi.json</a>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+        def _endpoint_card(method: str, path: str, title: str, desc: str,
+                           params: list = None, resp_example: str = "",
+                           auth_required: bool = True):
+            """Renderiza card de endpoint no estilo Swagger."""
+            _method_colors = {
+                "GET":    ("#E8F5E9", "#2E7D32", "#4CAF50"),
+                "POST":   ("#E3F2FD", "#1565C0", "#2196F3"),
+                "DELETE": ("#FCE4EC", "#B71C1C", "#F44336"),
+            }
+            _bg, _txt, _btn = _method_colors.get(method, ("#f5f5f5", "#424242", "#9E9E9E"))
+
+            _jwt_badge = '<span style="font-size:10px;color:#B71C1C;margin-left:8px">🔐 JWT</span>' if auth_required else ''
+            _html = (
+                f"<div style='border:1px solid #E0E0E0;border-radius:8px;"
+                f"margin-bottom:10px;overflow:hidden'>"
+                f"<div style='background:{_bg};padding:10px 14px;display:flex;align-items:center;gap:12px'>"
+                f"<span style='background:{_btn};color:#fff;font-weight:800;font-size:11px;"
+                f"padding:3px 9px;border-radius:4px;min-width:44px;text-align:center'>{method}</span>"
+                f"<code style='font-size:13px;font-weight:700;color:{_txt}'>{path}</code>"
+                f"<span style='font-size:12px;color:#555;margin-left:auto'>{title}</span>"
+                f"{_jwt_badge}"
+                f"</div>"
+                f"<div style='padding:10px 14px;background:#fff;font-size:12px;color:#555'>"
+                f"{desc}"
+                f"</div>"
+                f"</div>"
+            )
+            st.markdown(_html, unsafe_allow_html=True)
+
+            if params:
+                with st.expander(f"Parâmetros — {method} {path}", expanded=False):
+                    _param_rows = []
+                    for _p in params:
+                        _param_rows.append({
+                            "Nome": _p.get("name", ""),
+                            "Tipo": _p.get("type", "string"),
+                            "Obrig.": "✅" if _p.get("required") else "—",
+                            "Descrição": _p.get("desc", ""),
+                            "Exemplo": str(_p.get("example", "")),
+                        })
+                    st.dataframe(pd.DataFrame(_param_rows), hide_index=True, use_container_width=True)
+
+            if resp_example:
+                with st.expander(f"Exemplo de resposta — {method} {path}", expanded=False):
+                    st.code(resp_example, language="json")
+
+        # ── Sistema ────────────────────────────────────────────────
+        st.markdown("#### 🖥️ Sistema")
+        _endpoint_card(
+            "GET", "/api/v1/health", "Health check",
+            "Verifica disponibilidade da API. Não requer autenticação.",
+            auth_required=False,
+            resp_example="""{
+  "status": "ok",
+  "version": "1.0.0",
+  "timestamp": "2026-05-24T14:30:00Z",
+  "database": "configured"
+}""",
+        )
+
+        # ── Autenticação ───────────────────────────────────────────
+        st.markdown("#### 🔐 Autenticação")
+        _endpoint_card(
+            "POST", "/api/v1/auth/token", "Obter Bearer Token JWT",
+            "Autentica com usuário e senha e retorna o token JWT. "
+            "Envie o token no header <code>Authorization: Bearer &lt;token&gt;</code> em todas as chamadas.",
+            auth_required=False,
+            params=[
+                {"name": "username", "type": "string (form)", "required": True,
+                 "desc": "Usuário da API", "example": "admin"},
+                {"name": "password", "type": "string (form)", "required": True,
+                 "desc": "Senha da API", "example": "••••••••"},
+            ],
+            resp_example="""{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIs...",
+  "token_type": "bearer",
+  "expires_in": 86400
+}""",
+        )
+
+        # ── Postos GF ─────────────────────────────────────────────
+        st.markdown("#### 🏪 Postos GF")
+        _endpoint_card(
+            "GET", "/api/v1/postos", "Listar postos da rede GF",
+            "Retorna postos Gestão de Frotas com dados cadastrais e coordenadas geográficas. "
+            "Suporta filtros por UF, município e CNPJ.",
+            params=[
+                {"name": "uf",        "type": "string", "required": False, "desc": "Sigla da UF",      "example": "SP"},
+                {"name": "municipio", "type": "string", "required": False, "desc": "Nome do município (busca parcial)", "example": "Campinas"},
+                {"name": "cnpj",      "type": "string", "required": False, "desc": "CNPJ do posto (14 dígitos)", "example": "12345678000190"},
+                {"name": "limit",     "type": "integer","required": False, "desc": "Máx. registros (1–500)", "example": "100"},
+                {"name": "offset",    "type": "integer","required": False, "desc": "Paginação (início em 0)", "example": "0"},
+            ],
+            resp_example="""{
+  "data": [
+    {
+      "cnpj": "12345678000190",
+      "razao_social": "POSTO EXEMPLO LTDA",
+      "municipio": "São Paulo",
+      "uf": "SP",
+      "lat": -23.5505,
+      "lon": -46.6333,
+      "bandeira": "IPIRANGA"
+    }
+  ],
+  "total": 1,
+  "limit": 100,
+  "offset": 0
+}""",
+        )
+        _endpoint_card(
+            "GET", "/api/v1/postos/{cnpj}", "Buscar posto por CNPJ",
+            "Retorna dados completos de um posto GF específico, incluindo lista de serviços disponíveis.",
+            params=[
+                {"name": "cnpj", "type": "path (string)", "required": True,
+                 "desc": "CNPJ do posto (14 dígitos, sem pontuação)", "example": "12345678000190"},
+            ],
+            resp_example="""{
+  "cnpj": "12345678000190",
+  "razao_social": "POSTO EXEMPLO LTDA",
+  "municipio": "São Paulo",
+  "uf": "SP",
+  "lat": -23.5505,
+  "lon": -46.6333,
+  "bandeira": "IPIRANGA",
+  "servicos": {
+    "tem_loja_conveniencia": true,
+    "tem_banheiro": true,
+    "tem_estacionamento": false
+  }
+}""",
+        )
+
+        # ── Preços ────────────────────────────────────────────────
+        st.markdown("#### ⛽ Preços")
+        _endpoint_card(
+            "GET", "/api/v1/precos", "Tabela de preços atual",
+            "Retorna a tabela de preços mais recente dos postos GF. "
+            "Filtre por UF, combustível ou CNPJ. Ideal para atualização automática de tabelas de custo em ERPs.",
+            params=[
+                {"name": "uf",          "type": "string",  "required": False, "desc": "Sigla da UF", "example": "PR"},
+                {"name": "combustivel", "type": "string",  "required": False, "desc": "Tipo de combustível", "example": "OLEO DIESEL S10"},
+                {"name": "cnpj",        "type": "string",  "required": False, "desc": "CNPJ específico", "example": "12345678000190"},
+                {"name": "limit",       "type": "integer", "required": False, "desc": "Máx. registros (1–1000)", "example": "200"},
+            ],
+            resp_example="""{
+  "data": [
+    {
+      "cnpj": "12345678000190",
+      "razao_social": "POSTO EXEMPLO LTDA",
+      "municipio": "Curitiba",
+      "uf": "PR",
+      "combustivel": "OLEO DIESEL S10",
+      "preco": 6.234,
+      "data_ref": "2026-05-24",
+      "fonte": "PP"
+    }
+  ],
+  "total": 1,
+  "limit": 200,
+  "offset": 0
+}""",
+        )
+        _endpoint_card(
+            "GET", "/api/v1/precos/{cnpj}", "Preço atual por CNPJ",
+            "Retorna o preço mais recente de cada combustível para um posto específico.",
+            params=[
+                {"name": "cnpj",        "type": "path",   "required": True,  "desc": "CNPJ do posto", "example": "12345678000190"},
+                {"name": "combustivel", "type": "string", "required": False, "desc": "Filtrar combustível", "example": "GASOLINA COMUM"},
+            ],
+            resp_example="""{
+  "cnpj": "12345678000190",
+  "precos": [
+    {"combustivel": "OLEO DIESEL S10", "preco": 6.234, "data_ref": "2026-05-24"},
+    {"combustivel": "GASOLINA ADITIVADA", "preco": 6.890, "data_ref": "2026-05-24"}
+  ]
+}""",
+        )
+        _endpoint_card(
+            "GET", "/api/v1/precos/historico/{cnpj}", "Histórico de preços",
+            "Série histórica de preços dos últimos N dias para um posto. "
+            "Ideal para análise de tendência e dashboards de BI.",
+            params=[
+                {"name": "cnpj",        "type": "path",    "required": True,  "desc": "CNPJ do posto", "example": "12345678000190"},
+                {"name": "combustivel", "type": "string",  "required": False, "desc": "Filtrar combustível", "example": "OLEO DIESEL S10"},
+                {"name": "dias",        "type": "integer", "required": False, "desc": "Período (1–730 dias)", "example": "90"},
+            ],
+            resp_example="""[
+  {"data_ref": "2026-03-01", "preco": 6.190, "combustivel": "OLEO DIESEL S10", "fonte": "PP"},
+  {"data_ref": "2026-04-01", "preco": 6.215, "combustivel": "OLEO DIESEL S10", "fonte": "PP"},
+  {"data_ref": "2026-05-01", "preco": 6.234, "combustivel": "OLEO DIESEL S10", "fonte": "PP"}
+]""",
+        )
+
+        # ── Cobertura ─────────────────────────────────────────────
+        st.markdown("#### 🗺️ Cobertura")
+        _endpoint_card(
+            "GET", "/api/v1/ufs", "Cobertura GF por UF",
+            "Lista todas as UFs do Brasil com total de postos GF e flag de cobertura. "
+            "Usado para mapas de calor e análise de gaps.",
+            resp_example="""{
+  "data": [
+    {"uf": "SP", "postos_gf": 128, "tem_cobertura": true},
+    {"uf": "PR", "postos_gf": 47, "tem_cobertura": true},
+    {"uf": "AC", "postos_gf": 0, "tem_cobertura": false}
+  ],
+  "total_postos": 842,
+  "total_ufs_com_cobertura": 23
+}""",
+        )
+
+        # ── Webhook ───────────────────────────────────────────────
+        st.markdown("#### 🔔 Webhooks")
+        _endpoint_card(
+            "POST", "/api/v1/webhook", "Registrar webhook",
+            "Cadastra um endpoint externo para receber notificações quando preços são atualizados, "
+            "novos postos entram na rede, ou postos são removidos. "
+            "O sistema FNI enviará um <code>POST</code> com payload JSON assinado (header <code>X-FNI-Signature</code>).",
+            params=[
+                {"name": "url",       "type": "string (body)", "required": True,  "desc": "URL do seu endpoint", "example": "https://erp.empresa.com/webhooks/fni"},
+                {"name": "eventos",   "type": "array (body)",  "required": False, "desc": "preco_atualizado · novo_posto · posto_removido", "example": "[\"preco_atualizado\"]"},
+                {"name": "descricao", "type": "string (body)", "required": False, "desc": "Identificador do sistema integrado", "example": "ERP Totvs Produção"},
+            ],
+            resp_example="""{
+  "status": "registered",
+  "url": "https://erp.empresa.com/webhooks/fni",
+  "eventos": ["preco_atualizado"],
+  "webhook_id": "wh_00329847",
+  "criado_em": "2026-05-24T14:30:00Z",
+  "instrucao": "Configure seu endpoint para aceitar POST com Content-Type: application/json..."
+}""",
+        )
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 2 — AUTENTICAÇÃO
+    # ════════════════════════════════════════════════════════════════
+    with _api_t2:
+
+        st.markdown("#### 🔐 Bearer Token JWT")
+        st.markdown(
+            "A API usa **Bearer Token JWT (HS256)**. O token é obtido via "
+            "`POST /api/v1/auth/token` com `username` e `password` no corpo "
+            "`application/x-www-form-urlencoded`."
+        )
+
+        _ac1, _ac2 = st.columns([1, 1])
+        with _ac1:
+            st.markdown("##### 1. Obter token")
+            st.code(
+                f"""curl -X POST \\
+  "{_API_BASE}/auth/token" \\
+  -d "username=admin&password=SUA_SENHA"
+""",
+                language="bash",
+            )
+
+        with _ac2:
+            st.markdown("##### 2. Usar o token")
+            st.code(
+                f"""curl \\
+  -H "Authorization: Bearer SEU_TOKEN" \\
+  "{_API_BASE}/postos?uf=SP"
+""",
+                language="bash",
+            )
+
+        st.markdown("---")
+        st.markdown("##### 📋 Variáveis de ambiente necessárias no servidor")
+        _env_data = {
+            "Variável": ["JWT_SECRET", "API_USER", "API_PASS", "JWT_EXPIRE_HOURS",
+                         "SUPABASE_URL", "SUPABASE_KEY"],
+            "Descrição": [
+                "Chave secreta para assinar tokens (use 32+ chars aleatórios)",
+                "Usuário para autenticação da API",
+                "Senha para autenticação da API",
+                "Expiração do token em horas (padrão: 24)",
+                "URL do projeto Supabase",
+                "Chave anon ou service_role do Supabase",
+            ],
+            "Obrigatória": ["✅ Sim", "✅ Sim", "✅ Sim", "— Não", "✅ Sim", "✅ Sim"],
+            "Exemplo": [
+                "openssl rand -hex 32",
+                "admin",
+                "SenhaForte@2026",
+                "24",
+                "https://xyz.supabase.co",
+                "eyJhbGci...",
+            ],
+        }
+        st.dataframe(pd.DataFrame(_env_data), hide_index=True, use_container_width=True)
+
+        st.markdown("##### 🛡️ Configurar secrets no fly.io")
+        st.code(
+            """fly secrets set \\
+  JWT_SECRET="$(openssl rand -hex 32)" \\
+  API_USER="admin" \\
+  API_PASS="SenhaForte@2026" \\
+  SUPABASE_URL="https://xyz.supabase.co" \\
+  SUPABASE_KEY="eyJhbGci..."
+""",
+            language="bash",
+        )
+
+        st.info(
+            "💡 Os secrets ficam criptografados no fly.io e são injetados como variáveis "
+            "de ambiente no container — nunca aparecem em logs ou no código."
+        )
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 3 — EXEMPLOS DE CÓDIGO
+    # ════════════════════════════════════════════════════════════════
+    with _api_t3:
+
+        _lang_sel = st.selectbox(
+            "Linguagem / Sistema",
+            ["🐍 Python", "📦 Node.js / JavaScript", "🔷 cURL (bash)", "☕ Java (OkHttp)", "🟣 PHP"],
+            key="api_lang_sel",
+        )
+
+        if _lang_sel == "🐍 Python":
+            st.markdown("#### Python — Integração completa")
+            st.code(
+                f"""import os
+import requests
+
+# ── Configuração ─────────────────────────────────────────────────
+BASE_URL = "{_BASE_URL}"
+API_BASE = f"{{BASE_URL}}/api/v1"
+
+def get_token(username: str, password: str) -> str:
+    \"\"\"Autentica e retorna o Bearer Token JWT.\"\"\"
+    r = requests.post(
+        f"{{API_BASE}}/auth/token",
+        data={{"username": username, "password": password}},
+    )
+    r.raise_for_status()
+    return r.json()["access_token"]
+
+class FNIClient:
+    \"\"\"Cliente HTTP para a API Fleet Network Intelligence.\"\"\"
+
+    def __init__(self, username: str, password: str):
+        self.token = get_token(username, password)
+        self.headers = {{"Authorization": f"Bearer {{self.token}}"}}
+
+    def _get(self, path: str, params: dict = None) -> dict:
+        r = requests.get(f"{{API_BASE}}{{path}}", headers=self.headers, params=params)
+        r.raise_for_status()
+        return r.json()
+
+    def postos(self, uf: str = None, limite: int = 100) -> list:
+        \"\"\"Lista postos GF, opcionalmente filtrados por UF.\"\"\"
+        return self._get("/postos", {{"uf": uf, "limit": limite}})["data"]
+
+    def precos(self, uf: str, combustivel: str) -> list:
+        \"\"\"Tabela de preços por UF e combustível.\"\"\"
+        return self._get("/precos", {{"uf": uf, "combustivel": combustivel}})["data"]
+
+    def historico(self, cnpj: str, combustivel: str = None, dias: int = 90) -> list:
+        \"\"\"Histórico de preços de um posto.\"\"\"
+        params = {{"dias": dias}}
+        if combustivel:
+            params["combustivel"] = combustivel
+        return self._get(f"/precos/historico/{{cnpj}}", params)
+
+    def cobertura_ufs(self) -> list:
+        \"\"\"Cobertura GF por UF.\"\"\"
+        return self._get("/ufs")["data"]
+
+# ── Uso ───────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import pandas as pd
+
+    client = FNIClient(
+        username=os.environ.get("FNI_API_USER", "admin"),
+        password=os.environ.get("FNI_API_PASS", ""),
+    )
+
+    # Preços diesel S10 no Paraná
+    precos_pr = client.precos("PR", "OLEO DIESEL S10")
+    df = pd.DataFrame(precos_pr)
+    print(df[["razao_social", "municipio", "preco"]].sort_values("preco"))
+
+    # Histórico de um posto
+    hist = client.historico("12345678000190", "OLEO DIESEL S10", dias=30)
+    df_hist = pd.DataFrame(hist)
+    print(df_hist)
+""",
+                language="python",
+            )
+
+        elif _lang_sel == "📦 Node.js / JavaScript":
+            st.markdown("#### Node.js — Integração completa")
+            st.code(
+                f"""const axios = require('axios');
+
+const BASE_URL = '{_BASE_URL}';
+
+class FNIClient {{
+  constructor() {{
+    this.token = null;
+    this.client = axios.create({{ baseURL: `${{BASE_URL}}/api/v1` }});
+  }}
+
+  // ── Autentica e armazena o token ──────────────────────────────
+  async login(username, password) {{
+    const params = new URLSearchParams({{ username, password }});
+    const {{ data }} = await this.client.post('/auth/token', params);
+    this.token = data.access_token;
+    this.client.defaults.headers['Authorization'] = `Bearer ${{this.token}}`;
+    return this.token;
+  }}
+
+  // ── Postos GF ─────────────────────────────────────────────────
+  async postos(uf = null, limit = 100) {{
+    const {{ data }} = await this.client.get('/postos', {{
+      params: {{ uf, limit }},
+    }});
+    return data.data;
+  }}
+
+  // ── Preços por UF / combustível ───────────────────────────────
+  async precos(uf, combustivel) {{
+    const {{ data }} = await this.client.get('/precos', {{
+      params: {{ uf, combustivel }},
+    }});
+    return data.data;
+  }}
+
+  // ── Histórico de preços ───────────────────────────────────────
+  async historico(cnpj, dias = 90) {{
+    const {{ data }} = await this.client.get(`/precos/historico/${{cnpj}}`, {{
+      params: {{ dias }},
+    }});
+    return data;
+  }}
+
+  // ── Registrar webhook ─────────────────────────────────────────
+  async registerWebhook(url, eventos = ['preco_atualizado']) {{
+    const {{ data }} = await this.client.post('/webhook', {{ url, eventos }});
+    return data;
+  }}
+}}
+
+// ── Uso ───────────────────────────────────────────────────────────
+(async () => {{
+  const client = new FNIClient();
+  await client.login(process.env.FNI_API_USER, process.env.FNI_API_PASS);
+
+  // Preços diesel no PR
+  const precos = await client.precos('PR', 'OLEO DIESEL S10');
+  console.table(precos.slice(0, 5));
+
+  // Webhook para ERP
+  const wh = await client.registerWebhook(
+    'https://meu-erp.empresa.com.br/webhooks/fni',
+    ['preco_atualizado', 'novo_posto'],
+  );
+  console.log('Webhook registrado:', wh.webhook_id);
+}})();
+""",
+                language="javascript",
+            )
+
+        elif _lang_sel == "🔷 cURL (bash)":
+            st.markdown("#### cURL — Exemplos rápidos")
+            st.code(
+                f"""#!/bin/bash
+# ── Configuração ─────────────────────────────────────────────────
+BASE="{_BASE_URL}/api/v1"
+
+# ── 1. Obter token ────────────────────────────────────────────────
+TOKEN=$(curl -s -X POST "$BASE/auth/token" \\
+  -d "username=admin&password=SUA_SENHA" \\
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+echo "Token: ${{TOKEN:0:30}}..."
+
+# ── 2. Postos GF em SP ────────────────────────────────────────────
+curl -s -H "Authorization: Bearer $TOKEN" \\
+  "$BASE/postos?uf=SP&limit=5" | python3 -m json.tool
+
+# ── 3. Preços Diesel S10 no PR ────────────────────────────────────
+curl -s -H "Authorization: Bearer $TOKEN" \\
+  "$BASE/precos?uf=PR&combustivel=OLEO+DIESEL+S10" | python3 -m json.tool
+
+# ── 4. Histórico de um posto (30 dias) ────────────────────────────
+curl -s -H "Authorization: Bearer $TOKEN" \\
+  "$BASE/precos/historico/12345678000190?dias=30" | python3 -m json.tool
+
+# ── 5. Cobertura por UF ───────────────────────────────────────────
+curl -s -H "Authorization: Bearer $TOKEN" \\
+  "$BASE/ufs" | python3 -m json.tool
+
+# ── 6. Registrar webhook ──────────────────────────────────────────
+curl -s -X POST -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{{"url":"https://meu-erp.com/webhooks/fni","eventos":["preco_atualizado"]}}' \\
+  "$BASE/webhook" | python3 -m json.tool
+""",
+                language="bash",
+            )
+
+        elif _lang_sel == "☕ Java (OkHttp)":
+            st.markdown("#### Java — OkHttp + Gson")
+            st.code(
+                f"""import okhttp3.*;
+import com.google.gson.*;
+import java.io.IOException;
+
+public class FNIClient {{
+
+    private static final String BASE_URL = "{_BASE_URL}/api/v1";
+    private final OkHttpClient http = new OkHttpClient();
+    private final Gson gson = new Gson();
+    private String token;
+
+    // ── Autenticação ────────────────────────────────────────────
+    public void login(String username, String password) throws IOException {{
+        RequestBody body = new FormBody.Builder()
+            .add("username", username)
+            .add("password", password)
+            .build();
+        Request req = new Request.Builder()
+            .url(BASE_URL + "/auth/token")
+            .post(body)
+            .build();
+        try (Response resp = http.newCall(req).execute()) {{
+            JsonObject json = gson.fromJson(resp.body().string(), JsonObject.class);
+            this.token = json.get("access_token").getAsString();
+        }}
+    }}
+
+    // ── GET helper ──────────────────────────────────────────────
+    private JsonObject get(String path) throws IOException {{
+        Request req = new Request.Builder()
+            .url(BASE_URL + path)
+            .header("Authorization", "Bearer " + token)
+            .build();
+        try (Response resp = http.newCall(req).execute()) {{
+            return gson.fromJson(resp.body().string(), JsonObject.class);
+        }}
+    }}
+
+    // ── Preços por UF ───────────────────────────────────────────
+    public JsonArray precos(String uf, String combustivel) throws IOException {{
+        String url = "/precos?uf=" + uf + "&combustivel=" +
+            java.net.URLEncoder.encode(combustivel, "UTF-8");
+        return get(url).getAsJsonArray("data");
+    }}
+
+    // ── Uso ──────────────────────────────────────────────────────
+    public static void main(String[] args) throws IOException {{
+        FNIClient client = new FNIClient();
+        client.login("admin", System.getenv("FNI_API_PASS"));
+        JsonArray precos = client.precos("PR", "OLEO DIESEL S10");
+        System.out.println("Preços PR: " + precos.size() + " postos");
+        precos.forEach(p -> System.out.println(
+            p.getAsJsonObject().get("razao_social").getAsString() + " → R$ " +
+            p.getAsJsonObject().get("preco").getAsDouble()
+        ));
+    }}
+}}
+""",
+                language="java",
+            )
+
+        elif _lang_sel == "🟣 PHP":
+            st.markdown("#### PHP — GuzzleHttp")
+            st.code(
+                f"""<?php
+require 'vendor/autoload.php';
+
+use GuzzleHttp\\Client;
+
+class FNIClient {{
+    private Client $http;
+    private string $token = '';
+    private const BASE = '{_BASE_URL}/api/v1';
+
+    public function __construct() {{
+        $this->http = new Client(['base_uri' => self::BASE]);
+    }}
+
+    public function login(string $user, string $pass): void {{
+        $resp = $this->http->post('/auth/token', [
+            'form_params' => ['username' => $user, 'password' => $pass],
+        ]);
+        $data = json_decode($resp->getBody(), true);
+        $this->token = $data['access_token'];
+    }}
+
+    private function get(string $path, array $query = []): array {{
+        $resp = $this->http->get($path, [
+            'headers' => ['Authorization' => "Bearer {{$this->token}}"],
+            'query'   => $query,
+        ]);
+        return json_decode($resp->getBody(), true);
+    }}
+
+    public function precos(string $uf, string $combustivel): array {{
+        return $this->get('/precos', [
+            'uf' => $uf, 'combustivel' => $combustivel,
+        ])['data'];
+    }}
+
+    public function historico(string $cnpj, int $dias = 90): array {{
+        return $this->get("/precos/historico/$cnpj", ['dias' => $dias]);
+    }}
+}}
+
+// ── Uso ───────────────────────────────────────────────────────────
+$client = new FNIClient();
+$client->login('admin', getenv('FNI_API_PASS'));
+
+$precos = $client->precos('PR', 'OLEO DIESEL S10');
+foreach ($precos as $p) {{
+    echo $p['razao_social'] . ' → R$ ' . $p['preco'] . PHP_EOL;
+}}
+""",
+                language="php",
+            )
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 4 — CONFIGURAÇÃO DO SERVIDOR
+    # ════════════════════════════════════════════════════════════════
+    with _api_t4:
+
+        st.markdown("#### 🏗️ Arquitetura do servidor")
+        st.markdown(
+            "<div style='background:#F3F4F6;border-radius:8px;padding:14px;font-family:monospace;font-size:12px;line-height:1.8'>"
+            "Internet → <b>fly.io</b> (HTTPS :443)<br>"
+            "&nbsp;&nbsp;&nbsp;↓<br>"
+            "<b>Nginx</b> :80 (proxy reverso)<br>"
+            "&nbsp;&nbsp;├─ <code>/api/*</code> &nbsp;→&nbsp; <b>FastAPI</b> :8000<br>"
+            "&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+            "Swagger: <code>/api/docs</code><br>"
+            "&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+            "OpenAPI: <code>/api/openapi.json</code><br>"
+            "&nbsp;&nbsp;└─ <code>/*</code> &nbsp;&nbsp;&nbsp;&nbsp;→&nbsp; <b>Streamlit</b> :8501<br>"
+            "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+            "WebSocket: <code>/_stcore/stream</code>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("#### 🚀 Deploy no fly.io")
+        st.markdown("**Passo 1 — Configurar secrets**")
+        st.code(
+            """fly secrets set \\
+  JWT_SECRET="$(openssl rand -hex 32)" \\
+  API_USER="admin" \\
+  API_PASS="$(openssl rand -base64 24)" \\
+  SUPABASE_URL="https://SEU-PROJETO.supabase.co" \\
+  SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+""",
+            language="bash",
+        )
+        st.markdown("**Passo 2 — Deploy**")
+        st.code(
+            """git add -A && git commit -m "feat: API server"
+git push origin master
+fly deploy
+""",
+            language="bash",
+        )
+        st.markdown("**Passo 3 — Verificar**")
+        st.code(
+            f"""# Health check
+curl https://estudo-de-rede-profrotas.fly.dev/api/v1/health
+
+# Swagger UI
+open https://estudo-de-rede-profrotas.fly.dev/api/docs
+""",
+            language="bash",
+        )
+
+        st.markdown("---")
+        st.markdown("#### 🧪 Teste local")
+        st.code(
+            """# Inicia apenas o servidor API localmente
+pip install fastapi uvicorn python-jose passlib
+
+export JWT_SECRET="dev-secret"
+export API_USER="admin"
+export API_PASS="teste123"
+export SUPABASE_URL="https://..."
+export SUPABASE_KEY="eyJ..."
+
+uvicorn api_server:app --reload --port 8000
+
+# Acesse: http://localhost:8000/api/docs
+""",
+            language="bash",
+        )
+
+        st.markdown("#### 📡 Tabela SQL para Webhooks (opcional)")
+        st.code(
+            """-- Execute no Supabase SQL Editor para persistir registros de webhook
+CREATE TABLE IF NOT EXISTS webhook_registrations (
+    id         bigserial PRIMARY KEY,
+    url        text NOT NULL,
+    eventos    jsonb DEFAULT '["preco_atualizado"]'::jsonb,
+    descricao  text,
+    usuario    text,
+    ativo      boolean DEFAULT true,
+    criado_em  timestamptz DEFAULT now()
+);
+""",
+            language="sql",
+        )
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 if (
