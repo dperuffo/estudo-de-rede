@@ -1193,6 +1193,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",  # sempre aberta
 )
+st.sidebar.markdown("🔴 **VERSÃO DEBUG 2024**")
 
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
