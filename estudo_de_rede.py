@@ -11061,6 +11061,7 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
         st.rerun()
 
+    st.markdown("**DEBUG1: antes de Relatórios**")
     if st.button(
         "📋 Relatórios",
         use_container_width=True,
