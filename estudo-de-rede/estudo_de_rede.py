@@ -200,9 +200,12 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
     email = _db_email()
     if not email:
         return 0, "Usuário não autenticado"
+    _eid = _db_empresa_id()
     try:
         for row in df_rows:
             row["usuario_email"] = email
+            if _eid:
+                row["empresa_id"] = _eid
         res = db.table("frota_abastecimentos").upsert(
             df_rows,
             on_conflict="usuario_email,id_transacao"
@@ -225,17 +228,26 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
 
 
 def _db_carregar_abastecimentos() -> list:
-    """Carrega abastecimentos salvos do usuário no Supabase."""
+    """Carrega abastecimentos do Supabase filtrados pela empresa ativa."""
     db = _db_client()
     if not db:
         return []
     try:
-        res = db.table("frota_abastecimentos") \
-                .select("*") \
-                .eq("usuario_email", _db_email()) \
-                .order("data_abastecimento", desc=True) \
-                .limit(5000) \
-                .execute()
+        _q = (
+            db.table("frota_abastecimentos")
+              .select("*")
+              .order("data_abastecimento", desc=True)
+              .limit(5000)
+        )
+        _eid = _db_empresa_id()
+        if _eid:
+            _q = _q.eq("empresa_id", _eid)
+        else:
+            # Sem empresa_id (admin ou dados legados): filtra por e-mail do usuário
+            # para não misturar dados de sessões diferentes
+            if not _is_admin():
+                _q = _q.eq("usuario_email", _db_email())
+        res = _q.execute()
         return res.data or []
     except Exception:
         return []
@@ -259,12 +271,16 @@ def _db_carregar_cnpjs_postos_gf() -> set:
     """
     Retorna set de CNPJs (14 dígitos, zero-padded) da rede GF
     lidos da tabela postos_gf no Supabase.
-    Fallback: usa pf_coords_df do session_state se o banco falhar.
+    Filtrado por empresa_id do usuário ativo (admin vê tudo).
     """
     db = _db_client()
     if db:
         try:
-            res = db.table("postos_gf").select("cnpj").limit(20000).execute()
+            _q = db.table("postos_gf").select("cnpj").limit(20000)
+            _eid = _db_empresa_id()
+            if _eid:
+                _q = _q.eq("empresa_id", _eid)
+            res = _q.execute()
             if res.data:
                 return {
                     _normalizar_cnpj14(r.get("cnpj", ""))
@@ -284,14 +300,18 @@ def _db_carregar_postos_gf_df() -> "pd.DataFrame":
     """
     Retorna DataFrame completo da rede GF (cnpj, razao_social,
     municipio, uf, lat, lon) lido da tabela postos_gf no Supabase.
+    Filtrado por empresa_id do usuário ativo (admin vê tudo).
     """
     db = _db_client()
     if db:
         try:
-            res = db.table("postos_gf") \
-                    .select("cnpj,razao_social,municipio,uf,lat,lon") \
-                    .limit(20000) \
-                    .execute()
+            _q = db.table("postos_gf") \
+                   .select("cnpj,razao_social,municipio,uf,lat,lon") \
+                   .limit(20000)
+            _eid = _db_empresa_id()
+            if _eid:
+                _q = _q.eq("empresa_id", _eid)
+            res = _q.execute()
             if res.data:
                 _df_gf = pd.DataFrame(res.data)
                 _df_gf["cnpj_norm"] = _df_gf["cnpj"].apply(
@@ -332,20 +352,23 @@ def _normalizar_cnpj_str(v) -> str:
 
 def _db_carregar_acordos() -> "pd.DataFrame":
     """
-    Carrega todos os acordos de preço do Supabase.
-    Fallback: baixa Acordos.xlsx do GitHub (sempre atualizado no repo).
-    Retorna DataFrame com colunas normalizadas.
+    Carrega acordos de preço do Supabase filtrados pela empresa ativa.
+    Admin sem filtro → todos os acordos.
+    Fallback: baixa Acordos.xlsx do GitHub.
     """
     db = _db_client()
     if db:
         try:
-            res = (
+            _q = (
                 db.table("acordos_precos")
                   .select("cnpj_posto,nome_posto,cnpj_frota,razao_social_frota,"
                           "combustivel,preco_negociado,va_desconto,dt_vigencia")
                   .limit(50000)
-                  .execute()
             )
+            _eid = _db_empresa_id()
+            if _eid:
+                _q = _q.eq("empresa_id", _eid)
+            res = _q.execute()
             if res.data:
                 _df_ac = pd.DataFrame(res.data)
                 _df_ac["dt_vigencia"] = pd.to_datetime(
@@ -354,17 +377,19 @@ def _db_carregar_acordos() -> "pd.DataFrame":
                 return _df_ac
         except Exception:
             pass
-    # Fallback: GitHub
-    try:
-        import requests as _req
-        _resp = _req.get(_ACORDOS_GITHUB_URL, timeout=15)
-        if _resp.status_code == 200:
-            import io as _io
-            _df_ac = pd.read_excel(_io.BytesIO(_resp.content), sheet_name=0)
-            _df_ac = _processar_acordos_df(_df_ac)
-            return _df_ac
-    except Exception:
-        pass
+    # Fallback: GitHub (apenas se sem empresa_id — dados legados)
+    _eid_fb = _db_empresa_id()
+    if not _eid_fb:
+        try:
+            import requests as _req
+            _resp = _req.get(_ACORDOS_GITHUB_URL, timeout=15)
+            if _resp.status_code == 200:
+                import io as _io
+                _df_ac = pd.read_excel(_io.BytesIO(_resp.content), sheet_name=0)
+                _df_ac = _processar_acordos_df(_df_ac)
+                return _df_ac
+        except Exception:
+            pass
     return pd.DataFrame()
 
 
@@ -526,11 +551,12 @@ def _db_salvar_acordos(df_raw: "pd.DataFrame", email: str, nome_arquivo: str) ->
         }).execute()
         versao_id = v_res.data[0]["id"] if v_res.data else None
 
+        _eid_ac = _db_empresa_id()
         _rows = []
         for _, r in df.iterrows():
             if pd.isna(r.get("dt_vigencia")):
                 continue
-            _rows.append({
+            _row_ac = {
                 "cd_frota_ptov_preco": int(r["cd_frota_ptov_preco"]) if pd.notna(r.get("cd_frota_ptov_preco")) else None,
                 "cnpj_posto":          r["cnpj_posto"],
                 "nome_posto":          str(r.get("nome_posto", "") or ""),
@@ -541,7 +567,10 @@ def _db_salvar_acordos(df_raw: "pd.DataFrame", email: str, nome_arquivo: str) ->
                 "va_desconto":         float(r["va_desconto"]) if pd.notna(r.get("va_desconto")) else None,
                 "dt_vigencia":         r["dt_vigencia"].isoformat(),
                 "versao_id":           versao_id,
-            })
+            }
+            if _eid_ac:
+                _row_ac["empresa_id"] = _eid_ac
+            _rows.append(_row_ac)
 
         _n_ok = _n_dup = 0
         _BATCH = 500
@@ -628,7 +657,7 @@ def _db_gravar_preco(cnpj: str, razao_social: str, municipio: str, uf: str,
     if not db or not cnpj or not preco:
         return False
     try:
-        db.table("historico_precos").upsert({
+        _payload = {
             "cnpj":         cnpj,
             "razao_social": razao_social or "",
             "municipio":    municipio or "",
@@ -639,7 +668,13 @@ def _db_gravar_preco(cnpj: str, razao_social: str, municipio: str, uf: str,
             "data_ref":     data_ref or datetime.now().strftime("%Y-%m-%d"),
             "lat":          lat,
             "lon":          lon,
-        }, on_conflict="cnpj,combustivel,data_ref").execute()
+        }
+        _eid = _db_empresa_id()
+        if _eid:
+            _payload["empresa_id"] = _eid
+        db.table("historico_precos").upsert(
+            _payload, on_conflict="cnpj,combustivel,data_ref"
+        ).execute()
         return True
     except Exception:
         return False
@@ -670,6 +705,177 @@ def _db_historico_preco(cnpj: str, combustivel: str = None, dias: int = 90) -> l
 
 # E-mail do administrador — único com acesso ao painel de gestão
 _ADMIN_EMAIL = "d.peruffo@gmail.com"
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MULTI-TENANCY — Isolamento de dados por empresa
+# ═══════════════════════════════════════════════════════════════════
+
+def _is_admin() -> bool:
+    """Retorna True se o usuário logado é o administrador global."""
+    _email = (st.session_state.get("_auth_user") or {}).get("email", "")
+    return _email.lower() == _ADMIN_EMAIL.lower()
+
+
+def _db_empresa_id() -> str | None:
+    """
+    Retorna o empresa_id ativo da sessão.
+    Admin → None (sem filtro, vê tudo).
+    Usuário normal → UUID da empresa selecionada.
+    """
+    if _is_admin():
+        # Admin pode forçar filtro por empresa via seletor especial
+        return st.session_state.get("_admin_empresa_filtro", None)
+    return (st.session_state.get("_empresa_ativa") or {}).get("id")
+
+
+def _db_empresa_nome() -> str:
+    """Retorna o nome da empresa ativa (ou 'Todas as Empresas' para admin sem filtro)."""
+    if _is_admin():
+        _filtro = st.session_state.get("_admin_empresa_filtro")
+        if not _filtro:
+            return "Todas as Empresas"
+        # Busca nome da empresa filtrada
+        for _e in st.session_state.get("_todas_empresas", []):
+            if _e["id"] == _filtro:
+                return _e["nome"]
+        return "Empresa selecionada"
+    return (st.session_state.get("_empresa_ativa") or {}).get("nome", "—")
+
+
+def _db_resolver_empresas(email: str) -> list:
+    """
+    Retorna lista de empresas associadas ao e-mail.
+    Cada item: {"id": uuid_str, "nome": str, "role": str}
+    Retorna [] se nenhuma empresa cadastrada.
+    """
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        _res = (
+            db.table("usuarios_empresas")
+            .select("empresa_id, role, empresas(id, nome, ativo)")
+            .eq("user_email", email.lower())
+            .eq("ativo", True)
+            .execute()
+        )
+        _empresas = []
+        for _row in (_res.data or []):
+            _emp = _row.get("empresas") or {}
+            if _emp and _emp.get("ativo"):
+                _empresas.append({
+                    "id":   _emp["id"],
+                    "nome": _emp["nome"],
+                    "role": _row.get("role", "viewer"),
+                })
+        return _empresas
+    except Exception:
+        return []
+
+
+def _db_listar_empresas() -> list:
+    """Admin: lista todas as empresas cadastradas."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        _res = (
+            db.table("empresas")
+            .select("id, nome, cnpj, ativo, created_at")
+            .order("nome")
+            .execute()
+        )
+        return _res.data or []
+    except Exception:
+        return []
+
+
+def _db_criar_empresa(nome: str, cnpj: str = "") -> dict | None:
+    """Admin: cria uma nova empresa. Retorna o registro criado ou None."""
+    db = _db_client()
+    if not db:
+        return None
+    try:
+        _res = (
+            db.table("empresas")
+            .insert({"nome": nome.strip(), "cnpj": cnpj.strip()})
+            .execute()
+        )
+        return _res.data[0] if _res.data else None
+    except Exception:
+        return None
+
+
+def _db_atualizar_empresa(empresa_id: str, nome: str = None,
+                           cnpj: str = None, ativo: bool = None) -> bool:
+    """Admin: atualiza campos de uma empresa."""
+    db = _db_client()
+    if not db:
+        return False
+    _payload = {"updated_at": datetime.now().isoformat()}
+    if nome is not None:
+        _payload["nome"] = nome.strip()
+    if cnpj is not None:
+        _payload["cnpj"] = cnpj.strip()
+    if ativo is not None:
+        _payload["ativo"] = ativo
+    try:
+        db.table("empresas").update(_payload).eq("id", empresa_id).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _db_listar_usuarios_empresa(empresa_id: str) -> list:
+    """Admin: lista usuários associados a uma empresa."""
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        _res = (
+            db.table("usuarios_empresas")
+            .select("user_email, role, ativo, created_at")
+            .eq("empresa_id", empresa_id)
+            .order("user_email")
+            .execute()
+        )
+        return _res.data or []
+    except Exception:
+        return []
+
+
+def _db_associar_usuario_empresa(email: str, empresa_id: str,
+                                  role: str = "viewer") -> bool:
+    """Admin: associa (ou atualiza) um usuário a uma empresa."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("usuarios_empresas").upsert({
+            "user_email": email.lower().strip(),
+            "empresa_id": empresa_id,
+            "role":       role,
+            "ativo":      True,
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _db_remover_usuario_empresa(email: str, empresa_id: str) -> bool:
+    """Admin: desativa a associação de um usuário a uma empresa."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        db.table("usuarios_empresas").update({"ativo": False}) \
+          .eq("user_email", email.lower()) \
+          .eq("empresa_id", empresa_id) \
+          .execute()
+        return True
+    except Exception:
+        return False
 
 
 def _db_verificar_acesso(email: str) -> tuple[bool, str]:
@@ -2431,6 +2637,107 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
                   </div>
                 </div>
                 """, unsafe_allow_html=True)
+            st.stop()
+
+# ── Resolver empresa(s) do usuário logado ───────────────────────────
+if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
+    _email_mt = (st.session_state["_auth_user"] or {}).get("email", "")
+    # Admin não precisa de empresa — carrega lista completa para filtros
+    if _email_mt.lower() == _ADMIN_EMAIL.lower():
+        if "_todas_empresas" not in st.session_state:
+            st.session_state["_todas_empresas"] = _db_listar_empresas()
+        # Garante chave de empresa ativa do admin (pode ser None = todas)
+        if "_admin_empresa_filtro" not in st.session_state:
+            st.session_state["_admin_empresa_filtro"] = None
+    else:
+        # Usuário comum: resolver empresas na primeira execução da sessão
+        if "_empresas_usuario" not in st.session_state:
+            _emps_resolvidas = _db_resolver_empresas(_email_mt)
+            st.session_state["_empresas_usuario"] = _emps_resolvidas
+            # Auto-selecionar se houver exatamente 1 empresa
+            if len(_emps_resolvidas) == 1:
+                st.session_state["_empresa_ativa"] = _emps_resolvidas[0]
+            elif "_empresa_ativa" not in st.session_state:
+                st.session_state["_empresa_ativa"] = None
+
+        _emps = st.session_state.get("_empresas_usuario", [])
+        _empresa_ativa = st.session_state.get("_empresa_ativa")
+
+        # Sem empresa associada → tela de aguardo
+        if not _emps:
+            _hide_style = """
+            <style>
+            #MainMenu, header, footer, [data-testid="stSidebar"],
+            [data-testid="stToolbar"] { display: none !important; }
+            [data-testid="stAppViewContainer"] {
+                background: linear-gradient(135deg, #0a0e27 0%, #0d1b4b 100%);
+                display: flex; align-items: center; justify-content: center;
+                min-height: 100vh;
+            }
+            </style>
+            """
+            st.markdown(_hide_style, unsafe_allow_html=True)
+            _, _cc_e, _ = st.columns([1, 2, 1])
+            with _cc_e:
+                st.markdown(f"""
+                <div style="background:rgba(255,255,255,0.07);backdrop-filter:blur(20px);
+                            border:1px solid rgba(255,255,255,0.12);border-radius:20px;
+                            padding:2.5rem 2rem;text-align:center;margin-top:15vh;">
+                  <div style="font-size:56px;margin-bottom:1rem;">🏢</div>
+                  <div style="font-size:1.4rem;font-weight:700;color:#fff;margin-bottom:.5rem;">
+                    Aguardando Vínculo Empresarial
+                  </div>
+                  <div style="font-size:.9rem;color:rgba(255,255,255,.6);margin-bottom:1rem;
+                              line-height:1.6">
+                    Sua conta ainda não está associada a nenhuma empresa.<br>
+                    Solicite ao administrador que vincule seu acesso.
+                  </div>
+                  <div style="font-size:.75rem;color:rgba(255,255,255,.3);">
+                    {_email_mt}
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("🔄 Verificar novamente", use_container_width=True):
+                    del st.session_state["_empresas_usuario"]
+                    st.rerun()
+            st.stop()
+
+        # Múltiplas empresas e nenhuma selecionada → tela de seleção
+        if len(_emps) > 1 and not _empresa_ativa:
+            _hide_style2 = """
+            <style>
+            #MainMenu, header, footer, [data-testid="stSidebar"],
+            [data-testid="stToolbar"] { display: none !important; }
+            [data-testid="stAppViewContainer"] {
+                background: linear-gradient(135deg, #0a0e27 0%, #0d1b4b 100%);
+                min-height: 100vh;
+            }
+            </style>
+            """
+            st.markdown(_hide_style2, unsafe_allow_html=True)
+            _, _cc_sel, _ = st.columns([1, 2, 1])
+            with _cc_sel:
+                st.markdown(f"""
+                <div style="text-align:center;padding-top:12vh;">
+                  <div style="font-size:48px;margin-bottom:1rem;">🏢</div>
+                  <div style="font-size:1.3rem;font-weight:700;color:#fff;margin-bottom:.5rem;">
+                    Selecione a Empresa
+                  </div>
+                  <div style="font-size:.85rem;color:rgba(255,255,255,.5);margin-bottom:2rem;">
+                    Você tem acesso a múltiplas empresas. Escolha o contexto de trabalho.
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+                for _emp_opt in _emps:
+                    _role_label = "✏️ Editor" if _emp_opt["role"] == "editor" else "👁️ Visualizador"
+                    if st.button(
+                        f"🏢 {_emp_opt['nome']}  ·  {_role_label}",
+                        key=f"sel_emp_{_emp_opt['id']}",
+                        use_container_width=True,
+                        type="primary",
+                    ):
+                        st.session_state["_empresa_ativa"] = _emp_opt
+                        st.rerun()
             st.stop()
 
 
@@ -10514,6 +10821,73 @@ with st.sidebar:
     if "modo_selecionado" not in st.session_state:
         st.session_state["modo_selecionado"] = "📍 Por UF/Município"
     _modo_atual = st.session_state["modo_selecionado"]
+
+    # ── Seletor / badge de empresa ─────────────────────────────────
+    if _is_admin():
+        # Admin pode filtrar por empresa ou ver todas
+        _todas_emps_sb = st.session_state.get("_todas_empresas", [])
+        if _todas_emps_sb:
+            _emp_options_sb = ["🌐 Todas as Empresas"] + [e["nome"] for e in _todas_emps_sb]
+            _current_filtro = st.session_state.get("_admin_empresa_filtro")
+            _current_idx = 0
+            if _current_filtro:
+                for _ii, _ee in enumerate(_todas_emps_sb, start=1):
+                    if _ee["id"] == _current_filtro:
+                        _current_idx = _ii
+                        break
+            _sel_admin_emp = st.selectbox(
+                "🔭 Visão",
+                options=_emp_options_sb,
+                index=_current_idx,
+                key="sb_admin_empresa",
+                help="Admin: selecione uma empresa para filtrar os dados, ou veja tudo",
+            )
+            if _sel_admin_emp == "🌐 Todas as Empresas":
+                st.session_state["_admin_empresa_filtro"] = None
+            else:
+                for _ee in _todas_emps_sb:
+                    if _ee["nome"] == _sel_admin_emp:
+                        if st.session_state.get("_admin_empresa_filtro") != _ee["id"]:
+                            st.session_state["_admin_empresa_filtro"] = _ee["id"]
+                            st.rerun()
+                        break
+        else:
+            st.caption("🌐 Admin · Nenhuma empresa cadastrada")
+    else:
+        # Usuário comum: mostra empresa ativa + troca de contexto se tiver múltiplas
+        _emps_sb = st.session_state.get("_empresas_usuario", [])
+        _emp_ativa_sb = st.session_state.get("_empresa_ativa") or {}
+        if len(_emps_sb) > 1:
+            _emp_nomes = [e["nome"] for e in _emps_sb]
+            _idx_ativo = 0
+            for _ii, _ee in enumerate(_emps_sb):
+                if _ee["id"] == _emp_ativa_sb.get("id"):
+                    _idx_ativo = _ii
+                    break
+            _sel_emp = st.selectbox(
+                "🏢 Empresa",
+                options=_emp_nomes,
+                index=_idx_ativo,
+                key="sb_empresa_usuario",
+                help="Troque o contexto para trabalhar com outra empresa",
+            )
+            if _sel_emp != _emp_ativa_sb.get("nome"):
+                for _ee in _emps_sb:
+                    if _ee["nome"] == _sel_emp:
+                        st.session_state["_empresa_ativa"] = _ee
+                        # Limpa caches de dados ao trocar de empresa
+                        for _ck in ["pf_coords_df", "_pp_df", "_pp_variacao",
+                                    "_acds_cache", "_abast_cache"]:
+                            st.session_state.pop(_ck, None)
+                        st.rerun()
+        elif _emp_ativa_sb:
+            st.markdown(
+                f"<div style='background:rgba(123,97,255,.15);border-radius:8px;"
+                f"padding:6px 10px;font-size:.78rem;color:#c8b8ff;margin-bottom:4px'>"
+                f"🏢 <b>{_emp_ativa_sb.get('nome','—')}</b></div>",
+                unsafe_allow_html=True,
+            )
+
     _col_m1, _col_m2, _col_m3 = st.columns(3)
     with _col_m1:
         if st.button(
@@ -21790,140 +22164,311 @@ elif modo == "🔐 Admin":
         st.error("🚫 Acesso restrito ao administrador.")
         st.stop()
 
-    st.markdown("## 🔐 Painel de Administração — Controle de Acesso")
+    st.markdown("## 🔐 Painel de Administração")
 
-    # ── Modo de acesso global ──────────────────────────────────────
-    _modo_atual_db = _db_modo_acesso()
-    st.markdown("### ⚙️ Modo de Acesso Global")
-    _col_m1, _col_m2 = st.columns(2)
-    with _col_m1:
-        st.info(f"**Modo atual:** {'🔓 Blacklist (aberto)' if _modo_atual_db == 'blacklist' else '🔒 Allowlist (restrito)'}")
-    with _col_m2:
-        if _modo_atual_db == "blacklist":
-            if st.button("🔒 Mudar para Allowlist (restrito)", use_container_width=True):
-                _db_set_modo_acesso("allowlist")
-                st.toast("✅ Modo alterado para Allowlist.", icon="🔒")
-                st.rerun()
+    _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs = st.tabs([
+        "🏢 Empresas & Usuários",
+        "🔑 Controle de Acesso",
+        "📋 Logs de Atividade",
+    ])
+
+    # ══════════════════════════════════════════════════════════════
+    #  ABA 1 — EMPRESAS & USUÁRIOS
+    # ══════════════════════════════════════════════════════════════
+    with _adm_tab_emp:
+        st.markdown("### 🏢 Gestão de Empresas")
+
+        # Recarregar lista de empresas
+        if st.button("🔄 Atualizar lista", key="btn_reload_emps"):
+            st.session_state["_todas_empresas"] = _db_listar_empresas()
+            st.rerun()
+
+        _adm_empresas = st.session_state.get("_todas_empresas") or _db_listar_empresas()
+        st.session_state["_todas_empresas"] = _adm_empresas
+
+        # ── Criar nova empresa ─────────────────────────────────
+        with st.expander("➕ Criar nova empresa", expanded=False):
+            _ne_col1, _ne_col2, _ne_col3 = st.columns([3, 2, 1])
+            with _ne_col1:
+                _ne_nome = st.text_input("Nome da empresa", key="ne_nome",
+                                         placeholder="Empresa Transportes Ltda")
+            with _ne_col2:
+                _ne_cnpj = st.text_input("CNPJ (opcional)", key="ne_cnpj",
+                                          placeholder="00.000.000/0001-00")
+            with _ne_col3:
+                st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                if st.button("Criar", key="btn_criar_emp", type="primary",
+                             use_container_width=True):
+                    if _ne_nome.strip():
+                        _nova_emp = _db_criar_empresa(_ne_nome, _ne_cnpj)
+                        if _nova_emp:
+                            st.toast(f"✅ Empresa '{_ne_nome}' criada!", icon="🏢")
+                            st.session_state["_todas_empresas"] = _db_listar_empresas()
+                            st.rerun()
+                        else:
+                            st.error("Erro ao criar empresa. Verifique o Supabase.")
+                    else:
+                        st.warning("Digite o nome da empresa.")
+
+        st.divider()
+
+        # ── Lista de empresas com gestão de usuários ───────────
+        if not _adm_empresas:
+            st.info("Nenhuma empresa cadastrada ainda. Crie a primeira acima.")
         else:
-            if st.button("🔓 Mudar para Blacklist (aberto)", use_container_width=True):
-                _db_set_modo_acesso("blacklist")
-                st.toast("✅ Modo alterado para Blacklist.", icon="🔓")
-                st.rerun()
+            for _emp_adm in _adm_empresas:
+                _emp_id   = _emp_adm["id"]
+                _emp_nome = _emp_adm["nome"]
+                _emp_cnpj = _emp_adm.get("cnpj") or "—"
+                _emp_ativ = _emp_adm.get("ativo", True)
+                _status_icon = "🟢" if _emp_ativ else "🔴"
 
-    st.caption("**Blacklist:** todos entram, exceto os bloqueados. **Allowlist:** só entram os aprovados.")
-    st.divider()
+                with st.expander(
+                    f"{_status_icon} **{_emp_nome}** · CNPJ: {_emp_cnpj}",
+                    expanded=False,
+                ):
+                    _ec1, _ec2, _ec3 = st.columns([3, 2, 1])
+                    with _ec1:
+                        _edit_nome = st.text_input(
+                            "Nome", value=_emp_nome,
+                            key=f"edit_nome_{_emp_id}",
+                        )
+                    with _ec2:
+                        _edit_cnpj = st.text_input(
+                            "CNPJ", value=_emp_adm.get("cnpj", ""),
+                            key=f"edit_cnpj_{_emp_id}",
+                        )
+                    with _ec3:
+                        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                        if st.button("Salvar", key=f"btn_salvar_{_emp_id}",
+                                     use_container_width=True):
+                            _db_atualizar_empresa(_emp_id, nome=_edit_nome, cnpj=_edit_cnpj)
+                            st.toast("✅ Empresa atualizada.", icon="✏️")
+                            st.session_state["_todas_empresas"] = _db_listar_empresas()
+                            st.rerun()
 
-    # ── Adicionar e-mail manualmente ──────────────────────────────
-    st.markdown("### ➕ Adicionar Usuário")
-    _ca1, _ca2, _ca3, _ca4 = st.columns([3, 2, 2, 1])
-    with _ca1:
-        _novo_email = st.text_input("E-mail", placeholder="usuario@empresa.com", key="admin_novo_email")
-    with _ca2:
-        _novo_status = st.selectbox("Status", ["permitido", "bloqueado"], key="admin_novo_status")
-    with _ca3:
-        _novo_motivo = st.text_input("Motivo (opcional)", key="admin_novo_motivo")
-    with _ca4:
-        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-        if st.button("Adicionar", use_container_width=True, key="admin_add_btn", type="primary"):
-            if _novo_email and "@" in _novo_email:
-                if _db_atualizar_status_acesso(_novo_email.strip(), _novo_status,
-                                               _novo_motivo, _ADMIN_EMAIL):
-                    st.toast(f"✅ {_novo_email} → {_novo_status}", icon="✅")
+                    _toggle_label = "🔴 Desativar empresa" if _emp_ativ else "🟢 Ativar empresa"
+                    if st.button(_toggle_label, key=f"btn_toggle_{_emp_id}",
+                                 use_container_width=True):
+                        _db_atualizar_empresa(_emp_id, ativo=not _emp_ativ)
+                        st.toast(f"Empresa {'desativada' if _emp_ativ else 'ativada'}.", icon="🔄")
+                        st.session_state["_todas_empresas"] = _db_listar_empresas()
+                        st.rerun()
+
+                    st.markdown("**👥 Usuários vinculados:**")
+                    _usr_emp = _db_listar_usuarios_empresa(_emp_id)
+                    if _usr_emp:
+                        for _ue in _usr_emp:
+                            _ue_ativo  = _ue.get("ativo", True)
+                            _ue_icon   = "✅" if _ue_ativo else "❌"
+                            _ue_col1, _ue_col2, _ue_col3 = st.columns([4, 2, 1])
+                            with _ue_col1:
+                                st.markdown(
+                                    f"{_ue_icon} `{_ue['user_email']}` "
+                                    f"· {'✏️ Editor' if _ue.get('role')=='editor' else '👁️ Viewer'}"
+                                )
+                            with _ue_col2:
+                                _new_role = st.selectbox(
+                                    "Role", ["viewer", "editor"],
+                                    index=1 if _ue.get("role") == "editor" else 0,
+                                    key=f"role_{_emp_id}_{_ue['user_email']}",
+                                    label_visibility="collapsed",
+                                )
+                            with _ue_col3:
+                                if st.button(
+                                    "Salvar",
+                                    key=f"btn_role_{_emp_id}_{_ue['user_email']}",
+                                    use_container_width=True,
+                                ):
+                                    _db_associar_usuario_empresa(
+                                        _ue["user_email"], _emp_id, role=_new_role
+                                    )
+                                    st.toast("✅ Role atualizado.", icon="✏️")
+                            if _ue_ativo:
+                                if st.button(
+                                    f"🗑️ Remover {_ue['user_email']}",
+                                    key=f"btn_rem_{_emp_id}_{_ue['user_email']}",
+                                ):
+                                    _db_remover_usuario_empresa(_ue["user_email"], _emp_id)
+                                    st.toast("Usuário removido da empresa.", icon="🗑️")
+                                    st.rerun()
+                    else:
+                        st.caption("Nenhum usuário vinculado.")
+
+                    st.markdown("**➕ Adicionar usuário à empresa:**")
+                    _au_col1, _au_col2, _au_col3 = st.columns([4, 2, 1])
+                    with _au_col1:
+                        _novo_usr = st.text_input(
+                            "E-mail", placeholder="usuario@empresa.com",
+                            key=f"novo_usr_{_emp_id}",
+                        )
+                    with _au_col2:
+                        _novo_role = st.selectbox(
+                            "Role", ["viewer", "editor"],
+                            key=f"novo_role_{_emp_id}",
+                        )
+                    with _au_col3:
+                        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                        if st.button(
+                            "Adicionar",
+                            key=f"btn_add_usr_{_emp_id}",
+                            type="primary",
+                            use_container_width=True,
+                        ):
+                            if _novo_usr and "@" in _novo_usr:
+                                _db_associar_usuario_empresa(_novo_usr, _emp_id, _novo_role)
+                                st.toast(
+                                    f"✅ {_novo_usr} adicionado à {_emp_nome}.",
+                                    icon="👥",
+                                )
+                                st.rerun()
+                            else:
+                                st.warning("Digite um e-mail válido.")
+
+    # ══════════════════════════════════════════════════════════════
+    #  ABA 2 — CONTROLE DE ACESSO (conteúdo original)
+    # ══════════════════════════════════════════════════════════════
+    with _adm_tab_acesso:
+        st.markdown("### ⚙️ Controle de Acesso Global")
+
+        # ── Modo de acesso global ──────────────────────────────────────
+        _modo_atual_db = _db_modo_acesso()
+        st.markdown("### ⚙️ Modo de Acesso Global")
+        _col_m1, _col_m2 = st.columns(2)
+        with _col_m1:
+            st.info(f"**Modo atual:** {'🔓 Blacklist (aberto)' if _modo_atual_db == 'blacklist' else '🔒 Allowlist (restrito)'}")
+        with _col_m2:
+            if _modo_atual_db == "blacklist":
+                if st.button("🔒 Mudar para Allowlist (restrito)", use_container_width=True):
+                    _db_set_modo_acesso("allowlist")
+                    st.toast("✅ Modo alterado para Allowlist.", icon="🔒")
                     st.rerun()
             else:
-                st.warning("Digite um e-mail válido.")
+                if st.button("🔓 Mudar para Blacklist (aberto)", use_container_width=True):
+                    _db_set_modo_acesso("blacklist")
+                    st.toast("✅ Modo alterado para Blacklist.", icon="🔓")
+                    st.rerun()
 
-    st.divider()
+        st.caption("**Blacklist:** todos entram, exceto os bloqueados. **Allowlist:** só entram os aprovados.")
+        st.divider()
 
-    # ── Lista de usuários controlados ─────────────────────────────
-    st.markdown("### 👥 Usuários Gerenciados")
-
-    _registros = _db_listar_controle_acesso()
-
-    # Também mostra usuários dos logs que ainda não estão na lista
-    _logs_emails = set()
-    try:
-        _logs_rec = _db_ler_logs(limite=5000)
-        _logs_emails = {r.get("user_email","") for r in _logs_rec
-                        if r.get("user_email") and r.get("user_email") != "—"}
-    except Exception:
-        pass
-    _emails_gerenc = {r["email"] for r in _registros}
-    _emails_novos  = _logs_emails - _emails_gerenc - {_ADMIN_EMAIL}
-
-    if _emails_novos:
-        st.info(f"💡 **{len(_emails_novos)} e-mail(s)** nos logs ainda não gerenciados: "
-                f"{', '.join(sorted(_emails_novos)[:5])}{'…' if len(_emails_novos)>5 else ''}")
-
-    if not _registros:
-        st.caption("Nenhum usuário gerenciado ainda. Use o formulário acima para adicionar.")
-    else:
-        # Filtro de status
-        _filtro_status = st.pills("Filtrar por status",
-                                   ["Todos", "✅ Permitido", "🚫 Bloqueado", "⏳ Pendente"],
-                                   default="Todos", key="admin_filtro_status")
-
-        _mapa_filtro = {"Todos": None, "✅ Permitido": "permitido",
-                        "🚫 Bloqueado": "bloqueado", "⏳ Pendente": "pendente"}
-        _filtro_val = _mapa_filtro.get(_filtro_status)
-        _reg_filtrados = [r for r in _registros
-                          if _filtro_val is None or r.get("status") == _filtro_val]
-
-        for _reg in _reg_filtrados:
-            _em   = _reg.get("email", "")
-            _st   = _reg.get("status", "")
-            _mot  = _reg.get("motivo", "") or ""
-            _nom  = _reg.get("nome", "") or ""
-            _ult  = _reg.get("ultimo_acesso", "") or ""
-            _icone = {"permitido": "✅", "bloqueado": "🚫", "pendente": "⏳"}.get(_st, "❔")
-
-            with st.container(border=True):
-                _rc1, _rc2, _rc3, _rc4 = st.columns([4, 2, 2, 2])
-                with _rc1:
-                    st.markdown(f"**{_em}**")
-                    if _nom:
-                        st.caption(f"👤 {_nom}")
-                    if _ult:
-                        st.caption(f"🕐 Último acesso: {_ult[:16]}")
-                with _rc2:
-                    st.markdown(f"{_icone} **{_st.title()}**")
-                    if _mot:
-                        st.caption(f"_{_mot}_")
-                with _rc3:
-                    _nova_acao = "bloqueado" if _st != "bloqueado" else "permitido"
-                    _btn_label = "🚫 Bloquear" if _nova_acao == "bloqueado" else "✅ Permitir"
-                    if st.button(_btn_label, key=f"admin_toggle_{_em}",
-                                 use_container_width=True):
-                        _db_atualizar_status_acesso(_em, _nova_acao, "", _ADMIN_EMAIL)
-                        st.toast(f"✅ {_em} → {_nova_acao}", icon="🔄")
+        # ── Adicionar e-mail manualmente ──────────────────────────────
+        st.markdown("### ➕ Adicionar Usuário")
+        _ca1, _ca2, _ca3, _ca4 = st.columns([3, 2, 2, 1])
+        with _ca1:
+            _novo_email = st.text_input("E-mail", placeholder="usuario@empresa.com", key="admin_novo_email")
+        with _ca2:
+            _novo_status = st.selectbox("Status", ["permitido", "bloqueado"], key="admin_novo_status")
+        with _ca3:
+            _novo_motivo = st.text_input("Motivo (opcional)", key="admin_novo_motivo")
+        with _ca4:
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            if st.button("Adicionar", use_container_width=True, key="admin_add_btn", type="primary"):
+                if _novo_email and "@" in _novo_email:
+                    if _db_atualizar_status_acesso(_novo_email.strip(), _novo_status,
+                                                   _novo_motivo, _ADMIN_EMAIL):
+                        st.toast(f"✅ {_novo_email} → {_novo_status}", icon="✅")
                         st.rerun()
-                with _rc4:
-                    _motivo_blq = st.text_input("Motivo", value=_mot,
-                                                key=f"admin_mot_{_em}",
-                                                placeholder="opcional",
-                                                label_visibility="collapsed")
-                    if st.button("💾", key=f"admin_save_mot_{_em}",
-                                 help="Salvar motivo"):
-                        _db_atualizar_status_acesso(_em, _st, _motivo_blq, _ADMIN_EMAIL)
-                        st.toast("Motivo salvo!", icon="💾")
-                        st.rerun()
+                else:
+                    st.warning("Digite um e-mail válido.")
 
-    st.divider()
+        st.divider()
 
-    # ── Resumo de acessos recentes (dos logs) ─────────────────────
-    st.markdown("### 📊 Acessos Recentes")
-    if _logs_rec:
-        _login_logs = [r for r in _logs_rec if r.get("acao") == "LOGIN"][:20]
-        if _login_logs:
-            _df_log = pd.DataFrame(_login_logs)[
-                ["timestamp","user_email","user_name","ip","auth_provider"]
-            ].rename(columns={
-                "timestamp": "Data/Hora", "user_email": "E-mail",
-                "user_name": "Nome", "ip": "IP", "auth_provider": "Provider"
-            })
-            st.dataframe(_df_log, use_container_width=True, hide_index=True)
+        # ── Lista de usuários controlados ─────────────────────────────
+        st.markdown("### 👥 Usuários Gerenciados")
+
+        _registros = _db_listar_controle_acesso()
+
+        # Também mostra usuários dos logs que ainda não estão na lista
+        _logs_emails = set()
+        try:
+            _logs_rec = _db_ler_logs(limite=5000)
+            _logs_emails = {r.get("user_email","") for r in _logs_rec
+                            if r.get("user_email") and r.get("user_email") != "—"}
+        except Exception:
+            pass
+        _emails_gerenc = {r["email"] for r in _registros}
+        _emails_novos  = _logs_emails - _emails_gerenc - {_ADMIN_EMAIL}
+
+        if _emails_novos:
+            st.info(f"💡 **{len(_emails_novos)} e-mail(s)** nos logs ainda não gerenciados: "
+                    f"{', '.join(sorted(_emails_novos)[:5])}{'…' if len(_emails_novos)>5 else ''}")
+
+        if not _registros:
+            st.caption("Nenhum usuário gerenciado ainda. Use o formulário acima para adicionar.")
         else:
-            st.caption("Nenhum login registrado ainda.")
+            # Filtro de status
+            _filtro_status = st.pills("Filtrar por status",
+                                       ["Todos", "✅ Permitido", "🚫 Bloqueado", "⏳ Pendente"],
+                                       default="Todos", key="admin_filtro_status")
+
+            _mapa_filtro = {"Todos": None, "✅ Permitido": "permitido",
+                            "🚫 Bloqueado": "bloqueado", "⏳ Pendente": "pendente"}
+            _filtro_val = _mapa_filtro.get(_filtro_status)
+            _reg_filtrados = [r for r in _registros
+                              if _filtro_val is None or r.get("status") == _filtro_val]
+
+            for _reg in _reg_filtrados:
+                _em   = _reg.get("email", "")
+                _st   = _reg.get("status", "")
+                _mot  = _reg.get("motivo", "") or ""
+                _nom  = _reg.get("nome", "") or ""
+                _ult  = _reg.get("ultimo_acesso", "") or ""
+                _icone = {"permitido": "✅", "bloqueado": "🚫", "pendente": "⏳"}.get(_st, "❔")
+
+                with st.container(border=True):
+                    _rc1, _rc2, _rc3, _rc4 = st.columns([4, 2, 2, 2])
+                    with _rc1:
+                        st.markdown(f"**{_em}**")
+                        if _nom:
+                            st.caption(f"👤 {_nom}")
+                        if _ult:
+                            st.caption(f"🕐 Último acesso: {_ult[:16]}")
+                    with _rc2:
+                        st.markdown(f"{_icone} **{_st.title()}**")
+                        if _mot:
+                            st.caption(f"_{_mot}_")
+                    with _rc3:
+                        _nova_acao = "bloqueado" if _st != "bloqueado" else "permitido"
+                        _btn_label = "🚫 Bloquear" if _nova_acao == "bloqueado" else "✅ Permitir"
+                        if st.button(_btn_label, key=f"admin_toggle_{_em}",
+                                     use_container_width=True):
+                            _db_atualizar_status_acesso(_em, _nova_acao, "", _ADMIN_EMAIL)
+                            st.toast(f"✅ {_em} → {_nova_acao}", icon="🔄")
+                            st.rerun()
+                    with _rc4:
+                        _motivo_blq = st.text_input("Motivo", value=_mot,
+                                                    key=f"admin_mot_{_em}",
+                                                    placeholder="opcional",
+                                                    label_visibility="collapsed")
+                        if st.button("💾", key=f"admin_save_mot_{_em}",
+                                     help="Salvar motivo"):
+                            _db_atualizar_status_acesso(_em, _st, _motivo_blq, _ADMIN_EMAIL)
+                            st.toast("Motivo salvo!", icon="💾")
+                            st.rerun()
+
+        st.divider()
+
+
+    # ══════════════════════════════════════════════════════════════
+    #  ABA 3 — LOGS DE ATIVIDADE
+    # ══════════════════════════════════════════════════════════════
+    with _adm_tab_logs:
+        st.markdown('### 📋 Logs de Atividade')
+        # ── Resumo de acessos recentes (dos logs) ─────────────────────
+        st.markdown("### 📊 Acessos Recentes")
+        if _logs_rec:
+            _login_logs = [r for r in _logs_rec if r.get("acao") == "LOGIN"][:20]
+            if _login_logs:
+                _df_log = pd.DataFrame(_login_logs)[
+                    ["timestamp","user_email","user_name","ip","auth_provider"]
+                ].rename(columns={
+                    "timestamp": "Data/Hora", "user_email": "E-mail",
+                    "user_name": "Nome", "ip": "IP", "auth_provider": "Provider"
+                })
+                st.dataframe(_df_log, use_container_width=True, hide_index=True)
+            else:
+                st.caption("Nenhum login registrado ainda.")
 
 
 # ═══════════════════════════════════════════════════════════════════
