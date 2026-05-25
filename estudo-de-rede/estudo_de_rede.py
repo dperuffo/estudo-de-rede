@@ -14058,7 +14058,11 @@ if modo == "📍 Por UF/Município":
                 df_show = df_show[_sem_preco_m1 | df_show["_cnpj_norm"].isin(_cnpj_ok_m1)]
 
         # ── Ranking Top 5 Mais Baratos ──────────────────────────────────────
-        _fuel_rank_m1 = _fuel_sel_m1 if (_fuel_sel_m1 and _fuel_sel_m1 != "— Todos —") else None
+        # Chip de combustível serve como fallback quando Filtros Avançados está fechado
+        _fuel_rank_m1 = (
+            _fuel_sel_m1 if (_fuel_sel_m1 and _fuel_sel_m1 != "— Todos —")
+            else st.session_state.get("_chip_combustivel")
+        )
         _top5_m1 = _calcular_top5_baratos(df_show, fuel_label=_fuel_rank_m1)
         df_show  = _aplicar_rank_barato(df_show, _top5_m1)
 
@@ -15427,7 +15431,11 @@ elif modo == "🗺️ Por Rota":
                 df_show_r = df_show_r[_sem_preco_m2 | df_show_r["_cnpj_norm"].isin(_cnpj_ok_m2)]
 
         # ── Ranking Top 5 Mais Baratos ──────────────────────────────────────
-        _fuel_rank_m2 = _fuel_sel_m2 if (_fuel_sel_m2 and _fuel_sel_m2 != "— Todos —") else None
+        # Chip de combustível serve como fallback quando Filtros Avançados está fechado
+        _fuel_rank_m2 = (
+            _fuel_sel_m2 if (_fuel_sel_m2 and _fuel_sel_m2 != "— Todos —")
+            else st.session_state.get("_chip_combustivel")
+        )
         _top5_m2 = _calcular_top5_baratos(df_show_r, fuel_label=_fuel_rank_m2)
         df_show_r = _aplicar_rank_barato(df_show_r, _top5_m2)
 
