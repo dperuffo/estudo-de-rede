@@ -3523,6 +3523,134 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     return novos
 
 
+# ── Persistência de cargas PP no Supabase ──────────────────────────────────
+
+def _salvar_carga_pp_supabase(pp_df: "pd.DataFrame", nome_arquivo: str = "") -> "int | None":
+    """
+    Salva o snapshot completo de uma carga de Preços PP no Supabase.
+    Retorna o id da linha inserida, ou None em caso de erro/sem conexão.
+    """
+    _db = _db_client()
+    if _db is None or pp_df is None or pp_df.empty:
+        return None
+    try:
+        _dados = pp_df.where(pp_df.notna(), None).to_dict(orient="records")
+        _resp = _db.table("cargas_precos_pp").insert({
+            "nome_arquivo":       nome_arquivo or "upload_manual",
+            "total_postos":       int(pp_df["cnpj_norm"].nunique())       if "cnpj_norm"       in pp_df.columns else 0,
+            "total_combustiveis": int(pp_df["combustivel_pk"].nunique())   if "combustivel_pk"  in pp_df.columns else 0,
+            "dados":              _dados,
+        }).execute()
+        return _resp.data[0]["id"] if _resp.data else None
+    except Exception as _e:
+        st.session_state["_hist_db_erro"] = str(_e)
+        return None
+
+
+def _carregar_cargas_pp_supabase(n: int = 2) -> "list[dict]":
+    """
+    Carrega as n cargas PP mais recentes do Supabase.
+    Cada item do retorno tem: id, created_at, nome_arquivo,
+    total_postos, total_combustiveis, dados (lista de dicts).
+    """
+    _db = _db_client()
+    if _db is None:
+        return []
+    try:
+        _resp = (
+            _db.table("cargas_precos_pp")
+            .select("id,created_at,nome_arquivo,total_postos,total_combustiveis,dados")
+            .order("created_at", desc=True)
+            .limit(n)
+            .execute()
+        )
+        return _resp.data or []
+    except Exception:
+        return []
+
+
+def _salvar_variacao_pp_supabase(
+    var_df: "pd.DataFrame",
+    carga_id: int,
+    carga_ant_id: "int | None",
+) -> bool:
+    """
+    Salva o DataFrame de variação entre duas cargas PP no Supabase.
+    Preenche também os contadores de altas/quedas/novos/removidos.
+    """
+    _db = _db_client()
+    if _db is None or var_df is None or var_df.empty:
+        return False
+    try:
+        _dados = var_df.where(var_df.notna(), None).to_dict(orient="records")
+        _db.table("variacoes_precos_pp").insert({
+            "carga_id":           carga_id,
+            "carga_anterior_id":  carga_ant_id,
+            "total_altas":        int((var_df.get("Status", pd.Series()) == "🔺 Alta").sum()),
+            "total_quedas":       int((var_df.get("Status", pd.Series()) == "🔻 Queda").sum()),
+            "total_novos":        int((var_df.get("Status", pd.Series()) == "🆕 Novo").sum()),
+            "total_removidos":    int((var_df.get("Status", pd.Series()) == "🗑️ Removido").sum()),
+            "dados":              _dados,
+        }).execute()
+        return True
+    except Exception as _e:
+        st.session_state["_hist_db_erro"] = str(_e)
+        return False
+
+
+def _carregar_ultima_variacao_pp_supabase() -> "pd.DataFrame | None":
+    """Carrega o DataFrame do resultado da comparação mais recente do Supabase."""
+    _db = _db_client()
+    if _db is None:
+        return None
+    try:
+        _resp = (
+            _db.table("variacoes_precos_pp")
+            .select("dados,created_at")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if _resp.data and _resp.data[0].get("dados"):
+            return pd.DataFrame(_resp.data[0]["dados"])
+        return None
+    except Exception:
+        return None
+
+
+def _restaurar_estado_pp_do_supabase() -> None:
+    """
+    Chamada uma vez por sessão (flag _pp_restaurado_supabase).
+    Restaura _pp_df e _pp_variacao do Supabase para que reboots
+    não percam o histórico de cargas e comparações.
+    Usa setdefault: não sobrescreve dados que já estejam na sessão.
+    """
+    if st.session_state.get("_pp_restaurado_supabase"):
+        return
+    st.session_state["_pp_restaurado_supabase"] = True
+
+    # ── Restaura última carga ──────────────────────────────────
+    try:
+        _cargas = _carregar_cargas_pp_supabase(n=1)
+        if _cargas and _cargas[0].get("dados"):
+            _pp_restaurado = pd.DataFrame(_cargas[0]["dados"])
+            if not _pp_restaurado.empty:
+                st.session_state.setdefault("_pp_df",           _pp_restaurado)
+                st.session_state.setdefault("_pp_carga_id",     _cargas[0]["id"])
+                st.session_state.setdefault("_pp_carregado_em", _cargas[0].get("created_at", ""))
+                st.session_state.setdefault("_pp_fonte",        "supabase")
+    except Exception:
+        pass
+
+    # ── Restaura última variação ───────────────────────────────
+    try:
+        _var_restaurada = _carregar_ultima_variacao_pp_supabase()
+        if _var_restaurada is not None and not _var_restaurada.empty:
+            st.session_state.setdefault("_pp_variacao", _var_restaurada)
+    except Exception:
+        pass
+
+
 def _comparar_cargas_precos(
     df_novo: "pd.DataFrame",
     df_ant:  "pd.DataFrame",
@@ -10870,6 +10998,9 @@ with st.sidebar:
         _auto_carregar_precos_postos_repo.clear()
         st.session_state["_pp_parser_ver"] = _PP_PARSER_VERSION
 
+    # ── Restaura última carga PP e variação do Supabase (persiste entre reboots) ──
+    _restaurar_estado_pp_do_supabase()
+
     if st.session_state.get("_pp_df") is None and not st.session_state.get("_pp_tentado"):
         st.session_state["_pp_tentado"] = True
         _pp_df_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
@@ -12647,18 +12778,31 @@ with st.sidebar:
                 with st.spinner(f"Lendo `{ARQUIVO_PP_REPO}`…"):
                     _pp_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
                 if _pp_tmp is not None:
-                    # ── Comparação com carga anterior ──
+                    # ── Busca carga anterior do Supabase (persiste entre reboots) ──
                     _pp_ant_repo = st.session_state.get("_pp_df")
+                    _carga_ant_id_repo = st.session_state.get("_pp_carga_id")
+                    if _pp_ant_repo is None:
+                        _cargas_repo = _carregar_cargas_pp_supabase(n=1)
+                        if _cargas_repo and _cargas_repo[0].get("dados"):
+                            _pp_ant_repo = pd.DataFrame(_cargas_repo[0]["dados"])
+                            _carga_ant_id_repo = _cargas_repo[0]["id"]
+                    # ── Salva nova carga no Supabase ──
+                    _nova_carga_id_repo = _salvar_carga_pp_supabase(_pp_tmp, ARQUIVO_PP_REPO)
+                    # ── Comparação com carga anterior ──
                     if _pp_ant_repo is not None and not _pp_ant_repo.empty:
                         try:
                             _pf_ref_repo = st.session_state.get("pf_coords_df")
                             _var_df_repo = _comparar_cargas_precos(
                                 _pp_tmp, _pp_ant_repo, _pf_ref_repo)
-                            st.session_state["_pp_variacao"]      = _var_df_repo
-                            st.session_state["_pp_variacao_ts"]   = _agora()
+                            st.session_state["_pp_variacao"]    = _var_df_repo
+                            st.session_state["_pp_variacao_ts"] = _agora()
+                            if _nova_carga_id_repo:
+                                _salvar_variacao_pp_supabase(
+                                    _var_df_repo, _nova_carga_id_repo, _carga_ant_id_repo)
                         except Exception:
                             pass
                     st.session_state["_pp_df"]          = _pp_tmp
+                    st.session_state["_pp_carga_id"]    = _nova_carga_id_repo
                     st.session_state["_pp_fonte"]        = "repo"
                     st.session_state["_pp_carregado_em"] = _agora()
                     # ── Auto-registro no histórico de inteligência ──
@@ -12684,8 +12828,17 @@ with st.sidebar:
                     with st.spinner("Lendo planilha…"):
                         _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
                     if _pp_up is not None:
-                        # ── Comparação com carga anterior ──
+                        # ── Busca carga anterior do Supabase (persiste entre reboots) ──
                         _pp_ant_up = st.session_state.get("_pp_df")
+                        _carga_ant_id_up = st.session_state.get("_pp_carga_id")
+                        if _pp_ant_up is None:
+                            _cargas_up = _carregar_cargas_pp_supabase(n=1)
+                            if _cargas_up and _cargas_up[0].get("dados"):
+                                _pp_ant_up = pd.DataFrame(_cargas_up[0]["dados"])
+                                _carga_ant_id_up = _cargas_up[0]["id"]
+                        # ── Salva nova carga no Supabase ──
+                        _nova_carga_id_up = _salvar_carga_pp_supabase(_pp_up, arquivo_pp.name)
+                        # ── Comparação com carga anterior ──
                         if _pp_ant_up is not None and not _pp_ant_up.empty:
                             try:
                                 _pf_ref_up = st.session_state.get("pf_coords_df")
@@ -12693,9 +12846,13 @@ with st.sidebar:
                                     _pp_up, _pp_ant_up, _pf_ref_up)
                                 st.session_state["_pp_variacao"]    = _var_df_up
                                 st.session_state["_pp_variacao_ts"] = _agora()
+                                if _nova_carga_id_up:
+                                    _salvar_variacao_pp_supabase(
+                                        _var_df_up, _nova_carga_id_up, _carga_ant_id_up)
                             except Exception:
                                 pass
                         st.session_state["_pp_df"]             = _pp_up
+                        st.session_state["_pp_carga_id"]       = _nova_carga_id_up
                         st.session_state["_pp_fonte"]           = "manual"
                         st.session_state["_pp_carregado_em"]    = _agora()
                         st.session_state["_pp_last_upload_id"]  = _pp_file_id
