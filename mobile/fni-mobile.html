@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#040d26">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FNI Mobile">
+<title>FNI Mobile — Fleet Network Intelligence</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root {
+  --navy:    #040d26;
+  --navy2:   #0b1e45;
+  --blue:    #1565C0;
+  --blue2:   #1976D2;
+  --cyan:    #00B0FF;
+  --green:   #00C853;
+  --orange:  #FF6D00;
+  --red:     #F44336;
+  --yellow:  #FFD600;
+  --surface: #0f1f40;
+  --card:    #162040;
+  --border:  rgba(255,255,255,0.10);
+  --text:    #E3E8F5;
+  --text2:   #8A9BBF;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--navy);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+
+/* ── Layout ── */
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#topbar{
+  padding:calc(var(--safe-top) + 12px) 16px 12px;
+  background:linear-gradient(135deg,var(--navy),var(--navy2));
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;z-index:1000;
+}
+#topbar .logo{font-size:22px;font-weight:800;background:linear-gradient(135deg,#fff,#7eb3ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
+#topbar .sub{font-size:10px;color:var(--text2);line-height:1}
+#topbar .gps-pill{margin-left:auto;background:rgba(0,200,83,.15);border:1px solid rgba(0,200,83,.4);border-radius:20px;padding:4px 10px;font-size:10px;color:var(--green);display:flex;align-items:center;gap:4px;white-space:nowrap}
+#topbar .gps-pill.off{background:rgba(244,67,54,.12);border-color:rgba(244,67,54,.3);color:var(--red)}
+
+#content{flex:1;overflow:hidden;position:relative}
+.screen{position:absolute;inset:0;overflow-y:auto;display:none;animation:fadeIn .2s ease}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Bottom Nav ── */
+#nav{
+  display:flex;background:var(--navy2);
+  border-top:1px solid var(--border);
+  padding-bottom:var(--safe-bot);
+  flex-shrink:0;z-index:1000;
+}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;gap:3px;border:none;background:none;color:var(--text2);font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:color .2s;position:relative}
+.nav-btn .icon{font-size:20px;line-height:1}
+.nav-btn.active{color:var(--cyan)}
+.nav-btn.active::after{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--cyan);border-radius:0 0 2px 2px}
+
+/* ── Map Screen ── */
+#map{position:absolute;inset:0}
+#map-overlay{position:absolute;bottom:12px;left:12px;right:12px;z-index:500;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+#map-overlay > *{pointer-events:all}
+
+.fab{width:44px;height:44px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);transition:transform .15s}
+.fab:active{transform:scale(.93)}
+.fab-blue{background:var(--blue);color:#fff}
+.fab-group{display:flex;gap:8px;align-self:flex-end}
+
+#fuel-bar{background:rgba(10,20,50,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:8px 10px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+#fuel-bar::-webkit-scrollbar{display:none}
+.fuel-chip{flex-shrink:0;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.fuel-chip.active{background:var(--blue);border-color:var(--blue2);color:#fff}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:0 12px 10px}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.card-title{font-size:13px;font-weight:700;color:var(--text);line-height:1.3}
+.card-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;white-space:nowrap}
+.badge-gf{background:rgba(21,101,192,.25);border:1px solid rgba(21,101,192,.5);color:#7eb3ff}
+.badge-dist{background:rgba(0,176,255,.12);border:1px solid rgba(0,176,255,.3);color:var(--cyan)}
+
+.price-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.price-tag{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-size:10px;color:var(--text2)}
+.price-tag strong{color:#FFD600;font-size:12px}
+
+/* ── Bottom Sheet ── */
+#sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;display:none;animation:fadeIn .2s}
+#sheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:900;
+  background:var(--surface);border-radius:20px 20px 0 0;
+  border-top:1px solid var(--border);
+  padding:0 0 calc(var(--safe-bot) + 16px);
+  transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);
+  max-height:80vh;overflow-y:auto;
+}
+#sheet.open{transform:none}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 14px}
+.sheet-content{padding:0 16px 16px}
+
+/* ── Buttons ── */
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,#0b2660,var(--blue));color:#fff;box-shadow:0 4px 12px rgba(21,101,192,.4)}
+.btn-secondary{background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text)}
+.btn-success{background:linear-gradient(135deg,#1b5e20,var(--green));color:#fff}
+.btn-sm{padding:9px 16px;font-size:12px;border-radius:10px;width:auto}
+.btn-row{display:flex;gap:8px;margin-top:12px}
+
+/* ── Route Screen ── */
+#route-screen{padding:12px 0 80px}
+.search-box{margin:0 12px 12px;position:relative}
+.search-box input{width:100%;padding:12px 16px 12px 42px;background:var(--card);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;outline:none}
+.search-box input::placeholder{color:var(--text2)}
+.search-box input:focus{border-color:var(--blue)}
+.search-box .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
+#route-map{height:240px;border-radius:14px;margin:0 12px 12px;overflow:hidden;border:1px solid var(--border)}
+#posts-list{padding:0}
+
+/* ── History Screen ── */
+#history-screen{padding:12px 0 80px}
+.section-title{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;text-transform:uppercase;padding:4px 16px 10px}
+.history-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.history-icon{width:40px;height:40px;border-radius:50%;background:rgba(21,101,192,.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.history-info{flex:1;min-width:0}
+.history-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-meta{font-size:11px;color:var(--text2);margin-top:2px}
+.history-value{text-align:right;flex-shrink:0}
+.history-price{font-size:13px;font-weight:700;color:var(--yellow)}
+.history-liters{font-size:10px;color:var(--text2)}
+.stats-row{display:flex;gap:8px;padding:0 12px 12px}
+.stat-card{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center}
+.stat-val{font-size:20px;font-weight:800;color:var(--cyan)}
+.stat-lbl{font-size:10px;color:var(--text2);margin-top:2px}
+
+/* ── Settings Screen ── */
+#settings-screen{padding:12px 0 80px}
+.setting-group{margin:0 12px 16px;background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.setting-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);gap:12px}
+.setting-row:last-child{border-bottom:none}
+.setting-label{flex:1}
+.setting-label strong{font-size:13px;display:block}
+.setting-label span{font-size:11px;color:var(--text2)}
+.setting-input{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;text-align:right;outline:none;min-width:0}
+.setting-select{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;min-width:0}
+.setting-select option{background:var(--card)}
+
+/* ── Check-in Modal ── */
+#checkin-modal{
+  position:fixed;inset:0;z-index:1000;display:none;
+  background:rgba(0,0,0,.7);align-items:flex-end;
+  animation:fadeIn .2s;
+}
+#checkin-modal.open{display:flex}
+#checkin-box{
+  width:100%;background:var(--surface);border-radius:20px 20px 0 0;
+  border-top:1px solid var(--border);
+  padding:20px 20px calc(var(--safe-bot) + 20px);
+}
+.modal-title{font-size:16px;font-weight:800;margin-bottom:16px;text-align:center}
+.field{margin-bottom:14px}
+.field label{font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.field input,.field select{width:100%;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;outline:none}
+.field input:focus,.field select:focus{border-color:var(--blue)}
+.field select option{background:var(--card)}
+.calc-display{background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.2);border-radius:10px;padding:10px 14px;text-align:center;font-size:13px;color:var(--text2);margin-bottom:14px}
+.calc-display strong{font-size:18px;color:var(--yellow)}
+
+/* ── Toast ── */
+#toast{
+  position:fixed;top:calc(var(--safe-top) + 70px);left:16px;right:16px;z-index:2000;
+  background:var(--green);color:#fff;border-radius:12px;
+  padding:12px 16px;font-size:13px;font-weight:600;text-align:center;
+  transform:translateY(-20px);opacity:0;transition:all .3s;pointer-events:none;
+}
+#toast.show{transform:none;opacity:1}
+#toast.error{background:var(--red)}
+#toast.warn{background:var(--orange)}
+
+/* ── Loading ── */
+#loading{
+  position:fixed;inset:0;background:var(--navy);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-size:13px;color:var(--text2)}
+
+/* ── Leaflet overrides ── */
+.leaflet-container{background:#0a1525!important}
+.leaflet-tile{filter:brightness(.85) saturate(.7) hue-rotate(200deg)}
+.custom-marker{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;border:2px solid rgba(255,255,255,.5);
+  box-shadow:0 2px 8px rgba(0,0,0,.6);cursor:pointer;
+}
+.marker-gf{background:linear-gradient(135deg,#0b2660,#1565C0)}
+.marker-me{background:var(--green);border-color:var(--green)}
+.leaflet-popup-content-wrapper{background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.leaflet-popup-tip{background:var(--card)}
+.leaflet-popup-content{margin:10px 14px;font-size:12px}
+.leaflet-control-zoom a{background:var(--card)!important;color:var(--text)!important;border-color:var(--border)!important}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div style="font-size:52px">🚛</div>
+  <div style="font-size:20px;font-weight:800;background:linear-gradient(135deg,#fff,#7eb3ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">FNI Mobile</div>
+  <div class="spinner"></div>
+  <div class="loading-txt" id="loading-txt">Iniciando GPS…</div>
+</div>
+
+<div id="app" style="display:none">
+  <!-- Top Bar -->
+  <div id="topbar">
+    <div>
+      <div class="logo">🚛 FNI</div>
+      <div class="sub">Fleet Network Intelligence</div>
+    </div>
+    <div class="gps-pill off" id="gps-pill">📡 GPS…</div>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- MAP SCREEN -->
+    <div class="screen active" id="screen-map">
+      <div id="map"></div>
+      <div id="map-overlay">
+        <div id="fuel-bar">
+          <div class="fuel-chip active" data-fuel="">⛽ Todos</div>
+          <div class="fuel-chip" data-fuel="diesel s10">🔵 Diesel S10</div>
+          <div class="fuel-chip" data-fuel="diesel">⚫ Diesel</div>
+          <div class="fuel-chip" data-fuel="gasolina">🟡 Gasolina</div>
+          <div class="fuel-chip" data-fuel="etanol">🟢 Etanol</div>
+          <div class="fuel-chip" data-fuel="gnv">🔴 GNV</div>
+        </div>
+        <div class="fab-group">
+          <button class="fab fab-blue" id="btn-center" title="Minha localização">📍</button>
+          <button class="fab fab-blue" id="btn-refresh" title="Atualizar postos">🔄</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROUTE SCREEN -->
+    <div class="screen" id="screen-route">
+      <div id="route-screen">
+        <div style="padding:12px 16px 0;font-size:15px;font-weight:700">🗺️ Traçar Rota</div>
+        <div style="font-size:11px;color:var(--text2);padding:2px 16px 12px">Sua localização é usada como origem</div>
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input type="text" id="dest-input" placeholder="Destino: cidade, endereço ou posto…" autocomplete="off">
+        </div>
+        <div id="dest-suggestions" style="margin:-4px 12px 10px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:none"></div>
+        <div id="route-map"></div>
+        <div id="route-stats" style="display:none;padding:0 12px 12px">
+          <div class="card" style="margin:0">
+            <div style="display:flex;gap:16px;text-align:center">
+              <div style="flex:1"><div style="font-size:20px;font-weight:800;color:var(--cyan)" id="r-dist">—</div><div style="font-size:10px;color:var(--text2)">KM</div></div>
+              <div style="flex:1"><div style="font-size:20px;font-weight:800;color:var(--cyan)" id="r-time">—</div><div style="font-size:10px;color:var(--text2)">TEMPO</div></div>
+              <div style="flex:1"><div style="font-size:20px;font-weight:800;color:var(--cyan)" id="r-posts">—</div><div style="font-size:10px;color:var(--text2)">POSTOS GF</div></div>
+            </div>
+          </div>
+        </div>
+        <div id="posts-list"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY SCREEN -->
+    <div class="screen" id="screen-history">
+      <div id="history-screen">
+        <div style="padding:12px 16px 8px;font-size:15px;font-weight:700">📋 Histórico de Abastecimentos</div>
+        <div class="stats-row" id="history-stats">
+          <div class="stat-card"><div class="stat-val" id="h-total">—</div><div class="stat-lbl">Total Gasto</div></div>
+          <div class="stat-card"><div class="stat-val" id="h-liters">—</div><div class="stat-lbl">Litros</div></div>
+          <div class="stat-card"><div class="stat-val" id="h-count">0</div><div class="stat-lbl">Check-ins</div></div>
+        </div>
+        <div class="section-title">ÚLTIMOS ABASTECIMENTOS</div>
+        <div id="history-list"><div style="padding:32px 16px;text-align:center;color:var(--text2)">Nenhum abastecimento registrado</div></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS SCREEN -->
+    <div class="screen" id="screen-settings">
+      <div id="settings-screen">
+        <div style="padding:12px 16px 16px;font-size:15px;font-weight:700">⚙️ Configurações</div>
+
+        <div class="section-title">SUPABASE</div>
+        <div class="setting-group">
+          <div class="setting-row">
+            <div class="setting-label"><strong>URL do Projeto</strong><span>https://xxx.supabase.co</span></div>
+          </div>
+          <div style="padding:0 16px 12px"><input class="setting-input" style="width:100%;text-align:left" id="cfg-url" placeholder="https://xxx.supabase.co" type="url"></div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Anon Key</strong><span>Chave pública do Supabase</span></div>
+          </div>
+          <div style="padding:0 16px 12px"><input class="setting-input" style="width:100%;text-align:left" id="cfg-key" placeholder="eyJ…" type="password"></div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Tabela de Postos GF</strong><span>Nome da tabela com lat/lon</span></div>
+            <input class="setting-input" id="cfg-table" placeholder="postos_gf" style="width:140px">
+          </div>
+        </div>
+
+        <div class="section-title">VEÍCULO</div>
+        <div class="setting-group">
+          <div class="setting-row">
+            <div class="setting-label"><strong>Placa</strong><span>Ex: ABC-1D23</span></div>
+            <input class="setting-input" id="cfg-placa" placeholder="ABC-1D23" style="width:120px">
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Combustível padrão</strong></div>
+            <select class="setting-select" id="cfg-fuel" style="width:150px">
+              <option value="">Todos</option>
+              <option value="diesel s10">Diesel S10</option>
+              <option value="diesel">Diesel</option>
+              <option value="gasolina">Gasolina</option>
+              <option value="etanol">Etanol</option>
+              <option value="gnv">GNV</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Tanque (L)</strong></div>
+            <input class="setting-input" id="cfg-tank" placeholder="200" type="number" style="width:80px">
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Autonomia (km/L)</strong></div>
+            <input class="setting-input" id="cfg-kml" placeholder="3.5" type="number" step="0.1" style="width:80px">
+          </div>
+        </div>
+
+        <div class="section-title">BUSCA</div>
+        <div class="setting-group">
+          <div class="setting-row">
+            <div class="setting-label"><strong>Raio (postos próximos)</strong></div>
+            <select class="setting-select" id="cfg-radius" style="width:100px">
+              <option value="5">5 km</option>
+              <option value="10" selected>10 km</option>
+              <option value="20">20 km</option>
+              <option value="50">50 km</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label"><strong>Raio na rota (m)</strong></div>
+            <select class="setting-select" id="cfg-route-radius" style="width:120px">
+              <option value="300">300 m</option>
+              <option value="500" selected>500 m</option>
+              <option value="1000">1 km</option>
+              <option value="2000">2 km</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="padding:0 12px 8px">
+          <button class="btn btn-primary" id="btn-save-cfg">💾 Salvar Configurações</button>
+        </div>
+        <div style="padding:0 12px 4px">
+          <button class="btn btn-secondary" id="btn-demo">🎮 Modo Demo (dados de exemplo)</button>
+        </div>
+        <div style="padding:8px 16px;font-size:10px;color:var(--text2);text-align:center">FNI Mobile v1.0 · PWA · Dados via Supabase</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- Bottom Nav -->
+  <nav id="nav">
+    <button class="nav-btn active" data-screen="map"><span class="icon">🗺️</span>Mapa</button>
+    <button class="nav-btn" data-screen="route"><span class="icon">🛣️</span>Rota</button>
+    <button class="nav-btn" data-screen="history"><span class="icon">📋</span>Histórico</button>
+    <button class="nav-btn" data-screen="settings"><span class="icon">⚙️</span>Config</button>
+  </nav>
+</div><!-- /app -->
+
+<!-- Bottom Sheet (Detalhes do Posto) -->
+<div id="sheet-backdrop"></div>
+<div id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-content" id="sheet-content"></div>
+</div>
+
+<!-- Check-in Modal -->
+<div id="checkin-modal">
+  <div id="checkin-box">
+    <div class="modal-title">⛽ Registrar Abastecimento</div>
+    <input type="hidden" id="ci-posto-cnpj">
+    <input type="hidden" id="ci-posto-nome">
+    <div class="field">
+      <label>Combustível</label>
+      <select id="ci-fuel">
+        <option value="Diesel S10">Diesel S10</option>
+        <option value="Diesel">Diesel</option>
+        <option value="Gasolina Comum">Gasolina Comum</option>
+        <option value="Gasolina Aditivada">Gasolina Aditivada</option>
+        <option value="Etanol">Etanol</option>
+        <option value="GNV">GNV</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="field" style="flex:1">
+        <label>Litros</label>
+        <input type="number" id="ci-liters" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="field" style="flex:1">
+        <label>Valor Total (R$)</label>
+        <input type="number" id="ci-value" placeholder="0.00" step="0.01" min="0">
+      </div>
+    </div>
+    <div class="calc-display">
+      Preço/L: <strong id="ci-calc">—</strong>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary btn-sm" id="btn-checkin-cancel">Cancelar</button>
+      <button class="btn btn-success" id="btn-checkin-ok">✅ Confirmar Check-in</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIG & STATE
+// ═══════════════════════════════════════════════════════════
+const CFG_KEY = 'fni_cfg';
+
+let cfg = {
+  url: '', key: '', table: 'postos_gf',
+  placa: '', fuel: 'diesel s10', tank: 200, kml: 3.5,
+  radius: 10, routeRadius: 500
+};
+
+let state = {
+  lat: null, lon: null,
+  posts: [], filteredPosts: [],
+  fuelFilter: '',
+  selectedPost: null,
+  routeLayer: null,
+  demoMode: false,
+  history: [],
+};
+
+// Load saved config
+try {
+  const saved = JSON.parse(localStorage.getItem(CFG_KEY) || '{}');
+  Object.assign(cfg, saved);
+} catch(e) {}
+
+// ═══════════════════════════════════════════════════════════
+//  SUPABASE CLIENT
+// ═══════════════════════════════════════════════════════════
+let sb = null;
+
+function initSupabase() {
+  if (!cfg.url || !cfg.key) return false;
+  try {
+    // Inline minimal Supabase REST client
+    sb = {
+      from: (table) => ({
+        select: async (cols = '*', opts = {}) => {
+          let url = `${cfg.url}/rest/v1/${table}?select=${cols}`;
+          if (opts.limit) url += `&limit=${opts.limit}`;
+          if (opts.filter) url += `&${opts.filter}`;
+          const r = await fetch(url, {
+            headers: {
+              'apikey': cfg.key,
+              'Authorization': `Bearer ${cfg.key}`,
+              'Content-Type': 'application/json',
+            }
+          });
+          if (!r.ok) throw new Error(`Supabase error ${r.status}`);
+          return { data: await r.json(), error: null };
+        },
+        insert: async (rows) => {
+          const r = await fetch(`${cfg.url}/rest/v1/${table}`, {
+            method: 'POST',
+            headers: {
+              'apikey': cfg.key,
+              'Authorization': `Bearer ${cfg.key}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(Array.isArray(rows) ? rows : [rows])
+          });
+          if (!r.ok) {
+            const err = await r.text();
+            throw new Error(err);
+          }
+          return { error: null };
+        }
+      })
+    };
+    return true;
+  } catch(e) {
+    console.error('Supabase init:', e);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MAPS
+// ═══════════════════════════════════════════════════════════
+let mainMap, routeMap, myMarker, routeMarkers = [];
+
+function initMainMap() {
+  mainMap = L.map('map', { zoomControl: false, attributionControl: false })
+    .setView([-15.78, -47.93], 5);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, opacity: 0.85
+  }).addTo(mainMap);
+
+  L.control.zoom({ position: 'topright' }).addTo(mainMap);
+  L.control.attribution({ prefix: '© OSM' }).addTo(mainMap);
+}
+
+function initRouteMap() {
+  if (routeMap) return;
+  routeMap = L.map('route-map', { zoomControl: false, attributionControl: false })
+    .setView([-15.78, -47.93], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, opacity: 0.85 }).addTo(routeMap);
+}
+
+function setMyLocation(lat, lon) {
+  state.lat = lat; state.lon = lon;
+
+  const icon = L.divIcon({
+    html: '<div class="custom-marker marker-me">📍</div>',
+    className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+  });
+
+  if (myMarker) { myMarker.setLatLng([lat, lon]); }
+  else { myMarker = L.marker([lat, lon], { icon, zIndexOffset: 1000 }).addTo(mainMap); }
+
+  document.getElementById('gps-pill').textContent = `📡 ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  document.getElementById('gps-pill').classList.remove('off');
+}
+
+function renderPostMarkers() {
+  // Clear old markers
+  mainMap.eachLayer(l => { if (l._fniPost) mainMap.removeLayer(l); });
+
+  const fuel = state.fuelFilter.toLowerCase();
+  state.filteredPosts = state.posts.filter(p => {
+    if (!p._lat || !p._lon) return false;
+    if (!fuel) return true;
+    const pf = (p.combustivel_label || p.fuel || '').toLowerCase();
+    if (fuel === 'diesel s10') return pf.includes('diesel') && (pf.includes('s10') || pf.includes('s-10'));
+    if (fuel === 'diesel') return pf.includes('diesel') && !pf.includes('s10') && !pf.includes('s-10');
+    if (fuel === 'gasolina') return pf.includes('gasolina');
+    if (fuel === 'etanol') return pf.includes('etanol');
+    if (fuel === 'gnv') return pf.includes('gnv');
+    return true;
+  });
+
+  state.filteredPosts.forEach(p => {
+    const priceStr = p.preco ? `R$ ${Number(p.preco).toFixed(3)}/L` : '';
+    const icon = L.divIcon({
+      html: `<div class="custom-marker marker-gf" title="${p.razaoSocial||p.nome||'Posto'}">⛽</div>`,
+      className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+    });
+    const marker = L.marker([p._lat, p._lon], { icon })
+      .addTo(mainMap)
+      .on('click', () => openSheet(p));
+    marker._fniPost = true;
+  });
+
+  showToast(`${state.filteredPosts.length} postos no mapa`, 'info', 2000);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATA LOADING
+// ═══════════════════════════════════════════════════════════
+async function loadPosts() {
+  if (state.demoMode) { loadDemoPosts(); return; }
+  if (!sb) { loadDemoPosts(); return; }
+
+  try {
+    showToast('Carregando postos…', 'info', 3000);
+    const { data, error } = await sb.from(cfg.table).select('*', { limit: 2000 });
+    if (error) throw error;
+
+    // Normalize lat/lon columns
+    state.posts = (data || []).map(p => ({
+      ...p,
+      _lat: parseFloat(p._lat || p.lat || p.latitude || 0) || null,
+      _lon: parseFloat(p._lon || p.lon || p.longitude || 0) || null,
+    })).filter(p => p._lat && p._lon);
+
+    renderPostMarkers();
+  } catch(e) {
+    console.error('loadPosts:', e);
+    showToast('Erro ao carregar postos. Usando demo.', 'warn');
+    loadDemoPosts();
+  }
+}
+
+function loadDemoPosts() {
+  state.demoMode = true;
+  // Sample posts around Brazil major routes
+  const demos = [
+    { cnpj_norm:'11111111000100', razaoSocial:'Auto Posto Ipiranga', distribuidora:'Ipiranga', municipio:'São Paulo', uf:'SP', _lat:-23.5505, _lon:-46.6333, preco:6.290, combustivel_label:'Diesel S10' },
+    { cnpj_norm:'22222222000100', razaoSocial:'Posto BR Distribuidora', distribuidora:'Vibra', municipio:'Campinas', uf:'SP', _lat:-22.9068, _lon:-47.0626, preco:6.190, combustivel_label:'Diesel S10' },
+    { cnpj_norm:'33333333000100', razaoSocial:'Raízen Shell', distribuidora:'Shell', municipio:'Ribeirão Preto', uf:'SP', _lat:-21.1767, _lon:-47.8208, preco:6.350, combustivel_label:'Diesel S-10 Aditivado' },
+    { cnpj_norm:'44444444000100', razaoSocial:'Posto Petrobras', distribuidora:'Petrobras', municipio:'Curitiba', uf:'PR', _lat:-25.4290, _lon:-49.2710, preco:6.150, combustivel_label:'Óleo Diesel S10' },
+    { cnpj_norm:'55555555000100', razaoSocial:'Posto Ale Combustíveis', distribuidora:'Ale', municipio:'Porto Alegre', uf:'RS', _lat:-30.0346, _lon:-51.2177, preco:6.080, combustivel_label:'Diesel S10' },
+    { cnpj_norm:'66666666000100', razaoSocial:'Auto Posto Belo Horizonte', distribuidora:'Ipiranga', municipio:'Belo Horizonte', uf:'MG', _lat:-19.9167, _lon:-43.9345, preco:6.420, combustivel_label:'Gasolina Comum' },
+    { cnpj_norm:'77777777000100', razaoSocial:'Posto Goiânia Centro', distribuidora:'Vibra', municipio:'Goiânia', uf:'GO', _lat:-16.6864, _lon:-49.2643, preco:5.990, combustivel_label:'Etanol Comum' },
+    { cnpj_norm:'88888888000100', razaoSocial:'Posto Brasília DF', distribuidora:'Shell', municipio:'Brasília', uf:'DF', _lat:-15.7942, _lon:-47.8822, preco:6.550, combustivel_label:'Diesel S10' },
+  ];
+  // Add user location vicinity if known
+  if (state.lat && state.lon) {
+    demos.push({
+      cnpj_norm:'99999999000100', razaoSocial:'Posto GF Próximo (Demo)',
+      distribuidora:'Demo', municipio:'Sua Cidade', uf:'--',
+      _lat: state.lat + 0.01, _lon: state.lon + 0.008,
+      preco: 5.999, combustivel_label: 'Diesel S10'
+    });
+  }
+  state.posts = demos;
+  renderPostMarkers();
+  showToast('⚠️ Modo Demo ativo', 'warn', 3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GEOLOCATION
+// ═══════════════════════════════════════════════════════════
+function startGPS() {
+  if (!navigator.geolocation) {
+    showToast('GPS não disponível neste dispositivo', 'error');
+    return;
+  }
+  navigator.geolocation.watchPosition(
+    pos => {
+      setMyLocation(pos.coords.latitude, pos.coords.longitude);
+      if (state.posts.length === 0) loadPosts();
+    },
+    err => {
+      console.warn('GPS error:', err);
+      document.getElementById('gps-pill').textContent = '❌ GPS negado';
+      document.getElementById('gps-pill').classList.add('off');
+      // Still load posts with last known or center of Brazil
+      if (state.posts.length === 0) {
+        state.lat = state.lat || -15.78;
+        state.lon = state.lon || -47.93;
+        loadPosts();
+      }
+    },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+  );
+}
+
+function centerOnMe() {
+  if (state.lat && state.lon) {
+    mainMap.flyTo([state.lat, state.lon], 13, { duration: 1 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HAVERSINE DISTANCE
+// ═══════════════════════════════════════════════════════════
+function dist(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+    Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BOTTOM SHEET
+// ═══════════════════════════════════════════════════════════
+function openSheet(post) {
+  state.selectedPost = post;
+  const d = (state.lat && state.lon && post._lat && post._lon)
+    ? dist(state.lat, state.lon, post._lat, post._lon).toFixed(1) + ' km'
+    : '—';
+
+  const priceStr = post.preco
+    ? `<span class="price-tag"><strong>R$ ${Number(post.preco).toFixed(3)}/L</strong> ${post.combustivel_label || ''}</span>`
+    : '<span class="price-tag" style="color:var(--text2)">Sem preço cadastrado</span>';
+
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${post._lat},${post._lon}&travelmode=driving`;
+
+  document.getElementById('sheet-content').innerHTML = `
+    <div class="card-header" style="margin-bottom:12px">
+      <div>
+        <div class="card-title" style="font-size:16px">${post.razaoSocial || post.nome || 'Posto GF'}</div>
+        <div class="card-sub">📍 ${post.municipio || '—'} / ${post.uf || '—'} · ${post.distribuidora || 'Independente'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <span class="badge badge-gf">⭐ GF</span>
+        <span class="badge badge-dist">📏 ${d}</span>
+      </div>
+    </div>
+    ${post.cnpj_norm ? `<div style="font-size:10px;color:var(--text2);margin-bottom:8px">CNPJ: ${post.cnpj_norm}</div>` : ''}
+    <div class="price-row">${priceStr}</div>
+    ${cfg.kml ? `<div style="margin-top:10px;font-size:11px;color:var(--text2)">
+      🚛 Com seu veículo (${cfg.kml} km/L): alcance de ~${Math.round(Number(d)*0.9)} km com ${cfg.tank || 200}L
+    </div>` : ''}
+    <div class="btn-row" style="margin-top:16px">
+      <a href="${mapsUrl}" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none;flex:1">🗺️ Como Chegar</a>
+      <button class="btn btn-primary btn-sm" style="flex:1" onclick="openCheckin()">⛽ Check-in</button>
+    </div>
+  `;
+
+  document.getElementById('sheet-backdrop').style.display = 'block';
+  document.getElementById('sheet').classList.add('open');
+}
+
+function closeSheet() {
+  document.getElementById('sheet').classList.remove('open');
+  setTimeout(() => { document.getElementById('sheet-backdrop').style.display = 'none'; }, 300);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHECK-IN
+// ═══════════════════════════════════════════════════════════
+function openCheckin() {
+  closeSheet();
+  const p = state.selectedPost;
+  document.getElementById('ci-posto-cnpj').value = p?.cnpj_norm || '';
+  document.getElementById('ci-posto-nome').value = p?.razaoSocial || '';
+  // Pre-select fuel from post or config
+  const fuelMap = { 'diesel s10':'Diesel S10', 'gasolina':'Gasolina Comum', 'etanol':'Etanol', 'gnv':'GNV' };
+  const defaultFuel = fuelMap[cfg.fuel] || 'Diesel S10';
+  document.getElementById('ci-fuel').value = defaultFuel;
+  document.getElementById('ci-liters').value = '';
+  document.getElementById('ci-value').value = '';
+  document.getElementById('ci-calc').textContent = '—';
+  document.getElementById('checkin-modal').classList.add('open');
+}
+
+function calcPriceLiter() {
+  const L = parseFloat(document.getElementById('ci-liters').value) || 0;
+  const V = parseFloat(document.getElementById('ci-value').value) || 0;
+  if (L > 0 && V > 0) {
+    document.getElementById('ci-calc').textContent = `R$ ${(V/L).toFixed(3)}/L`;
+  } else {
+    document.getElementById('ci-calc').textContent = '—';
+  }
+}
+
+async function saveCheckin() {
+  const litros = parseFloat(document.getElementById('ci-liters').value) || 0;
+  const valor  = parseFloat(document.getElementById('ci-value').value) || 0;
+  const fuel   = document.getElementById('ci-fuel').value;
+  const cnpj   = document.getElementById('ci-posto-cnpj').value;
+  const nome   = document.getElementById('ci-posto-nome').value;
+
+  if (litros <= 0 || valor <= 0) { showToast('Preencha litros e valor!', 'error'); return; }
+
+  const record = {
+    placa: cfg.placa || 'SEM PLACA',
+    posto_cnpj: cnpj,
+    posto_nome: nome,
+    posto_municipio: state.selectedPost?.municipio || '',
+    posto_uf: state.selectedPost?.uf || '',
+    combustivel: fuel,
+    litros, valor_total: valor,
+    preco_litro: litros > 0 ? +(valor/litros).toFixed(4) : null,
+    lat: state.lat, lon: state.lon,
+    created_at: new Date().toISOString(),
+  };
+
+  // Save locally always
+  const hist = JSON.parse(localStorage.getItem('fni_history') || '[]');
+  hist.unshift(record);
+  localStorage.setItem('fni_history', JSON.stringify(hist.slice(0, 200)));
+  state.history = hist;
+
+  // Save to Supabase if configured
+  if (sb) {
+    try {
+      await sb.from('abastecimentos_mobile').insert(record);
+      showToast('✅ Check-in salvo no Supabase!');
+    } catch(e) {
+      showToast('Salvo localmente (Supabase indisponível)', 'warn');
+    }
+  } else {
+    showToast('✅ Check-in salvo localmente!');
+  }
+
+  document.getElementById('checkin-modal').classList.remove('open');
+  renderHistory();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HISTORY
+// ═══════════════════════════════════════════════════════════
+function renderHistory() {
+  const hist = JSON.parse(localStorage.getItem('fni_history') || '[]');
+  state.history = hist;
+
+  const totalVal   = hist.reduce((s, h) => s + (h.valor_total || 0), 0);
+  const totalLit   = hist.reduce((s, h) => s + (h.litros || 0), 0);
+
+  document.getElementById('h-total').textContent = hist.length ? `R$${totalVal.toFixed(0)}` : '—';
+  document.getElementById('h-liters').textContent = hist.length ? `${totalLit.toFixed(0)}L` : '—';
+  document.getElementById('h-count').textContent = hist.length;
+
+  if (!hist.length) {
+    document.getElementById('history-list').innerHTML =
+      '<div style="padding:32px 16px;text-align:center;color:var(--text2)">Nenhum abastecimento registrado</div>';
+    return;
+  }
+
+  document.getElementById('history-list').innerHTML = hist.map(h => {
+    const dt = new Date(h.created_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+    return `
+    <div class="history-item">
+      <div class="history-icon">⛽</div>
+      <div class="history-info">
+        <div class="history-name">${h.posto_nome || 'Posto'}</div>
+        <div class="history-meta">${h.combustivel} · ${h.litros?.toFixed(1)}L · ${dt}</div>
+        ${h.placa ? `<div class="history-meta">🚛 ${h.placa}</div>` : ''}
+      </div>
+      <div class="history-value">
+        <div class="history-price">R$ ${Number(h.valor_total).toFixed(2)}</div>
+        <div class="history-liters">R$ ${Number(h.preco_litro).toFixed(3)}/L</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ROUTING (OSRM + Nominatim)
+// ═══════════════════════════════════════════════════════════
+let destCoords = null;
+let routeLayer = null;
+
+async function geocode(query) {
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=br`, {
+    headers: { 'Accept-Language': 'pt-BR' }
+  });
+  return await r.json();
+}
+
+async function calcRoute(destLat, destLon) {
+  if (!state.lat || !state.lon) { showToast('Aguardando GPS…', 'warn'); return; }
+
+  initRouteMap();
+  const url = `https://router.project-osrm.org/route/v1/driving/${state.lon},${state.lat};${destLon},${destLat}?overview=full&geometries=geojson`;
+
+  try {
+    const r = await fetch(url);
+    const d = await r.json();
+    if (!d.routes?.length) { showToast('Rota não encontrada', 'error'); return; }
+
+    const route = d.routes[0];
+    const distKm = (route.distance / 1000).toFixed(0);
+    const mins   = Math.round(route.duration / 60);
+    const hhmm   = mins >= 60 ? `${Math.floor(mins/60)}h${(mins%60).toString().padStart(2,'0')}min` : `${mins} min`;
+
+    // Draw route
+    if (routeLayer) routeMap.removeLayer(routeLayer);
+    routeLayer = L.geoJSON(route.geometry, {
+      style: { color: '#1565C0', weight: 4, opacity: 0.9 }
+    }).addTo(routeMap);
+
+    // Origin + dest markers
+    routeMap.eachLayer(l => { if (l._routeMarker) routeMap.removeLayer(l); });
+    [
+      { lat: state.lat, lon: state.lon, icon: '🟢', label: 'Origem' },
+      { lat: destLat, lon: destLon, icon: '🔴', label: 'Destino' }
+    ].forEach(m => {
+      const mk = L.marker([m.lat, m.lon], {
+        icon: L.divIcon({ html: `<div style="font-size:22px">${m.icon}</div>`, className: '', iconSize: [24,24], iconAnchor: [12,12] })
+      }).addTo(routeMap).bindPopup(m.label);
+      mk._routeMarker = true;
+    });
+
+    routeMap.fitBounds(routeLayer.getBounds(), { padding: [20,20] });
+
+    // Find posts along route
+    const coords = route.geometry.coordinates; // [lon,lat] pairs
+    const postsOnRoute = state.posts.filter(p => {
+      if (!p._lat || !p._lon) return false;
+      return coords.some(([ln, lt]) =>
+        dist(lt, ln, p._lat, p._lon) * 1000 < cfg.routeRadius
+      );
+    }).sort((a, b) => (a.preco||99) - (b.preco||99));
+
+    document.getElementById('r-dist').textContent  = `${distKm} km`;
+    document.getElementById('r-time').textContent  = hhmm;
+    document.getElementById('r-posts').textContent = postsOnRoute.length;
+    document.getElementById('route-stats').style.display = 'block';
+
+    renderRoutePostsList(postsOnRoute);
+
+    // Add post markers to route map
+    postsOnRoute.forEach(p => {
+      const mk = L.marker([p._lat, p._lon], {
+        icon: L.divIcon({ html: '<div class="custom-marker marker-gf">⛽</div>', className: '', iconSize: [32,32], iconAnchor: [16,16] })
+      }).addTo(routeMap).on('click', () => { openSheet(p); });
+      mk._routeMarker = true;
+    });
+
+  } catch(e) {
+    console.error('Route:', e);
+    showToast('Erro ao calcular rota', 'error');
+  }
+}
+
+function renderRoutePostsList(posts) {
+  if (!posts.length) {
+    document.getElementById('posts-list').innerHTML =
+      `<div style="padding:24px 16px;text-align:center;color:var(--text2)">Nenhum posto GF nos ${cfg.routeRadius}m da rota</div>`;
+    return;
+  }
+  document.getElementById('posts-list').innerHTML =
+    `<div class="section-title" style="padding-top:8px">POSTOS GF NA ROTA (${posts.length})</div>` +
+    posts.map((p, i) => `
+    <div class="card" onclick="openSheet(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+      <div class="card-header">
+        <div>
+          <div style="font-size:11px;font-weight:800;color:var(--cyan)">🥇 #${i+1} MAIS BARATO</div>
+          <div class="card-title">${p.razaoSocial || p.nome || 'Posto GF'}</div>
+          <div class="card-sub">📍 ${p.municipio||'—'} · ${p.distribuidora||'—'}</div>
+        </div>
+        ${p.preco ? `<div style="text-align:right"><div style="font-size:18px;font-weight:800;color:var(--yellow)">R$ ${Number(p.preco).toFixed(3)}</div><div style="font-size:10px;color:var(--text2)">/litro</div></div>` : ''}
+      </div>
+      ${p.combustivel_label ? `<div class="price-row"><span class="price-tag">${p.combustivel_label}</span></div>` : ''}
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════════
+function loadSettingsUI() {
+  document.getElementById('cfg-url').value   = cfg.url || '';
+  document.getElementById('cfg-key').value   = cfg.key || '';
+  document.getElementById('cfg-table').value = cfg.table || 'postos_gf';
+  document.getElementById('cfg-placa').value = cfg.placa || '';
+  document.getElementById('cfg-fuel').value  = cfg.fuel || 'diesel s10';
+  document.getElementById('cfg-tank').value  = cfg.tank || 200;
+  document.getElementById('cfg-kml').value   = cfg.kml || 3.5;
+  document.getElementById('cfg-radius').value = cfg.radius || 10;
+  document.getElementById('cfg-route-radius').value = cfg.routeRadius || 500;
+}
+
+function saveSettings() {
+  cfg.url          = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+  cfg.key          = document.getElementById('cfg-key').value.trim();
+  cfg.table        = document.getElementById('cfg-table').value.trim() || 'postos_gf';
+  cfg.placa        = document.getElementById('cfg-placa').value.trim().toUpperCase();
+  cfg.fuel         = document.getElementById('cfg-fuel').value;
+  cfg.tank         = parseFloat(document.getElementById('cfg-tank').value) || 200;
+  cfg.kml          = parseFloat(document.getElementById('cfg-kml').value) || 3.5;
+  cfg.radius       = parseInt(document.getElementById('cfg-radius').value) || 10;
+  cfg.routeRadius  = parseInt(document.getElementById('cfg-route-radius').value) || 500;
+
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+
+  if (cfg.url && cfg.key) {
+    const ok = initSupabase();
+    if (ok) { state.posts = []; state.demoMode = false; loadPosts(); }
+  }
+
+  // Update fuel chips default
+  document.querySelectorAll('.fuel-chip').forEach(c => c.classList.remove('active'));
+  const defaultChip = document.querySelector(`.fuel-chip[data-fuel="${cfg.fuel}"]`) ||
+                      document.querySelector('.fuel-chip[data-fuel=""]');
+  if (defaultChip) { defaultChip.classList.add('active'); state.fuelFilter = cfg.fuel || ''; }
+
+  showToast('✅ Configurações salvas!');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, type = 'ok', duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type === 'error' ? 'error' : type === 'warn' ? 'warn' : ''}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, duration);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════════════════════
+function navigate(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`screen-${screen}`).classList.add('active');
+  document.querySelector(`.nav-btn[data-screen="${screen}"]`).classList.add('active');
+
+  if (screen === 'route') { setTimeout(initRouteMap, 50); }
+  if (screen === 'history') renderHistory();
+  if (screen === 'settings') loadSettingsUI();
+  if (screen === 'map') setTimeout(() => mainMap.invalidateSize(), 100);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => navigate(btn.dataset.screen));
+});
+
+document.getElementById('btn-center').addEventListener('click', centerOnMe);
+document.getElementById('btn-refresh').addEventListener('click', () => { state.posts = []; loadPosts(); });
+
+document.querySelectorAll('.fuel-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.fuel-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.fuelFilter = chip.dataset.fuel;
+    renderPostMarkers();
+  });
+});
+
+document.getElementById('sheet-backdrop').addEventListener('click', closeSheet);
+
+document.getElementById('btn-save-cfg').addEventListener('click', saveSettings);
+document.getElementById('btn-demo').addEventListener('click', () => {
+  state.posts = []; state.demoMode = true; loadDemoPosts();
+  navigate('map'); centerOnMe();
+  showToast('🎮 Modo Demo ativado');
+});
+
+// Check-in
+['ci-liters','ci-value'].forEach(id => {
+  document.getElementById(id).addEventListener('input', calcPriceLiter);
+});
+document.getElementById('btn-checkin-ok').addEventListener('click', saveCheckin);
+document.getElementById('btn-checkin-cancel').addEventListener('click', () => {
+  document.getElementById('checkin-modal').classList.remove('open');
+});
+
+// Destination search
+let searchTimer;
+document.getElementById('dest-input').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  if (q.length < 3) { document.getElementById('dest-suggestions').style.display = 'none'; return; }
+  searchTimer = setTimeout(async () => {
+    const results = await geocode(q);
+    const box = document.getElementById('dest-suggestions');
+    if (!results.length) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    box.innerHTML = results.map(r => `
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px"
+           data-lat="${r.lat}" data-lon="${r.lon}" data-name="${r.display_name}">
+        📍 ${r.display_name.substring(0, 60)}${r.display_name.length > 60 ? '…' : ''}
+      </div>`).join('');
+    box.querySelectorAll('[data-lat]').forEach(el => {
+      el.addEventListener('click', () => {
+        destCoords = { lat: parseFloat(el.dataset.lat), lon: parseFloat(el.dataset.lon) };
+        document.getElementById('dest-input').value = el.dataset.name.substring(0, 40);
+        box.style.display = 'none';
+        calcRoute(destCoords.lat, destCoords.lon);
+      });
+    });
+  }, 500);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  SERVICE WORKER
+// ═══════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(console.warn);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════
+async function boot() {
+  document.getElementById('loading-txt').textContent = 'Iniciando mapa…';
+  initMainMap();
+
+  // Try Supabase
+  if (cfg.url && cfg.key) {
+    document.getElementById('loading-txt').textContent = 'Conectando ao Supabase…';
+    initSupabase();
+  }
+
+  // Start GPS
+  document.getElementById('loading-txt').textContent = 'Aguardando GPS…';
+  startGPS();
+
+  // Center map on Brazil if no GPS yet
+  setTimeout(() => {
+    if (!state.lat) {
+      mainMap.setView([-15.78, -47.93], 5);
+      loadPosts();
+    }
+  }, 3000);
+
+  // Show app
+  document.getElementById('loading').style.opacity = '0';
+  document.getElementById('loading').style.transition = 'opacity .5s';
+  setTimeout(() => {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+  }, 800);
+}
+
+window.addEventListener('load', boot);
+// Expose openSheet globally for inline onclick
+window.openSheet = openSheet;
+</script>
+</body>
+</html>
