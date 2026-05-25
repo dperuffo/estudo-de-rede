@@ -593,11 +593,13 @@ async function loadPosts() {
     const { data, error } = await sb.from(cfg.table).select('*', { limit: 2000 });
     if (error) throw error;
 
-    // Normalize lat/lon columns
+    // Normalize columns — handles Supabase snake_case (razao_social, lat, lon)
     state.posts = (data || []).map(p => ({
       ...p,
-      _lat: parseFloat(p._lat || p.lat || p.latitude || 0) || null,
-      _lon: parseFloat(p._lon || p.lon || p.longitude || 0) || null,
+      _lat:        parseFloat(p._lat || p.lat || p.latitude || 0) || null,
+      _lon:        parseFloat(p._lon || p.lon || p.longitude || 0) || null,
+      razaoSocial: p.razaoSocial || p.razao_social || p.nome || p.name || 'Posto GF',
+      municipio:   p.municipio   || p.cidade || p.city || '—',
     })).filter(p => p._lat && p._lon);
 
     renderPostMarkers();
@@ -696,18 +698,40 @@ function openSheet(post) {
 
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${post._lat},${post._lon}&travelmode=driving`;
 
+  // ── Badges de facilidades ──
+  const badges = [];
+  if (post.funciona_24h)   badges.push('🕐 24h');
+  if (post.pista_caminhao) badges.push('🚛 Caminhão');
+  if (post.arla)           badges.push('🧪 Arla');
+  if (post.conveniencia)   badges.push('🛒 Conv.');
+  const facilitiesHtml = badges.length
+    ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0">
+        ${badges.map(b => `<span style="font-size:10px;padding:3px 8px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text2)">${b}</span>`).join('')}
+      </div>`
+    : '';
+
+  const horarioHtml = post.horario
+    ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px">⏰ ${post.horario}</div>`
+    : '';
+
+  const perfilHtml = post.perfil_venda
+    ? `<div style="font-size:11px;color:var(--text2);margin-bottom:8px">🏷️ ${post.perfil_venda}</div>`
+    : '';
+
   document.getElementById('sheet-content').innerHTML = `
     <div class="card-header" style="margin-bottom:12px">
-      <div>
-        <div class="card-title" style="font-size:16px">${post.razaoSocial || post.nome || 'Posto GF'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="card-title" style="font-size:16px">${post.razaoSocial || 'Posto GF'}</div>
         <div class="card-sub">📍 ${post.municipio || '—'} / ${post.uf || '—'} · ${post.distribuidora || 'Independente'}</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
         <span class="badge badge-gf">⭐ GF</span>
         <span class="badge badge-dist">📏 ${d}</span>
       </div>
     </div>
-    ${post.cnpj_norm ? `<div style="font-size:10px;color:var(--text2);margin-bottom:8px">CNPJ: ${post.cnpj_norm}</div>` : ''}
+    ${horarioHtml}${perfilHtml}
+    ${facilitiesHtml}
+    ${post.cnpj || post.cnpj_norm ? `<div style="font-size:10px;color:var(--text2);margin-bottom:8px">CNPJ: ${post.cnpj || post.cnpj_norm}</div>` : ''}
     <div class="price-row">${priceStr}</div>
     ${cfg.kml ? `<div style="margin-top:10px;font-size:11px;color:var(--text2)">
       🚛 Com seu veículo (${cfg.kml} km/L): alcance de ~${Math.round(Number(d)*0.9)} km com ${cfg.tank || 200}L
