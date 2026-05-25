@@ -11336,6 +11336,10 @@ with st.sidebar:
                         _fuels_m1 = sorted(
                             _pp_df_adv["combustivel_label"].dropna().str.strip().unique().tolist()
                         )
+                        # ── Sync chip combustível → adv_fuel_m1 ──────────
+                        _chip_comb_m1 = st.session_state.get("_chip_combustivel")
+                        if _chip_comb_m1 and _chip_comb_m1 in _fuels_m1:
+                            st.session_state[f"adv_fuel_m1_{_fk_m1}"] = _chip_comb_m1
                         _fuel_sel_m1 = st.selectbox(
                             "⛽ Combustível (preço)",
                             ["— Todos —"] + _fuels_m1,
@@ -11506,6 +11510,10 @@ with st.sidebar:
                 key=f"txt_consulta_{_fk_m3}",
                 help="Digite ao menos 3 caracteres do nome ou o CNPJ completo",
             )
+            # ── Sync chip UF → sel_uf_m3 ─────────────────────────────────
+            _chip_uf_m3 = st.session_state.get("_chip_uf_busca")
+            if _chip_uf_m3 and _chip_uf_m3 in UFS:
+                st.session_state[f"sel_uf_m3_{_fk_m3}"] = _chip_uf_m3
             _uf_m3_sel = st.selectbox(
                 "Estado (opcional)",
                 ["Todos os estados"] + UFS,
@@ -11780,6 +11788,10 @@ with st.sidebar:
                         _fuels_m2 = sorted(
                             _pp_df_adv_m2["combustivel_label"].dropna().str.strip().unique().tolist()
                         )
+                        # ── Sync chip combustível → adv_fuel_m2 ──────────
+                        _chip_comb_m2 = st.session_state.get("_chip_combustivel")
+                        if _chip_comb_m2 and _chip_comb_m2 in _fuels_m2:
+                            st.session_state["adv_fuel_m2"] = _chip_comb_m2
                         _fuel_sel_m2 = st.selectbox(
                             "⛽ Combustível (preço)",
                             ["— Todos —"] + _fuels_m2,
@@ -11916,6 +11928,10 @@ with st.sidebar:
                     "GASOLINA COMUM", "GASOLINA ADITIVADA",
                     "ÓLEO DIESEL", "ÓLEO DIESEL S10", "ETANOL",
                 ]
+            # ── Sync chip combustível → rot_combustivel ──────────────────
+            _chip_comb_rot = st.session_state.get("_chip_combustivel")
+            if _chip_comb_rot and _chip_comb_rot in _pp_combs_rot:
+                st.session_state["rot_combustivel"] = _chip_comb_rot
             st.selectbox(
                 "Combustível",
                 _pp_combs_rot,
