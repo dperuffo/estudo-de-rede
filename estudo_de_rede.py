@@ -10044,10 +10044,7 @@ def _calcular_top5_baratos(df: "pd.DataFrame", fuel_label: str = None) -> dict:
     # Filtra combustível se especificado (matching flexível — case-insensitive)
     if fuel_label and "combustivel_label" in _pp_vis.columns:
         _mask = _fuel_mask(_pp_vis["combustivel_label"], fuel_label)
-        _pp_vis_fuel = _pp_vis[_mask]
-        if not _pp_vis_fuel.empty:
-            _pp_vis = _pp_vis_fuel
-        # Se não encontrou match, mantém todos (melhor que retornar vazio)
+        _pp_vis = _pp_vis[_mask]
     if _pp_vis.empty:
         return {}
 
@@ -10477,6 +10474,16 @@ _chips_rendered_run: set = set()  # reset a cada rerun do Streamlit
 def _render_filtros_inteligentes(modo: str) -> None:
     """Renderiza chips de filtros inteligentes contextuais por modo."""
     global _chips_rendered_run
+
+    # ── Detecta troca de modo e limpa chips para evitar contaminação ──
+    # Executa apenas uma vez por rerun (antes de adicionar ao set)
+    if modo not in _chips_rendered_run:
+        _last = st.session_state.get("_last_chip_modo", "")
+        if _last != modo:
+            for _ck in ["_chip_combustivel", "_chip_periodo_dias", "_chip_uf_busca"]:
+                st.session_state.pop(_ck, None)
+            st.session_state["_last_chip_modo"] = modo
+
     if modo in _chips_rendered_run:
         return
     _chips_rendered_run.add(modo)
