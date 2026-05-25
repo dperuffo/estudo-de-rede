@@ -12354,7 +12354,7 @@ with st.sidebar:
     _pp_fonte  = st.session_state.get("_pp_fonte",  "manual")
     _pp_ts     = st.session_state.get("_pp_carregado_em", "")
 
-    with st.expander("⚙️  Configurações", expanded=False):
+    with st.expander("⚙️  Configurações", expanded=st.session_state.pop("_abrir_config_exp", False)):
         # ── Proteção por senha ────────────────────────────────────────────────
         if not st.session_state.get("_cfg_autenticado", False):
             _c1_lk, _c2_lk, _c3_lk = st.columns([1, 6, 1])
@@ -25048,7 +25048,8 @@ elif modo == "💹 Variação de Preços":
             icon="🔔",
         )
         if st.button("⚙️ Ir para Configurações", key="btn_ir_config_vp"):
-            st.session_state["modo_selecionado"] = "⚙️ Configurações"
+            st.session_state["_abrir_config_exp"] = True
+            st.session_state["modo_selecionado"] = "📍 Por UF"
             st.rerun()
     else:
         if _vp_ts:
