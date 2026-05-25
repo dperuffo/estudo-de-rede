@@ -10431,8 +10431,14 @@ _CHIPS_CONFIG = {
 }
 
 
+_chips_rendered_run: set = set()  # reset a cada rerun do Streamlit
+
 def _render_filtros_inteligentes(modo: str) -> None:
     """Renderiza chips de filtros inteligentes contextuais por modo."""
+    global _chips_rendered_run
+    if modo in _chips_rendered_run:
+        return
+    _chips_rendered_run.add(modo)
     chips_modo = _CHIPS_CONFIG.get(modo, {})
     if not chips_modo:
         return
