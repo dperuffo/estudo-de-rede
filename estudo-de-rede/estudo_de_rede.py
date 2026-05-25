@@ -11106,6 +11106,90 @@ with st.sidebar:
     transform: translateY(-1px) !important;
 }
 .st-key-btn_inteligencia [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Recomendador IA ── */
+.st-key-btn_recomendador button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+}
+.st-key-btn_recomendador button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_recomendador [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #E65100 0%, #F57C00 50%, #FF8F00 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(230,81,0,.40) !important;
+}
+.st-key-btn_recomendador [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #BF360C 0%, #E65100 55%, #F57C00 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_recomendador [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_recomendador [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #F57C00 !important; color: #E65100 !important;
+    box-shadow: none !important;
+}
+.st-key-btn_recomendador [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #E65100 !important; color: #BF360C !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_recomendador [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Variação de Preços ── */
+.st-key-btn_variacao_precos button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+}
+.st-key-btn_variacao_precos button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_variacao_precos [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #00695C 0%, #00897B 50%, #26A69A 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(0,105,92,.40) !important;
+}
+.st-key-btn_variacao_precos [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #004D40 0%, #00695C 55%, #00897B 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_variacao_precos [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_variacao_precos [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #00897B !important; color: #00695C !important;
+    box-shadow: none !important;
+}
+.st-key-btn_variacao_precos [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #00695C !important; color: #004D40 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_variacao_precos [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Análise de Cliente ── */
+.st-key-btn_analise_cliente button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+}
+.st-key-btn_analise_cliente button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_analise_cliente [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #880E4F 0%, #AD1457 50%, #C62828 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(136,14,79,.40) !important;
+}
+.st-key-btn_analise_cliente [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #560027 0%, #880E4F 55%, #AD1457 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_analise_cliente [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_analise_cliente [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #AD1457 !important; color: #880E4F !important;
+    box-shadow: none !important;
+}
+.st-key-btn_analise_cliente [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #880E4F !important; color: #560027 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_analise_cliente [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
