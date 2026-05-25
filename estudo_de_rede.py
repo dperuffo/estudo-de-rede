@@ -14395,7 +14395,7 @@ if modo == "📍 Por UF/Município":
                          if _n_total_show > MAX_MAPA_POSTOS else "⛽ Postos")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric(_mapa_label,          _n(_n_total_show))
-        c2.metric("⭐ Credenciados PF",  _n(n_pf(df_show)))
+        c2.metric("⭐ Credenciados GF",  _n(n_pf(df_show)))
         c3.metric("🏷️ Bandeiras",       _n(df_show['distribuidora'].nunique()) if not df_show.empty else "0")
         c4.metric("📍 Estado",          uf)
 
