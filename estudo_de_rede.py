@@ -11310,17 +11310,6 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "📋 Relatórios", modo_override="📋 Relatórios")
         st.rerun()
 
-    if st.button(
-        "🔌 API & Integrações",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🔌 API & Integrações" else "secondary",
-        key="btn_api_integracoes",
-        help="Documentação da API REST — integre ERPs e sistemas de logística",
-    ):
-        st.session_state["modo_selecionado"] = "🔌 API & Integrações"
-        _log_acesso("MODO_SELECIONADO", "🔌 API & Integrações", modo_override="🔌 API & Integrações")
-        st.rerun()
-
     modo = _modo_atual
     st.divider()
 
@@ -13265,7 +13254,19 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
         _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
         st.rerun()
 
-    # ── Botão Admin (após Guia de Uso, visível só para o admin) ─────
+    # ── Botão API & Integrações (abaixo de Documentação) ───────────
+    if st.button(
+        "🔌 API & Integrações",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🔌 API & Integrações" else "secondary",
+        key="btn_api_integracoes",
+        help="Documentação da API REST — integre ERPs e sistemas de logística",
+    ):
+        st.session_state["modo_selecionado"] = "🔌 API & Integrações"
+        _log_acesso("MODO_SELECIONADO", "🔌 API & Integrações", modo_override="🔌 API & Integrações")
+        st.rerun()
+
+    # ── Botão Admin (visível só para o admin) ───────────────────────
     _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
     if _email_atual.lower() == _ADMIN_EMAIL.lower():
         st.divider()
