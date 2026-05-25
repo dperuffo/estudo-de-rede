@@ -1858,9 +1858,9 @@ st.markdown("""
         { e:'🗺️', l:'Rota',   k:'btn_modo_rota' },
         { e:'🔍', l:'Busca',  k:'btn_modo_consulta' },
         { e:'🛣️', l:'Roteiro',k:'btn_modo_roteirizacao' },
-        { e:'📋', l:'Salvas', k:'btn_rotas_salvas' },
-        { e:'📊', l:'Dash',   k:'btn_dashboard' },
-        { e:'🧠', l:'Intel',  k:'btn_inteligencia' },
+        { e:'🔖', l:'Salvas', k:'btn_rotas_salvas' },
+        { e:'📈', l:'Dash',   k:'btn_dashboard' },
+        { e:'💡', l:'Intel',  k:'btn_inteligencia' },
     ];
 
     var _nav = null;
@@ -10406,14 +10406,14 @@ _CHIPS_CONFIG = {
             ("RS", "_chip_uf_busca", "RS"),
         ],
     },
-    "🛣️ Roteirização": {
+    "🧭 Roteirização": {
         "⛽ Combustível": [
             ("Diesel S10", "rot_combustivel", "ÓLEO DIESEL S10"),
             ("Diesel",     "rot_combustivel", "ÓLEO DIESEL"),
             ("Gasolina",   "rot_combustivel", "GASOLINA COMUM"),
         ],
     },
-    "📊 Dashboard": {
+    "📈 Dashboard": {
         "🗓️ Período": [
             ("7 dias",   "_chip_periodo_dias", 7),
             ("30 dias",  "_chip_periodo_dias", 30),
@@ -10421,7 +10421,7 @@ _CHIPS_CONFIG = {
             ("Este ano", "_chip_periodo_dias", 365),
         ],
     },
-    "🧠 Inteligência": {
+    "💡 Inteligência": {
         "⛽ Combustível": [
             ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
             ("Gasolina",   "_chip_combustivel", "GASOLINA COMUM"),
@@ -10433,14 +10433,14 @@ _CHIPS_CONFIG = {
             ("90 dias", "_chip_periodo_dias", 90),
         ],
     },
-    "🤖 Recomendador IA": {
+    "🎯 Recomendador IA": {
         "⛽ Combustível": [
             ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
             ("Gasolina",   "_chip_combustivel", "GASOLINA COMUM"),
             ("Etanol",     "_chip_combustivel", "ETANOL"),
         ],
     },
-    "📊 Variação de Preços": {
+    "💹 Variação de Preços": {
         "⛽ Combustível": [
             ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
             ("Diesel",     "_chip_combustivel", "ÓLEO DIESEL"),
@@ -10452,7 +10452,7 @@ _CHIPS_CONFIG = {
             ("60 dias", "_chip_periodo_dias", 60),
         ],
     },
-    "🚛 Análise de Cliente": {
+    "👥 Análise de Cliente": {
         "⛽ Combustível": [
             ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
             ("Diesel",     "_chip_combustivel", "ÓLEO DIESEL"),
@@ -10464,7 +10464,7 @@ _CHIPS_CONFIG = {
             ("Este ano", "_chip_periodo_dias", 365),
         ],
     },
-    "📋 Relatórios": {
+    "📑 Relatórios": {
         "🗓️ Período": [
             ("7 dias",   "_chip_periodo_dias", 7),
             ("30 dias",  "_chip_periodo_dias", 30),
@@ -11451,28 +11451,28 @@ with st.sidebar:
 
     # ── Botão Roteirização (largura total) ──────────────────────
     if st.button(
-        "🛣️ Roteirização",
+        "🧭 Roteirização",
         use_container_width=True,
-        type="primary" if _modo_atual == "🛣️ Roteirização" else "secondary",
+        type="primary" if _modo_atual == "🧭 Roteirização" else "secondary",
         key="btn_modo_roteirizacao",
         help="Planejar rota com otimização de abastecimento",
     ):
-        st.session_state["modo_selecionado"] = "🛣️ Roteirização"
-        _log_acesso("MODO_SELECIONADO", "🛣️ Roteirização", modo_override="🛣️ Roteirização")
+        st.session_state["modo_selecionado"] = "🧭 Roteirização"
+        _log_acesso("MODO_SELECIONADO", "🧭 Roteirização", modo_override="🧭 Roteirização")
         st.rerun()
 
     # ── Botão Rotas Salvas (largura total, abaixo dos modos) ──────
     _n_rotas_sb = len(_carregar_rotas_salvas())
-    _label_rotas = f"📋 Rotas Salvas{f'  ({_n_rotas_sb})' if _n_rotas_sb else ''}"
+    _label_rotas = f"🔖 Rotas Salvas{f'  ({_n_rotas_sb})' if _n_rotas_sb else ''}"
     if st.button(
         _label_rotas,
         use_container_width=True,
-        type="primary" if _modo_atual == "📋 Rotas Salvas" else "secondary",
+        type="primary" if _modo_atual == "🔖 Rotas Salvas" else "secondary",
         key="btn_rotas_salvas",
         help="Ver e restaurar consultas salvas anteriormente",
     ):
-        st.session_state["modo_selecionado"] = "📋 Rotas Salvas"
-        _log_acesso("MODO_SELECIONADO", "📋 Rotas Salvas", modo_override="📋 Rotas Salvas")
+        st.session_state["modo_selecionado"] = "🔖 Rotas Salvas"
+        _log_acesso("MODO_SELECIONADO", "🔖 Rotas Salvas", modo_override="🔖 Rotas Salvas")
         st.rerun()
 
     # ── Placeholder: parâmetros de consulta aparecem aqui ──────────
@@ -11480,73 +11480,73 @@ with st.sidebar:
 
     # ── Botão Dashboard (largura total) ─────────────────────────
     if st.button(
-        "📊 Dashboard",
+        "📈 Dashboard",
         use_container_width=True,
-        type="primary" if _modo_atual == "📊 Dashboard" else "secondary",
+        type="primary" if _modo_atual == "📈 Dashboard" else "secondary",
         key="btn_dashboard",
         help="KPIs de cobertura e penetração GF por estado",
     ):
-        st.session_state["modo_selecionado"] = "📊 Dashboard"
-        _log_acesso("MODO_SELECIONADO", "📊 Dashboard", modo_override="📊 Dashboard")
+        st.session_state["modo_selecionado"] = "📈 Dashboard"
+        _log_acesso("MODO_SELECIONADO", "📈 Dashboard", modo_override="📈 Dashboard")
         st.rerun()
 
     # ── Botão Inteligência de Dados (largura total) ───────────────
     if st.button(
-        "🧠 Inteligência",
+        "💡 Inteligência",
         use_container_width=True,
-        type="primary" if _modo_atual == "🧠 Inteligência" else "secondary",
+        type="primary" if _modo_atual == "💡 Inteligência" else "secondary",
         key="btn_inteligencia",
         help="Histórico de preços, score de postos e relatório de alertas",
     ):
-        st.session_state["modo_selecionado"] = "🧠 Inteligência"
-        _log_acesso("MODO_SELECIONADO", "🧠 Inteligência", modo_override="🧠 Inteligência")
+        st.session_state["modo_selecionado"] = "💡 Inteligência"
+        _log_acesso("MODO_SELECIONADO", "💡 Inteligência", modo_override="💡 Inteligência")
         st.rerun()
 
     if st.button(
-        "🤖 Recomendador IA",
+        "🎯 Recomendador IA",
         use_container_width=True,
-        type="primary" if _modo_atual == "🤖 Recomendador IA" else "secondary",
+        type="primary" if _modo_atual == "🎯 Recomendador IA" else "secondary",
         key="btn_recomendador",
         help="Melhor posto por custo, qualidade e confiabilidade — baseado em histórico e comportamento da frota",
     ):
-        st.session_state["modo_selecionado"] = "🤖 Recomendador IA"
-        _log_acesso("MODO_SELECIONADO", "🤖 Recomendador IA", modo_override="🤖 Recomendador IA")
+        st.session_state["modo_selecionado"] = "🎯 Recomendador IA"
+        _log_acesso("MODO_SELECIONADO", "🎯 Recomendador IA", modo_override="🎯 Recomendador IA")
         st.rerun()
 
     _var_badge_sb = (" 🔔" if st.session_state.get("_pp_variacao") is not None
                      and not st.session_state["_pp_variacao"].empty else "")
     if st.button(
-        f"📊 Variação de Preços{_var_badge_sb}",
+        f"💹 Variação de Preços{_var_badge_sb}",
         use_container_width=True,
-        type="primary" if _modo_atual == "📊 Variação de Preços" else "secondary",
+        type="primary" if _modo_atual == "💹 Variação de Preços" else "secondary",
         key="btn_variacao_precos",
         help="Compara nova carga de preços com a anterior — detecta altas, quedas e novos postos",
     ):
-        st.session_state["modo_selecionado"] = "📊 Variação de Preços"
-        _log_acesso("MODO_SELECIONADO", "📊 Variação de Preços",
-                    modo_override="📊 Variação de Preços")
+        st.session_state["modo_selecionado"] = "💹 Variação de Preços"
+        _log_acesso("MODO_SELECIONADO", "💹 Variação de Preços",
+                    modo_override="💹 Variação de Preços")
         st.rerun()
 
     if st.button(
-        "🚛 Análise de Cliente",
+        "👥 Análise de Cliente",
         use_container_width=True,
-        type="primary" if _modo_atual == "🚛 Análise de Cliente" else "secondary",
+        type="primary" if _modo_atual == "👥 Análise de Cliente" else "secondary",
         key="btn_analise_cliente",
         help="Análise de abastecimentos e custos da frota do cliente",
     ):
-        st.session_state["modo_selecionado"] = "🚛 Análise de Cliente"
-        _log_acesso("MODO_SELECIONADO", "🚛 Análise de Cliente", modo_override="🚛 Análise de Cliente")
+        st.session_state["modo_selecionado"] = "👥 Análise de Cliente"
+        _log_acesso("MODO_SELECIONADO", "👥 Análise de Cliente", modo_override="👥 Análise de Cliente")
         st.rerun()
 
     if st.button(
-        "📋 Relatórios",
+        "📑 Relatórios",
         use_container_width=True,
-        type="primary" if _modo_atual == "📋 Relatórios" else "secondary",
+        type="primary" if _modo_atual == "📑 Relatórios" else "secondary",
         key="btn_relatorios",
         help="Relatórios executivos, oportunidades comerciais e performance por posto",
     ):
-        st.session_state["modo_selecionado"] = "📋 Relatórios"
-        _log_acesso("MODO_SELECIONADO", "📋 Relatórios", modo_override="📋 Relatórios")
+        st.session_state["modo_selecionado"] = "📑 Relatórios"
+        _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
         st.rerun()
 
     modo = _modo_atual
@@ -12143,14 +12143,14 @@ with st.sidebar:
                 _filtro_servicos_m2 = []
 
     # ── Modo Roteirização — campos do veículo ─────────────────────────────────
-    elif modo == "🛣️ Roteirização":
+    elif modo == "🧭 Roteirização":
         with _sb_params_container:
             _render_filtros_inteligentes(modo)
 
             st.markdown(
                 "<div style='background:linear-gradient(135deg,#004D40,#00796B);"
                 "border-radius:8px;padding:8px 12px;margin-bottom:10px'>"
-                "<span style='color:#fff;font-weight:700;font-size:12px'>🛣️ Roteirização</span><br>"
+                "<span style='color:#fff;font-weight:700;font-size:12px'>🧭 Roteirização</span><br>"
                 "<span style='color:#b2dfdb;font-size:10px'>Configure o veículo e trace a rota</span>"
                 "</div>",
                 unsafe_allow_html=True,
@@ -12309,7 +12309,7 @@ with st.sidebar:
     _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
     with _col_guia_c:
         if st.button(
-            "❓ Guia de Uso",
+            "📖 Guia de Uso",
             use_container_width=True,
             type="secondary",
             key="btn_tour_sidebar",
@@ -12320,26 +12320,26 @@ with st.sidebar:
 
     # ── Botão Documentação (após Guia de Uso) ───────────────────────
     if st.button(
-        "📄 Documentação",
+        "📚 Documentação",
         use_container_width=True,
-        type="primary" if _modo_atual == "📄 Documentação" else "secondary",
+        type="primary" if _modo_atual == "📚 Documentação" else "secondary",
         key="btn_documentacao",
         help="Visualizar o manual de uso da plataforma",
     ):
-        st.session_state["modo_selecionado"] = "📄 Documentação"
-        _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
+        st.session_state["modo_selecionado"] = "📚 Documentação"
+        _log_acesso("MODO_SELECIONADO", "📚 Documentação", modo_override="📚 Documentação")
         st.rerun()
 
     # ── Botão API & Integrações (abaixo de Documentação) ───────────
     if st.button(
-        "🔌 API & Integrações",
+        "⚡ API & Integrações",
         use_container_width=True,
-        type="primary" if _modo_atual == "🔌 API & Integrações" else "secondary",
+        type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
         key="btn_api_integracoes",
         help="Documentação da API REST — integre ERPs e sistemas de logística",
     ):
-        st.session_state["modo_selecionado"] = "🔌 API & Integrações"
-        _log_acesso("MODO_SELECIONADO", "🔌 API & Integrações", modo_override="🔌 API & Integrações")
+        st.session_state["modo_selecionado"] = "⚡ API & Integrações"
+        _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
         st.rerun()
 
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
@@ -12394,7 +12394,7 @@ with st.sidebar:
                     st.rerun()
             tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel, tab_acordos = st.tabs(
                 ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
-                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "🧠 Inteligência",
+                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "💡 Inteligência",
                  "🤝 Acordos de Preço"]
             )
             tab_variacao = None  # movida para menu principal
@@ -13106,7 +13106,7 @@ with st.sidebar:
         # ── Tab Inteligência de Dados ─────────────────────────────────────────
         if tab_intel is not None:
          with tab_intel:
-            st.markdown("#### 🧠 Inteligência de Dados")
+            st.markdown("#### 💡 Inteligência de Dados")
 
             # ── Seção 1: Histórico de Preços ──────────────────────────────────
             st.markdown("##### 📈 Histórico de Preços por Posto")
@@ -13510,13 +13510,13 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
     if _email_atual.lower() == _ADMIN_EMAIL.lower():
         st.divider()
         if st.button(
-            "🔐 Admin",
+            "🛡️ Admin",
             use_container_width=True,
-            type="primary" if _modo_atual == "🔐 Admin" else "secondary",
+            type="primary" if _modo_atual == "🛡️ Admin" else "secondary",
             key="btn_admin",
             help="Painel de controle de acesso de usuários",
         ):
-            st.session_state["modo_selecionado"] = "🔐 Admin"
+            st.session_state["modo_selecionado"] = "🛡️ Admin"
             st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════
@@ -13636,7 +13636,7 @@ _TOUR_STEPS = [
     {
         "icon": "🧠", "title": "Inteligência de Dados",
         "desc": (
-            "O módulo **🧠 Inteligência** rastreia preços semana a semana e avalia cada posto "
+            "O módulo **💡 Inteligência** rastreia preços semana a semana e avalia cada posto "
             "com um **score A–D** baseado em preço (50%), serviços (30%) e distância (20%). "
             "Gere também **relatórios de alerta** com postos acima do limite de preço configurado."
         ),
@@ -13748,7 +13748,7 @@ def _tour_dialog():
         with _cb3:
             if st.button("→ Ver Dashboard", use_container_width=True,
                          key="ob_go_dash", type="primary"):
-                st.session_state["modo_selecionado"] = "📊 Dashboard"
+                st.session_state["modo_selecionado"] = "📈 Dashboard"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
@@ -13768,7 +13768,7 @@ def _tour_dialog():
         with _cb4:
             if st.button("→ Inteligência", use_container_width=True,
                          key="ob_go_intel"):
-                st.session_state["modo_selecionado"] = "🧠 Inteligência"
+                st.session_state["modo_selecionado"] = "💡 Inteligência"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
@@ -13973,7 +13973,7 @@ if False:
         {em:'🔍',label:'Filtros avancados',bg:'#f3e5f5'},
         {em:'💾',label:'Salve consultas',bg:'#e0f2f1'}
       ],
-      tips:['📍 Postos por estado','🗺️ Consulta por rota','📊 Dashboard analitico','💰 Ranking top 5']
+      tips:['📍 Postos por estado','🗺️ Consulta por rota','📈 Dashboard analitico','💰 Ranking top 5']
     },
     { icon:'📍', title:'Modo 1 · Consulta por Estado (UF)',
       desc:'Selecione um <b>estado (UF)</b> na barra lateral para visualizar todos os postos '+
@@ -14229,7 +14229,7 @@ if _var_df_global is not None and not _var_df_global.empty:
             </span>
           </div>
           <span style="color:#aaa;font-size:.78rem">
-            Veja detalhes em <b>📊 Variação de Preços</b> no menu lateral
+            Veja detalhes em <b>💹 Variação de Preços</b> no menu lateral
           </span>
         </div>
         """,
@@ -16618,12 +16618,12 @@ elif modo == "🔍 Consulta por Posto":
 #  MODO 4 — Rotas Salvas
 # ═══════════════════════════════════════════════════════════════════
 
-elif modo == "📋 Rotas Salvas":
+elif modo == "🔖 Rotas Salvas":
     _render_filtros_inteligentes(modo)
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;color:#2E7D32'>"
-        "📋 Rotas Salvas</h2>"
+        "🔖 Rotas Salvas</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
         "Consultas e rotas salvas anteriormente. Clique em <b>Restaurar</b> para "
         "recarregar a visualização completa.</p>",
@@ -16643,7 +16643,7 @@ elif modo == "📋 Rotas Salvas":
     else:
         # ── Filtros rápidos ───────────────────────────────────────────
         _tipos_disp = sorted({r.get("tipo", "outro") for r in _rotas_list})
-        _tipo_labels = {"estado": "📍 Estado", "rota": "🗺️ Rota", "busca": "🔍 Busca", "roteirizacao": "🛣️ Roteirização"}
+        _tipo_labels = {"estado": "📍 Estado", "rota": "🗺️ Rota", "busca": "🔍 Busca", "roteirizacao": "🧭 Roteirização"}
         _filtro_tipo = st.multiselect(
             "Filtrar por tipo",
             options=_tipos_disp,
@@ -16695,7 +16695,7 @@ elif modo == "📋 Rotas Salvas":
                 _rv_sub  += f" · {_n(_rv_km)} km" if _rv_km else ""
                 if _rv_placa: _rv_sub += f" · 🚛 {_rv_placa}"
                 if _rv_comb:  _rv_sub += f" · ⛽ {_rv_comb}"
-                _rv_tag   = "🛣️ Roteirização"
+                _rv_tag   = "🧭 Roteirização"
                 _rv_cor   = "#004D40"
                 _rv_bg    = "#e0f7fa"
             else:  # busca
@@ -16821,7 +16821,7 @@ elif modo == "📋 Rotas Salvas":
                             st.session_state["_rot_result"] = _rr_saved
                         # 6. Força re-render do formulário e navega para o modo
                         st.session_state["_rot_fk"] = st.session_state.get("_rot_fk", 0) + 1
-                        st.session_state["modo_selecionado"] = "🛣️ Roteirização"
+                        st.session_state["modo_selecionado"] = "🧭 Roteirização"
 
                     else:  # busca
                         for _k in ["_m3_termo", "_m3_uf", "_m3_resultado"]:
@@ -16883,7 +16883,7 @@ _UF_NOME_DASH = {
     "SC":"Santa Catarina","SE":"Sergipe","SP":"São Paulo","TO":"Tocantins",
 }
 
-if modo == "📊 Dashboard":
+if modo == "📈 Dashboard":
     _render_filtros_inteligentes(modo)
 
     _pf_dash  = st.session_state.get("pf_coords_df", pd.DataFrame())
@@ -16893,7 +16893,7 @@ if modo == "📊 Dashboard":
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
         "background:linear-gradient(135deg,#040d26,#0b2660,#1040a0,#1565C0);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "📊 Dashboard Analítico GF</h2>"
+        "📈 Dashboard Analítico GF</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 14px'>"
         "KPIs de cobertura geográfica e penetração da rede GF nos estados brasileiros.</p>",
         unsafe_allow_html=True,
@@ -19505,7 +19505,7 @@ if modo == "📊 Dashboard":
             if not _rt9_abast_rows:
                 st.info(
                     "Nenhum abastecimento salvo no banco ainda. "
-                    "Carregue a planilha de abastecimentos na seção **🚛 Análise de Cliente** "
+                    "Carregue a planilha de abastecimentos na seção **👥 Análise de Cliente** "
                     "para complementar este dashboard com dados reais de km e consumo por veículo.",
                     icon="🚛",
                 )
@@ -20837,7 +20837,7 @@ if modo == "📊 Dashboard":
                 if not _cx4_rows:
                     st.info(
                         "Nenhum abastecimento salvo no banco. "
-                        "Carregue a planilha de abastecimentos na seção **🚛 Análise de Cliente** "
+                        "Carregue a planilha de abastecimentos na seção **👥 Análise de Cliente** "
                         "para habilitar esta análise.",
                         icon="🚛",
                     )
@@ -21954,7 +21954,7 @@ if (
 #  MODO — Inteligência de Dados
 # ═══════════════════════════════════════════════════════════════════
 
-elif modo == "🧠 Inteligência":
+elif modo == "💡 Inteligência":
     _render_filtros_inteligentes(modo)
 
     st.markdown("""
@@ -21996,7 +21996,7 @@ elif modo == "🧠 Inteligência":
     # ── Hero banner ────────────────────────────────────────────────
     st.markdown("""
     <div class='intel-hero'>
-      <div class='intel-hero-title'>🧠 Inteligência de Dados</div>
+      <div class='intel-hero-title'>💡 Inteligência de Dados</div>
       <div class='intel-hero-sub'>
         Histórico de preços por posto · Score composto · Relatório de alertas
       </div>
@@ -22804,7 +22804,7 @@ elif modo == "🧠 Inteligência":
 #  MODO ADMIN — Controle de Acesso de Usuários
 # ═══════════════════════════════════════════════════════════════════
 
-elif modo == "🔐 Admin":
+elif modo == "🛡️ Admin":
     _email_admin_check = (st.session_state.get("_auth_user") or {}).get("email", "")
     if _email_admin_check.lower() != _ADMIN_EMAIL.lower():
         st.error("🚫 Acesso restrito ao administrador.")
@@ -23121,7 +23121,7 @@ elif modo == "🔐 Admin":
 #  MODO 5 — Roteirização
 # ═══════════════════════════════════════════════════════════════════
 
-elif modo == "🛣️ Roteirização":
+elif modo == "🧭 Roteirização":
     _render_filtros_inteligentes(modo)
 
     # ── Dados do veículo (definidos no sidebar) ─────────────────────
@@ -23138,7 +23138,7 @@ elif modo == "🛣️ Roteirização":
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
         "background:linear-gradient(135deg,#004D40,#00796B);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "🛣️ Roteirização</h2>"
+        "🧭 Roteirização</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 12px'>"
         "Informe os pontos da rota — a aplicação sugere os melhores postos GF.</p>",
         unsafe_allow_html=True,
@@ -24368,7 +24368,7 @@ elif modo == "🛣️ Roteirização":
 #  MODO — Documentação
 # ═══════════════════════════════════════════════════════════════════
 
-elif modo == "📄 Documentação":
+elif modo == "📚 Documentação":
     import streamlit.components.v1 as _components
 
     _doc_bytes, _doc_nome = _carregar_doc_pdf()
@@ -24377,7 +24377,7 @@ elif modo == "📄 Documentação":
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
         "background:linear-gradient(135deg,#1565C0,#42A5F5);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "📄 Documentação</h2>"
+        "📚 Documentação</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
         "Manual de uso da plataforma Estudo de Rede – Gestão de Frotas.</p>",
         unsafe_allow_html=True,
@@ -24456,7 +24456,7 @@ elif modo == "📄 Documentação":
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Recomendador IA
 # ═══════════════════════════════════════════════════════════════════
-elif modo == "🤖 Recomendador IA":
+elif modo == "🎯 Recomendador IA":
     _render_filtros_inteligentes(modo)
     import numpy as _np_rec
 
@@ -25019,7 +25019,7 @@ elif modo == "🤖 Recomendador IA":
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Variação de Preços
 # ═══════════════════════════════════════════════════════════════════
-elif modo == "📊 Variação de Preços":
+elif modo == "💹 Variação de Preços":
     _render_filtros_inteligentes(modo)
 
     _vp_df = st.session_state.get("_pp_variacao")
@@ -25030,7 +25030,7 @@ elif modo == "📊 Variação de Preços":
         <div style="background:linear-gradient(90deg,#1a0a2e,#3d1a7a);
                     border-radius:10px;padding:18px 24px;margin-bottom:20px;">
           <h3 style="color:#fff;margin:0;font-size:1.25rem;">
-            📊 Variação de Preços — Nova Carga vs Anterior
+            💹 Variação de Preços — Nova Carga vs Anterior
           </h3>
           <p style="color:#d4b8f5;margin:4px 0 0;font-size:.85rem;">
             Comparação automática gerada a cada upload · Detecta altas, quedas, novos e removidos
@@ -25306,7 +25306,7 @@ elif modo == "📊 Variação de Preços":
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Análise de Cliente (Frota)
 # ═══════════════════════════════════════════════════════════════════
-elif modo == "🚛 Análise de Cliente":
+elif modo == "👥 Análise de Cliente":
     _render_filtros_inteligentes(modo)
     import pandas as _pd
     import numpy as _np
@@ -25315,7 +25315,7 @@ elif modo == "🚛 Análise de Cliente":
         "<h2 style='margin:0 0 4px;font-size:1.4rem;"
         "background:linear-gradient(135deg,#1B5E20,#66BB6A);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "🚛 Análise de Cliente — Frota</h2>"
+        "👥 Análise de Cliente — Frota</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 18px'>"
         "Carregue a planilha de abastecimentos para obter análises de consumo, custos e detecção de desvios.</p>",
         unsafe_allow_html=True,
@@ -27534,7 +27534,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
 #  MODO — Relatórios e Exportações Evoluídas
 # ═══════════════════════════════════════════════════════════════════
 
-elif modo == "📋 Relatórios":
+elif modo == "📑 Relatórios":
     _render_filtros_inteligentes(modo)
 
     import calendar as _calendar_mod
@@ -27545,7 +27545,7 @@ elif modo == "📋 Relatórios":
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
         "background:linear-gradient(135deg,#1A237E,#283593);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "📋 Relatórios e Exportações</h2>"
+        "📑 Relatórios e Exportações</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
         "Relatório executivo mensal · Oportunidades comerciais · Performance por posto</p>",
         unsafe_allow_html=True,
@@ -28427,7 +28427,7 @@ elif modo == "📋 Relatórios":
 #  MODO — API & Integrações
 # ═══════════════════════════════════════════════════════════════════
 
-elif modo == "🔌 API & Integrações":
+elif modo == "⚡ API & Integrações":
     _render_filtros_inteligentes(modo)
 
     import urllib.parse as _urlparse
@@ -28440,7 +28440,7 @@ elif modo == "🔌 API & Integrações":
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
         "background:linear-gradient(135deg,#0D47A1,#1565C0);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "🔌 API & Integrações</h2>"
+        "⚡ API & Integrações</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
         "REST API com autenticação JWT · Integração com ERPs e sistemas de logística</p>",
         unsafe_allow_html=True,
