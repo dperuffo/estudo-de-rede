@@ -1212,6 +1212,16 @@ svg[data-icon="mark-github"]                      { display: none !important; }
 img[alt*="github" i]                              { display: none !important; }
 img[src*="github" i]                              { display: none !important; }
 
+/* ── Toolbar do Streamlit Cloud (Share ⭐ ✏️ GitHub) ────────────── */
+[data-testid="stToolbar"]                         { display: none !important; }
+[data-testid="stToolbarActionButton"]             { display: none !important; }
+[data-testid="stAppToolbar"]                      { display: none !important; }
+[data-testid="stActionButton"]                    { display: none !important; }
+button[kind="header"]                             { display: none !important; }
+.stActionButton                                   { display: none !important; }
+/* Oculta o header inteiro para garantir que o toolbar não apareça */
+header[data-testid="stHeader"]                    { display: none !important; }
+
 /* ── Seta recolher/expandir — OCULTA no desktop ── */
 [data-testid="collapsedControl"]                  { display: none !important; }
 [data-testid="stSidebarCollapseButton"]           { display: none !important; }
@@ -1229,11 +1239,7 @@ button[data-testid="baseButton-headerNoPadding"]  { display: none !important; }
     overflow: hidden !important;
 }
 
-/* Header transparente */
-header[data-testid="stHeader"] {
-    background: transparent !important;
-    box-shadow: none !important;
-}
+/* Header já oculto via bloco acima */
 
 /* ══ LAYOUT GERAL ══════════════════════════════════════════════════ */
 .main .block-container {

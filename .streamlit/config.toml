@@ -1,21 +1,7 @@
-# ════════════════════════════════════════════════════
-#  .streamlit/config.toml
-#  Configurações do Streamlit para produção
-# ════════════════════════════════════════════════════
-
-[server]
-headless            = true
-port                = 8501
-enableCORS          = false
-enableXsrfProtection = false
-maxUploadSize       = 10        # MB — para upload da planilha Pró-Frotas
+[client]
+# Oculta o toolbar (Share, GitHub, editar) na interface do Streamlit Cloud
+toolbarMode = "minimal"
+showErrorDetails = false
 
 [browser]
 gatherUsageStats = false
-
-[theme]
-primaryColor         = "#1565c0"
-backgroundColor      = "#ffffff"
-secondaryBackgroundColor = "#f0f4f9"
-textColor            = "#0d1b4b"
-font                 = "sans serif"
