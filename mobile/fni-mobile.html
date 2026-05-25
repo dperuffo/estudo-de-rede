@@ -27,7 +27,7 @@
   --text:    #E3E8F5;
   --text2:   #8A9BBF;
   --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bot: env(safe-area-inset-bottom, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 20px);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:var(--navy);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -55,7 +55,7 @@ html,body{height:100%;overflow:hidden;background:var(--navy);color:var(--text);f
 #nav{
   display:flex;background:var(--navy2);
   border-top:1px solid var(--border);
-  padding-bottom:var(--safe-bot);
+  padding-bottom:calc(var(--safe-bot) + 16px);
   flex-shrink:0;z-index:1000;
 }
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;gap:3px;border:none;background:none;color:var(--text2);font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:color .2s;position:relative}
