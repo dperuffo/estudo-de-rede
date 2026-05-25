@@ -9979,6 +9979,43 @@ def n_pf(df):
 _RANK_EMOJI = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}
 
 
+def _fuel_mask(series: "pd.Series", fuel_label: str) -> "pd.Series":
+    """Retorna máscara booleana com matching flexível de combustível.
+
+    Aceita tanto rótulos exatos (ex: 'Diesel S-10 Aditivado') quanto
+    nomes padrão ANP (ex: 'ÓLEO DIESEL S10') usados pelos chips.
+    A comparação é case-insensitive e baseada em palavras-chave.
+    """
+    if not fuel_label:
+        return pd.Series([True] * len(series), index=series.index)
+
+    lbl = fuel_label.lower().strip()
+    # normaliza: remove prefixo "óleo ", uniformiza S10
+    lbl_norm = lbl.replace("óleo ", "").replace("s-10", "s10").replace("s 10", "s10")
+    col = series.str.lower().str.strip()
+
+    if "diesel" in lbl_norm and "s10" in lbl_norm:
+        # Diesel S10 / S-10 — exclui diesel comum
+        return (
+            col.str.contains("diesel", na=False)
+            & col.str.replace(r"[\s\-]", "", regex=True).str.contains("s10", na=False)
+        )
+    elif "diesel" in lbl_norm:
+        # Diesel comum — inclui qualquer diesel sem "s10"
+        return col.str.contains("diesel", na=False) & ~(
+            col.str.replace(r"[\s\-]", "", regex=True).str.contains("s10", na=False)
+        )
+    elif "gasolina" in lbl_norm:
+        return col.str.contains("gasolina", na=False)
+    elif "etanol" in lbl_norm or "alcool" in lbl_norm or "álcool" in lbl_norm:
+        return col.str.contains("etanol|álcool|alcool", na=False, regex=True)
+    elif "gnv" in lbl_norm or "gas natural" in lbl_norm:
+        return col.str.contains(r"gnv|g\.n\.v|gas natural|gás natural", na=False, regex=True)
+    else:
+        # Fallback: contém a string normalizada
+        return col.str.contains(re.escape(lbl_norm), na=False)
+
+
 def _calcular_top5_baratos(df: "pd.DataFrame", fuel_label: str = None) -> dict:
     """Calcula os 5 postos mais baratos da consulta atual.
 
@@ -10004,9 +10041,13 @@ def _calcular_top5_baratos(df: "pd.DataFrame", fuel_label: str = None) -> dict:
     if _pp_vis.empty:
         return {}
 
-    # Filtra combustível se especificado
+    # Filtra combustível se especificado (matching flexível — case-insensitive)
     if fuel_label and "combustivel_label" in _pp_vis.columns:
-        _pp_vis = _pp_vis[_pp_vis["combustivel_label"].str.strip() == fuel_label]
+        _mask = _fuel_mask(_pp_vis["combustivel_label"], fuel_label)
+        _pp_vis_fuel = _pp_vis[_mask]
+        if not _pp_vis_fuel.empty:
+            _pp_vis = _pp_vis_fuel
+        # Se não encontrou match, mantém todos (melhor que retornar vazio)
     if _pp_vis.empty:
         return {}
 
@@ -11348,7 +11389,7 @@ with st.sidebar:
                         )
                         if _fuel_sel_m1 and _fuel_sel_m1 != "— Todos —":
                             _df_fuel_m1 = _pp_df_adv[
-                                _pp_df_adv["combustivel_label"].str.strip() == _fuel_sel_m1
+                                _fuel_mask(_pp_df_adv["combustivel_label"], _fuel_sel_m1)
                             ]
                             if not _df_fuel_m1.empty:
                                 _pmin = float(_df_fuel_m1["preco"].min())
@@ -11800,7 +11841,7 @@ with st.sidebar:
                         )
                         if _fuel_sel_m2 and _fuel_sel_m2 != "— Todos —":
                             _df_fuel_m2 = _pp_df_adv_m2[
-                                _pp_df_adv_m2["combustivel_label"].str.strip() == _fuel_sel_m2
+                                _fuel_mask(_pp_df_adv_m2["combustivel_label"], _fuel_sel_m2)
                             ]
                             if not _df_fuel_m2.empty:
                                 _pmin2 = float(_df_fuel_m2["preco"].min())
@@ -14045,7 +14086,7 @@ if modo == "📍 Por UF/Município":
             _pp_m1 = st.session_state.get("_pp_df")
             if _pp_m1 is not None and "_cnpj_norm" in df_show.columns:
                 _fuel_df_m1 = _pp_m1[
-                    _pp_m1["combustivel_label"].str.strip() == _fuel_sel_m1
+                    _fuel_mask(_pp_m1["combustivel_label"], _fuel_sel_m1)
                 ][["cnpj_norm","preco"]].copy()
                 _lo_m1, _hi_m1 = _preco_faixa_m1
                 _cnpj_ok_m1 = set(
@@ -15419,7 +15460,7 @@ elif modo == "🗺️ Por Rota":
             _pp_m2 = st.session_state.get("_pp_df")
             if _pp_m2 is not None and "_cnpj_norm" in df_show_r.columns:
                 _fuel_df_m2 = _pp_m2[
-                    _pp_m2["combustivel_label"].str.strip() == _fuel_sel_m2
+                    _fuel_mask(_pp_m2["combustivel_label"], _fuel_sel_m2)
                 ][["cnpj_norm","preco"]].copy()
                 _lo_m2, _hi_m2 = _preco_faixa_m2
                 _cnpj_ok_m2 = set(
