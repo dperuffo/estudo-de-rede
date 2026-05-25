@@ -11190,6 +11190,161 @@ with st.sidebar:
     transform: translateY(-1px) !important;
 }
 .st-key-btn_analise_cliente [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Relatórios ── */
+.st-key-btn_relatorios button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+}
+.st-key-btn_relatorios button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_relatorios [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #37474F 0%, #546E7A 50%, #78909C 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(55,71,79,.40) !important;
+}
+.st-key-btn_relatorios [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #263238 0%, #37474F 55%, #546E7A 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_relatorios [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_relatorios [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #546E7A !important; color: #37474F !important;
+    box-shadow: none !important;
+}
+.st-key-btn_relatorios [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #37474F !important; color: #263238 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_relatorios [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Expander Configurações ── */
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+    border: 2px solid #455A64 !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,.92) !important;
+    transition: all .2s ease !important;
+    overflow: hidden !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"]:hover {
+    border-color: #263238 !important;
+    transform: translateY(-1px) !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    color: #37474F !important;
+    padding: 10px 14px !important;
+    min-height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+    color: #263238 !important;
+}
+
+/* ── Botão Guia de Uso ── */
+.st-key-btn_tour_sidebar button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+}
+.st-key-btn_tour_sidebar button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_tour_sidebar [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #0288D1 !important; color: #01579B !important;
+    box-shadow: none !important;
+}
+.st-key-btn_tour_sidebar [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #01579B !important; color: #003c6e !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_tour_sidebar [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Documentação ── */
+.st-key-btn_documentacao button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+}
+.st-key-btn_documentacao button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_documentacao [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #1A237E 0%, #283593 50%, #3949AB 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(26,35,126,.40) !important;
+}
+.st-key-btn_documentacao [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #0D1467 0%, #1A237E 55%, #283593 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_documentacao [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_documentacao [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #3949AB !important; color: #1A237E !important;
+    box-shadow: none !important;
+}
+.st-key-btn_documentacao [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #1A237E !important; color: #0D1467 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_documentacao [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão API & Integrações ── */
+.st-key-btn_api_integracoes button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+}
+.st-key-btn_api_integracoes button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_api_integracoes [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #4A148C 0%, #6A1B9A 40%, #283593 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(74,20,140,.40) !important;
+}
+.st-key-btn_api_integracoes [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #2D0073 0%, #4A148C 55%, #1A237E 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_api_integracoes [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_api_integracoes [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #7B1FA2 !important; color: #4A148C !important;
+    box-shadow: none !important;
+}
+.st-key-btn_api_integracoes [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #4A148C !important; color: #2D0073 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_api_integracoes [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Admin ── */
+.st-key-btn_admin button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+}
+.st-key-btn_admin button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_admin [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #7B0000 0%, #B71C1C 50%, #C62828 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(123,0,0,.45) !important;
+}
+.st-key-btn_admin [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #4E0000 0%, #7B0000 55%, #B71C1C 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_admin [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_admin [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #C62828 !important; color: #B71C1C !important;
+    box-shadow: none !important;
+}
+.st-key-btn_admin [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #B71C1C !important; color: #7B0000 !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_admin [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
