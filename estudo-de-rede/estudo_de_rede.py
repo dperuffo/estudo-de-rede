@@ -12305,6 +12305,43 @@ with st.sidebar:
     if "_fuel_sel_m2" not in dir():
         _fuel_sel_m2        = None
 
+    # ── Guia de Uso ───────────────────────────────────────────────────────────
+    _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
+    with _col_guia_c:
+        if st.button(
+            "❓ Guia de Uso",
+            use_container_width=True,
+            type="secondary",
+            key="btn_tour_sidebar",
+            help="Abrir o guia interativo passo a passo",
+        ):
+            st.session_state["_tour_ativo"] = True
+            st.rerun()
+
+    # ── Botão Documentação (após Guia de Uso) ───────────────────────
+    if st.button(
+        "📄 Documentação",
+        use_container_width=True,
+        type="primary" if _modo_atual == "📄 Documentação" else "secondary",
+        key="btn_documentacao",
+        help="Visualizar o manual de uso da plataforma",
+    ):
+        st.session_state["modo_selecionado"] = "📄 Documentação"
+        _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
+        st.rerun()
+
+    # ── Botão API & Integrações (abaixo de Documentação) ───────────
+    if st.button(
+        "🔌 API & Integrações",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🔌 API & Integrações" else "secondary",
+        key="btn_api_integracoes",
+        help="Documentação da API REST — integre ERPs e sistemas de logística",
+    ):
+        st.session_state["modo_selecionado"] = "🔌 API & Integrações"
+        _log_acesso("MODO_SELECIONADO", "🔌 API & Integrações", modo_override="🔌 API & Integrações")
+        st.rerun()
+
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
     _pf_fonte  = st.session_state.get("_pf_fonte",  "manual")
@@ -13467,43 +13504,6 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                 ]
                 st.dataframe(_ac_show.head(200), use_container_width=True, height=320)
                 st.caption(f"Exibindo até 200 de {_br_int(len(_ac_vigentes))} acordos vigentes.")
-
-    # ── Guia de Uso ───────────────────────────────────────────────────────────
-    _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
-    with _col_guia_c:
-        if st.button(
-            "❓ Guia de Uso",
-            use_container_width=True,
-            type="secondary",
-            key="btn_tour_sidebar",
-            help="Abrir o guia interativo passo a passo",
-        ):
-            st.session_state["_tour_ativo"] = True
-            st.rerun()
-
-    # ── Botão Documentação (após Guia de Uso) ───────────────────────
-    if st.button(
-        "📄 Documentação",
-        use_container_width=True,
-        type="primary" if _modo_atual == "📄 Documentação" else "secondary",
-        key="btn_documentacao",
-        help="Visualizar o manual de uso da plataforma",
-    ):
-        st.session_state["modo_selecionado"] = "📄 Documentação"
-        _log_acesso("MODO_SELECIONADO", "📄 Documentação", modo_override="📄 Documentação")
-        st.rerun()
-
-    # ── Botão API & Integrações (abaixo de Documentação) ───────────
-    if st.button(
-        "🔌 API & Integrações",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🔌 API & Integrações" else "secondary",
-        key="btn_api_integracoes",
-        help="Documentação da API REST — integre ERPs e sistemas de logística",
-    ):
-        st.session_state["modo_selecionado"] = "🔌 API & Integrações"
-        _log_acesso("MODO_SELECIONADO", "🔌 API & Integrações", modo_override="🔌 API & Integrações")
-        st.rerun()
 
     # ── Botão Admin (visível só para o admin) ───────────────────────
     _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
