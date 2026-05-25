@@ -11182,6 +11182,9 @@ with st.sidebar:
         _log_acesso("MODO_SELECIONADO", "📋 Rotas Salvas", modo_override="📋 Rotas Salvas")
         st.rerun()
 
+    # ── Placeholder: parâmetros de consulta aparecem aqui ──────────
+    _sb_params_container = st.container()
+
     # ── Botão Dashboard (largura total) ─────────────────────────
     if st.button(
         "📊 Dashboard",
@@ -11269,707 +11272,711 @@ with st.sidebar:
 
     # ── Modo 1 ────────────────────────────────────────────────
     if modo == "📍 Por UF/Município":  # noqa: E501
-        _fk_m1 = st.session_state.get("_form_key_m1", 0)
-        # Pré-preenche com valores restaurados (de Rotas Salvas), se presentes
-        _restore_uf  = st.session_state.pop("_restore_uf",  None)
-        _restore_mun = st.session_state.pop("_restore_mun", None)
-        _uf_default_idx = 0
-        if _restore_uf and _restore_uf in UFS:
-            _uf_default_idx = UFS.index(_restore_uf) + 1  # +1 por "— Selecione —"
-        st.markdown("<div class='sb-label'>Localização</div>", unsafe_allow_html=True)
-        uf = st.selectbox("Estado (UF)", ["— Selecione —"] + UFS, index=_uf_default_idx,
-                          key=f"sel_uf_{_fk_m1}",
-                          help="Selecione o estado para carregar os postos")
-        uf = "" if uf == "— Selecione —" else uf
+        with _sb_params_container:
+            _fk_m1 = st.session_state.get("_form_key_m1", 0)
+            # Pré-preenche com valores restaurados (de Rotas Salvas), se presentes
+            _restore_uf  = st.session_state.pop("_restore_uf",  None)
+            _restore_mun = st.session_state.pop("_restore_mun", None)
+            _uf_default_idx = 0
+            if _restore_uf and _restore_uf in UFS:
+                _uf_default_idx = UFS.index(_restore_uf) + 1  # +1 por "— Selecione —"
+            st.markdown("<div class='sb-label'>Localização</div>", unsafe_allow_html=True)
+            uf = st.selectbox("Estado (UF)", ["— Selecione —"] + UFS, index=_uf_default_idx,
+                              key=f"sel_uf_{_fk_m1}",
+                              help="Selecione o estado para carregar os postos")
+            uf = "" if uf == "— Selecione —" else uf
 
-        municipio_input = st.text_input("🏙️ Município (opcional)",
-                                         value=_restore_mun or "",
-                                         placeholder="Ex: Teresina",
-                                         key=f"txt_mun_{_fk_m1}",
-                                         help="Filtra os postos por município dentro do estado")
+            municipio_input = st.text_input("🏙️ Município (opcional)",
+                                             value=_restore_mun or "",
+                                             placeholder="Ex: Teresina",
+                                             key=f"txt_mun_{_fk_m1}",
+                                             help="Filtra os postos por município dentro do estado")
 
-        if st.button("🗑️ Limpar Consulta", use_container_width=True,
-                     help="Limpa estado, município, filtros e seleção de rota"):
-            for _k in ["_map_orig", "_map_dest", "_map_rota_result", "_map_posto_sel",
-                       "_uf_carregada", "df_raw_full", "distribuidoras_disponiveis"]:
-                st.session_state.pop(_k, None)
-            st.session_state["_form_key_m1"] = _fk_m1 + 1
-            st.rerun()
+            if st.button("🗑️ Limpar Consulta", use_container_width=True,
+                         help="Limpa estado, município, filtros e seleção de rota"):
+                for _k in ["_map_orig", "_map_dest", "_map_rota_result", "_map_posto_sel",
+                           "_uf_carregada", "df_raw_full", "distribuidoras_disponiveis"]:
+                    st.session_state.pop(_k, None)
+                st.session_state["_form_key_m1"] = _fk_m1 + 1
+                st.rerun()
 
-        distribuidoras_filtro = []
-        if st.session_state.get("distribuidoras_disponiveis"):
-            st.markdown("<div class='sb-label'>Filtrar por Bandeira</div>", unsafe_allow_html=True)
-            distribuidoras_filtro = st.multiselect(
-                "Bandeiras", st.session_state["distribuidoras_disponiveis"],
-                placeholder="Todas as bandeiras", label_visibility="collapsed",
-                key=f"mult_dist_{_fk_m1}")
+            distribuidoras_filtro = []
+            if st.session_state.get("distribuidoras_disponiveis"):
+                st.markdown("<div class='sb-label'>Filtrar por Bandeira</div>", unsafe_allow_html=True)
+                distribuidoras_filtro = st.multiselect(
+                    "Bandeiras", st.session_state["distribuidoras_disponiveis"],
+                    placeholder="Todas as bandeiras", label_visibility="collapsed",
+                    key=f"mult_dist_{_fk_m1}")
 
-        # Filtro de Perfil de Venda (Gestão de Frotas)
-        perfis_filtro_m1 = []
-        _perfis_lista_m1 = st.session_state.get("perfis_pf_lista", [])
-        if _perfis_lista_m1:
-            st.markdown("<div class='sb-label'>Perfil de Venda ⭐</div>", unsafe_allow_html=True)
-            perfis_filtro_m1 = st.multiselect(
-                "Perfil de Venda", _perfis_lista_m1,
-                placeholder="Todos os perfis", label_visibility="collapsed",
-                key=f"mult_perfil_{_fk_m1}",
-                help="Filtra os postos Gestão de Frotas pelo perfil de venda. Postos não-GF sempre exibidos.",
-            )
+            # Filtro de Perfil de Venda (Gestão de Frotas)
+            perfis_filtro_m1 = []
+            _perfis_lista_m1 = st.session_state.get("perfis_pf_lista", [])
+            if _perfis_lista_m1:
+                st.markdown("<div class='sb-label'>Perfil de Venda ⭐</div>", unsafe_allow_html=True)
+                perfis_filtro_m1 = st.multiselect(
+                    "Perfil de Venda", _perfis_lista_m1,
+                    placeholder="Todos os perfis", label_visibility="collapsed",
+                    key=f"mult_perfil_{_fk_m1}",
+                    help="Filtra os postos Gestão de Frotas pelo perfil de venda. Postos não-GF sempre exibidos.",
+                )
 
-        # ── Filtros Avançados ─────────────────────────────────────────────
-        _pp_df_adv   = st.session_state.get("_pp_df")
-        _svc_cols    = st.session_state.get("_servicos_cols_disponiveis", [])
-        _tem_preco   = _pp_df_adv is not None and "preco" in _pp_df_adv.columns
-        _tem_servico = bool(_svc_cols)
+            # ── Filtros Avançados ─────────────────────────────────────────────
+            _pp_df_adv   = st.session_state.get("_pp_df")
+            _svc_cols    = st.session_state.get("_servicos_cols_disponiveis", [])
+            _tem_preco   = _pp_df_adv is not None and "preco" in _pp_df_adv.columns
+            _tem_servico = bool(_svc_cols)
 
-        if _tem_preco or _tem_servico:
-            with st.expander("🔍 Filtros Avançados", expanded=False):
-                # ── Faixa de Preço (R$/L) ─────────────────────────────
-                _preco_min_m1 = _preco_max_m1 = None
-                _preco_faixa_m1 = None
-                _fuel_sel_m1 = None
-                if _tem_preco:
-                    _fuels_m1 = sorted(
-                        _pp_df_adv["combustivel_label"].dropna().str.strip().unique().tolist()
-                    )
-                    _fuel_sel_m1 = st.selectbox(
-                        "⛽ Combustível (preço)",
-                        ["— Todos —"] + _fuels_m1,
-                        key=f"adv_fuel_m1_{_fk_m1}",
-                        label_visibility="visible",
-                    )
-                    if _fuel_sel_m1 and _fuel_sel_m1 != "— Todos —":
-                        _df_fuel_m1 = _pp_df_adv[
-                            _pp_df_adv["combustivel_label"].str.strip() == _fuel_sel_m1
-                        ]
-                        if not _df_fuel_m1.empty:
-                            _pmin = float(_df_fuel_m1["preco"].min())
-                            _pmax = float(_df_fuel_m1["preco"].max())
-                            if _pmin < _pmax:
-                                _preco_min_m1, _preco_max_m1 = _pmin, _pmax
-                                _preco_faixa_m1 = st.slider(
-                                    "💰 Faixa de Preço (R$/L)",
-                                    min_value=round(_pmin, 2),
-                                    max_value=round(_pmax, 2),
-                                    value=(round(_pmin, 2), round(_pmax, 2)),
-                                    step=0.01,
-                                    format="R$ %.2f",
-                                    key=f"adv_preco_m1_{_fk_m1}",
-                                    help="Exibe apenas postos com preço registrado dentro da faixa selecionada",
-                                )
-                            else:
-                                st.caption(f"Preço único: R$ {_pmin:.3f}/L")
+            if _tem_preco or _tem_servico:
+                with st.expander("🔍 Filtros Avançados", expanded=False):
+                    # ── Faixa de Preço (R$/L) ─────────────────────────────
+                    _preco_min_m1 = _preco_max_m1 = None
+                    _preco_faixa_m1 = None
+                    _fuel_sel_m1 = None
+                    if _tem_preco:
+                        _fuels_m1 = sorted(
+                            _pp_df_adv["combustivel_label"].dropna().str.strip().unique().tolist()
+                        )
+                        _fuel_sel_m1 = st.selectbox(
+                            "⛽ Combustível (preço)",
+                            ["— Todos —"] + _fuels_m1,
+                            key=f"adv_fuel_m1_{_fk_m1}",
+                            label_visibility="visible",
+                        )
+                        if _fuel_sel_m1 and _fuel_sel_m1 != "— Todos —":
+                            _df_fuel_m1 = _pp_df_adv[
+                                _pp_df_adv["combustivel_label"].str.strip() == _fuel_sel_m1
+                            ]
+                            if not _df_fuel_m1.empty:
+                                _pmin = float(_df_fuel_m1["preco"].min())
+                                _pmax = float(_df_fuel_m1["preco"].max())
+                                if _pmin < _pmax:
+                                    _preco_min_m1, _preco_max_m1 = _pmin, _pmax
+                                    _preco_faixa_m1 = st.slider(
+                                        "💰 Faixa de Preço (R$/L)",
+                                        min_value=round(_pmin, 2),
+                                        max_value=round(_pmax, 2),
+                                        value=(round(_pmin, 2), round(_pmax, 2)),
+                                        step=0.01,
+                                        format="R$ %.2f",
+                                        key=f"adv_preco_m1_{_fk_m1}",
+                                        help="Exibe apenas postos com preço registrado dentro da faixa selecionada",
+                                    )
+                                else:
+                                    st.caption(f"Preço único: R$ {_pmin:.3f}/L")
 
-                # ── Horário de Funcionamento ───────────────────────────
-                _filtro_24h_m1 = False
-                if "funciona_24h" in _svc_cols:
-                    _filtro_24h_m1 = st.checkbox(
-                        "🕐 Somente postos 24h",
-                        key=f"adv_24h_m1_{_fk_m1}",
-                        help="Filtra postos que funcionam 24 horas (coluna 'FUNCIONA_24H' da planilha)",
-                    )
+                    # ── Horário de Funcionamento ───────────────────────────
+                    _filtro_24h_m1 = False
+                    if "funciona_24h" in _svc_cols:
+                        _filtro_24h_m1 = st.checkbox(
+                            "🕐 Somente postos 24h",
+                            key=f"adv_24h_m1_{_fk_m1}",
+                            help="Filtra postos que funcionam 24 horas (coluna 'FUNCIONA_24H' da planilha)",
+                        )
 
-                # ── Serviços Disponíveis ───────────────────────────────
-                _filtro_servicos_m1 = []
-                _svc_pf_lbl_m1 = st.session_state.get("_servicos_pf_labels", {})
-                # Labels legadas (colunas genéricas) — só aparecem se não substituídas
-                _SVC_LEG_LBL = {"pista_caminhao": "🚛 Pista Caminhão",
-                                 "arla":           "🧪 ARLA 32",
-                                 "conveniencia":   "🛒 Conveniência"}
-                _conceitos_cobertos_m1 = set(_svc_pf_lbl_m1.keys())
-                _svc_map_m1: dict = {}
-                # 1) Colunas dinâmicas da planilha ("Possui X?")
-                for _ck, _lbl in _svc_pf_lbl_m1.items():
-                    if _ck in _svc_cols:
-                        _svc_map_m1[_lbl] = _ck
-                # 2) Legadas (se o conceito não foi substituído)
-                for _ck, _lbl in _SVC_LEG_LBL.items():
-                    if _ck in _svc_cols:
-                        _sup = _SVC_LEGADO_SUPERSEDE.get(_ck, set())
-                        if not (_sup & _conceitos_cobertos_m1):
+                    # ── Serviços Disponíveis ───────────────────────────────
+                    _filtro_servicos_m1 = []
+                    _svc_pf_lbl_m1 = st.session_state.get("_servicos_pf_labels", {})
+                    # Labels legadas (colunas genéricas) — só aparecem se não substituídas
+                    _SVC_LEG_LBL = {"pista_caminhao": "🚛 Pista Caminhão",
+                                     "arla":           "🧪 ARLA 32",
+                                     "conveniencia":   "🛒 Conveniência"}
+                    _conceitos_cobertos_m1 = set(_svc_pf_lbl_m1.keys())
+                    _svc_map_m1: dict = {}
+                    # 1) Colunas dinâmicas da planilha ("Possui X?")
+                    for _ck, _lbl in _svc_pf_lbl_m1.items():
+                        if _ck in _svc_cols:
                             _svc_map_m1[_lbl] = _ck
-                _svc_opts = list(_svc_map_m1.keys())
-                if _svc_opts:
-                    _svc_sel_m1 = st.multiselect(
-                        "🔧 Serviços disponíveis",
-                        _svc_opts,
-                        placeholder="Qualquer serviço",
-                        key=f"adv_svc_m1_{_fk_m1}",
-                        help="Exibe apenas postos que oferecem os serviços selecionados",
-                    )
-                    _filtro_servicos_m1 = [_svc_map_m1[s] for s in _svc_sel_m1]
+                    # 2) Legadas (se o conceito não foi substituído)
+                    for _ck, _lbl in _SVC_LEG_LBL.items():
+                        if _ck in _svc_cols:
+                            _sup = _SVC_LEGADO_SUPERSEDE.get(_ck, set())
+                            if not (_sup & _conceitos_cobertos_m1):
+                                _svc_map_m1[_lbl] = _ck
+                    _svc_opts = list(_svc_map_m1.keys())
+                    if _svc_opts:
+                        _svc_sel_m1 = st.multiselect(
+                            "🔧 Serviços disponíveis",
+                            _svc_opts,
+                            placeholder="Qualquer serviço",
+                            key=f"adv_svc_m1_{_fk_m1}",
+                            help="Exibe apenas postos que oferecem os serviços selecionados",
+                        )
+                        _filtro_servicos_m1 = [_svc_map_m1[s] for s in _svc_sel_m1]
 
-                if not _tem_servico:
-                    st.caption(
-                        "ℹ️ Colunas de serviço não encontradas na planilha. "
-                        "Adicione colunas como 'Possui restaurante?', 'Possui estacionamento?', etc."
-                    )
-        else:
-            _preco_faixa_m1 = None
-            _fuel_sel_m1    = None
-            _filtro_24h_m1  = False
-            _filtro_servicos_m1 = []
+                    if not _tem_servico:
+                        st.caption(
+                            "ℹ️ Colunas de serviço não encontradas na planilha. "
+                            "Adicione colunas como 'Possui restaurante?', 'Possui estacionamento?', etc."
+                        )
+            else:
+                _preco_faixa_m1 = None
+                _fuel_sel_m1    = None
+                _filtro_24h_m1  = False
+                _filtro_servicos_m1 = []
 
     # ── Modo 3 ────────────────────────────────────────────────
     elif modo == "🔍 Consulta por Posto":
-        _render_filtros_inteligentes(modo)
+        with _sb_params_container:
+            _render_filtros_inteligentes(modo)
 
-        # ── Status Origem / Destino ─────────────────────────────
-        _m3sb_map_o = st.session_state.get("_map_orig")
-        _m3sb_map_d = st.session_state.get("_map_dest")
-        _m3sb_o_ok  = bool(_m3sb_map_o)
-        _m3sb_d_ok  = bool(_m3sb_map_d)
+            # ── Status Origem / Destino ─────────────────────────────
+            _m3sb_map_o = st.session_state.get("_map_orig")
+            _m3sb_map_d = st.session_state.get("_map_dest")
+            _m3sb_o_ok  = bool(_m3sb_map_o)
+            _m3sb_d_ok  = bool(_m3sb_map_d)
 
-        # Pílulas de progresso
-        def _prog_pill_m3(label, ok, ativo):
-            if ok:
-                _bg, _brd, _c, _ic = "#e8f5e9","#a5d6a7","#2e7d32","✔"
-            elif ativo:
-                _bg, _brd, _c, _ic = "#e3f2fd","#90caf9","#1565c0","●"
-            else:
-                _bg, _brd, _c, _ic = "#f5f5f5","#e0e0e0","#bdbdbd","○"
-            return (
-                f"<div style='flex:1;background:{_bg};border:1px solid {_brd};"
-                f"border-radius:8px;padding:5px 6px;text-align:center'>"
-                f"<div style='font-size:10px;color:{_c};font-weight:700'>{_ic}</div>"
-                f"<div style='font-size:9px;color:{_c};line-height:1.2'>{label}</div>"
-                f"</div>"
-            )
-        st.markdown(
-            f"<div style='display:flex;gap:4px;margin-bottom:10px'>"
-            f"{_prog_pill_m3('Origem', _m3sb_o_ok, not _m3sb_o_ok)}"
-            f"{_prog_pill_m3('Destino', _m3sb_d_ok, _m3sb_o_ok and not _m3sb_d_ok)}"
-            f"{_prog_pill_m3('Traçar', False, _m3sb_o_ok and _m3sb_d_ok)}"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-        # Mini-cards mostrando seleções atuais
-        if _m3sb_o_ok or _m3sb_d_ok:
-            def _mini_card_m3sb(label, cor, sel):
-                if sel:
-                    nm = sel.get("label", "?")[:34]
-                    lc = f"{sel.get('municipio','')}/{sel.get('uf','')}"
-                    return (
-                        f"<div style='border-left:3px solid {cor};background:#fafafa;"
-                        f"border-radius:0 8px 8px 0;padding:6px 10px;margin-bottom:4px'>"
-                        f"<div style='font-size:9px;font-weight:700;color:{cor};"
-                        f"text-transform:uppercase;letter-spacing:0.6px'>{label} ✔</div>"
-                        f"<div style='font-size:11px;font-weight:600;color:#1a1a1a;"
-                        f"line-height:1.3;margin-top:2px'>{nm}</div>"
-                        f"<div style='font-size:10px;color:#666'>📍 {lc}</div>"
-                        f"</div>"
-                    )
+            # Pílulas de progresso
+            def _prog_pill_m3(label, ok, ativo):
+                if ok:
+                    _bg, _brd, _c, _ic = "#e8f5e9","#a5d6a7","#2e7d32","✔"
+                elif ativo:
+                    _bg, _brd, _c, _ic = "#e3f2fd","#90caf9","#1565c0","●"
                 else:
-                    return (
-                        f"<div style='border-left:3px dashed #d0d0d0;background:#f9f9f9;"
-                        f"border-radius:0 8px 8px 0;padding:6px 10px;margin-bottom:4px'>"
-                        f"<div style='font-size:9px;font-weight:700;color:#bbb;"
-                        f"text-transform:uppercase;letter-spacing:0.6px'>{label}</div>"
-                        f"<div style='font-size:10px;color:#aaa;font-style:italic'>Não definido</div>"
-                        f"</div>"
-                    )
+                    _bg, _brd, _c, _ic = "#f5f5f5","#e0e0e0","#bdbdbd","○"
+                return (
+                    f"<div style='flex:1;background:{_bg};border:1px solid {_brd};"
+                    f"border-radius:8px;padding:5px 6px;text-align:center'>"
+                    f"<div style='font-size:10px;color:{_c};font-weight:700'>{_ic}</div>"
+                    f"<div style='font-size:9px;color:{_c};line-height:1.2'>{label}</div>"
+                    f"</div>"
+                )
             st.markdown(
-                _mini_card_m3sb("🟢 Origem", "#2E7D32", _m3sb_map_o)
-                + _mini_card_m3sb("🔴 Destino", "#C62828", _m3sb_map_d),
+                f"<div style='display:flex;gap:4px;margin-bottom:10px'>"
+                f"{_prog_pill_m3('Origem', _m3sb_o_ok, not _m3sb_o_ok)}"
+                f"{_prog_pill_m3('Destino', _m3sb_d_ok, _m3sb_o_ok and not _m3sb_d_ok)}"
+                f"{_prog_pill_m3('Traçar', False, _m3sb_o_ok and _m3sb_d_ok)}"
+                f"</div>",
                 unsafe_allow_html=True,
             )
-            if st.button(
-                "🗑️ Limpar Origem / Destino",
+
+            # Mini-cards mostrando seleções atuais
+            if _m3sb_o_ok or _m3sb_d_ok:
+                def _mini_card_m3sb(label, cor, sel):
+                    if sel:
+                        nm = sel.get("label", "?")[:34]
+                        lc = f"{sel.get('municipio','')}/{sel.get('uf','')}"
+                        return (
+                            f"<div style='border-left:3px solid {cor};background:#fafafa;"
+                            f"border-radius:0 8px 8px 0;padding:6px 10px;margin-bottom:4px'>"
+                            f"<div style='font-size:9px;font-weight:700;color:{cor};"
+                            f"text-transform:uppercase;letter-spacing:0.6px'>{label} ✔</div>"
+                            f"<div style='font-size:11px;font-weight:600;color:#1a1a1a;"
+                            f"line-height:1.3;margin-top:2px'>{nm}</div>"
+                            f"<div style='font-size:10px;color:#666'>📍 {lc}</div>"
+                            f"</div>"
+                        )
+                    else:
+                        return (
+                            f"<div style='border-left:3px dashed #d0d0d0;background:#f9f9f9;"
+                            f"border-radius:0 8px 8px 0;padding:6px 10px;margin-bottom:4px'>"
+                            f"<div style='font-size:9px;font-weight:700;color:#bbb;"
+                            f"text-transform:uppercase;letter-spacing:0.6px'>{label}</div>"
+                            f"<div style='font-size:10px;color:#aaa;font-style:italic'>Não definido</div>"
+                            f"</div>"
+                        )
+                st.markdown(
+                    _mini_card_m3sb("🟢 Origem", "#2E7D32", _m3sb_map_o)
+                    + _mini_card_m3sb("🔴 Destino", "#C62828", _m3sb_map_d),
+                    unsafe_allow_html=True,
+                )
+                if st.button(
+                    "🗑️ Limpar Origem / Destino",
+                    use_container_width=True,
+                    key="btn_limpar_od_m3",
+                    help="Limpar pontos de origem e destino selecionados",
+                ):
+                    for _k in ["_map_orig", "_map_dest", "_map_rota_result"]:
+                        st.session_state.pop(_k, None)
+                    st.rerun()
+                st.divider()
+
+            # ── Dica de busca ─────────────────────────────────────────
+            st.markdown(
+                "<div style='background:#e8f5e9;border-radius:8px;padding:10px 12px;"
+                "font-size:12px;color:#2e7d32;margin-bottom:12px'>"
+                "🔍 Busque por <b>nome do posto</b>, <b>razão social</b> ou <b>CNPJ</b> "
+                "e selecione como <b>Origem</b> ou <b>Destino</b>."
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            _fk_m3 = st.session_state.get("_form_key_m3", 0)
+            _termo_m3 = st.text_input(
+                "Nome, razão social ou CNPJ",
+                placeholder="Ex: Auto Posto Silva  ·  12.345.678/0001-99",
+                key=f"txt_consulta_{_fk_m3}",
+                help="Digite ao menos 3 caracteres do nome ou o CNPJ completo",
+            )
+            _uf_m3_sel = st.selectbox(
+                "Estado (opcional)",
+                ["Todos os estados"] + UFS,
+                index=0,
+                key=f"sel_uf_m3_{_fk_m3}",
+                help="Filtre por estado para resultados mais rápidos",
+            )
+            _uf_m3 = "" if _uf_m3_sel == "Todos os estados" else _uf_m3_sel
+
+            _buscar_m3 = st.button(
+                "🔍 Buscar Posto",
                 use_container_width=True,
-                key="btn_limpar_od_m3",
-                help="Limpar pontos de origem e destino selecionados",
-            ):
-                for _k in ["_map_orig", "_map_dest", "_map_rota_result"]:
-                    st.session_state.pop(_k, None)
+                type="primary",
+                key=f"btn_buscar_m3_{_fk_m3}",
+                disabled=len(_termo_m3.strip()) < 3,
+            )
+            if _buscar_m3:
+                _log_acesso("CONSULTA_POSTO", f"termo={_termo_m3.strip()} | uf={_uf_m3}")
+                st.session_state["_m3_termo"]     = _termo_m3.strip()
+                st.session_state["_m3_uf"]        = _uf_m3
+                st.session_state["_m3_resultado"] = None
                 st.rerun()
-            st.divider()
 
-        # ── Dica de busca ─────────────────────────────────────────
-        st.markdown(
-            "<div style='background:#e8f5e9;border-radius:8px;padding:10px 12px;"
-            "font-size:12px;color:#2e7d32;margin-bottom:12px'>"
-            "🔍 Busque por <b>nome do posto</b>, <b>razão social</b> ou <b>CNPJ</b> "
-            "e selecione como <b>Origem</b> ou <b>Destino</b>."
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        _fk_m3 = st.session_state.get("_form_key_m3", 0)
-        _termo_m3 = st.text_input(
-            "Nome, razão social ou CNPJ",
-            placeholder="Ex: Auto Posto Silva  ·  12.345.678/0001-99",
-            key=f"txt_consulta_{_fk_m3}",
-            help="Digite ao menos 3 caracteres do nome ou o CNPJ completo",
-        )
-        _uf_m3_sel = st.selectbox(
-            "Estado (opcional)",
-            ["Todos os estados"] + UFS,
-            index=0,
-            key=f"sel_uf_m3_{_fk_m3}",
-            help="Filtre por estado para resultados mais rápidos",
-        )
-        _uf_m3 = "" if _uf_m3_sel == "Todos os estados" else _uf_m3_sel
-
-        _buscar_m3 = st.button(
-            "🔍 Buscar Posto",
-            use_container_width=True,
-            type="primary",
-            key=f"btn_buscar_m3_{_fk_m3}",
-            disabled=len(_termo_m3.strip()) < 3,
-        )
-        if _buscar_m3:
-            _log_acesso("CONSULTA_POSTO", f"termo={_termo_m3.strip()} | uf={_uf_m3}")
-            st.session_state["_m3_termo"]     = _termo_m3.strip()
-            st.session_state["_m3_uf"]        = _uf_m3
-            st.session_state["_m3_resultado"] = None
-            st.rerun()
-
-        if st.button("🗑️ Limpar Busca", use_container_width=True, key="btn_limpar_m3"):
-            for _k in ["_m3_termo", "_m3_uf", "_m3_resultado"]:
-                st.session_state.pop(_k, None)
-            st.session_state["_form_key_m3"] = _fk_m3 + 1
-            st.rerun()
+            if st.button("🗑️ Limpar Busca", use_container_width=True, key="btn_limpar_m3"):
+                for _k in ["_m3_termo", "_m3_uf", "_m3_resultado"]:
+                    st.session_state.pop(_k, None)
+                st.session_state["_form_key_m3"] = _fk_m3 + 1
+                st.rerun()
 
     # ── Modo 2 ────────────────────────────────────────────────
     elif modo == "🗺️ Por Rota":
-        _render_filtros_inteligentes(modo)
+        with _sb_params_container:
+            _render_filtros_inteligentes(modo)
 
-        _n_paradas  = st.session_state.get("_paradas_count", 0)
-        _orig_pronto = bool(st.session_state.get("orig_sel"))
-        _dest_pronto = bool(st.session_state.get("dest_sel"))
+            _n_paradas  = st.session_state.get("_paradas_count", 0)
+            _orig_pronto = bool(st.session_state.get("orig_sel"))
+            _dest_pronto = bool(st.session_state.get("dest_sel"))
 
-        # ── Mini barra de progresso ─────────────────────────────────
-        def _prog_pill(label, ok, ativo):
-            if ok:
-                _bg, _brd, _c = "#e8f5e9","#a5d6a7","#2e7d32"
-                _ic = "✔"
-            elif ativo:
-                _bg, _brd, _c = "#e3f2fd","#90caf9","#1565c0"
-                _ic = "●"
-            else:
-                _bg, _brd, _c = "#f5f5f5","#e0e0e0","#bdbdbd"
-                _ic = "○"
-            return (
-                f"<div style='flex:1;background:{_bg};border:1px solid {_brd};"
-                f"border-radius:8px;padding:5px 6px;text-align:center'>"
-                f"<div style='font-size:10px;color:{_c};font-weight:700'>{_ic}</div>"
-                f"<div style='font-size:9px;color:{_c};line-height:1.2'>{label}</div>"
-                f"</div>"
-            )
-        st.markdown(
-            f"<div style='display:flex;gap:4px;margin-bottom:10px'>"
-            f"{_prog_pill('Origem', _orig_pronto, not _orig_pronto)}"
-            f"{_prog_pill('Destino', _dest_pronto, _orig_pronto and not _dest_pronto)}"
-            f"{_prog_pill('Traçar', False, _orig_pronto and _dest_pronto)}"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-        # ── Dica de preenchimento ───────────────────────────────────
-        st.markdown(
-            "<div style='background:#e3f2fd;border-radius:8px;padding:7px 10px;"
-            "font-size:10px;color:#1565c0;margin-bottom:8px;line-height:1.5'>"
-            "💡 Digite <b>UF</b> (ex: SP), <b>cidade</b>, <b>nome do posto</b> ou "
-            "<b>CNPJ</b> e selecione a sugestão.</div>",
-            unsafe_allow_html=True,
-        )
-
-        # ── rail pontilhado vertical ───────────────────────────────
-        def _rail(color: str = "#90CAF9", height: int = 10):
+            # ── Mini barra de progresso ─────────────────────────────────
+            def _prog_pill(label, ok, ativo):
+                if ok:
+                    _bg, _brd, _c = "#e8f5e9","#a5d6a7","#2e7d32"
+                    _ic = "✔"
+                elif ativo:
+                    _bg, _brd, _c = "#e3f2fd","#90caf9","#1565c0"
+                    _ic = "●"
+                else:
+                    _bg, _brd, _c = "#f5f5f5","#e0e0e0","#bdbdbd"
+                    _ic = "○"
+                return (
+                    f"<div style='flex:1;background:{_bg};border:1px solid {_brd};"
+                    f"border-radius:8px;padding:5px 6px;text-align:center'>"
+                    f"<div style='font-size:10px;color:{_c};font-weight:700'>{_ic}</div>"
+                    f"<div style='font-size:9px;color:{_c};line-height:1.2'>{label}</div>"
+                    f"</div>"
+                )
             st.markdown(
-                f"<div style='margin:0 0 0 6px;border-left:2px dashed {color};"
-                f"height:{height}px'></div>",
+                f"<div style='display:flex;gap:4px;margin-bottom:10px'>"
+                f"{_prog_pill('Origem', _orig_pronto, not _orig_pronto)}"
+                f"{_prog_pill('Destino', _dest_pronto, _orig_pronto and not _dest_pronto)}"
+                f"{_prog_pill('Traçar', False, _orig_pronto and _dest_pronto)}"
+                f"</div>",
                 unsafe_allow_html=True,
             )
 
-        # ══ ORIGEM ══════════════════════════════════════════════════
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
-            "<span style='width:10px;height:10px;border-radius:50%;"
-            "background:#2E7D32;display:inline-block;flex-shrink:0'></span>"
-            "<span style='font-size:10px;font-weight:700;color:#2E7D32;"
-            "text-transform:uppercase;letter-spacing:0.8px'>Ponto de Origem</span>"
-            + (" <span style='font-size:10px;color:#2E7D32'>✔</span>" if _orig_pronto else
-               " <span style='font-size:9px;color:#aaa;font-style:italic'>— informe abaixo</span>")
-            + "</div>",
-            unsafe_allow_html=True,
-        )
-        _campo_rota_compacto(
-            "UF · Cidade · Nome do posto · CNPJ",
-            "txt_origem", "orig_sel",
-            icon_bg="#2E7D32",
-            action_help="Limpar origem",
-        )
-        orig_sel = st.session_state.get("orig_sel")
-
-        # ══ PARADAS ═════════════════════════════════════════════════
-        for _p_idx in range(1, _n_paradas + 1):
-            _rail(color="#FF8F00", height=8)
-            _parada_ok = bool(st.session_state.get(f"parada_sel_{_p_idx}"))
+            # ── Dica de preenchimento ───────────────────────────────────
             st.markdown(
-                f"<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
-                f"<span style='width:10px;height:10px;border-radius:50%;"
-                f"background:#FF8F00;display:inline-block;flex-shrink:0'></span>"
-                f"<span style='font-size:10px;font-weight:700;color:#E65100;"
-                f"text-transform:uppercase;letter-spacing:0.8px'>Parada {_p_idx}</span>"
-                + (f" <span style='font-size:10px;color:#E65100'>✔</span>" if _parada_ok else "")
+                "<div style='background:#e3f2fd;border-radius:8px;padding:7px 10px;"
+                "font-size:10px;color:#1565c0;margin-bottom:8px;line-height:1.5'>"
+                "💡 Digite <b>UF</b> (ex: SP), <b>cidade</b>, <b>nome do posto</b> ou "
+                "<b>CNPJ</b> e selecione a sugestão.</div>",
+                unsafe_allow_html=True,
+            )
+
+            # ── rail pontilhado vertical ───────────────────────────────
+            def _rail(color: str = "#90CAF9", height: int = 10):
+                st.markdown(
+                    f"<div style='margin:0 0 0 6px;border-left:2px dashed {color};"
+                    f"height:{height}px'></div>",
+                    unsafe_allow_html=True,
+                )
+
+            # ══ ORIGEM ══════════════════════════════════════════════════
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
+                "<span style='width:10px;height:10px;border-radius:50%;"
+                "background:#2E7D32;display:inline-block;flex-shrink:0'></span>"
+                "<span style='font-size:10px;font-weight:700;color:#2E7D32;"
+                "text-transform:uppercase;letter-spacing:0.8px'>Ponto de Origem</span>"
+                + (" <span style='font-size:10px;color:#2E7D32'>✔</span>" if _orig_pronto else
+                   " <span style='font-size:9px;color:#aaa;font-style:italic'>— informe abaixo</span>")
                 + "</div>",
                 unsafe_allow_html=True,
             )
-            _deleted = _campo_rota_compacto(
+            _campo_rota_compacto(
                 "UF · Cidade · Nome do posto · CNPJ",
-                f"txt_parada_{_p_idx}",
-                f"parada_sel_{_p_idx}",
-                icon_bg="#FF8F00",
-                icon_number=str(_p_idx),
-                always_show_action=True,
-                action_key=f"btn_del_parada_{_p_idx}",
-                action_help=f"Remover parada {_p_idx}",
+                "txt_origem", "orig_sel",
+                icon_bg="#2E7D32",
+                action_help="Limpar origem",
             )
-            if _deleted:
-                for _j in range(_p_idx, _n_paradas):
-                    st.session_state[f"parada_sel_{_j}"] = st.session_state.get(
-                        f"parada_sel_{_j+1}")
-                    st.session_state[f"txt_parada_{_j}"] = st.session_state.get(
-                        f"txt_parada_{_j+1}", "")
-                st.session_state.pop(f"parada_sel_{_n_paradas}", None)
-                st.session_state.pop(f"txt_parada_{_n_paradas}", None)
-                st.session_state["_paradas_count"] = _n_paradas - 1
+            orig_sel = st.session_state.get("orig_sel")
+
+            # ══ PARADAS ═════════════════════════════════════════════════
+            for _p_idx in range(1, _n_paradas + 1):
+                _rail(color="#FF8F00", height=8)
+                _parada_ok = bool(st.session_state.get(f"parada_sel_{_p_idx}"))
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
+                    f"<span style='width:10px;height:10px;border-radius:50%;"
+                    f"background:#FF8F00;display:inline-block;flex-shrink:0'></span>"
+                    f"<span style='font-size:10px;font-weight:700;color:#E65100;"
+                    f"text-transform:uppercase;letter-spacing:0.8px'>Parada {_p_idx}</span>"
+                    + (f" <span style='font-size:10px;color:#E65100'>✔</span>" if _parada_ok else "")
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+                _deleted = _campo_rota_compacto(
+                    "UF · Cidade · Nome do posto · CNPJ",
+                    f"txt_parada_{_p_idx}",
+                    f"parada_sel_{_p_idx}",
+                    icon_bg="#FF8F00",
+                    icon_number=str(_p_idx),
+                    always_show_action=True,
+                    action_key=f"btn_del_parada_{_p_idx}",
+                    action_help=f"Remover parada {_p_idx}",
+                )
+                if _deleted:
+                    for _j in range(_p_idx, _n_paradas):
+                        st.session_state[f"parada_sel_{_j}"] = st.session_state.get(
+                            f"parada_sel_{_j+1}")
+                        st.session_state[f"txt_parada_{_j}"] = st.session_state.get(
+                            f"txt_parada_{_j+1}", "")
+                    st.session_state.pop(f"parada_sel_{_n_paradas}", None)
+                    st.session_state.pop(f"txt_parada_{_n_paradas}", None)
+                    st.session_state["_paradas_count"] = _n_paradas - 1
+                    st.rerun()
+
+            # ══ + PARADA ════════════════════════════════════════════════
+            _rail(color="#BBDEFB", height=6)
+            if _n_paradas < 10:
+                _col_btn, _col_cnt2 = st.columns([3, 1])
+                with _col_btn:
+                    if st.button(
+                        "＋ Adicionar Parada",
+                        key="btn_add_parada",
+                        use_container_width=True,
+                        help=f"Adicionar ponto intermediário ({_n_paradas}/10 usados)",
+                    ):
+                        st.session_state["_paradas_count"] = _n_paradas + 1
+                        st.rerun()
+                with _col_cnt2:
+                    if _n_paradas > 0:
+                        st.markdown(
+                            f"<div style='padding-top:9px;font-size:10px;"
+                            f"color:#90a4ae;text-align:center'>{_n_paradas}/10</div>",
+                            unsafe_allow_html=True,
+                        )
+            _rail(color="#BBDEFB", height=6)
+
+            # ══ DESTINO ═════════════════════════════════════════════════
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
+                "<span style='width:10px;height:10px;border-radius:50%;"
+                "background:#C62828;display:inline-block;flex-shrink:0'></span>"
+                "<span style='font-size:10px;font-weight:700;color:#C62828;"
+                "text-transform:uppercase;letter-spacing:0.8px'>Ponto de Destino</span>"
+                + (" <span style='font-size:10px;color:#C62828'>✔</span>" if _dest_pronto else
+                   " <span style='font-size:9px;color:#aaa;font-style:italic'>— informe abaixo</span>")
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+            _campo_rota_compacto(
+                "UF · Cidade · Nome do posto · CNPJ",
+                "txt_destino", "dest_sel",
+                icon_bg="#C62828",
+                action_help="Limpar destino",
+            )
+            dest_sel = st.session_state.get("dest_sel")
+            st.divider()
+
+            # ── Raio ────────────────────────────────────────────────────
+            st.markdown(
+                "<div style='font-size:10px;font-weight:700;color:#555;"
+                "text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px'>"
+                "📏 Raio de busca ao longo da rota</div>",
+                unsafe_allow_html=True,
+            )
+            raio = st.slider("Raio (m)", min_value=200, max_value=2000, value=500, step=100,
+                             label_visibility="collapsed",
+                             help="Postos dentro deste raio ao redor da rota serão exibidos")
+            st.caption(f"Buscando postos a até **{raio} m** da rota")
+
+            # ── Botão Traçar Rota (com contexto) ───────────────────────
+            if _orig_pronto and _dest_pronto:
+                _o_lbl = str(st.session_state["orig_sel"].get("label",""))[:18]
+                _d_lbl = str(st.session_state["dest_sel"].get("label",""))[:18]
+                buscar_rota_btn = st.button(
+                    f"🗺️  {_o_lbl}  →  {_d_lbl}",
+                    use_container_width=True, type="primary",
+                    help="Calcular rota e exibir postos próximos",
+                )
+            elif not _orig_pronto:
+                st.markdown(
+                    "<div style='background:#fff8e1;border:1px solid #ffe082;"
+                    "border-radius:8px;padding:8px 10px;font-size:11px;color:#f57f17;"
+                    "text-align:center'>⚠️ Informe o <b>Ponto de Origem</b> acima</div>",
+                    unsafe_allow_html=True,
+                )
+                buscar_rota_btn = False
+            else:
+                st.markdown(
+                    "<div style='background:#fff8e1;border:1px solid #ffe082;"
+                    "border-radius:8px;padding:8px 10px;font-size:11px;color:#f57f17;"
+                    "text-align:center'>⚠️ Informe o <b>Ponto de Destino</b> acima</div>",
+                    unsafe_allow_html=True,
+                )
+                buscar_rota_btn = False
+
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+            if st.button("🗑️ Limpar tudo e recomeçar", use_container_width=True,
+                         help="Remove os resultados e limpa todos os campos"):
+                for _k in [
+                    "df_rota", "coords_rota",
+                    "lat_orig", "lon_orig", "label_orig",
+                    "lat_dest", "lon_dest", "label_dest",
+                    "dist_km", "dur_min", "raio_usado", "linha_reta",
+                    "distribuidoras_rota",
+                    "orig_sel", "dest_sel",
+                    "_orig_sel_txt_ant", "_dest_sel_txt_ant",
+                    "_paradas_data", "_ufs_rota_atual",
+                ]:
+                    st.session_state.pop(_k, None)
+                _n_p_clr = st.session_state.get("_paradas_count", 0)
+                for _pi in range(1, _n_p_clr + 1):
+                    st.session_state.pop(f"parada_sel_{_pi}", None)
+                    st.session_state.pop(f"txt_parada_{_pi}", None)
+                st.session_state["_paradas_count"] = 0
+                st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
                 st.rerun()
 
-        # ══ + PARADA ════════════════════════════════════════════════
-        _rail(color="#BBDEFB", height=6)
-        if _n_paradas < 10:
-            _col_btn, _col_cnt2 = st.columns([3, 1])
-            with _col_btn:
-                if st.button(
-                    "＋ Adicionar Parada",
-                    key="btn_add_parada",
-                    use_container_width=True,
-                    help=f"Adicionar ponto intermediário ({_n_paradas}/10 usados)",
-                ):
-                    st.session_state["_paradas_count"] = _n_paradas + 1
-                    st.rerun()
-            with _col_cnt2:
-                if _n_paradas > 0:
-                    st.markdown(
-                        f"<div style='padding-top:9px;font-size:10px;"
-                        f"color:#90a4ae;text-align:center'>{_n_paradas}/10</div>",
-                        unsafe_allow_html=True,
-                    )
-        _rail(color="#BBDEFB", height=6)
+            distribuidoras_filtro = []
+            if st.session_state.get("distribuidoras_rota"):
+                st.divider()
+                st.markdown("<div class='sb-label'>Filtrar por Bandeira</div>", unsafe_allow_html=True)
+                distribuidoras_filtro = st.multiselect(
+                    "Bandeiras", st.session_state["distribuidoras_rota"],
+                    placeholder="Todas as bandeiras", label_visibility="collapsed")
 
-        # ══ DESTINO ═════════════════════════════════════════════════
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>"
-            "<span style='width:10px;height:10px;border-radius:50%;"
-            "background:#C62828;display:inline-block;flex-shrink:0'></span>"
-            "<span style='font-size:10px;font-weight:700;color:#C62828;"
-            "text-transform:uppercase;letter-spacing:0.8px'>Ponto de Destino</span>"
-            + (" <span style='font-size:10px;color:#C62828'>✔</span>" if _dest_pronto else
-               " <span style='font-size:9px;color:#aaa;font-style:italic'>— informe abaixo</span>")
-            + "</div>",
-            unsafe_allow_html=True,
-        )
-        _campo_rota_compacto(
-            "UF · Cidade · Nome do posto · CNPJ",
-            "txt_destino", "dest_sel",
-            icon_bg="#C62828",
-            action_help="Limpar destino",
-        )
-        dest_sel = st.session_state.get("dest_sel")
-        st.divider()
+            # Filtro de Perfil de Venda — Modo Rota
+            perfis_filtro_m2 = []
+            _perfis_lista_m2 = st.session_state.get("perfis_pf_lista", [])
+            if _perfis_lista_m2:
+                st.markdown("<div class='sb-label'>Perfil de Venda ⭐</div>", unsafe_allow_html=True)
+                perfis_filtro_m2 = st.multiselect(
+                    "Perfil de Venda", _perfis_lista_m2,
+                    placeholder="Todos os perfis", label_visibility="collapsed",
+                    key="mult_perfil_m2",
+                    help="Filtra os postos Gestão de Frotas pelo perfil de venda.",
+                )
 
-        # ── Raio ────────────────────────────────────────────────────
-        st.markdown(
-            "<div style='font-size:10px;font-weight:700;color:#555;"
-            "text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px'>"
-            "📏 Raio de busca ao longo da rota</div>",
-            unsafe_allow_html=True,
-        )
-        raio = st.slider("Raio (m)", min_value=200, max_value=2000, value=500, step=100,
-                         label_visibility="collapsed",
-                         help="Postos dentro deste raio ao redor da rota serão exibidos")
-        st.caption(f"Buscando postos a até **{raio} m** da rota")
+            # ── Filtros Avançados — Modo Rota ─────────────────────────────────
+            _pp_df_adv_m2 = st.session_state.get("_pp_df")
+            _svc_cols_m2  = st.session_state.get("_servicos_cols_disponiveis", [])
+            _tem_preco_m2   = _pp_df_adv_m2 is not None and "preco" in _pp_df_adv_m2.columns
+            _tem_servico_m2 = bool(_svc_cols_m2)
 
-        # ── Botão Traçar Rota (com contexto) ───────────────────────
-        if _orig_pronto and _dest_pronto:
-            _o_lbl = str(st.session_state["orig_sel"].get("label",""))[:18]
-            _d_lbl = str(st.session_state["dest_sel"].get("label",""))[:18]
-            buscar_rota_btn = st.button(
-                f"🗺️  {_o_lbl}  →  {_d_lbl}",
-                use_container_width=True, type="primary",
-                help="Calcular rota e exibir postos próximos",
-            )
-        elif not _orig_pronto:
-            st.markdown(
-                "<div style='background:#fff8e1;border:1px solid #ffe082;"
-                "border-radius:8px;padding:8px 10px;font-size:11px;color:#f57f17;"
-                "text-align:center'>⚠️ Informe o <b>Ponto de Origem</b> acima</div>",
-                unsafe_allow_html=True,
-            )
-            buscar_rota_btn = False
-        else:
-            st.markdown(
-                "<div style='background:#fff8e1;border:1px solid #ffe082;"
-                "border-radius:8px;padding:8px 10px;font-size:11px;color:#f57f17;"
-                "text-align:center'>⚠️ Informe o <b>Ponto de Destino</b> acima</div>",
-                unsafe_allow_html=True,
-            )
-            buscar_rota_btn = False
+            if _tem_preco_m2 or _tem_servico_m2:
+                with st.expander("🔍 Filtros Avançados", expanded=False):
+                    _preco_faixa_m2 = None
+                    _fuel_sel_m2    = None
+                    if _tem_preco_m2:
+                        _fuels_m2 = sorted(
+                            _pp_df_adv_m2["combustivel_label"].dropna().str.strip().unique().tolist()
+                        )
+                        _fuel_sel_m2 = st.selectbox(
+                            "⛽ Combustível (preço)",
+                            ["— Todos —"] + _fuels_m2,
+                            key="adv_fuel_m2",
+                            label_visibility="visible",
+                        )
+                        if _fuel_sel_m2 and _fuel_sel_m2 != "— Todos —":
+                            _df_fuel_m2 = _pp_df_adv_m2[
+                                _pp_df_adv_m2["combustivel_label"].str.strip() == _fuel_sel_m2
+                            ]
+                            if not _df_fuel_m2.empty:
+                                _pmin2 = float(_df_fuel_m2["preco"].min())
+                                _pmax2 = float(_df_fuel_m2["preco"].max())
+                                if _pmin2 < _pmax2:
+                                    _preco_faixa_m2 = st.slider(
+                                        "💰 Faixa de Preço (R$/L)",
+                                        min_value=round(_pmin2, 2),
+                                        max_value=round(_pmax2, 2),
+                                        value=(round(_pmin2, 2), round(_pmax2, 2)),
+                                        step=0.01,
+                                        format="R$ %.2f",
+                                        key="adv_preco_m2",
+                                        help="Exibe apenas postos com preço dentro da faixa selecionada",
+                                    )
+                                else:
+                                    st.caption(f"Preço único: R$ {_pmin2:.3f}/L")
 
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-        if st.button("🗑️ Limpar tudo e recomeçar", use_container_width=True,
-                     help="Remove os resultados e limpa todos os campos"):
-            for _k in [
-                "df_rota", "coords_rota",
-                "lat_orig", "lon_orig", "label_orig",
-                "lat_dest", "lon_dest", "label_dest",
-                "dist_km", "dur_min", "raio_usado", "linha_reta",
-                "distribuidoras_rota",
-                "orig_sel", "dest_sel",
-                "_orig_sel_txt_ant", "_dest_sel_txt_ant",
-                "_paradas_data", "_ufs_rota_atual",
-            ]:
-                st.session_state.pop(_k, None)
-            _n_p_clr = st.session_state.get("_paradas_count", 0)
-            for _pi in range(1, _n_p_clr + 1):
-                st.session_state.pop(f"parada_sel_{_pi}", None)
-                st.session_state.pop(f"txt_parada_{_pi}", None)
-            st.session_state["_paradas_count"] = 0
-            st.session_state["_form_key"] = st.session_state.get("_form_key", 0) + 1
-            st.rerun()
+                    _filtro_24h_m2 = False
+                    if "funciona_24h" in _svc_cols_m2:
+                        _filtro_24h_m2 = st.checkbox(
+                            "🕐 Somente postos 24h",
+                            key="adv_24h_m2",
+                            help="Filtra postos que funcionam 24 horas",
+                        )
 
-        distribuidoras_filtro = []
-        if st.session_state.get("distribuidoras_rota"):
-            st.divider()
-            st.markdown("<div class='sb-label'>Filtrar por Bandeira</div>", unsafe_allow_html=True)
-            distribuidoras_filtro = st.multiselect(
-                "Bandeiras", st.session_state["distribuidoras_rota"],
-                placeholder="Todas as bandeiras", label_visibility="collapsed")
-
-        # Filtro de Perfil de Venda — Modo Rota
-        perfis_filtro_m2 = []
-        _perfis_lista_m2 = st.session_state.get("perfis_pf_lista", [])
-        if _perfis_lista_m2:
-            st.markdown("<div class='sb-label'>Perfil de Venda ⭐</div>", unsafe_allow_html=True)
-            perfis_filtro_m2 = st.multiselect(
-                "Perfil de Venda", _perfis_lista_m2,
-                placeholder="Todos os perfis", label_visibility="collapsed",
-                key="mult_perfil_m2",
-                help="Filtra os postos Gestão de Frotas pelo perfil de venda.",
-            )
-
-        # ── Filtros Avançados — Modo Rota ─────────────────────────────────
-        _pp_df_adv_m2 = st.session_state.get("_pp_df")
-        _svc_cols_m2  = st.session_state.get("_servicos_cols_disponiveis", [])
-        _tem_preco_m2   = _pp_df_adv_m2 is not None and "preco" in _pp_df_adv_m2.columns
-        _tem_servico_m2 = bool(_svc_cols_m2)
-
-        if _tem_preco_m2 or _tem_servico_m2:
-            with st.expander("🔍 Filtros Avançados", expanded=False):
-                _preco_faixa_m2 = None
-                _fuel_sel_m2    = None
-                if _tem_preco_m2:
-                    _fuels_m2 = sorted(
-                        _pp_df_adv_m2["combustivel_label"].dropna().str.strip().unique().tolist()
-                    )
-                    _fuel_sel_m2 = st.selectbox(
-                        "⛽ Combustível (preço)",
-                        ["— Todos —"] + _fuels_m2,
-                        key="adv_fuel_m2",
-                        label_visibility="visible",
-                    )
-                    if _fuel_sel_m2 and _fuel_sel_m2 != "— Todos —":
-                        _df_fuel_m2 = _pp_df_adv_m2[
-                            _pp_df_adv_m2["combustivel_label"].str.strip() == _fuel_sel_m2
-                        ]
-                        if not _df_fuel_m2.empty:
-                            _pmin2 = float(_df_fuel_m2["preco"].min())
-                            _pmax2 = float(_df_fuel_m2["preco"].max())
-                            if _pmin2 < _pmax2:
-                                _preco_faixa_m2 = st.slider(
-                                    "💰 Faixa de Preço (R$/L)",
-                                    min_value=round(_pmin2, 2),
-                                    max_value=round(_pmax2, 2),
-                                    value=(round(_pmin2, 2), round(_pmax2, 2)),
-                                    step=0.01,
-                                    format="R$ %.2f",
-                                    key="adv_preco_m2",
-                                    help="Exibe apenas postos com preço dentro da faixa selecionada",
-                                )
-                            else:
-                                st.caption(f"Preço único: R$ {_pmin2:.3f}/L")
-
-                _filtro_24h_m2 = False
-                if "funciona_24h" in _svc_cols_m2:
-                    _filtro_24h_m2 = st.checkbox(
-                        "🕐 Somente postos 24h",
-                        key="adv_24h_m2",
-                        help="Filtra postos que funcionam 24 horas",
-                    )
-
-                _filtro_servicos_m2 = []
-                _svc_pf_lbl_m2 = st.session_state.get("_servicos_pf_labels", {})
-                _SVC_LEG_LBL_M2 = {"pista_caminhao": "🚛 Pista Caminhão",
-                                    "arla":           "🧪 ARLA 32",
-                                    "conveniencia":   "🛒 Conveniência"}
-                _conceitos_cob_m2 = set(_svc_pf_lbl_m2.keys())
-                _svc_map_m2: dict = {}
-                # 1) Colunas dinâmicas da planilha ("Possui X?")
-                for _ck, _lbl in _svc_pf_lbl_m2.items():
-                    if _ck in _svc_cols_m2:
-                        _svc_map_m2[_lbl] = _ck
-                # 2) Legadas (se o conceito não foi substituído)
-                for _ck, _lbl in _SVC_LEG_LBL_M2.items():
-                    if _ck in _svc_cols_m2:
-                        _sup = _SVC_LEGADO_SUPERSEDE.get(_ck, set())
-                        if not (_sup & _conceitos_cob_m2):
+                    _filtro_servicos_m2 = []
+                    _svc_pf_lbl_m2 = st.session_state.get("_servicos_pf_labels", {})
+                    _SVC_LEG_LBL_M2 = {"pista_caminhao": "🚛 Pista Caminhão",
+                                        "arla":           "🧪 ARLA 32",
+                                        "conveniencia":   "🛒 Conveniência"}
+                    _conceitos_cob_m2 = set(_svc_pf_lbl_m2.keys())
+                    _svc_map_m2: dict = {}
+                    # 1) Colunas dinâmicas da planilha ("Possui X?")
+                    for _ck, _lbl in _svc_pf_lbl_m2.items():
+                        if _ck in _svc_cols_m2:
                             _svc_map_m2[_lbl] = _ck
-                _svc_opts_m2 = list(_svc_map_m2.keys())
-                if _svc_opts_m2:
-                    _svc_sel_m2 = st.multiselect(
-                        "🔧 Serviços disponíveis",
-                        _svc_opts_m2,
-                        placeholder="Qualquer serviço",
-                        key="adv_svc_m2",
-                        help="Exibe apenas postos que oferecem os serviços selecionados",
-                    )
-                    _filtro_servicos_m2 = [_svc_map_m2[s] for s in _svc_sel_m2]
-        else:
-            _preco_faixa_m2     = None
-            _fuel_sel_m2        = None
-            _filtro_24h_m2      = False
-            _filtro_servicos_m2 = []
+                    # 2) Legadas (se o conceito não foi substituído)
+                    for _ck, _lbl in _SVC_LEG_LBL_M2.items():
+                        if _ck in _svc_cols_m2:
+                            _sup = _SVC_LEGADO_SUPERSEDE.get(_ck, set())
+                            if not (_sup & _conceitos_cob_m2):
+                                _svc_map_m2[_lbl] = _ck
+                    _svc_opts_m2 = list(_svc_map_m2.keys())
+                    if _svc_opts_m2:
+                        _svc_sel_m2 = st.multiselect(
+                            "🔧 Serviços disponíveis",
+                            _svc_opts_m2,
+                            placeholder="Qualquer serviço",
+                            key="adv_svc_m2",
+                            help="Exibe apenas postos que oferecem os serviços selecionados",
+                        )
+                        _filtro_servicos_m2 = [_svc_map_m2[s] for s in _svc_sel_m2]
+            else:
+                _preco_faixa_m2     = None
+                _fuel_sel_m2        = None
+                _filtro_24h_m2      = False
+                _filtro_servicos_m2 = []
 
     # ── Modo Roteirização — campos do veículo ─────────────────────────────────
     elif modo == "🛣️ Roteirização":
-        _render_filtros_inteligentes(modo)
+        with _sb_params_container:
+            _render_filtros_inteligentes(modo)
 
-        st.markdown(
-            "<div style='background:linear-gradient(135deg,#004D40,#00796B);"
-            "border-radius:8px;padding:8px 12px;margin-bottom:10px'>"
-            "<span style='color:#fff;font-weight:700;font-size:12px'>🛣️ Roteirização</span><br>"
-            "<span style='color:#b2dfdb;font-size:10px'>Configure o veículo e trace a rota</span>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
-        # ── Seletor de Perfis de Veículo ─────────────────────────────────
-        _perfis_db = _db_perfis_veiculo()
-        if _perfis_db:
-            st.markdown("<div class='sb-label'>🚗 Perfis Salvos</div>", unsafe_allow_html=True)
-            _perfis_opcoes = ["— Selecione um perfil —"] + [
-                f"{p['nome']} · {p.get('placa','').upper() or '—'}" for p in _perfis_db
-            ]
-            _perfil_sel_idx = st.selectbox(
-                "Perfil de veículo",
-                range(len(_perfis_opcoes)),
-                format_func=lambda i: _perfis_opcoes[i],
-                key="rot_perfil_sel",
-                label_visibility="collapsed",
+            st.markdown(
+                "<div style='background:linear-gradient(135deg,#004D40,#00796B);"
+                "border-radius:8px;padding:8px 12px;margin-bottom:10px'>"
+                "<span style='color:#fff;font-weight:700;font-size:12px'>🛣️ Roteirização</span><br>"
+                "<span style='color:#b2dfdb;font-size:10px'>Configure o veículo e trace a rota</span>"
+                "</div>",
+                unsafe_allow_html=True,
             )
-            if _perfil_sel_idx and _perfil_sel_idx > 0:
-                _psel = _perfis_db[_perfil_sel_idx - 1]
-                _c_load, _c_del = st.columns([3, 1])
-                with _c_load:
-                    if st.button("⬇️ Carregar perfil", use_container_width=True,
-                                 key="btn_carregar_perfil"):
-                        st.session_state["rot_placa"]       = _psel.get("placa", "")
-                        st.session_state["rot_combustivel"] = _psel.get("combustivel", "")
-                        st.session_state["rot_capacidade"]  = float(_psel.get("tanque") or 80.0)
-                        st.session_state["rot_autonomia"]   = float(_psel.get("autonomia") or 10.0)
-                        st.toast(f"✅ Perfil **{_psel['nome']}** carregado!", icon="🚛")
+
+            # ── Seletor de Perfis de Veículo ─────────────────────────────────
+            _perfis_db = _db_perfis_veiculo()
+            if _perfis_db:
+                st.markdown("<div class='sb-label'>🚗 Perfis Salvos</div>", unsafe_allow_html=True)
+                _perfis_opcoes = ["— Selecione um perfil —"] + [
+                    f"{p['nome']} · {p.get('placa','').upper() or '—'}" for p in _perfis_db
+                ]
+                _perfil_sel_idx = st.selectbox(
+                    "Perfil de veículo",
+                    range(len(_perfis_opcoes)),
+                    format_func=lambda i: _perfis_opcoes[i],
+                    key="rot_perfil_sel",
+                    label_visibility="collapsed",
+                )
+                if _perfil_sel_idx and _perfil_sel_idx > 0:
+                    _psel = _perfis_db[_perfil_sel_idx - 1]
+                    _c_load, _c_del = st.columns([3, 1])
+                    with _c_load:
+                        if st.button("⬇️ Carregar perfil", use_container_width=True,
+                                     key="btn_carregar_perfil"):
+                            st.session_state["rot_placa"]       = _psel.get("placa", "")
+                            st.session_state["rot_combustivel"] = _psel.get("combustivel", "")
+                            st.session_state["rot_capacidade"]  = float(_psel.get("tanque") or 80.0)
+                            st.session_state["rot_autonomia"]   = float(_psel.get("autonomia") or 10.0)
+                            st.toast(f"✅ Perfil **{_psel['nome']}** carregado!", icon="🚛")
+                            st.rerun()
+                    with _c_del:
+                        if st.button("🗑️", key="btn_del_perfil",
+                                     help="Excluir este perfil"):
+                            _db_deletar_perfil_veiculo(_psel["id"])
+                            st.toast("Perfil excluído", icon="🗑️")
+                            st.rerun()
+
+            st.markdown("<div class='sb-label'>🚛 Dados do Veículo</div>", unsafe_allow_html=True)
+
+            st.text_input(
+                "Placa do Veículo",
+                placeholder="Ex: ABC-1D23",
+                key="rot_placa",
+                help="Placa para identificar a roteirização salva",
+            )
+
+            # Opções de combustível — prioriza tipos do _pp_df
+            _pp_combs_rot: list = []
+            _pp_df_sidebar = st.session_state.get("_pp_df")
+            if _pp_df_sidebar is not None and "combustivel_label" in _pp_df_sidebar.columns:
+                _pp_combs_rot = sorted(
+                    _pp_df_sidebar["combustivel_label"].dropna().str.strip().unique().tolist()
+                )
+            if not _pp_combs_rot:
+                _pp_combs_rot = [
+                    "GASOLINA COMUM", "GASOLINA ADITIVADA",
+                    "ÓLEO DIESEL", "ÓLEO DIESEL S10", "ETANOL",
+                ]
+            st.selectbox(
+                "Combustível",
+                _pp_combs_rot,
+                key="rot_combustivel",
+                help="Tipo de combustível a ser abastecido nos postos GF",
+            )
+
+            _c_cap, _c_aut = st.columns(2)
+            with _c_cap:
+                st.number_input(
+                    "Tanque (L)",
+                    min_value=10.0, max_value=1200.0,
+                    value=float(st.session_state.get("rot_capacidade") or 80.0),
+                    step=10.0, key="rot_capacidade",
+                    help="Capacidade total do tanque em litros (até 1.200 L)",
+                )
+            with _c_aut:
+                st.number_input(
+                    "Autonomia (km/L)",
+                    min_value=1.0, max_value=40.0,
+                    value=float(st.session_state.get("rot_autonomia") or 10.0),
+                    step=0.5, key="rot_autonomia",
+                    help="Consumo médio do veículo em km por litro",
+                )
+
+            _cap_sb = float(st.session_state.get("rot_capacidade") or 80.0)
+            _aut_sb = float(st.session_state.get("rot_autonomia") or 10.0)
+            _min_sb = _cap_sb * 0.25
+            _range_sb = (_cap_sb - _min_sb) * _aut_sb
+
+            st.markdown(
+                f"<div style='background:#e0f7fa;border:1px solid #80deea;border-radius:6px;"
+                f"padding:7px 10px;font-size:11px;color:#004D40;margin-top:4px;line-height:1.6'>"
+                f"⚠️ <b>Nível mínimo:</b> {_min_sb:.0f} L (25%)<br>"
+                f"📏 <b>Alcance efetivo:</b> {_br_int(_range_sb)} km</div>",
+                unsafe_allow_html=True,
+            )
+
+            # ── Salvar como perfil de veículo ────────────────────────────────
+            st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+            with st.expander("💾 Salvar como perfil", expanded=False):
+                _nome_perfil = st.text_input(
+                    "Nome do perfil",
+                    placeholder="Ex: Scania R450 / Bitrem / Carreta",
+                    key="rot_nome_perfil",
+                )
+                if st.button("💾 Salvar perfil", use_container_width=True,
+                             key="btn_salvar_perfil_veiculo"):
+                    _placa_atual = str(st.session_state.get("rot_placa") or "")
+                    _comb_atual  = str(st.session_state.get("rot_combustivel") or "")
+                    _tank_atual  = float(st.session_state.get("rot_capacidade") or 80.0)
+                    _aut_atual   = float(st.session_state.get("rot_autonomia") or 10.0)
+                    _nome_final  = _nome_perfil.strip() or _placa_atual or "Veículo"
+                    if _db_salvar_perfil_veiculo(_nome_final, _placa_atual, _comb_atual,
+                                                 _tank_atual, _aut_atual):
+                        st.toast(f"✅ Perfil **{_nome_final}** salvo!", icon="🚛")
                         st.rerun()
-                with _c_del:
-                    if st.button("🗑️", key="btn_del_perfil",
-                                 help="Excluir este perfil"):
-                        _db_deletar_perfil_veiculo(_psel["id"])
-                        st.toast("Perfil excluído", icon="🗑️")
-                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao salvar. Verifique a conexão com o banco.")
 
-        st.markdown("<div class='sb-label'>🚛 Dados do Veículo</div>", unsafe_allow_html=True)
-
-        st.text_input(
-            "Placa do Veículo",
-            placeholder="Ex: ABC-1D23",
-            key="rot_placa",
-            help="Placa para identificar a roteirização salva",
-        )
-
-        # Opções de combustível — prioriza tipos do _pp_df
-        _pp_combs_rot: list = []
-        _pp_df_sidebar = st.session_state.get("_pp_df")
-        if _pp_df_sidebar is not None and "combustivel_label" in _pp_df_sidebar.columns:
-            _pp_combs_rot = sorted(
-                _pp_df_sidebar["combustivel_label"].dropna().str.strip().unique().tolist()
-            )
-        if not _pp_combs_rot:
-            _pp_combs_rot = [
-                "GASOLINA COMUM", "GASOLINA ADITIVADA",
-                "ÓLEO DIESEL", "ÓLEO DIESEL S10", "ETANOL",
-            ]
-        st.selectbox(
-            "Combustível",
-            _pp_combs_rot,
-            key="rot_combustivel",
-            help="Tipo de combustível a ser abastecido nos postos GF",
-        )
-
-        _c_cap, _c_aut = st.columns(2)
-        with _c_cap:
-            st.number_input(
-                "Tanque (L)",
-                min_value=10.0, max_value=1200.0,
-                value=float(st.session_state.get("rot_capacidade") or 80.0),
-                step=10.0, key="rot_capacidade",
-                help="Capacidade total do tanque em litros (até 1.200 L)",
-            )
-        with _c_aut:
-            st.number_input(
-                "Autonomia (km/L)",
-                min_value=1.0, max_value=40.0,
-                value=float(st.session_state.get("rot_autonomia") or 10.0),
-                step=0.5, key="rot_autonomia",
-                help="Consumo médio do veículo em km por litro",
-            )
-
-        _cap_sb = float(st.session_state.get("rot_capacidade") or 80.0)
-        _aut_sb = float(st.session_state.get("rot_autonomia") or 10.0)
-        _min_sb = _cap_sb * 0.25
-        _range_sb = (_cap_sb - _min_sb) * _aut_sb
-
-        st.markdown(
-            f"<div style='background:#e0f7fa;border:1px solid #80deea;border-radius:6px;"
-            f"padding:7px 10px;font-size:11px;color:#004D40;margin-top:4px;line-height:1.6'>"
-            f"⚠️ <b>Nível mínimo:</b> {_min_sb:.0f} L (25%)<br>"
-            f"📏 <b>Alcance efetivo:</b> {_br_int(_range_sb)} km</div>",
-            unsafe_allow_html=True,
-        )
-
-        # ── Salvar como perfil de veículo ────────────────────────────────
-        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-        with st.expander("💾 Salvar como perfil", expanded=False):
-            _nome_perfil = st.text_input(
-                "Nome do perfil",
-                placeholder="Ex: Scania R450 / Bitrem / Carreta",
-                key="rot_nome_perfil",
-            )
-            if st.button("💾 Salvar perfil", use_container_width=True,
-                         key="btn_salvar_perfil_veiculo"):
-                _placa_atual = str(st.session_state.get("rot_placa") or "")
-                _comb_atual  = str(st.session_state.get("rot_combustivel") or "")
-                _tank_atual  = float(st.session_state.get("rot_capacidade") or 80.0)
-                _aut_atual   = float(st.session_state.get("rot_autonomia") or 10.0)
-                _nome_final  = _nome_perfil.strip() or _placa_atual or "Veículo"
-                if _db_salvar_perfil_veiculo(_nome_final, _placa_atual, _comb_atual,
-                                             _tank_atual, _aut_atual):
-                    st.toast(f"✅ Perfil **{_nome_final}** salvo!", icon="🚛")
-                    st.rerun()
-                else:
-                    st.error("❌ Erro ao salvar. Verifique a conexão com o banco.")
-
-        st.caption("💡 Configure a origem, destino e paradas na área principal →")
+            st.caption("💡 Configure a origem, destino e paradas na área principal →")
 
     # ── Defaults para variáveis do Modo 2 quando outro modo está ativo ────────
     # Evita NameError quando o bloco elif "🗺️ Por Rota" não executou
