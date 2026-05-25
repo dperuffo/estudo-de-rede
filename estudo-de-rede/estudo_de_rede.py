@@ -10292,6 +10292,181 @@ if st.button("​​", key="btn_tour_open_hidden"):   # dois zero-width spaces
 #  SIDEBAR
 # ═══════════════════════════════════════════════════════════════════
 
+
+# ════════════════════════════════════════════════════════════════════
+#  FILTROS INTELIGENTES — chips contextuais por modo
+# ════════════════════════════════════════════════════════════════════
+
+_CHIPS_CSS = """
+<style>
+.fi-header {
+    font-size: 10px; font-weight: 700; color: #7B97C8;
+    letter-spacing: 1px; text-transform: uppercase;
+    margin: 10px 0 4px; display: flex; align-items: center; gap: 4px;
+}
+.fi-group-label {
+    font-size: 9px; color: #999; text-transform: uppercase;
+    letter-spacing: 0.8px; margin: 4px 0 2px;
+}
+[class*="st-key-chip_"] button {
+    padding: 2px 8px !important;
+    border-radius: 20px !important;
+    font-size: 11px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    line-height: 1.6 !important;
+}
+[class*="st-key-chip_"] [data-testid="stBaseButton-secondary"] {
+    background: rgba(123,151,200,0.08) !important;
+    border: 1px solid rgba(123,151,200,0.35) !important;
+    color: #4A6FA5 !important;
+}
+[class*="st-key-chip_"] [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #0D47A1, #1565C0) !important;
+    border: none !important; color: white !important;
+}
+</style>
+"""
+
+_CHIPS_CONFIG = {
+    "📍 Por UF/Município": {
+        "⛽ Combustível": [
+            ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
+            ("Diesel",     "_chip_combustivel", "ÓLEO DIESEL"),
+            ("Gasolina",   "_chip_combustivel", "GASOLINA COMUM"),
+            ("Etanol",     "_chip_combustivel", "ETANOL"),
+        ],
+        "🗺️ UF": [
+            ("SP", "_restore_uf", "SP"),
+            ("RJ", "_restore_uf", "RJ"),
+            ("MG", "_restore_uf", "MG"),
+            ("PR", "_restore_uf", "PR"),
+            ("RS", "_restore_uf", "RS"),
+            ("SC", "_restore_uf", "SC"),
+        ],
+    },
+    "🗺️ Por Rota": {
+        "⛽ Combustível": [
+            ("Diesel S10", "rot_combustivel", "ÓLEO DIESEL S10"),
+            ("Diesel",     "rot_combustivel", "ÓLEO DIESEL"),
+            ("Gasolina",   "rot_combustivel", "GASOLINA COMUM"),
+            ("Etanol",     "rot_combustivel", "ETANOL"),
+        ],
+    },
+    "🔍 Consulta por Posto": {
+        "🗺️ UF": [
+            ("SP", "_chip_uf_busca", "SP"),
+            ("RJ", "_chip_uf_busca", "RJ"),
+            ("MG", "_chip_uf_busca", "MG"),
+            ("PR", "_chip_uf_busca", "PR"),
+            ("RS", "_chip_uf_busca", "RS"),
+        ],
+    },
+    "🛣️ Roteirização": {
+        "⛽ Combustível": [
+            ("Diesel S10", "rot_combustivel", "ÓLEO DIESEL S10"),
+            ("Diesel",     "rot_combustivel", "ÓLEO DIESEL"),
+            ("Gasolina",   "rot_combustivel", "GASOLINA COMUM"),
+        ],
+    },
+    "📊 Dashboard": {
+        "🗓️ Período": [
+            ("7 dias",   "_chip_periodo_dias", 7),
+            ("30 dias",  "_chip_periodo_dias", 30),
+            ("90 dias",  "_chip_periodo_dias", 90),
+            ("Este ano", "_chip_periodo_dias", 365),
+        ],
+    },
+    "🧠 Inteligência": {
+        "⛽ Combustível": [
+            ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
+            ("Gasolina",   "_chip_combustivel", "GASOLINA COMUM"),
+            ("Etanol",     "_chip_combustivel", "ETANOL"),
+        ],
+        "🗓️ Período": [
+            ("7 dias",  "_chip_periodo_dias", 7),
+            ("30 dias", "_chip_periodo_dias", 30),
+            ("90 dias", "_chip_periodo_dias", 90),
+        ],
+    },
+    "🤖 Recomendador IA": {
+        "⛽ Combustível": [
+            ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
+            ("Gasolina",   "_chip_combustivel", "GASOLINA COMUM"),
+            ("Etanol",     "_chip_combustivel", "ETANOL"),
+        ],
+    },
+    "📊 Variação de Preços": {
+        "⛽ Combustível": [
+            ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
+            ("Diesel",     "_chip_combustivel", "ÓLEO DIESEL"),
+            ("Gasolina",   "_chip_combustivel", "GASOLINA COMUM"),
+        ],
+        "🗓️ Período": [
+            ("7 dias",  "_chip_periodo_dias", 7),
+            ("30 dias", "_chip_periodo_dias", 30),
+            ("60 dias", "_chip_periodo_dias", 60),
+        ],
+    },
+    "🚛 Análise de Cliente": {
+        "⛽ Combustível": [
+            ("Diesel S10", "_chip_combustivel", "ÓLEO DIESEL S10"),
+            ("Diesel",     "_chip_combustivel", "ÓLEO DIESEL"),
+            ("Gasolina",   "_chip_combustivel", "GASOLINA COMUM"),
+        ],
+        "🗓️ Período": [
+            ("30 dias",  "_chip_periodo_dias", 30),
+            ("90 dias",  "_chip_periodo_dias", 90),
+            ("Este ano", "_chip_periodo_dias", 365),
+        ],
+    },
+    "📋 Relatórios": {
+        "🗓️ Período": [
+            ("7 dias",   "_chip_periodo_dias", 7),
+            ("30 dias",  "_chip_periodo_dias", 30),
+            ("90 dias",  "_chip_periodo_dias", 90),
+            ("Este ano", "_chip_periodo_dias", 365),
+        ],
+    },
+}
+
+
+def _render_filtros_inteligentes(modo: str) -> None:
+    """Renderiza chips de filtros inteligentes contextuais por modo."""
+    chips_modo = _CHIPS_CONFIG.get(modo, {})
+    if not chips_modo:
+        return
+    st.markdown(_CHIPS_CSS, unsafe_allow_html=True)
+    st.markdown("<div class=\'fi-header\'>💡 Filtros sugeridos</div>",
+                unsafe_allow_html=True)
+    for grupo, opcoes in chips_modo.items():
+        st.markdown(f"<div class=\'fi-group-label\'>{grupo}</div>",
+                    unsafe_allow_html=True)
+        _ncols = min(len(opcoes), 4)
+        _cols  = st.columns(_ncols)
+        for i, (label, sk, valor) in enumerate(opcoes):
+            _ativo = st.session_state.get(sk) == valor
+            with _cols[i % _ncols]:
+                if st.button(
+                    f"{'✓ ' if _ativo else ''}{label}",
+                    key=f"chip_{modo}_{sk}_{label}",
+                    type="primary" if _ativo else "secondary",
+                    use_container_width=True,
+                ):
+                    if _ativo:
+                        st.session_state.pop(sk, None)
+                    else:
+                        st.session_state[sk] = valor
+                        if sk == "_restore_uf":
+                            st.session_state["_form_key_m1"] = (
+                                st.session_state.get("_form_key_m1", 0) + 1
+                            )
+                    st.rerun()
+    st.markdown(
+        "<hr style=\'margin:6px 0 10px;opacity:0.15\'>",
+        unsafe_allow_html=True,
+    )
+
 with st.sidebar:
 
     # ── Header do Sidebar — Logo FNI imponente ───────────────────────
@@ -11231,6 +11406,7 @@ with st.sidebar:
 
     # ── Modo 3 ────────────────────────────────────────────────
     elif modo == "🔍 Consulta por Posto":
+        _render_filtros_inteligentes(modo)
 
         # ── Status Origem / Destino ─────────────────────────────
         _m3sb_map_o = st.session_state.get("_map_orig")
@@ -11350,6 +11526,7 @@ with st.sidebar:
 
     # ── Modo 2 ────────────────────────────────────────────────
     elif modo == "🗺️ Por Rota":
+        _render_filtros_inteligentes(modo)
 
         _n_paradas  = st.session_state.get("_paradas_count", 0)
         _orig_pronto = bool(st.session_state.get("orig_sel"))
@@ -11661,6 +11838,7 @@ with st.sidebar:
 
     # ── Modo Roteirização — campos do veículo ─────────────────────────────────
     elif modo == "🛣️ Roteirização":
+        _render_filtros_inteligentes(modo)
 
         st.markdown(
             "<div style='background:linear-gradient(135deg,#004D40,#00796B);"
@@ -13784,6 +13962,7 @@ if _var_df_global is not None and not _var_df_global.empty:
 # ═══════════════════════════════════════════════════════════════════
 
 if modo == "📍 Por UF/Município":
+    _render_filtros_inteligentes(modo)
 
     if uf:
         # ── Carrega postos GF do estado diretamente da planilha (sem chamada à API ANP) ──
@@ -15021,6 +15200,7 @@ if modo == "📍 Por UF/Município":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🗺️ Por Rota":
+    _render_filtros_inteligentes(modo)
 
     _auto_rota = st.session_state.pop("_auto_buscar_rota", False)
     if buscar_rota_btn or _auto_rota:
@@ -15522,6 +15702,7 @@ elif modo == "🗺️ Por Rota":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🔍 Consulta por Posto":
+    _render_filtros_inteligentes(modo)
 
     _m3_termo  = st.session_state.get("_m3_termo", "")
     _m3_uf     = st.session_state.get("_m3_uf", "")
@@ -16107,6 +16288,7 @@ elif modo == "🔍 Consulta por Posto":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "📋 Rotas Salvas":
+    _render_filtros_inteligentes(modo)
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;color:#2E7D32'>"
@@ -16371,6 +16553,7 @@ _UF_NOME_DASH = {
 }
 
 if modo == "📊 Dashboard":
+    _render_filtros_inteligentes(modo)
 
     _pf_dash  = st.session_state.get("pf_coords_df", pd.DataFrame())
     _pp_dash  = st.session_state.get("_pp_df")
@@ -21441,6 +21624,7 @@ if (
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🧠 Inteligência":
+    _render_filtros_inteligentes(modo)
 
     st.markdown("""
     <style>
@@ -22607,6 +22791,7 @@ elif modo == "🔐 Admin":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🛣️ Roteirização":
+    _render_filtros_inteligentes(modo)
 
     # ── Dados do veículo (definidos no sidebar) ─────────────────────
     _rot_placa = str(st.session_state.get("rot_placa") or "")
@@ -23941,6 +24126,7 @@ elif modo == "📄 Documentação":
 #  MODO — Recomendador IA
 # ═══════════════════════════════════════════════════════════════════
 elif modo == "🤖 Recomendador IA":
+    _render_filtros_inteligentes(modo)
     import numpy as _np_rec
 
     st.markdown(
@@ -24503,6 +24689,7 @@ elif modo == "🤖 Recomendador IA":
 #  MODO — Variação de Preços
 # ═══════════════════════════════════════════════════════════════════
 elif modo == "📊 Variação de Preços":
+    _render_filtros_inteligentes(modo)
 
     _vp_df = st.session_state.get("_pp_variacao")
     _vp_ts = st.session_state.get("_pp_variacao_ts", "")
@@ -24789,6 +24976,7 @@ elif modo == "📊 Variação de Preços":
 #  MODO — Análise de Cliente (Frota)
 # ═══════════════════════════════════════════════════════════════════
 elif modo == "🚛 Análise de Cliente":
+    _render_filtros_inteligentes(modo)
     import pandas as _pd
     import numpy as _np
 
@@ -27016,6 +27204,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "📋 Relatórios":
+    _render_filtros_inteligentes(modo)
 
     import calendar as _calendar_mod
     from datetime import timedelta as _td
@@ -27908,6 +28097,7 @@ elif modo == "📋 Relatórios":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🔌 API & Integrações":
+    _render_filtros_inteligentes(modo)
 
     import urllib.parse as _urlparse
 
