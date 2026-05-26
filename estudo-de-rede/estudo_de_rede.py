@@ -11897,18 +11897,6 @@ with st.sidebar:
             _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
             st.rerun()
 
-    # ── Linha 6: Telemetria (full width) ────────────────────────────
-    if st.button(
-        "🛰️ Telemetria",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🛰️ Telemetria" else "secondary",
-        key="btn_telemetria",
-        help="Integração com telemetria de veículos — consumo real, abastecimentos e alertas",
-    ):
-        st.session_state["modo_selecionado"] = "🛰️ Telemetria"
-        _log_acesso("MODO_SELECIONADO", "🛰️ Telemetria", modo_override="🛰️ Telemetria")
-        st.rerun()
-
     modo = _modo_atual
     st.divider()
 
@@ -12665,7 +12653,7 @@ with st.sidebar:
     if "_fuel_sel_m2" not in dir():
         _fuel_sel_m2        = None
 
-    # ── Guia de Uso · Documentação (2 cols) + API full width ─────────
+    # ── Guia de Uso · Documentação · API · Admin · Telemetria ────────
     _col_h1, _col_h2 = st.columns(2)
     with _col_h1:
         if st.button(
@@ -12713,6 +12701,17 @@ with st.sidebar:
             ):
                 st.session_state["modo_selecionado"] = "🛡️ Admin"
                 st.rerun()
+
+    if st.button(
+        "🛰️ Telemetria",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🛰️ Telemetria" else "secondary",
+        key="btn_telemetria",
+        help="Integração com telemetria de veículos — consumo real, abastecimentos e alertas",
+    ):
+        st.session_state["modo_selecionado"] = "🛰️ Telemetria"
+        _log_acesso("MODO_SELECIONADO", "🛰️ Telemetria", modo_override="🛰️ Telemetria")
+        st.rerun()
 
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
