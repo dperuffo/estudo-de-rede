@@ -231,61 +231,46 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
 def _db_carregar_abastecimentos() -> list:
     """
     Carrega abastecimentos do Supabase.
-    Estratégia em camadas para cobrir registros legados sem empresa_id:
-      1. Admin sem filtro de empresa → retorna tudo (sem filtro)
-      2. empresa_id definido → filtra por empresa_id; se vazio, tenta sem filtro
-      3. Sem empresa_id, não admin → filtra por usuario_email
+    Cria uma query nova a cada tentativa — o supabase-py modifica o builder
+    in-place, então reutilizar o mesmo objeto após .eq() preserva o filtro.
+    Estratégia em camadas para cobrir registros legados sem empresa_id.
     """
     db = _db_client()
     if not db:
         return []
 
-    _base = (
-        db.table("frota_abastecimentos")
-          .select("*")
-          .order("data_abastecimento", desc=True)
-          .limit(10000)
-    )
+    def _q():
+        """Retorna um query builder fresco a cada chamada."""
+        return (
+            db.table("frota_abastecimentos")
+              .select("*")
+              .order("data_abastecimento", desc=True)
+              .limit(10000)
+        )
 
     try:
         _eid   = _db_empresa_id()
         _email = _db_email()
         _admin = _is_admin()
 
-        # ── Admin sem empresa selecionada: retorna tudo ──────────────
-        if _admin and not _eid:
-            return _base.execute().data or []
-
-        # ── Filtra por empresa_id quando disponível ──────────────────
+        # 1. Filtra por empresa_id (query fresca)
         if _eid:
-            _rows = _base.eq("empresa_id", _eid).execute().data or []
+            _rows = _q().eq("empresa_id", _eid).execute().data or []
             if _rows:
                 return _rows
-            # Fallback: empresa_id pode não ter sido gravado em uploads
-            # legados — tenta retornar sem filtro de empresa (admin)
-            # ou filtrado por e-mail (usuário comum)
-            if _admin:
-                return _base.execute().data or []
-            elif _email:
-                _rows = _base.eq("usuario_email", _email).execute().data or []
-                if _rows:
-                    return _rows
-                # Último fallback: sem filtro (dados sem empresa/email)
-                return _base.execute().data or []
-            return []
 
-        # ── Sem empresa_id: filtra por e-mail ────────────────────────
+        # 2. Filtra por e-mail do usuário (query fresca)
         if _email:
-            _rows = _base.eq("usuario_email", _email).execute().data or []
+            _rows = _q().eq("usuario_email", _email).execute().data or []
             if _rows:
                 return _rows
-        # Fallback final: retorna tudo (dados legados sem vínculo)
-        return _base.execute().data or []
+
+        # 3. Sem filtros — retorna tudo (admin ou dados legados sem vínculo)
+        return _q().execute().data or []
 
     except Exception:
         try:
-            # Em caso de erro no filtro, retorna sem filtro
-            return _base.execute().data or []
+            return _q().execute().data or []
         except Exception:
             return []
 
