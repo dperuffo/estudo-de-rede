@@ -11231,8 +11231,14 @@ with st.sidebar:
             st.session_state["_pp_carregado_em"] = _agora()
 
     # ── Carrega acordos de preço (Supabase → fallback GitHub) ─────
-    if "acordos_df" not in st.session_state and not st.session_state.get("_acordos_tentado"):
-        st.session_state["_acordos_tentado"] = True
+    # Tenta carregar sempre que acordos_df não existe OU está vazio,
+    # com debounce de 5 minutos para não sobrecarregar o banco.
+    _ac_need_load = "acordos_df" not in st.session_state or (
+        st.session_state.get("acordos_df", pd.DataFrame()).empty
+        and time.time() - st.session_state.get("_acordos_tentado_ts", 0) > 300
+    )
+    if _ac_need_load:
+        st.session_state["_acordos_tentado_ts"] = time.time()
         _ac_loaded = _db_carregar_acordos()
         st.session_state["acordos_df"] = _ac_loaded
 
@@ -27289,21 +27295,82 @@ elif modo == "👥 Análise de Cliente":
                     "negociado no acordo posto × frota × combustível. "
                     "Desvios positivos indicam que a frota pagou acima do acordado."
                 )
+                # ── Botão de recarga forçada dos acordos do banco ─────────
+                _ac_col_btn, _ = st.columns([1, 3])
+                with _ac_col_btn:
+                    if st.button(
+                        "🔄 Recarregar acordos do banco",
+                        key="btn_reload_acordos_sv",
+                        type="secondary",
+                        use_container_width=True,
+                        help="Busca a tabela de acordos direto do banco de dados",
+                    ):
+                        _ac_reloaded = _db_carregar_acordos()
+                        st.session_state["acordos_df"] = _ac_reloaded
+                        st.session_state["_acordos_tentado_ts"] = 0  # libera próxima janela
+                        st.rerun()
+
                 if not _tem_acord:
                     _ac_status = st.session_state.get("acordos_df", _pd.DataFrame())
                     if _ac_status.empty:
                         st.info(
                             "📋 Base de acordos não carregada. "
-                            "Acesse **Configurações → 🤝 Acordos de Preço** para fazer upload "
+                            "Clique em **🔄 Recarregar acordos do banco** acima, ou acesse "
+                            "**Configurações → 🤝 Acordos de Preço** para fazer upload "
                             "da planilha **Acordos.xlsx**.",
                             icon="🤝",
                         )
                     else:
-                        st.info(
-                            "Nenhum acordo encontrado para os CNPJs de posto e frota "
-                            "presentes nestes abastecimentos. Verifique se os CNPJs na "
-                            "planilha de acordos correspondem aos da base de abastecimentos.",
+                        # Acordos estão no banco mas CNPJs não coincidiram —
+                        # mostra a tabela de acordos como referência.
+                        st.warning(
+                            "Nenhum acordo com correspondência direta de CNPJ nos "
+                            "abastecimentos selecionados. Os acordos carregados do banco "
+                            "estão listados abaixo como referência.",
                             icon="🔍",
+                        )
+                        # Monta tabela de exibição dos acordos vigentes
+                        _ac_ref_df = _ac_vig_sv.copy() if not _ac_vig_sv.empty else _ac_status.copy()
+                        _ac_ref_cols = {
+                            "cnpj_posto":        "CNPJ Posto",
+                            "nome_posto":        "Posto",
+                            "cnpj_frota":        "CNPJ Frota",
+                            "razao_social_frota":"Razão Social Frota",
+                            "combustivel":       "Combustível",
+                            "preco_negociado":   "Preço Acordado (R$/L)",
+                            "dt_vigencia":       "Vigência",
+                        }
+                        _ac_ref_show = _ac_ref_df.rename(columns={
+                            k: v for k, v in _ac_ref_cols.items() if k in _ac_ref_df.columns
+                        })
+                        # Formata data de vigência
+                        if "Vigência" in _ac_ref_show.columns:
+                            _ac_ref_show["Vigência"] = _pd.to_datetime(
+                                _ac_ref_show["Vigência"], errors="coerce"
+                            ).dt.strftime("%d/%m/%Y").fillna("—")
+                        # Formata CNPJ
+                        for _ac_cn_col in ["CNPJ Posto", "CNPJ Frota"]:
+                            if _ac_cn_col in _ac_ref_show.columns:
+                                _ac_ref_show[_ac_cn_col] = _ac_ref_show[_ac_cn_col].apply(_fmt_cnpj)
+                        # Formata preço
+                        if "Preço Acordado (R$/L)" in _ac_ref_show.columns:
+                            _ac_ref_show["Preço Acordado (R$/L)"] = _ac_ref_show[
+                                "Preço Acordado (R$/L)"
+                            ].apply(lambda v: f"R$ {v:.4f}".replace(".", ",") if _pd.notna(v) else "—")
+                        # Mostra apenas colunas que existem
+                        _ac_ref_final_cols = [
+                            c for c in _ac_ref_cols.values() if c in _ac_ref_show.columns
+                        ]
+                        st.dataframe(
+                            _ac_ref_show[_ac_ref_final_cols].reset_index(drop=True),
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+                        st.caption(
+                            f"ℹ️ {len(_ac_ref_df)} acordo(s) no banco. "
+                            "Para cruzar com abastecimentos, verifique se os CNPJs dos postos "
+                            "na tabela de acordos correspondem aos registrados na base de "
+                            "abastecimentos."
                         )
                 else:
                     _df_ac_ok = _df_sv.dropna(subset=["_saving_vs_acord"]).copy()
