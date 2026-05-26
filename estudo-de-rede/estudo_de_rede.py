@@ -11115,8 +11115,10 @@ with st.sidebar:
 }
 
 /* ── Botão Roteirização ── */
+.st-key-btn_modo_roteirizacao,
+.st-key-btn_rotas_salvas { height: 100% !important; }
 .st-key-btn_modo_roteirizacao button {
-    min-height: 56px !important;
+    height: 56px !important; min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
     padding: 8px 6px !important; white-space: normal !important;
@@ -11146,12 +11148,10 @@ with st.sidebar:
 
 /* ── Botão Rotas Salvas ── */
 .st-key-btn_rotas_salvas button {
-    height: 40px !important;
-    min-height: 40px !important;
-    border-radius: 10px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.2px !important;
-    transition: all .2s ease !important;
+    height: 56px !important; min-height: 56px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
 .st-key-btn_rotas_salvas button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"] {
