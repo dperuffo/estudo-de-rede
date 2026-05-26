@@ -11610,11 +11610,11 @@ with st.sidebar:
     # ── Placeholder: parâmetros de consulta aparecem aqui ──────────
     _sb_params_container = st.container()
 
-    # ── Linha 3: Dashboard · Inteligência · Recomendador (3 cols) ───
-    _col_a1, _col_a2, _col_a3 = st.columns(3)
+    # ── Linha 3: Dashboard · Inteligência (2 cols) ──────────────────
+    _col_a1, _col_a2 = st.columns(2)
     with _col_a1:
         if st.button(
-            "📈 Dash",
+            "📈 Dashboard",
             use_container_width=True,
             type="primary" if _modo_atual == "📈 Dashboard" else "secondary",
             key="btn_dashboard",
@@ -11625,7 +11625,7 @@ with st.sidebar:
             st.rerun()
     with _col_a2:
         if st.button(
-            "💡 Intel",
+            "💡 Inteligência",
             use_container_width=True,
             type="primary" if _modo_atual == "💡 Inteligência" else "secondary",
             key="btn_inteligencia",
@@ -11634,9 +11634,14 @@ with st.sidebar:
             st.session_state["modo_selecionado"] = "💡 Inteligência"
             _log_acesso("MODO_SELECIONADO", "💡 Inteligência", modo_override="💡 Inteligência")
             st.rerun()
-    with _col_a3:
+
+    # ── Linha 4: Recomendador IA · Variação de Preços (2 cols) ──────
+    _var_badge_sb = (" 🔔" if st.session_state.get("_pp_variacao") is not None
+                     and not st.session_state["_pp_variacao"].empty else "")
+    _col_b1, _col_b2 = st.columns(2)
+    with _col_b1:
         if st.button(
-            "🎯 IA",
+            "🎯 Recomendador IA",
             use_container_width=True,
             type="primary" if _modo_atual == "🎯 Recomendador IA" else "secondary",
             key="btn_recomendador",
@@ -11645,14 +11650,9 @@ with st.sidebar:
             st.session_state["modo_selecionado"] = "🎯 Recomendador IA"
             _log_acesso("MODO_SELECIONADO", "🎯 Recomendador IA", modo_override="🎯 Recomendador IA")
             st.rerun()
-
-    # ── Linha 4: Variação · Clientes · Relatórios (3 cols) ──────────
-    _var_badge_sb = (" 🔔" if st.session_state.get("_pp_variacao") is not None
-                     and not st.session_state["_pp_variacao"].empty else "")
-    _col_b1, _col_b2, _col_b3 = st.columns(3)
-    with _col_b1:
+    with _col_b2:
         if st.button(
-            f"💹 Preços{_var_badge_sb}",
+            f"💹 Variação de Preços{_var_badge_sb}",
             use_container_width=True,
             type="primary" if _modo_atual == "💹 Variação de Preços" else "secondary",
             key="btn_variacao_precos",
@@ -11662,9 +11662,12 @@ with st.sidebar:
             _log_acesso("MODO_SELECIONADO", "💹 Variação de Preços",
                         modo_override="💹 Variação de Preços")
             st.rerun()
-    with _col_b2:
+
+    # ── Linha 5: Análise de Cliente · Relatórios (2 cols) ───────────
+    _col_c1, _col_c2 = st.columns(2)
+    with _col_c1:
         if st.button(
-            "👥 Clientes",
+            "👥 Análise de Cliente",
             use_container_width=True,
             type="primary" if _modo_atual == "👥 Análise de Cliente" else "secondary",
             key="btn_analise_cliente",
@@ -11673,9 +11676,9 @@ with st.sidebar:
             st.session_state["modo_selecionado"] = "👥 Análise de Cliente"
             _log_acesso("MODO_SELECIONADO", "👥 Análise de Cliente", modo_override="👥 Análise de Cliente")
             st.rerun()
-    with _col_b3:
+    with _col_c2:
         if st.button(
-            "📑 Relat.",
+            "📑 Relatórios",
             use_container_width=True,
             type="primary" if _modo_atual == "📑 Relatórios" else "secondary",
             key="btn_relatorios",
@@ -12441,11 +12444,11 @@ with st.sidebar:
     if "_fuel_sel_m2" not in dir():
         _fuel_sel_m2        = None
 
-    # ── Guia · Docs · API (3 colunas compactas) ──────────────────────
-    _col_h1, _col_h2, _col_h3 = st.columns(3)
+    # ── Guia de Uso · Documentação (2 cols) + API full width ─────────
+    _col_h1, _col_h2 = st.columns(2)
     with _col_h1:
         if st.button(
-            "📖 Guia",
+            "📖 Guia de Uso",
             use_container_width=True,
             type="secondary",
             key="btn_tour_sidebar",
@@ -12455,7 +12458,7 @@ with st.sidebar:
             st.rerun()
     with _col_h2:
         if st.button(
-            "📚 Docs",
+            "📚 Documentação",
             use_container_width=True,
             type="primary" if _modo_atual == "📚 Documentação" else "secondary",
             key="btn_documentacao",
@@ -12464,17 +12467,16 @@ with st.sidebar:
             st.session_state["modo_selecionado"] = "📚 Documentação"
             _log_acesso("MODO_SELECIONADO", "📚 Documentação", modo_override="📚 Documentação")
             st.rerun()
-    with _col_h3:
-        if st.button(
-            "⚡ API",
-            use_container_width=True,
-            type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
-            key="btn_api_integracoes",
-            help="Documentação da API REST — integre ERPs e sistemas de logística",
-        ):
-            st.session_state["modo_selecionado"] = "⚡ API & Integrações"
-            _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
-            st.rerun()
+    if st.button(
+        "⚡ API & Integrações",
+        use_container_width=True,
+        type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
+        key="btn_api_integracoes",
+        help="Documentação da API REST — integre ERPs e sistemas de logística",
+    ):
+        st.session_state["modo_selecionado"] = "⚡ API & Integrações"
+        _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
+        st.rerun()
 
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
