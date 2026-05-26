@@ -11485,6 +11485,28 @@ with st.sidebar:
     transform: translateY(-1px) !important;
 }
 .st-key-btn_admin [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Expander Configurações — cabeçalho compacto ── */
+[data-testid="stSidebar"] details summary {
+    min-height: 52px !important;
+    display: flex !important; align-items: center !important;
+    border-radius: 10px !important;
+    font-size: 13px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+    padding: 8px 12px !important;
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #37474F !important;
+    color: #263238 !important;
+    transition: all .2s ease !important;
+}
+[data-testid="stSidebar"] details summary:hover {
+    border-color: #0b2660 !important; color: #0b2660 !important;
+    transform: translateY(-1px) !important;
+}
+[data-testid="stSidebar"] details[open] summary {
+    border-color: #0b2660 !important; color: #0b2660 !important;
+    background: rgba(11,38,96,.06) !important;
+}
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
@@ -12476,16 +12498,31 @@ with st.sidebar:
             st.session_state["modo_selecionado"] = "📚 Documentação"
             _log_acesso("MODO_SELECIONADO", "📚 Documentação", modo_override="📚 Documentação")
             st.rerun()
-    if st.button(
-        "⚡ API & Integrações",
-        use_container_width=True,
-        type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
-        key="btn_api_integracoes",
-        help="Documentação da API REST — integre ERPs e sistemas de logística",
-    ):
-        st.session_state["modo_selecionado"] = "⚡ API & Integrações"
-        _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
-        st.rerun()
+    # ── API & Admin (linha compacta 2-col) ──────────────────────────
+    _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
+    _col_api, _col_adm = st.columns(2)
+    with _col_api:
+        if st.button(
+            "⚡ API & Integrações",
+            use_container_width=True,
+            type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
+            key="btn_api_integracoes",
+            help="Documentação da API REST — integre ERPs e sistemas de logística",
+        ):
+            st.session_state["modo_selecionado"] = "⚡ API & Integrações"
+            _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
+            st.rerun()
+    if _email_atual.lower() == _ADMIN_EMAIL.lower():
+        with _col_adm:
+            if st.button(
+                "🛡️ Admin",
+                use_container_width=True,
+                type="primary" if _modo_atual == "🛡️ Admin" else "secondary",
+                key="btn_admin",
+                help="Painel de controle de acesso de usuários",
+            ):
+                st.session_state["modo_selecionado"] = "🛡️ Admin"
+                st.rerun()
 
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
@@ -13675,20 +13712,6 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                 ]
                 st.dataframe(_ac_show.head(200), use_container_width=True, height=320)
                 st.caption(f"Exibindo até 200 de {_br_int(len(_ac_vigentes))} acordos vigentes.")
-
-    # ── Botão Admin (visível só para o admin) ───────────────────────
-    _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
-    if _email_atual.lower() == _ADMIN_EMAIL.lower():
-        st.divider()
-        if st.button(
-            "🛡️ Admin",
-            use_container_width=True,
-            type="primary" if _modo_atual == "🛡️ Admin" else "secondary",
-            key="btn_admin",
-            help="Painel de controle de acesso de usuários",
-        ):
-            st.session_state["modo_selecionado"] = "🛡️ Admin"
-            st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════
 #  TOUR DE ONBOARDING
