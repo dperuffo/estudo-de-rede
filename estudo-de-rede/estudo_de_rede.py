@@ -11611,6 +11611,27 @@ with st.sidebar:
 }
 .st-key-btn_telemetria [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
 
+/* ── Botão Atualizar Página ── */
+.st-key-btn_reload_pagina button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 600 !important;
+    font-size: 12.5px !important; letter-spacing: 0.2px !important;
+    transition: all .2s ease !important;
+    background: rgba(255,255,255,.85) !important;
+    border: 1.5px dashed rgba(16,64,160,0.35) !important;
+    color: #4a6fa5 !important;
+}
+.st-key-btn_reload_pagina button:hover {
+    background: rgba(237,242,251,.95) !important;
+    border-color: rgba(16,64,160,0.55) !important;
+    color: #1040a0 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(16,64,160,0.12) !important;
+}
+.st-key-btn_reload_pagina button p {
+    color: inherit !important; font-size: 12.5px !important; margin: 0 !important;
+}
+
 /* ── Expander Configurações ── */
 [data-testid="stSidebar"] [data-testid="stExpander"] {
     border: 2px solid #455A64 !important;
@@ -12789,6 +12810,16 @@ with st.sidebar:
     ):
         st.session_state["modo_selecionado"] = "🛰️ Telemetria"
         _log_acesso("MODO_SELECIONADO", "🛰️ Telemetria", modo_override="🛰️ Telemetria")
+        st.rerun()
+
+    # ── Botão de recarga de página ───────────────────────────────────
+    if st.button(
+        "🔄 Atualizar Página",
+        use_container_width=True,
+        type="secondary",
+        key="btn_reload_pagina",
+        help="Recarrega a aplicação para refletir as últimas atualizações do banco de dados",
+    ):
         st.rerun()
 
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
