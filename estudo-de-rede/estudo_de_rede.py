@@ -3651,6 +3651,152 @@ def _restaurar_estado_pp_do_supabase() -> None:
         pass
 
 
+# ── Telemetria: persistência no Supabase ─────────────────────────────────────
+
+def _tele_salvar_frota_supabase(frota: list) -> bool:
+    """
+    Sincroniza a frota no Supabase: faz upsert de cada veículo pelo campo 'placa'.
+    Usa a coluna 'placa' como chave de conflito (índice UNIQUE criado no SQL).
+    """
+    _db = _db_client()
+    if _db is None or not frota:
+        return False
+    try:
+        _registros = [
+            {
+                "placa":           v.get("placa", ""),
+                "combustivel":     v.get("combustivel", ""),
+                "tanque_l":        v.get("tanque_l"),
+                "consumo_esp_kml": v.get("consumo_esp_kml"),
+                "empresa":         v.get("empresa", ""),
+                "modelo":          v.get("modelo", ""),
+                "ativo":           True,
+            }
+            for v in frota if v.get("placa")
+        ]
+        if _registros:
+            _db.table("tele_frota").upsert(_registros, on_conflict="placa").execute()
+        return True
+    except Exception as _e:
+        st.session_state["_hist_db_erro"] = str(_e)
+        return False
+
+
+def _tele_carregar_frota_supabase() -> list:
+    """Carrega todos os veículos ativos da tabela tele_frota."""
+    _db = _db_client()
+    if _db is None:
+        return []
+    try:
+        _resp = (
+            _db.table("tele_frota")
+            .select("placa,combustivel,tanque_l,consumo_esp_kml,empresa,modelo")
+            .eq("ativo", True)
+            .execute()
+        )
+        return _resp.data or []
+    except Exception:
+        return []
+
+
+def _tele_salvar_abastecimentos_supabase(abast: list) -> bool:
+    """
+    Insere novos abastecimentos no Supabase.
+    Só insere registros que ainda não existem (placa + data_abast + litros como proxy de unicidade).
+    """
+    _db = _db_client()
+    if _db is None or not abast:
+        return False
+    try:
+        # Carrega as datas já existentes por placa para evitar duplicatas
+        _resp_ex = _db.table("tele_abastecimentos").select("placa,data_abast,litros").execute()
+        _existentes = set()
+        for _row in (_resp_ex.data or []):
+            _existentes.add((_row.get("placa", ""), str(_row.get("data_abast", "")), str(_row.get("litros", ""))))
+
+        _novos = []
+        for _a in abast:
+            _chave = (
+                str(_a.get("placa", "")),
+                str(_a.get("data", ""))[:10],
+                str(_a.get("litros", "")),
+            )
+            if _chave not in _existentes:
+                _novos.append({
+                    "placa":          str(_a.get("placa", "")),
+                    "data_abast":     str(_a.get("data", ""))[:10] if _a.get("data") else None,
+                    "litros":         _a.get("litros"),
+                    "valor_total":    _a.get("valor_total"),
+                    "preco_litro":    round(_a["valor_total"] / _a["litros"], 3)
+                                      if _a.get("valor_total") and _a.get("litros") else None,
+                    "hodometro":      _a.get("hodometro"),
+                    "nome_posto":     _a.get("nome_posto", ""),
+                    "cnpj_posto":     _a.get("cnpj_posto", ""),
+                    "fonte":          _a.get("fonte", "manual"),
+                })
+
+        if _novos:
+            _db.table("tele_abastecimentos").insert(_novos).execute()
+        return True
+    except Exception as _e:
+        st.session_state["_hist_db_erro"] = str(_e)
+        return False
+
+
+def _tele_carregar_abastecimentos_supabase() -> list:
+    """Carrega todos os abastecimentos do Supabase em ordem cronológica."""
+    _db = _db_client()
+    if _db is None:
+        return []
+    try:
+        _resp = (
+            _db.table("tele_abastecimentos")
+            .select("placa,data_abast,litros,valor_total,preco_litro,hodometro,nome_posto,cnpj_posto,fonte")
+            .order("data_abast", desc=False)
+            .execute()
+        )
+        _rows = []
+        for _r in (_resp.data or []):
+            _rows.append({
+                "placa":       _r.get("placa", ""),
+                "data":        _r.get("data_abast", ""),
+                "litros":      _r.get("litros"),
+                "valor_total": _r.get("valor_total"),
+                "hodometro":   _r.get("hodometro"),
+                "nome_posto":  _r.get("nome_posto", ""),
+                "cnpj_posto":  _r.get("cnpj_posto", ""),
+                "fonte":       _r.get("fonte", "supabase"),
+            })
+        return _rows
+    except Exception:
+        return []
+
+
+def _tele_restaurar_do_supabase() -> None:
+    """
+    Chamada uma vez por sessão (flag _tele_restaurado).
+    Restaura _tele_frota e _tele_abast do Supabase para que reboots
+    não percam os dados de telemetria cadastrados.
+    """
+    if st.session_state.get("_tele_restaurado"):
+        return
+    st.session_state["_tele_restaurado"] = True
+
+    try:
+        _frota_sb = _tele_carregar_frota_supabase()
+        if _frota_sb:
+            st.session_state.setdefault("_tele_frota", _frota_sb)
+    except Exception:
+        pass
+
+    try:
+        _abast_sb = _tele_carregar_abastecimentos_supabase()
+        if _abast_sb:
+            st.session_state.setdefault("_tele_abast", _abast_sb)
+    except Exception:
+        pass
+
+
 def _comparar_cargas_precos(
     df_novo: "pd.DataFrame",
     df_ant:  "pd.DataFrame",
@@ -11000,6 +11146,9 @@ with st.sidebar:
 
     # ── Restaura última carga PP e variação do Supabase (persiste entre reboots) ──
     _restaurar_estado_pp_do_supabase()
+
+    # ── Restaura frota e abastecimentos de telemetria do Supabase ──
+    _tele_restaurar_do_supabase()
 
     if st.session_state.get("_pp_df") is None and not st.session_state.get("_pp_tentado"):
         st.session_state["_pp_tentado"] = True
@@ -29198,6 +29347,7 @@ elif modo == "🛰️ Telemetria":
                         "empresa": _v_empresa,
                         "modelo": _v_modelo,
                     })
+                    _tele_salvar_frota_supabase(st.session_state["_tele_frota"])
                     st.success(f"✅ Veículo {_v_placa} adicionado.")
                     st.rerun()
 
@@ -29280,6 +29430,7 @@ elif modo == "🛰️ Telemetria":
                                     _novos.append(_rec)
 
                             st.session_state["_tele_abast"].extend(_novos)
+                            _tele_salvar_abastecimentos_supabase(_novos)
                             st.success(f"✅ {len(_novos)} abastecimentos importados.")
                             st.rerun()
 
@@ -29315,6 +29466,9 @@ elif modo == "🛰️ Telemetria":
                         "cnpj_posto":  _a_cnpj_p,
                         "fonte":       "manual",
                     })
+                    _tele_salvar_abastecimentos_supabase(
+                        [st.session_state["_tele_abast"][-1]]
+                    )
                     st.success("✅ Abastecimento registrado.")
                     st.rerun()
 
