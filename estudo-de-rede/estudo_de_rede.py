@@ -374,31 +374,54 @@ def _normalizar_cnpj_str(v) -> str:
 
 def _db_carregar_acordos() -> "pd.DataFrame":
     """
-    Carrega acordos de preço do Supabase filtrados pela empresa ativa.
-    Admin sem filtro → todos os acordos.
-    Fallback: baixa Acordos.xlsx do GitHub.
+    Carrega acordos de preço do Supabase.
+    Query fresca a cada tentativa (supabase-py modifica builder in-place).
+    Estratégia em camadas para cobrir registros legados sem empresa_id:
+      1. Filtra por empresa_id  → se vazio, tenta próxima camada
+      2. Filtra por usuario_email → se vazio, tenta próxima camada
+      3. Sem filtro (retorna tudo — admin / dados legados)
     """
+    _COLS = ("cnpj_posto,nome_posto,cnpj_frota,razao_social_frota,"
+             "combustivel,preco_negociado,va_desconto,dt_vigencia")
+
+    def _to_df(rows):
+        if not rows:
+            return None
+        _df = pd.DataFrame(rows)
+        _df["dt_vigencia"] = pd.to_datetime(_df["dt_vigencia"], errors="coerce")
+        return _df
+
     db = _db_client()
     if db:
+        def _q():
+            return db.table("acordos_precos").select(_COLS).limit(50000)
         try:
-            _q = (
-                db.table("acordos_precos")
-                  .select("cnpj_posto,nome_posto,cnpj_frota,razao_social_frota,"
-                          "combustivel,preco_negociado,va_desconto,dt_vigencia")
-                  .limit(50000)
-            )
-            _eid = _db_empresa_id()
+            _eid   = _db_empresa_id()
+            _email = _db_email()
+
+            # 1. Filtra por empresa_id
             if _eid:
-                _q = _q.eq("empresa_id", _eid)
-            res = _q.execute()
-            if res.data:
-                _df_ac = pd.DataFrame(res.data)
-                _df_ac["dt_vigencia"] = pd.to_datetime(
-                    _df_ac["dt_vigencia"], errors="coerce"
-                )
-                return _df_ac
+                _df = _to_df(_q().eq("empresa_id", _eid).execute().data)
+                if _df is not None:
+                    return _df
+
+            # 2. Filtra por e-mail do usuário
+            if _email:
+                _df = _to_df(_q().eq("usuario_email", _email).execute().data)
+                if _df is not None:
+                    return _df
+
+            # 3. Sem filtro — retorna tudo
+            _df = _to_df(_q().execute().data)
+            if _df is not None:
+                return _df
         except Exception:
-            pass
+            try:
+                _df = _to_df(db.table("acordos_precos").select(_COLS).limit(50000).execute().data)
+                if _df is not None:
+                    return _df
+            except Exception:
+                pass
     # Fallback: GitHub (apenas se sem empresa_id — dados legados)
     _eid_fb = _db_empresa_id()
     if not _eid_fb:
