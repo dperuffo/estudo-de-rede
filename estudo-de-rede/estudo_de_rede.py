@@ -11355,6 +11355,35 @@ with st.sidebar:
 }
 .st-key-btn_relatorios [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
 
+/* ── Botão Telemetria ── */
+.st-key-btn_telemetria button {
+    min-height: 56px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
+}
+.st-key-btn_telemetria button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
+.st-key-btn_telemetria [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #004D5A 0%, #00838F 55%, #006064 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(0,96,100,.40) !important;
+}
+.st-key-btn_telemetria [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #006064 0%, #00ACC1 55%, #004D5A 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_telemetria [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_telemetria [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #00838F !important; color: #004D5A !important;
+    box-shadow: none !important;
+}
+.st-key-btn_telemetria [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #006064 !important; color: #004D5A !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_telemetria [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
 /* ── Expander Configurações ── */
 [data-testid="stSidebar"] [data-testid="stExpander"] {
     border: 2px solid #455A64 !important;
@@ -11718,6 +11747,18 @@ with st.sidebar:
             st.session_state["modo_selecionado"] = "📑 Relatórios"
             _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
             st.rerun()
+
+    # ── Linha 6: Telemetria (full width) ────────────────────────────
+    if st.button(
+        "🛰️ Telemetria",
+        use_container_width=True,
+        type="primary" if _modo_atual == "🛰️ Telemetria" else "secondary",
+        key="btn_telemetria",
+        help="Integração com telemetria de veículos — consumo real, abastecimentos e alertas",
+    ):
+        st.session_state["modo_selecionado"] = "🛰️ Telemetria"
+        _log_acesso("MODO_SELECIONADO", "🛰️ Telemetria", modo_override="🛰️ Telemetria")
+        st.rerun()
 
     modo = _modo_atual
     st.divider()
@@ -29088,6 +29129,486 @@ elif modo == "📑 Relatórios":
                         "Salto brusco entre cargas > 10% · Preço ≤ 0. "
                         "Postos com múltiplos alertas merecem investigação prioritária."
                     )
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Telemetria de Frota
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "🛰️ Telemetria":
+    _render_filtros_inteligentes(modo)
+
+    # ── Inicializa session state de telemetria ───────────────────────
+    if "_tele_frota" not in st.session_state:
+        st.session_state["_tele_frota"] = []
+    if "_tele_abast" not in st.session_state:
+        st.session_state["_tele_abast"] = []
+
+    # ── Header ───────────────────────────────────────────────────────
+    st.markdown(
+        '<div style="background:linear-gradient(135deg,#004D5A,#00838F);'
+        'border-radius:12px;padding:18px 22px;margin-bottom:18px;color:#fff;">'
+        '<div style="font-size:1.4rem;font-weight:700;margin-bottom:4px">🛰️ Telemetria de Frota</div>'
+        '<div style="font-size:.85rem;opacity:.85">Integre dados reais de consumo e abastecimento '
+        'para refinar análises de rede, detectar desvios e medir aderência ao credenciado.</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    _tele_t1, _tele_t2, _tele_t3, _tele_t4, _tele_t5 = st.tabs([
+        "🚗 Frota",
+        "📥 Importar",
+        "⛽ Histórico",
+        "📊 Consumo",
+        "⚠️ Alertas",
+    ])
+
+    # ════════════════════════════════════════════
+    #  TAB 1 — Cadastro de Frota
+    # ════════════════════════════════════════════
+    with _tele_t1:
+        st.markdown("#### 🚗 Cadastro de Veículos")
+        st.caption("Registre os veículos da frota com dados técnicos para habilitar as análises de consumo.")
+
+        with st.form("form_add_veiculo", clear_on_submit=True):
+            _tc1, _tc2, _tc3 = st.columns(3)
+            with _tc1:
+                _v_placa     = st.text_input("Placa *", placeholder="ABC1D23").strip().upper()
+                _v_comb      = st.selectbox("Combustível *", [
+                    "Diesel S-10", "Diesel S-500", "Gasolina", "Etanol", "GNV", "Flex"
+                ])
+            with _tc2:
+                _v_tanque    = st.number_input("Capacidade do tanque (L) *", min_value=10.0, max_value=1000.0, value=300.0, step=10.0)
+                _v_consumo   = st.number_input("Consumo esperado (km/L) *", min_value=1.0, max_value=50.0, value=7.5, step=0.5)
+            with _tc3:
+                _v_empresa   = st.text_input("Empresa", placeholder="Nome da empresa")
+                _v_modelo    = st.text_input("Marca / Modelo", placeholder="Ex: Volvo FH 460")
+
+            _submitted_v = st.form_submit_button("➕ Adicionar veículo", use_container_width=True)
+            if _submitted_v:
+                if not _v_placa:
+                    st.error("Informe a placa do veículo.")
+                elif any(v["placa"] == _v_placa for v in st.session_state["_tele_frota"]):
+                    st.warning(f"Placa {_v_placa} já cadastrada.")
+                else:
+                    st.session_state["_tele_frota"].append({
+                        "placa": _v_placa,
+                        "combustivel": _v_comb,
+                        "tanque_l": _v_tanque,
+                        "consumo_esp_kml": _v_consumo,
+                        "empresa": _v_empresa,
+                        "modelo": _v_modelo,
+                    })
+                    st.success(f"✅ Veículo {_v_placa} adicionado.")
+                    st.rerun()
+
+        _frota = st.session_state["_tele_frota"]
+        if _frota:
+            st.markdown(f"**{len(_frota)} veículo(s) cadastrado(s)**")
+            _df_frota = pd.DataFrame(_frota)
+            _df_frota.columns = ["Placa", "Combustível", "Tanque (L)", "Consumo Esp. (km/L)", "Empresa", "Modelo"]
+            st.dataframe(_df_frota, use_container_width=True, hide_index=True)
+            if st.button("🗑️ Limpar frota cadastrada", key="btn_tele_limpar_frota"):
+                st.session_state["_tele_frota"] = []
+                st.rerun()
+        else:
+            st.info("Nenhum veículo cadastrado ainda. Preencha o formulário acima para começar.")
+
+    # ════════════════════════════════════════════
+    #  TAB 2 — Importar / Entrada Manual
+    # ════════════════════════════════════════════
+    with _tele_t2:
+        _imp_modo = st.radio(
+            "Forma de entrada",
+            ["📁 Upload CSV/Excel", "✍️ Entrada manual"],
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+
+        if _imp_modo == "📁 Upload CSV/Excel":
+            st.markdown("#### 📁 Importar arquivo de abastecimentos")
+            st.caption(
+                "Exporte a planilha de abastecimentos do seu sistema de telemetria (Sascar, Cobli, Onixsat, etc.) "
+                "e faça o upload abaixo. O arquivo deve ter pelo menos as colunas: **Placa, Data, Litros e Valor**."
+            )
+
+            _tele_file = st.file_uploader(
+                "Arquivo de abastecimentos (.csv ou .xlsx)",
+                type=["csv", "xlsx", "xls"],
+                key="tele_upload_file",
+            )
+
+            if _tele_file:
+                try:
+                    if _tele_file.name.endswith(".csv"):
+                        _tdf_raw = pd.read_csv(_tele_file, encoding="utf-8", sep=None, engine="python")
+                    else:
+                        _tdf_raw = pd.read_excel(_tele_file)
+
+                    st.success(f"Arquivo lido: **{len(_tdf_raw)} linhas** · {len(_tdf_raw.columns)} colunas")
+                    st.markdown("**Mapeamento de colunas** — identifique quais colunas do seu arquivo correspondem a cada campo:")
+
+                    _cols_arq = ["(não disponível)"] + list(_tdf_raw.columns)
+                    _mc1, _mc2, _mc3 = st.columns(3)
+                    with _mc1:
+                        _map_placa    = st.selectbox("Placa *",         _cols_arq, key="tmap_placa")
+                        _map_data     = st.selectbox("Data *",          _cols_arq, key="tmap_data")
+                    with _mc2:
+                        _map_litros   = st.selectbox("Litros *",        _cols_arq, key="tmap_litros")
+                        _map_valor    = st.selectbox("Valor total (R$)", _cols_arq, key="tmap_valor")
+                    with _mc3:
+                        _map_hodo     = st.selectbox("Hodômetro (km)",  _cols_arq, key="tmap_hodo")
+                        _map_posto    = st.selectbox("Nome do posto",   _cols_arq, key="tmap_posto")
+                        _map_cnpj_p   = st.selectbox("CNPJ do posto",  _cols_arq, key="tmap_cnpj")
+
+                    if st.button("✅ Importar registros", key="btn_tele_importar_csv", use_container_width=True):
+                        if _map_placa == "(não disponível)" or _map_data == "(não disponível)" or _map_litros == "(não disponível)":
+                            st.error("Mapeie pelo menos Placa, Data e Litros.")
+                        else:
+                            _novos = []
+                            for _, _row in _tdf_raw.iterrows():
+                                _rec = {
+                                    "placa":       str(_row[_map_placa]).strip().upper() if _map_placa != "(não disponível)" else "",
+                                    "data":        str(_row[_map_data]).strip()          if _map_data  != "(não disponível)" else "",
+                                    "litros":      pd.to_numeric(_row[_map_litros],   errors="coerce") if _map_litros != "(não disponível)" else None,
+                                    "valor_total": pd.to_numeric(_row[_map_valor],    errors="coerce") if _map_valor  != "(não disponível)" else None,
+                                    "hodometro":   pd.to_numeric(_row[_map_hodo],     errors="coerce") if _map_hodo   != "(não disponível)" else None,
+                                    "nome_posto":  str(_row[_map_posto]).strip()       if _map_posto  != "(não disponível)" else "",
+                                    "cnpj_posto":  str(_row[_map_cnpj_p]).strip()      if _map_cnpj_p != "(não disponível)" else "",
+                                    "fonte":       "csv",
+                                }
+                                if _rec["litros"] and _rec["litros"] > 0:
+                                    _novos.append(_rec)
+
+                            st.session_state["_tele_abast"].extend(_novos)
+                            st.success(f"✅ {len(_novos)} abastecimentos importados.")
+                            st.rerun()
+
+                except Exception as _e:
+                    st.error(f"Erro ao ler o arquivo: {_e}")
+
+        else:
+            st.markdown("#### ✍️ Registrar abastecimento manualmente")
+            _placas_cadastradas = [v["placa"] for v in st.session_state["_tele_frota"]]
+
+            with st.form("form_add_abast", clear_on_submit=True):
+                _fa1, _fa2, _fa3 = st.columns(3)
+                with _fa1:
+                    _a_placa  = st.text_input("Placa *", placeholder="ABC1D23").strip().upper() if not _placas_cadastradas else st.selectbox("Placa *", _placas_cadastradas)
+                    _a_data   = st.date_input("Data *")
+                with _fa2:
+                    _a_litros = st.number_input("Litros abastecidos *", min_value=1.0, max_value=2000.0, step=0.5)
+                    _a_valor  = st.number_input("Valor total (R$) *",   min_value=0.01, max_value=50000.0, step=0.01)
+                with _fa3:
+                    _a_hodo   = st.number_input("Hodômetro (km)", min_value=0, max_value=9_999_999, step=1)
+                    _a_posto  = st.text_input("Nome do posto", placeholder="Posto Brasil")
+                    _a_cnpj_p = st.text_input("CNPJ do posto", placeholder="00.000.000/0001-00")
+
+                _submitted_a = st.form_submit_button("➕ Registrar abastecimento", use_container_width=True)
+                if _submitted_a:
+                    st.session_state["_tele_abast"].append({
+                        "placa":       _a_placa,
+                        "data":        str(_a_data),
+                        "litros":      float(_a_litros),
+                        "valor_total": float(_a_valor),
+                        "hodometro":   int(_a_hodo) if _a_hodo else None,
+                        "nome_posto":  _a_posto,
+                        "cnpj_posto":  _a_cnpj_p,
+                        "fonte":       "manual",
+                    })
+                    st.success("✅ Abastecimento registrado.")
+                    st.rerun()
+
+        if st.session_state["_tele_abast"]:
+            st.caption(f"**{len(st.session_state['_tele_abast'])} abastecimento(s)** registrado(s) nesta sessão.")
+            if st.button("🗑️ Limpar todos os abastecimentos", key="btn_tele_limpar_abast"):
+                st.session_state["_tele_abast"] = []
+                st.rerun()
+
+    # ════════════════════════════════════════════
+    #  Dados consolidados (usado pelas tabs 3-5)
+    # ════════════════════════════════════════════
+    _abast_lista = st.session_state.get("_tele_abast", [])
+    _frota_lista = st.session_state.get("_tele_frota", [])
+
+    if _abast_lista:
+        _df_ab = pd.DataFrame(_abast_lista)
+        _df_ab["litros"]      = pd.to_numeric(_df_ab["litros"],      errors="coerce")
+        _df_ab["valor_total"] = pd.to_numeric(_df_ab["valor_total"], errors="coerce")
+        _df_ab["hodometro"]   = pd.to_numeric(_df_ab["hodometro"],   errors="coerce")
+        _df_ab["data"]        = pd.to_datetime(_df_ab["data"],       errors="coerce")
+        _df_ab["preco_litro"] = (_df_ab["valor_total"] / _df_ab["litros"]).round(3)
+        _df_ab = _df_ab.sort_values(["placa", "data"]).reset_index(drop=True)
+
+        # Calcula km desde último abastecimento e km/L real
+        _df_ab["km_desde_ult"] = (
+            _df_ab.groupby("placa")["hodometro"].diff().where(_df_ab["hodometro"].notna())
+        )
+        _df_ab["consumo_real_kml"] = (
+            (_df_ab["km_desde_ult"] / _df_ab["litros"]).round(2)
+        )
+
+        # Join com dados da frota para consumo esperado
+        _frota_map = {v["placa"]: v for v in _frota_lista}
+        _df_ab["tanque_l"]         = _df_ab["placa"].map(lambda p: _frota_map.get(p, {}).get("tanque_l"))
+        _df_ab["consumo_esp_kml"]  = _df_ab["placa"].map(lambda p: _frota_map.get(p, {}).get("consumo_esp_kml"))
+    else:
+        _df_ab = pd.DataFrame()
+
+    # ════════════════════════════════════════════
+    #  TAB 3 — Histórico de Abastecimentos
+    # ════════════════════════════════════════════
+    with _tele_t3:
+        if _df_ab.empty:
+            st.info("Nenhum abastecimento registrado ainda. Use a aba **📥 Importar** para carregar dados.")
+        else:
+            st.markdown("#### ⛽ Histórico de Abastecimentos")
+
+            # KPIs
+            _kv1, _kv2, _kv3, _kv4 = st.columns(4)
+            _kv1.metric("💰 Total gasto", f"R$ {_df_ab['valor_total'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            _kv2.metric("🔢 Abastecimentos", f"{len(_df_ab)}")
+            _kv3.metric("⛽ Total litros", f"{_df_ab['litros'].sum():,.1f} L".replace(",", "."))
+            _kv4.metric("💲 Preço médio", f"R$ {_df_ab['preco_litro'].mean():.3f}/L".replace(".", ","))
+
+            st.markdown("---")
+
+            # Filtros
+            _fh1, _fh2 = st.columns(2)
+            with _fh1:
+                _placas_disp = sorted(_df_ab["placa"].dropna().unique().tolist())
+                _filtro_placas = st.multiselect("Filtrar por placa", _placas_disp, key="tele_hist_placas")
+            with _fh2:
+                _dmin = _df_ab["data"].min()
+                _dmax = _df_ab["data"].max()
+                if pd.notna(_dmin) and pd.notna(_dmax):
+                    _filtro_datas = st.date_input(
+                        "Período",
+                        value=(_dmin.date(), _dmax.date()),
+                        key="tele_hist_datas",
+                    )
+                else:
+                    _filtro_datas = None
+
+            _df_hist = _df_ab.copy()
+            if _filtro_placas:
+                _df_hist = _df_hist[_df_hist["placa"].isin(_filtro_placas)]
+            if _filtro_datas and len(_filtro_datas) == 2:
+                _df_hist = _df_hist[
+                    (_df_hist["data"].dt.date >= _filtro_datas[0]) &
+                    (_df_hist["data"].dt.date <= _filtro_datas[1])
+                ]
+
+            # Tabela
+            _col_show = ["placa", "data", "litros", "valor_total", "preco_litro", "nome_posto", "hodometro", "km_desde_ult", "consumo_real_kml"]
+            _col_show = [c for c in _col_show if c in _df_hist.columns]
+            _df_show  = _df_hist[_col_show].copy()
+            _df_show.columns = ["Placa", "Data", "Litros", "Valor R$", "R$/L", "Posto", "Hodômetro", "Km desde ult.", "km/L real"][:len(_col_show)]
+            st.dataframe(_df_show, use_container_width=True, hide_index=True)
+
+            # Gráfico gasto por mês
+            try:
+                _df_hist["mes"] = _df_hist["data"].dt.to_period("M").astype(str)
+                _df_mes = _df_hist.groupby("mes")["valor_total"].sum().reset_index()
+                _df_mes.columns = ["Mês", "Gasto R$"]
+                if not _df_mes.empty:
+                    import plotly.express as _px_t
+                    _fig_mes = _px_t.bar(
+                        _df_mes, x="Mês", y="Gasto R$",
+                        title="💰 Gasto total por mês",
+                        color_discrete_sequence=["#00838F"],
+                    )
+                    _fig_mes.update_layout(height=280, margin=dict(t=40, b=20, l=0, r=0))
+                    st.plotly_chart(_fig_mes, use_container_width=True)
+            except Exception:
+                pass
+
+    # ════════════════════════════════════════════
+    #  TAB 4 — Análise de Consumo
+    # ════════════════════════════════════════════
+    with _tele_t4:
+        if _df_ab.empty:
+            st.info("Nenhum abastecimento registrado ainda. Use a aba **📥 Importar** para carregar dados.")
+        else:
+            st.markdown("#### 📊 Eficiência de Consumo por Veículo")
+
+            # Agregado por placa
+            _df_cons = (
+                _df_ab.dropna(subset=["consumo_real_kml"])
+                .groupby("placa")
+                .agg(
+                    consumo_medio=("consumo_real_kml", "mean"),
+                    consumo_min=("consumo_real_kml", "min"),
+                    consumo_max=("consumo_real_kml", "max"),
+                    n_abast=("litros", "count"),
+                    total_litros=("litros", "sum"),
+                )
+                .reset_index()
+            )
+            _df_cons["consumo_esperado"] = _df_cons["placa"].map(
+                lambda p: _frota_map.get(p, {}).get("consumo_esp_kml") if "_frota_map" in dir() else None
+            )
+            _df_cons["desvio_pct"] = (
+                ((_df_cons["consumo_medio"] - _df_cons["consumo_esperado"]) / _df_cons["consumo_esperado"] * 100)
+                .round(1)
+                .where(_df_cons["consumo_esperado"].notna())
+            )
+
+            if not _df_cons.empty:
+                # KPI cards de consumo
+                _ck1, _ck2, _ck3 = st.columns(3)
+                _ck1.metric("Km/L médio geral", f"{_df_cons['consumo_medio'].mean():.2f}".replace(".", ","))
+                _veic_ef = _df_cons.loc[_df_cons["consumo_medio"].idxmax(), "placa"] if not _df_cons.empty else "—"
+                _ck2.metric("🏆 Mais eficiente", _veic_ef)
+                _veic_in = _df_cons.loc[_df_cons["consumo_medio"].idxmin(), "placa"] if not _df_cons.empty else "—"
+                _ck3.metric("⚠️ Menos eficiente", _veic_in)
+
+                st.markdown("---")
+
+                # Tabela comparativa
+                _df_cons_show = _df_cons.rename(columns={
+                    "placa": "Placa", "consumo_medio": "km/L Médio",
+                    "consumo_min": "km/L Mín", "consumo_max": "km/L Máx",
+                    "consumo_esperado": "km/L Esperado", "desvio_pct": "Desvio %",
+                    "n_abast": "Abastecimentos", "total_litros": "Total Litros",
+                })
+                st.dataframe(_df_cons_show, use_container_width=True, hide_index=True)
+
+                # Gráfico comparativo
+                try:
+                    import plotly.graph_objects as _pgo_t
+                    _fig_cons = _pgo_t.Figure()
+                    _fig_cons.add_bar(
+                        x=_df_cons["placa"], y=_df_cons["consumo_medio"],
+                        name="km/L Real", marker_color="#00838F"
+                    )
+                    if _df_cons["consumo_esperado"].notna().any():
+                        _fig_cons.add_scatter(
+                            x=_df_cons["placa"], y=_df_cons["consumo_esperado"],
+                            name="km/L Esperado", mode="markers",
+                            marker=dict(size=10, color="#f4b400", symbol="diamond")
+                        )
+                    _fig_cons.update_layout(
+                        title="km/L Real vs. Esperado por Veículo",
+                        height=320, margin=dict(t=40, b=20, l=0, r=0),
+                        legend=dict(orientation="h", y=-0.15),
+                    )
+                    st.plotly_chart(_fig_cons, use_container_width=True)
+                except Exception:
+                    pass
+            else:
+                st.info("Não há dados de hodômetro suficientes para calcular o consumo real. Certifique-se de que o hodômetro foi mapeado na importação.")
+
+    # ════════════════════════════════════════════
+    #  TAB 5 — Alertas e Detecção de Desvios
+    # ════════════════════════════════════════════
+    with _tele_t5:
+        if _df_ab.empty:
+            st.info("Nenhum abastecimento registrado ainda. Use a aba **📥 Importar** para carregar dados.")
+        else:
+            st.markdown("#### ⚠️ Alertas de Desvio e Comportamento Suspeito")
+
+            _alertas = []
+
+            # ── Alerta 1: Litros > capacidade do tanque ──────────────
+            for _, _row in _df_ab.iterrows():
+                _tanq = _frota_map.get(str(_row["placa"]), {}).get("tanque_l")
+                if _tanq and pd.notna(_row["litros"]) and _row["litros"] > (_tanq * 1.05):
+                    _alertas.append({
+                        "Severidade": "🔴 Crítico",
+                        "Tipo": "Volume acima do tanque",
+                        "Placa": _row["placa"],
+                        "Data": str(_row["data"])[:10],
+                        "Detalhe": f"{_row['litros']:.1f}L abastecidos (tanque: {_tanq:.0f}L)",
+                    })
+
+            # ── Alerta 2: Dois abastecimentos em menos de 3h ─────────
+            for _placa_al, _grp in _df_ab.groupby("placa"):
+                _grp_s = _grp.sort_values("data").reset_index(drop=True)
+                for _i in range(1, len(_grp_s)):
+                    _delta_h = (_grp_s.loc[_i, "data"] - _grp_s.loc[_i - 1, "data"]).total_seconds() / 3600
+                    if 0 < _delta_h < 3:
+                        _alertas.append({
+                            "Severidade": "🟠 Atenção",
+                            "Tipo": "2 abastecimentos em < 3h",
+                            "Placa": _placa_al,
+                            "Data": str(_grp_s.loc[_i, "data"])[:10],
+                            "Detalhe": f"Intervalo: {_delta_h:.1f}h",
+                        })
+
+            # ── Alerta 3: Consumo anômalo (< 50% do esperado) ────────
+            for _, _row in _df_ab.iterrows():
+                _esp = _frota_map.get(str(_row["placa"]), {}).get("consumo_esp_kml")
+                if _esp and pd.notna(_row.get("consumo_real_kml")) and _row["consumo_real_kml"] > 0:
+                    if _row["consumo_real_kml"] < (_esp * 0.50):
+                        _alertas.append({
+                            "Severidade": "🔴 Crítico",
+                            "Tipo": "Consumo anômalo",
+                            "Placa": _row["placa"],
+                            "Data": str(_row["data"])[:10],
+                            "Detalhe": f"{_row['consumo_real_kml']:.2f} km/L (esperado: {_esp:.1f})",
+                        })
+
+            # ── Alerta 4: Abastecimento fora do credenciado ──────────
+            _cred_cnpjs = set()
+            _cred_raw = st.session_state.get("df_postos_filtrado") or st.session_state.get("df_postos")
+            if _cred_raw is not None and not _cred_raw.empty:
+                for _col_cnpj in ["cnpj", "CNPJ", "cnpj_norm"]:
+                    if _col_cnpj in _cred_raw.columns:
+                        _cred_cnpjs = set(_cred_raw[_col_cnpj].dropna().astype(str).str.replace(r"\D", "", regex=True))
+                        break
+
+            if _cred_cnpjs:
+                for _, _row in _df_ab.iterrows():
+                    _cnpj_norm = str(_row.get("cnpj_posto", "")).replace(".", "").replace("/", "").replace("-", "").strip()
+                    if _cnpj_norm and _cnpj_norm not in _cred_cnpjs:
+                        _alertas.append({
+                            "Severidade": "🟡 Aviso",
+                            "Tipo": "Fora da rede credenciada",
+                            "Placa": _row["placa"],
+                            "Data": str(_row["data"])[:10],
+                            "Detalhe": f"Posto: {_row.get('nome_posto','—')} (CNPJ {_row.get('cnpj_posto','—')})",
+                        })
+
+            # ── Exibe alertas ─────────────────────────────────────────
+            if _alertas:
+                _df_alertas = pd.DataFrame(_alertas)
+                _n_crit = (_df_alertas["Severidade"] == "🔴 Crítico").sum()
+                _n_aten = (_df_alertas["Severidade"] == "🟠 Atenção").sum()
+                _n_avis = (_df_alertas["Severidade"] == "🟡 Aviso").sum()
+
+                _al1, _al2, _al3 = st.columns(3)
+                _al1.metric("🔴 Críticos",  _n_crit)
+                _al2.metric("🟠 Atenção",   _n_aten)
+                _al3.metric("🟡 Avisos",    _n_avis)
+
+                st.markdown("---")
+
+                _filtro_sev = st.multiselect(
+                    "Filtrar por severidade",
+                    ["🔴 Crítico", "🟠 Atenção", "🟡 Aviso"],
+                    default=["🔴 Crítico", "🟠 Atenção"],
+                    key="tele_filtro_sev",
+                )
+                _df_al_show = _df_alertas[_df_alertas["Severidade"].isin(_filtro_sev)] if _filtro_sev else _df_alertas
+                st.dataframe(_df_al_show, use_container_width=True, hide_index=True)
+
+                # Aderência à rede credenciada
+                if _cred_cnpjs:
+                    st.markdown("---")
+                    st.markdown("#### 🏆 Aderência à Rede Credenciada")
+                    _total_com_cnpj = _df_ab["cnpj_posto"].notna().sum()
+                    if _total_com_cnpj > 0:
+                        _cnpjs_norm = _df_ab["cnpj_posto"].dropna().astype(str).str.replace(r"\D", "", regex=True)
+                        _n_cred_abast = _cnpjs_norm.isin(_cred_cnpjs).sum()
+                        _pct_ader = _n_cred_abast / _total_com_cnpj * 100
+                        _ad1, _ad2, _ad3 = st.columns(3)
+                        _ad1.metric("✅ Em credenciado",    f"{_n_cred_abast}")
+                        _ad2.metric("❌ Fora do credenciado", f"{int(_total_com_cnpj) - _n_cred_abast}")
+                        _ad3.metric("📊 Taxa de aderência",  f"{_pct_ader:.1f}%".replace(".", ","))
+            else:
+                st.success("✅ Nenhum alerta identificado nos dados carregados.")
+                if not _cred_cnpjs:
+                    st.caption("💡 Para verificar aderência à rede credenciada, carregue a base de postos na aba **📍 Por UF/Município** primeiro.")
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — API & Integrações
