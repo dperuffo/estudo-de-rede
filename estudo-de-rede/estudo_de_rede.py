@@ -11580,105 +11580,110 @@ with st.sidebar:
             _log_acesso("MODO_SELECIONADO", "🔍 Consulta por Posto", modo_override="🔍 Consulta por Posto")
             st.rerun()
 
-    # ── Botão Roteirização (largura total) ──────────────────────
-    if st.button(
-        "🧭 Roteirização",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🧭 Roteirização" else "secondary",
-        key="btn_modo_roteirizacao",
-        help="Planejar rota com otimização de abastecimento",
-    ):
-        st.session_state["modo_selecionado"] = "🧭 Roteirização"
-        _log_acesso("MODO_SELECIONADO", "🧭 Roteirização", modo_override="🧭 Roteirização")
-        st.rerun()
-
-    # ── Botão Rotas Salvas (largura total, abaixo dos modos) ──────
+    # ── Linha 2: Roteirização + Rotas Salvas (2 colunas) ────────────
     _n_rotas_sb = len(_carregar_rotas_salvas())
-    _label_rotas = f"🔖 Rotas Salvas{f'  ({_n_rotas_sb})' if _n_rotas_sb else ''}"
-    if st.button(
-        _label_rotas,
-        use_container_width=True,
-        type="primary" if _modo_atual == "🔖 Rotas Salvas" else "secondary",
-        key="btn_rotas_salvas",
-        help="Ver e restaurar consultas salvas anteriormente",
-    ):
-        st.session_state["modo_selecionado"] = "🔖 Rotas Salvas"
-        _log_acesso("MODO_SELECIONADO", "🔖 Rotas Salvas", modo_override="🔖 Rotas Salvas")
-        st.rerun()
+    _col_r1, _col_r2 = st.columns(2)
+    with _col_r1:
+        if st.button(
+            "🧭 Roteirização",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🧭 Roteirização" else "secondary",
+            key="btn_modo_roteirizacao",
+            help="Planejar rota com otimização de abastecimento",
+        ):
+            st.session_state["modo_selecionado"] = "🧭 Roteirização"
+            _log_acesso("MODO_SELECIONADO", "🧭 Roteirização", modo_override="🧭 Roteirização")
+            st.rerun()
+    with _col_r2:
+        _label_rotas = f"🔖 Salvas{f' ({_n_rotas_sb})' if _n_rotas_sb else ''}"
+        if st.button(
+            _label_rotas,
+            use_container_width=True,
+            type="primary" if _modo_atual == "🔖 Rotas Salvas" else "secondary",
+            key="btn_rotas_salvas",
+            help="Ver e restaurar consultas salvas anteriormente",
+        ):
+            st.session_state["modo_selecionado"] = "🔖 Rotas Salvas"
+            _log_acesso("MODO_SELECIONADO", "🔖 Rotas Salvas", modo_override="🔖 Rotas Salvas")
+            st.rerun()
 
     # ── Placeholder: parâmetros de consulta aparecem aqui ──────────
     _sb_params_container = st.container()
 
-    # ── Botão Dashboard (largura total) ─────────────────────────
-    if st.button(
-        "📈 Dashboard",
-        use_container_width=True,
-        type="primary" if _modo_atual == "📈 Dashboard" else "secondary",
-        key="btn_dashboard",
-        help="KPIs de cobertura e penetração GF por estado",
-    ):
-        st.session_state["modo_selecionado"] = "📈 Dashboard"
-        _log_acesso("MODO_SELECIONADO", "📈 Dashboard", modo_override="📈 Dashboard")
-        st.rerun()
+    # ── Linha 3: Dashboard · Inteligência · Recomendador (3 cols) ───
+    _col_a1, _col_a2, _col_a3 = st.columns(3)
+    with _col_a1:
+        if st.button(
+            "📈 Dash",
+            use_container_width=True,
+            type="primary" if _modo_atual == "📈 Dashboard" else "secondary",
+            key="btn_dashboard",
+            help="KPIs de cobertura e penetração GF por estado",
+        ):
+            st.session_state["modo_selecionado"] = "📈 Dashboard"
+            _log_acesso("MODO_SELECIONADO", "📈 Dashboard", modo_override="📈 Dashboard")
+            st.rerun()
+    with _col_a2:
+        if st.button(
+            "💡 Intel",
+            use_container_width=True,
+            type="primary" if _modo_atual == "💡 Inteligência" else "secondary",
+            key="btn_inteligencia",
+            help="Histórico de preços, score de postos e relatório de alertas",
+        ):
+            st.session_state["modo_selecionado"] = "💡 Inteligência"
+            _log_acesso("MODO_SELECIONADO", "💡 Inteligência", modo_override="💡 Inteligência")
+            st.rerun()
+    with _col_a3:
+        if st.button(
+            "🎯 IA",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🎯 Recomendador IA" else "secondary",
+            key="btn_recomendador",
+            help="Melhor posto por custo, qualidade e confiabilidade — baseado em histórico e comportamento da frota",
+        ):
+            st.session_state["modo_selecionado"] = "🎯 Recomendador IA"
+            _log_acesso("MODO_SELECIONADO", "🎯 Recomendador IA", modo_override="🎯 Recomendador IA")
+            st.rerun()
 
-    # ── Botão Inteligência de Dados (largura total) ───────────────
-    if st.button(
-        "💡 Inteligência",
-        use_container_width=True,
-        type="primary" if _modo_atual == "💡 Inteligência" else "secondary",
-        key="btn_inteligencia",
-        help="Histórico de preços, score de postos e relatório de alertas",
-    ):
-        st.session_state["modo_selecionado"] = "💡 Inteligência"
-        _log_acesso("MODO_SELECIONADO", "💡 Inteligência", modo_override="💡 Inteligência")
-        st.rerun()
-
-    if st.button(
-        "🎯 Recomendador IA",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🎯 Recomendador IA" else "secondary",
-        key="btn_recomendador",
-        help="Melhor posto por custo, qualidade e confiabilidade — baseado em histórico e comportamento da frota",
-    ):
-        st.session_state["modo_selecionado"] = "🎯 Recomendador IA"
-        _log_acesso("MODO_SELECIONADO", "🎯 Recomendador IA", modo_override="🎯 Recomendador IA")
-        st.rerun()
-
+    # ── Linha 4: Variação · Clientes · Relatórios (3 cols) ──────────
     _var_badge_sb = (" 🔔" if st.session_state.get("_pp_variacao") is not None
                      and not st.session_state["_pp_variacao"].empty else "")
-    if st.button(
-        f"💹 Variação de Preços{_var_badge_sb}",
-        use_container_width=True,
-        type="primary" if _modo_atual == "💹 Variação de Preços" else "secondary",
-        key="btn_variacao_precos",
-        help="Compara nova carga de preços com a anterior — detecta altas, quedas e novos postos",
-    ):
-        st.session_state["modo_selecionado"] = "💹 Variação de Preços"
-        _log_acesso("MODO_SELECIONADO", "💹 Variação de Preços",
-                    modo_override="💹 Variação de Preços")
-        st.rerun()
-
-    if st.button(
-        "👥 Análise de Cliente",
-        use_container_width=True,
-        type="primary" if _modo_atual == "👥 Análise de Cliente" else "secondary",
-        key="btn_analise_cliente",
-        help="Análise de abastecimentos e custos da frota do cliente",
-    ):
-        st.session_state["modo_selecionado"] = "👥 Análise de Cliente"
-        _log_acesso("MODO_SELECIONADO", "👥 Análise de Cliente", modo_override="👥 Análise de Cliente")
-        st.rerun()
-
-    if st.button(
-        "📑 Relatórios",
-        use_container_width=True,
-        type="primary" if _modo_atual == "📑 Relatórios" else "secondary",
-        key="btn_relatorios",
-        help="Relatórios executivos, oportunidades comerciais e performance por posto",
-    ):
-        st.session_state["modo_selecionado"] = "📑 Relatórios"
-        _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
-        st.rerun()
+    _col_b1, _col_b2, _col_b3 = st.columns(3)
+    with _col_b1:
+        if st.button(
+            f"💹 Preços{_var_badge_sb}",
+            use_container_width=True,
+            type="primary" if _modo_atual == "💹 Variação de Preços" else "secondary",
+            key="btn_variacao_precos",
+            help="Compara nova carga de preços com a anterior — detecta altas, quedas e novos postos",
+        ):
+            st.session_state["modo_selecionado"] = "💹 Variação de Preços"
+            _log_acesso("MODO_SELECIONADO", "💹 Variação de Preços",
+                        modo_override="💹 Variação de Preços")
+            st.rerun()
+    with _col_b2:
+        if st.button(
+            "👥 Clientes",
+            use_container_width=True,
+            type="primary" if _modo_atual == "👥 Análise de Cliente" else "secondary",
+            key="btn_analise_cliente",
+            help="Análise de abastecimentos e custos da frota do cliente",
+        ):
+            st.session_state["modo_selecionado"] = "👥 Análise de Cliente"
+            _log_acesso("MODO_SELECIONADO", "👥 Análise de Cliente", modo_override="👥 Análise de Cliente")
+            st.rerun()
+    with _col_b3:
+        if st.button(
+            "📑 Relat.",
+            use_container_width=True,
+            type="primary" if _modo_atual == "📑 Relatórios" else "secondary",
+            key="btn_relatorios",
+            help="Relatórios executivos, oportunidades comerciais e performance por posto",
+        ):
+            st.session_state["modo_selecionado"] = "📑 Relatórios"
+            _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
+            st.rerun()
 
     modo = _modo_atual
     st.divider()
@@ -12436,11 +12441,11 @@ with st.sidebar:
     if "_fuel_sel_m2" not in dir():
         _fuel_sel_m2        = None
 
-    # ── Guia de Uso ───────────────────────────────────────────────────────────
-    _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
-    with _col_guia_c:
+    # ── Guia · Docs · API (3 colunas compactas) ──────────────────────
+    _col_h1, _col_h2, _col_h3 = st.columns(3)
+    with _col_h1:
         if st.button(
-            "📖 Guia de Uso",
+            "📖 Guia",
             use_container_width=True,
             type="secondary",
             key="btn_tour_sidebar",
@@ -12448,30 +12453,28 @@ with st.sidebar:
         ):
             st.session_state["_tour_ativo"] = True
             st.rerun()
-
-    # ── Botão Documentação (após Guia de Uso) ───────────────────────
-    if st.button(
-        "📚 Documentação",
-        use_container_width=True,
-        type="primary" if _modo_atual == "📚 Documentação" else "secondary",
-        key="btn_documentacao",
-        help="Visualizar o manual de uso da plataforma",
-    ):
-        st.session_state["modo_selecionado"] = "📚 Documentação"
-        _log_acesso("MODO_SELECIONADO", "📚 Documentação", modo_override="📚 Documentação")
-        st.rerun()
-
-    # ── Botão API & Integrações (abaixo de Documentação) ───────────
-    if st.button(
-        "⚡ API & Integrações",
-        use_container_width=True,
-        type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
-        key="btn_api_integracoes",
-        help="Documentação da API REST — integre ERPs e sistemas de logística",
-    ):
-        st.session_state["modo_selecionado"] = "⚡ API & Integrações"
-        _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
-        st.rerun()
+    with _col_h2:
+        if st.button(
+            "📚 Docs",
+            use_container_width=True,
+            type="primary" if _modo_atual == "📚 Documentação" else "secondary",
+            key="btn_documentacao",
+            help="Visualizar o manual de uso da plataforma",
+        ):
+            st.session_state["modo_selecionado"] = "📚 Documentação"
+            _log_acesso("MODO_SELECIONADO", "📚 Documentação", modo_override="📚 Documentação")
+            st.rerun()
+    with _col_h3:
+        if st.button(
+            "⚡ API",
+            use_container_width=True,
+            type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
+            key="btn_api_integracoes",
+            help="Documentação da API REST — integre ERPs e sistemas de logística",
+        ):
+            st.session_state["modo_selecionado"] = "⚡ API & Integrações"
+            _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
+            st.rerun()
 
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
     st.markdown("---")
