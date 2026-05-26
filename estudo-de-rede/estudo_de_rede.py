@@ -3656,26 +3656,34 @@ def _restaurar_estado_pp_do_supabase() -> None:
 def _tele_salvar_frota_supabase(frota: list) -> bool:
     """
     Sincroniza a frota no Supabase: faz upsert de cada veículo pelo campo 'placa'.
-    Usa a coluna 'placa' como chave de conflito (índice UNIQUE criado no SQL).
+    Deduplica por placa antes de enviar para evitar o erro
+    'ON CONFLICT DO UPDATE command cannot affect row a second time'.
+    Envia um registro por vez para contornar limitações do upsert em batch.
     """
     _db = _db_client()
     if _db is None or not frota:
         return False
     try:
-        _registros = [
-            {
-                "placa":           v.get("placa", ""),
-                "combustivel":     v.get("combustivel", ""),
-                "tanque_l":        v.get("tanque_l"),
-                "consumo_esp_kml": v.get("consumo_esp_kml"),
-                "empresa":         v.get("empresa", ""),
-                "modelo":          v.get("modelo", ""),
-                "ativo":           True,
-            }
-            for v in frota if v.get("placa")
-        ]
-        if _registros:
-            _db.table("tele_frota").upsert(_registros, on_conflict="placa").execute()
+        # Deduplica: mantém o último registro por placa
+        _visto: dict = {}
+        for v in frota:
+            _placa = v.get("placa", "").strip()
+            if _placa:
+                _visto[_placa] = v
+        # Upsert um a um para evitar conflito dentro do mesmo batch
+        for _placa, v in _visto.items():
+            _db.table("tele_frota").upsert(
+                {
+                    "placa":           _placa,
+                    "combustivel":     v.get("combustivel", ""),
+                    "tanque_l":        v.get("tanque_l"),
+                    "consumo_esp_kml": v.get("consumo_esp_kml"),
+                    "empresa":         v.get("empresa", ""),
+                    "modelo":          v.get("modelo", ""),
+                    "ativo":           True,
+                },
+                on_conflict="placa",
+            ).execute()
         return True
     except Exception as _e:
         st.session_state["_hist_db_erro"] = str(_e)
