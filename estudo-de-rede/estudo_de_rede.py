@@ -3655,10 +3655,9 @@ def _restaurar_estado_pp_do_supabase() -> None:
 
 def _tele_salvar_frota_supabase(frota: list) -> bool:
     """
-    Sincroniza a frota no Supabase: faz upsert de cada veículo pelo campo 'placa'.
-    Deduplica por placa antes de enviar para evitar o erro
-    'ON CONFLICT DO UPDATE command cannot affect row a second time'.
-    Envia um registro por vez para contornar limitações do upsert em batch.
+    Sincroniza a frota no Supabase usando DELETE + INSERT (evita ON CONFLICT).
+    O índice partial WHERE ativo=true não é reconhecido pelo PostgREST como
+    constraint de conflito, então upsert falhava com código 21000.
     """
     _db = _db_client()
     if _db is None or not frota:
@@ -3670,20 +3669,23 @@ def _tele_salvar_frota_supabase(frota: list) -> bool:
             _placa = v.get("placa", "").strip()
             if _placa:
                 _visto[_placa] = v
-        # Upsert um a um para evitar conflito dentro do mesmo batch
-        for _placa, v in _visto.items():
-            _db.table("tele_frota").upsert(
-                {
-                    "placa":           _placa,
-                    "combustivel":     v.get("combustivel", ""),
-                    "tanque_l":        v.get("tanque_l"),
-                    "consumo_esp_kml": v.get("consumo_esp_kml"),
-                    "empresa":         v.get("empresa", ""),
-                    "modelo":          v.get("modelo", ""),
-                    "ativo":           True,
-                },
-                on_conflict="placa",
-            ).execute()
+        if not _visto:
+            return True
+        # Apaga registros existentes para essas placas e reinsere
+        _db.table("tele_frota").delete().in_("placa", list(_visto.keys())).execute()
+        _registros = [
+            {
+                "placa":           _placa,
+                "combustivel":     v.get("combustivel", ""),
+                "tanque_l":        v.get("tanque_l"),
+                "consumo_esp_kml": v.get("consumo_esp_kml"),
+                "empresa":         v.get("empresa", ""),
+                "modelo":          v.get("modelo", ""),
+                "ativo":           True,
+            }
+            for _placa, v in _visto.items()
+        ]
+        _db.table("tele_frota").insert(_registros).execute()
         return True
     except Exception as _e:
         st.session_state["_hist_db_erro"] = str(_e)
