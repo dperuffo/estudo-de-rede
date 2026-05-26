@@ -11116,11 +11116,12 @@ with st.sidebar:
 
 /* ── Botão Roteirização ── */
 .st-key-btn_modo_roteirizacao button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_modo_roteirizacao button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_modo_roteirizacao button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_modo_roteirizacao [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #004D40 0%, #00796B 60%, #0b2660 100%) !important;
     border: none !important; color: #fff !important;
@@ -11152,7 +11153,7 @@ with st.sidebar:
     letter-spacing: 0.2px !important;
     transition: all .2s ease !important;
 }
-.st-key-btn_rotas_salvas button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_rotas_salvas button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 60%, #0b2660 100%) !important;
     border: none !important; color: #fff !important;
@@ -11184,7 +11185,7 @@ with st.sidebar:
     letter-spacing: 0.2px !important;
     transition: all .2s ease !important;
 }
-.st-key-btn_dashboard button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_dashboard button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_dashboard [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #040d26 0%, #0b2660 40%, #1040a0 75%, #1565C0 100%) !important;
     border: none !important; color: #fff !important;
@@ -11215,7 +11216,7 @@ with st.sidebar:
     letter-spacing: 0.2px !important;
     transition: all .2s ease !important;
 }
-.st-key-btn_inteligencia button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_inteligencia button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_inteligencia [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #2D0073 0%, #4A148C 50%, #071840 100%) !important;
     border: none !important; color: #fff !important;
@@ -11240,11 +11241,12 @@ with st.sidebar:
 
 /* ── Botão Recomendador IA ── */
 .st-key-btn_recomendador button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_recomendador button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_recomendador button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_recomendador [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #E65100 0%, #F57C00 50%, #FF8F00 100%) !important;
     border: none !important; color: #fff !important;
@@ -11268,11 +11270,12 @@ with st.sidebar:
 
 /* ── Botão Variação de Preços ── */
 .st-key-btn_variacao_precos button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_variacao_precos button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_variacao_precos button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_variacao_precos [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #00695C 0%, #00897B 50%, #26A69A 100%) !important;
     border: none !important; color: #fff !important;
@@ -11296,11 +11299,12 @@ with st.sidebar:
 
 /* ── Botão Análise de Cliente ── */
 .st-key-btn_analise_cliente button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_analise_cliente button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_analise_cliente button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_analise_cliente [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #880E4F 0%, #AD1457 50%, #C62828 100%) !important;
     border: none !important; color: #fff !important;
@@ -11324,11 +11328,12 @@ with st.sidebar:
 
 /* ── Botão Relatórios ── */
 .st-key-btn_relatorios button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_relatorios button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_relatorios button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_relatorios [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #37474F 0%, #546E7A 50%, #78909C 100%) !important;
     border: none !important; color: #fff !important;
@@ -11377,11 +11382,12 @@ with st.sidebar:
 
 /* ── Botão Guia de Uso ── */
 .st-key-btn_tour_sidebar button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_tour_sidebar button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_tour_sidebar button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_tour_sidebar [data-testid="stBaseButton-secondary"] {
     background: rgba(255,255,255,.92) !important;
     border: 2px solid #0288D1 !important; color: #01579B !important;
@@ -11395,11 +11401,12 @@ with st.sidebar:
 
 /* ── Botão Documentação ── */
 .st-key-btn_documentacao button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_documentacao button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_documentacao button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_documentacao [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #1A237E 0%, #283593 50%, #3949AB 100%) !important;
     border: none !important; color: #fff !important;
@@ -11423,11 +11430,12 @@ with st.sidebar:
 
 /* ── Botão API & Integrações ── */
 .st-key-btn_api_integracoes button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_api_integracoes button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_api_integracoes button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_api_integracoes [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #4A148C 0%, #6A1B9A 40%, #283593 100%) !important;
     border: none !important; color: #fff !important;
@@ -11451,11 +11459,12 @@ with st.sidebar:
 
 /* ── Botão Admin ── */
 .st-key-btn_admin button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_admin button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_admin button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_admin [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #7B0000 0%, #B71C1C 50%, #C62828 100%) !important;
     border: none !important; color: #fff !important;
