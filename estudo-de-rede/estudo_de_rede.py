@@ -208,7 +208,8 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
                 row["empresa_id"] = _eid
         res = db.table("frota_abastecimentos").upsert(
             df_rows,
-            on_conflict="usuario_email,id_transacao"
+            on_conflict="usuario_email,id_transacao",
+            ignore_duplicates=True,
         ).execute()
         n = len(res.data) if res.data else 0
         # Registra upload
@@ -3506,19 +3507,36 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     if _supabase_registros:
         _db = _db_client()
         if _db:
-            # Upsert direto em lotes de 200 — o banco deduplica via
-            # UNIQUE (cnpj, combustivel, data_ref).  Se a constraint ainda
-            # não existir, o INSERT acontece normalmente (sem dedup).
+            # Insere em lotes de 200 usando DO NOTHING (ignore_duplicates=True).
+            # DO NOTHING evita o erro 21000 "ON CONFLICT DO UPDATE cannot affect
+            # row a second time" que ocorre com DO UPDATE quando duas linhas do
+            # batch conflitam com a mesma linha existente.
+            # Novos registros são inseridos; duplicatas são silenciosamente ignoradas.
             try:
                 _CHUNK = 200
                 for _i in range(0, len(_supabase_registros), _CHUNK):
                     _db.table("historico_precos").upsert(
                         _supabase_registros[_i: _i + _CHUNK],
                         on_conflict="cnpj,combustivel,data_ref",
+                        ignore_duplicates=True,
                     ).execute()
-                # erro já foi limpo no início da função
+                # limpa qualquer erro residual de execução anterior
+                st.session_state.pop("_hist_db_erro", None)
             except Exception as _ei:
-                st.session_state["_hist_db_erro"] = str(_ei)
+                # Fallback: envia um a um para isolar a linha problemática
+                _ok = 0
+                for _rec in _supabase_registros:
+                    try:
+                        _db.table("historico_precos").upsert(
+                            [_rec],
+                            on_conflict="cnpj,combustivel,data_ref",
+                            ignore_duplicates=True,
+                        ).execute()
+                        _ok += 1
+                    except Exception:
+                        pass
+                if _ok == 0:
+                    st.session_state["_hist_db_erro"] = str(_ei)
 
     return novos
 
