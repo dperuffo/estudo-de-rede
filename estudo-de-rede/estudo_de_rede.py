@@ -14406,27 +14406,20 @@ if _var_df_global is not None and not _var_df_global.empty:
     )
     _banner_icone = "🔺" if _n_alta > 0 else ("🔻" if _n_queda > 0 else "🔔")
 
+    _ts_part = ("&nbsp;·&nbsp; " + _var_ts) if _var_ts else ""
     st.markdown(
-        f"""
-        <div style="background:{_banner_cor};border:1px solid #444;border-radius:10px;
-                    padding:12px 20px;margin-bottom:16px;display:flex;
-                    align-items:center;gap:16px;flex-wrap:wrap;">
-          <div style="font-size:1.5rem">{_banner_icone}</div>
-          <div style="flex:1;min-width:200px">
-            <b style="color:#fff;font-size:.95rem">
-              Variação de Preços Detectada — nova carga vs anterior
-            </b><br>
-            <span style="color:#ccc;font-size:.82rem">
-              {_n_alta} alta(s) &nbsp;·&nbsp; {_n_queda} queda(s) &nbsp;·&nbsp;
-              {_n_novo} novo(s) &nbsp;·&nbsp; {_n_rem} removido(s)
-              {"&nbsp;·&nbsp; " + _var_ts if _var_ts else ""}
-            </span>
-          </div>
-          <span style="color:#aaa;font-size:.78rem">
-            Veja detalhes em <b>💹 Variação de Preços</b> no menu lateral
-          </span>
-        </div>
-        """,
+        f'<div style="background:{_banner_cor};border:1px solid #444;border-radius:10px;'
+        f'padding:12px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">'
+        f'<div style="font-size:1.5rem">{_banner_icone}</div>'
+        f'<div style="flex:1;min-width:200px">'
+        f'<b style="color:#fff;font-size:.95rem">Variação de Preços Detectada — nova carga vs anterior</b><br>'
+        f'<span style="color:#ccc;font-size:.82rem">'
+        f'{_n_alta} alta(s) &nbsp;·&nbsp; {_n_queda} queda(s) &nbsp;·&nbsp; '
+        f'{_n_novo} novo(s) &nbsp;·&nbsp; {_n_rem} removido(s){_ts_part}'
+        f'</span></div>'
+        f'<span style="color:#aaa;font-size:.78rem">'
+        f'Veja detalhes em <b>💹 Variação de Preços</b> no menu lateral'
+        f'</span></div>',
         unsafe_allow_html=True,
     )
 
