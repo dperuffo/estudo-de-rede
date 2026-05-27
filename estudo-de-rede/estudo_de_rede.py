@@ -588,6 +588,14 @@ def _db_restaurar_postos_gf() -> None:
                 # Garante coluna "cnpj" (alias de cnpj_norm) para compatibilidade downstream
                 if "cnpj_norm" in _coords_df.columns and "cnpj" not in _coords_df.columns:
                     _coords_df["cnpj"] = _coords_df["cnpj_norm"]
+                # Garante que todas as colunas esperadas existem (dados antigos podem não ter todas)
+                _coords_defaults = {
+                    "uf": "", "municipio": "", "distribuidora": "",
+                    "razaoSocial": "", "_lat": None, "_lon": None,
+                }
+                for _cd_col, _cd_val in _coords_defaults.items():
+                    if _cd_col not in _coords_df.columns:
+                        _coords_df[_cd_col] = _cd_val
                 st.session_state.setdefault("pf_coords_df", _coords_df)
                 if not st.session_state.get("_servicos_pf_labels"):
                     _atualizar_servicos_pf(_coords_df)
@@ -15540,6 +15548,9 @@ if modo == "📍 Por UF/Município":
         if uf != st.session_state.get("_uf_carregada"):
             _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
             if not _pf_df_m1.empty:
+                if "uf" not in _pf_df_m1.columns:
+                    _pf_df_m1 = _pf_df_m1.copy()
+                    _pf_df_m1["uf"] = ""
                 df_raw_full = _pf_df_m1[
                     _pf_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
                 ].copy().reset_index(drop=True)
