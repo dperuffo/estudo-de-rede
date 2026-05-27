@@ -378,10 +378,12 @@ _ACORDOS_PARA_PK = {
     "gnv":                   "GNV",
 }
 
-_ACORDOS_GITHUB_URL = (
+_REPO_SUBPASTA = "estudo-de-rede"
+_REPO_BASE_URL = (
     "https://raw.githubusercontent.com/dperuffo/estudo-de-rede"
-    "/master/Acordos.xlsx"
+    f"/master/{_REPO_SUBPASTA}"
 )
+_ACORDOS_GITHUB_URL = f"{_REPO_BASE_URL}/Acordos.xlsx"
 
 
 def _normalizar_cnpj_str(v) -> str:
@@ -5559,6 +5561,24 @@ _DOC_PDF_CANDIDATOS = [
 ]
 
 
+@st.cache_data(show_spinner=False, ttl=3600)
+def _github_baixar_bytes(nome_arquivo: str) -> "tuple[bytes | None, str]":
+    """
+    Baixa um arquivo da subpasta estudo-de-rede no GitHub.
+    Cache servidor: 1 download por hora por arquivo, independente do número de usuários.
+    Retorna (bytes, erro_str); bytes=None em caso de falha.
+    """
+    try:
+        import urllib.parse as _uparse
+        _url = f"{_REPO_BASE_URL}/{_uparse.quote(nome_arquivo)}"
+        _resp = requests.get(_url, timeout=30)
+        if _resp.status_code == 200:
+            return _resp.content, ""
+        return None, f"HTTP {_resp.status_code} — {nome_arquivo}"
+    except Exception as _e:
+        return None, str(_e)
+
+
 @st.cache_data(show_spinner=False, ttl=86400)   # 24 h — relê o PDF do repo uma vez por dia
 def _carregar_doc_pdf():
     """
@@ -5934,10 +5954,19 @@ def ler_planilha_pro_frotas(arquivo):
         return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None, None, None
 
 
-@st.cache_data(show_spinner=False, ttl=86400)
+@st.cache_data(show_spinner=False, ttl=3600)
 def _auto_carregar_pro_frotas_repo():
-    """Desativado. Cargas via upload manual + Supabase."""
-    return None, "Carregamento automatico do repositorio desativado. Use o upload manual.", None, None, None
+    """
+    Baixa e processa pro_frotas.xlsx do GitHub (cache servidor: 1h).
+    Retorna (cnpjs, msg, df_coords, perfil_map, servicos) — mesmo contrato de _processar_bytes_pro_frotas.
+    """
+    conteudo, err = _github_baixar_bytes(ARQUIVO_PF_REPO)
+    if not conteudo:
+        return None, f"Erro ao baixar {ARQUIVO_PF_REPO}: {err}", None, None, None
+    try:
+        return _processar_bytes_pro_frotas(ARQUIVO_PF_REPO, conteudo)
+    except Exception as _e:
+        return None, str(_e), None, None, None
 
 
 # ── Postos Cercados ─────────────────────────────────────────────────
@@ -5990,10 +6019,38 @@ def ler_planilha_cercados(arquivo):
         return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None
 
 
-@st.cache_data(show_spinner=False, ttl=86400)
+@st.cache_data(show_spinner=False, ttl=3600)
 def _auto_carregar_cercados_repo():
-    """Desativado. Cargas via upload manual + Supabase."""
-    return None, "Carregamento automatico do repositorio desativado. Use o upload manual.", None
+    """
+    Baixa e processa Postos Cercados.xlsx do GitHub (cache servidor: 1h).
+    Retorna (cnpjs, msg, df_preview).
+    """
+    conteudo, err = _github_baixar_bytes(ARQUIVO_CERCADOS_REPO)
+    if not conteudo:
+        return None, f"Erro ao baixar {ARQUIVO_CERCADOS_REPO}: {err}", None
+    try:
+        return _processar_bytes_cercados(ARQUIVO_CERCADOS_REPO, conteudo)
+    except Exception as _e:
+        return None, str(_e), None
+
+
+@st.cache_data(show_spinner=False, ttl=3600)
+def _auto_carregar_acordos_repo():
+    """
+    Baixa Acordos.xlsx do GitHub (cache servidor: 1h).
+    Retorna (df_raw, msg) — df_raw ainda não processado pelo _processar_acordos_df.
+    """
+    conteudo, err = _github_baixar_bytes("Acordos.xlsx")
+    if not conteudo:
+        return None, f"Erro ao baixar Acordos.xlsx: {err}"
+    try:
+        _buf = io.BytesIO(conteudo)
+        _df = pd.read_excel(_buf, dtype=str, engine="openpyxl")
+        if _df.empty:
+            return None, "Acordos.xlsx está vazio."
+        return _df, f"{len(_df)} linhas de acordos lidas do repositório."
+    except Exception as _e:
+        return None, str(_e)
 
 
 def marcar_cercados(df: pd.DataFrame, cnpjs_cercados: set) -> pd.DataFrame:
@@ -6181,8 +6238,120 @@ def _normalizar_nome_arquivo(nome: str) -> str:
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def _auto_carregar_precos_postos_repo():
-    """Desativado. Cargas via upload manual + Supabase."""
-    return None, "Carregamento automatico do repositorio desativado. Use o upload manual.", None
+    """
+    Baixa e processa preco_posto.xlsx do GitHub (cache servidor: 1h).
+    Retorna (df_normalizado, msg, None).
+    """
+    conteudo, err = _github_baixar_bytes(ARQUIVO_PP_REPO)
+    if not conteudo:
+        return None, f"Erro ao baixar {ARQUIVO_PP_REPO}: {err}", None
+    try:
+        return _processar_bytes_precos_postos(ARQUIVO_PP_REPO, conteudo)
+    except Exception as _e:
+        return None, str(_e), None
+
+
+# ── Sincronização automática GitHub → Supabase ────────────────────────────
+
+def _github_sync_ja_feito_hoje(tabela_versoes: str) -> bool:
+    """
+    Verifica se já existe registro de sincronização GitHub hoje na tabela de versões.
+    Evita múltiplos DELETE+INSERT ao longo do dia para a mesma planilha.
+    """
+    _db = _db_client()
+    if _db is None:
+        return False
+    try:
+        from datetime import date as _date
+        _hoje = _date.today().isoformat()
+        _res = (_db.table(tabela_versoes)
+                   .select("id")
+                   .eq("nome_arquivo", "github_auto")
+                   .gte("created_at", _hoje)
+                   .limit(1)
+                   .execute())
+        return bool(_res.data)
+    except Exception:
+        return False
+
+
+def _startup_sincronizar_github() -> None:
+    """
+    Sincroniza todas as planilhas base do GitHub com o Supabase e com o session_state.
+    Fluxo: GitHub (cache servidor 1h) → Supabase atual + histórico → session_state.
+
+    • Cada planilha é salva no Supabase no máximo UMA VEZ POR DIA (verificado via tabela de versões).
+    • Os downloads do GitHub são cacheados por 1h no servidor — independe do número de usuários.
+    • Chamada uma vez por sessão de usuário via flag _github_sync_done.
+    """
+    if st.session_state.get("_github_sync_done"):
+        return
+    st.session_state["_github_sync_done"] = True
+
+    # ── 1. Postos GF (pro_frotas.xlsx) ───────────────────────────────
+    try:
+        _cnpjs_pf, _msg_pf, _coords_pf, _perfil_pf, _svc_pf = _auto_carregar_pro_frotas_repo()
+        if _cnpjs_pf:
+            # Atualiza session_state independentemente de salvar no Supabase
+            st.session_state["cnpjs_pro_frotas"]  = _cnpjs_pf
+            st.session_state["_pf_fonte"]          = "github"
+            st.session_state["_pf_carregado_em"]   = "GitHub (automático)"
+            st.session_state["_pf_restaurado_supabase"] = True  # pula restauração redundante
+            if _coords_pf is not None and not _coords_pf.empty:
+                if "cnpj" not in _coords_pf.columns and "cnpj_norm" in _coords_pf.columns:
+                    _coords_pf["cnpj"] = _coords_pf["cnpj_norm"]
+                st.session_state["pf_coords_df"] = _coords_pf
+                _atualizar_servicos_pf(_coords_pf)
+            if _perfil_pf:
+                st.session_state["perfil_venda_map"]  = _perfil_pf
+                st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_pf.values()))
+            # Salva no Supabase apenas se ainda não foi feito hoje
+            if not _github_sync_ja_feito_hoje("postos_gf_versoes"):
+                _db_salvar_postos_gf(
+                    _coords_pf if _coords_pf is not None else pd.DataFrame(),
+                    _cnpjs_pf, _perfil_pf or {}, "github_auto"
+                )
+    except Exception:
+        pass
+
+    # ── 2. Postos Cercados (Postos Cercados.xlsx) ─────────────────────
+    try:
+        _cnpjs_c, _msg_c, _ = _auto_carregar_cercados_repo()
+        if _cnpjs_c:
+            st.session_state["cnpjs_cercados"]         = _cnpjs_c
+            st.session_state["_cercados_fonte"]        = "github"
+            st.session_state["_cercados_carregado_em"] = "GitHub (automático)"
+            if not _github_sync_ja_feito_hoje("postos_cercados_versoes"):
+                _db_salvar_postos_cercados(_cnpjs_c, "github_auto")
+    except Exception:
+        pass
+
+    # ── 3. Preços por Posto (preco_posto.xlsx) ────────────────────────
+    try:
+        _pp_df_gh, _msg_pp, _ = _auto_carregar_precos_postos_repo()
+        if _pp_df_gh is not None and not _pp_df_gh.empty:
+            st.session_state["_pp_df"]            = _pp_df_gh
+            st.session_state["_pp_nome_arquivo"]  = "preco_posto.xlsx"
+            st.session_state["_pp_carregado_em"]  = "GitHub (automático)"
+            st.session_state["_restaurado_pp_supabase"] = True  # pula restauração redundante
+            if not _github_sync_ja_feito_hoje("precos_posto_versoes"):
+                _db_salvar_precos_posto(_pp_df_gh, "github_auto")
+    except Exception:
+        pass
+
+    # ── 4. Acordos (Acordos.xlsx) ─────────────────────────────────────
+    try:
+        _df_ac, _msg_ac = _auto_carregar_acordos_repo()
+        if _df_ac is not None and not _df_ac.empty:
+            if not _github_sync_ja_feito_hoje("acordos_versoes"):
+                _email_gh = _db_email() or ""
+                _db_salvar_acordos(_df_ac, _email_gh, "github_auto")
+            # Sempre recarrega do Supabase para ter os dados processados
+            _ac_fresh = _db_carregar_acordos()
+            if not _ac_fresh.empty:
+                st.session_state["acordos_df"] = _ac_fresh
+    except Exception:
+        pass
 
 
 # ── Gestão de Frotas ───────────────────────────────────────────────────────
@@ -11788,8 +11957,13 @@ with st.sidebar:
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
 
-    # ── Restaura dados do Supabase (uma vez por sessão) ──────────────
-    # Postos GF: carrega CNPJs, perfil_map e coords do banco
+    # ── Sincroniza planilhas base do GitHub → Supabase → session_state ──
+    # Baixa pro_frotas, Postos Cercados, preco_posto e Acordos do repositório.
+    # O download é cacheado 1h no servidor; o save no Supabase ocorre 1x por dia.
+    _startup_sincronizar_github()
+
+    # ── Restaura dados do Supabase (fallback: usuários sem dados no banco) ──
+    # Postos GF: só roda se _startup_sincronizar_github não preencheu o session_state
     _db_restaurar_postos_gf()
 
     # Reconstrói labels de serviços se pf_coords_df já existe mas labels ainda não foram gerados
@@ -11798,10 +11972,10 @@ with st.sidebar:
             and not st.session_state.get("_servicos_pf_labels")):
         _atualizar_servicos_pf(st.session_state["pf_coords_df"])
 
-    # Postos Cercados: carrega do banco
+    # Postos Cercados: só roda se sincronização GitHub não preencheu
     _db_restaurar_postos_cercados()
 
-    # Preços PP: restaura última carga + variação do Supabase
+    # Preços PP: restaura última carga + variação do Supabase (fallback)
     _restaurar_estado_pp_do_supabase()
 
     # ── Restaura frota e abastecimentos de telemetria do Supabase ──
