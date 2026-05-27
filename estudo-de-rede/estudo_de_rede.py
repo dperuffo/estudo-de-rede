@@ -447,72 +447,99 @@ def _db_carregar_acordos() -> "pd.DataFrame":
 def _db_salvar_postos_gf(df_coords: "pd.DataFrame",
                           cnpjs_set: set,
                           perfil_map: dict,
-                          nome_arquivo: str = "") -> bool:
+                          nome_arquivo: str = "") -> tuple:
     """
-    Upsert na tabela postos_gf + insere linha em postos_gf_versoes.
-    df_coords: DataFrame com colunas [cnpj_norm, _lat, _lon, razaoSocial,
-               distribuidora, municipio, uf, perfil_venda, horario,
-               funciona_24h, pista_caminhao, arla, conveniencia] (opcionais).
+    Substitui TODOS os registros de postos_gf do usuário (DELETE filtrado por
+    empresa_id/email → INSERT todos os CNPJs da nova planilha).
+    Garante que o banco reflita exatamente o conteúdo do upload mais recente.
+    Retorna (n_salvos, erro_str).  n_salvos == -1 em caso de falha total.
     """
     _db = _db_client()
     if _db is None:
-        return False
+        return -1, "Sem conexão com o banco de dados."
+    if not cnpjs_set:
+        return -1, "Conjunto de CNPJs está vazio."
+
     try:
         _eid   = _db_empresa_id()
         _email = _db_email()
-        registros = []
-        if df_coords is not None and not df_coords.empty:
+
+        # ── Índice cnpj_norm → row de df_coords (para enriquecer com dados da planilha) ──
+        _coords_idx: dict = {}
+        if df_coords is not None and not df_coords.empty and "cnpj_norm" in df_coords.columns:
             for _, row in df_coords.iterrows():
-                _cnpj = str(row.get("cnpj_norm", "")).strip()
-                if not _cnpj:
-                    continue
-                _lat = row.get("_lat") or row.get("lat")
-                _lon = row.get("_lon") or row.get("lon")
-                _rec = {
-                    "cnpj":           _cnpj,
-                    "razao_social":   str(row.get("razaoSocial", "") or "").strip() or None,
-                    "distribuidora":  str(row.get("distribuidora", "") or "").strip() or None,
-                    "municipio":      str(row.get("municipio", "") or "").strip() or None,
-                    "uf":             str(row.get("uf", "") or "").strip() or None,
-                    "lat":            float(_lat) if _lat and str(_lat) not in ("", "nan") else None,
-                    "lon":            float(_lon) if _lon and str(_lon) not in ("", "nan") else None,
-                    "perfil_venda":   perfil_map.get(_cnpj) if perfil_map else None,
-                    "horario":        str(row.get("horario", "") or "").strip() or None,
-                    "funciona_24h":   bool(row.get("funciona_24h", False)),
-                    "pista_caminhao": bool(row.get("pista_caminhao", False)),
-                    "arla":           bool(row.get("arla", False)),
-                    "conveniencia":   bool(row.get("conveniencia", False)),
-                }
-                if _eid:
-                    _rec["empresa_id"] = _eid
-                if _email:
-                    _rec["usuario_email"] = _email
-                registros.append(_rec)
+                _k = str(row.get("cnpj_norm", "")).strip()
+                if _k:
+                    _coords_idx[_k] = row
+
+        # ── Monta registros para TODOS os CNPJs do conjunto ───────
+        registros = []
+        for _cnpj in cnpjs_set:
+            _cnpj = str(_cnpj).strip()
+            if not _cnpj:
+                continue
+            row = _coords_idx.get(_cnpj, {})
+            _lat = row.get("_lat") if hasattr(row, "get") else None
+            _lon = row.get("_lon") if hasattr(row, "get") else None
+            _rec = {
+                "cnpj":           _cnpj,
+                "razao_social":   str(row.get("razaoSocial", "") or "").strip() or None
+                                  if hasattr(row, "get") else None,
+                "distribuidora":  str(row.get("distribuidora", "") or "").strip() or None
+                                  if hasattr(row, "get") else None,
+                "municipio":      str(row.get("municipio", "") or "").strip() or None
+                                  if hasattr(row, "get") else None,
+                "uf":             str(row.get("uf", "") or "").strip() or None
+                                  if hasattr(row, "get") else None,
+                "lat":            float(_lat) if _lat and str(_lat) not in ("", "nan") else None,
+                "lon":            float(_lon) if _lon and str(_lon) not in ("", "nan") else None,
+                "perfil_venda":   perfil_map.get(_cnpj) if perfil_map else None,
+                "horario":        str(row.get("horario", "") or "").strip() or None
+                                  if hasattr(row, "get") else None,
+                "funciona_24h":   bool(row.get("funciona_24h", False))
+                                  if hasattr(row, "get") else False,
+                "pista_caminhao": bool(row.get("pista_caminhao", False))
+                                  if hasattr(row, "get") else False,
+                "arla":           bool(row.get("arla", False))
+                                  if hasattr(row, "get") else False,
+                "conveniencia":   bool(row.get("conveniencia", False))
+                                  if hasattr(row, "get") else False,
+            }
+            if _eid:
+                _rec["empresa_id"] = _eid
+            if _email:
+                _rec["usuario_email"] = _email
+            registros.append(_rec)
+
+        # ── DELETE registros existentes deste usuário/empresa ─────
+        _del_q = _db.table("postos_gf").delete()
+        if _eid:
+            _del_q = _del_q.eq("empresa_id", _eid)
+        elif _email:
+            _del_q = _del_q.eq("usuario_email", _email)
         else:
-            # Apenas CNPJs, sem coords
-            for _cnpj in cnpjs_set:
-                _rec = {"cnpj": _cnpj, "perfil_venda": perfil_map.get(_cnpj) if perfil_map else None}
-                if _eid:
-                    _rec["empresa_id"] = _eid
-                if _email:
-                    _rec["usuario_email"] = _email
-                registros.append(_rec)
+            _del_q = _del_q.neq("cnpj", "__NONE__")  # delete all if no filter
+        _del_q.execute()
 
-        # Upsert em lotes de 500
+        # ── INSERT todos em lotes de 500 ──────────────────────────
+        _salvos = 0
         for i in range(0, len(registros), 500):
-            _db.table("postos_gf").upsert(registros[i:i+500]).execute()
+            _lote = registros[i:i+500]
+            _resp = _db.table("postos_gf").insert(_lote).execute()
+            _salvos += len(_resp.data or [])
 
-        # Versão
+        # ── Versão ────────────────────────────────────────────────
+        _n_coords = sum(1 for r in registros if r.get("lat") is not None)
         _db.table("postos_gf_versoes").insert({
             "usuario_email": _email or "",
             "nome_arquivo":  nome_arquivo or "upload_manual",
-            "n_cnpjs":       len(cnpjs_set),
-            "n_coords":      len(registros),
+            "n_cnpjs":       _salvos,
+            "n_coords":      _n_coords,
         }).execute()
-        return True
+
+        return _salvos, ""
     except Exception as _e:
-        st.session_state["_pf_db_erro"] = str(_e)
-        return False
+        return -1, str(_e)
 
 
 def _db_restaurar_postos_gf() -> None:
@@ -565,27 +592,48 @@ def _db_restaurar_postos_gf() -> None:
 
 # ── Postos Cercados — salvar / restaurar ─────────────────────────────────────
 
-def _db_salvar_postos_cercados(cnpjs_set: set, nome_arquivo: str = "") -> bool:
+def _db_salvar_postos_cercados(cnpjs_set: set, nome_arquivo: str = "") -> tuple:
     """
-    Upsert na tabela postos_cercados_db + insere linha em postos_cercados_versoes.
+    Substitui TODOS os registros de postos_cercados_db pela nova carga
+    (DELETE all → INSERT all) para garantir sincronismo total com a planilha.
+    Retorna (n_salvos, erro_str).  n_salvos == -1 em caso de falha total.
     """
     _db = _db_client()
-    if _db is None or not cnpjs_set:
-        return False
+    if _db is None:
+        return -1, "Sem conexão com o banco de dados."
+    if not cnpjs_set:
+        return -1, "Conjunto de CNPJs está vazio."
+
+    # Filtra CNPJs inválidos antes de enviar
+    _cnpjs_validos = {c for c in cnpjs_set if c and len(str(c).strip()) > 0}
+    if not _cnpjs_validos:
+        return -1, "Nenhum CNPJ válido para salvar."
+
     try:
         _email = _db_email()
-        registros = [{"cnpj": c} for c in cnpjs_set]
+
+        # ── 1. Remove todos os registros existentes ────────────────
+        # (DELETE sem filtro — tabela não tem isolamento por empresa)
+        _db.table("postos_cercados_db").delete().neq("cnpj", "__NONE__").execute()
+
+        # ── 2. Insere os novos registros em lotes de 500 ──────────
+        registros = [{"cnpj": str(c).strip()} for c in _cnpjs_validos]
+        _salvos = 0
         for i in range(0, len(registros), 500):
-            _db.table("postos_cercados_db").upsert(registros[i:i+500]).execute()
+            _lote = registros[i:i+500]
+            _resp = _db.table("postos_cercados_db").insert(_lote).execute()
+            _salvos += len(_resp.data or [])
+
+        # ── 3. Versão ──────────────────────────────────────────────
         _db.table("postos_cercados_versoes").insert({
             "usuario_email": _email or "",
             "nome_arquivo":  nome_arquivo or "upload_manual",
-            "n_cnpjs":       len(cnpjs_set),
+            "n_cnpjs":       _salvos,
         }).execute()
-        return True
+
+        return _salvos, ""
     except Exception as _e:
-        st.session_state["_cer_db_erro"] = str(_e)
-        return False
+        return -1, str(_e)
 
 
 def _db_restaurar_postos_cercados() -> None:
@@ -607,62 +655,77 @@ def _db_restaurar_postos_cercados() -> None:
 
 # ── Preços por Posto — salvar tabela precos_posto_db ────────────────────────
 
-def _db_salvar_precos_posto(pp_df: "pd.DataFrame", nome_arquivo: str = "") -> bool:
+def _db_salvar_precos_posto(pp_df: "pd.DataFrame", nome_arquivo: str = "") -> tuple:
     """
-    Upsert na tabela precos_posto_db (cnpj_norm + combustivel_pk como chave única)
-    + insere linha em precos_posto_versoes.
-    Também popula historico_precos para viabilizar análises temporais.
+    Substitui TODOS os registros de precos_posto_db pela nova carga
+    (DELETE all → INSERT all) para garantir sincronismo total.
+    Também insere em historico_precos (preserva histórico por data).
+    Retorna (n_salvos, erro_str).  n_salvos == -1 em caso de falha total.
     """
     _db = _db_client()
-    if _db is None or pp_df is None or pp_df.empty:
-        return False
+    if _db is None:
+        return -1, "Sem conexão com o banco de dados."
+    if pp_df is None or pp_df.empty:
+        return -1, "DataFrame de preços está vazio."
     try:
         from datetime import date as _date
         _hoje = _date.today().isoformat()
         _email = _db_email()
+
+        # ── Monta registros válidos ────────────────────────────────
         registros = []
         for _, row in pp_df.iterrows():
-            _cnpj = str(row.get("cnpj_norm", "")).strip()
-            _comb = str(row.get("combustivel_pk", "")).strip()
+            _cnpj = str(row.get("cnpj_norm", "") or "").strip()
+            _comb = str(row.get("combustivel_pk", "") or "").strip()
             if not _cnpj or not _comb:
                 continue
+            _preco = row.get("preco")
             registros.append({
                 "cnpj_norm":         _cnpj,
                 "combustivel_pk":    _comb,
                 "combustivel_label": str(row.get("combustivel_label", "") or "").strip() or None,
-                "preco":             float(row["preco"]) if row.get("preco") is not None else None,
+                "preco":             float(_preco) if _preco is not None else None,
                 "data_atualizacao":  str(row.get("data_atualizacao", "") or _hoje).strip() or _hoje,
             })
-        if registros:
-            for i in range(0, len(registros), 500):
-                _db.table("precos_posto_db").upsert(
-                    registros[i:i+500],
-                    on_conflict="cnpj_norm,combustivel_pk",
-                ).execute()
 
-        # Versão
+        if not registros:
+            return -1, "Nenhum registro válido (cnpj_norm + combustivel_pk) encontrado."
+
+        # ── DELETE todos os registros existentes ──────────────────
+        _db.table("precos_posto_db").delete().neq("cnpj_norm", "__NONE__").execute()
+
+        # ── INSERT em lotes de 500 ────────────────────────────────
+        _salvos = 0
+        for i in range(0, len(registros), 500):
+            _lote = registros[i:i+500]
+            _resp = _db.table("precos_posto_db").insert(_lote).execute()
+            _salvos += len(_resp.data or [])
+
+        # ── Versão ────────────────────────────────────────────────
         _n_postos = pp_df["cnpj_norm"].nunique() if "cnpj_norm" in pp_df.columns else 0
         _db.table("precos_posto_versoes").insert({
             "usuario_email": _email or "",
             "nome_arquivo":  nome_arquivo or "upload_manual",
-            "n_registros":   len(registros),
+            "n_registros":   _salvos,
             "n_postos":      int(_n_postos),
         }).execute()
 
-        # ── Popula historico_precos ──────────────────────────────
+        # ── Popula historico_precos (INSERT OR IGNORE por data) ───
+        # O historico preserva uma linha por (cnpj, combustivel, data_ref)
+        # permitindo análise temporal. Não deletamos histórico antigo.
         _hist_rows = []
         for _, row in pp_df.iterrows():
-            _cnpj = str(row.get("cnpj_norm", "")).strip()
-            _comb = str(row.get("combustivel_pk", "")).strip()
+            _cnpj = str(row.get("cnpj_norm", "") or "").strip()
+            _comb = str(row.get("combustivel_pk", "") or "").strip()
             _preco = row.get("preco")
             if not _cnpj or not _comb or _preco is None:
                 continue
             _hist_rows.append({
-                "cnpj":       _cnpj,
+                "cnpj":        _cnpj,
                 "combustivel": _comb,
-                "preco":      float(_preco),
-                "data_ref":   _hoje,
-                "fonte":      "upload_manual",
+                "preco":       float(_preco),
+                "data_ref":    _hoje,
+                "fonte":       "upload_manual",
             })
         if _hist_rows:
             for i in range(0, len(_hist_rows), 500):
@@ -673,10 +736,10 @@ def _db_salvar_precos_posto(pp_df: "pd.DataFrame", nome_arquivo: str = "") -> bo
                     ).execute()
                 except Exception:
                     pass
-        return True
+
+        return _salvos, ""
     except Exception as _e:
-        st.session_state["_pp_db_erro"] = str(_e)
-        return False
+        return -1, str(_e)
 
 
 def _processar_acordos_df(df_raw: "pd.DataFrame") -> "pd.DataFrame":
@@ -13455,16 +13518,25 @@ with st.sidebar:
                             st.session_state["pf_coords_df"] = coords_pf
                             _atualizar_servicos_pf(coords_pf)
                         # ── Persiste no Supabase ──
+                        _n_pf_planilha = len(cnpjs_pf)
                         with st.spinner("Salvando no banco de dados…"):
-                            _pf_salvo = _db_salvar_postos_gf(
+                            _pf_n_salvos, _pf_err = _db_salvar_postos_gf(
                                 coords_pf, cnpjs_pf, perfil_pf or {}, arquivo_pf.name)
-                        if _pf_salvo:
-                            st.success(f"✅ {msg_pf} — dados salvos no banco.")
+                        if _pf_n_salvos >= 0:
+                            if _pf_n_salvos == _n_pf_planilha:
+                                st.success(
+                                    f"✅ {msg_pf} — "
+                                    f"{_pf_n_salvos} registros salvos no banco."
+                                )
+                            else:
+                                st.warning(
+                                    f"⚠️ Planilha: {_n_pf_planilha} CNPJs · "
+                                    f"Banco: {_pf_n_salvos} salvos. "
+                                    f"Verifique se há CNPJs inválidos na planilha."
+                                )
                         else:
-                            _pf_err = st.session_state.pop("_pf_db_erro", "")
                             st.success(msg_pf)
-                            if _pf_err:
-                                st.warning(f"⚠️ Não foi possível salvar no banco: {_pf_err}")
+                            st.warning(f"⚠️ Não foi possível salvar no banco: {_pf_err}")
                         if preview_pf is not None:
                             with st.expander("Ver amostra dos CNPJs"):
                                 st.dataframe(preview_pf, use_container_width=True)
@@ -13536,15 +13608,25 @@ with st.sidebar:
                         st.session_state["_cercados_carregado_em"]  = _agora()
                         st.session_state["_cer_last_upload_id"]     = _cer_file_id
                         # ── Persiste no Supabase ──
+                        _n_planilha = len(cnpjs_cer_up)
                         with st.spinner("Salvando no banco de dados…"):
-                            _cer_salvo = _db_salvar_postos_cercados(cnpjs_cer_up, arquivo_cer.name)
-                        if _cer_salvo:
-                            st.success(f"✅ {msg_cer_up} — dados salvos no banco.")
+                            _cer_n_salvos, _cer_err = _db_salvar_postos_cercados(
+                                cnpjs_cer_up, arquivo_cer.name)
+                        if _cer_n_salvos >= 0:
+                            if _cer_n_salvos == _n_planilha:
+                                st.success(
+                                    f"✅ {msg_cer_up} — "
+                                    f"{_cer_n_salvos} registros salvos no banco."
+                                )
+                            else:
+                                st.warning(
+                                    f"⚠️ Planilha: {_n_planilha} CNPJs · "
+                                    f"Banco: {_cer_n_salvos} salvos. "
+                                    f"Verifique se há CNPJs inválidos na planilha."
+                                )
                         else:
-                            _cer_err = st.session_state.pop("_cer_db_erro", "")
                             st.success(msg_cer_up)
-                            if _cer_err:
-                                st.warning(f"⚠️ Não foi possível salvar no banco: {_cer_err}")
+                            st.warning(f"⚠️ Não foi possível salvar no banco: {_cer_err}")
                         if prev_cer is not None:
                             with st.expander("Ver amostra"):
                                 st.dataframe(prev_cer, use_container_width=True)
@@ -13671,8 +13753,10 @@ with st.sidebar:
                         # ── Salva snapshot JSON da carga (para comparação e restauro) ──
                         _nova_carga_id_up = _salvar_carga_pp_supabase(_pp_up, arquivo_pp.name)
                         # ── Persiste preços por posto no banco (precos_posto_db + historico) ──
+                        _n_pp_planilha = len(_pp_up)
                         with st.spinner("Salvando preços no banco de dados…"):
-                            _db_salvar_precos_posto(_pp_up, arquivo_pp.name)
+                            _pp_n_salvos, _pp_db_err = _db_salvar_precos_posto(
+                                _pp_up, arquivo_pp.name)
                         # ── Comparação com carga anterior ──
                         if _pp_ant_up is not None and not _pp_ant_up.empty:
                             try:
@@ -13696,7 +13780,21 @@ with st.sidebar:
                             _hist_record_pp_df(_pp_up)
                         except Exception:
                             pass
-                        st.success(_pp_msg_up)
+                        if _pp_n_salvos >= 0:
+                            if _pp_n_salvos == _n_pp_planilha:
+                                st.success(
+                                    f"✅ {_pp_msg_up} — "
+                                    f"{_pp_n_salvos} registros salvos no banco."
+                                )
+                            else:
+                                st.warning(
+                                    f"⚠️ Planilha: {_n_pp_planilha} linhas · "
+                                    f"Banco: {_pp_n_salvos} salvos."
+                                )
+                        else:
+                            st.success(_pp_msg_up)
+                            if _pp_db_err:
+                                st.warning(f"⚠️ Não foi possível salvar no banco: {_pp_db_err}")
                         st.rerun()
                     else:
                         st.error(_pp_msg_up)
