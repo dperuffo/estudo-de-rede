@@ -3989,13 +3989,15 @@ def _fipe_carregar_cache() -> dict:
         return {}
 
 
-def _fipe_salvar_registro(placa: str, dados: dict) -> None:
+def _fipe_salvar_registro(placa: str, dados: dict) -> tuple[bool, str]:
     """
     Upsert de um registro na tabela frota_veiculos_fipe.
+    Retorna (sucesso: bool, mensagem_erro: str).
     """
+    from datetime import timezone as _tz
     _db = _db_client()
     if not _db:
-        return
+        return False, "Sem conexão com Supabase"
     try:
         _eid = _db_empresa_id()
         _row = {
@@ -4012,13 +4014,15 @@ def _fipe_salvar_registro(placa: str, dados: dict) -> None:
             "combustivel_fipe": dados.get("combustivel_fipe", ""),
             "mes_referencia":   dados.get("mes_referencia", ""),
             "empresa_id":       _eid,
-            "buscado_em":       _agora(),
+            # ISO 8601 UTC — compatível com TIMESTAMPTZ do Postgres
+            "buscado_em":       datetime.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         _db.table("frota_veiculos_fipe").upsert(
             _row, on_conflict="placa"
         ).execute()
-    except Exception:
-        pass
+        return True, ""
+    except Exception as _e:
+        return False, str(_e)
 
 
 def _fipe_enriquecer_frota(
@@ -4069,19 +4073,23 @@ def _fipe_enriquecer_frota(
                 _time.sleep(0.3)
                 _preco = _fipe_buscar_preco(_info["codigo_fipe"])
                 _info.update(_preco)
-            _fipe_salvar_registro(_placa, _info)
-            _resultado[_placa] = _info
+            _info["_encontrado"] = True
         else:
-            # Sem dados disponíveis — salva registro vazio para não repetir
-            _info_vazio = {
+            # Sem dados na DENATRAN — registra vazio para não re-consultar no TTL
+            _info = {
                 "marca": "", "modelo": "", "ano_modelo": "",
                 "cor": "", "tipo_veiculo": "", "municipio": "",
                 "uf_veiculo": "", "codigo_fipe": "",
                 "valor_fipe": None, "combustivel_fipe": "",
-                "mes_referencia": "",
+                "mes_referencia": "", "_encontrado": False,
             }
-            _fipe_salvar_registro(_placa, _info_vazio)
-            _resultado[_placa] = _info_vazio
+
+        _ok, _err = _fipe_salvar_registro(_placa, _info)
+        if not _ok:
+            # Propaga o erro para o caller decidir como exibir
+            _info["_erro_save"] = _err
+
+        _resultado[_placa] = _info
 
     return _resultado
 
@@ -4176,6 +4184,25 @@ def _fipe_secao_ui(
             st.session_state[f"{key_prefix}_auto_buscado"] = True
             cache_fipe = _novo_cache
             _prog_bar.empty()
+
+        # Verifica se houve erros de save (tabela Supabase pode não existir)
+        _erros_save = [
+            v.get("_erro_save") for v in cache_fipe.values()
+            if v.get("_erro_save")
+        ]
+        if _erros_save:
+            _err_msg = _erros_save[0]
+            if "frota_veiculos_fipe" in _err_msg or "relation" in _err_msg.lower() or "does not exist" in _err_msg.lower():
+                st.error(
+                    "⚠️ **Tabela `frota_veiculos_fipe` não encontrada no Supabase.** "
+                    "Execute o arquivo `supabase_fipe.sql` no SQL Editor do Supabase para criar o cache. "
+                    "Os dados da consulta atual ficam disponíveis até você sair desta aba."
+                )
+            else:
+                st.warning(f"⚠️ Dados consultados mas não salvos no banco: {_err_msg[:120]}")
+        else:
+            _n_salvos = sum(1 for v in cache_fipe.values() if v.get("marca"))
+            st.success(f"✅ Busca concluída. {_n_salvos}/{_n_placas} veículos encontrados na DENATRAN e salvos no Supabase.")
         st.rerun()
 
     if not cache_fipe:
@@ -4187,9 +4214,11 @@ def _fipe_secao_ui(
     for _p in _placas:
         _pn = _fipe_normalizar_placa(_p)
         _d  = cache_fipe.get(_pn) or {}
+        _status = "✅" if _d.get("marca") else ("🔍" if not _d else "❌")
         _linhas.append({
             "Placa":           _p,
-            "Marca":           _d.get("marca") or "—",
+            "Status":          _status,
+            "Marca":           _d.get("marca") or ("Não encontrado" if _d else "Pendente"),
             "Modelo":          _d.get("modelo") or "—",
             "Ano":             _d.get("ano_modelo") or "—",
             "Cor":             _d.get("cor") or "—",
@@ -4204,10 +4233,11 @@ def _fipe_secao_ui(
     )
 
     st.dataframe(
-        _df_frota[["Placa","Marca","Modelo","Ano","Cor","Tipo","Comb. Ref.","Valor FIPE (R$)","Ref. FIPE"]],
+        _df_frota[["Status","Placa","Marca","Modelo","Ano","Cor","Tipo","Comb. Ref.","Valor FIPE (R$)","Ref. FIPE"]],
         use_container_width=True,
         hide_index=True,
     )
+    st.caption("✅ Encontrado na DENATRAN  ❌ Não registrado na base DENATRAN  🔍 Pendente de consulta")
 
     # ── KPIs de valor de frota ─────────────────────────────────────
     _valores = _df_frota["Valor FIPE"].dropna()
