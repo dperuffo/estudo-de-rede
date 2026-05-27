@@ -208,7 +208,8 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
                 row["empresa_id"] = _eid
         res = db.table("frota_abastecimentos").upsert(
             df_rows,
-            on_conflict="usuario_email,id_transacao"
+            on_conflict="usuario_email,id_transacao",
+            ignore_duplicates=True,
         ).execute()
         n = len(res.data) if res.data else 0
         # Registra upload
@@ -228,29 +229,50 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
 
 
 def _db_carregar_abastecimentos() -> list:
-    """Carrega abastecimentos do Supabase filtrados pela empresa ativa."""
+    """
+    Carrega abastecimentos do Supabase.
+    Cria uma query nova a cada tentativa — o supabase-py modifica o builder
+    in-place, então reutilizar o mesmo objeto após .eq() preserva o filtro.
+    Estratégia em camadas para cobrir registros legados sem empresa_id.
+    """
     db = _db_client()
     if not db:
         return []
-    try:
-        _q = (
+
+    def _q():
+        """Retorna um query builder fresco a cada chamada."""
+        return (
             db.table("frota_abastecimentos")
               .select("*")
               .order("data_abastecimento", desc=True)
-              .limit(5000)
+              .limit(10000)
         )
-        _eid = _db_empresa_id()
+
+    try:
+        _eid   = _db_empresa_id()
+        _email = _db_email()
+        _admin = _is_admin()
+
+        # 1. Filtra por empresa_id (query fresca)
         if _eid:
-            _q = _q.eq("empresa_id", _eid)
-        else:
-            # Sem empresa_id (admin ou dados legados): filtra por e-mail do usuário
-            # para não misturar dados de sessões diferentes
-            if not _is_admin():
-                _q = _q.eq("usuario_email", _db_email())
-        res = _q.execute()
-        return res.data or []
+            _rows = _q().eq("empresa_id", _eid).execute().data or []
+            if _rows:
+                return _rows
+
+        # 2. Filtra por e-mail do usuário (query fresca)
+        if _email:
+            _rows = _q().eq("usuario_email", _email).execute().data or []
+            if _rows:
+                return _rows
+
+        # 3. Sem filtros — retorna tudo (admin ou dados legados sem vínculo)
+        return _q().execute().data or []
+
     except Exception:
-        return []
+        try:
+            return _q().execute().data or []
+        except Exception:
+            return []
 
 
 # ── Rede GF — postos_gf ───────────────────────────────────────────
@@ -352,31 +374,54 @@ def _normalizar_cnpj_str(v) -> str:
 
 def _db_carregar_acordos() -> "pd.DataFrame":
     """
-    Carrega acordos de preço do Supabase filtrados pela empresa ativa.
-    Admin sem filtro → todos os acordos.
-    Fallback: baixa Acordos.xlsx do GitHub.
+    Carrega acordos de preço do Supabase.
+    Query fresca a cada tentativa (supabase-py modifica builder in-place).
+    Estratégia em camadas para cobrir registros legados sem empresa_id:
+      1. Filtra por empresa_id  → se vazio, tenta próxima camada
+      2. Filtra por usuario_email → se vazio, tenta próxima camada
+      3. Sem filtro (retorna tudo — admin / dados legados)
     """
+    _COLS = ("cnpj_posto,nome_posto,cnpj_frota,razao_social_frota,"
+             "combustivel,preco_negociado,va_desconto,dt_vigencia")
+
+    def _to_df(rows):
+        if not rows:
+            return None
+        _df = pd.DataFrame(rows)
+        _df["dt_vigencia"] = pd.to_datetime(_df["dt_vigencia"], errors="coerce")
+        return _df
+
     db = _db_client()
     if db:
+        def _q():
+            return db.table("acordos_precos").select(_COLS).limit(50000)
         try:
-            _q = (
-                db.table("acordos_precos")
-                  .select("cnpj_posto,nome_posto,cnpj_frota,razao_social_frota,"
-                          "combustivel,preco_negociado,va_desconto,dt_vigencia")
-                  .limit(50000)
-            )
-            _eid = _db_empresa_id()
+            _eid   = _db_empresa_id()
+            _email = _db_email()
+
+            # 1. Filtra por empresa_id
             if _eid:
-                _q = _q.eq("empresa_id", _eid)
-            res = _q.execute()
-            if res.data:
-                _df_ac = pd.DataFrame(res.data)
-                _df_ac["dt_vigencia"] = pd.to_datetime(
-                    _df_ac["dt_vigencia"], errors="coerce"
-                )
-                return _df_ac
+                _df = _to_df(_q().eq("empresa_id", _eid).execute().data)
+                if _df is not None:
+                    return _df
+
+            # 2. Filtra por e-mail do usuário
+            if _email:
+                _df = _to_df(_q().eq("usuario_email", _email).execute().data)
+                if _df is not None:
+                    return _df
+
+            # 3. Sem filtro — retorna tudo
+            _df = _to_df(_q().execute().data)
+            if _df is not None:
+                return _df
         except Exception:
-            pass
+            try:
+                _df = _to_df(db.table("acordos_precos").select(_COLS).limit(50000).execute().data)
+                if _df is not None:
+                    return _df
+            except Exception:
+                pass
     # Fallback: GitHub (apenas se sem empresa_id — dados legados)
     _eid_fb = _db_empresa_id()
     if not _eid_fb:
@@ -2653,8 +2698,28 @@ def _auth_login_page():
 if "_auth_user" not in st.session_state:
     st.session_state["_auth_user"] = None
 
+# ── Timeout de inatividade: 30 minutos ──────────────────────────────
+_TIMEOUT_INATIVIDADE = 30 * 60  # 1 800 segundos
+if st.session_state.get("_auth_user"):
+    _agora_to = time.time()
+    _ult_ativ  = st.session_state.get("_last_activity_ts")
+    if _ult_ativ is None:
+        # Primeira renderização após login — inicia o contador
+        st.session_state["_last_activity_ts"] = _agora_to
+    elif _agora_to - _ult_ativ > _TIMEOUT_INATIVIDADE:
+        # 30 min sem atividade — encerra a sessão
+        st.session_state["_auth_user"]        = None
+        st.session_state["_acesso_verificado"] = False
+        st.session_state.pop("_last_activity_ts", None)
+        st.session_state["_sessao_expirada"]   = True
+    else:
+        # Atividade detectada — renova o timestamp
+        st.session_state["_last_activity_ts"] = _agora_to
+
 # ── Verificar autenticação — bloqueia o app se não autenticado ──────
 if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
+    if st.session_state.pop("_sessao_expirada", False):
+        st.toast("⏱️ Sessão encerrada por 30 min de inatividade.", icon="🔒")
     _auth_login_page()
     st.stop()
 
@@ -3506,21 +3571,707 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     if _supabase_registros:
         _db = _db_client()
         if _db:
-            # Upsert direto em lotes de 200 — o banco deduplica via
-            # UNIQUE (cnpj, combustivel, data_ref).  Se a constraint ainda
-            # não existir, o INSERT acontece normalmente (sem dedup).
+            # Insere em lotes de 200 usando DO NOTHING (ignore_duplicates=True).
+            # DO NOTHING evita o erro 21000 "ON CONFLICT DO UPDATE cannot affect
+            # row a second time" que ocorre com DO UPDATE quando duas linhas do
+            # batch conflitam com a mesma linha existente.
+            # Novos registros são inseridos; duplicatas são silenciosamente ignoradas.
             try:
                 _CHUNK = 200
                 for _i in range(0, len(_supabase_registros), _CHUNK):
                     _db.table("historico_precos").upsert(
                         _supabase_registros[_i: _i + _CHUNK],
                         on_conflict="cnpj,combustivel,data_ref",
+                        ignore_duplicates=True,
                     ).execute()
-                # erro já foi limpo no início da função
+                # limpa qualquer erro residual de execução anterior
+                st.session_state.pop("_hist_db_erro", None)
             except Exception as _ei:
-                st.session_state["_hist_db_erro"] = str(_ei)
+                # Fallback: envia um a um para isolar a linha problemática
+                _ok = 0
+                for _rec in _supabase_registros:
+                    try:
+                        _db.table("historico_precos").upsert(
+                            [_rec],
+                            on_conflict="cnpj,combustivel,data_ref",
+                            ignore_duplicates=True,
+                        ).execute()
+                        _ok += 1
+                    except Exception:
+                        pass
+                if _ok == 0:
+                    st.session_state["_hist_db_erro"] = str(_ei)
 
     return novos
+
+
+# ── Persistência de cargas PP no Supabase ──────────────────────────────────
+
+def _salvar_carga_pp_supabase(pp_df: "pd.DataFrame", nome_arquivo: str = "") -> "int | None":
+    """
+    Salva o snapshot completo de uma carga de Preços PP no Supabase.
+    Retorna o id da linha inserida, ou None em caso de erro/sem conexão.
+    """
+    _db = _db_client()
+    if _db is None or pp_df is None or pp_df.empty:
+        return None
+    try:
+        _dados = pp_df.where(pp_df.notna(), None).to_dict(orient="records")
+        _resp = _db.table("cargas_precos_pp").insert({
+            "nome_arquivo":       nome_arquivo or "upload_manual",
+            "total_postos":       int(pp_df["cnpj_norm"].nunique())       if "cnpj_norm"       in pp_df.columns else 0,
+            "total_combustiveis": int(pp_df["combustivel_pk"].nunique())   if "combustivel_pk"  in pp_df.columns else 0,
+            "dados":              _dados,
+        }).execute()
+        return _resp.data[0]["id"] if _resp.data else None
+    except Exception as _e:
+        st.session_state["_hist_db_erro"] = str(_e)
+        return None
+
+
+def _carregar_cargas_pp_supabase(n: int = 2) -> "list[dict]":
+    """
+    Carrega as n cargas PP mais recentes do Supabase.
+    Cada item do retorno tem: id, created_at, nome_arquivo,
+    total_postos, total_combustiveis, dados (lista de dicts).
+    """
+    _db = _db_client()
+    if _db is None:
+        return []
+    try:
+        _resp = (
+            _db.table("cargas_precos_pp")
+            .select("id,created_at,nome_arquivo,total_postos,total_combustiveis,dados")
+            .order("created_at", desc=True)
+            .limit(n)
+            .execute()
+        )
+        return _resp.data or []
+    except Exception:
+        return []
+
+
+def _salvar_variacao_pp_supabase(
+    var_df: "pd.DataFrame",
+    carga_id: int,
+    carga_ant_id: "int | None",
+) -> bool:
+    """
+    Salva o DataFrame de variação entre duas cargas PP no Supabase.
+    Preenche também os contadores de altas/quedas/novos/removidos.
+    """
+    _db = _db_client()
+    if _db is None or var_df is None or var_df.empty:
+        return False
+    try:
+        _dados = var_df.where(var_df.notna(), None).to_dict(orient="records")
+        _db.table("variacoes_precos_pp").insert({
+            "carga_id":           carga_id,
+            "carga_anterior_id":  carga_ant_id,
+            "total_altas":        int((var_df.get("Status", pd.Series()) == "🔺 Alta").sum()),
+            "total_quedas":       int((var_df.get("Status", pd.Series()) == "🔻 Queda").sum()),
+            "total_novos":        int((var_df.get("Status", pd.Series()) == "🆕 Novo").sum()),
+            "total_removidos":    int((var_df.get("Status", pd.Series()) == "🗑️ Removido").sum()),
+            "dados":              _dados,
+        }).execute()
+        return True
+    except Exception as _e:
+        st.session_state["_hist_db_erro"] = str(_e)
+        return False
+
+
+def _carregar_ultima_variacao_pp_supabase() -> "pd.DataFrame | None":
+    """Carrega o DataFrame do resultado da comparação mais recente do Supabase."""
+    _db = _db_client()
+    if _db is None:
+        return None
+    try:
+        _resp = (
+            _db.table("variacoes_precos_pp")
+            .select("dados,created_at")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if _resp.data and _resp.data[0].get("dados"):
+            return pd.DataFrame(_resp.data[0]["dados"])
+        return None
+    except Exception:
+        return None
+
+
+def _restaurar_estado_pp_do_supabase() -> None:
+    """
+    Chamada uma vez por sessão (flag _pp_restaurado_supabase).
+    Restaura _pp_df e _pp_variacao do Supabase para que reboots
+    não percam o histórico de cargas e comparações.
+    Usa setdefault: não sobrescreve dados que já estejam na sessão.
+    """
+    if st.session_state.get("_pp_restaurado_supabase"):
+        return
+    st.session_state["_pp_restaurado_supabase"] = True
+
+    # ── Restaura última carga ──────────────────────────────────
+    try:
+        _cargas = _carregar_cargas_pp_supabase(n=1)
+        if _cargas and _cargas[0].get("dados"):
+            _pp_restaurado = pd.DataFrame(_cargas[0]["dados"])
+            if not _pp_restaurado.empty:
+                st.session_state.setdefault("_pp_df",           _pp_restaurado)
+                st.session_state.setdefault("_pp_carga_id",     _cargas[0]["id"])
+                st.session_state.setdefault("_pp_carregado_em", _cargas[0].get("created_at", ""))
+                st.session_state.setdefault("_pp_fonte",        "supabase")
+    except Exception:
+        pass
+
+    # ── Restaura última variação ───────────────────────────────
+    try:
+        _var_restaurada = _carregar_ultima_variacao_pp_supabase()
+        if _var_restaurada is not None and not _var_restaurada.empty:
+            st.session_state.setdefault("_pp_variacao", _var_restaurada)
+    except Exception:
+        pass
+
+
+# ── Telemetria: persistência no Supabase ─────────────────────────────────────
+
+def _tele_salvar_frota_supabase(frota: list) -> bool:
+    """
+    Sincroniza a frota no Supabase usando DELETE + INSERT (evita ON CONFLICT).
+    O índice partial WHERE ativo=true não é reconhecido pelo PostgREST como
+    constraint de conflito, então upsert falhava com código 21000.
+    """
+    _db = _db_client()
+    if _db is None or not frota:
+        return False
+    try:
+        # Deduplica: mantém o último registro por placa
+        _visto: dict = {}
+        for v in frota:
+            _placa = v.get("placa", "").strip()
+            if _placa:
+                _visto[_placa] = v
+        if not _visto:
+            return True
+        # Apaga registros existentes para essas placas e reinsere
+        _db.table("tele_frota").delete().in_("placa", list(_visto.keys())).execute()
+        _registros = [
+            {
+                "placa":           _placa,
+                "combustivel":     v.get("combustivel", ""),
+                "tanque_l":        v.get("tanque_l"),
+                "consumo_esp_kml": v.get("consumo_esp_kml"),
+                "empresa":         v.get("empresa", ""),
+                "modelo":          v.get("modelo", ""),
+                "ativo":           True,
+            }
+            for _placa, v in _visto.items()
+        ]
+        _db.table("tele_frota").insert(_registros).execute()
+        return True
+    except Exception as _e:
+        st.session_state["_hist_db_erro"] = str(_e)
+        return False
+
+
+def _tele_carregar_frota_supabase() -> list:
+    """Carrega todos os veículos ativos da tabela tele_frota."""
+    _db = _db_client()
+    if _db is None:
+        return []
+    try:
+        _resp = (
+            _db.table("tele_frota")
+            .select("placa,combustivel,tanque_l,consumo_esp_kml,empresa,modelo")
+            .eq("ativo", True)
+            .execute()
+        )
+        return _resp.data or []
+    except Exception:
+        return []
+
+
+def _tele_salvar_abastecimentos_supabase(abast: list) -> bool:
+    """
+    Insere novos abastecimentos no Supabase.
+    Só insere registros que ainda não existem (placa + data_abast + litros como proxy de unicidade).
+    """
+    _db = _db_client()
+    if _db is None or not abast:
+        return False
+    try:
+        # Carrega as datas já existentes por placa para evitar duplicatas
+        _resp_ex = _db.table("tele_abastecimentos").select("placa,data_abast,litros").execute()
+        _existentes = set()
+        for _row in (_resp_ex.data or []):
+            _existentes.add((_row.get("placa", ""), str(_row.get("data_abast", "")), str(_row.get("litros", ""))))
+
+        _novos = []
+        for _a in abast:
+            _chave = (
+                str(_a.get("placa", "")),
+                str(_a.get("data", ""))[:10],
+                str(_a.get("litros", "")),
+            )
+            if _chave not in _existentes:
+                _novos.append({
+                    "placa":          str(_a.get("placa", "")),
+                    "data_abast":     str(_a.get("data", ""))[:10] if _a.get("data") else None,
+                    "litros":         _a.get("litros"),
+                    "valor_total":    _a.get("valor_total"),
+                    "preco_litro":    round(_a["valor_total"] / _a["litros"], 3)
+                                      if _a.get("valor_total") and _a.get("litros") else None,
+                    "hodometro":      _a.get("hodometro"),
+                    "nome_posto":     _a.get("nome_posto", ""),
+                    "cnpj_posto":     _a.get("cnpj_posto", ""),
+                    "fonte":          _a.get("fonte", "manual"),
+                })
+
+        if _novos:
+            _db.table("tele_abastecimentos").insert(_novos).execute()
+        return True
+    except Exception as _e:
+        st.session_state["_hist_db_erro"] = str(_e)
+        return False
+
+
+def _tele_carregar_abastecimentos_supabase() -> list:
+    """Carrega todos os abastecimentos do Supabase em ordem cronológica."""
+    _db = _db_client()
+    if _db is None:
+        return []
+    try:
+        _resp = (
+            _db.table("tele_abastecimentos")
+            .select("placa,data_abast,litros,valor_total,preco_litro,hodometro,nome_posto,cnpj_posto,fonte")
+            .order("data_abast", desc=False)
+            .execute()
+        )
+        _rows = []
+        for _r in (_resp.data or []):
+            _rows.append({
+                "placa":       _r.get("placa", ""),
+                "data":        _r.get("data_abast", ""),
+                "litros":      _r.get("litros"),
+                "valor_total": _r.get("valor_total"),
+                "hodometro":   _r.get("hodometro"),
+                "nome_posto":  _r.get("nome_posto", ""),
+                "cnpj_posto":  _r.get("cnpj_posto", ""),
+                "fonte":       _r.get("fonte", "supabase"),
+            })
+        return _rows
+    except Exception:
+        return []
+
+
+def _tele_restaurar_do_supabase() -> None:
+    """
+    Chamada uma vez por sessão (flag _tele_restaurado).
+    Restaura _tele_frota e _tele_abast do Supabase para que reboots
+    não percam os dados de telemetria cadastrados.
+    """
+    if st.session_state.get("_tele_restaurado"):
+        return
+    st.session_state["_tele_restaurado"] = True
+
+    try:
+        _frota_sb = _tele_carregar_frota_supabase()
+        if _frota_sb:
+            st.session_state.setdefault("_tele_frota", _frota_sb)
+    except Exception:
+        pass
+
+    try:
+        _abast_sb = _tele_carregar_abastecimentos_supabase()
+        if _abast_sb:
+            st.session_state.setdefault("_tele_abast", _abast_sb)
+    except Exception:
+        pass
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  FIPE — ENRIQUECIMENTO DE FROTA VIA BRASILAPI
+#  Fluxo: placa → BrasilAPI /veiculos → dados DENATRAN
+#         código FIPE → BrasilAPI /fipe/preco → valor de mercado
+#  Cache em Supabase (frota_veiculos_fipe) para evitar re-queries.
+# ═══════════════════════════════════════════════════════════════════
+
+_FIPE_CACHE_TTL_DIAS = 30   # renova o cache a cada 30 dias
+
+
+def _fipe_normalizar_placa(placa: str) -> str:
+    """Remove separadores e converte para maiúscula."""
+    return re.sub(r"[^A-Z0-9]", "", str(placa or "").upper())
+
+
+def _fipe_parse_valor(valor_str: str) -> float | None:
+    """Converte 'R$ 45.678,00' → 45678.00."""
+    try:
+        _s = re.sub(r"[^\d,]", "", str(valor_str or ""))
+        return float(_s.replace(",", ".")) if _s else None
+    except Exception:
+        return None
+
+
+def _fipe_buscar_veiculo(placa: str) -> dict:
+    """
+    Consulta BrasilAPI /veiculos/v1/{placa}.
+    Retorna dict com: marca, modelo, ano_modelo, cor, tipo_veiculo,
+    municipio, uf_veiculo, codigo_fipe (pode estar vazio).
+    """
+    import requests as _req
+    _p = _fipe_normalizar_placa(placa)
+    if not _p:
+        return {}
+    try:
+        _r = _req.get(
+            f"https://brasilapi.com.br/api/veiculos/v1/{_p}",
+            timeout=10,
+            headers={"User-Agent": "FNI-Frota/2.0"},
+        )
+        if _r.status_code == 200:
+            _d = _r.json()
+            return {
+                "marca":        _d.get("marca", ""),
+                "modelo":       _d.get("modelo", ""),
+                "ano_modelo":   str(_d.get("ano", "") or ""),
+                "cor":          _d.get("cor", ""),
+                "tipo_veiculo": _d.get("tipo", ""),
+                "municipio":    _d.get("municipio", ""),
+                "uf_veiculo":   _d.get("uf", ""),
+                "codigo_fipe":  _d.get("codigoFipe", ""),
+            }
+        return {}
+    except Exception:
+        return {}
+
+
+def _fipe_buscar_preco(codigo_fipe: str) -> dict:
+    """
+    Consulta BrasilAPI /fipe/preco/v1/{codigo_fipe}.
+    Retorna dict com: valor_fipe, combustivel_fipe, mes_referencia.
+    """
+    import requests as _req
+    if not codigo_fipe:
+        return {}
+    try:
+        _r = _req.get(
+            f"https://brasilapi.com.br/api/fipe/preco/v1/{codigo_fipe}",
+            timeout=10,
+            headers={"User-Agent": "FNI-Frota/2.0"},
+        )
+        if _r.status_code == 200:
+            _lista = _r.json()
+            if isinstance(_lista, list) and _lista:
+                _d = _lista[0]   # referência mais recente
+                return {
+                    "valor_fipe":       _fipe_parse_valor(_d.get("valor", "")),
+                    "combustivel_fipe": _d.get("combustivel", ""),
+                    "mes_referencia":   _d.get("mesReferencia", ""),
+                }
+        return {}
+    except Exception:
+        return {}
+
+
+def _fipe_carregar_cache() -> dict:
+    """
+    Carrega todos os registros de frota_veiculos_fipe do Supabase.
+    Retorna dict { placa: {...campos...} }.
+    """
+    _db = _db_client()
+    if not _db:
+        return {}
+    try:
+        _rows = _db.table("frota_veiculos_fipe").select("*").limit(10000).execute().data or []
+        return {r["placa"]: r for r in _rows}
+    except Exception:
+        return {}
+
+
+def _fipe_salvar_registro(placa: str, dados: dict) -> None:
+    """
+    Upsert de um registro na tabela frota_veiculos_fipe.
+    """
+    _db = _db_client()
+    if not _db:
+        return
+    try:
+        _eid = _db_empresa_id()
+        _row = {
+            "placa":            _fipe_normalizar_placa(placa),
+            "marca":            dados.get("marca", ""),
+            "modelo":           dados.get("modelo", ""),
+            "ano_modelo":       dados.get("ano_modelo", ""),
+            "cor":              dados.get("cor", ""),
+            "tipo_veiculo":     dados.get("tipo_veiculo", ""),
+            "municipio":        dados.get("municipio", ""),
+            "uf_veiculo":       dados.get("uf_veiculo", ""),
+            "codigo_fipe":      dados.get("codigo_fipe", ""),
+            "valor_fipe":       dados.get("valor_fipe"),
+            "combustivel_fipe": dados.get("combustivel_fipe", ""),
+            "mes_referencia":   dados.get("mes_referencia", ""),
+            "empresa_id":       _eid,
+            "buscado_em":       _agora(),
+        }
+        _db.table("frota_veiculos_fipe").upsert(
+            _row, on_conflict="placa"
+        ).execute()
+    except Exception:
+        pass
+
+
+def _fipe_enriquecer_frota(
+    placas: list[str],
+    progresso_callback=None,
+    force_refresh: bool = False,
+) -> dict:
+    """
+    Enriquece uma lista de placas com dados FIPE.
+    - Primeiro carrega o cache do Supabase.
+    - Para placas sem cache (ou com cache expirado), consulta BrasilAPI.
+    - Salva novos registros no cache.
+    - Retorna dict { placa_norm: {marca, modelo, ano_modelo, cor, tipo_veiculo,
+                                   codigo_fipe, valor_fipe, combustivel_fipe, ...} }
+    progresso_callback(atual, total) pode atualizar uma barra de progresso.
+    """
+    import time as _time
+
+    _cache = _fipe_carregar_cache() if not force_refresh else {}
+    _resultado: dict = {}
+    _placas_unicas = list({_fipe_normalizar_placa(p) for p in placas if p})
+    _total = len(_placas_unicas)
+
+    for _i, _placa in enumerate(_placas_unicas):
+        if progresso_callback:
+            progresso_callback(_i + 1, _total)
+
+        # Verifica cache
+        _cached = _cache.get(_placa)
+        if _cached and not force_refresh:
+            _buscado_em = _cached.get("buscado_em", "")
+            try:
+                _ts = pd.to_datetime(_buscado_em, utc=True)
+                _dias = (pd.Timestamp.now(tz="UTC") - _ts).days
+                if _dias < _FIPE_CACHE_TTL_DIAS:
+                    _resultado[_placa] = _cached
+                    continue
+            except Exception:
+                _resultado[_placa] = _cached
+                continue
+
+        # Busca na API (com delay para respeitar rate limit)
+        _time.sleep(0.4)
+        _info = _fipe_buscar_veiculo(_placa)
+        if _info:
+            # Busca preço FIPE se tiver código
+            if _info.get("codigo_fipe"):
+                _time.sleep(0.3)
+                _preco = _fipe_buscar_preco(_info["codigo_fipe"])
+                _info.update(_preco)
+            _fipe_salvar_registro(_placa, _info)
+            _resultado[_placa] = _info
+        else:
+            # Sem dados disponíveis — salva registro vazio para não repetir
+            _info_vazio = {
+                "marca": "", "modelo": "", "ano_modelo": "",
+                "cor": "", "tipo_veiculo": "", "municipio": "",
+                "uf_veiculo": "", "codigo_fipe": "",
+                "valor_fipe": None, "combustivel_fipe": "",
+                "mes_referencia": "",
+            }
+            _fipe_salvar_registro(_placa, _info_vazio)
+            _resultado[_placa] = _info_vazio
+
+    return _resultado
+
+
+def _fipe_df_enriquecido(df_abast: "pd.DataFrame", cache_fipe: dict) -> "pd.DataFrame":
+    """
+    Mescla dados FIPE em um DataFrame de abastecimentos.
+    Adiciona colunas: _fipe_marca, _fipe_modelo, _fipe_ano, _fipe_cor,
+                      _fipe_tipo, _fipe_valor, _fipe_comb_ref, _fipe_mes_ref.
+    """
+    if df_abast is None or df_abast.empty or not cache_fipe:
+        _df = df_abast.copy() if df_abast is not None else pd.DataFrame()
+        for _c in ["_fipe_marca","_fipe_modelo","_fipe_ano","_fipe_cor",
+                   "_fipe_tipo","_fipe_valor","_fipe_comb_ref","_fipe_mes_ref"]:
+            _df[_c] = None
+        return _df
+
+    _df = df_abast.copy()
+    _col_placa = next(
+        (c for c in ["_placa", "placa"] if c in _df.columns), None
+    )
+    if not _col_placa:
+        return _df
+
+    def _get(placa, campo, fallback=None):
+        _p = _fipe_normalizar_placa(str(placa or ""))
+        _r = cache_fipe.get(_p) or {}
+        return _r.get(campo, fallback)
+
+    _df["_fipe_marca"]    = _df[_col_placa].apply(lambda p: _get(p, "marca", ""))
+    _df["_fipe_modelo"]   = _df[_col_placa].apply(lambda p: _get(p, "modelo", ""))
+    _df["_fipe_ano"]      = _df[_col_placa].apply(lambda p: _get(p, "ano_modelo", ""))
+    _df["_fipe_cor"]      = _df[_col_placa].apply(lambda p: _get(p, "cor", ""))
+    _df["_fipe_tipo"]     = _df[_col_placa].apply(lambda p: _get(p, "tipo_veiculo", ""))
+    _df["_fipe_valor"]    = _df[_col_placa].apply(lambda p: _get(p, "valor_fipe"))
+    _df["_fipe_comb_ref"] = _df[_col_placa].apply(lambda p: _get(p, "combustivel_fipe", ""))
+    _df["_fipe_mes_ref"]  = _df[_col_placa].apply(lambda p: _get(p, "mes_referencia", ""))
+    return _df
+
+
+def _fipe_secao_ui(
+    df_abast: "pd.DataFrame",
+    cache_fipe: dict,
+    key_prefix: str = "fipe",
+) -> None:
+    """
+    Renderiza a seção completa de dados FIPE para uma frota.
+    Exibe: tabela de frota enriquecida + KPIs + gráficos de composição.
+    """
+    if df_abast is None or df_abast.empty:
+        st.info("Carregue dados de abastecimentos para ver as informações FIPE da frota.")
+        return
+
+    _col_placa = next(
+        (c for c in ["_placa", "placa"] if c in df_abast.columns), None
+    )
+    if not _col_placa:
+        st.warning("Coluna de placa não encontrada nos dados.")
+        return
+
+    _placas = sorted(df_abast[_col_placa].dropna().unique().tolist())
+    _n_placas = len(_placas)
+    _placas_norm = [_fipe_normalizar_placa(p) for p in _placas]
+    _em_cache = sum(1 for p in _placas_norm if cache_fipe.get(p, {}).get("marca"))
+    _sem_cache = _n_placas - _em_cache
+
+    # ── Header e status do cache ───────────────────────────────────
+    _c1, _c2, _c3 = st.columns([2, 2, 1])
+    with _c1:
+        st.metric("🚗 Veículos na frota", _n_placas)
+    with _c2:
+        st.metric("✅ Com dados FIPE", _em_cache,
+                  delta=f"{_sem_cache} sem dados" if _sem_cache else None,
+                  delta_color="inverse")
+    with _c3:
+        _btn_key = f"{key_prefix}_buscar_fipe"
+        _lbl_btn = "🔄 Atualizar" if _em_cache > 0 else "🔍 Buscar dados FIPE"
+        _force = st.button(_lbl_btn, key=_btn_key, use_container_width=True,
+                           type="primary" if _em_cache == 0 else "secondary")
+
+    if _force or (_sem_cache > 0 and st.session_state.get(f"{key_prefix}_auto_buscado") is False):
+        with st.spinner(f"Consultando BrasilAPI para {_n_placas} placa(s)... (pode levar até {_n_placas} segundos)"):
+            _prog_bar = st.progress(0)
+            def _prog_cb(atual, total):
+                _prog_bar.progress(int(atual / total * 100))
+            _novo_cache = _fipe_enriquecer_frota(
+                _placas,
+                progresso_callback=_prog_cb,
+                force_refresh=_force,
+            )
+            st.session_state[f"{key_prefix}_cache_fipe"] = _novo_cache
+            st.session_state[f"{key_prefix}_auto_buscado"] = True
+            cache_fipe = _novo_cache
+            _prog_bar.empty()
+        st.rerun()
+
+    if not cache_fipe:
+        st.info("Clique em **🔍 Buscar dados FIPE** para consultar a BrasilAPI e enriquecer a frota.")
+        return
+
+    # ── Monta tabela da frota ──────────────────────────────────────
+    _linhas = []
+    for _p in _placas:
+        _pn = _fipe_normalizar_placa(_p)
+        _d  = cache_fipe.get(_pn) or {}
+        _linhas.append({
+            "Placa":           _p,
+            "Marca":           _d.get("marca") or "—",
+            "Modelo":          _d.get("modelo") or "—",
+            "Ano":             _d.get("ano_modelo") or "—",
+            "Cor":             _d.get("cor") or "—",
+            "Tipo":            _d.get("tipo_veiculo") or "—",
+            "Comb. Ref.":      _d.get("combustivel_fipe") or "—",
+            "Valor FIPE":      _d.get("valor_fipe"),
+            "Ref. FIPE":       _d.get("mes_referencia") or "—",
+        })
+    _df_frota = pd.DataFrame(_linhas)
+    _df_frota["Valor FIPE (R$)"] = _df_frota["Valor FIPE"].apply(
+        lambda v: f"R$ {v:,.0f}".replace(",", ".") if pd.notna(v) and v else "—"
+    )
+
+    st.dataframe(
+        _df_frota[["Placa","Marca","Modelo","Ano","Cor","Tipo","Comb. Ref.","Valor FIPE (R$)","Ref. FIPE"]],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # ── KPIs de valor de frota ─────────────────────────────────────
+    _valores = _df_frota["Valor FIPE"].dropna()
+    _valores = _valores[_valores > 0]
+    if not _valores.empty:
+        st.markdown("#### 💰 Valor de Mercado da Frota (FIPE)")
+        _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+        _kc1.metric("Total estimado",
+                    f"R$ {_valores.sum():,.0f}".replace(",", "."))
+        _kc2.metric("Média por veículo",
+                    f"R$ {_valores.mean():,.0f}".replace(",", "."))
+        _kc3.metric("Maior valor",
+                    f"R$ {_valores.max():,.0f}".replace(",", "."))
+        _kc4.metric("Menor valor",
+                    f"R$ {_valores.min():,.0f}".replace(",", "."))
+
+    # ── Gráficos de composição ─────────────────────────────────────
+    _df_c = _df_frota[_df_frota["Marca"] != "—"].copy()
+    if len(_df_c) >= 2:
+        st.markdown("#### 📊 Composição da Frota")
+        _gc1, _gc2 = st.columns(2)
+
+        with _gc1:
+            _por_marca = _df_c["Marca"].value_counts().head(10)
+            _fig_marca = go.Figure(go.Bar(
+                x=_por_marca.values,
+                y=_por_marca.index,
+                orientation="h",
+                marker_color="#1040a0",
+                text=_por_marca.values,
+                textposition="outside",
+            ))
+            _fig_marca.update_layout(
+                title="Veículos por Marca",
+                height=320,
+                margin=dict(l=10, r=30, t=40, b=10),
+                paper_bgcolor="white",
+                plot_bgcolor="#f9fbff",
+                yaxis=dict(autorange="reversed"),
+                showlegend=False,
+            )
+            st.plotly_chart(_fig_marca, use_container_width=True)
+
+        with _gc2:
+            _por_tipo = _df_c["Tipo"].replace("", "Não informado").value_counts()
+            _fig_tipo = go.Figure(go.Pie(
+                labels=_por_tipo.index,
+                values=_por_tipo.values,
+                hole=0.45,
+                marker_colors=["#1040a0","#00838F","#e53935","#f57f17","#2e7d32"],
+            ))
+            _fig_tipo.update_layout(
+                title="Distribuição por Tipo",
+                height=320,
+                margin=dict(l=10, r=10, t=40, b=10),
+                paper_bgcolor="white",
+            )
+            st.plotly_chart(_fig_tipo, use_container_width=True)
+
+    st.caption(
+        f"Dados fornecidos pela **BrasilAPI** (DENATRAN/RENAVAM + Tabela FIPE). "
+        f"Cache atualizado a cada {_FIPE_CACHE_TTL_DIAS} dias. "
+        "Veículos sem placa no padrão Mercosul/antigo podem não retornar dados."
+    )
 
 
 def _comparar_cargas_precos(
@@ -10804,6 +11555,7 @@ with st.sidebar:
             help="Encerrar sessão e voltar ao login",
         ):
             st.session_state["_auth_user"] = None
+            st.session_state.pop("_last_activity_ts", None)
             st.rerun()
 
     # ── Auto-carregamento do repositório ─────────────────────
@@ -10870,6 +11622,12 @@ with st.sidebar:
         _auto_carregar_precos_postos_repo.clear()
         st.session_state["_pp_parser_ver"] = _PP_PARSER_VERSION
 
+    # ── Restaura última carga PP e variação do Supabase (persiste entre reboots) ──
+    _restaurar_estado_pp_do_supabase()
+
+    # ── Restaura frota e abastecimentos de telemetria do Supabase ──
+    _tele_restaurar_do_supabase()
+
     if st.session_state.get("_pp_df") is None and not st.session_state.get("_pp_tentado"):
         st.session_state["_pp_tentado"] = True
         _pp_df_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
@@ -10879,8 +11637,14 @@ with st.sidebar:
             st.session_state["_pp_carregado_em"] = _agora()
 
     # ── Carrega acordos de preço (Supabase → fallback GitHub) ─────
-    if "acordos_df" not in st.session_state and not st.session_state.get("_acordos_tentado"):
-        st.session_state["_acordos_tentado"] = True
+    # Tenta carregar sempre que acordos_df não existe OU está vazio,
+    # com debounce de 5 minutos para não sobrecarregar o banco.
+    _ac_need_load = "acordos_df" not in st.session_state or (
+        st.session_state.get("acordos_df", pd.DataFrame()).empty
+        and time.time() - st.session_state.get("_acordos_tentado_ts", 0) > 300
+    )
+    if _ac_need_load:
+        st.session_state["_acordos_tentado_ts"] = time.time()
         _ac_loaded = _db_carregar_acordos()
         st.session_state["acordos_df"] = _ac_loaded
 
@@ -10984,12 +11748,15 @@ with st.sidebar:
 }
 
 /* ── Botão Roteirização ── */
+.st-key-btn_modo_roteirizacao,
+.st-key-btn_rotas_salvas { height: 100% !important; }
 .st-key-btn_modo_roteirizacao button {
-    height: 40px !important; min-height: 40px !important;
+    height: 56px !important; min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_modo_roteirizacao button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_modo_roteirizacao button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_modo_roteirizacao [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #004D40 0%, #00796B 60%, #0b2660 100%) !important;
     border: none !important; color: #fff !important;
@@ -11014,14 +11781,12 @@ with st.sidebar:
 
 /* ── Botão Rotas Salvas ── */
 .st-key-btn_rotas_salvas button {
-    height: 40px !important;
-    min-height: 40px !important;
-    border-radius: 10px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.2px !important;
-    transition: all .2s ease !important;
+    height: 56px !important; min-height: 56px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_rotas_salvas button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_rotas_salvas button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_rotas_salvas [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 60%, #0b2660 100%) !important;
     border: none !important; color: #fff !important;
@@ -11053,7 +11818,7 @@ with st.sidebar:
     letter-spacing: 0.2px !important;
     transition: all .2s ease !important;
 }
-.st-key-btn_dashboard button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_dashboard button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_dashboard [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #040d26 0%, #0b2660 40%, #1040a0 75%, #1565C0 100%) !important;
     border: none !important; color: #fff !important;
@@ -11084,7 +11849,7 @@ with st.sidebar:
     letter-spacing: 0.2px !important;
     transition: all .2s ease !important;
 }
-.st-key-btn_inteligencia button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_inteligencia button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_inteligencia [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #2D0073 0%, #4A148C 50%, #071840 100%) !important;
     border: none !important; color: #fff !important;
@@ -11109,11 +11874,12 @@ with st.sidebar:
 
 /* ── Botão Recomendador IA ── */
 .st-key-btn_recomendador button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_recomendador button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_recomendador button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_recomendador [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #E65100 0%, #F57C00 50%, #FF8F00 100%) !important;
     border: none !important; color: #fff !important;
@@ -11137,11 +11903,12 @@ with st.sidebar:
 
 /* ── Botão Variação de Preços ── */
 .st-key-btn_variacao_precos button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_variacao_precos button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_variacao_precos button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_variacao_precos [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #00695C 0%, #00897B 50%, #26A69A 100%) !important;
     border: none !important; color: #fff !important;
@@ -11165,11 +11932,12 @@ with st.sidebar:
 
 /* ── Botão Análise de Cliente ── */
 .st-key-btn_analise_cliente button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_analise_cliente button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_analise_cliente button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_analise_cliente [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #880E4F 0%, #AD1457 50%, #C62828 100%) !important;
     border: none !important; color: #fff !important;
@@ -11193,11 +11961,12 @@ with st.sidebar:
 
 /* ── Botão Relatórios ── */
 .st-key-btn_relatorios button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_relatorios button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_relatorios button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_relatorios [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #37474F 0%, #546E7A 50%, #78909C 100%) !important;
     border: none !important; color: #fff !important;
@@ -11218,6 +11987,56 @@ with st.sidebar:
     transform: translateY(-1px) !important;
 }
 .st-key-btn_relatorios [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Telemetria ── */
+.st-key-btn_telemetria button {
+    min-height: 56px !important;
+    border-radius: 10px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
+}
+.st-key-btn_telemetria button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
+.st-key-btn_telemetria [data-testid="stBaseButton-primary"] {
+    background: linear-gradient(135deg, #004D5A 0%, #00838F 55%, #006064 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 3px 10px rgba(0,96,100,.40) !important;
+}
+.st-key-btn_telemetria [data-testid="stBaseButton-primary"]:hover {
+    background: linear-gradient(135deg, #006064 0%, #00ACC1 55%, #004D5A 100%) !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_telemetria [data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.st-key-btn_telemetria [data-testid="stBaseButton-secondary"] {
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #00838F !important; color: #004D5A !important;
+    box-shadow: none !important;
+}
+.st-key-btn_telemetria [data-testid="stBaseButton-secondary"]:hover {
+    border-color: #006064 !important; color: #004D5A !important;
+    transform: translateY(-1px) !important;
+}
+.st-key-btn_telemetria [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Botão Atualizar Página ── */
+.st-key-btn_reload_pagina button {
+    height: 40px !important; min-height: 40px !important;
+    border-radius: 10px !important; font-weight: 600 !important;
+    font-size: 12.5px !important; letter-spacing: 0.2px !important;
+    transition: all .2s ease !important;
+    background: rgba(255,255,255,.85) !important;
+    border: 1.5px dashed rgba(16,64,160,0.35) !important;
+    color: #4a6fa5 !important;
+}
+.st-key-btn_reload_pagina button:hover {
+    background: rgba(237,242,251,.95) !important;
+    border-color: rgba(16,64,160,0.55) !important;
+    color: #1040a0 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(16,64,160,0.12) !important;
+}
+.st-key-btn_reload_pagina button p {
+    color: inherit !important; font-size: 12.5px !important; margin: 0 !important;
+}
 
 /* ── Expander Configurações ── */
 [data-testid="stSidebar"] [data-testid="stExpander"] {
@@ -11246,11 +12065,12 @@ with st.sidebar:
 
 /* ── Botão Guia de Uso ── */
 .st-key-btn_tour_sidebar button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_tour_sidebar button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_tour_sidebar button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_tour_sidebar [data-testid="stBaseButton-secondary"] {
     background: rgba(255,255,255,.92) !important;
     border: 2px solid #0288D1 !important; color: #01579B !important;
@@ -11264,11 +12084,12 @@ with st.sidebar:
 
 /* ── Botão Documentação ── */
 .st-key-btn_documentacao button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_documentacao button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_documentacao button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_documentacao [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #1A237E 0%, #283593 50%, #3949AB 100%) !important;
     border: none !important; color: #fff !important;
@@ -11292,11 +12113,12 @@ with st.sidebar:
 
 /* ── Botão API & Integrações ── */
 .st-key-btn_api_integracoes button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_api_integracoes button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_api_integracoes button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_api_integracoes [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #4A148C 0%, #6A1B9A 40%, #283593 100%) !important;
     border: none !important; color: #fff !important;
@@ -11320,11 +12142,12 @@ with st.sidebar:
 
 /* ── Botão Admin ── */
 .st-key-btn_admin button {
-    height: 40px !important; min-height: 40px !important;
+    min-height: 56px !important;
     border-radius: 10px !important; font-weight: 700 !important;
     letter-spacing: 0.2px !important; transition: all .2s ease !important;
+    padding: 8px 6px !important; white-space: normal !important;
 }
-.st-key-btn_admin button p { font-size: 12px !important; margin: 0 !important; font-weight: 700 !important; }
+.st-key-btn_admin button p { font-size: 13px !important; margin: 0 !important; font-weight: 700 !important; line-height: 1.35 !important; }
 .st-key-btn_admin [data-testid="stBaseButton-primary"] {
     background: linear-gradient(135deg, #7B0000 0%, #B71C1C 50%, #C62828 100%) !important;
     border: none !important; color: #fff !important;
@@ -11345,6 +12168,28 @@ with st.sidebar:
     transform: translateY(-1px) !important;
 }
 .st-key-btn_admin [data-testid="stBaseButton-secondary"] p { color: inherit !important; }
+
+/* ── Expander Configurações — cabeçalho compacto ── */
+[data-testid="stSidebar"] details summary {
+    min-height: 52px !important;
+    display: flex !important; align-items: center !important;
+    border-radius: 10px !important;
+    font-size: 13px !important; font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+    padding: 8px 12px !important;
+    background: rgba(255,255,255,.92) !important;
+    border: 2px solid #37474F !important;
+    color: #263238 !important;
+    transition: all .2s ease !important;
+}
+[data-testid="stSidebar"] details summary:hover {
+    border-color: #0b2660 !important; color: #0b2660 !important;
+    transform: translateY(-1px) !important;
+}
+[data-testid="stSidebar"] details[open] summary {
+    border-color: #0b2660 !important; color: #0b2660 !important;
+    background: rgba(11,38,96,.06) !important;
+}
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
@@ -11449,105 +12294,113 @@ with st.sidebar:
             _log_acesso("MODO_SELECIONADO", "🔍 Consulta por Posto", modo_override="🔍 Consulta por Posto")
             st.rerun()
 
-    # ── Botão Roteirização (largura total) ──────────────────────
-    if st.button(
-        "🧭 Roteirização",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🧭 Roteirização" else "secondary",
-        key="btn_modo_roteirizacao",
-        help="Planejar rota com otimização de abastecimento",
-    ):
-        st.session_state["modo_selecionado"] = "🧭 Roteirização"
-        _log_acesso("MODO_SELECIONADO", "🧭 Roteirização", modo_override="🧭 Roteirização")
-        st.rerun()
-
-    # ── Botão Rotas Salvas (largura total, abaixo dos modos) ──────
+    # ── Linha 2: Roteirização + Rotas Salvas (2 colunas) ────────────
     _n_rotas_sb = len(_carregar_rotas_salvas())
-    _label_rotas = f"🔖 Rotas Salvas{f'  ({_n_rotas_sb})' if _n_rotas_sb else ''}"
-    if st.button(
-        _label_rotas,
-        use_container_width=True,
-        type="primary" if _modo_atual == "🔖 Rotas Salvas" else "secondary",
-        key="btn_rotas_salvas",
-        help="Ver e restaurar consultas salvas anteriormente",
-    ):
-        st.session_state["modo_selecionado"] = "🔖 Rotas Salvas"
-        _log_acesso("MODO_SELECIONADO", "🔖 Rotas Salvas", modo_override="🔖 Rotas Salvas")
-        st.rerun()
+    _col_r1, _col_r2 = st.columns(2)
+    with _col_r1:
+        if st.button(
+            "🧭 Roteirização",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🧭 Roteirização" else "secondary",
+            key="btn_modo_roteirizacao",
+            help="Planejar rota com otimização de abastecimento",
+        ):
+            st.session_state["modo_selecionado"] = "🧭 Roteirização"
+            _log_acesso("MODO_SELECIONADO", "🧭 Roteirização", modo_override="🧭 Roteirização")
+            st.rerun()
+    with _col_r2:
+        _label_rotas = f"🔖 Salvas{f' ({_n_rotas_sb})' if _n_rotas_sb else ''}"
+        if st.button(
+            _label_rotas,
+            use_container_width=True,
+            type="primary" if _modo_atual == "🔖 Rotas Salvas" else "secondary",
+            key="btn_rotas_salvas",
+            help="Ver e restaurar consultas salvas anteriormente",
+        ):
+            st.session_state["modo_selecionado"] = "🔖 Rotas Salvas"
+            _log_acesso("MODO_SELECIONADO", "🔖 Rotas Salvas", modo_override="🔖 Rotas Salvas")
+            st.rerun()
 
     # ── Placeholder: parâmetros de consulta aparecem aqui ──────────
     _sb_params_container = st.container()
 
-    # ── Botão Dashboard (largura total) ─────────────────────────
-    if st.button(
-        "📈 Dashboard",
-        use_container_width=True,
-        type="primary" if _modo_atual == "📈 Dashboard" else "secondary",
-        key="btn_dashboard",
-        help="KPIs de cobertura e penetração GF por estado",
-    ):
-        st.session_state["modo_selecionado"] = "📈 Dashboard"
-        _log_acesso("MODO_SELECIONADO", "📈 Dashboard", modo_override="📈 Dashboard")
-        st.rerun()
+    # ── Linha 3: Dashboard · Inteligência (2 cols) ──────────────────
+    _col_a1, _col_a2 = st.columns(2)
+    with _col_a1:
+        if st.button(
+            "📈 Dashboard",
+            use_container_width=True,
+            type="primary" if _modo_atual == "📈 Dashboard" else "secondary",
+            key="btn_dashboard",
+            help="KPIs de cobertura e penetração GF por estado",
+        ):
+            st.session_state["modo_selecionado"] = "📈 Dashboard"
+            _log_acesso("MODO_SELECIONADO", "📈 Dashboard", modo_override="📈 Dashboard")
+            st.rerun()
+    with _col_a2:
+        if st.button(
+            "💡 Inteligência",
+            use_container_width=True,
+            type="primary" if _modo_atual == "💡 Inteligência" else "secondary",
+            key="btn_inteligencia",
+            help="Histórico de preços, score de postos e relatório de alertas",
+        ):
+            st.session_state["modo_selecionado"] = "💡 Inteligência"
+            _log_acesso("MODO_SELECIONADO", "💡 Inteligência", modo_override="💡 Inteligência")
+            st.rerun()
 
-    # ── Botão Inteligência de Dados (largura total) ───────────────
-    if st.button(
-        "💡 Inteligência",
-        use_container_width=True,
-        type="primary" if _modo_atual == "💡 Inteligência" else "secondary",
-        key="btn_inteligencia",
-        help="Histórico de preços, score de postos e relatório de alertas",
-    ):
-        st.session_state["modo_selecionado"] = "💡 Inteligência"
-        _log_acesso("MODO_SELECIONADO", "💡 Inteligência", modo_override="💡 Inteligência")
-        st.rerun()
-
-    if st.button(
-        "🎯 Recomendador IA",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🎯 Recomendador IA" else "secondary",
-        key="btn_recomendador",
-        help="Melhor posto por custo, qualidade e confiabilidade — baseado em histórico e comportamento da frota",
-    ):
-        st.session_state["modo_selecionado"] = "🎯 Recomendador IA"
-        _log_acesso("MODO_SELECIONADO", "🎯 Recomendador IA", modo_override="🎯 Recomendador IA")
-        st.rerun()
-
+    # ── Linha 4: Recomendador IA · Variação de Preços (2 cols) ──────
     _var_badge_sb = (" 🔔" if st.session_state.get("_pp_variacao") is not None
                      and not st.session_state["_pp_variacao"].empty else "")
-    if st.button(
-        f"💹 Variação de Preços{_var_badge_sb}",
-        use_container_width=True,
-        type="primary" if _modo_atual == "💹 Variação de Preços" else "secondary",
-        key="btn_variacao_precos",
-        help="Compara nova carga de preços com a anterior — detecta altas, quedas e novos postos",
-    ):
-        st.session_state["modo_selecionado"] = "💹 Variação de Preços"
-        _log_acesso("MODO_SELECIONADO", "💹 Variação de Preços",
-                    modo_override="💹 Variação de Preços")
-        st.rerun()
+    _col_b1, _col_b2 = st.columns(2)
+    with _col_b1:
+        if st.button(
+            "🎯 Recomendador IA",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🎯 Recomendador IA" else "secondary",
+            key="btn_recomendador",
+            help="Melhor posto por custo, qualidade e confiabilidade — baseado em histórico e comportamento da frota",
+        ):
+            st.session_state["modo_selecionado"] = "🎯 Recomendador IA"
+            _log_acesso("MODO_SELECIONADO", "🎯 Recomendador IA", modo_override="🎯 Recomendador IA")
+            st.rerun()
+    with _col_b2:
+        if st.button(
+            f"💹 Variação de Preços{_var_badge_sb}",
+            use_container_width=True,
+            type="primary" if _modo_atual == "💹 Variação de Preços" else "secondary",
+            key="btn_variacao_precos",
+            help="Compara nova carga de preços com a anterior — detecta altas, quedas e novos postos",
+        ):
+            st.session_state["modo_selecionado"] = "💹 Variação de Preços"
+            _log_acesso("MODO_SELECIONADO", "💹 Variação de Preços",
+                        modo_override="💹 Variação de Preços")
+            st.rerun()
 
-    if st.button(
-        "👥 Análise de Cliente",
-        use_container_width=True,
-        type="primary" if _modo_atual == "👥 Análise de Cliente" else "secondary",
-        key="btn_analise_cliente",
-        help="Análise de abastecimentos e custos da frota do cliente",
-    ):
-        st.session_state["modo_selecionado"] = "👥 Análise de Cliente"
-        _log_acesso("MODO_SELECIONADO", "👥 Análise de Cliente", modo_override="👥 Análise de Cliente")
-        st.rerun()
-
-    if st.button(
-        "📑 Relatórios",
-        use_container_width=True,
-        type="primary" if _modo_atual == "📑 Relatórios" else "secondary",
-        key="btn_relatorios",
-        help="Relatórios executivos, oportunidades comerciais e performance por posto",
-    ):
-        st.session_state["modo_selecionado"] = "📑 Relatórios"
-        _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
-        st.rerun()
+    # ── Linha 5: Análise de Cliente · Relatórios (2 cols) ───────────
+    _col_c1, _col_c2 = st.columns(2)
+    with _col_c1:
+        if st.button(
+            "👥 Análise de Cliente",
+            use_container_width=True,
+            type="primary" if _modo_atual == "👥 Análise de Cliente" else "secondary",
+            key="btn_analise_cliente",
+            help="Análise de abastecimentos e custos da frota do cliente",
+        ):
+            st.session_state["modo_selecionado"] = "👥 Análise de Cliente"
+            _log_acesso("MODO_SELECIONADO", "👥 Análise de Cliente", modo_override="👥 Análise de Cliente")
+            st.rerun()
+    with _col_c2:
+        if st.button(
+            "📑 Relatórios",
+            use_container_width=True,
+            type="primary" if _modo_atual == "📑 Relatórios" else "secondary",
+            key="btn_relatorios",
+            help="Relatórios executivos, oportunidades comerciais e performance por posto",
+        ):
+            st.session_state["modo_selecionado"] = "📑 Relatórios"
+            _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
+            st.rerun()
 
     modo = _modo_atual
     st.divider()
@@ -12305,9 +13158,9 @@ with st.sidebar:
     if "_fuel_sel_m2" not in dir():
         _fuel_sel_m2        = None
 
-    # ── Guia de Uso ───────────────────────────────────────────────────────────
-    _col_guia_l, _col_guia_c, _col_guia_r = st.columns([1, 4, 1])
-    with _col_guia_c:
+    # ── Guia de Uso · Documentação · API · Admin · Telemetria ────────
+    _col_h1, _col_h2 = st.columns(2)
+    with _col_h1:
         if st.button(
             "📖 Guia de Uso",
             use_container_width=True,
@@ -12317,29 +13170,62 @@ with st.sidebar:
         ):
             st.session_state["_tour_ativo"] = True
             st.rerun()
+    with _col_h2:
+        if st.button(
+            "📚 Documentação",
+            use_container_width=True,
+            type="primary" if _modo_atual == "📚 Documentação" else "secondary",
+            key="btn_documentacao",
+            help="Visualizar o manual de uso da plataforma",
+        ):
+            st.session_state["modo_selecionado"] = "📚 Documentação"
+            _log_acesso("MODO_SELECIONADO", "📚 Documentação", modo_override="📚 Documentação")
+            st.rerun()
+    # ── API & Admin (linha compacta 2-col) ──────────────────────────
+    _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
+    _col_api, _col_adm = st.columns(2)
+    with _col_api:
+        if st.button(
+            "⚡ API & Integrações",
+            use_container_width=True,
+            type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
+            key="btn_api_integracoes",
+            help="Documentação da API REST — integre ERPs e sistemas de logística",
+        ):
+            st.session_state["modo_selecionado"] = "⚡ API & Integrações"
+            _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
+            st.rerun()
+    if _email_atual.lower() == _ADMIN_EMAIL.lower():
+        with _col_adm:
+            if st.button(
+                "🛡️ Admin",
+                use_container_width=True,
+                type="primary" if _modo_atual == "🛡️ Admin" else "secondary",
+                key="btn_admin",
+                help="Painel de controle de acesso de usuários",
+            ):
+                st.session_state["modo_selecionado"] = "🛡️ Admin"
+                st.rerun()
 
-    # ── Botão Documentação (após Guia de Uso) ───────────────────────
     if st.button(
-        "📚 Documentação",
+        "🛰️ Telemetria",
         use_container_width=True,
-        type="primary" if _modo_atual == "📚 Documentação" else "secondary",
-        key="btn_documentacao",
-        help="Visualizar o manual de uso da plataforma",
+        type="primary" if _modo_atual == "🛰️ Telemetria" else "secondary",
+        key="btn_telemetria",
+        help="Integração com telemetria de veículos — consumo real, abastecimentos e alertas",
     ):
-        st.session_state["modo_selecionado"] = "📚 Documentação"
-        _log_acesso("MODO_SELECIONADO", "📚 Documentação", modo_override="📚 Documentação")
+        st.session_state["modo_selecionado"] = "🛰️ Telemetria"
+        _log_acesso("MODO_SELECIONADO", "🛰️ Telemetria", modo_override="🛰️ Telemetria")
         st.rerun()
 
-    # ── Botão API & Integrações (abaixo de Documentação) ───────────
+    # ── Botão de recarga de página ───────────────────────────────────
     if st.button(
-        "⚡ API & Integrações",
+        "🔄 Atualizar Página",
         use_container_width=True,
-        type="primary" if _modo_atual == "⚡ API & Integrações" else "secondary",
-        key="btn_api_integracoes",
-        help="Documentação da API REST — integre ERPs e sistemas de logística",
+        type="secondary",
+        key="btn_reload_pagina",
+        help="Recarrega a aplicação para refletir as últimas atualizações do banco de dados",
     ):
-        st.session_state["modo_selecionado"] = "⚡ API & Integrações"
-        _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
         st.rerun()
 
     # ── Configurações (Gestão de Frotas · Cercados · Preços PP · Base · Exportar) ──
@@ -12354,7 +13240,7 @@ with st.sidebar:
     _pp_fonte  = st.session_state.get("_pp_fonte",  "manual")
     _pp_ts     = st.session_state.get("_pp_carregado_em", "")
 
-    with st.expander("⚙️  Configurações", expanded=False):
+    with st.expander("⚙️  Configurações", expanded=st.session_state.pop("_abrir_config_exp", False)):
         # ── Proteção por senha ────────────────────────────────────────────────
         if not st.session_state.get("_cfg_autenticado", False):
             _c1_lk, _c2_lk, _c3_lk = st.columns([1, 6, 1])
@@ -12647,18 +13533,31 @@ with st.sidebar:
                 with st.spinner(f"Lendo `{ARQUIVO_PP_REPO}`…"):
                     _pp_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
                 if _pp_tmp is not None:
-                    # ── Comparação com carga anterior ──
+                    # ── Busca carga anterior do Supabase (persiste entre reboots) ──
                     _pp_ant_repo = st.session_state.get("_pp_df")
+                    _carga_ant_id_repo = st.session_state.get("_pp_carga_id")
+                    if _pp_ant_repo is None:
+                        _cargas_repo = _carregar_cargas_pp_supabase(n=1)
+                        if _cargas_repo and _cargas_repo[0].get("dados"):
+                            _pp_ant_repo = pd.DataFrame(_cargas_repo[0]["dados"])
+                            _carga_ant_id_repo = _cargas_repo[0]["id"]
+                    # ── Salva nova carga no Supabase ──
+                    _nova_carga_id_repo = _salvar_carga_pp_supabase(_pp_tmp, ARQUIVO_PP_REPO)
+                    # ── Comparação com carga anterior ──
                     if _pp_ant_repo is not None and not _pp_ant_repo.empty:
                         try:
                             _pf_ref_repo = st.session_state.get("pf_coords_df")
                             _var_df_repo = _comparar_cargas_precos(
                                 _pp_tmp, _pp_ant_repo, _pf_ref_repo)
-                            st.session_state["_pp_variacao"]      = _var_df_repo
-                            st.session_state["_pp_variacao_ts"]   = _agora()
+                            st.session_state["_pp_variacao"]    = _var_df_repo
+                            st.session_state["_pp_variacao_ts"] = _agora()
+                            if _nova_carga_id_repo:
+                                _salvar_variacao_pp_supabase(
+                                    _var_df_repo, _nova_carga_id_repo, _carga_ant_id_repo)
                         except Exception:
                             pass
                     st.session_state["_pp_df"]          = _pp_tmp
+                    st.session_state["_pp_carga_id"]    = _nova_carga_id_repo
                     st.session_state["_pp_fonte"]        = "repo"
                     st.session_state["_pp_carregado_em"] = _agora()
                     # ── Auto-registro no histórico de inteligência ──
@@ -12684,8 +13583,17 @@ with st.sidebar:
                     with st.spinner("Lendo planilha…"):
                         _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
                     if _pp_up is not None:
-                        # ── Comparação com carga anterior ──
+                        # ── Busca carga anterior do Supabase (persiste entre reboots) ──
                         _pp_ant_up = st.session_state.get("_pp_df")
+                        _carga_ant_id_up = st.session_state.get("_pp_carga_id")
+                        if _pp_ant_up is None:
+                            _cargas_up = _carregar_cargas_pp_supabase(n=1)
+                            if _cargas_up and _cargas_up[0].get("dados"):
+                                _pp_ant_up = pd.DataFrame(_cargas_up[0]["dados"])
+                                _carga_ant_id_up = _cargas_up[0]["id"]
+                        # ── Salva nova carga no Supabase ──
+                        _nova_carga_id_up = _salvar_carga_pp_supabase(_pp_up, arquivo_pp.name)
+                        # ── Comparação com carga anterior ──
                         if _pp_ant_up is not None and not _pp_ant_up.empty:
                             try:
                                 _pf_ref_up = st.session_state.get("pf_coords_df")
@@ -12693,9 +13601,13 @@ with st.sidebar:
                                     _pp_up, _pp_ant_up, _pf_ref_up)
                                 st.session_state["_pp_variacao"]    = _var_df_up
                                 st.session_state["_pp_variacao_ts"] = _agora()
+                                if _nova_carga_id_up:
+                                    _salvar_variacao_pp_supabase(
+                                        _var_df_up, _nova_carga_id_up, _carga_ant_id_up)
                             except Exception:
                                 pass
                         st.session_state["_pp_df"]             = _pp_up
+                        st.session_state["_pp_carga_id"]       = _nova_carga_id_up
                         st.session_state["_pp_fonte"]           = "manual"
                         st.session_state["_pp_carregado_em"]    = _agora()
                         st.session_state["_pp_last_upload_id"]  = _pp_file_id
@@ -13505,20 +14417,6 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                 st.dataframe(_ac_show.head(200), use_container_width=True, height=320)
                 st.caption(f"Exibindo até 200 de {_br_int(len(_ac_vigentes))} acordos vigentes.")
 
-    # ── Botão Admin (visível só para o admin) ───────────────────────
-    _email_atual = (st.session_state.get("_auth_user") or {}).get("email", "")
-    if _email_atual.lower() == _ADMIN_EMAIL.lower():
-        st.divider()
-        if st.button(
-            "🛡️ Admin",
-            use_container_width=True,
-            type="primary" if _modo_atual == "🛡️ Admin" else "secondary",
-            key="btn_admin",
-            help="Painel de controle de acesso de usuários",
-        ):
-            st.session_state["modo_selecionado"] = "🛡️ Admin"
-            st.rerun()
-
 # ═══════════════════════════════════════════════════════════════════
 #  TOUR DE ONBOARDING
 # ═══════════════════════════════════════════════════════════════════
@@ -14212,27 +15110,20 @@ if _var_df_global is not None and not _var_df_global.empty:
     )
     _banner_icone = "🔺" if _n_alta > 0 else ("🔻" if _n_queda > 0 else "🔔")
 
+    _ts_part = ("&nbsp;·&nbsp; " + _var_ts) if _var_ts else ""
     st.markdown(
-        f"""
-        <div style="background:{_banner_cor};border:1px solid #444;border-radius:10px;
-                    padding:12px 20px;margin-bottom:16px;display:flex;
-                    align-items:center;gap:16px;flex-wrap:wrap;">
-          <div style="font-size:1.5rem">{_banner_icone}</div>
-          <div style="flex:1;min-width:200px">
-            <b style="color:#fff;font-size:.95rem">
-              Variação de Preços Detectada — nova carga vs anterior
-            </b><br>
-            <span style="color:#ccc;font-size:.82rem">
-              {_n_alta} alta(s) &nbsp;·&nbsp; {_n_queda} queda(s) &nbsp;·&nbsp;
-              {_n_novo} novo(s) &nbsp;·&nbsp; {_n_rem} removido(s)
-              {"&nbsp;·&nbsp; " + _var_ts if _var_ts else ""}
-            </span>
-          </div>
-          <span style="color:#aaa;font-size:.78rem">
-            Veja detalhes em <b>💹 Variação de Preços</b> no menu lateral
-          </span>
-        </div>
-        """,
+        f'<div style="background:{_banner_cor};border:1px solid #444;border-radius:10px;'
+        f'padding:12px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">'
+        f'<div style="font-size:1.5rem">{_banner_icone}</div>'
+        f'<div style="flex:1;min-width:200px">'
+        f'<b style="color:#fff;font-size:.95rem">Variação de Preços Detectada — nova carga vs anterior</b><br>'
+        f'<span style="color:#ccc;font-size:.82rem">'
+        f'{_n_alta} alta(s) &nbsp;·&nbsp; {_n_queda} queda(s) &nbsp;·&nbsp; '
+        f'{_n_novo} novo(s) &nbsp;·&nbsp; {_n_rem} removido(s){_ts_part}'
+        f'</span></div>'
+        f'<span style="color:#aaa;font-size:.78rem">'
+        f'Veja detalhes em <b>💹 Variação de Preços</b> no menu lateral'
+        f'</span></div>',
         unsafe_allow_html=True,
     )
 
@@ -25048,7 +25939,8 @@ elif modo == "💹 Variação de Preços":
             icon="🔔",
         )
         if st.button("⚙️ Ir para Configurações", key="btn_ir_config_vp"):
-            st.session_state["modo_selecionado"] = "⚙️ Configurações"
+            st.session_state["_abrir_config_exp"] = True
+            st.session_state["modo_selecionado"] = "📍 Por UF"
             st.rerun()
     else:
         if _vp_ts:
@@ -25514,6 +26406,8 @@ elif modo == "👥 Análise de Cliente":
 
     # ═══════ ANÁLISES (só se há dados) ═══════════════════════════
     if _df_abast is not None and len(_df_abast) > 0:
+        # persiste referência no session_state para outras seções (ex: Relatórios FIPE)
+        st.session_state["_fipe_abast_df"] = _df_abast
 
         # ── Formatador de CNPJ (usado aqui e no banner) ───────────
         def _fmt_cnpj(c: str) -> str:
@@ -25634,7 +26528,7 @@ elif modo == "👥 Análise de Cliente":
             st.warning("Nenhum registro no período selecionado.")
         else:
             # ── abas principais ───────────────────────────────────
-            _ta, _tb, _tc, _td, _te, _tf, _tg = st.tabs([
+            _ta, _tb, _tc, _td, _te, _tf, _tg, _th = st.tabs([
                 "📊 Resumo",
                 "🚗 Veículos",
                 "📈 Consumo & Custo/km",
@@ -25642,6 +26536,7 @@ elif modo == "👥 Análise de Cliente":
                 "💡 Insights",
                 "💰 Contratos & Savings",
                 "🏁 Rede GF vs Fora da Rede",
+                "🚘 FIPE",
             ])
 
             # ════════════════════════════════════════════════════
@@ -26840,21 +27735,82 @@ elif modo == "👥 Análise de Cliente":
                     "negociado no acordo posto × frota × combustível. "
                     "Desvios positivos indicam que a frota pagou acima do acordado."
                 )
+                # ── Botão de recarga forçada dos acordos do banco ─────────
+                _ac_col_btn, _ = st.columns([1, 3])
+                with _ac_col_btn:
+                    if st.button(
+                        "🔄 Recarregar acordos do banco",
+                        key="btn_reload_acordos_sv",
+                        type="secondary",
+                        use_container_width=True,
+                        help="Busca a tabela de acordos direto do banco de dados",
+                    ):
+                        _ac_reloaded = _db_carregar_acordos()
+                        st.session_state["acordos_df"] = _ac_reloaded
+                        st.session_state["_acordos_tentado_ts"] = 0  # libera próxima janela
+                        st.rerun()
+
                 if not _tem_acord:
                     _ac_status = st.session_state.get("acordos_df", _pd.DataFrame())
                     if _ac_status.empty:
                         st.info(
                             "📋 Base de acordos não carregada. "
-                            "Acesse **Configurações → 🤝 Acordos de Preço** para fazer upload "
+                            "Clique em **🔄 Recarregar acordos do banco** acima, ou acesse "
+                            "**Configurações → 🤝 Acordos de Preço** para fazer upload "
                             "da planilha **Acordos.xlsx**.",
                             icon="🤝",
                         )
                     else:
-                        st.info(
-                            "Nenhum acordo encontrado para os CNPJs de posto e frota "
-                            "presentes nestes abastecimentos. Verifique se os CNPJs na "
-                            "planilha de acordos correspondem aos da base de abastecimentos.",
+                        # Acordos estão no banco mas CNPJs não coincidiram —
+                        # mostra a tabela de acordos como referência.
+                        st.warning(
+                            "Nenhum acordo com correspondência direta de CNPJ nos "
+                            "abastecimentos selecionados. Os acordos carregados do banco "
+                            "estão listados abaixo como referência.",
                             icon="🔍",
+                        )
+                        # Monta tabela de exibição dos acordos vigentes
+                        _ac_ref_df = _ac_vig_sv.copy() if not _ac_vig_sv.empty else _ac_status.copy()
+                        _ac_ref_cols = {
+                            "cnpj_posto":        "CNPJ Posto",
+                            "nome_posto":        "Posto",
+                            "cnpj_frota":        "CNPJ Frota",
+                            "razao_social_frota":"Razão Social Frota",
+                            "combustivel":       "Combustível",
+                            "preco_negociado":   "Preço Acordado (R$/L)",
+                            "dt_vigencia":       "Vigência",
+                        }
+                        _ac_ref_show = _ac_ref_df.rename(columns={
+                            k: v for k, v in _ac_ref_cols.items() if k in _ac_ref_df.columns
+                        })
+                        # Formata data de vigência
+                        if "Vigência" in _ac_ref_show.columns:
+                            _ac_ref_show["Vigência"] = _pd.to_datetime(
+                                _ac_ref_show["Vigência"], errors="coerce"
+                            ).dt.strftime("%d/%m/%Y").fillna("—")
+                        # Formata CNPJ
+                        for _ac_cn_col in ["CNPJ Posto", "CNPJ Frota"]:
+                            if _ac_cn_col in _ac_ref_show.columns:
+                                _ac_ref_show[_ac_cn_col] = _ac_ref_show[_ac_cn_col].apply(_fmt_cnpj)
+                        # Formata preço
+                        if "Preço Acordado (R$/L)" in _ac_ref_show.columns:
+                            _ac_ref_show["Preço Acordado (R$/L)"] = _ac_ref_show[
+                                "Preço Acordado (R$/L)"
+                            ].apply(lambda v: f"R$ {v:.4f}".replace(".", ",") if _pd.notna(v) else "—")
+                        # Mostra apenas colunas que existem
+                        _ac_ref_final_cols = [
+                            c for c in _ac_ref_cols.values() if c in _ac_ref_show.columns
+                        ]
+                        st.dataframe(
+                            _ac_ref_show[_ac_ref_final_cols].reset_index(drop=True),
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+                        st.caption(
+                            f"ℹ️ {len(_ac_ref_df)} acordo(s) no banco. "
+                            "Para cruzar com abastecimentos, verifique se os CNPJs dos postos "
+                            "na tabela de acordos correspondem aos registrados na base de "
+                            "abastecimentos."
                         )
                 else:
                     _df_ac_ok = _df_sv.dropna(subset=["_saving_vs_acord"]).copy()
@@ -27530,6 +28486,25 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                     })
                     st.dataframe(_rg_tbl_show, use_container_width=True, hide_index=True)
 
+            # ════════════════════════════════════════════════════
+            # ABA 8 — FIPE
+            # ════════════════════════════════════════════════════
+            with _th:
+                st.markdown(
+                    "<div style='background:linear-gradient(135deg,#E8F5E9,#fff);"
+                    "border-left:4px solid #2E7D32;border-radius:0 8px 8px 0;"
+                    "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1B5E20'>"
+                    "Consulta a <strong>BrasilAPI</strong> para obter dados cadastrais (DENATRAN) "
+                    "e valor de mercado FIPE de cada veículo da frota. "
+                    "Os resultados ficam em cache no Supabase por 30 dias.</div>",
+                    unsafe_allow_html=True,
+                )
+                _fipe_cache_ac = st.session_state.get(
+                    "fipe_analise_cache_fipe",
+                    _fipe_carregar_cache(),
+                )
+                _fipe_secao_ui(_df, _fipe_cache_ac, key_prefix="fipe_analise")
+
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Relatórios e Exportações Evoluídas
 # ═══════════════════════════════════════════════════════════════════
@@ -27551,10 +28526,13 @@ elif modo == "📑 Relatórios":
         unsafe_allow_html=True,
     )
 
-    _rlt1, _rlt2, _rlt3 = st.tabs([
+    _rlt1, _rlt2, _rlt3, _rlt4, _rlt5, _rlt6 = st.tabs([
         "📊 Relatório Executivo",
         "🌎 Oportunidades Comerciais",
         "⭐ Performance por Posto",
+        "🎯 Score × Performance",
+        "🔍 Anomalias",
+        "🚘 Frota FIPE",
     ])
 
     # ════════════════════════════════════════════════════════════════
@@ -28422,6 +29400,1008 @@ elif modo == "📑 Relatórios":
                             )
                         else:
                             st.info("Histórico insuficiente para calcular consistência (mínimo 2 registros por combustível).")
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 4 — SCORE × PERFORMANCE COMERCIAL
+    # ════════════════════════════════════════════════════════════════
+    with _rlt4:
+
+        st.markdown(
+            "<div style='background:linear-gradient(90deg,#E8F5E9,#fff);"
+            "border-left:4px solid #2E7D32;border-radius:0 8px 8px 0;"
+            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1B5E20'>"
+            "Matriz quadrante: cruza o <b>score de qualidade</b> de cada posto com sua "
+            "<b>utilização histórica</b> (registros de preço). "
+            "Identifica oportunidades e riscos na rede credenciada.</div>",
+            unsafe_allow_html=True,
+        )
+
+        _intel_sq  = _intel_load()
+        _hist_sq   = _intel_sq.get("historico", {})
+
+        if not _hist_sq:
+            st.info(
+                "Nenhum histórico de preços disponível. "
+                "Carregue a planilha de Preços PP para ativar este relatório.",
+                icon="📋",
+            )
+        else:
+            # ── Monta DataFrame base ───────────────────────────────────
+            _sq_rows = []
+            _pp_sq   = st.session_state.get("_pp_df")
+            _anp_sq  = st.session_state.get("anp_df")
+
+            # Referência de preço ANP (Diesel S10 nacional como proxy)
+            _anp_ref_sq = None
+            if _anp_sq is not None and not _anp_sq.empty:
+                try:
+                    _anp_d = _anp_sq[_anp_sq.get("PRODUTO", _anp_sq.columns[0])
+                                     .str.contains("S10|DIESEL", case=False, na=False)
+                                     if hasattr(_anp_sq.iloc[:,0], "str") else
+                                     _anp_sq.columns[0]]
+                    if not _anp_d.empty and "PREÇO MÉDIO REVENDA" in _anp_sq.columns:
+                        _anp_ref_sq = float(_anp_sq[
+                            _anp_sq.iloc[:,0].astype(str).str.contains("S10|DIESEL", case=False, na=False)
+                        ]["PREÇO MÉDIO REVENDA"].mean())
+                except Exception:
+                    pass
+
+            for _cnpj_sq, _evts_sq in _hist_sq.items():
+                if not isinstance(_evts_sq, list) or not _evts_sq:
+                    continue
+                _n_reg    = len(_evts_sq)
+                _nome_sq  = str(_evts_sq[0].get("nome") or _evts_sq[0].get("razao_social", "—"))[:40]
+                _mun_sq   = str(_evts_sq[0].get("municipio", "—"))
+                _uf_sq    = str(_evts_sq[0].get("uf", "—")).upper()
+
+                # Preço médio mais recente para o posto
+                _preco_sq = None
+                if _pp_sq is not None and not _pp_sq.empty and "cnpj_norm" in _pp_sq.columns:
+                    _rows_pp = _pp_sq[_pp_sq["cnpj_norm"] == _cnpj_sq]
+                    if not _rows_pp.empty:
+                        _preco_sq = float(_rows_pp["preco"].mean())
+                if _preco_sq is None:
+                    _preco_sq = float(_evts_sq[-1].get("preco") or 0) or None
+
+                # Score simplificado via preço vs ANP
+                _score_sq = 50.0
+                if _preco_sq and _anp_ref_sq and _anp_ref_sq > 0:
+                    _diff_sq  = (_preco_sq - _anp_ref_sq) / _anp_ref_sq
+                    _score_sq = max(0.0, min(100.0, 50.0 - _diff_sq * 500.0))
+                elif _preco_sq:
+                    # Sem referência ANP: usa percentil dentro do conjunto
+                    _score_sq = 50.0
+
+                _sq_rows.append({
+                    "cnpj":       _cnpj_sq,
+                    "Nome":       _nome_sq,
+                    "Município":  _mun_sq,
+                    "UF":         _uf_sq,
+                    "Score":      round(_score_sq, 1),
+                    "Utilização": _n_reg,
+                    "Preço":      _preco_sq,
+                })
+
+            if not _sq_rows:
+                st.info("Dados insuficientes para gerar a matriz.")
+            else:
+                _df_sq = pd.DataFrame(_sq_rows)
+
+                # Pontos de corte: mediana de cada eixo
+                _med_score = float(_df_sq["Score"].median())
+                _med_util  = float(_df_sq["Utilização"].median())
+
+                # Classifica quadrante
+                def _quadrante(row):
+                    s, u = row["Score"], row["Utilização"]
+                    if s >= _med_score and u >= _med_util:
+                        return "🏆 Campeão"
+                    if s >= _med_score and u < _med_util:
+                        return "💡 Oportunidade"
+                    if s < _med_score and u >= _med_util:
+                        return "⚠️ Risco"
+                    return "😴 Ocioso"
+
+                _df_sq["Quadrante"] = _df_sq.apply(_quadrante, axis=1)
+
+                _COR_Q = {
+                    "🏆 Campeão":    "#2E7D32",
+                    "💡 Oportunidade": "#1565C0",
+                    "⚠️ Risco":      "#B71C1C",
+                    "😴 Ocioso":     "#757575",
+                }
+
+                # ── KPIs por quadrante ─────────────────────────────────
+                _kq1, _kq2, _kq3, _kq4 = st.columns(4)
+                for _kq_col, _quad_name, _cor_q in [
+                    (_kq1, "🏆 Campeão",      "#2E7D32"),
+                    (_kq2, "💡 Oportunidade",  "#1565C0"),
+                    (_kq3, "⚠️ Risco",         "#B71C1C"),
+                    (_kq4, "😴 Ocioso",        "#757575"),
+                ]:
+                    _cnt_q = int((_df_sq["Quadrante"] == _quad_name).sum())
+                    _kq_col.markdown(
+                        f"<div style='background:{_cor_q}18;border:1px solid {_cor_q}44;"
+                        f"border-radius:8px;padding:10px 12px;text-align:center'>"
+                        f"<div style='font-size:1.4rem'>{_quad_name.split()[0]}</div>"
+                        f"<div style='font-weight:700;font-size:1.1rem;color:{_cor_q}'>{_cnt_q}</div>"
+                        f"<div style='font-size:11px;color:#555'>{_quad_name[2:]}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                st.markdown("")
+
+                # ── Scatter plot ───────────────────────────────────────
+                _fig_sq = go.Figure()
+                for _quad_n, _cor_scatter in _COR_Q.items():
+                    _df_q = _df_sq[_df_sq["Quadrante"] == _quad_n]
+                    if _df_q.empty:
+                        continue
+                    _fig_sq.add_trace(go.Scatter(
+                        x=_df_q["Utilização"],
+                        y=_df_q["Score"],
+                        mode="markers",
+                        name=_quad_n,
+                        marker=dict(
+                            color=_cor_scatter,
+                            size=10,
+                            opacity=0.8,
+                            line=dict(color="white", width=1),
+                        ),
+                        customdata=_df_q[["Nome", "Município", "UF", "Preço"]].values,
+                        hovertemplate=(
+                            "<b>%{customdata[0]}</b><br>"
+                            "%{customdata[1]} / %{customdata[2]}<br>"
+                            "Score: %{y:.1f} | Registros: %{x}<br>"
+                            "Preço: R$ %{customdata[3]:.3f}<extra></extra>"
+                        ),
+                    ))
+
+                # Linhas de quadrante
+                _fig_sq.add_hline(y=_med_score, line_dash="dot",
+                                  line_color="#aaa", line_width=1)
+                _fig_sq.add_vline(x=_med_util,  line_dash="dot",
+                                  line_color="#aaa", line_width=1)
+
+                # Rótulos dos quadrantes
+                _x_max_sq = float(_df_sq["Utilização"].max()) * 1.05
+                for _ql, _qx, _qy in [
+                    ("CAMPEÃO",      _x_max_sq * 0.85, 92),
+                    ("OPORTUNIDADE", _x_max_sq * 0.08, 92),
+                    ("RISCO",        _x_max_sq * 0.85,  8),
+                    ("OCIOSO",       _x_max_sq * 0.08,  8),
+                ]:
+                    _fig_sq.add_annotation(
+                        x=_qx, y=_qy, text=_ql,
+                        showarrow=False,
+                        font=dict(size=9, color="#bbb"),
+                        opacity=0.6,
+                    )
+
+                _fig_sq.update_layout(
+                    height=420,
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    xaxis_title="Utilização (registros históricos)",
+                    yaxis_title="Score de qualidade (0-100)",
+                    yaxis=dict(range=[0, 100]),
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    legend=dict(orientation="h", y=-0.12),
+                    hoverlabel=dict(bgcolor="white", font_size=12),
+                )
+                st.plotly_chart(_fig_sq, use_container_width=True)
+
+                # ── Tabela detalhada ───────────────────────────────────
+                with st.expander("📋 Ver todos os postos classificados"):
+                    _df_sq_show = _df_sq[["Quadrante","Nome","Município","UF","Score","Utilização","Preço"]].copy()
+                    _df_sq_show["Preço"] = _df_sq_show["Preço"].apply(
+                        lambda v: _br_moeda(v, 3) if v else "—")
+                    _df_sq_show = _df_sq_show.sort_values(
+                        ["Quadrante","Score"], ascending=[True, False])
+                    st.dataframe(_df_sq_show, use_container_width=True, hide_index=True)
+
+                # ── Ações por quadrante ────────────────────────────────
+                st.markdown("---")
+                _sq_a1, _sq_a2 = st.columns(2)
+                with _sq_a1:
+                    st.markdown(
+                        "<div style='background:#E3F2FD;border-radius:8px;padding:12px 14px'>"
+                        "<b style='color:#1565C0'>💡 Oportunidade — ação recomendada</b><br>"
+                        "<span style='font-size:12px;color:#333'>"
+                        "Postos com score alto mas pouca presença no histórico. "
+                        "São bons fornecedores com baixo volume de uso — "
+                        "indicar rotas que passem por eles para aumentar utilização.</span></div>",
+                        unsafe_allow_html=True,
+                    )
+                with _sq_a2:
+                    st.markdown(
+                        "<div style='background:#FFEBEE;border-radius:8px;padding:12px 14px'>"
+                        "<b style='color:#B71C1C'>⚠️ Risco — ação recomendada</b><br>"
+                        "<span style='font-size:12px;color:#333'>"
+                        "Postos muito usados mas com score baixo (preço acima do ANP ou "
+                        "poucos serviços). Revisar contratos ou redirecionar frota para "
+                        "alternativas com melhor custo-benefício.</span></div>",
+                        unsafe_allow_html=True,
+                    )
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 5 — DETECÇÃO DE ANOMALIAS
+    # ════════════════════════════════════════════════════════════════
+    with _rlt5:
+
+        st.markdown(
+            "<div style='background:linear-gradient(90deg,#FBE9E7,#fff);"
+            "border-left:4px solid #BF360C;border-radius:0 8px 8px 0;"
+            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#BF360C'>"
+            "Detecta automaticamente <b>preços fora do padrão</b>, "
+            "<b>variações suspeitas</b> entre cargas e <b>postos com comportamento anômalo</b>. "
+            "Usa método IQR (interquartil) e análise de delta entre cargas.</div>",
+            unsafe_allow_html=True,
+        )
+
+        _pp_anom   = st.session_state.get("_pp_df")
+        _var_anom  = st.session_state.get("_pp_variacao")
+        _intel_an  = _intel_load()
+        _hist_an   = _intel_an.get("historico", {})
+
+        _an_t1, _an_t2, _an_t3 = st.tabs([
+            "💲 Preços Fora do Padrão",
+            "📈 Variações Suspeitas",
+            "🏭 Postos Inconsistentes",
+        ])
+
+        # ── SUB-TAB 1: Outliers de preço (IQR) ────────────────────────
+        with _an_t1:
+            if _pp_anom is None or _pp_anom.empty:
+                st.info("Carregue a planilha de Preços PP para ativar esta análise.", icon="📋")
+            else:
+                _anom_rows = []
+                _combs_an = (
+                    _pp_anom["combustivel_pk"].dropna().unique().tolist()
+                    if "combustivel_pk" in _pp_anom.columns else []
+                )
+                for _cb_an in _combs_an:
+                    _df_cb = _pp_anom[_pp_anom["combustivel_pk"] == _cb_an].copy()
+                    _df_cb["preco"] = pd.to_numeric(_df_cb["preco"], errors="coerce")
+                    _df_cb = _df_cb.dropna(subset=["preco"])
+                    if len(_df_cb) < 5:
+                        continue
+
+                    _q1  = _df_cb["preco"].quantile(0.25)
+                    _q3  = _df_cb["preco"].quantile(0.75)
+                    _iqr = _q3 - _q1
+                    _inf = _q1 - 1.5 * _iqr
+                    _sup = _q3 + 1.5 * _iqr
+                    _med = _df_cb["preco"].median()
+
+                    _outliers = _df_cb[
+                        (_df_cb["preco"] < _inf) | (_df_cb["preco"] > _sup)
+                    ]
+
+                    for _, _row_an in _outliers.iterrows():
+                        _prc = float(_row_an["preco"])
+                        _delta_pct = (_prc - _med) / _med * 100 if _med > 0 else 0
+                        _anom_rows.append({
+                            "Combustível":   PRODUTO_CURTO.get(_cb_an, _cb_an),
+                            "CNPJ":          str(_row_an.get("cnpj_norm", "—")),
+                            "Posto":         str(_row_an.get("combustivel_label") or "—")[:35],
+                            "Preço (R$/L)":  _br_moeda(_prc, 3),
+                            "Mediana rede":  _br_moeda(_med, 3),
+                            "Δ Mediana":     f"{_delta_pct:+.1f}%",
+                            "Tipo":          ("🔴 Acima" if _prc > _sup else "🔵 Abaixo"),
+                            "Limite sup.":   _br_moeda(_sup, 3),
+                            "Limite inf.":   _br_moeda(_inf, 3),
+                        })
+
+                if not _anom_rows:
+                    st.success(
+                        "✅ Nenhum preço fora do padrão detectado (método IQR × 1,5). "
+                        "Todos os postos estão dentro da faixa esperada.",
+                        icon="🟢",
+                    )
+                else:
+                    _df_anom = pd.DataFrame(_anom_rows)
+                    _n_acima = int((_df_anom["Tipo"] == "🔴 Acima").sum())
+                    _n_abxo  = int((_df_anom["Tipo"] == "🔵 Abaixo").sum())
+
+                    _ac1, _ac2, _ac3 = st.columns(3)
+                    _ac1.metric("Total anomalias", len(_anom_rows))
+                    _ac2.metric("🔴 Preço acima",  _n_acima,
+                                help="Mais de 1,5×IQR acima do Q3")
+                    _ac3.metric("🔵 Preço abaixo", _n_abxo,
+                                help="Mais de 1,5×IQR abaixo do Q1")
+
+                    st.markdown("")
+                    st.dataframe(
+                        _df_anom.sort_values("Tipo", ascending=False),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                    st.caption(
+                        "Método: IQR × 1,5 por tipo de combustível. "
+                        "Preços abaixo do limite inferior podem indicar erro de digitação. "
+                        "Preços acima do superior indicam sobrepreço na rede."
+                    )
+
+        # ── SUB-TAB 2: Variações suspeitas entre cargas ────────────────
+        with _an_t2:
+            if _var_anom is None or _var_anom.empty:
+                st.info(
+                    "Nenhuma comparação de cargas disponível. "
+                    "Carregue duas versões da planilha de Preços PP para ativar.",
+                    icon="📋",
+                )
+            else:
+                # Variações com Δ% extremo (> 5% em qualquer direção)
+                _LIMIAR_PCT = st.slider(
+                    "Limiar de variação suspeita (%)", 1, 20, 5,
+                    key="anom_limiar_pct",
+                    help="Variações acima deste percentual são sinalizadas como suspeitas",
+                )
+                _col_delta = next(
+                    (c for c in _var_anom.columns if "%" in c or "delta_pct" in c.lower()),
+                    None,
+                )
+                _col_status = next(
+                    (c for c in _var_anom.columns if "Status" in c or "status" in c),
+                    None,
+                )
+                if _col_delta is None:
+                    st.warning("Coluna de variação percentual não encontrada no DataFrame de variações.")
+                else:
+                    _var_anom["_delta_num"] = pd.to_numeric(
+                        _var_anom[_col_delta].astype(str)
+                        .str.replace("%", "").str.replace(",", "."),
+                        errors="coerce",
+                    )
+                    _suspeitas = _var_anom[
+                        _var_anom["_delta_num"].abs() > _LIMIAR_PCT
+                    ].copy()
+
+                    if _suspeitas.empty:
+                        st.success(
+                            f"✅ Nenhuma variação acima de {_LIMIAR_PCT}% detectada.",
+                            icon="🟢",
+                        )
+                    else:
+                        _vs_altas  = _suspeitas[_suspeitas["_delta_num"] >  _LIMIAR_PCT]
+                        _vs_quedas = _suspeitas[_suspeitas["_delta_num"] < -_LIMIAR_PCT]
+
+                        _va1, _va2 = st.columns(2)
+                        _va1.metric("🔺 Altas suspeitas",  len(_vs_altas),
+                                    help=f"Alta > {_LIMIAR_PCT}%")
+                        _va2.metric("🔻 Quedas suspeitas", len(_vs_quedas),
+                                    help=f"Queda > {_LIMIAR_PCT}%")
+
+                        st.markdown("")
+                        _cols_show = [
+                            c for c in _suspeitas.columns
+                            if c != "_delta_num"
+                            and "ant" not in c.lower()
+                        ]
+                        st.dataframe(
+                            _suspeitas[_cols_show].sort_values(
+                                "_delta_num" if "_delta_num" in _suspeitas.columns else _cols_show[0],
+                                key=abs, ascending=False
+                            ).drop(columns=["_delta_num"], errors="ignore"),
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+                        st.caption(
+                            f"Variações > {_LIMIAR_PCT}% entre a carga atual e a anterior. "
+                            "Altas expressivas podem indicar reajuste unilateral; "
+                            "quedas expressivas podem ser erro de importação."
+                        )
+
+        # ── SUB-TAB 3: Postos com comportamento inconsistente ──────────
+        with _an_t3:
+            if not _hist_an:
+                st.info("Histórico de preços vazio. Carregue a planilha de Preços PP.", icon="📋")
+            else:
+                _inc_rows = []
+                for _cnpj_inc, _evts_inc in _hist_an.items():
+                    if not isinstance(_evts_inc, list) or len(_evts_inc) < 3:
+                        continue
+                    _nome_inc = str(_evts_inc[0].get("nome") or _evts_inc[0].get("razao_social", "—"))[:40]
+                    _uf_inc   = str(_evts_inc[0].get("uf", "—")).upper()
+                    _mun_inc  = str(_evts_inc[0].get("municipio", "—"))
+
+                    # Agrupa por combustível
+                    from collections import defaultdict as _dd
+                    _por_comb = _dd(list)
+                    for _ev_inc in _evts_inc:
+                        _cb_inc = str(_ev_inc.get("combustivel", "")).upper().strip()
+                        _pr_inc = pd.to_numeric(_ev_inc.get("preco"), errors="coerce")
+                        if _cb_inc and pd.notna(_pr_inc) and _pr_inc > 0:
+                            _por_comb[_cb_inc].append(_pr_inc)
+
+                    for _cb_inc, _precos_inc in _por_comb.items():
+                        if len(_precos_inc) < 3:
+                            continue
+                        _med_inc  = float(pd.Series(_precos_inc).mean())
+                        _std_inc  = float(pd.Series(_precos_inc).std())
+                        _cv_inc   = _std_inc / _med_inc * 100 if _med_inc > 0 else 0
+                        _min_inc  = min(_precos_inc)
+                        _max_inc  = max(_precos_inc)
+                        _amp_pct  = (_max_inc - _min_inc) / _med_inc * 100 if _med_inc > 0 else 0
+
+                        # Sinalizações
+                        _flags = []
+                        if _cv_inc > 8:
+                            _flags.append(f"CV={_cv_inc:.1f}% (alta variância)")
+                        if _amp_pct > 15:
+                            _flags.append(f"Amplitude={_amp_pct:.1f}%")
+                        # Preço zerado ou negativo
+                        if _min_inc <= 0:
+                            _flags.append("Preço ≤ 0 detectado")
+                        # Salto brusco entre registros consecutivos
+                        _saltos = [
+                            abs(_precos_inc[i] - _precos_inc[i-1]) / _precos_inc[i-1] * 100
+                            for i in range(1, len(_precos_inc))
+                            if _precos_inc[i-1] > 0
+                        ]
+                        if _saltos and max(_saltos) > 10:
+                            _flags.append(f"Salto brusco: {max(_saltos):.1f}%")
+
+                        if _flags:
+                            _inc_rows.append({
+                                "CNPJ":       _cnpj_inc,
+                                "Posto":      _nome_inc,
+                                "Município":  _mun_inc,
+                                "UF":         _uf_inc,
+                                "Combustível":PRODUTO_CURTO.get(_cb_inc, _cb_inc),
+                                "Registros":  len(_precos_inc),
+                                "Preço médio":_br_moeda(_med_inc, 3),
+                                "CV (%)":     f"{_cv_inc:.1f}%",
+                                "Amplitude":  f"{_amp_pct:.1f}%",
+                                "Alertas":    " · ".join(_flags),
+                            })
+
+                if not _inc_rows:
+                    st.success(
+                        "✅ Nenhum comportamento inconsistente detectado no histórico.",
+                        icon="🟢",
+                    )
+                else:
+                    st.metric("Postos com anomalia", len(_inc_rows))
+                    st.markdown("")
+                    st.dataframe(
+                        pd.DataFrame(_inc_rows).sort_values("CV (%)", ascending=False),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                    st.caption(
+                        "Critérios: CV > 8% · Amplitude histórica > 15% · "
+                        "Salto brusco entre cargas > 10% · Preço ≤ 0. "
+                        "Postos com múltiplos alertas merecem investigação prioritária."
+                    )
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 6 — FROTA FIPE
+    # ════════════════════════════════════════════════════════════════
+    with _rlt6:
+        st.markdown(
+            "<div style='background:linear-gradient(135deg,#E8F5E9,#fff);"
+            "border-left:4px solid #2E7D32;border-radius:0 8px 8px 0;"
+            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1B5E20'>"
+            "Consulta a <strong>BrasilAPI</strong> para obter dados cadastrais (DENATRAN) "
+            "e valor de mercado FIPE de cada veículo identificado nos abastecimentos. "
+            "Cache Supabase de 30 dias evita chamadas repetidas.</div>",
+            unsafe_allow_html=True,
+        )
+        _rlt_abast_df = (
+            st.session_state.get("_fipe_abast_df")
+            or st.session_state.get("frota_abast_df")
+            or st.session_state.get("abastecimentos_df")
+        )
+        if _rlt_abast_df is None or (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
+            st.info("Carregue dados de abastecimentos para visualizar as informações FIPE da frota.")
+        else:
+            _fipe_cache_rlt = st.session_state.get(
+                "fipe_relatorio_cache_fipe",
+                _fipe_carregar_cache(),
+            )
+            _fipe_secao_ui(_rlt_abast_df, _fipe_cache_rlt, key_prefix="fipe_relatorio")
+
+# ═══════════════════════════════════════════════════════════════════
+#  MODO — Telemetria de Frota
+# ═══════════════════════════════════════════════════════════════════
+
+elif modo == "🛰️ Telemetria":
+    _render_filtros_inteligentes(modo)
+
+    # ── Inicializa session state de telemetria ───────────────────────
+    if "_tele_frota" not in st.session_state:
+        st.session_state["_tele_frota"] = []
+    if "_tele_abast" not in st.session_state:
+        st.session_state["_tele_abast"] = []
+
+    # ── Header ───────────────────────────────────────────────────────
+    st.markdown(
+        '<div style="background:linear-gradient(135deg,#004D5A,#00838F);'
+        'border-radius:12px;padding:18px 22px;margin-bottom:18px;color:#fff;">'
+        '<div style="font-size:1.4rem;font-weight:700;margin-bottom:4px">🛰️ Telemetria de Frota</div>'
+        '<div style="font-size:.85rem;opacity:.85">Integre dados reais de consumo e abastecimento '
+        'para refinar análises de rede, detectar desvios e medir aderência ao credenciado.</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    _tele_t1, _tele_t2, _tele_t3, _tele_t4, _tele_t5 = st.tabs([
+        "🚗 Frota",
+        "📥 Importar",
+        "⛽ Histórico",
+        "📊 Consumo",
+        "⚠️ Alertas",
+    ])
+
+    # ════════════════════════════════════════════
+    #  TAB 1 — Cadastro de Frota
+    # ════════════════════════════════════════════
+    with _tele_t1:
+        st.markdown("#### 🚗 Cadastro de Veículos")
+        st.caption("Registre os veículos da frota com dados técnicos para habilitar as análises de consumo.")
+
+        with st.form("form_add_veiculo", clear_on_submit=True):
+            _tc1, _tc2, _tc3 = st.columns(3)
+            with _tc1:
+                _v_placa     = st.text_input("Placa *", placeholder="ABC1D23").strip().upper()
+                _v_comb      = st.selectbox("Combustível *", [
+                    "Diesel S-10", "Diesel S-500", "Gasolina", "Etanol", "GNV", "Flex"
+                ])
+            with _tc2:
+                _v_tanque    = st.number_input("Capacidade do tanque (L) *", min_value=10.0, max_value=1000.0, value=300.0, step=10.0)
+                _v_consumo   = st.number_input("Consumo esperado (km/L) *", min_value=1.0, max_value=50.0, value=7.5, step=0.5)
+            with _tc3:
+                _v_empresa   = st.text_input("Empresa", placeholder="Nome da empresa")
+                _v_modelo    = st.text_input("Marca / Modelo", placeholder="Ex: Volvo FH 460")
+
+            _submitted_v = st.form_submit_button("➕ Adicionar veículo", use_container_width=True)
+            if _submitted_v:
+                if not _v_placa:
+                    st.error("Informe a placa do veículo.")
+                elif any(v["placa"] == _v_placa for v in st.session_state["_tele_frota"]):
+                    st.warning(f"Placa {_v_placa} já cadastrada.")
+                else:
+                    st.session_state["_tele_frota"].append({
+                        "placa": _v_placa,
+                        "combustivel": _v_comb,
+                        "tanque_l": _v_tanque,
+                        "consumo_esp_kml": _v_consumo,
+                        "empresa": _v_empresa,
+                        "modelo": _v_modelo,
+                    })
+                    _tele_salvar_frota_supabase(st.session_state["_tele_frota"])
+                    st.success(f"✅ Veículo {_v_placa} adicionado.")
+                    st.rerun()
+
+        _frota = st.session_state["_tele_frota"]
+        if _frota:
+            st.markdown(f"**{len(_frota)} veículo(s) cadastrado(s)**")
+            _df_frota = pd.DataFrame(_frota)
+            _df_frota.columns = ["Placa", "Combustível", "Tanque (L)", "Consumo Esp. (km/L)", "Empresa", "Modelo"]
+            st.dataframe(_df_frota, use_container_width=True, hide_index=True)
+            if st.button("🗑️ Limpar frota cadastrada", key="btn_tele_limpar_frota"):
+                st.session_state["_tele_frota"] = []
+                st.rerun()
+
+            # ── FIPE: enriquecimento da frota cadastrada ──────────────
+            st.divider()
+            st.markdown("#### 🚘 Dados FIPE da Frota")
+            st.caption(
+                "Valor de mercado e dados cadastrais (DENATRAN) "
+                "obtidos via BrasilAPI · Cache Supabase 30 dias"
+            )
+            _tele_frota_df = pd.DataFrame([{"_placa": v["placa"]} for v in _frota])
+            _fipe_cache_tele = st.session_state.get(
+                "fipe_telemetria_cache_fipe",
+                _fipe_carregar_cache(),
+            )
+            _fipe_secao_ui(_tele_frota_df, _fipe_cache_tele, key_prefix="fipe_telemetria")
+        else:
+            st.info("Nenhum veículo cadastrado ainda. Preencha o formulário acima para começar.")
+
+    # ════════════════════════════════════════════
+    #  TAB 2 — Importar / Entrada Manual
+    # ════════════════════════════════════════════
+    with _tele_t2:
+        _imp_modo = st.radio(
+            "Forma de entrada",
+            ["📁 Upload CSV/Excel", "✍️ Entrada manual"],
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+
+        if _imp_modo == "📁 Upload CSV/Excel":
+            st.markdown("#### 📁 Importar arquivo de abastecimentos")
+            st.caption(
+                "Exporte a planilha de abastecimentos do seu sistema de telemetria (Sascar, Cobli, Onixsat, etc.) "
+                "e faça o upload abaixo. O arquivo deve ter pelo menos as colunas: **Placa, Data, Litros e Valor**."
+            )
+
+            _tele_file = st.file_uploader(
+                "Arquivo de abastecimentos (.csv ou .xlsx)",
+                type=["csv", "xlsx", "xls"],
+                key="tele_upload_file",
+            )
+
+            if _tele_file:
+                try:
+                    if _tele_file.name.endswith(".csv"):
+                        _tdf_raw = pd.read_csv(_tele_file, encoding="utf-8", sep=None, engine="python")
+                    else:
+                        _tdf_raw = pd.read_excel(_tele_file)
+
+                    st.success(f"Arquivo lido: **{len(_tdf_raw)} linhas** · {len(_tdf_raw.columns)} colunas")
+                    st.markdown("**Mapeamento de colunas** — identifique quais colunas do seu arquivo correspondem a cada campo:")
+
+                    _cols_arq = ["(não disponível)"] + list(_tdf_raw.columns)
+                    _mc1, _mc2, _mc3 = st.columns(3)
+                    with _mc1:
+                        _map_placa    = st.selectbox("Placa *",         _cols_arq, key="tmap_placa")
+                        _map_data     = st.selectbox("Data *",          _cols_arq, key="tmap_data")
+                    with _mc2:
+                        _map_litros   = st.selectbox("Litros *",        _cols_arq, key="tmap_litros")
+                        _map_valor    = st.selectbox("Valor total (R$)", _cols_arq, key="tmap_valor")
+                    with _mc3:
+                        _map_hodo     = st.selectbox("Hodômetro (km)",  _cols_arq, key="tmap_hodo")
+                        _map_posto    = st.selectbox("Nome do posto",   _cols_arq, key="tmap_posto")
+                        _map_cnpj_p   = st.selectbox("CNPJ do posto",  _cols_arq, key="tmap_cnpj")
+
+                    if st.button("✅ Importar registros", key="btn_tele_importar_csv", use_container_width=True):
+                        if _map_placa == "(não disponível)" or _map_data == "(não disponível)" or _map_litros == "(não disponível)":
+                            st.error("Mapeie pelo menos Placa, Data e Litros.")
+                        else:
+                            _novos = []
+                            for _, _row in _tdf_raw.iterrows():
+                                _rec = {
+                                    "placa":       str(_row[_map_placa]).strip().upper() if _map_placa != "(não disponível)" else "",
+                                    "data":        str(_row[_map_data]).strip()          if _map_data  != "(não disponível)" else "",
+                                    "litros":      pd.to_numeric(_row[_map_litros],   errors="coerce") if _map_litros != "(não disponível)" else None,
+                                    "valor_total": pd.to_numeric(_row[_map_valor],    errors="coerce") if _map_valor  != "(não disponível)" else None,
+                                    "hodometro":   pd.to_numeric(_row[_map_hodo],     errors="coerce") if _map_hodo   != "(não disponível)" else None,
+                                    "nome_posto":  str(_row[_map_posto]).strip()       if _map_posto  != "(não disponível)" else "",
+                                    "cnpj_posto":  str(_row[_map_cnpj_p]).strip()      if _map_cnpj_p != "(não disponível)" else "",
+                                    "fonte":       "csv",
+                                }
+                                if _rec["litros"] and _rec["litros"] > 0:
+                                    _novos.append(_rec)
+
+                            st.session_state["_tele_abast"].extend(_novos)
+                            _tele_salvar_abastecimentos_supabase(_novos)
+                            st.success(f"✅ {len(_novos)} abastecimentos importados.")
+                            st.rerun()
+
+                except Exception as _e:
+                    st.error(f"Erro ao ler o arquivo: {_e}")
+
+        else:
+            st.markdown("#### ✍️ Registrar abastecimento manualmente")
+            _placas_cadastradas = [v["placa"] for v in st.session_state["_tele_frota"]]
+
+            with st.form("form_add_abast", clear_on_submit=True):
+                _fa1, _fa2, _fa3 = st.columns(3)
+                with _fa1:
+                    _a_placa  = st.text_input("Placa *", placeholder="ABC1D23").strip().upper() if not _placas_cadastradas else st.selectbox("Placa *", _placas_cadastradas)
+                    _a_data   = st.date_input("Data *")
+                with _fa2:
+                    _a_litros = st.number_input("Litros abastecidos *", min_value=1.0, max_value=2000.0, step=0.5)
+                    _a_valor  = st.number_input("Valor total (R$) *",   min_value=0.01, max_value=50000.0, step=0.01)
+                with _fa3:
+                    _a_hodo   = st.number_input("Hodômetro (km)", min_value=0, max_value=9_999_999, step=1)
+                    _a_posto  = st.text_input("Nome do posto", placeholder="Posto Brasil")
+                    _a_cnpj_p = st.text_input("CNPJ do posto", placeholder="00.000.000/0001-00")
+
+                _submitted_a = st.form_submit_button("➕ Registrar abastecimento", use_container_width=True)
+                if _submitted_a:
+                    st.session_state["_tele_abast"].append({
+                        "placa":       _a_placa,
+                        "data":        str(_a_data),
+                        "litros":      float(_a_litros),
+                        "valor_total": float(_a_valor),
+                        "hodometro":   int(_a_hodo) if _a_hodo else None,
+                        "nome_posto":  _a_posto,
+                        "cnpj_posto":  _a_cnpj_p,
+                        "fonte":       "manual",
+                    })
+                    _tele_salvar_abastecimentos_supabase(
+                        [st.session_state["_tele_abast"][-1]]
+                    )
+                    st.success("✅ Abastecimento registrado.")
+                    st.rerun()
+
+        if st.session_state["_tele_abast"]:
+            st.caption(f"**{len(st.session_state['_tele_abast'])} abastecimento(s)** registrado(s) nesta sessão.")
+            if st.button("🗑️ Limpar todos os abastecimentos", key="btn_tele_limpar_abast"):
+                st.session_state["_tele_abast"] = []
+                st.rerun()
+
+    # ════════════════════════════════════════════
+    #  Dados consolidados (usado pelas tabs 3-5)
+    # ════════════════════════════════════════════
+    _abast_lista = st.session_state.get("_tele_abast", [])
+    _frota_lista = st.session_state.get("_tele_frota", [])
+
+    if _abast_lista:
+        _df_ab = pd.DataFrame(_abast_lista)
+        _df_ab["litros"]      = pd.to_numeric(_df_ab["litros"],      errors="coerce")
+        _df_ab["valor_total"] = pd.to_numeric(_df_ab["valor_total"], errors="coerce")
+        _df_ab["hodometro"]   = pd.to_numeric(_df_ab["hodometro"],   errors="coerce")
+        _df_ab["data"]        = pd.to_datetime(_df_ab["data"],       errors="coerce")
+        _df_ab["preco_litro"] = (_df_ab["valor_total"] / _df_ab["litros"]).round(3)
+        _df_ab = _df_ab.sort_values(["placa", "data"]).reset_index(drop=True)
+
+        # Calcula km desde último abastecimento e km/L real
+        _df_ab["km_desde_ult"] = (
+            _df_ab.groupby("placa")["hodometro"].diff().where(_df_ab["hodometro"].notna())
+        )
+        _df_ab["consumo_real_kml"] = (
+            (_df_ab["km_desde_ult"] / _df_ab["litros"]).round(2)
+        )
+
+        # Join com dados da frota para consumo esperado
+        _frota_map = {v["placa"]: v for v in _frota_lista}
+        _df_ab["tanque_l"]         = _df_ab["placa"].map(lambda p: _frota_map.get(p, {}).get("tanque_l"))
+        _df_ab["consumo_esp_kml"]  = _df_ab["placa"].map(lambda p: _frota_map.get(p, {}).get("consumo_esp_kml"))
+    else:
+        _df_ab = pd.DataFrame()
+
+    # ════════════════════════════════════════════
+    #  TAB 3 — Histórico de Abastecimentos
+    # ════════════════════════════════════════════
+    with _tele_t3:
+        if _df_ab.empty:
+            st.info("Nenhum abastecimento registrado ainda. Use a aba **📥 Importar** para carregar dados.")
+        else:
+            st.markdown("#### ⛽ Histórico de Abastecimentos")
+
+            # KPIs
+            _kv1, _kv2, _kv3, _kv4 = st.columns(4)
+            _kv1.metric("💰 Total gasto", f"R$ {_df_ab['valor_total'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            _kv2.metric("🔢 Abastecimentos", f"{len(_df_ab)}")
+            _kv3.metric("⛽ Total litros", f"{_df_ab['litros'].sum():,.1f} L".replace(",", "."))
+            _kv4.metric("💲 Preço médio", f"R$ {_df_ab['preco_litro'].mean():.3f}/L".replace(".", ","))
+
+            st.markdown("---")
+
+            # Filtros
+            _fh1, _fh2 = st.columns(2)
+            with _fh1:
+                _placas_disp = sorted(_df_ab["placa"].dropna().unique().tolist())
+                _filtro_placas = st.multiselect("Filtrar por placa", _placas_disp, key="tele_hist_placas")
+            with _fh2:
+                _dmin = _df_ab["data"].min()
+                _dmax = _df_ab["data"].max()
+                if pd.notna(_dmin) and pd.notna(_dmax):
+                    _filtro_datas = st.date_input(
+                        "Período",
+                        value=(_dmin.date(), _dmax.date()),
+                        key="tele_hist_datas",
+                    )
+                else:
+                    _filtro_datas = None
+
+            _df_hist = _df_ab.copy()
+            if _filtro_placas:
+                _df_hist = _df_hist[_df_hist["placa"].isin(_filtro_placas)]
+            if _filtro_datas and len(_filtro_datas) == 2:
+                _df_hist = _df_hist[
+                    (_df_hist["data"].dt.date >= _filtro_datas[0]) &
+                    (_df_hist["data"].dt.date <= _filtro_datas[1])
+                ]
+
+            # Tabela
+            _col_show = ["placa", "data", "litros", "valor_total", "preco_litro", "nome_posto", "hodometro", "km_desde_ult", "consumo_real_kml"]
+            _col_show = [c for c in _col_show if c in _df_hist.columns]
+            _df_show  = _df_hist[_col_show].copy()
+            _df_show.columns = ["Placa", "Data", "Litros", "Valor R$", "R$/L", "Posto", "Hodômetro", "Km desde ult.", "km/L real"][:len(_col_show)]
+            st.dataframe(_df_show, use_container_width=True, hide_index=True)
+
+            # Gráfico gasto por mês
+            try:
+                _df_hist["mes"] = _df_hist["data"].dt.to_period("M").astype(str)
+                _df_mes = _df_hist.groupby("mes")["valor_total"].sum().reset_index()
+                _df_mes.columns = ["Mês", "Gasto R$"]
+                if not _df_mes.empty:
+                    import plotly.express as _px_t
+                    _fig_mes = _px_t.bar(
+                        _df_mes, x="Mês", y="Gasto R$",
+                        title="💰 Gasto total por mês",
+                        color_discrete_sequence=["#00838F"],
+                    )
+                    _fig_mes.update_layout(height=280, margin=dict(t=40, b=20, l=0, r=0))
+                    st.plotly_chart(_fig_mes, use_container_width=True)
+            except Exception:
+                pass
+
+    # ════════════════════════════════════════════
+    #  TAB 4 — Análise de Consumo
+    # ════════════════════════════════════════════
+    with _tele_t4:
+        if _df_ab.empty:
+            st.info("Nenhum abastecimento registrado ainda. Use a aba **📥 Importar** para carregar dados.")
+        else:
+            st.markdown("#### 📊 Eficiência de Consumo por Veículo")
+
+            # Agregado por placa
+            _df_cons = (
+                _df_ab.dropna(subset=["consumo_real_kml"])
+                .groupby("placa")
+                .agg(
+                    consumo_medio=("consumo_real_kml", "mean"),
+                    consumo_min=("consumo_real_kml", "min"),
+                    consumo_max=("consumo_real_kml", "max"),
+                    n_abast=("litros", "count"),
+                    total_litros=("litros", "sum"),
+                )
+                .reset_index()
+            )
+            _df_cons["consumo_esperado"] = _df_cons["placa"].map(
+                lambda p: _frota_map.get(p, {}).get("consumo_esp_kml") if "_frota_map" in dir() else None
+            )
+            _df_cons["desvio_pct"] = (
+                ((_df_cons["consumo_medio"] - _df_cons["consumo_esperado"]) / _df_cons["consumo_esperado"] * 100)
+                .round(1)
+                .where(_df_cons["consumo_esperado"].notna())
+            )
+
+            if not _df_cons.empty:
+                # KPI cards de consumo
+                _ck1, _ck2, _ck3 = st.columns(3)
+                _ck1.metric("Km/L médio geral", f"{_df_cons['consumo_medio'].mean():.2f}".replace(".", ","))
+                _veic_ef = _df_cons.loc[_df_cons["consumo_medio"].idxmax(), "placa"] if not _df_cons.empty else "—"
+                _ck2.metric("🏆 Mais eficiente", _veic_ef)
+                _veic_in = _df_cons.loc[_df_cons["consumo_medio"].idxmin(), "placa"] if not _df_cons.empty else "—"
+                _ck3.metric("⚠️ Menos eficiente", _veic_in)
+
+                st.markdown("---")
+
+                # Tabela comparativa
+                _df_cons_show = _df_cons.rename(columns={
+                    "placa": "Placa", "consumo_medio": "km/L Médio",
+                    "consumo_min": "km/L Mín", "consumo_max": "km/L Máx",
+                    "consumo_esperado": "km/L Esperado", "desvio_pct": "Desvio %",
+                    "n_abast": "Abastecimentos", "total_litros": "Total Litros",
+                })
+                st.dataframe(_df_cons_show, use_container_width=True, hide_index=True)
+
+                # Gráfico comparativo
+                try:
+                    import plotly.graph_objects as _pgo_t
+                    _fig_cons = _pgo_t.Figure()
+                    _fig_cons.add_bar(
+                        x=_df_cons["placa"], y=_df_cons["consumo_medio"],
+                        name="km/L Real", marker_color="#00838F"
+                    )
+                    if _df_cons["consumo_esperado"].notna().any():
+                        _fig_cons.add_scatter(
+                            x=_df_cons["placa"], y=_df_cons["consumo_esperado"],
+                            name="km/L Esperado", mode="markers",
+                            marker=dict(size=10, color="#f4b400", symbol="diamond")
+                        )
+                    _fig_cons.update_layout(
+                        title="km/L Real vs. Esperado por Veículo",
+                        height=320, margin=dict(t=40, b=20, l=0, r=0),
+                        legend=dict(orientation="h", y=-0.15),
+                    )
+                    st.plotly_chart(_fig_cons, use_container_width=True)
+                except Exception:
+                    pass
+            else:
+                st.info("Não há dados de hodômetro suficientes para calcular o consumo real. Certifique-se de que o hodômetro foi mapeado na importação.")
+
+    # ════════════════════════════════════════════
+    #  TAB 5 — Alertas e Detecção de Desvios
+    # ════════════════════════════════════════════
+    with _tele_t5:
+        if _df_ab.empty:
+            st.info("Nenhum abastecimento registrado ainda. Use a aba **📥 Importar** para carregar dados.")
+        else:
+            st.markdown("#### ⚠️ Alertas de Desvio e Comportamento Suspeito")
+
+            _alertas = []
+
+            # ── Alerta 1: Litros > capacidade do tanque ──────────────
+            for _, _row in _df_ab.iterrows():
+                _tanq = _frota_map.get(str(_row["placa"]), {}).get("tanque_l")
+                if _tanq and pd.notna(_row["litros"]) and _row["litros"] > (_tanq * 1.05):
+                    _alertas.append({
+                        "Severidade": "🔴 Crítico",
+                        "Tipo": "Volume acima do tanque",
+                        "Placa": _row["placa"],
+                        "Data": str(_row["data"])[:10],
+                        "Detalhe": f"{_row['litros']:.1f}L abastecidos (tanque: {_tanq:.0f}L)",
+                    })
+
+            # ── Alerta 2: Dois abastecimentos em menos de 3h ─────────
+            for _placa_al, _grp in _df_ab.groupby("placa"):
+                _grp_s = _grp.sort_values("data").reset_index(drop=True)
+                for _i in range(1, len(_grp_s)):
+                    _delta_h = (_grp_s.loc[_i, "data"] - _grp_s.loc[_i - 1, "data"]).total_seconds() / 3600
+                    if 0 < _delta_h < 3:
+                        _alertas.append({
+                            "Severidade": "🟠 Atenção",
+                            "Tipo": "2 abastecimentos em < 3h",
+                            "Placa": _placa_al,
+                            "Data": str(_grp_s.loc[_i, "data"])[:10],
+                            "Detalhe": f"Intervalo: {_delta_h:.1f}h",
+                        })
+
+            # ── Alerta 3: Consumo anômalo (< 50% do esperado) ────────
+            for _, _row in _df_ab.iterrows():
+                _esp = _frota_map.get(str(_row["placa"]), {}).get("consumo_esp_kml")
+                if _esp and pd.notna(_row.get("consumo_real_kml")) and _row["consumo_real_kml"] > 0:
+                    if _row["consumo_real_kml"] < (_esp * 0.50):
+                        _alertas.append({
+                            "Severidade": "🔴 Crítico",
+                            "Tipo": "Consumo anômalo",
+                            "Placa": _row["placa"],
+                            "Data": str(_row["data"])[:10],
+                            "Detalhe": f"{_row['consumo_real_kml']:.2f} km/L (esperado: {_esp:.1f})",
+                        })
+
+            # ── Alerta 4: Abastecimento fora do credenciado ──────────
+            _cred_cnpjs = set()
+            _cred_raw = st.session_state.get("df_postos_filtrado") or st.session_state.get("df_postos")
+            if _cred_raw is not None and not _cred_raw.empty:
+                for _col_cnpj in ["cnpj", "CNPJ", "cnpj_norm"]:
+                    if _col_cnpj in _cred_raw.columns:
+                        _cred_cnpjs = set(_cred_raw[_col_cnpj].dropna().astype(str).str.replace(r"\D", "", regex=True))
+                        break
+
+            if _cred_cnpjs:
+                for _, _row in _df_ab.iterrows():
+                    _cnpj_norm = str(_row.get("cnpj_posto", "")).replace(".", "").replace("/", "").replace("-", "").strip()
+                    if _cnpj_norm and _cnpj_norm not in _cred_cnpjs:
+                        _alertas.append({
+                            "Severidade": "🟡 Aviso",
+                            "Tipo": "Fora da rede credenciada",
+                            "Placa": _row["placa"],
+                            "Data": str(_row["data"])[:10],
+                            "Detalhe": f"Posto: {_row.get('nome_posto','—')} (CNPJ {_row.get('cnpj_posto','—')})",
+                        })
+
+            # ── Exibe alertas ─────────────────────────────────────────
+            if _alertas:
+                _df_alertas = pd.DataFrame(_alertas)
+                _n_crit = (_df_alertas["Severidade"] == "🔴 Crítico").sum()
+                _n_aten = (_df_alertas["Severidade"] == "🟠 Atenção").sum()
+                _n_avis = (_df_alertas["Severidade"] == "🟡 Aviso").sum()
+
+                _al1, _al2, _al3 = st.columns(3)
+                _al1.metric("🔴 Críticos",  _n_crit)
+                _al2.metric("🟠 Atenção",   _n_aten)
+                _al3.metric("🟡 Avisos",    _n_avis)
+
+                st.markdown("---")
+
+                _filtro_sev = st.multiselect(
+                    "Filtrar por severidade",
+                    ["🔴 Crítico", "🟠 Atenção", "🟡 Aviso"],
+                    default=["🔴 Crítico", "🟠 Atenção"],
+                    key="tele_filtro_sev",
+                )
+                _df_al_show = _df_alertas[_df_alertas["Severidade"].isin(_filtro_sev)] if _filtro_sev else _df_alertas
+                st.dataframe(_df_al_show, use_container_width=True, hide_index=True)
+
+                # Aderência à rede credenciada
+                if _cred_cnpjs:
+                    st.markdown("---")
+                    st.markdown("#### 🏆 Aderência à Rede Credenciada")
+                    _total_com_cnpj = _df_ab["cnpj_posto"].notna().sum()
+                    if _total_com_cnpj > 0:
+                        _cnpjs_norm = _df_ab["cnpj_posto"].dropna().astype(str).str.replace(r"\D", "", regex=True)
+                        _n_cred_abast = _cnpjs_norm.isin(_cred_cnpjs).sum()
+                        _pct_ader = _n_cred_abast / _total_com_cnpj * 100
+                        _ad1, _ad2, _ad3 = st.columns(3)
+                        _ad1.metric("✅ Em credenciado",    f"{_n_cred_abast}")
+                        _ad2.metric("❌ Fora do credenciado", f"{int(_total_com_cnpj) - _n_cred_abast}")
+                        _ad3.metric("📊 Taxa de aderência",  f"{_pct_ader:.1f}%".replace(".", ","))
+            else:
+                st.success("✅ Nenhum alerta identificado nos dados carregados.")
+                if not _cred_cnpjs:
+                    st.caption("💡 Para verificar aderência à rede credenciada, carregue a base de postos na aba **📍 Por UF/Município** primeiro.")
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — API & Integrações
