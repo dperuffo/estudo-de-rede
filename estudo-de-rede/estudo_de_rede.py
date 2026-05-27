@@ -3889,6 +3889,391 @@ def _tele_restaurar_do_supabase() -> None:
         pass
 
 
+# ═══════════════════════════════════════════════════════════════════
+#  FIPE — ENRIQUECIMENTO DE FROTA VIA BRASILAPI
+#  Fluxo: placa → BrasilAPI /veiculos → dados DENATRAN
+#         código FIPE → BrasilAPI /fipe/preco → valor de mercado
+#  Cache em Supabase (frota_veiculos_fipe) para evitar re-queries.
+# ═══════════════════════════════════════════════════════════════════
+
+_FIPE_CACHE_TTL_DIAS = 30   # renova o cache a cada 30 dias
+
+
+def _fipe_normalizar_placa(placa: str) -> str:
+    """Remove separadores e converte para maiúscula."""
+    return re.sub(r"[^A-Z0-9]", "", str(placa or "").upper())
+
+
+def _fipe_parse_valor(valor_str: str) -> float | None:
+    """Converte 'R$ 45.678,00' → 45678.00."""
+    try:
+        _s = re.sub(r"[^\d,]", "", str(valor_str or ""))
+        return float(_s.replace(",", ".")) if _s else None
+    except Exception:
+        return None
+
+
+def _fipe_buscar_veiculo(placa: str) -> dict:
+    """
+    Consulta BrasilAPI /veiculos/v1/{placa}.
+    Retorna dict com: marca, modelo, ano_modelo, cor, tipo_veiculo,
+    municipio, uf_veiculo, codigo_fipe (pode estar vazio).
+    """
+    import requests as _req
+    _p = _fipe_normalizar_placa(placa)
+    if not _p:
+        return {}
+    try:
+        _r = _req.get(
+            f"https://brasilapi.com.br/api/veiculos/v1/{_p}",
+            timeout=10,
+            headers={"User-Agent": "FNI-Frota/2.0"},
+        )
+        if _r.status_code == 200:
+            _d = _r.json()
+            return {
+                "marca":        _d.get("marca", ""),
+                "modelo":       _d.get("modelo", ""),
+                "ano_modelo":   str(_d.get("ano", "") or ""),
+                "cor":          _d.get("cor", ""),
+                "tipo_veiculo": _d.get("tipo", ""),
+                "municipio":    _d.get("municipio", ""),
+                "uf_veiculo":   _d.get("uf", ""),
+                "codigo_fipe":  _d.get("codigoFipe", ""),
+            }
+        return {}
+    except Exception:
+        return {}
+
+
+def _fipe_buscar_preco(codigo_fipe: str) -> dict:
+    """
+    Consulta BrasilAPI /fipe/preco/v1/{codigo_fipe}.
+    Retorna dict com: valor_fipe, combustivel_fipe, mes_referencia.
+    """
+    import requests as _req
+    if not codigo_fipe:
+        return {}
+    try:
+        _r = _req.get(
+            f"https://brasilapi.com.br/api/fipe/preco/v1/{codigo_fipe}",
+            timeout=10,
+            headers={"User-Agent": "FNI-Frota/2.0"},
+        )
+        if _r.status_code == 200:
+            _lista = _r.json()
+            if isinstance(_lista, list) and _lista:
+                _d = _lista[0]   # referência mais recente
+                return {
+                    "valor_fipe":       _fipe_parse_valor(_d.get("valor", "")),
+                    "combustivel_fipe": _d.get("combustivel", ""),
+                    "mes_referencia":   _d.get("mesReferencia", ""),
+                }
+        return {}
+    except Exception:
+        return {}
+
+
+def _fipe_carregar_cache() -> dict:
+    """
+    Carrega todos os registros de frota_veiculos_fipe do Supabase.
+    Retorna dict { placa: {...campos...} }.
+    """
+    _db = _db_client()
+    if not _db:
+        return {}
+    try:
+        _rows = _db.table("frota_veiculos_fipe").select("*").limit(10000).execute().data or []
+        return {r["placa"]: r for r in _rows}
+    except Exception:
+        return {}
+
+
+def _fipe_salvar_registro(placa: str, dados: dict) -> None:
+    """
+    Upsert de um registro na tabela frota_veiculos_fipe.
+    """
+    _db = _db_client()
+    if not _db:
+        return
+    try:
+        _eid = _db_empresa_id()
+        _row = {
+            "placa":            _fipe_normalizar_placa(placa),
+            "marca":            dados.get("marca", ""),
+            "modelo":           dados.get("modelo", ""),
+            "ano_modelo":       dados.get("ano_modelo", ""),
+            "cor":              dados.get("cor", ""),
+            "tipo_veiculo":     dados.get("tipo_veiculo", ""),
+            "municipio":        dados.get("municipio", ""),
+            "uf_veiculo":       dados.get("uf_veiculo", ""),
+            "codigo_fipe":      dados.get("codigo_fipe", ""),
+            "valor_fipe":       dados.get("valor_fipe"),
+            "combustivel_fipe": dados.get("combustivel_fipe", ""),
+            "mes_referencia":   dados.get("mes_referencia", ""),
+            "empresa_id":       _eid,
+            "buscado_em":       _agora(),
+        }
+        _db.table("frota_veiculos_fipe").upsert(
+            _row, on_conflict="placa"
+        ).execute()
+    except Exception:
+        pass
+
+
+def _fipe_enriquecer_frota(
+    placas: list[str],
+    progresso_callback=None,
+    force_refresh: bool = False,
+) -> dict:
+    """
+    Enriquece uma lista de placas com dados FIPE.
+    - Primeiro carrega o cache do Supabase.
+    - Para placas sem cache (ou com cache expirado), consulta BrasilAPI.
+    - Salva novos registros no cache.
+    - Retorna dict { placa_norm: {marca, modelo, ano_modelo, cor, tipo_veiculo,
+                                   codigo_fipe, valor_fipe, combustivel_fipe, ...} }
+    progresso_callback(atual, total) pode atualizar uma barra de progresso.
+    """
+    import time as _time
+
+    _cache = _fipe_carregar_cache() if not force_refresh else {}
+    _resultado: dict = {}
+    _placas_unicas = list({_fipe_normalizar_placa(p) for p in placas if p})
+    _total = len(_placas_unicas)
+
+    for _i, _placa in enumerate(_placas_unicas):
+        if progresso_callback:
+            progresso_callback(_i + 1, _total)
+
+        # Verifica cache
+        _cached = _cache.get(_placa)
+        if _cached and not force_refresh:
+            _buscado_em = _cached.get("buscado_em", "")
+            try:
+                _ts = pd.to_datetime(_buscado_em, utc=True)
+                _dias = (pd.Timestamp.now(tz="UTC") - _ts).days
+                if _dias < _FIPE_CACHE_TTL_DIAS:
+                    _resultado[_placa] = _cached
+                    continue
+            except Exception:
+                _resultado[_placa] = _cached
+                continue
+
+        # Busca na API (com delay para respeitar rate limit)
+        _time.sleep(0.4)
+        _info = _fipe_buscar_veiculo(_placa)
+        if _info:
+            # Busca preço FIPE se tiver código
+            if _info.get("codigo_fipe"):
+                _time.sleep(0.3)
+                _preco = _fipe_buscar_preco(_info["codigo_fipe"])
+                _info.update(_preco)
+            _fipe_salvar_registro(_placa, _info)
+            _resultado[_placa] = _info
+        else:
+            # Sem dados disponíveis — salva registro vazio para não repetir
+            _info_vazio = {
+                "marca": "", "modelo": "", "ano_modelo": "",
+                "cor": "", "tipo_veiculo": "", "municipio": "",
+                "uf_veiculo": "", "codigo_fipe": "",
+                "valor_fipe": None, "combustivel_fipe": "",
+                "mes_referencia": "",
+            }
+            _fipe_salvar_registro(_placa, _info_vazio)
+            _resultado[_placa] = _info_vazio
+
+    return _resultado
+
+
+def _fipe_df_enriquecido(df_abast: "pd.DataFrame", cache_fipe: dict) -> "pd.DataFrame":
+    """
+    Mescla dados FIPE em um DataFrame de abastecimentos.
+    Adiciona colunas: _fipe_marca, _fipe_modelo, _fipe_ano, _fipe_cor,
+                      _fipe_tipo, _fipe_valor, _fipe_comb_ref, _fipe_mes_ref.
+    """
+    if df_abast is None or df_abast.empty or not cache_fipe:
+        _df = df_abast.copy() if df_abast is not None else pd.DataFrame()
+        for _c in ["_fipe_marca","_fipe_modelo","_fipe_ano","_fipe_cor",
+                   "_fipe_tipo","_fipe_valor","_fipe_comb_ref","_fipe_mes_ref"]:
+            _df[_c] = None
+        return _df
+
+    _df = df_abast.copy()
+    _col_placa = next(
+        (c for c in ["_placa", "placa"] if c in _df.columns), None
+    )
+    if not _col_placa:
+        return _df
+
+    def _get(placa, campo, fallback=None):
+        _p = _fipe_normalizar_placa(str(placa or ""))
+        _r = cache_fipe.get(_p) or {}
+        return _r.get(campo, fallback)
+
+    _df["_fipe_marca"]    = _df[_col_placa].apply(lambda p: _get(p, "marca", ""))
+    _df["_fipe_modelo"]   = _df[_col_placa].apply(lambda p: _get(p, "modelo", ""))
+    _df["_fipe_ano"]      = _df[_col_placa].apply(lambda p: _get(p, "ano_modelo", ""))
+    _df["_fipe_cor"]      = _df[_col_placa].apply(lambda p: _get(p, "cor", ""))
+    _df["_fipe_tipo"]     = _df[_col_placa].apply(lambda p: _get(p, "tipo_veiculo", ""))
+    _df["_fipe_valor"]    = _df[_col_placa].apply(lambda p: _get(p, "valor_fipe"))
+    _df["_fipe_comb_ref"] = _df[_col_placa].apply(lambda p: _get(p, "combustivel_fipe", ""))
+    _df["_fipe_mes_ref"]  = _df[_col_placa].apply(lambda p: _get(p, "mes_referencia", ""))
+    return _df
+
+
+def _fipe_secao_ui(
+    df_abast: "pd.DataFrame",
+    cache_fipe: dict,
+    key_prefix: str = "fipe",
+) -> None:
+    """
+    Renderiza a seção completa de dados FIPE para uma frota.
+    Exibe: tabela de frota enriquecida + KPIs + gráficos de composição.
+    """
+    if df_abast is None or df_abast.empty:
+        st.info("Carregue dados de abastecimentos para ver as informações FIPE da frota.")
+        return
+
+    _col_placa = next(
+        (c for c in ["_placa", "placa"] if c in df_abast.columns), None
+    )
+    if not _col_placa:
+        st.warning("Coluna de placa não encontrada nos dados.")
+        return
+
+    _placas = sorted(df_abast[_col_placa].dropna().unique().tolist())
+    _n_placas = len(_placas)
+    _placas_norm = [_fipe_normalizar_placa(p) for p in _placas]
+    _em_cache = sum(1 for p in _placas_norm if cache_fipe.get(p, {}).get("marca"))
+    _sem_cache = _n_placas - _em_cache
+
+    # ── Header e status do cache ───────────────────────────────────
+    _c1, _c2, _c3 = st.columns([2, 2, 1])
+    with _c1:
+        st.metric("🚗 Veículos na frota", _n_placas)
+    with _c2:
+        st.metric("✅ Com dados FIPE", _em_cache,
+                  delta=f"{_sem_cache} sem dados" if _sem_cache else None,
+                  delta_color="inverse")
+    with _c3:
+        _btn_key = f"{key_prefix}_buscar_fipe"
+        _lbl_btn = "🔄 Atualizar" if _em_cache > 0 else "🔍 Buscar dados FIPE"
+        _force = st.button(_lbl_btn, key=_btn_key, use_container_width=True,
+                           type="primary" if _em_cache == 0 else "secondary")
+
+    if _force or (_sem_cache > 0 and st.session_state.get(f"{key_prefix}_auto_buscado") is False):
+        with st.spinner(f"Consultando BrasilAPI para {_n_placas} placa(s)... (pode levar até {_n_placas} segundos)"):
+            _prog_bar = st.progress(0)
+            def _prog_cb(atual, total):
+                _prog_bar.progress(int(atual / total * 100))
+            _novo_cache = _fipe_enriquecer_frota(
+                _placas,
+                progresso_callback=_prog_cb,
+                force_refresh=_force,
+            )
+            st.session_state[f"{key_prefix}_cache_fipe"] = _novo_cache
+            st.session_state[f"{key_prefix}_auto_buscado"] = True
+            cache_fipe = _novo_cache
+            _prog_bar.empty()
+        st.rerun()
+
+    if not cache_fipe:
+        st.info("Clique em **🔍 Buscar dados FIPE** para consultar a BrasilAPI e enriquecer a frota.")
+        return
+
+    # ── Monta tabela da frota ──────────────────────────────────────
+    _linhas = []
+    for _p in _placas:
+        _pn = _fipe_normalizar_placa(_p)
+        _d  = cache_fipe.get(_pn) or {}
+        _linhas.append({
+            "Placa":           _p,
+            "Marca":           _d.get("marca") or "—",
+            "Modelo":          _d.get("modelo") or "—",
+            "Ano":             _d.get("ano_modelo") or "—",
+            "Cor":             _d.get("cor") or "—",
+            "Tipo":            _d.get("tipo_veiculo") or "—",
+            "Comb. Ref.":      _d.get("combustivel_fipe") or "—",
+            "Valor FIPE":      _d.get("valor_fipe"),
+            "Ref. FIPE":       _d.get("mes_referencia") or "—",
+        })
+    _df_frota = pd.DataFrame(_linhas)
+    _df_frota["Valor FIPE (R$)"] = _df_frota["Valor FIPE"].apply(
+        lambda v: f"R$ {v:,.0f}".replace(",", ".") if pd.notna(v) and v else "—"
+    )
+
+    st.dataframe(
+        _df_frota[["Placa","Marca","Modelo","Ano","Cor","Tipo","Comb. Ref.","Valor FIPE (R$)","Ref. FIPE"]],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # ── KPIs de valor de frota ─────────────────────────────────────
+    _valores = _df_frota["Valor FIPE"].dropna()
+    _valores = _valores[_valores > 0]
+    if not _valores.empty:
+        st.markdown("#### 💰 Valor de Mercado da Frota (FIPE)")
+        _kc1, _kc2, _kc3, _kc4 = st.columns(4)
+        _kc1.metric("Total estimado",
+                    f"R$ {_valores.sum():,.0f}".replace(",", "."))
+        _kc2.metric("Média por veículo",
+                    f"R$ {_valores.mean():,.0f}".replace(",", "."))
+        _kc3.metric("Maior valor",
+                    f"R$ {_valores.max():,.0f}".replace(",", "."))
+        _kc4.metric("Menor valor",
+                    f"R$ {_valores.min():,.0f}".replace(",", "."))
+
+    # ── Gráficos de composição ─────────────────────────────────────
+    _df_c = _df_frota[_df_frota["Marca"] != "—"].copy()
+    if len(_df_c) >= 2:
+        st.markdown("#### 📊 Composição da Frota")
+        _gc1, _gc2 = st.columns(2)
+
+        with _gc1:
+            _por_marca = _df_c["Marca"].value_counts().head(10)
+            _fig_marca = go.Figure(go.Bar(
+                x=_por_marca.values,
+                y=_por_marca.index,
+                orientation="h",
+                marker_color="#1040a0",
+                text=_por_marca.values,
+                textposition="outside",
+            ))
+            _fig_marca.update_layout(
+                title="Veículos por Marca",
+                height=320,
+                margin=dict(l=10, r=30, t=40, b=10),
+                paper_bgcolor="white",
+                plot_bgcolor="#f9fbff",
+                yaxis=dict(autorange="reversed"),
+                showlegend=False,
+            )
+            st.plotly_chart(_fig_marca, use_container_width=True)
+
+        with _gc2:
+            _por_tipo = _df_c["Tipo"].replace("", "Não informado").value_counts()
+            _fig_tipo = go.Figure(go.Pie(
+                labels=_por_tipo.index,
+                values=_por_tipo.values,
+                hole=0.45,
+                marker_colors=["#1040a0","#00838F","#e53935","#f57f17","#2e7d32"],
+            ))
+            _fig_tipo.update_layout(
+                title="Distribuição por Tipo",
+                height=320,
+                margin=dict(l=10, r=10, t=40, b=10),
+                paper_bgcolor="white",
+            )
+            st.plotly_chart(_fig_tipo, use_container_width=True)
+
+    st.caption(
+        f"Dados fornecidos pela **BrasilAPI** (DENATRAN/RENAVAM + Tabela FIPE). "
+        f"Cache atualizado a cada {_FIPE_CACHE_TTL_DIAS} dias. "
+        "Veículos sem placa no padrão Mercosul/antigo podem não retornar dados."
+    )
+
+
 def _comparar_cargas_precos(
     df_novo: "pd.DataFrame",
     df_ant:  "pd.DataFrame",
@@ -26021,6 +26406,8 @@ elif modo == "👥 Análise de Cliente":
 
     # ═══════ ANÁLISES (só se há dados) ═══════════════════════════
     if _df_abast is not None and len(_df_abast) > 0:
+        # persiste referência no session_state para outras seções (ex: Relatórios FIPE)
+        st.session_state["_fipe_abast_df"] = _df_abast
 
         # ── Formatador de CNPJ (usado aqui e no banner) ───────────
         def _fmt_cnpj(c: str) -> str:
@@ -26141,7 +26528,7 @@ elif modo == "👥 Análise de Cliente":
             st.warning("Nenhum registro no período selecionado.")
         else:
             # ── abas principais ───────────────────────────────────
-            _ta, _tb, _tc, _td, _te, _tf, _tg = st.tabs([
+            _ta, _tb, _tc, _td, _te, _tf, _tg, _th = st.tabs([
                 "📊 Resumo",
                 "🚗 Veículos",
                 "📈 Consumo & Custo/km",
@@ -26149,6 +26536,7 @@ elif modo == "👥 Análise de Cliente":
                 "💡 Insights",
                 "💰 Contratos & Savings",
                 "🏁 Rede GF vs Fora da Rede",
+                "🚘 FIPE",
             ])
 
             # ════════════════════════════════════════════════════
@@ -28098,6 +28486,25 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                     })
                     st.dataframe(_rg_tbl_show, use_container_width=True, hide_index=True)
 
+            # ════════════════════════════════════════════════════
+            # ABA 8 — FIPE
+            # ════════════════════════════════════════════════════
+            with _th:
+                st.markdown(
+                    "<div style='background:linear-gradient(135deg,#E8F5E9,#fff);"
+                    "border-left:4px solid #2E7D32;border-radius:0 8px 8px 0;"
+                    "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1B5E20'>"
+                    "Consulta a <strong>BrasilAPI</strong> para obter dados cadastrais (DENATRAN) "
+                    "e valor de mercado FIPE de cada veículo da frota. "
+                    "Os resultados ficam em cache no Supabase por 30 dias.</div>",
+                    unsafe_allow_html=True,
+                )
+                _fipe_cache_ac = st.session_state.get(
+                    "fipe_analise_cache_fipe",
+                    _fipe_carregar_cache(),
+                )
+                _fipe_secao_ui(_df, _fipe_cache_ac, key_prefix="fipe_analise")
+
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Relatórios e Exportações Evoluídas
 # ═══════════════════════════════════════════════════════════════════
@@ -28119,12 +28526,13 @@ elif modo == "📑 Relatórios":
         unsafe_allow_html=True,
     )
 
-    _rlt1, _rlt2, _rlt3, _rlt4, _rlt5 = st.tabs([
+    _rlt1, _rlt2, _rlt3, _rlt4, _rlt5, _rlt6 = st.tabs([
         "📊 Relatório Executivo",
         "🌎 Oportunidades Comerciais",
         "⭐ Performance por Posto",
         "🎯 Score × Performance",
         "🔍 Anomalias",
+        "🚘 Frota FIPE",
     ])
 
     # ════════════════════════════════════════════════════════════════
@@ -29469,6 +29877,33 @@ elif modo == "📑 Relatórios":
                         "Postos com múltiplos alertas merecem investigação prioritária."
                     )
 
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 6 — FROTA FIPE
+    # ════════════════════════════════════════════════════════════════
+    with _rlt6:
+        st.markdown(
+            "<div style='background:linear-gradient(135deg,#E8F5E9,#fff);"
+            "border-left:4px solid #2E7D32;border-radius:0 8px 8px 0;"
+            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1B5E20'>"
+            "Consulta a <strong>BrasilAPI</strong> para obter dados cadastrais (DENATRAN) "
+            "e valor de mercado FIPE de cada veículo identificado nos abastecimentos. "
+            "Cache Supabase de 30 dias evita chamadas repetidas.</div>",
+            unsafe_allow_html=True,
+        )
+        _rlt_abast_df = (
+            st.session_state.get("_fipe_abast_df")
+            or st.session_state.get("frota_abast_df")
+            or st.session_state.get("abastecimentos_df")
+        )
+        if _rlt_abast_df is None or (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
+            st.info("Carregue dados de abastecimentos para visualizar as informações FIPE da frota.")
+        else:
+            _fipe_cache_rlt = st.session_state.get(
+                "fipe_relatorio_cache_fipe",
+                _fipe_carregar_cache(),
+            )
+            _fipe_secao_ui(_rlt_abast_df, _fipe_cache_rlt, key_prefix="fipe_relatorio")
+
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Telemetria de Frota
 # ═══════════════════════════════════════════════════════════════════
@@ -29550,6 +29985,20 @@ elif modo == "🛰️ Telemetria":
             if st.button("🗑️ Limpar frota cadastrada", key="btn_tele_limpar_frota"):
                 st.session_state["_tele_frota"] = []
                 st.rerun()
+
+            # ── FIPE: enriquecimento da frota cadastrada ──────────────
+            st.divider()
+            st.markdown("#### 🚘 Dados FIPE da Frota")
+            st.caption(
+                "Valor de mercado e dados cadastrais (DENATRAN) "
+                "obtidos via BrasilAPI · Cache Supabase 30 dias"
+            )
+            _tele_frota_df = pd.DataFrame([{"_placa": v["placa"]} for v in _frota])
+            _fipe_cache_tele = st.session_state.get(
+                "fipe_telemetria_cache_fipe",
+                _fipe_carregar_cache(),
+            )
+            _fipe_secao_ui(_tele_frota_df, _fipe_cache_tele, key_prefix="fipe_telemetria")
         else:
             st.info("Nenhum veículo cadastrado ainda. Preencha o formulário acima para começar.")
 
