@@ -583,6 +583,9 @@ def _db_restaurar_postos_gf() -> None:
         if len(_available) >= 3:
             _coords_df = _df_gf[list(_available.keys())].rename(columns=_available).copy()
             if not _coords_df.empty:
+                # Garante coluna "cnpj" (alias de cnpj_norm) para compatibilidade downstream
+                if "cnpj_norm" in _coords_df.columns and "cnpj" not in _coords_df.columns:
+                    _coords_df["cnpj"] = _coords_df["cnpj_norm"]
                 st.session_state.setdefault("pf_coords_df", _coords_df)
                 if not st.session_state.get("_servicos_pf_labels"):
                     _atualizar_servicos_pf(_coords_df)
@@ -21477,10 +21480,12 @@ if modo == "📈 Dashboard":
                         _cx_map_df["lon"] = pd.to_numeric(_cx_map_df["lon"], errors="coerce")
                         _cx_map_df = _cx_map_df.dropna(subset=["lat", "lon"])
                         if not _cx_map_df.empty:
-                            _cx_map_df["nome_posto"] = (
-                                _cx_map_df.get("razao_social", _cx_map_df.get("nome", "Posto"))
-                                .fillna("Posto")
-                            )
+                            if "razao_social" in _cx_map_df.columns:
+                                _cx_map_df["nome_posto"] = _cx_map_df["razao_social"].fillna("Posto")
+                            elif "nome" in _cx_map_df.columns:
+                                _cx_map_df["nome_posto"] = _cx_map_df["nome"].fillna("Posto")
+                            else:
+                                _cx_map_df["nome_posto"] = "Posto"
                             _fig_mapa_preco = go.Figure(go.Scattermapbox(
                                 lat=_cx_map_df["lat"],
                                 lon=_cx_map_df["lon"],
