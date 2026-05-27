@@ -29857,10 +29857,9 @@ elif modo == "📑 Relatórios":
                             and "ant" not in c.lower()
                         ]
                         st.dataframe(
-                            _suspeitas[_cols_show].sort_values(
-                                "_delta_num" if "_delta_num" in _suspeitas.columns else _cols_show[0],
-                                key=abs, ascending=False
-                            ).drop(columns=["_delta_num"], errors="ignore"),
+                            _suspeitas.sort_values(
+                                "_delta_num", key=abs, ascending=False
+                            )[_cols_show],
                             use_container_width=True,
                             hide_index=True,
                         )
