@@ -3,7 +3,6 @@ __pycache__/
 *.pyo
 .git/
 .gitignore
-*.sh
 COMO_EXECUTAR.md
 .env
 venv/

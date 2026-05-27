@@ -422,20 +422,250 @@ def _db_carregar_acordos() -> "pd.DataFrame":
                     return _df
             except Exception:
                 pass
-    # Fallback: GitHub (apenas se sem empresa_id — dados legados)
-    _eid_fb = _db_empresa_id()
-    if not _eid_fb:
-        try:
-            import requests as _req
-            _resp = _req.get(_ACORDOS_GITHUB_URL, timeout=15)
-            if _resp.status_code == 200:
-                import io as _io
-                _df_ac = pd.read_excel(_io.BytesIO(_resp.content), sheet_name=0)
-                _df_ac = _processar_acordos_df(_df_ac)
-                return _df_ac
-        except Exception:
-            pass
     return pd.DataFrame()
+
+
+# ── Postos GF — salvar / restaurar ───────────────────────────────────────────
+
+def _db_salvar_postos_gf(df_coords: "pd.DataFrame",
+                          cnpjs_set: set,
+                          perfil_map: dict,
+                          nome_arquivo: str = "") -> bool:
+    """
+    Upsert na tabela postos_gf + insere linha em postos_gf_versoes.
+    df_coords: DataFrame com colunas [cnpj_norm, _lat, _lon, razaoSocial,
+               distribuidora, municipio, uf, perfil_venda, horario,
+               funciona_24h, pista_caminhao, arla, conveniencia] (opcionais).
+    """
+    _db = _db_client()
+    if _db is None:
+        return False
+    try:
+        _eid   = _db_empresa_id()
+        _email = _db_email()
+        registros = []
+        if df_coords is not None and not df_coords.empty:
+            for _, row in df_coords.iterrows():
+                _cnpj = str(row.get("cnpj_norm", "")).strip()
+                if not _cnpj:
+                    continue
+                _lat = row.get("_lat") or row.get("lat")
+                _lon = row.get("_lon") or row.get("lon")
+                _rec = {
+                    "cnpj":           _cnpj,
+                    "razao_social":   str(row.get("razaoSocial", "") or "").strip() or None,
+                    "distribuidora":  str(row.get("distribuidora", "") or "").strip() or None,
+                    "municipio":      str(row.get("municipio", "") or "").strip() or None,
+                    "uf":             str(row.get("uf", "") or "").strip() or None,
+                    "lat":            float(_lat) if _lat and str(_lat) not in ("", "nan") else None,
+                    "lon":            float(_lon) if _lon and str(_lon) not in ("", "nan") else None,
+                    "perfil_venda":   perfil_map.get(_cnpj) if perfil_map else None,
+                    "horario":        str(row.get("horario", "") or "").strip() or None,
+                    "funciona_24h":   bool(row.get("funciona_24h", False)),
+                    "pista_caminhao": bool(row.get("pista_caminhao", False)),
+                    "arla":           bool(row.get("arla", False)),
+                    "conveniencia":   bool(row.get("conveniencia", False)),
+                }
+                if _eid:
+                    _rec["empresa_id"] = _eid
+                if _email:
+                    _rec["usuario_email"] = _email
+                registros.append(_rec)
+        else:
+            # Apenas CNPJs, sem coords
+            for _cnpj in cnpjs_set:
+                _rec = {"cnpj": _cnpj, "perfil_venda": perfil_map.get(_cnpj) if perfil_map else None}
+                if _eid:
+                    _rec["empresa_id"] = _eid
+                if _email:
+                    _rec["usuario_email"] = _email
+                registros.append(_rec)
+
+        # Upsert em lotes de 500
+        for i in range(0, len(registros), 500):
+            _db.table("postos_gf").upsert(registros[i:i+500]).execute()
+
+        # Versão
+        _db.table("postos_gf_versoes").insert({
+            "usuario_email": _email or "",
+            "nome_arquivo":  nome_arquivo or "upload_manual",
+            "n_cnpjs":       len(cnpjs_set),
+            "n_coords":      len(registros),
+        }).execute()
+        return True
+    except Exception as _e:
+        st.session_state["_pf_db_erro"] = str(_e)
+        return False
+
+
+def _db_restaurar_postos_gf() -> None:
+    """
+    Carrega CNPJs, perfil_map e pf_coords_df da tabela postos_gf do Supabase.
+    Chamada uma vez por sessão; usa setdefault para não sobrescrever dados mais recentes.
+    """
+    if st.session_state.get("_pf_restaurado_supabase"):
+        return
+    st.session_state["_pf_restaurado_supabase"] = True
+    try:
+        _df_gf = _db_carregar_postos_gf_df()
+        if _df_gf.empty:
+            return
+        _cnpjs = {str(r) for r in _df_gf["cnpj_norm"].dropna() if r}
+        if not _cnpjs:
+            return
+        st.session_state.setdefault("cnpjs_pro_frotas", _cnpjs)
+        st.session_state.setdefault("_pf_fonte",        "supabase")
+        st.session_state.setdefault("_pf_carregado_em", "banco de dados")
+        # perfil_venda_map
+        if "perfil_venda" in _df_gf.columns:
+            _pm = {
+                str(row["cnpj_norm"]): str(row["perfil_venda"])
+                for _, row in _df_gf.iterrows()
+                if row.get("perfil_venda") and str(row.get("perfil_venda", "")).strip()
+            }
+            if _pm:
+                st.session_state.setdefault("perfil_venda_map", _pm)
+                st.session_state.setdefault("perfis_pf_lista", sorted(set(_pm.values())))
+        # pf_coords_df — normaliza nomes de colunas para o formato esperado pelo app
+        _coords_cols = {
+            "cnpj_norm": "cnpj_norm",
+            "lat": "_lat", "lon": "_lon",
+            "razao_social": "razaoSocial",
+            "distribuidora": "distribuidora",
+            "municipio": "municipio",
+            "uf": "uf",
+        }
+        _available = {c: _coords_cols[c] for c in _coords_cols if c in _df_gf.columns}
+        if len(_available) >= 3:
+            _coords_df = _df_gf[list(_available.keys())].rename(columns=_available).copy()
+            if not _coords_df.empty:
+                st.session_state.setdefault("pf_coords_df", _coords_df)
+                if not st.session_state.get("_servicos_pf_labels"):
+                    _atualizar_servicos_pf(_coords_df)
+    except Exception:
+        pass
+
+
+# ── Postos Cercados — salvar / restaurar ─────────────────────────────────────
+
+def _db_salvar_postos_cercados(cnpjs_set: set, nome_arquivo: str = "") -> bool:
+    """
+    Upsert na tabela postos_cercados_db + insere linha em postos_cercados_versoes.
+    """
+    _db = _db_client()
+    if _db is None or not cnpjs_set:
+        return False
+    try:
+        _email = _db_email()
+        registros = [{"cnpj": c} for c in cnpjs_set]
+        for i in range(0, len(registros), 500):
+            _db.table("postos_cercados_db").upsert(registros[i:i+500]).execute()
+        _db.table("postos_cercados_versoes").insert({
+            "usuario_email": _email or "",
+            "nome_arquivo":  nome_arquivo or "upload_manual",
+            "n_cnpjs":       len(cnpjs_set),
+        }).execute()
+        return True
+    except Exception as _e:
+        st.session_state["_cer_db_erro"] = str(_e)
+        return False
+
+
+def _db_restaurar_postos_cercados() -> None:
+    """
+    Carrega CNPJs de postos cercados da tabela postos_cercados_db do Supabase.
+    Chamada uma vez por sessão; usa setdefault para não sobrescrever dados mais recentes.
+    """
+    if st.session_state.get("_cer_restaurado_supabase"):
+        return
+    st.session_state["_cer_restaurado_supabase"] = True
+    _db = _db_client()
+    if _db is None:
+        return
+    try:
+        _resp = _db.table("postos_cercados_db").select("cnpj").limit(20000).execute()
+        if _resp.data:
+            _cnpjs = {str(r["cnpj"]) for r in _resp.data if r.get("cnpj")}
+            if _cnpjs:
+                st.session_state.setdefault("cnpjs_cercados",          _cnpjs)
+                st.session_state.setdefault("_cercados_fonte",         "supabase")
+                st.session_state.setdefault("_cercados_carregado_em",  "banco de dados")
+    except Exception:
+        pass
+
+
+# ── Preços por Posto — salvar tabela precos_posto_db ────────────────────────
+
+def _db_salvar_precos_posto(pp_df: "pd.DataFrame", nome_arquivo: str = "") -> bool:
+    """
+    Upsert na tabela precos_posto_db (cnpj_norm + combustivel_pk como chave única)
+    + insere linha em precos_posto_versoes.
+    Também popula historico_precos para viabilizar análises temporais.
+    """
+    _db = _db_client()
+    if _db is None or pp_df is None or pp_df.empty:
+        return False
+    try:
+        from datetime import date as _date
+        _hoje = _date.today().isoformat()
+        _email = _db_email()
+        registros = []
+        for _, row in pp_df.iterrows():
+            _cnpj = str(row.get("cnpj_norm", "")).strip()
+            _comb = str(row.get("combustivel_pk", "")).strip()
+            if not _cnpj or not _comb:
+                continue
+            registros.append({
+                "cnpj_norm":         _cnpj,
+                "combustivel_pk":    _comb,
+                "combustivel_label": str(row.get("combustivel_label", "") or "").strip() or None,
+                "preco":             float(row["preco"]) if row.get("preco") is not None else None,
+                "data_atualizacao":  str(row.get("data_atualizacao", "") or _hoje).strip() or _hoje,
+            })
+        if registros:
+            for i in range(0, len(registros), 500):
+                _db.table("precos_posto_db").upsert(
+                    registros[i:i+500],
+                    on_conflict="cnpj_norm,combustivel_pk",
+                ).execute()
+
+        # Versão
+        _n_postos = pp_df["cnpj_norm"].nunique() if "cnpj_norm" in pp_df.columns else 0
+        _db.table("precos_posto_versoes").insert({
+            "usuario_email": _email or "",
+            "nome_arquivo":  nome_arquivo or "upload_manual",
+            "n_registros":   len(registros),
+            "n_postos":      int(_n_postos),
+        }).execute()
+
+        # ── Popula historico_precos ──────────────────────────────
+        _hist_rows = []
+        for _, row in pp_df.iterrows():
+            _cnpj = str(row.get("cnpj_norm", "")).strip()
+            _comb = str(row.get("combustivel_pk", "")).strip()
+            _preco = row.get("preco")
+            if not _cnpj or not _comb or _preco is None:
+                continue
+            _hist_rows.append({
+                "cnpj":       _cnpj,
+                "combustivel": _comb,
+                "preco":      float(_preco),
+                "data_ref":   _hoje,
+                "fonte":      "upload_manual",
+            })
+        if _hist_rows:
+            for i in range(0, len(_hist_rows), 500):
+                try:
+                    _db.table("historico_precos").upsert(
+                        _hist_rows[i:i+500],
+                        on_conflict="cnpj,combustivel,data_ref",
+                    ).execute()
+                except Exception:
+                    pass
+        return True
+    except Exception as _e:
+        st.session_state["_pp_db_erro"] = str(_e)
+        return False
 
 
 def _processar_acordos_df(df_raw: "pd.DataFrame") -> "pd.DataFrame":
@@ -5627,25 +5857,10 @@ def ler_planilha_pro_frotas(arquivo):
         return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None, None, None
 
 
-@st.cache_data(show_spinner=False, ttl=86400)   # 24 horas — lê o arquivo do repo uma vez por dia
+@st.cache_data(show_spinner=False, ttl=86400)
 def _auto_carregar_pro_frotas_repo():
-    """
-    Tenta carregar automaticamente a planilha Gestão de Frotas do repositório.
-    Aceita: pro_frotas.xlsx / pro_frotas.xls / pro_frotas.csv
-    Retorna (set_cnpjs, msg, df_preview, perfil_map, df_coords) ou (None, msg, None, None, None).
-    """
-    for nome in [ARQUIVO_PF_REPO, "pro_frotas.xls", "pro_frotas.csv"]:
-        caminho = os.path.join(_DIR, nome)
-        if os.path.exists(caminho):
-            try:
-                with open(caminho, "rb") as f:
-                    conteudo = f.read()
-                cnpjs, msg, preview, perfil_map, df_coords = _processar_bytes_pro_frotas(nome, conteudo)
-                if cnpjs:
-                    return cnpjs, msg, preview, perfil_map, df_coords
-            except Exception as e:
-                return None, f"Erro ao ler {nome} do repositório: {e}", None, None, None
-    return None, f"Arquivo `{ARQUIVO_PF_REPO}` não encontrado em: {_DIR}", None, None, None
+    """Desativado. Cargas via upload manual + Supabase."""
+    return None, "Carregamento automatico do repositorio desativado. Use o upload manual.", None, None, None
 
 
 # ── Postos Cercados ─────────────────────────────────────────────────
@@ -5698,32 +5913,10 @@ def ler_planilha_cercados(arquivo):
         return None, f"Erro ao processar arquivo: **{type(e).__name__}** — {e}", None
 
 
-@st.cache_data(show_spinner=False, ttl=86400)   # 24 h — re-lê o arquivo do repo uma vez por dia
+@st.cache_data(show_spinner=False, ttl=86400)
 def _auto_carregar_cercados_repo():
-    """
-    Tenta carregar automaticamente 'Postos Cercados.xlsx' do repositório.
-    Aceita variações de nome: com/sem espaço, maiúsculo/minúsculo.
-    Retorna (set_cnpjs, msg, df_preview) ou (None, msg_erro, None).
-    """
-    candidatos = [
-        ARQUIVO_CERCADOS_REPO,          # "Postos Cercados.xlsx"
-        "postos_cercados.xlsx",
-        "postos_cercados.xls",
-        "Postos_Cercados.xlsx",
-        "postos cercados.xlsx",
-    ]
-    for nome in candidatos:
-        caminho = os.path.join(_DIR, nome)
-        if os.path.exists(caminho):
-            try:
-                with open(caminho, "rb") as f:
-                    conteudo = f.read()
-                cnpjs, msg, preview = _processar_bytes_cercados(nome, conteudo)
-                if cnpjs:
-                    return cnpjs, msg, preview
-            except Exception as e:
-                return None, f"Erro ao ler {nome} do repositório: {e}", None
-    return None, f"Arquivo `{ARQUIVO_CERCADOS_REPO}` não encontrado em: {_DIR}", None
+    """Desativado. Cargas via upload manual + Supabase."""
+    return None, "Carregamento automatico do repositorio desativado. Use o upload manual.", None
 
 
 def marcar_cercados(df: pd.DataFrame, cnpjs_cercados: set) -> pd.DataFrame:
@@ -5909,63 +6102,10 @@ def _normalizar_nome_arquivo(nome: str) -> str:
     return sem_acento.lower().replace(" ", "_").replace("-", "_")
 
 
-@st.cache_data(show_spinner=False, ttl=3600)   # 1 h — preços atualizam com frequência
+@st.cache_data(show_spinner=False, ttl=3600)
 def _auto_carregar_precos_postos_repo():
-    """
-    Tenta carregar a planilha de Preços Posto do diretório do repositório.
-    Usa comparação tolerante a acentos e maiúsculas/minúsculas para encontrar
-    o arquivo mesmo quando o nome contém caracteres especiais (ex: ç em 'Preço').
-    """
-    # Fragmentos-chave que o arquivo deve conter (normalizados)
-    fragmentos_chave = ["preco", "posto"]
-
-    try:
-        arquivos_dir = os.listdir(_DIR)
-    except Exception:
-        arquivos_dir = []
-
-    # 1ª tentativa: comparação exata (rápida)
-    candidatos_exatos = [
-        "preco_posto.xlsx",      # nome padrão do repositório
-        ARQUIVO_PP_REPO,         # alias configurado (atualmente = "preco_posto.xlsx")
-        "preco_postos.xlsx",
-        "Preco Posto.xlsx",
-        "Preço Posto.xlsx",
-        "precos_postos.xlsx",
-        "precos_posto.xlsx",
-        "Preco_Posto.xlsx",
-        "Preços Posto.xlsx",
-        "Precos Posto.xlsx",
-    ]
-    for nome in candidatos_exatos:
-        caminho = os.path.join(_DIR, nome)
-        if os.path.exists(caminho):
-            try:
-                with open(caminho, "rb") as f:
-                    conteudo = f.read()
-                df, msg, _ = _processar_bytes_precos_postos(nome, conteudo)
-                if df is not None:
-                    return df, msg, None
-            except Exception as e:
-                return None, f"Erro ao ler {nome}: {e}", None
-
-    # 2ª tentativa: varredura tolerante a acentos sobre os arquivos reais do diretório
-    for arq in arquivos_dir:
-        if not arq.lower().endswith((".xlsx", ".xls")):
-            continue
-        arq_norm = _normalizar_nome_arquivo(arq)
-        if all(frag in arq_norm for frag in fragmentos_chave):
-            caminho = os.path.join(_DIR, arq)
-            try:
-                with open(caminho, "rb") as f:
-                    conteudo = f.read()
-                df, msg, _ = _processar_bytes_precos_postos(arq, conteudo)
-                if df is not None:
-                    return df, msg, None
-            except Exception as e:
-                return None, f"Erro ao ler {arq}: {e}", None
-
-    return None, f"Arquivo `{ARQUIVO_PP_REPO}` não encontrado em: {_DIR}", None
+    """Desativado. Cargas via upload manual + Supabase."""
+    return None, "Carregamento automatico do repositorio desativado. Use o upload manual.", None
 
 
 # ── Gestão de Frotas ───────────────────────────────────────────────────────
@@ -11571,85 +11711,26 @@ with st.sidebar:
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
 
-    # ── Auto-carregamento do repositório ─────────────────────
-    # Tenta UMA VEZ por sessão — usa flag para não repetir
-    if not st.session_state.get("cnpjs_pro_frotas") and not st.session_state.get("_repo_tentado"):
-        st.session_state["_repo_tentado"] = True   # evita loop
-        _cnpjs_repo, _msg_repo, _prev_repo, _perfil_repo, _coords_repo = _auto_carregar_pro_frotas_repo()
-        if _cnpjs_repo:
-            st.session_state["cnpjs_pro_frotas"]  = _cnpjs_repo
-            st.session_state["_pf_fonte"]         = "repo"
-            st.session_state["_pf_carregado_em"]  = _agora()
-        if _perfil_repo:
-            st.session_state["perfil_venda_map"]    = _perfil_repo
-            st.session_state["perfis_pf_lista"]     = sorted(set(_perfil_repo.values()))
-        if _coords_repo is not None and not _coords_repo.empty:
-            st.session_state["pf_coords_df"] = _coords_repo
-            _atualizar_servicos_pf(_coords_repo)
+    # ── Restaura dados do Supabase (uma vez por sessão) ──────────────
+    # Postos GF: carrega CNPJs, perfil_map e coords do banco
+    _db_restaurar_postos_gf()
 
     # Reconstrói labels de serviços se pf_coords_df já existe mas labels ainda não foram gerados
-    # (ex: primeira rerun após cache hit)
     if ("pf_coords_df" in st.session_state
             and not st.session_state["pf_coords_df"].empty
             and not st.session_state.get("_servicos_pf_labels")):
         _atualizar_servicos_pf(st.session_state["pf_coords_df"])
 
-    # Fallback: CNPJs já carregados mas perfil_venda_map ou pf_coords_df ainda ausentes/vazio
-    # (ocorre quando o cache antigo não incluía lat/lon ou pf_coords_df foi armazenado vazio)
-    _pf_coords_ok = (
-        "pf_coords_df" in st.session_state
-        and not st.session_state["pf_coords_df"].empty
-    )
-    _needs_reload = (
-        st.session_state.get("cnpjs_pro_frotas") and (
-            not st.session_state.get("perfil_venda_map") or
-            not _pf_coords_ok
-        )
-    )
-    if _needs_reload and not st.session_state.get("_pf_coords_reload_feito"):
-        st.session_state["_pf_coords_reload_feito"] = True
-        _auto_carregar_pro_frotas_repo.clear()   # garante releitura com código atual
-        _cnpjs_r2, _, _, _perfil_r2, _coords_r2 = _auto_carregar_pro_frotas_repo()
-        if _perfil_r2:
-            st.session_state["perfil_venda_map"]  = _perfil_r2
-            st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r2.values()))
-        if _coords_r2 is not None and not _coords_r2.empty:
-            st.session_state["pf_coords_df"] = _coords_r2
-            _atualizar_servicos_pf(_coords_r2)
+    # Postos Cercados: carrega do banco
+    _db_restaurar_postos_cercados()
 
-    # Auto-load Postos Cercados (uma vez por sessão)
-    if not st.session_state.get("cnpjs_cercados") and not st.session_state.get("_cercados_tentado"):
-        st.session_state["_cercados_tentado"] = True
-        _cnpjs_cer, _msg_cer, _ = _auto_carregar_cercados_repo()
-        if _cnpjs_cer:
-            st.session_state["cnpjs_cercados"]          = _cnpjs_cer
-            st.session_state["_cercados_fonte"]         = "repo"
-            st.session_state["_cercados_carregado_em"]  = _agora()
-
-    # Auto-load Preço Posto — re-parseia se a versão do parser mudou
-    _pp_ver_atual = st.session_state.get("_pp_parser_ver")
-    if _pp_ver_atual != _PP_PARSER_VERSION:
-        # Parser foi atualizado: descarta dado antigo e re-parseia
-        st.session_state.pop("_pp_df", None)
-        st.session_state.pop("_pp_tentado", None)
-        _auto_carregar_precos_postos_repo.clear()
-        st.session_state["_pp_parser_ver"] = _PP_PARSER_VERSION
-
-    # ── Restaura última carga PP e variação do Supabase (persiste entre reboots) ──
+    # Preços PP: restaura última carga + variação do Supabase
     _restaurar_estado_pp_do_supabase()
 
     # ── Restaura frota e abastecimentos de telemetria do Supabase ──
     _tele_restaurar_do_supabase()
 
-    if st.session_state.get("_pp_df") is None and not st.session_state.get("_pp_tentado"):
-        st.session_state["_pp_tentado"] = True
-        _pp_df_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
-        if _pp_df_tmp is not None:
-            st.session_state["_pp_df"]         = _pp_df_tmp
-            st.session_state["_pp_fonte"]       = "repo"
-            st.session_state["_pp_carregado_em"] = _agora()
-
-    # ── Carrega acordos de preço (Supabase → fallback GitHub) ─────
+    # ── Carrega acordos de preço do Supabase ─────────────────
     # Tenta carregar sempre que acordos_df não existe OU está vazio,
     # com debounce de 5 minutos para não sobrecarregar o banco.
     _ac_need_load = "acordos_df" not in st.session_state or (
@@ -13304,11 +13385,12 @@ with st.sidebar:
             _pf_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_pf_ts}</span>"
                            if _pf_ts else "")
             if _pf_set:
-                _c = ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "repo" \
+                _c = ("#e8f5e9","#a5d6a7","#2e7d32","✅") if _pf_fonte == "supabase" \
                      else ("#fff8e1","#ffe082","#f57f17","⭐")
                 _src = (f"<span style='font-size:10px;opacity:.8'>"
-                        f"Fonte: <code>{ARQUIVO_PF_REPO}</code></span>"
-                        if _pf_fonte == "repo" else "")
+                        f"Fonte: banco de dados</span>"
+                        if _pf_fonte == "supabase" else
+                        "<span style='font-size:10px;opacity:.8'>Carregado manualmente</span>")
                 st.markdown(
                     f"<div style='background:{_c[0]};border:1px solid {_c[1]};"
                     f"border-radius:8px;padding:8px 11px;font-size:11px;color:{_c[2]}'>"
@@ -13318,36 +13400,27 @@ with st.sidebar:
                 )
             else:
                 st.markdown(
-                    f"<div style='background:#fff3e0;border:1px solid #ffcc80;"
-                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
-                    f"⚠️ <b>Não carregado</b><br>"
-                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_PF_REPO}</code> "
-                    f"ou faça upload.</span></div>",
+                    "<div style='background:#fff3e0;border:1px solid #ffcc80;"
+                    "border-radius:8px;padding:8px 11px;font-size:11px;color:#e65100'>"
+                    "⚠️ <b>Não carregado</b><br>"
+                    "<span style='font-size:10px'>Faça upload da planilha abaixo para carregar.</span></div>",
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do repositório", use_container_width=True,
-                         help="Força nova leitura do pro_frotas.xlsx no GitHub",
+            if st.button("🔄 Recarregar do banco", use_container_width=True,
+                         help="Recarrega dados de Gestão de Frotas salvos no Supabase",
                          key="btn_reload_pf_cfg"):
-                _auto_carregar_pro_frotas_repo.clear()
-                with st.spinner(f"Lendo `{ARQUIVO_PF_REPO}`…"):
-                    _cnpjs_r, _msg_r, _prev_r, _perfil_r, _coords_r = _auto_carregar_pro_frotas_repo()
-                if _cnpjs_r:
-                    st.session_state["cnpjs_pro_frotas"] = _cnpjs_r
-                    st.session_state["_pf_fonte"]        = "repo"
-                    st.session_state["_pf_carregado_em"] = _agora()
-                    if _perfil_r:
-                        st.session_state["perfil_venda_map"]  = _perfil_r
-                        st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_r.values()))
-                    if _coords_r is not None and not _coords_r.empty:
-                        st.session_state["pf_coords_df"] = _coords_r
-                        _atualizar_servicos_pf(_coords_r)
-                    st.success(f"✅ {_msg_r}")
+                st.session_state["_pf_restaurado_supabase"] = False
+                st.session_state.pop("rg_gf_cnpjs_cache", None)
+                _db_restaurar_postos_gf()
+                if st.session_state.get("cnpjs_pro_frotas"):
+                    st.success(f"✅ {len(st.session_state['cnpjs_pro_frotas'])} postos GF carregados do banco.")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error(_msg_r or f"❌ `{ARQUIVO_PF_REPO}` não encontrado.")
-            st.markdown("<small><b>Upload manual</b></small>", unsafe_allow_html=True)
+                    st.warning("⚠️ Nenhum posto GF encontrado no banco. Faça upload da planilha.")
+            st.markdown("<small><b>Upload manual</b> — salva no banco e usa na sessão:</small>",
+                        unsafe_allow_html=True)
             arquivo_pf = st.file_uploader(
                 "Planilha Gestão de Frotas", type=["xlsx","xls","csv"],
                 key="upload_pf", label_visibility="collapsed",
@@ -13370,7 +13443,17 @@ with st.sidebar:
                         if coords_pf is not None and not coords_pf.empty:
                             st.session_state["pf_coords_df"] = coords_pf
                             _atualizar_servicos_pf(coords_pf)
-                        st.success(msg_pf)
+                        # ── Persiste no Supabase ──
+                        with st.spinner("Salvando no banco de dados…"):
+                            _pf_salvo = _db_salvar_postos_gf(
+                                coords_pf, cnpjs_pf, perfil_pf or {}, arquivo_pf.name)
+                        if _pf_salvo:
+                            st.success(f"✅ {msg_pf} — dados salvos no banco.")
+                        else:
+                            _pf_err = st.session_state.pop("_pf_db_erro", "")
+                            st.success(msg_pf)
+                            if _pf_err:
+                                st.warning(f"⚠️ Não foi possível salvar no banco: {_pf_err}")
                         if preview_pf is not None:
                             with st.expander("Ver amostra dos CNPJs"):
                                 st.dataframe(preview_pf, use_container_width=True)
@@ -13390,12 +13473,11 @@ with st.sidebar:
             _cer_ts_html = (f"<br><span style='font-size:10px;opacity:.8'>🕐 {_cer_ts}</span>"
                             if _cer_ts else "")
             if _cer_set:
-                _cc = ("#fff8e1","#ffe082","#e65100") if _cer_fonte == "manual" \
-                      else ("#fff3e0","#ffcc80","#bf360c")
+                _cc = ("#e8f5e9","#a5d6a7","#2e7d32") if _cer_fonte == "supabase" \
+                      else ("#fff8e1","#ffe082","#e65100")
                 _src_cer = (
-                    f"<span style='font-size:10px;opacity:.8'>"
-                    f"Fonte: <code>{ARQUIVO_CERCADOS_REPO}</code></span>"
-                    if _cer_fonte == "repo" else
+                    "<span style='font-size:10px;opacity:.8'>Fonte: banco de dados</span>"
+                    if _cer_fonte == "supabase" else
                     "<span style='font-size:10px;opacity:.8'>Carregado manualmente</span>"
                 )
                 st.markdown(
@@ -13407,31 +13489,26 @@ with st.sidebar:
                 )
             else:
                 st.markdown(
-                    f"<div style='background:#f5f5f5;border:1px solid #ddd;"
-                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
-                    f"Planilha não carregada.<br>"
-                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_CERCADOS_REPO}</code> "
-                    f"ao repositório ou faça upload manual.</span></div>",
+                    "<div style='background:#f5f5f5;border:1px solid #ddd;"
+                    "border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
+                    "Planilha não carregada.<br>"
+                    "<span style='font-size:10px'>Faça upload da planilha de Postos Cercados abaixo.</span></div>",
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do repositório", use_container_width=True,
-                         help=f"Força nova leitura de '{ARQUIVO_CERCADOS_REPO}' no GitHub",
+            if st.button("🔄 Recarregar do banco", use_container_width=True,
+                         help="Recarrega postos cercados salvos no Supabase",
                          key="btn_reload_cercados"):
-                _auto_carregar_cercados_repo.clear()
-                with st.spinner(f"Lendo `{ARQUIVO_CERCADOS_REPO}`…"):
-                    _cnpjs_cer2, _msg_cer2, _ = _auto_carregar_cercados_repo()
-                if _cnpjs_cer2:
-                    st.session_state["cnpjs_cercados"]          = _cnpjs_cer2
-                    st.session_state["_cercados_fonte"]         = "repo"
-                    st.session_state["_cercados_carregado_em"]  = _agora()
-                    st.success(f"✅ {_msg_cer2}")
+                st.session_state["_cer_restaurado_supabase"] = False
+                _db_restaurar_postos_cercados()
+                if st.session_state.get("cnpjs_cercados"):
+                    st.success(f"✅ {len(st.session_state['cnpjs_cercados'])} postos cercados carregados do banco.")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error(_msg_cer2 or f"❌ `{ARQUIVO_CERCADOS_REPO}` não encontrado.")
+                    st.warning("⚠️ Nenhum posto cercado encontrado no banco. Faça upload da planilha.")
 
-            st.markdown("<small><b>Upload manual</b> — substitui nesta sessão:</small>",
+            st.markdown("<small><b>Upload manual</b> — salva no banco e usa na sessão:</small>",
                         unsafe_allow_html=True)
             arquivo_cer = st.file_uploader(
                 "Planilha Postos Cercados", type=["xlsx","xls","csv"],
@@ -13447,7 +13524,16 @@ with st.sidebar:
                         st.session_state["_cercados_fonte"]         = "manual"
                         st.session_state["_cercados_carregado_em"]  = _agora()
                         st.session_state["_cer_last_upload_id"]     = _cer_file_id
-                        st.success(msg_cer_up)
+                        # ── Persiste no Supabase ──
+                        with st.spinner("Salvando no banco de dados…"):
+                            _cer_salvo = _db_salvar_postos_cercados(cnpjs_cer_up, arquivo_cer.name)
+                        if _cer_salvo:
+                            st.success(f"✅ {msg_cer_up} — dados salvos no banco.")
+                        else:
+                            _cer_err = st.session_state.pop("_cer_db_erro", "")
+                            st.success(msg_cer_up)
+                            if _cer_err:
+                                st.warning(f"⚠️ Não foi possível salvar no banco: {_cer_err}")
                         if prev_cer is not None:
                             with st.expander("Ver amostra"):
                                 st.dataframe(prev_cer, use_container_width=True)
@@ -13471,9 +13557,11 @@ with st.sidebar:
             if _pp_df_sb is not None:
                 _pp_n2 = _pp_df_sb["cnpj_norm"].nunique() if "cnpj_norm" in _pp_df_sb.columns else 0
                 _pp_c  = _pp_df_sb["combustivel_pk"].nunique() if "combustivel_pk" in _pp_df_sb.columns else 0
-                _pp_src = (f"<span style='font-size:10px;opacity:.8'>Fonte: <code>{ARQUIVO_PP_REPO}</code></span>"
-                           if _pp_fonte == "repo" else
-                           "<span style='font-size:10px;opacity:.8'>Carregado manualmente</span>")
+                _pp_src = (
+                    "<span style='font-size:10px;opacity:.8'>Fonte: banco de dados</span>"
+                    if _pp_fonte == "supabase" else
+                    "<span style='font-size:10px;opacity:.8'>Carregado manualmente</span>"
+                )
                 st.markdown(
                     f"<div style='background:#e3f2fd;border:1px solid #90caf9;"
                     f"border-radius:8px;padding:8px 11px;font-size:11px;color:#1565c0'>"
@@ -13530,60 +13618,25 @@ with st.sidebar:
                             st.code(", ".join(_labels_raw), language=None)
             else:
                 st.markdown(
-                    f"<div style='background:#f5f5f5;border:1px solid #ddd;"
-                    f"border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
-                    f"Planilha não carregada.<br>"
-                    f"<span style='font-size:10px'>Adicione <code>{ARQUIVO_PP_REPO}</code> "
-                    f"ao repositório ou faça upload manual.</span></div>",
+                    "<div style='background:#f5f5f5;border:1px solid #ddd;"
+                    "border-radius:8px;padding:8px 11px;font-size:11px;color:#666'>"
+                    "Planilha não carregada.<br>"
+                    "<span style='font-size:10px'>Faça upload da planilha de Preços abaixo.</span></div>",
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do repositório", use_container_width=True,
-                         help=f"Força nova leitura de '{ARQUIVO_PP_REPO}' (cache 1 h)",
+            if st.button("🔄 Recarregar do banco", use_container_width=True,
+                         help="Restaura última carga de Preços PP salva no Supabase",
                          key="btn_reload_pp"):
-                _auto_carregar_precos_postos_repo.clear()
-                st.session_state["_pp_tentado"] = False
-                with st.spinner(f"Lendo `{ARQUIVO_PP_REPO}`…"):
-                    _pp_tmp, _pp_msg_tmp, _ = _auto_carregar_precos_postos_repo()
-                if _pp_tmp is not None:
-                    # ── Busca carga anterior do Supabase (persiste entre reboots) ──
-                    _pp_ant_repo = st.session_state.get("_pp_df")
-                    _carga_ant_id_repo = st.session_state.get("_pp_carga_id")
-                    if _pp_ant_repo is None:
-                        _cargas_repo = _carregar_cargas_pp_supabase(n=1)
-                        if _cargas_repo and _cargas_repo[0].get("dados"):
-                            _pp_ant_repo = pd.DataFrame(_cargas_repo[0]["dados"])
-                            _carga_ant_id_repo = _cargas_repo[0]["id"]
-                    # ── Salva nova carga no Supabase ──
-                    _nova_carga_id_repo = _salvar_carga_pp_supabase(_pp_tmp, ARQUIVO_PP_REPO)
-                    # ── Comparação com carga anterior ──
-                    if _pp_ant_repo is not None and not _pp_ant_repo.empty:
-                        try:
-                            _pf_ref_repo = st.session_state.get("pf_coords_df")
-                            _var_df_repo = _comparar_cargas_precos(
-                                _pp_tmp, _pp_ant_repo, _pf_ref_repo)
-                            st.session_state["_pp_variacao"]    = _var_df_repo
-                            st.session_state["_pp_variacao_ts"] = _agora()
-                            if _nova_carga_id_repo:
-                                _salvar_variacao_pp_supabase(
-                                    _var_df_repo, _nova_carga_id_repo, _carga_ant_id_repo)
-                        except Exception:
-                            pass
-                    st.session_state["_pp_df"]          = _pp_tmp
-                    st.session_state["_pp_carga_id"]    = _nova_carga_id_repo
-                    st.session_state["_pp_fonte"]        = "repo"
-                    st.session_state["_pp_carregado_em"] = _agora()
-                    # ── Auto-registro no histórico de inteligência ──
-                    try:
-                        _hist_record_pp_df(_pp_tmp)
-                    except Exception:
-                        pass
-                    st.success(f"✅ {_pp_msg_tmp}")
+                st.session_state["_pp_restaurado_supabase"] = False
+                _restaurar_estado_pp_do_supabase()
+                if st.session_state.get("_pp_df") is not None:
+                    st.success("✅ Preços PP restaurados do banco.")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error(_pp_msg_tmp or f"❌ `{ARQUIVO_PP_REPO}` não encontrado.")
-            st.markdown("<small><b>Upload manual</b> — substitui nesta sessão:</small>",
+                    st.warning("⚠️ Nenhuma carga de preços encontrada no banco. Faça upload da planilha.")
+            st.markdown("<small><b>Upload manual</b> — salva no banco e usa na sessão:</small>",
                         unsafe_allow_html=True)
             arquivo_pp = st.file_uploader(
                 "Planilha Preço Posto", type=["xlsx","xls","csv"],
@@ -13604,8 +13657,11 @@ with st.sidebar:
                             if _cargas_up and _cargas_up[0].get("dados"):
                                 _pp_ant_up = pd.DataFrame(_cargas_up[0]["dados"])
                                 _carga_ant_id_up = _cargas_up[0]["id"]
-                        # ── Salva nova carga no Supabase ──
+                        # ── Salva snapshot JSON da carga (para comparação e restauro) ──
                         _nova_carga_id_up = _salvar_carga_pp_supabase(_pp_up, arquivo_pp.name)
+                        # ── Persiste preços por posto no banco (precos_posto_db + historico) ──
+                        with st.spinner("Salvando preços no banco de dados…"):
+                            _db_salvar_precos_posto(_pp_up, arquivo_pp.name)
                         # ── Comparação com carga anterior ──
                         if _pp_ant_up is not None and not _pp_ant_up.empty:
                             try:
