@@ -3913,36 +3913,54 @@ def _fipe_parse_valor(valor_str: str) -> float | None:
         return None
 
 
-def _fipe_buscar_veiculo(placa: str) -> dict:
+def _fipe_buscar_veiculo(placa: str, _debug: bool = False) -> dict:
     """
     Consulta BrasilAPI /veiculos/v1/{placa}.
     Retorna dict com: marca, modelo, ano_modelo, cor, tipo_veiculo,
     municipio, uf_veiculo, codigo_fipe (pode estar vazio).
+    Se _debug=True, inclui _status_code e _raw_response para diagnóstico.
     """
     import requests as _req
     _p = _fipe_normalizar_placa(placa)
     if not _p:
         return {}
+    _url = f"https://brasilapi.com.br/api/veiculos/v1/{_p}"
     try:
         _r = _req.get(
-            f"https://brasilapi.com.br/api/veiculos/v1/{_p}",
-            timeout=10,
-            headers={"User-Agent": "FNI-Frota/2.0"},
+            _url,
+            timeout=15,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; FNI-Frota/2.0)",
+                "Accept": "application/json",
+            },
         )
+        _debug_info = {"_status_code": _r.status_code, "_raw_response": _r.text[:500]} if _debug else {}
         if _r.status_code == 200:
             _d = _r.json()
+            # Tenta variações de nomes de campo (API pode mudar entre versões)
+            _marca  = _d.get("marca") or _d.get("MARCA") or ""
+            _modelo = _d.get("modelo") or _d.get("MODELO") or ""
+            _ano    = _d.get("anoModelo") or _d.get("ano") or _d.get("ANO") or ""
+            _cor    = _d.get("cor") or _d.get("COR") or ""
+            _tipo   = _d.get("tipo") or _d.get("TIPO") or ""
+            _mun    = _d.get("municipio") or _d.get("MUNICIPIO") or ""
+            _uf     = _d.get("uf") or _d.get("UF") or ""
+            _cfipe  = _d.get("codigoFipe") or _d.get("codigo_fipe") or ""
             return {
-                "marca":        _d.get("marca", ""),
-                "modelo":       _d.get("modelo", ""),
-                "ano_modelo":   str(_d.get("ano", "") or ""),
-                "cor":          _d.get("cor", ""),
-                "tipo_veiculo": _d.get("tipo", ""),
-                "municipio":    _d.get("municipio", ""),
-                "uf_veiculo":   _d.get("uf", ""),
-                "codigo_fipe":  _d.get("codigoFipe", ""),
+                "marca":        _marca,
+                "modelo":       _modelo,
+                "ano_modelo":   str(_ano),
+                "cor":          _cor,
+                "tipo_veiculo": _tipo,
+                "municipio":    _mun,
+                "uf_veiculo":   _uf,
+                "codigo_fipe":  _cfipe,
+                **_debug_info,
             }
-        return {}
-    except Exception:
+        return _debug_info  # retorna pelo menos o status para debug
+    except Exception as _ex:
+        if _debug:
+            return {"_status_code": -1, "_raw_response": str(_ex)}
         return {}
 
 
@@ -4169,6 +4187,34 @@ def _fipe_secao_ui(
         _lbl_btn = "🔄 Atualizar" if _em_cache > 0 else "🔍 Buscar dados FIPE"
         _force = st.button(_lbl_btn, key=_btn_key, use_container_width=True,
                            type="primary" if _em_cache == 0 else "secondary")
+
+    # ── Diagnóstico da API (expander) ──────────────────────────────
+    with st.expander("🔬 Diagnóstico da BrasilAPI", expanded=False):
+        st.caption("Testa a BrasilAPI com uma placa real para identificar problemas de conexão.")
+        _diag_key = f"{key_prefix}_diag_placa"
+        _diag_placa = st.text_input(
+            "Placa para teste",
+            value=_placas[0] if _placas else "",
+            key=_diag_key,
+            placeholder="Ex: ABC1D23",
+        )
+        if st.button("🔍 Testar API agora", key=f"{key_prefix}_btn_diag"):
+            with st.spinner("Consultando BrasilAPI..."):
+                _res = _fipe_buscar_veiculo(_diag_placa, _debug=True)
+            _code = _res.get("_status_code", "—")
+            _raw  = _res.get("_raw_response", "sem resposta")
+            if _code == 200 and _res.get("marca"):
+                st.success(f"✅ HTTP {_code} — Dados recebidos: {_res.get('marca')} {_res.get('modelo')} {_res.get('ano_modelo')}")
+            elif _code == 200:
+                st.warning(f"⚠️ HTTP 200 mas sem dados de marca/modelo. Resposta bruta:\n```\n{_raw}\n```")
+            elif _code == 404:
+                st.error(f"❌ HTTP 404 — Endpoint não encontrado. A BrasilAPI pode ter removido ou alterado a rota `/veiculos/v1/{{placa}}`.")
+            elif _code == 422:
+                st.error(f"❌ HTTP 422 — Placa inválida para a API. Resposta: {_raw}")
+            elif _code == -1:
+                st.error(f"❌ Erro de conexão: {_raw}")
+            else:
+                st.error(f"❌ HTTP {_code} — Resposta: {_raw}")
 
     if _force or (_sem_cache > 0 and st.session_state.get(f"{key_prefix}_auto_buscado") is False):
         with st.spinner(f"Consultando BrasilAPI para {_n_placas} placa(s)... (pode levar até {_n_placas} segundos)"):
