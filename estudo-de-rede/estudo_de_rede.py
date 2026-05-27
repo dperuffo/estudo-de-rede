@@ -2698,8 +2698,28 @@ def _auth_login_page():
 if "_auth_user" not in st.session_state:
     st.session_state["_auth_user"] = None
 
+# ── Timeout de inatividade: 30 minutos ──────────────────────────────
+_TIMEOUT_INATIVIDADE = 30 * 60  # 1 800 segundos
+if st.session_state.get("_auth_user"):
+    _agora_to = time.time()
+    _ult_ativ  = st.session_state.get("_last_activity_ts")
+    if _ult_ativ is None:
+        # Primeira renderização após login — inicia o contador
+        st.session_state["_last_activity_ts"] = _agora_to
+    elif _agora_to - _ult_ativ > _TIMEOUT_INATIVIDADE:
+        # 30 min sem atividade — encerra a sessão
+        st.session_state["_auth_user"]        = None
+        st.session_state["_acesso_verificado"] = False
+        st.session_state.pop("_last_activity_ts", None)
+        st.session_state["_sessao_expirada"]   = True
+    else:
+        # Atividade detectada — renova o timestamp
+        st.session_state["_last_activity_ts"] = _agora_to
+
 # ── Verificar autenticação — bloqueia o app se não autenticado ──────
 if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
+    if st.session_state.pop("_sessao_expirada", False):
+        st.toast("⏱️ Sessão encerrada por 30 min de inatividade.", icon="🔒")
     _auth_login_page()
     st.stop()
 
@@ -11150,6 +11170,7 @@ with st.sidebar:
             help="Encerrar sessão e voltar ao login",
         ):
             st.session_state["_auth_user"] = None
+            st.session_state.pop("_last_activity_ts", None)
             st.rerun()
 
     # ── Auto-carregamento do repositório ─────────────────────
