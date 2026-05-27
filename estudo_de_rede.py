@@ -6289,14 +6289,16 @@ def _startup_sincronizar_github() -> None:
     st.session_state["_github_sync_done"] = True
 
     # ── 1. Postos GF (pro_frotas.xlsx) ───────────────────────────────
+    # Retorno: (cnpjs, msg, df_preview, perfil_map, df_coords)
     try:
-        _cnpjs_pf, _msg_pf, _coords_pf, _perfil_pf, _svc_pf = _auto_carregar_pro_frotas_repo()
+        _cnpjs_pf, _msg_pf, _preview_pf, _perfil_pf, _coords_pf = _auto_carregar_pro_frotas_repo()
         if _cnpjs_pf:
             # Atualiza session_state independentemente de salvar no Supabase
             st.session_state["cnpjs_pro_frotas"]  = _cnpjs_pf
             st.session_state["_pf_fonte"]          = "github"
             st.session_state["_pf_carregado_em"]   = "GitHub (automático)"
             st.session_state["_pf_restaurado_supabase"] = True  # pula restauração redundante
+            # _coords_pf é df_coords com colunas: cnpj_norm, _lat, _lon, razaoSocial, municipio, uf
             if _coords_pf is not None and not _coords_pf.empty:
                 if "cnpj" not in _coords_pf.columns and "cnpj_norm" in _coords_pf.columns:
                     _coords_pf["cnpj"] = _coords_pf["cnpj_norm"]
