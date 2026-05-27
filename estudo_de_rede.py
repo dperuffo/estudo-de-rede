@@ -3890,13 +3890,14 @@ def _tele_restaurar_do_supabase() -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  FIPE — ENRIQUECIMENTO DE FROTA VIA BRASILAPI
-#  Fluxo: placa → BrasilAPI /veiculos → dados DENATRAN
-#         código FIPE → BrasilAPI /fipe/preco → valor de mercado
-#  Cache em Supabase (frota_veiculos_fipe) para evitar re-queries.
+#  FIPE — ENRIQUECIMENTO DE FROTA VIA TABELA FIPE (parallelum API)
+#  Fluxo: usuario seleciona Tipo → Marca → Modelo → Ano
+#         API parallelum.com.br retorna dados + valor de mercado
+#  Cache em Supabase (frota_veiculos_fipe) — TTL 30 dias.
 # ═══════════════════════════════════════════════════════════════════
 
-_FIPE_CACHE_TTL_DIAS = 30   # renova o cache a cada 30 dias
+_FIPE_CACHE_TTL_DIAS = 30
+_PARALLELUM_BASE     = "https://parallelum.com.br/fipe/api/v2"
 
 
 def _fipe_normalizar_placa(placa: str) -> str:
@@ -3913,90 +3914,24 @@ def _fipe_parse_valor(valor_str: str) -> float | None:
         return None
 
 
-def _fipe_buscar_veiculo(placa: str, _debug: bool = False) -> dict:
-    """
-    Consulta BrasilAPI /veiculos/v1/{placa}.
-    Retorna dict com: marca, modelo, ano_modelo, cor, tipo_veiculo,
-    municipio, uf_veiculo, codigo_fipe (pode estar vazio).
-    Se _debug=True, inclui _status_code e _raw_response para diagnóstico.
-    """
+def _fipe_api_get(endpoint: str) -> list | dict:
+    """GET genérico para a API parallelum FIPE."""
     import requests as _req
-    _p = _fipe_normalizar_placa(placa)
-    if not _p:
-        return {}
-    _url = f"https://brasilapi.com.br/api/veiculos/v1/{_p}"
     try:
         _r = _req.get(
-            _url,
-            timeout=15,
-            headers={
-                "User-Agent": "Mozilla/5.0 (compatible; FNI-Frota/2.0)",
-                "Accept": "application/json",
-            },
-        )
-        _debug_info = {"_status_code": _r.status_code, "_raw_response": _r.text[:500]} if _debug else {}
-        if _r.status_code == 200:
-            _d = _r.json()
-            # Tenta variações de nomes de campo (API pode mudar entre versões)
-            _marca  = _d.get("marca") or _d.get("MARCA") or ""
-            _modelo = _d.get("modelo") or _d.get("MODELO") or ""
-            _ano    = _d.get("anoModelo") or _d.get("ano") or _d.get("ANO") or ""
-            _cor    = _d.get("cor") or _d.get("COR") or ""
-            _tipo   = _d.get("tipo") or _d.get("TIPO") or ""
-            _mun    = _d.get("municipio") or _d.get("MUNICIPIO") or ""
-            _uf     = _d.get("uf") or _d.get("UF") or ""
-            _cfipe  = _d.get("codigoFipe") or _d.get("codigo_fipe") or ""
-            return {
-                "marca":        _marca,
-                "modelo":       _modelo,
-                "ano_modelo":   str(_ano),
-                "cor":          _cor,
-                "tipo_veiculo": _tipo,
-                "municipio":    _mun,
-                "uf_veiculo":   _uf,
-                "codigo_fipe":  _cfipe,
-                **_debug_info,
-            }
-        return _debug_info  # retorna pelo menos o status para debug
-    except Exception as _ex:
-        if _debug:
-            return {"_status_code": -1, "_raw_response": str(_ex)}
-        return {}
-
-
-def _fipe_buscar_preco(codigo_fipe: str) -> dict:
-    """
-    Consulta BrasilAPI /fipe/preco/v1/{codigo_fipe}.
-    Retorna dict com: valor_fipe, combustivel_fipe, mes_referencia.
-    """
-    import requests as _req
-    if not codigo_fipe:
-        return {}
-    try:
-        _r = _req.get(
-            f"https://brasilapi.com.br/api/fipe/preco/v1/{codigo_fipe}",
-            timeout=10,
-            headers={"User-Agent": "FNI-Frota/2.0"},
+            f"{_PARALLELUM_BASE}{endpoint}",
+            timeout=12,
+            headers={"User-Agent": "FNI-Frota/2.0", "Accept": "application/json"},
         )
         if _r.status_code == 200:
-            _lista = _r.json()
-            if isinstance(_lista, list) and _lista:
-                _d = _lista[0]   # referência mais recente
-                return {
-                    "valor_fipe":       _fipe_parse_valor(_d.get("valor", "")),
-                    "combustivel_fipe": _d.get("combustivel", ""),
-                    "mes_referencia":   _d.get("mesReferencia", ""),
-                }
-        return {}
+            return _r.json()
+        return []
     except Exception:
-        return {}
+        return []
 
 
 def _fipe_carregar_cache() -> dict:
-    """
-    Carrega todos os registros de frota_veiculos_fipe do Supabase.
-    Retorna dict { placa: {...campos...} }.
-    """
+    """Carrega cache Supabase. Retorna {placa_norm: {...}}."""
     _db = _db_client()
     if not _db:
         return {}
@@ -4008,16 +3943,12 @@ def _fipe_carregar_cache() -> dict:
 
 
 def _fipe_salvar_registro(placa: str, dados: dict) -> tuple[bool, str]:
-    """
-    Upsert de um registro na tabela frota_veiculos_fipe.
-    Retorna (sucesso: bool, mensagem_erro: str).
-    """
+    """Upsert em frota_veiculos_fipe. Retorna (ok, erro)."""
     from datetime import timezone as _tz
     _db = _db_client()
     if not _db:
         return False, "Sem conexão com Supabase"
     try:
-        _eid = _db_empresa_id()
         _row = {
             "placa":            _fipe_normalizar_placa(placa),
             "marca":            dados.get("marca", ""),
@@ -4031,120 +3962,44 @@ def _fipe_salvar_registro(placa: str, dados: dict) -> tuple[bool, str]:
             "valor_fipe":       dados.get("valor_fipe"),
             "combustivel_fipe": dados.get("combustivel_fipe", ""),
             "mes_referencia":   dados.get("mes_referencia", ""),
-            "empresa_id":       _eid,
-            # ISO 8601 UTC — compatível com TIMESTAMPTZ do Postgres
+            "empresa_id":       _db_empresa_id(),
             "buscado_em":       datetime.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
-        _db.table("frota_veiculos_fipe").upsert(
-            _row, on_conflict="placa"
-        ).execute()
+        _db.table("frota_veiculos_fipe").upsert(_row, on_conflict="placa").execute()
         return True, ""
     except Exception as _e:
         return False, str(_e)
 
 
-def _fipe_enriquecer_frota(
-    placas: list[str],
-    progresso_callback=None,
-    force_refresh: bool = False,
-) -> dict:
-    """
-    Enriquece uma lista de placas com dados FIPE.
-    - Primeiro carrega o cache do Supabase.
-    - Para placas sem cache (ou com cache expirado), consulta BrasilAPI.
-    - Salva novos registros no cache.
-    - Retorna dict { placa_norm: {marca, modelo, ano_modelo, cor, tipo_veiculo,
-                                   codigo_fipe, valor_fipe, combustivel_fipe, ...} }
-    progresso_callback(atual, total) pode atualizar uma barra de progresso.
-    """
-    import time as _time
-
-    _cache = _fipe_carregar_cache() if not force_refresh else {}
-    _resultado: dict = {}
-    _placas_unicas = list({_fipe_normalizar_placa(p) for p in placas if p})
-    _total = len(_placas_unicas)
-
-    for _i, _placa in enumerate(_placas_unicas):
-        if progresso_callback:
-            progresso_callback(_i + 1, _total)
-
-        # Verifica cache
-        _cached = _cache.get(_placa)
-        if _cached and not force_refresh:
-            _buscado_em = _cached.get("buscado_em", "")
-            try:
-                _ts = pd.to_datetime(_buscado_em, utc=True)
-                _dias = (pd.Timestamp.now(tz="UTC") - _ts).days
-                if _dias < _FIPE_CACHE_TTL_DIAS:
-                    _resultado[_placa] = _cached
-                    continue
-            except Exception:
-                _resultado[_placa] = _cached
-                continue
-
-        # Busca na API (com delay para respeitar rate limit)
-        _time.sleep(0.4)
-        _info = _fipe_buscar_veiculo(_placa)
-        if _info:
-            # Busca preço FIPE se tiver código
-            if _info.get("codigo_fipe"):
-                _time.sleep(0.3)
-                _preco = _fipe_buscar_preco(_info["codigo_fipe"])
-                _info.update(_preco)
-            _info["_encontrado"] = True
-        else:
-            # Sem dados na DENATRAN — registra vazio para não re-consultar no TTL
-            _info = {
-                "marca": "", "modelo": "", "ano_modelo": "",
-                "cor": "", "tipo_veiculo": "", "municipio": "",
-                "uf_veiculo": "", "codigo_fipe": "",
-                "valor_fipe": None, "combustivel_fipe": "",
-                "mes_referencia": "", "_encontrado": False,
-            }
-
-        _ok, _err = _fipe_salvar_registro(_placa, _info)
-        if not _ok:
-            # Propaga o erro para o caller decidir como exibir
-            _info["_erro_save"] = _err
-
-        _resultado[_placa] = _info
-
-    return _resultado
-
-
 def _fipe_df_enriquecido(df_abast: "pd.DataFrame", cache_fipe: dict) -> "pd.DataFrame":
-    """
-    Mescla dados FIPE em um DataFrame de abastecimentos.
-    Adiciona colunas: _fipe_marca, _fipe_modelo, _fipe_ano, _fipe_cor,
-                      _fipe_tipo, _fipe_valor, _fipe_comb_ref, _fipe_mes_ref.
-    """
+    """Mescla colunas FIPE no DataFrame de abastecimentos."""
+    _COLS = ["_fipe_marca", "_fipe_modelo", "_fipe_ano", "_fipe_cor",
+             "_fipe_tipo", "_fipe_valor", "_fipe_comb_ref", "_fipe_mes_ref"]
     if df_abast is None or df_abast.empty or not cache_fipe:
         _df = df_abast.copy() if df_abast is not None else pd.DataFrame()
-        for _c in ["_fipe_marca","_fipe_modelo","_fipe_ano","_fipe_cor",
-                   "_fipe_tipo","_fipe_valor","_fipe_comb_ref","_fipe_mes_ref"]:
+        for _c in _COLS:
             _df[_c] = None
         return _df
 
     _df = df_abast.copy()
-    _col_placa = next(
-        (c for c in ["_placa", "placa"] if c in _df.columns), None
-    )
+    _col_placa = next((c for c in ["_placa", "placa"] if c in _df.columns), None)
     if not _col_placa:
+        for _c in _COLS:
+            _df[_c] = None
         return _df
 
     def _get(placa, campo, fallback=None):
         _p = _fipe_normalizar_placa(str(placa or ""))
-        _r = cache_fipe.get(_p) or {}
-        return _r.get(campo, fallback)
+        return (cache_fipe.get(_p) or {}).get(campo, fallback)
 
-    _df["_fipe_marca"]    = _df[_col_placa].apply(lambda p: _get(p, "marca", ""))
-    _df["_fipe_modelo"]   = _df[_col_placa].apply(lambda p: _get(p, "modelo", ""))
-    _df["_fipe_ano"]      = _df[_col_placa].apply(lambda p: _get(p, "ano_modelo", ""))
-    _df["_fipe_cor"]      = _df[_col_placa].apply(lambda p: _get(p, "cor", ""))
-    _df["_fipe_tipo"]     = _df[_col_placa].apply(lambda p: _get(p, "tipo_veiculo", ""))
+    _df["_fipe_marca"]    = _df[_col_placa].apply(lambda p: _get(p, "marca"))
+    _df["_fipe_modelo"]   = _df[_col_placa].apply(lambda p: _get(p, "modelo"))
+    _df["_fipe_ano"]      = _df[_col_placa].apply(lambda p: _get(p, "ano_modelo"))
+    _df["_fipe_cor"]      = _df[_col_placa].apply(lambda p: _get(p, "cor"))
+    _df["_fipe_tipo"]     = _df[_col_placa].apply(lambda p: _get(p, "tipo_veiculo"))
     _df["_fipe_valor"]    = _df[_col_placa].apply(lambda p: _get(p, "valor_fipe"))
-    _df["_fipe_comb_ref"] = _df[_col_placa].apply(lambda p: _get(p, "combustivel_fipe", ""))
-    _df["_fipe_mes_ref"]  = _df[_col_placa].apply(lambda p: _get(p, "mes_referencia", ""))
+    _df["_fipe_comb_ref"] = _df[_col_placa].apply(lambda p: _get(p, "combustivel_fipe"))
+    _df["_fipe_mes_ref"]  = _df[_col_placa].apply(lambda p: _get(p, "mes_referencia"))
     return _df
 
 
@@ -4154,200 +4009,282 @@ def _fipe_secao_ui(
     key_prefix: str = "fipe",
 ) -> None:
     """
-    Renderiza a seção completa de dados FIPE para uma frota.
-    Exibe: tabela de frota enriquecida + KPIs + gráficos de composição.
+    Seção FIPE completa: visão geral da frota + associação manual via
+    tabela FIPE (Tipo → Marca → Modelo → Ano) usando parallelum API.
     """
     if df_abast is None or df_abast.empty:
         st.info("Carregue dados de abastecimentos para ver as informações FIPE da frota.")
         return
 
-    _col_placa = next(
-        (c for c in ["_placa", "placa"] if c in df_abast.columns), None
-    )
+    _col_placa = next((c for c in ["_placa", "placa"] if c in df_abast.columns), None)
     if not _col_placa:
         st.warning("Coluna de placa não encontrada nos dados.")
         return
 
-    _placas = sorted(df_abast[_col_placa].dropna().unique().tolist())
-    _n_placas = len(_placas)
-    _placas_norm = [_fipe_normalizar_placa(p) for p in _placas]
-    _em_cache = sum(1 for p in _placas_norm if cache_fipe.get(p, {}).get("marca"))
-    _sem_cache = _n_placas - _em_cache
+    _placas       = sorted(df_abast[_col_placa].dropna().unique().tolist())
+    _placas_norm  = [_fipe_normalizar_placa(p) for p in _placas]
+    _n_placas     = len(_placas)
+    _em_cache     = sum(1 for p in _placas_norm if cache_fipe.get(p, {}).get("marca"))
+    _sem_cache    = _n_placas - _em_cache
 
-    # ── Header e status do cache ───────────────────────────────────
-    _c1, _c2, _c3 = st.columns([2, 2, 1])
-    with _c1:
-        st.metric("🚗 Veículos na frota", _n_placas)
-    with _c2:
-        st.metric("✅ Com dados FIPE", _em_cache,
-                  delta=f"{_sem_cache} sem dados" if _sem_cache else None,
-                  delta_color="inverse")
-    with _c3:
-        _btn_key = f"{key_prefix}_buscar_fipe"
-        _lbl_btn = "🔄 Atualizar" if _em_cache > 0 else "🔍 Buscar dados FIPE"
-        _force = st.button(_lbl_btn, key=_btn_key, use_container_width=True,
-                           type="primary" if _em_cache == 0 else "secondary")
+    # ── métricas ──────────────────────────────────────────────────
+    _m1, _m2, _m3 = st.columns(3)
+    _m1.metric("🚗 Veículos na frota", _n_placas)
+    _m2.metric("✅ Com dados FIPE",    _em_cache,
+               delta=f"{_sem_cache} sem dados" if _sem_cache else None,
+               delta_color="inverse")
+    _m3.metric("📊 Cobertura",
+               f"{int(_em_cache/_n_placas*100)}%" if _n_placas else "—")
 
-    # ── Diagnóstico da API (expander) ──────────────────────────────
-    with st.expander("🔬 Diagnóstico da BrasilAPI", expanded=False):
-        st.caption("Testa a BrasilAPI com uma placa real para identificar problemas de conexão.")
-        _diag_key = f"{key_prefix}_diag_placa"
-        _diag_placa = st.text_input(
-            "Placa para teste",
-            value=_placas[0] if _placas else "",
-            key=_diag_key,
-            placeholder="Ex: ABC1D23",
+    # ── abas ──────────────────────────────────────────────────────
+    _t1, _t2 = st.tabs(["📋 Visão Geral", "🔗 Associar Veículos"])
+
+    # ════════════════════════════════════
+    #  TAB 1 — Visão geral
+    # ════════════════════════════════════
+    with _t1:
+        # Recarrega cache do session_state se tiver sido atualizado
+        _cache_live = st.session_state.get(f"{key_prefix}_cache_fipe", cache_fipe)
+
+        _linhas = []
+        for _p in _placas:
+            _pn = _fipe_normalizar_placa(_p)
+            _d  = _cache_live.get(_pn) or {}
+            _ok = bool(_d.get("marca"))
+            _linhas.append({
+                "Status":         "✅" if _ok else "⏳",
+                "Placa":          _p,
+                "Marca":          _d.get("marca")          or "—",
+                "Modelo":         _d.get("modelo")         or "—",
+                "Ano":            _d.get("ano_modelo")      or "—",
+                "Cor":            _d.get("cor")            or "—",
+                "Tipo":           _d.get("tipo_veiculo")   or "—",
+                "Comb. Ref.":     _d.get("combustivel_fipe") or "—",
+                "Valor FIPE":     _d.get("valor_fipe"),
+                "Ref. FIPE":      _d.get("mes_referencia") or "—",
+            })
+        _df_vis = pd.DataFrame(_linhas)
+        _df_vis["Valor FIPE (R$)"] = _df_vis["Valor FIPE"].apply(
+            lambda v: f"R$ {v:,.0f}".replace(",", ".") if pd.notna(v) and v else "—"
         )
-        if st.button("🔍 Testar API agora", key=f"{key_prefix}_btn_diag"):
-            with st.spinner("Consultando BrasilAPI..."):
-                _res = _fipe_buscar_veiculo(_diag_placa, _debug=True)
-            _code = _res.get("_status_code", "—")
-            _raw  = _res.get("_raw_response", "sem resposta")
-            if _code == 200 and _res.get("marca"):
-                st.success(f"✅ HTTP {_code} — Dados recebidos: {_res.get('marca')} {_res.get('modelo')} {_res.get('ano_modelo')}")
-            elif _code == 200:
-                st.warning(f"⚠️ HTTP 200 mas sem dados de marca/modelo. Resposta bruta:\n```\n{_raw}\n```")
-            elif _code == 404:
-                st.error(f"❌ HTTP 404 — Endpoint não encontrado. A BrasilAPI pode ter removido ou alterado a rota `/veiculos/v1/{{placa}}`.")
-            elif _code == 422:
-                st.error(f"❌ HTTP 422 — Placa inválida para a API. Resposta: {_raw}")
-            elif _code == -1:
-                st.error(f"❌ Erro de conexão: {_raw}")
-            else:
-                st.error(f"❌ HTTP {_code} — Resposta: {_raw}")
+        st.dataframe(
+            _df_vis[["Status","Placa","Marca","Modelo","Ano","Cor",
+                     "Tipo","Comb. Ref.","Valor FIPE (R$)","Ref. FIPE"]],
+            use_container_width=True, hide_index=True,
+        )
+        st.caption("✅ Com dados FIPE  ⏳ Aguardando associação — use a aba **🔗 Associar Veículos**")
 
-    if _force or (_sem_cache > 0 and st.session_state.get(f"{key_prefix}_auto_buscado") is False):
-        with st.spinner(f"Consultando BrasilAPI para {_n_placas} placa(s)... (pode levar até {_n_placas} segundos)"):
-            _prog_bar = st.progress(0)
-            def _prog_cb(atual, total):
-                _prog_bar.progress(int(atual / total * 100))
-            _novo_cache = _fipe_enriquecer_frota(
-                _placas,
-                progresso_callback=_prog_cb,
-                force_refresh=_force,
-            )
-            st.session_state[f"{key_prefix}_cache_fipe"] = _novo_cache
-            st.session_state[f"{key_prefix}_auto_buscado"] = True
-            cache_fipe = _novo_cache
-            _prog_bar.empty()
+        # KPIs de valor
+        _vals = _df_vis["Valor FIPE"].dropna()
+        _vals = _vals[_vals > 0]
+        if not _vals.empty:
+            st.markdown("#### 💰 Valor de Mercado da Frota (FIPE)")
+            _k1, _k2, _k3, _k4 = st.columns(4)
+            _k1.metric("Total estimado",   f"R$ {_vals.sum():,.0f}".replace(",", "."))
+            _k2.metric("Média por veículo", f"R$ {_vals.mean():,.0f}".replace(",", "."))
+            _k3.metric("Maior valor",       f"R$ {_vals.max():,.0f}".replace(",", "."))
+            _k4.metric("Menor valor",       f"R$ {_vals.min():,.0f}".replace(",", "."))
 
-        # Verifica se houve erros de save (tabela Supabase pode não existir)
-        _erros_save = [
-            v.get("_erro_save") for v in cache_fipe.values()
-            if v.get("_erro_save")
-        ]
-        if _erros_save:
-            _err_msg = _erros_save[0]
-            if "frota_veiculos_fipe" in _err_msg or "relation" in _err_msg.lower() or "does not exist" in _err_msg.lower():
-                st.error(
-                    "⚠️ **Tabela `frota_veiculos_fipe` não encontrada no Supabase.** "
-                    "Execute o arquivo `supabase_fipe.sql` no SQL Editor do Supabase para criar o cache. "
-                    "Os dados da consulta atual ficam disponíveis até você sair desta aba."
+        # Gráficos
+        _df_c = _df_vis[_df_vis["Marca"] != "—"].copy()
+        if len(_df_c) >= 2:
+            st.markdown("#### 📊 Composição da Frota")
+            _gc1, _gc2 = st.columns(2)
+            with _gc1:
+                _por_marca = _df_c["Marca"].value_counts().head(10)
+                _fig_m = go.Figure(go.Bar(
+                    x=_por_marca.values, y=_por_marca.index,
+                    orientation="h", marker_color="#1040a0",
+                    text=_por_marca.values, textposition="outside",
+                ))
+                _fig_m.update_layout(
+                    title="Veículos por Marca", height=320,
+                    margin=dict(l=10, r=30, t=40, b=10),
+                    yaxis=dict(autorange="reversed"),
+                    paper_bgcolor="white", plot_bgcolor="#f9fbff",
                 )
-            else:
-                st.warning(f"⚠️ Dados consultados mas não salvos no banco: {_err_msg[:120]}")
+                st.plotly_chart(_fig_m, use_container_width=True)
+            with _gc2:
+                _por_tipo = _df_c["Tipo"].value_counts()
+                _fig_t = go.Figure(go.Pie(
+                    labels=_por_tipo.index, values=_por_tipo.values,
+                    hole=0.4,
+                    marker_colors=["#1040a0","#2E7D32","#F57F17",
+                                   "#C62828","#6A1B9A","#00838F"],
+                ))
+                _fig_t.update_layout(
+                    title="Tipos de Veículo", height=320,
+                    margin=dict(l=10, r=10, t=40, b=10),
+                    paper_bgcolor="white",
+                )
+                st.plotly_chart(_fig_t, use_container_width=True)
+
+    # ════════════════════════════════════
+    #  TAB 2 — Associar veículos
+    # ════════════════════════════════════
+    with _t2:
+        _cache_live2 = st.session_state.get(f"{key_prefix}_cache_fipe", cache_fipe)
+        _pendentes   = [
+            p for p in _placas
+            if not _cache_live2.get(_fipe_normalizar_placa(p), {}).get("marca")
+        ]
+        _todos_associados = len(_pendentes) == 0
+
+        if _todos_associados:
+            st.success(f"✅ Todos os {_n_placas} veículos já têm dados FIPE associados.")
+            if st.button("🔄 Re-associar um veículo", key=f"{key_prefix}_re_assoc"):
+                st.session_state[f"{key_prefix}_assoc_mostrar_todos"] = True
+                st.rerun()
+            _pool = _placas if st.session_state.get(f"{key_prefix}_assoc_mostrar_todos") else []
         else:
-            _n_salvos = sum(1 for v in cache_fipe.values() if v.get("marca"))
-            st.success(f"✅ Busca concluída. {_n_salvos}/{_n_placas} veículos encontrados na DENATRAN e salvos no Supabase.")
-        st.rerun()
-
-    if not cache_fipe:
-        st.info("Clique em **🔍 Buscar dados FIPE** para consultar a BrasilAPI e enriquecer a frota.")
-        return
-
-    # ── Monta tabela da frota ──────────────────────────────────────
-    _linhas = []
-    for _p in _placas:
-        _pn = _fipe_normalizar_placa(_p)
-        _d  = cache_fipe.get(_pn) or {}
-        _status = "✅" if _d.get("marca") else ("🔍" if not _d else "❌")
-        _linhas.append({
-            "Placa":           _p,
-            "Status":          _status,
-            "Marca":           _d.get("marca") or ("Não encontrado" if _d else "Pendente"),
-            "Modelo":          _d.get("modelo") or "—",
-            "Ano":             _d.get("ano_modelo") or "—",
-            "Cor":             _d.get("cor") or "—",
-            "Tipo":            _d.get("tipo_veiculo") or "—",
-            "Comb. Ref.":      _d.get("combustivel_fipe") or "—",
-            "Valor FIPE":      _d.get("valor_fipe"),
-            "Ref. FIPE":       _d.get("mes_referencia") or "—",
-        })
-    _df_frota = pd.DataFrame(_linhas)
-    _df_frota["Valor FIPE (R$)"] = _df_frota["Valor FIPE"].apply(
-        lambda v: f"R$ {v:,.0f}".replace(",", ".") if pd.notna(v) and v else "—"
-    )
-
-    st.dataframe(
-        _df_frota[["Status","Placa","Marca","Modelo","Ano","Cor","Tipo","Comb. Ref.","Valor FIPE (R$)","Ref. FIPE"]],
-        use_container_width=True,
-        hide_index=True,
-    )
-    st.caption("✅ Encontrado na DENATRAN  ❌ Não registrado na base DENATRAN  🔍 Pendente de consulta")
-
-    # ── KPIs de valor de frota ─────────────────────────────────────
-    _valores = _df_frota["Valor FIPE"].dropna()
-    _valores = _valores[_valores > 0]
-    if not _valores.empty:
-        st.markdown("#### 💰 Valor de Mercado da Frota (FIPE)")
-        _kc1, _kc2, _kc3, _kc4 = st.columns(4)
-        _kc1.metric("Total estimado",
-                    f"R$ {_valores.sum():,.0f}".replace(",", "."))
-        _kc2.metric("Média por veículo",
-                    f"R$ {_valores.mean():,.0f}".replace(",", "."))
-        _kc3.metric("Maior valor",
-                    f"R$ {_valores.max():,.0f}".replace(",", "."))
-        _kc4.metric("Menor valor",
-                    f"R$ {_valores.min():,.0f}".replace(",", "."))
-
-    # ── Gráficos de composição ─────────────────────────────────────
-    _df_c = _df_frota[_df_frota["Marca"] != "—"].copy()
-    if len(_df_c) >= 2:
-        st.markdown("#### 📊 Composição da Frota")
-        _gc1, _gc2 = st.columns(2)
-
-        with _gc1:
-            _por_marca = _df_c["Marca"].value_counts().head(10)
-            _fig_marca = go.Figure(go.Bar(
-                x=_por_marca.values,
-                y=_por_marca.index,
-                orientation="h",
-                marker_color="#1040a0",
-                text=_por_marca.values,
-                textposition="outside",
-            ))
-            _fig_marca.update_layout(
-                title="Veículos por Marca",
-                height=320,
-                margin=dict(l=10, r=30, t=40, b=10),
-                paper_bgcolor="white",
-                plot_bgcolor="#f9fbff",
-                yaxis=dict(autorange="reversed"),
-                showlegend=False,
+            st.info(
+                f"**{len(_pendentes)} veículo(s)** ainda sem dados FIPE. "
+                "Selecione a placa e encontre o modelo correspondente na Tabela FIPE.",
+                icon="ℹ️",
             )
-            st.plotly_chart(_fig_marca, use_container_width=True)
+            _pool = _pendentes
 
-        with _gc2:
-            _por_tipo = _df_c["Tipo"].replace("", "Não informado").value_counts()
-            _fig_tipo = go.Figure(go.Pie(
-                labels=_por_tipo.index,
-                values=_por_tipo.values,
-                hole=0.45,
-                marker_colors=["#1040a0","#00838F","#e53935","#f57f17","#2e7d32"],
-            ))
-            _fig_tipo.update_layout(
-                title="Distribuição por Tipo",
-                height=320,
-                margin=dict(l=10, r=10, t=40, b=10),
-                paper_bgcolor="white",
+        if not _pool:
+            st.stop()
+
+        # ── Seleção de placa ─────────────────────────────────────
+        _placa_sel = st.selectbox(
+            "Placa a associar",
+            _pool,
+            key=f"{key_prefix}_assoc_placa_sel",
+        )
+
+        # ── Tipo ────────────────────────────────────────────────
+        _tipo_map  = {"🚗 Carros": "carros", "🚛 Caminhões": "caminhoes", "🏍️ Motos": "motos"}
+        _tipo_lbl  = st.selectbox("Tipo de veículo", list(_tipo_map.keys()),
+                                  key=f"{key_prefix}_assoc_tipo_lbl")
+        _tipo      = _tipo_map[_tipo_lbl]
+
+        # ── Marcas ───────────────────────────────────────────────
+        _marcas_key = f"{key_prefix}_marcas_{_tipo}"
+        if _marcas_key not in st.session_state:
+            if st.button("📥 Carregar marcas", key=f"{key_prefix}_btn_marcas",
+                         use_container_width=True):
+                with st.spinner("Buscando marcas na API FIPE..."):
+                    _marcas_raw = _fipe_api_get(f"/{_tipo}/marcas")
+                if _marcas_raw:
+                    st.session_state[_marcas_key] = {
+                        m["nome"]: m["codigo"] for m in _marcas_raw
+                    }
+                    st.rerun()
+                else:
+                    st.error("Não foi possível carregar marcas. Verifique a conexão.")
+            st.stop()
+
+        _marcas_dict = st.session_state[_marcas_key]
+        _marca_nome  = st.selectbox("Marca", sorted(_marcas_dict.keys()),
+                                    key=f"{key_prefix}_assoc_marca_nome")
+        _marca_cod   = _marcas_dict[_marca_nome]
+
+        # ── Modelos ──────────────────────────────────────────────
+        _modelos_key = f"{key_prefix}_modelos_{_tipo}_{_marca_cod}"
+        if _modelos_key not in st.session_state:
+            if st.button("📥 Carregar modelos", key=f"{key_prefix}_btn_modelos",
+                         use_container_width=True):
+                with st.spinner(f"Buscando modelos de {_marca_nome}..."):
+                    _mod_resp = _fipe_api_get(f"/{_tipo}/marcas/{_marca_cod}/modelos")
+                _modelos_raw = (
+                    _mod_resp.get("modelos", [])
+                    if isinstance(_mod_resp, dict) else _mod_resp
+                )
+                if _modelos_raw:
+                    st.session_state[_modelos_key] = {
+                        m["nome"]: m["codigo"] for m in _modelos_raw
+                    }
+                    st.rerun()
+                else:
+                    st.error("Não foi possível carregar modelos.")
+            st.stop()
+
+        _modelos_dict = st.session_state[_modelos_key]
+        _modelo_nome  = st.selectbox("Modelo", sorted(_modelos_dict.keys()),
+                                     key=f"{key_prefix}_assoc_modelo_nome")
+        _modelo_cod   = _modelos_dict[_modelo_nome]
+
+        # ── Anos ─────────────────────────────────────────────────
+        _anos_key = f"{key_prefix}_anos_{_tipo}_{_marca_cod}_{_modelo_cod}"
+        if _anos_key not in st.session_state:
+            if st.button("📥 Carregar anos", key=f"{key_prefix}_btn_anos",
+                         use_container_width=True):
+                with st.spinner(f"Buscando anos de {_modelo_nome}..."):
+                    _anos_raw = _fipe_api_get(
+                        f"/{_tipo}/marcas/{_marca_cod}/modelos/{_modelo_cod}/anos"
+                    )
+                if _anos_raw:
+                    st.session_state[_anos_key] = {
+                        a["nome"]: a["codigo"] for a in _anos_raw
+                    }
+                    st.rerun()
+                else:
+                    st.error("Não foi possível carregar anos.")
+            st.stop()
+
+        _anos_dict  = st.session_state[_anos_key]
+        _ano_nome   = st.selectbox("Ano / Combustível", list(_anos_dict.keys()),
+                                   key=f"{key_prefix}_assoc_ano_nome")
+        _ano_cod    = _anos_dict[_ano_nome]
+
+        # ── Salvar ───────────────────────────────────────────────
+        st.markdown("---")
+        _col_prev, _col_save = st.columns([3, 1])
+        with _col_prev:
+            st.markdown(
+                f"**Associação:** `{_placa_sel}` → "
+                f"{_marca_nome} · {_modelo_nome} · {_ano_nome}"
             )
-            st.plotly_chart(_fig_tipo, use_container_width=True)
+        with _col_save:
+            if st.button("✅ Salvar", key=f"{key_prefix}_btn_salvar",
+                         use_container_width=True, type="primary"):
+                with st.spinner("Buscando dados FIPE e salvando..."):
+                    _det = _fipe_api_get(
+                        f"/{_tipo}/marcas/{_marca_cod}"
+                        f"/modelos/{_modelo_cod}/anos/{_ano_cod}"
+                    )
+                if isinstance(_det, dict) and _det:
+                    _dados_fipe = {
+                        "marca":            _det.get("Marca", _marca_nome),
+                        "modelo":           _det.get("Modelo", _modelo_nome),
+                        "ano_modelo":       str(_det.get("AnoModelo", _ano_nome)),
+                        "cor":              "",
+                        "tipo_veiculo":     _tipo_lbl.split()[-1],
+                        "municipio":        "",
+                        "uf_veiculo":       "",
+                        "codigo_fipe":      _det.get("CodigoFipe", ""),
+                        "valor_fipe":       _fipe_parse_valor(_det.get("Valor", "")),
+                        "combustivel_fipe": _det.get("Combustivel", ""),
+                        "mes_referencia":   _det.get("MesReferencia", ""),
+                    }
+                    _ok, _err = _fipe_salvar_registro(_placa_sel, _dados_fipe)
+                    if _ok:
+                        # Atualiza cache no session_state
+                        _new_cache = dict(_cache_live2)
+                        _new_cache[_fipe_normalizar_placa(_placa_sel)] = _dados_fipe
+                        st.session_state[f"{key_prefix}_cache_fipe"] = _new_cache
+                        st.success(
+                            f"✅ **{_placa_sel}** associado: "
+                            f"{_dados_fipe['marca']} {_dados_fipe['modelo']} "
+                            f"{_dados_fipe['ano_modelo']} — "
+                            f"R$ {_dados_fipe['valor_fipe']:,.0f}".replace(",", ".")
+                            if _dados_fipe.get("valor_fipe") else
+                            f"✅ **{_placa_sel}** salvo (sem valor FIPE disponível)."
+                        )
+                        st.rerun()
+                    else:
+                        st.error(f"Erro ao salvar no Supabase: {_err}")
+                else:
+                    st.error("Não foi possível buscar os dados FIPE. Tente outro ano.")
 
     st.caption(
-        f"Dados fornecidos pela **BrasilAPI** (DENATRAN/RENAVAM + Tabela FIPE). "
-        f"Cache atualizado a cada {_FIPE_CACHE_TTL_DIAS} dias. "
-        "Veículos sem placa no padrão Mercosul/antigo podem não retornar dados."
+        f"Dados fornecidos pela **Tabela FIPE** (parallelum.com.br/fipe). "
+        f"Cache atualizado a cada {_FIPE_CACHE_TTL_DIAS} dias."
     )
+
+
 
 
 def _comparar_cargas_precos(
