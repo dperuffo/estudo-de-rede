@@ -289,28 +289,51 @@ def _normalizar_cnpj14(v) -> str:
     return re.sub(r"\D", "", _s).zfill(14)
 
 
+def _db_paginar(table_name: str, select_cols: str,
+                filters: "list[tuple] | None" = None,
+                page_size: int = 1000) -> list:
+    """
+    Busca TODOS os registros de uma tabela Supabase usando paginação.
+    Contorna o limite padrão de 1000 linhas por resposta do PostgREST.
+    filters: lista de (campo, valor) para filtrar com .eq()
+    """
+    _db = _db_client()
+    if _db is None:
+        return []
+    todos: list = []
+    offset = 0
+    while True:
+        try:
+            _q = _db.table(table_name).select(select_cols)
+            if filters:
+                for _campo, _valor in filters:
+                    _q = _q.eq(_campo, _valor)
+            _q = _q.range(offset, offset + page_size - 1)
+            res = _q.execute()
+            pagina = res.data or []
+            todos.extend(pagina)
+            if len(pagina) < page_size:
+                break  # última página
+            offset += page_size
+        except Exception:
+            break
+    return todos
+
+
 def _db_carregar_cnpjs_postos_gf() -> set:
     """
     Retorna set de CNPJs (14 dígitos, zero-padded) da rede GF
-    lidos da tabela postos_gf no Supabase.
-    Filtrado por empresa_id do usuário ativo (admin vê tudo).
+    lidos da tabela postos_gf no Supabase (com paginação completa).
     """
-    db = _db_client()
-    if db:
-        try:
-            _q = db.table("postos_gf").select("cnpj").limit(20000)
-            _eid = _db_empresa_id()
-            if _eid:
-                _q = _q.eq("empresa_id", _eid)
-            res = _q.execute()
-            if res.data:
-                return {
-                    _normalizar_cnpj14(r.get("cnpj", ""))
-                    for r in res.data
-                    if r.get("cnpj")
-                }
-        except Exception:
-            pass
+    _eid = _db_empresa_id()
+    _filters = [("empresa_id", _eid)] if _eid else None
+    rows = _db_paginar("postos_gf", "cnpj", _filters)
+    if rows:
+        return {
+            _normalizar_cnpj14(r.get("cnpj", ""))
+            for r in rows
+            if r.get("cnpj")
+        }
     # fallback: session_state
     _pf = st.session_state.get("pf_coords_df")
     if _pf is not None and not _pf.empty and "cnpj_norm" in _pf.columns:
@@ -321,27 +344,21 @@ def _db_carregar_cnpjs_postos_gf() -> set:
 def _db_carregar_postos_gf_df() -> "pd.DataFrame":
     """
     Retorna DataFrame completo da rede GF (cnpj, razao_social,
-    municipio, uf, lat, lon) lido da tabela postos_gf no Supabase.
-    Filtrado por empresa_id do usuário ativo (admin vê tudo).
+    municipio, uf, lat, lon, perfil_venda) com paginação completa.
     """
-    db = _db_client()
-    if db:
-        try:
-            _q = db.table("postos_gf") \
-                   .select("cnpj,razao_social,municipio,uf,lat,lon") \
-                   .limit(20000)
-            _eid = _db_empresa_id()
-            if _eid:
-                _q = _q.eq("empresa_id", _eid)
-            res = _q.execute()
-            if res.data:
-                _df_gf = pd.DataFrame(res.data)
-                _df_gf["cnpj_norm"] = _df_gf["cnpj"].apply(
-                    lambda v: re.sub(r"\D", "", str(v or ""))
-                )
-                return _df_gf
-        except Exception:
-            pass
+    _eid = _db_empresa_id()
+    _filters = [("empresa_id", _eid)] if _eid else None
+    rows = _db_paginar(
+        "postos_gf",
+        "cnpj,razao_social,distribuidora,municipio,uf,lat,lon,perfil_venda",
+        _filters,
+    )
+    if rows:
+        _df_gf = pd.DataFrame(rows)
+        _df_gf["cnpj_norm"] = _df_gf["cnpj"].apply(
+            lambda v: re.sub(r"\D", "", str(v or ""))
+        )
+        return _df_gf
     return pd.DataFrame()
 
 
@@ -579,19 +596,13 @@ def _db_restaurar_postos_cercados() -> None:
     if st.session_state.get("_cer_restaurado_supabase"):
         return
     st.session_state["_cer_restaurado_supabase"] = True
-    _db = _db_client()
-    if _db is None:
-        return
-    try:
-        _resp = _db.table("postos_cercados_db").select("cnpj").limit(20000).execute()
-        if _resp.data:
-            _cnpjs = {str(r["cnpj"]) for r in _resp.data if r.get("cnpj")}
-            if _cnpjs:
-                st.session_state.setdefault("cnpjs_cercados",          _cnpjs)
-                st.session_state.setdefault("_cercados_fonte",         "supabase")
-                st.session_state.setdefault("_cercados_carregado_em",  "banco de dados")
-    except Exception:
-        pass
+    rows = _db_paginar("postos_cercados_db", "cnpj")
+    if rows:
+        _cnpjs = {str(r["cnpj"]) for r in rows if r.get("cnpj")}
+        if _cnpjs:
+            st.session_state.setdefault("cnpjs_cercados",         _cnpjs)
+            st.session_state.setdefault("_cercados_fonte",        "supabase")
+            st.session_state.setdefault("_cercados_carregado_em", "banco de dados")
 
 
 # ── Preços por Posto — salvar tabela precos_posto_db ────────────────────────
