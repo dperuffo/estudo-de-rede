@@ -15344,132 +15344,186 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
 # ═══════════════════════════════════════════════════════════════════
 
 _TOUR_STEPS = [
+    # ── Passo 1: Visão Geral ─────────────────────────────────────────
     {
-        "icon": "👋", "title": "Bem-vindo ao Estudo de Rede!",
+        "icon": "👋", "title": "Bem-vindo ao Estudo de Rede v5.4!",
         "desc": (
-            "Esta plataforma permite **visualizar e analisar a rede de postos credenciados** "
-            "à frota, comparar preços da ANP, planejar rotas e acompanhar a **evolução histórica "
-            "de preços e score de qualidade** de cada posto. "
-            "Este tour rápido mostra o essencial em menos de 2 minutos."
+            "Plataforma estratégica que centraliza **inteligência de preços, análise de postos, "
+            "gestão de frota e telemetria de abastecimentos** em um único painel. "
+            "Conectada em tempo real ao Supabase, com 11 módulos integrados. "
+            "Este tour mostra o essencial em menos de 3 minutos."
         ),
         "visual": [
-            ("📍","Postos por estado","#e3f2fd"),
-            ("🗺️","Consulta por rota","#e8f5e9"),
-            ("📊","Dashboard analítico","#fff8e1"),
-            ("💰","Ranking de preços","#fce4ec"),
-            ("🔍","Filtros avançados","#f3e5f5"),
-            ("🧠","Inteligência de dados","#ede7f6"),
-            ("💾","Salve consultas","#e0f2f1"),
+            ("📊","Dashboard executivo","#e3f2fd"),
+            ("🗺️","Roteirização de visitas","#e8f5e9"),
+            ("🧠","Inteligência de rede","#ede7f6"),
+            ("🚗","Gestão de Frotas + FIPE","#fff8e1"),
+            ("📡","Telemetria real","#fce4ec"),
+            ("📋","Relatórios avançados","#e0f2f1"),
         ],
-        "tips": ["📍 7 modos de consulta disponíveis", "🧠 Novo: histórico de preços e score por posto"],
+        "tips": ["🆕 v5.4: Frota FIPE + Telemetria + Recomendador IA + Relatórios avançados",
+                 "🔄 Todos os dados persistidos no Supabase — acesse de qualquer lugar"],
     },
+    # ── Passo 2: Dashboard ───────────────────────────────────────────
     {
-        "icon": "📍", "title": "Modo 1 · Consulta por Estado (UF)",
+        "icon": "📊", "title": "Dashboard — Visão Executiva",
         "desc": (
-            "Selecione um **estado (UF)** na barra lateral para visualizar todos os postos "
-            "credenciados. Filtre também por **município** para resultados mais precisos. "
-            "Postos Gestão de Frotas aparecem em **azul e amarelo** no mapa."
+            "Tela principal com **KPIs consolidados**: CNPJs ativos, cobertura de preços, "
+            "variação vs. carga anterior, frota monitorada e postos no mapa. "
+            "Quando uma nova carga de preços é detectada, um **banner de alerta** exibe "
+            "automaticamente: N alta(s) · N queda(s) · N novo(s) · N removido(s)."
         ),
         "visual": [
-            ("1️⃣","Escolha o Estado na sidebar","#e3f2fd"),
-            ("🏙️","Filtre por Município (opcional)","#e8f5e9"),
-            ("🗺️","Mapa com todos os postos","#fff8e1"),
-            ("⭐","Postos GF destacados","#fce4ec"),
+            ("⛽","CNPJs e cobertura de preços","#e3f2fd"),
+            ("📈","Variação vs. carga anterior","#e8f5e9"),
+            ("🚗","Frota monitorada","#fff8e1"),
+            ("🔔","Banner de alerta automático","#fce4ec"),
         ],
-        "tips": ["💡 Filtre por município para resultados mais precisos", "⭐ Postos GF têm marcadores maiores"],
+        "tips": ["🔄 Botão 'Atualizar Página' força releitura do Supabase",
+                 "📌 Banner de variação pode ser dispensado pelo usuário"],
     },
+    # ── Passo 3: Roteirização ────────────────────────────────────────
     {
-        "icon": "🗺️", "title": "Modo 2 · Consulta por Rota",
+        "icon": "🗺️", "title": "Roteirização — 4 Modos de Visualização",
         "desc": (
-            "Defina **Origem** e **Destino** — o sistema calcula a rota e exibe todos "
-            "os postos dentro do **raio configurável** (padrão: 500 m). "
-            "Adicione **paradas intermediárias** para rotas mais complexas."
+            "**Modo 1 – Mapa de Rede:** postos GF filtrados por UF, distribuidora e serviços. "
+            "**Modo 2 – Por Estado:** comparativo de preços por município. "
+            "**Modo 3 – Cercados:** postos marcados como cercados com distâncias. "
+            "**Modo 4 – Roteiro:** crie sequências de visitas e salve para sessões futuras."
         ),
         "visual": [
-            ("🟢","Defina ponto de Origem","#e8f5e9"),
-            ("🔴","Defina ponto de Destino","#fce4ec"),
-            ("🛣️","Rota calculada via OSRM","#e3f2fd"),
-            ("⛽","Postos no raio da rota","#fff8e1"),
+            ("🗺️","Mapa completo da rede GF","#e3f2fd"),
+            ("📍","Comparativo por município","#e8f5e9"),
+            ("🔵","Postos cercados","#fff8e1"),
+            ("📋","Roteiros salvos","#fce4ec"),
         ],
-        "tips": ["🛑 Adicione paradas intermediárias", "📏 Raio de busca ajustável na sidebar"],
+        "tips": ["💾 Roteiros salvos ficam disponíveis em sessões futuras",
+                 "🔍 Filtros: UF | Distribuidora | Combustível | Serviços | Faixa de preço"],
     },
+    # ── Passo 4: Análise de Cliente ──────────────────────────────────
     {
-        "icon": "🔍", "title": "Filtros Avançados",
+        "icon": "🔍", "title": "Análise de Cliente — Perfil por CNPJ",
         "desc": (
-            "Expanda **Filtros Avançados** na sidebar para refinar a busca. "
-            "Filtre por **faixa de preço (R$/L)**, postos **abertos 24h**, "
-            "e **serviços**: Pista Caminhão, ARLA 32 e Conveniência."
+            "Consulte qualquer posto pelo **CNPJ ou razão social**. Visualize histórico completo "
+            "de preços por combustível, **acordos comerciais vigentes** com comparativo vs. preço "
+            "praticado, **dados FIPE dos veículos** associados e posição competitiva no ranking regional."
         ),
         "visual": [
-            ("💲","Faixa de preço por combustível","#e8f5e9"),
-            ("⏰","Funcionamento 24 horas","#e3f2fd"),
-            ("🚛","Pista para Caminhão","#fff8e1"),
-            ("🧪","ARLA 32 disponível","#fce4ec"),
+            ("🏢","Razão social e perfil","#e3f2fd"),
+            ("📈","Histórico de preços","#e8f5e9"),
+            ("🤝","Acordos comerciais","#fff8e1"),
+            ("🏆","Ranking regional","#fce4ec"),
         ],
-        "tips": ["⚠️ Postos sem dado de serviço não são excluídos", "🔗 Filtros se combinam entre si"],
+        "tips": ["💡 Busca aceita CNPJ formatado, só dígitos ou razão social",
+                 "📊 Gráfico de linha com evolução temporal por combustível"],
     },
+    # ── Passo 5: Inteligência + Variação de Preços ───────────────────
     {
-        "icon": "📊", "title": "Preços ANP e Tendências",
+        "icon": "🧠", "title": "Inteligência de Rede + Variação de Preços",
         "desc": (
-            "Carregue o **.xlsx semanal da ANP** (ou o sistema busca automaticamente). "
-            "Veja preços médios por combustível com indicadores de **tendência semanal ↑ ↓ ≈** "
-            "e compare o preço do posto GF vs a média ANP do estado."
+            "**Score 0–100** por posto: preço competitivo (25%), aderência a acordos (30%), "
+            "regularidade de dados (30%) e completude cadastral (15%). "
+            "O módulo de **Variação de Preços** detecta automaticamente altas, quedas, "
+            "novos postos e removidos entre cargas — persistido no Supabase para análise histórica."
         ),
         "visual": [
-            ("⛽","Gasolina  R$6,12  ↑","#ffebee"),
-            ("🛢️","Diesel S10  R$6,48  ↓","#e8f5e9"),
-            ("🧪","ARLA 32  R$3,21  ≈","#f3f4f6"),
-            ("✅","GF R$0,23/L abaixo ANP","#e8f5e9"),
-        ],
-        "tips": ["🔄 O app busca o arquivo ANP automaticamente", "📁 Ou faça upload manual nas Configurações"],
-    },
-    {
-        "icon": "💰", "title": "Ranking Top 5 Mais Baratos",
-        "desc": (
-            "Os **5 postos com menor preço** da consulta são destacados com "
-            "**estrelas douradas ★** no mapa e com **cards de medalha** na aba Dados Tabulares. "
-            "Selecione um combustível nos Filtros para um ranking mais preciso."
-        ),
-        "visual": [
-            ("🥇","1º mais barato — estrela no mapa","#fff9c4"),
-            ("🥈","2º mais barato","#fff9c4"),
-            ("🥉","3º mais barato","#fff9c4"),
-            ("🏅","4º e 5º completam o top 5","#fff9c4"),
-        ],
-        "tips": ["🎯 Filtre por combustível para ranking mais preciso", "⭐ Marcadores dourados no mapa"],
-    },
-    {
-        "icon": "📊", "title": "Dashboard Analítico",
-        "desc": (
-            "Acesse o **Dashboard** na sidebar para ver KPIs de cobertura, "
-            "penetração GF, comparativo GF vs ANP por estado e análise de preços. "
-            "Exporte os dados em **CSV** para seus relatórios."
-        ),
-        "visual": [
-            ("⛽","Total de postos na rede","#e3f2fd"),
-            ("⭐","Postos Gestão de Frotas","#fff8e1"),
-            ("📈","Penetração GF por estado","#e8f5e9"),
-            ("💰","Economia média vs ANP","#fce4ec"),
-        ],
-        "tips": ["📤 Exporte os dados em CSV", "🗺️ Comparativo por estado disponível"],
-    },
-    {
-        "icon": "🧠", "title": "Inteligência de Dados",
-        "desc": (
-            "O módulo **💡 Inteligência** rastreia preços semana a semana e avalia cada posto "
-            "com um **score A–D** baseado em preço (50%), serviços (30%) e distância (20%). "
-            "Gere também **relatórios de alerta** com postos acima do limite de preço configurado."
-        ),
-        "visual": [
-            ("📈","Histórico semanal de preços","#ede7f6"),
             ("🟢","Score A — posto ideal","#e8f5e9"),
-            ("🟡","Score C — preço elevado","#fff8e1"),
-            ("⚠️","Alerta: acima da média ANP","#fce4ec"),
+            ("🟡","Score C — atenção","#fff8e1"),
+            ("📈","Alta detectada","#ffebee"),
+            ("📉","Queda — oportunidade","#e8f5e9"),
         ],
-        "tips": [
-            "💡 Preços registrados automaticamente ao carregar a planilha PP",
-            "📥 Baixe o relatório de alertas em Excel (.xlsx)",
+        "tips": ["⚠️ Alertas de anomalia: outliers e postos inativos detectados automaticamente",
+                 "📥 Baixe o relatório de alertas em Excel (.xlsx)"],
+    },
+    # ── Passo 6: Recomendador IA ─────────────────────────────────────
+    {
+        "icon": "🤖", "title": "Recomendador IA — Melhores Postos para Abastecimento",
+        "desc": (
+            "Sugere os **melhores postos para a frota** considerando: preço abaixo da média "
+            "regional, acordos comerciais vigentes, proximidade da rota, regularidade de dados "
+            "e score mínimo configurável. "
+            "Filtre por UF, distribuidora, combustível, serviços necessários e placa do veículo."
+        ),
+        "visual": [
+            ("💰","Preço abaixo da média","#e8f5e9"),
+            ("🤝","Acordo ativo priorizado","#e3f2fd"),
+            ("📍","Ordenado por proximidade","#fff8e1"),
+            ("⭐","Score mínimo filtrável","#fce4ec"),
         ],
+        "tips": ["🚛 Informe a placa do veículo para recomendações personalizadas",
+                 "🎯 Combine todos os filtros para a sugestão mais precisa"],
+    },
+    # ── Passo 7: Gestão de Frotas + FIPE ────────────────────────────
+    {
+        "icon": "🚗", "title": "Gestão de Frotas — Cadastro e Dados FIPE",
+        "desc": (
+            "Cadastre a frota com **busca automática por placa** (BrasilAPI / DENATRAN): "
+            "marca, modelo, ano, cor, combustível e valor de mercado FIPE. "
+            "Para placas não encontradas, use o **formulário de associação manual** "
+            "(funciona sem API). KPIs da frota: valor total estimado, média, maior e menor valor."
+        ),
+        "visual": [
+            ("🔎","Busca automática por placa","#e3f2fd"),
+            ("✅","Dados DENATRAN/SINESP","#e8f5e9"),
+            ("✏️","Associação manual — sempre funciona","#fff8e1"),
+            ("💰","Valor total da frota (FIPE)","#fce4ec"),
+        ],
+        "tips": ["📋 Formato Mercosul (AAA0A00) e antigo (AAA0000) suportados",
+                 "💾 Dados salvos no Supabase com TTL de 30 dias"],
+    },
+    # ── Passo 8: Telemetria ──────────────────────────────────────────
+    {
+        "icon": "📡", "title": "Telemetria — Abastecimentos Reais da Frota",
+        "desc": (
+            "Importe dados reais de abastecimento via **.xlsx** com mapeamento automático de "
+            "colunas e deduplicação. Analise: total abastecido (L), gasto (R$), consumo médio "
+            "(km/L) geral e por veículo. A **Análise de Consumo** compara consumo real vs. "
+            "esperado e calcula desvio % para identificar anomalias por placa."
+        ),
+        "visual": [
+            ("⛽","Total litros e gasto R$","#e3f2fd"),
+            ("🚗","KPIs por veículo/placa","#e8f5e9"),
+            ("📅","Evolução mensal (barras)","#fff8e1"),
+            ("⚠️","Desvio vs. consumo esperado","#fce4ec"),
+        ],
+        "tips": ["📂 Upload .xlsx com mapeamento automático de colunas",
+                 "🔍 Desvio % identifica veículos com consumo anômalo"],
+    },
+    # ── Passo 9: Relatórios Avançados ────────────────────────────────
+    {
+        "icon": "📋", "title": "Relatórios Avançados — Score × Performance e Anomalias",
+        "desc": (
+            "Gere relatórios gerenciais completos: **Score × Performance** cruza o score do "
+            "posto com volume e preço praticado. **Relatório de Anomalias** destaca postos com "
+            "variações atípicas, dados inconsistentes ou inatividade. "
+            "Exporte em **.xlsx** com um clique."
+        ),
+        "visual": [
+            ("🏆","Score × Performance","#e3f2fd"),
+            ("⚠️","Anomalias detectadas","#fff3e0"),
+            ("📊","Comparativos gerenciais","#e8f5e9"),
+            ("📥","Export .xlsx","#fce4ec"),
+        ],
+        "tips": ["📈 Score baseado em: preço (25%), acordos (30%), regularidade (30%), cadastro (15%)",
+                 "🔄 Relatórios sempre refletem os dados mais recentes do Supabase"],
+    },
+    # ── Passo 10: Configuração inicial ───────────────────────────────
+    {
+        "icon": "⚙️", "title": "Configuração Inicial — 3 Passos para Começar",
+        "desc": (
+            "**① Postos GF:** carregue a planilha de postos credenciados em ⚙️ Configurações. "
+            "**② Preços PP:** carregue a planilha semanal de preços por posto. "
+            "**③ ANP (opcional):** o sistema busca automaticamente ou faça upload manual. "
+            "Todos os dados são sincronizados com o Supabase e ficam disponíveis para todos os módulos."
+        ),
+        "visual": [
+            ("1️⃣","Planilha Postos GF","#e3f2fd"),
+            ("2️⃣","Planilha Preços PP","#e8f5e9"),
+            ("3️⃣","ANP — automático","#fff8e1"),
+            ("🚀","Plataforma pronta!","#e8f5e9"),
+        ],
+        "tips": ["📌 Acesse ⚙️ Configurações na sidebar para fazer os uploads",
+                 "🔄 Após upload, clique em 'Atualizar Página' para recarregar os dados"],
     },
 ]
 
@@ -15543,32 +15597,32 @@ def _tour_dialog():
                 f"</div>", unsafe_allow_html=True
             )
 
-        _ob_card(_oa1, "🗺️", "Analisar uma Rota",
-                 "Trace origem→destino e veja postos GF no caminho")
-        _ob_card(_oa2, "💰", "Comparar Preços GF vs ANP",
-                 "Veja quais postos estão abaixo da média de mercado")
-        _ob_card(_oa3, "📊", "Abrir Dashboard Analítico",
-                 "KPIs de cobertura, penetração e saving mensal")
+        _ob_card(_oa1, "📊", "Dashboard Executivo",
+                 "KPIs de cobertura, preços, variações e frota monitorada")
+        _ob_card(_oa2, "🗺️", "Roteirização de Visitas",
+                 "4 modos: rede, por estado, cercados e roteiro salvo")
+        _ob_card(_oa3, "🔍", "Análise de Cliente",
+                 "Histórico de preços, acordos e dados FIPE por CNPJ")
 
         _cb1, _cb2, _cb3 = st.columns(3)
         with _cb1:
-            if st.button("→ Ir para Rota", use_container_width=True,
-                         key="ob_go_rota", type="primary"):
-                st.session_state["modo_selecionado"] = "🗺️ Por Rota"
+            if st.button("→ Dashboard", use_container_width=True,
+                         key="ob_go_dash", type="primary"):
+                st.session_state["modo_selecionado"] = "📈 Dashboard"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
         with _cb2:
-            if st.button("→ Comparar Preços", use_container_width=True,
-                         key="ob_go_precos", type="primary"):
-                st.session_state["modo_selecionado"] = "📍 Por UF/Município"
+            if st.button("→ Roteirização", use_container_width=True,
+                         key="ob_go_roteir", type="primary"):
+                st.session_state["modo_selecionado"] = "🚛 Roteirização"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
         with _cb3:
-            if st.button("→ Ver Dashboard", use_container_width=True,
-                         key="ob_go_dash", type="primary"):
-                st.session_state["modo_selecionado"] = "📈 Dashboard"
+            if st.button("→ Análise Cliente", use_container_width=True,
+                         key="ob_go_cliente", type="primary"):
+                st.session_state["modo_selecionado"] = "🔍 Análise de Cliente"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
@@ -15577,12 +15631,12 @@ def _tour_dialog():
 
         # ── Quick Actions — linha 2 ────────────────────────────────────
         _oa4, _oa5, _oa6 = st.columns(3)
-        _ob_card(_oa4, "🧠", "Inteligência de Dados",
-                 "Histórico de preços, score A-D e alertas automáticos")
-        _ob_card(_oa5, "⛽", "Buscar Postos GF",
-                 "Localize postos credenciados por estado ou município")
-        _ob_card(_oa6, "🚛", "Roteirização de Frota",
-                 "Otimize paradas de abastecimento para um veículo ou frota")
+        _ob_card(_oa4, "🧠", "Inteligência de Rede",
+                 "Score A-D por posto, ranking, tendências e alertas")
+        _ob_card(_oa5, "🚗", "Gestão de Frotas + FIPE",
+                 "Cadastro de frota com dados FIPE automáticos por placa")
+        _ob_card(_oa6, "📡", "Telemetria de Abastecimentos",
+                 "Importe dados reais: consumo, gastos e anomalias por veículo")
 
         _cb4, _cb5, _cb6 = st.columns(3)
         with _cb4:
@@ -15593,16 +15647,50 @@ def _tour_dialog():
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
         with _cb5:
-            if st.button("→ Buscar Postos", use_container_width=True,
-                         key="ob_go_busca"):
-                st.session_state["modo_selecionado"] = "📍 Por UF/Município"
+            if st.button("→ Gestão de Frotas", use_container_width=True,
+                         key="ob_go_frota"):
+                st.session_state["modo_selecionado"] = "🚗 Gestão de Frotas"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
         with _cb6:
-            if st.button("→ Roteirização", use_container_width=True,
-                         key="ob_go_roteir"):
-                st.session_state["modo_selecionado"] = "🚛 Roteirização"
+            if st.button("→ Telemetria", use_container_width=True,
+                         key="ob_go_telemetria"):
+                st.session_state["modo_selecionado"] = "📡 Telemetria"
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.rerun()
+
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+        # ── Quick Actions — linha 3 ────────────────────────────────────
+        _oa7, _oa8, _oa9 = st.columns(3)
+        _ob_card(_oa7, "🤖", "Recomendador IA",
+                 "Melhores postos por preço, acordo, proximidade e score")
+        _ob_card(_oa8, "📋", "Relatórios Avançados",
+                 "Score × Performance, anomalias e export .xlsx")
+        _ob_card(_oa9, "⚙️", "Configurações",
+                 "Upload de planilhas, dados ANP, acordos e administração")
+
+        _cb7, _cb8, _cb9 = st.columns(3)
+        with _cb7:
+            if st.button("→ Recomendador IA", use_container_width=True,
+                         key="ob_go_recomend"):
+                st.session_state["modo_selecionado"] = "🤖 Recomendador IA"
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.rerun()
+        with _cb8:
+            if st.button("→ Relatórios", use_container_width=True,
+                         key="ob_go_relat"):
+                st.session_state["modo_selecionado"] = "📋 Relatórios"
+                _marcar_tour_concluido()
+                st.session_state["_tour_ativo"] = False
+                st.rerun()
+        with _cb9:
+            if st.button("→ Configurações", use_container_width=True,
+                         key="ob_go_config"):
+                st.session_state["modo_selecionado"] = "⚙️ Configurações"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
@@ -15610,22 +15698,35 @@ def _tour_dialog():
         st.divider()
 
         # ── Próximos Passos contextuais ────────────────────────────────
+        _has_frota = bool(st.session_state.get("_frota_df") is not None and
+                          not getattr(st.session_state.get("_frota_df"), "empty", True))
+        _has_telem = bool(st.session_state.get("_telem_df") is not None and
+                          not getattr(st.session_state.get("_telem_df"), "empty", True))
+
         st.markdown("**📋 Próximos passos recomendados**")
         _chips = []
         if not _has_gf:
             _chips.append(("warn", "① Carregue a planilha de Postos GF em ⚙️ Configurações"))
         else:
             _chips.append(("ok",   "✅ Postos GF carregados"))
-        if not _has_anp:
-            _chips.append(("warn", "② Carregue a planilha ANP (Preços Semanais)"))
-        else:
-            _chips.append(("ok",   "✅ ANP carregada"))
         if not _has_pp:
-            _chips.append(("warn", "③ Carregue Preços por Posto (Configurações → 💲 Preços PP)"))
+            _chips.append(("warn", "② Carregue Preços por Posto (Configurações → 💲 Preços PP)"))
         else:
             _chips.append(("ok",   "✅ Preços PP carregados"))
-        if _has_gf and _has_anp and _has_pp:
-            _chips.append(("ok",   "🚀 Plataforma configurada! Explore todos os módulos."))
+        if not _has_anp:
+            _chips.append(("warn", "③ Planilha ANP — o sistema busca automaticamente ou faça upload"))
+        else:
+            _chips.append(("ok",   "✅ ANP carregada"))
+        if not _has_frota:
+            _chips.append(("warn", "④ Cadastre a frota em 🚗 Gestão de Frotas para dados FIPE"))
+        else:
+            _chips.append(("ok",   "✅ Frota cadastrada"))
+        if not _has_telem:
+            _chips.append(("warn", "⑤ Importe abastecimentos reais em 📡 Telemetria"))
+        else:
+            _chips.append(("ok",   "✅ Telemetria importada"))
+        if _has_gf and _has_pp and _has_anp and _has_frota and _has_telem:
+            _chips.append(("ok",   "🚀 Plataforma totalmente configurada! Explore todos os módulos."))
 
         _chips_html = "".join(
             f"<span class='ob-step-chip ob-step-{'ok' if c=='ok' else 'warn'}'>{t}</span>"
@@ -15637,7 +15738,7 @@ def _tour_dialog():
         # ── Rodapé ────────────────────────────────────────────────────
         _rf1, _rf2 = st.columns([2, 1])
         with _rf1:
-            if st.button("📖 Ver tutorial completo (8 passos)",
+            if st.button(f"📖 Ver tutorial completo ({len(_TOUR_STEPS)} passos)",
                          use_container_width=True, key="ob_see_tutorial"):
                 st.session_state["_ob_mode"] = "tutorial"
                 st.session_state["_tour_step"] = 0
@@ -15650,7 +15751,7 @@ def _tour_dialog():
                 st.rerun()
 
     else:
-        # ── Modo tutorial passo-a-passo (8 passos existentes) ──────────
+        # ── Modo tutorial passo-a-passo (10 passos v5.4) ───────────────
         _step  = st.session_state.get("_tour_step", 0)
         _total = len(_TOUR_STEPS)
         _s     = _TOUR_STEPS[_step]
