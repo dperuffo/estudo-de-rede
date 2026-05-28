@@ -230,47 +230,48 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
 
 def _db_carregar_abastecimentos() -> list:
     """
-    Carrega abastecimentos do Supabase.
-    Cria uma query nova a cada tentativa — o supabase-py modifica o builder
-    in-place, então reutilizar o mesmo objeto após .eq() preserva o filtro.
+    Carrega abastecimentos do Supabase com paginação automática.
+    Usa _db_paginar() para contornar o limite de 1000 linhas do PostgREST.
     Estratégia em camadas para cobrir registros legados sem empresa_id.
     """
     db = _db_client()
     if not db:
         return []
 
-    def _q():
-        """Retorna um query builder fresco a cada chamada."""
-        return (
-            db.table("frota_abastecimentos")
-              .select("*")
-              .order("data_abastecimento", desc=True)
-              .limit(10000)
-        )
-
     try:
         _eid   = _db_empresa_id()
         _email = _db_email()
-        _admin = _is_admin()
 
-        # 1. Filtra por empresa_id (query fresca)
+        # 1. Filtra por empresa_id — paginação completa
         if _eid:
-            _rows = _q().eq("empresa_id", _eid).execute().data or []
+            _rows = _db_paginar(
+                "frota_abastecimentos", "*",
+                filters=[("empresa_id", _eid)],
+                order_by="data_abastecimento", order_desc=True,
+            )
             if _rows:
                 return _rows
 
-        # 2. Filtra por e-mail do usuário (query fresca)
+        # 2. Filtra por e-mail do usuário
         if _email:
-            _rows = _q().eq("usuario_email", _email).execute().data or []
+            _rows = _db_paginar(
+                "frota_abastecimentos", "*",
+                filters=[("usuario_email", _email)],
+                order_by="data_abastecimento", order_desc=True,
+            )
             if _rows:
                 return _rows
 
-        # 3. Sem filtros — retorna tudo (admin ou dados legados sem vínculo)
-        return _q().execute().data or []
+        # 3. Sem filtros — retorna tudo (admin / dados legados sem vínculo)
+        return _db_paginar(
+            "frota_abastecimentos", "*",
+            order_by="data_abastecimento", order_desc=True,
+        )
 
     except Exception:
         try:
-            return _q().execute().data or []
+            return _db_paginar("frota_abastecimentos", "*",
+                               order_by="data_abastecimento", order_desc=True)
         except Exception:
             return []
 
@@ -291,11 +292,17 @@ def _normalizar_cnpj14(v) -> str:
 
 def _db_paginar(table_name: str, select_cols: str,
                 filters: "list[tuple] | None" = None,
-                page_size: int = 1000) -> list:
+                page_size: int = 1000,
+                order_by: "str | None" = None,
+                order_desc: bool = False) -> list:
     """
-    Busca TODOS os registros de uma tabela Supabase usando paginação.
+    Busca TODOS os registros de uma tabela Supabase usando paginação automática.
     Contorna o limite padrão de 1000 linhas por resposta do PostgREST.
-    filters: lista de (campo, valor) para filtrar com .eq()
+
+    Parâmetros:
+      filters  : lista de (campo, valor) aplicados como .eq()
+      order_by : coluna para ordenação (ex: "data_abastecimento")
+      order_desc: True para ORDER BY DESC
     """
     _db = _db_client()
     if _db is None:
@@ -308,12 +315,14 @@ def _db_paginar(table_name: str, select_cols: str,
             if filters:
                 for _campo, _valor in filters:
                     _q = _q.eq(_campo, _valor)
+            if order_by:
+                _q = _q.order(order_by, desc=order_desc)
             _q = _q.range(offset, offset + page_size - 1)
             res = _q.execute()
             pagina = res.data or []
             todos.extend(pagina)
             if len(pagina) < page_size:
-                break  # última página
+                break  # última página — sem mais dados
             offset += page_size
         except Exception:
             break
@@ -393,8 +402,7 @@ def _normalizar_cnpj_str(v) -> str:
 
 def _db_carregar_acordos() -> "pd.DataFrame":
     """
-    Carrega acordos de preço do Supabase.
-    Query fresca a cada tentativa (supabase-py modifica builder in-place).
+    Carrega acordos de preço do Supabase com paginação automática.
     Estratégia em camadas para cobrir registros legados sem empresa_id:
       1. Filtra por empresa_id  → se vazio, tenta próxima camada
       2. Filtra por usuario_email → se vazio, tenta próxima camada
@@ -410,37 +418,28 @@ def _db_carregar_acordos() -> "pd.DataFrame":
         _df["dt_vigencia"] = pd.to_datetime(_df["dt_vigencia"], errors="coerce")
         return _df
 
-    db = _db_client()
-    if db:
-        def _q():
-            return db.table("acordos_precos").select(_COLS).limit(50000)
-        try:
-            _eid   = _db_empresa_id()
-            _email = _db_email()
+    try:
+        _eid   = _db_empresa_id()
+        _email = _db_email()
 
-            # 1. Filtra por empresa_id
-            if _eid:
-                _df = _to_df(_q().eq("empresa_id", _eid).execute().data)
-                if _df is not None:
-                    return _df
-
-            # 2. Filtra por e-mail do usuário
-            if _email:
-                _df = _to_df(_q().eq("usuario_email", _email).execute().data)
-                if _df is not None:
-                    return _df
-
-            # 3. Sem filtro — retorna tudo
-            _df = _to_df(_q().execute().data)
+        # 1. Filtra por empresa_id
+        if _eid:
+            _df = _to_df(_db_paginar("acordos_precos", _COLS, filters=[("empresa_id", _eid)]))
             if _df is not None:
                 return _df
-        except Exception:
-            try:
-                _df = _to_df(db.table("acordos_precos").select(_COLS).limit(50000).execute().data)
-                if _df is not None:
-                    return _df
-            except Exception:
-                pass
+
+        # 2. Filtra por e-mail do usuário
+        if _email:
+            _df = _to_df(_db_paginar("acordos_precos", _COLS, filters=[("usuario_email", _email)]))
+            if _df is not None:
+                return _df
+
+        # 3. Sem filtro — retorna tudo (admin / dados legados)
+        _df = _to_df(_db_paginar("acordos_precos", _COLS))
+        if _df is not None:
+            return _df
+    except Exception:
+        pass
     return pd.DataFrame()
 
 
@@ -466,13 +465,17 @@ def _db_salvar_postos_gf(df_coords: "pd.DataFrame",
         _eid   = _db_empresa_id()
         _email = _db_email()
 
-        # ── Índice cnpj_norm → row de df_coords (para enriquecer com dados da planilha) ──
+        # ── Índice cnpj → row de df_coords (para enriquecer com dados da planilha) ──
+        # Aceita "cnpj_norm" (padrão Supabase) ou "cnpj" (retorno direto de _processar_bytes_pro_frotas)
         _coords_idx: dict = {}
-        if df_coords is not None and not df_coords.empty and "cnpj_norm" in df_coords.columns:
-            for _, row in df_coords.iterrows():
-                _k = str(row.get("cnpj_norm", "")).strip()
-                if _k:
-                    _coords_idx[_k] = row
+        if df_coords is not None and not df_coords.empty:
+            _cnpj_col_gf = "cnpj_norm" if "cnpj_norm" in df_coords.columns else (
+                           "cnpj"      if "cnpj"      in df_coords.columns else None)
+            if _cnpj_col_gf:
+                for _, row in df_coords.iterrows():
+                    _k = str(row.get(_cnpj_col_gf, "")).strip()
+                    if _k:
+                        _coords_idx[_k] = row
 
         # ── Monta registros para TODOS os CNPJs do conjunto ───────
         registros = []
@@ -1379,16 +1382,12 @@ def _db_atualizar_status_acesso(email: str, status: str,
 
 
 def _db_listar_controle_acesso() -> list:
-    """Retorna todos os registros de controle de acesso."""
-    db = _db_client()
-    if not db:
-        return []
+    """Retorna todos os registros de controle de acesso com paginação."""
     try:
-        res = db.table("controle_acesso") \
-                .select("*") \
-                .order("adicionado_em", desc=True) \
-                .execute()
-        return res.data or []
+        return _db_paginar(
+            "controle_acesso", "*",
+            order_by="adicionado_em", order_desc=True,
+        )
     except Exception:
         return []
 
@@ -3603,16 +3602,12 @@ def _intel_seed_from_db(hist: dict) -> int:
     Lê até 5.000 registros mais recentes e os converte para o formato interno.
     Retorna quantidade de entradas adicionadas.
     """
-    _db = _db_client()
-    if not _db:
-        return 0
     try:
-        res = (_db.table("historico_precos")
-                  .select("cnpj,razao_social,municipio,uf,combustivel,preco,data_ref")
-                  .order("data_ref", desc=True)
-                  .limit(5000)
-                  .execute())
-        rows = res.data or []
+        rows = _db_paginar(
+            "historico_precos",
+            "cnpj,razao_social,municipio,uf,combustivel,preco,data_ref",
+            order_by="data_ref", order_desc=True,
+        )
     except Exception:
         return 0
 
@@ -4092,18 +4087,13 @@ def _tele_salvar_frota_supabase(frota: list) -> bool:
 
 
 def _tele_carregar_frota_supabase() -> list:
-    """Carrega todos os veículos ativos da tabela tele_frota."""
-    _db = _db_client()
-    if _db is None:
-        return []
+    """Carrega todos os veículos ativos da tabela tele_frota com paginação."""
     try:
-        _resp = (
-            _db.table("tele_frota")
-            .select("placa,combustivel,tanque_l,consumo_esp_kml,empresa,modelo")
-            .eq("ativo", True)
-            .execute()
+        return _db_paginar(
+            "tele_frota",
+            "placa,combustivel,tanque_l,consumo_esp_kml,empresa,modelo",
+            filters=[("ativo", True)],
         )
-        return _resp.data or []
     except Exception:
         return []
 
@@ -4117,10 +4107,10 @@ def _tele_salvar_abastecimentos_supabase(abast: list) -> bool:
     if _db is None or not abast:
         return False
     try:
-        # Carrega as datas já existentes por placa para evitar duplicatas
-        _resp_ex = _db.table("tele_abastecimentos").select("placa,data_abast,litros").execute()
+        # Carrega TODOS os registros existentes para evitar duplicatas (paginação)
+        _ex_rows = _db_paginar("tele_abastecimentos", "placa,data_abast,litros")
         _existentes = set()
-        for _row in (_resp_ex.data or []):
+        for _row in _ex_rows:
             _existentes.add((_row.get("placa", ""), str(_row.get("data_abast", "")), str(_row.get("litros", ""))))
 
         _novos = []
@@ -4153,20 +4143,15 @@ def _tele_salvar_abastecimentos_supabase(abast: list) -> bool:
 
 
 def _tele_carregar_abastecimentos_supabase() -> list:
-    """Carrega todos os abastecimentos do Supabase em ordem cronológica."""
-    _db = _db_client()
-    if _db is None:
-        return []
+    """Carrega TODOS os abastecimentos do Supabase com paginação automática."""
     try:
-        _resp = (
-            _db.table("tele_abastecimentos")
-            .select("placa,data_abast,litros,valor_total,preco_litro,hodometro,nome_posto,cnpj_posto,fonte")
-            .order("data_abast", desc=False)
-            .execute()
+        _raw = _db_paginar(
+            "tele_abastecimentos",
+            "placa,data_abast,litros,valor_total,preco_litro,hodometro,nome_posto,cnpj_posto,fonte",
+            order_by="data_abast", order_desc=False,
         )
-        _rows = []
-        for _r in (_resp.data or []):
-            _rows.append({
+        return [
+            {
                 "placa":       _r.get("placa", ""),
                 "data":        _r.get("data_abast", ""),
                 "litros":      _r.get("litros"),
@@ -4175,8 +4160,9 @@ def _tele_carregar_abastecimentos_supabase() -> list:
                 "nome_posto":  _r.get("nome_posto", ""),
                 "cnpj_posto":  _r.get("cnpj_posto", ""),
                 "fonte":       _r.get("fonte", "supabase"),
-            })
-        return _rows
+            }
+            for _r in _raw
+        ]
     except Exception:
         return []
 
@@ -4253,7 +4239,7 @@ def _fipe_carregar_cache() -> dict:
     if not _db:
         return {}
     try:
-        _rows = _db.table("frota_veiculos_fipe").select("*").limit(10000).execute().data or []
+        _rows = _db_paginar("frota_veiculos_fipe", "*")
         return {r["placa"]: r for r in _rows}
     except Exception:
         return {}
@@ -6295,6 +6281,7 @@ def _startup_sincronizar_github() -> None:
     if st.session_state.get("_github_sync_done"):
         return
     st.session_state["_github_sync_done"] = True
+    _sync_erros: list = []  # erros capturados para exibição no sidebar
 
     # ── 1. Postos GF (pro_frotas.xlsx) ───────────────────────────────
     # Retorno: (cnpjs, msg, df_preview, perfil_map, df_coords)
@@ -6306,12 +6293,19 @@ def _startup_sincronizar_github() -> None:
             st.session_state["_pf_fonte"]          = "github"
             st.session_state["_pf_carregado_em"]   = "GitHub (automático)"
             st.session_state["_pf_restaurado_supabase"] = True  # pula restauração redundante
-            # _coords_pf é df_coords com colunas: cnpj_norm, _lat, _lon, razaoSocial, municipio, uf
+            # _coords_pf é df_coords com colunas: cnpj, _lat, _lon, razaoSocial, municipio, uf
             if _coords_pf is not None and not _coords_pf.empty:
+                # Garante coluna "cnpj" para compatibilidade downstream
                 if "cnpj" not in _coords_pf.columns and "cnpj_norm" in _coords_pf.columns:
+                    _coords_pf = _coords_pf.copy()
                     _coords_pf["cnpj"] = _coords_pf["cnpj_norm"]
-                st.session_state["pf_coords_df"] = _coords_pf
-                _atualizar_servicos_pf(_coords_pf)
+                # Remove linhas sem coordenadas antes de salvar no session_state
+                _coords_pf_valido = _coords_pf.dropna(subset=["_lat", "_lon"])
+                st.session_state["pf_coords_df"] = _coords_pf_valido
+                st.session_state["_pf_n_coords"] = len(_coords_pf_valido)
+                _atualizar_servicos_pf(_coords_pf_valido)
+            else:
+                _sync_erros.append(f"pro_frotas.xlsx: {_msg_pf or 'sem coordenadas'}")
             if _perfil_pf:
                 st.session_state["perfil_venda_map"]  = _perfil_pf
                 st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_pf.values()))
@@ -6321,8 +6315,10 @@ def _startup_sincronizar_github() -> None:
                     _coords_pf if _coords_pf is not None else pd.DataFrame(),
                     _cnpjs_pf, _perfil_pf or {}, "github_auto"
                 )
-    except Exception:
-        pass
+        else:
+            _sync_erros.append(f"pro_frotas.xlsx: {_msg_pf or 'download falhou'}")
+    except Exception as _e_pf:
+        _sync_erros.append(f"pro_frotas.xlsx: {type(_e_pf).__name__}: {_e_pf}")
 
     # ── 2. Postos Cercados (Postos Cercados.xlsx) ─────────────────────
     try:
@@ -6333,8 +6329,10 @@ def _startup_sincronizar_github() -> None:
             st.session_state["_cercados_carregado_em"] = "GitHub (automático)"
             if not _github_sync_ja_feito_hoje("postos_cercados_versoes"):
                 _db_salvar_postos_cercados(_cnpjs_c, "github_auto")
-    except Exception:
-        pass
+        else:
+            _sync_erros.append(f"Postos Cercados.xlsx: {_msg_c or 'download falhou'}")
+    except Exception as _e_c:
+        _sync_erros.append(f"Postos Cercados.xlsx: {type(_e_c).__name__}: {_e_c}")
 
     # ── 3. Preços por Posto (preco_posto.xlsx) ────────────────────────
     try:
@@ -6346,8 +6344,10 @@ def _startup_sincronizar_github() -> None:
             st.session_state["_restaurado_pp_supabase"] = True  # pula restauração redundante
             if not _github_sync_ja_feito_hoje("precos_posto_versoes"):
                 _db_salvar_precos_posto(_pp_df_gh, "github_auto")
-    except Exception:
-        pass
+        else:
+            _sync_erros.append(f"preco_posto.xlsx: {_msg_pp or 'download falhou'}")
+    except Exception as _e_pp:
+        _sync_erros.append(f"preco_posto.xlsx: {type(_e_pp).__name__}: {_e_pp}")
 
     # ── 4. Acordos (Acordos.xlsx) ─────────────────────────────────────
     try:
@@ -6360,8 +6360,14 @@ def _startup_sincronizar_github() -> None:
             _ac_fresh = _db_carregar_acordos()
             if not _ac_fresh.empty:
                 st.session_state["acordos_df"] = _ac_fresh
-    except Exception:
-        pass
+        else:
+            _sync_erros.append(f"Acordos.xlsx: {_msg_ac or 'download falhou'}")
+    except Exception as _e_ac:
+        _sync_erros.append(f"Acordos.xlsx: {type(_e_ac).__name__}: {_e_ac}")
+
+    # Armazena erros para exibição no sidebar (debug)
+    if _sync_erros:
+        st.session_state["_github_sync_erros"] = _sync_erros
 
 
 # ── Gestão de Frotas ───────────────────────────────────────────────────────
@@ -13595,6 +13601,71 @@ with st.sidebar:
     _pp_fonte  = st.session_state.get("_pp_fonte",  "manual")
     _pp_ts     = st.session_state.get("_pp_carregado_em", "")
 
+    # ── Status de carga dos dados base ──────────────────────────────────
+    _sync_erros_sb  = st.session_state.get("_github_sync_erros", [])
+    _pf_coords_sb   = st.session_state.get("pf_coords_df", pd.DataFrame())
+    _n_coords_sb    = len(_pf_coords_sb) if not _pf_coords_sb.empty else 0
+    _n_cnpjs_sb     = len(_pf_set)
+    _pf_ok          = _n_cnpjs_sb > 0
+    _coords_ok      = _n_coords_sb > 0
+
+    # Exibe alerta de erro de carga visível mesmo sem abrir expander
+    if _sync_erros_sb:
+        st.warning(
+            "⚠️ **Carga GitHub parcial** — alguns arquivos não foram carregados. "
+            "Abra **Status dos Dados** abaixo para detalhes.",
+            icon=None,
+        )
+
+    with st.expander(
+        "📊 Status dos Dados"
+        + (" ✅" if _pf_ok and _coords_ok and not _sync_erros_sb else " ⚠️"),
+        expanded=bool(_sync_erros_sb),
+    ):
+        # Resumo visual de cada planilha
+        _d_icon = "✅" if _pf_ok else "❌"
+        _c_icon = "✅" if _coords_ok else "❌"
+        _cer_icon = "✅" if _cer_set else "❌"
+        _pp_icon  = "✅" if st.session_state.get("_pp_df") is not None else "❌"
+        st.markdown(
+            f"<div style='font-size:12px;line-height:1.8'>"
+            f"{_d_icon} <b>Postos GF (pro_frotas):</b> {_n_cnpjs_sb:,} CNPJs · {_n_coords_sb:,} coords<br>"
+            f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#888'>Fonte: {_pf_ts or 'não carregado'}</span><br>"
+            f"{_cer_icon} <b>Postos Cercados:</b> {len(_cer_set):,} CNPJs<br>"
+            f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#888'>Fonte: {_cer_ts or 'não carregado'}</span><br>"
+            f"{_pp_icon} <b>Preços por Posto:</b> "
+            + (f"{len(st.session_state['_pp_df']):,} registros" if st.session_state.get('_pp_df') is not None else "não carregado")
+            + f"<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#888'>Fonte: {_pp_ts or 'não carregado'}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+        # Erros de sincronização com GitHub
+        if _sync_erros_sb:
+            st.markdown("**Erros na carga automática (GitHub):**")
+            for _se in _sync_erros_sb:
+                st.error(f"• {_se}", icon=None)
+        # Botão para forçar nova tentativa de carga
+        if _sync_erros_sb or not (_pf_ok and _coords_ok):
+            if st.button("🔄 Tentar recarregar planilhas", use_container_width=True,
+                         key="btn_recarregar_github",
+                         help="Limpa o cache e tenta baixar novamente do GitHub"):
+                # Limpa flags para forçar nova tentativa
+                for _rk in ["_github_sync_done", "_github_sync_erros",
+                             "pf_coords_df", "cnpjs_pro_frotas",
+                             "_pf_restaurado_supabase", "_cer_restaurado_supabase",
+                             "_restaurado_pp_supabase"]:
+                    st.session_state.pop(_rk, None)
+                # Limpa cache @st.cache_data das funções de carregamento
+                try:
+                    _auto_carregar_pro_frotas_repo.clear()
+                    _auto_carregar_cercados_repo.clear()
+                    _auto_carregar_precos_postos_repo.clear()
+                    _auto_carregar_acordos_repo.clear()
+                    _github_baixar_bytes.clear()
+                except Exception:
+                    pass
+                st.rerun()
+
     with st.expander("⚙️  Configurações", expanded=st.session_state.pop("_abrir_config_exp", False)):
         # ── Proteção por senha ────────────────────────────────────────────────
         if not st.session_state.get("_cfg_autenticado", False):
@@ -15548,17 +15619,32 @@ if modo == "📍 Por UF/Município":
         if uf != st.session_state.get("_uf_carregada"):
             _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
             if not _pf_df_m1.empty:
+                # Remove linhas sem coordenadas válidas (Supabase antigo pode ter NULL lat/lon)
+                if "_lat" in _pf_df_m1.columns and "_lon" in _pf_df_m1.columns:
+                    _pf_df_m1 = _pf_df_m1.dropna(subset=["_lat", "_lon"])
+                # Garante coluna uf
                 if "uf" not in _pf_df_m1.columns:
                     _pf_df_m1 = _pf_df_m1.copy()
                     _pf_df_m1["uf"] = ""
                 df_raw_full = _pf_df_m1[
                     _pf_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
                 ].copy().reset_index(drop=True)
+                if df_raw_full.empty:
+                    # Nenhum posto neste estado — pode ser UF inválida ou dados sem coords
+                    _n_total_pf = len(_pf_df_m1)
+                    _ufs_disponiveis = sorted(_pf_df_m1["uf"].dropna().unique().tolist()) if "uf" in _pf_df_m1.columns else []
+                    st.info(
+                        f"⚠️ Nenhum posto encontrado para **{uf}** na planilha carregada "
+                        f"({_n_total_pf:,} postos com coordenadas no total). "
+                        + (f"Estados disponíveis: {', '.join(_ufs_disponiveis[:10])}" if _ufs_disponiveis else "")
+                    )
             else:
                 df_raw_full = pd.DataFrame()
+                _sync_errs = st.session_state.get("_github_sync_erros", [])
+                _err_detalhe = (" Erros na carga automática: " + "; ".join(_sync_errs)) if _sync_errs else ""
                 st.warning(
                     "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
-                    "Verifique a seção **Configurações** na barra lateral."
+                    "Verifique a seção **Configurações** na barra lateral." + _err_detalhe
                 )
 
             st.session_state["df_raw_full"]  = df_raw_full
