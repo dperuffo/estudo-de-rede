@@ -31149,9 +31149,14 @@ elif modo == "🛰️ Telemetria":
         else:
             st.markdown("#### 📊 Eficiência de Consumo por Veículo")
 
-            # Agregado por placa
+            # Agregado por placa — força float64 antes do groupby para evitar
+            # incompatibilidade com Arrow-backed arrays no pandas 3.x
+            _df_ab_cons = _df_ab.dropna(subset=["consumo_real_kml"]).copy()
+            for _col_num in ["consumo_real_kml", "litros"]:
+                if _col_num in _df_ab_cons.columns:
+                    _df_ab_cons[_col_num] = pd.to_numeric(_df_ab_cons[_col_num], errors="coerce")
             _df_cons = (
-                _df_ab.dropna(subset=["consumo_real_kml"])
+                _df_ab_cons.dropna(subset=["consumo_real_kml"])
                 .groupby("placa")
                 .agg(
                     consumo_medio=("consumo_real_kml", "mean"),
@@ -31162,13 +31167,20 @@ elif modo == "🛰️ Telemetria":
                 )
                 .reset_index()
             )
-            _df_cons["consumo_esperado"] = _df_cons["placa"].map(
-                lambda p: _frota_map.get(p, {}).get("consumo_esp_kml") if "_frota_map" in dir() else None
+            _df_cons["consumo_esperado"] = pd.to_numeric(
+                _df_cons["placa"].map(
+                    lambda p: _frota_map.get(p, {}).get("consumo_esp_kml") if "_frota_map" in dir() else None
+                ),
+                errors="coerce",
             )
+            _cm  = pd.to_numeric(_df_cons["consumo_medio"],   errors="coerce")
+            _ce  = pd.to_numeric(_df_cons["consumo_esperado"], errors="coerce")
+            _df_cons["consumo_medio"]    = _cm
+            _df_cons["consumo_esperado"] = _ce
             _df_cons["desvio_pct"] = (
-                ((_df_cons["consumo_medio"] - _df_cons["consumo_esperado"]) / _df_cons["consumo_esperado"] * 100)
+                ((_cm - _ce) / _ce * 100)
                 .round(1)
-                .where(_df_cons["consumo_esperado"].notna())
+                .where(_ce.notna())
             )
 
             if not _df_cons.empty:
