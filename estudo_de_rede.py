@@ -4924,154 +4924,137 @@ def _fipe_secao_ui(
                     st.caption(f"… e mais {len(_pool_auto)-20} placas.")
 
     # ════════════════════════════════════
-    #  TAB 3 — Associação Manual (fallback)
-    # ════════════════════════════════════
+    #  TAB 3 — Associação Manual (formulário de texto direto)
+    # ════════════════════════════════════════════════════════
     with _t3:
-        _cache_t3    = st.session_state.get(f"{key_prefix}_cache_fipe", cache_fipe)
-        _pendentes3  = [p for p in _placas
-                        if not _cache_t3.get(_fipe_normalizar_placa(p), {}).get("marca")]
+        _cache_t3   = st.session_state.get(f"{key_prefix}_cache_fipe", cache_fipe)
+        _pendentes3 = [p for p in _placas
+                       if not _cache_t3.get(_fipe_normalizar_placa(p), {}).get("marca")]
+
+        st.markdown(
+            "Preencha os dados do veículo manualmente. "
+            "Consulte o valor FIPE em "
+            "[veiculos.fipe.org.br](https://veiculos.fipe.org.br) se necessário."
+        )
 
         if not _pendentes3:
-            st.success(f"✅ Todos os {_n_placas} veículos já têm dados FIPE associados.")
-            if st.button("🔄 Re-associar um veículo", key=f"{key_prefix}_re_assoc_man"):
+            st.success(f"✅ Todos os {_n_placas} veículos já têm dados associados.")
+            if st.button("🔄 Editar um veículo", key=f"{key_prefix}_man_editar_btn"):
                 st.session_state[f"{key_prefix}_man_mostrar_todos"] = True
                 st.rerun()
             _pool3 = _placas if st.session_state.get(f"{key_prefix}_man_mostrar_todos") else []
         else:
-            st.info(
-                f"**{len(_pendentes3)} veículo(s)** sem dados. "
-                "Use quando a busca automática não encontrar a placa.",
-                icon="ℹ️",
-            )
+            st.info(f"**{len(_pendentes3)} placa(s)** sem dados FIPE.", icon="ℹ️")
             _pool3 = _pendentes3
 
         if not _pool3:
             return
 
-        # ── Seleção de placa ─────────────────────────────────────
+        # ── Seleção da placa ──────────────────────────────────────
         _placa_sel3 = st.selectbox(
-            "Placa a associar",
+            "Placa",
             _pool3,
             key=f"{key_prefix}_man_placa_sel",
         )
+        _pn3 = _fipe_normalizar_placa(_placa_sel3)
+        _ex3 = _cache_t3.get(_pn3) or {}   # dados já salvos (para pré-preencher)
 
-        # ── Tipo ────────────────────────────────────────────────
-        _tipo_map3 = {"🚗 Carros": "carros", "🚛 Caminhões": "caminhoes", "🏍️ Motos": "motos"}
-        _tipo_lbl3 = st.selectbox("Tipo de veículo", list(_tipo_map3.keys()),
-                                   key=f"{key_prefix}_man_tipo_lbl")
-        _tipo3     = _tipo_map3[_tipo_lbl3]
+        # ── Formulário ────────────────────────────────────────────
+        with st.form(key=f"{key_prefix}_man_form_{_placa_sel3}"):
+            _c1, _c2 = st.columns(2)
+            with _c1:
+                _f_marca   = st.text_input("Marca *",
+                    value=_ex3.get("marca", ""),
+                    placeholder="Ex: Toyota",
+                    key=f"{key_prefix}_f_marca")
+                _f_modelo  = st.text_input("Modelo *",
+                    value=_ex3.get("modelo", ""),
+                    placeholder="Ex: Corolla XEi 2.0",
+                    key=f"{key_prefix}_f_modelo")
+                _f_ano     = st.text_input("Ano do modelo *",
+                    value=_ex3.get("ano_modelo", ""),
+                    placeholder="Ex: 2022",
+                    key=f"{key_prefix}_f_ano")
+            with _c2:
+                _f_cor     = st.text_input("Cor",
+                    value=_ex3.get("cor", ""),
+                    placeholder="Ex: Prata",
+                    key=f"{key_prefix}_f_cor")
+                _f_comb    = st.selectbox("Combustível",
+                    ["", "Gasolina", "Flex", "Diesel", "Elétrico", "Híbrido", "GNV"],
+                    index=(["", "Gasolina", "Flex", "Diesel", "Elétrico", "Híbrido", "GNV"]
+                           .index(_ex3.get("combustivel_fipe", ""))
+                           if _ex3.get("combustivel_fipe", "") in
+                           ["", "Gasolina", "Flex", "Diesel", "Elétrico", "Híbrido", "GNV"]
+                           else 0),
+                    key=f"{key_prefix}_f_comb")
+                _f_tipo    = st.selectbox("Tipo",
+                    ["Carro", "Caminhão", "Moto", "Utilitário", "Ônibus"],
+                    index=(["Carro", "Caminhão", "Moto", "Utilitário", "Ônibus"]
+                           .index(_ex3.get("tipo_veiculo", "Carro"))
+                           if _ex3.get("tipo_veiculo", "Carro") in
+                           ["Carro", "Caminhão", "Moto", "Utilitário", "Ônibus"]
+                           else 0),
+                    key=f"{key_prefix}_f_tipo")
 
-        # ── Marcas ───────────────────────────────────────────────
-        _marcas_key3 = f"{key_prefix}_man_marcas_{_tipo3}"
-        if _marcas_key3 not in st.session_state:
-            if st.button("📥 Carregar marcas", key=f"{key_prefix}_man_btn_marcas",
-                         use_container_width=True):
-                with st.spinner("Buscando marcas na API FIPE..."):
-                    _marcas_raw3 = _fipe_marcas(_tipo3)
-                if _marcas_raw3:
-                    st.session_state[_marcas_key3] = {m["nome"]: m["codigo"] for m in _marcas_raw3}
-                    st.rerun()
-                else:
-                    _err_msg = st.session_state.get("_fipe_api_ultimo_erro", "sem detalhes")
-                    st.error(
-                        f"❌ Não foi possível carregar marcas.\n\n"
-                        f"**Detalhe:** {_err_msg}\n\n"
-                        "A aplicação tentou a API parallelum e a API oficial FIPE. "
-                        "Verifique se o Streamlit Cloud tem acesso às URLs externas."
-                    )
-            return
-
-        _marcas_dict3 = st.session_state[_marcas_key3]
-        _marca_nome3  = st.selectbox("Marca", sorted(_marcas_dict3.keys()),
-                                     key=f"{key_prefix}_man_marca_nome")
-        _marca_cod3   = _marcas_dict3[_marca_nome3]
-
-        # ── Modelos ──────────────────────────────────────────────
-        _modelos_key3 = f"{key_prefix}_man_modelos_{_tipo3}_{_marca_cod3}"
-        if _modelos_key3 not in st.session_state:
-            if st.button("📥 Carregar modelos", key=f"{key_prefix}_man_btn_modelos",
-                         use_container_width=True):
-                with st.spinner(f"Buscando modelos de {_marca_nome3}..."):
-                    _modelos_raw3 = _fipe_modelos(_tipo3, _marca_cod3)
-                if _modelos_raw3:
-                    st.session_state[_modelos_key3] = {m["nome"]: m["codigo"] for m in _modelos_raw3}
-                    st.rerun()
-                else:
-                    st.error("Não foi possível carregar modelos. Tente novamente.")
-            return
-
-        _modelos_dict3 = st.session_state[_modelos_key3]
-        _modelo_nome3  = st.selectbox("Modelo", sorted(_modelos_dict3.keys()),
-                                      key=f"{key_prefix}_man_modelo_nome")
-        _modelo_cod3   = _modelos_dict3[_modelo_nome3]
-
-        # ── Anos ─────────────────────────────────────────────────
-        _anos_key3 = f"{key_prefix}_man_anos_{_tipo3}_{_marca_cod3}_{_modelo_cod3}"
-        if _anos_key3 not in st.session_state:
-            if st.button("📥 Carregar anos", key=f"{key_prefix}_man_btn_anos",
-                         use_container_width=True):
-                with st.spinner(f"Buscando anos de {_modelo_nome3}..."):
-                    _anos_raw3 = _fipe_anos(_tipo3, _marca_cod3, _modelo_cod3)
-                if _anos_raw3:
-                    st.session_state[_anos_key3] = {a["nome"]: a["codigo"] for a in _anos_raw3}
-                    st.rerun()
-                else:
-                    st.error("Não foi possível carregar anos. Tente novamente.")
-            return
-
-        _anos_dict3 = st.session_state[_anos_key3]
-        _ano_nome3  = st.selectbox("Ano / Combustível", list(_anos_dict3.keys()),
-                                   key=f"{key_prefix}_man_ano_nome")
-        _ano_cod3   = _anos_dict3[_ano_nome3]
-
-        # ── Salvar ───────────────────────────────────────────────
-        st.markdown("---")
-        _col_prev3, _col_save3 = st.columns([3, 1])
-        with _col_prev3:
-            st.markdown(
-                f"**Associação:** `{_placa_sel3}` → "
-                f"{_marca_nome3} · {_modelo_nome3} · {_ano_nome3}"
+            _f_valor = st.number_input(
+                "Valor FIPE (R$) — opcional",
+                min_value=0.0, step=500.0, format="%.2f",
+                value=float(_ex3.get("valor_fipe") or 0),
+                key=f"{key_prefix}_f_valor",
+                help="Consulte em veiculos.fipe.org.br e informe o valor de mercado.",
             )
-        with _col_save3:
-            if st.button("✅ Salvar", key=f"{key_prefix}_man_btn_salvar",
-                         use_container_width=True, type="primary"):
-                with st.spinner("Buscando dados FIPE e salvando..."):
-                    _det3 = _fipe_valor(_tipo3, _marca_cod3, _modelo_cod3, _ano_cod3)
-                if isinstance(_det3, dict) and _det3:
-                    _dados3 = {
-                        "marca":            _det3.get("Marca", _marca_nome3),
-                        "modelo":           _det3.get("Modelo", _modelo_nome3),
-                        "ano_modelo":       str(_det3.get("AnoModelo", _ano_nome3)),
-                        "cor":              "",
-                        "tipo_veiculo":     _tipo_lbl3.split()[-1],
-                        "municipio":        "",
-                        "uf_veiculo":       "",
-                        "codigo_fipe":      _det3.get("CodigoFipe", ""),
-                        "valor_fipe":       _fipe_parse_valor(_det3.get("Valor", "")),
-                        "combustivel_fipe": _det3.get("Combustivel", ""),
-                        "mes_referencia":   _det3.get("MesReferencia", ""),
-                    }
-                    _ok3, _err3 = _fipe_salvar_registro(_placa_sel3, _dados3)
-                    if _ok3:
-                        _new_cache3 = dict(_cache_t3)
-                        _new_cache3[_fipe_normalizar_placa(_placa_sel3)] = _dados3
-                        st.session_state[f"{key_prefix}_cache_fipe"] = _new_cache3
-                        st.success(
-                            f"✅ **{_placa_sel3}** associado: "
-                            f"{_dados3['marca']} {_dados3['modelo']} {_dados3['ano_modelo']} — "
-                            f"R$ {_dados3['valor_fipe']:,.0f}".replace(",", ".")
-                            if _dados3.get("valor_fipe") else
-                            f"✅ **{_placa_sel3}** salvo (sem valor FIPE disponível)."
-                        )
-                        st.rerun()
-                    else:
-                        st.error(f"Erro ao salvar no Supabase: {_err3}")
+            _f_cod_fipe = st.text_input(
+                "Código FIPE — opcional",
+                value=_ex3.get("codigo_fipe", ""),
+                placeholder="Ex: 005340-2",
+                key=f"{key_prefix}_f_cod_fipe",
+            )
+
+            _submit3 = st.form_submit_button(
+                "✅ Salvar", type="primary", use_container_width=True
+            )
+
+        if _submit3:
+            if not _f_marca.strip() or not _f_modelo.strip() or not _f_ano.strip():
+                st.error("Preencha pelo menos Marca, Modelo e Ano.")
+            else:
+                _dados3 = {
+                    "marca":            _f_marca.strip().title(),
+                    "modelo":           _f_modelo.strip(),
+                    "ano_modelo":       _f_ano.strip(),
+                    "cor":              _f_cor.strip().title(),
+                    "tipo_veiculo":     _f_tipo,
+                    "municipio":        "",
+                    "uf_veiculo":       "",
+                    "codigo_fipe":      _f_cod_fipe.strip(),
+                    "valor_fipe":       _f_valor if _f_valor > 0 else None,
+                    "combustivel_fipe": _f_comb,
+                    "mes_referencia":   "",
+                }
+                _ok3, _err3 = _fipe_salvar_registro(_placa_sel3, _dados3)
+                if _ok3:
+                    _new_cache3 = dict(_cache_t3)
+                    _new_cache3[_pn3] = _dados3
+                    st.session_state[f"{key_prefix}_cache_fipe"] = _new_cache3
+                    _val_msg = (
+                        f" — R$ {_f_valor:,.0f}".replace(",", ".")
+                        if _f_valor > 0 else ""
+                    )
+                    st.success(
+                        f"✅ **{_placa_sel3}** salvo: "
+                        f"{_dados3['marca']} {_dados3['modelo']} "
+                        f"{_dados3['ano_modelo']}{_val_msg}"
+                    )
+                    st.session_state.pop(f"{key_prefix}_man_mostrar_todos", None)
+                    st.rerun()
                 else:
-                    st.error("Não foi possível buscar os dados FIPE. Tente outro ano.")
+                    st.error(f"Erro ao salvar no Supabase: {_err3}")
 
     st.caption(
-        f"Dados: **DENATRAN** via BrasilAPI + **Tabela FIPE** (parallelum.com.br). "
-        f"Cache atualizado a cada {_FIPE_CACHE_TTL_DIAS} dias."
+        f"Busca automática via **DENATRAN** (BrasilAPI). "
+        f"Valor FIPE: consulte [veiculos.fipe.org.br](https://veiculos.fipe.org.br). "
+        f"Cache válido por {_FIPE_CACHE_TTL_DIAS} dias."
     )
 
 
