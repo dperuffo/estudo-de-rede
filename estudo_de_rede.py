@@ -4201,15 +4201,26 @@ def _tele_restaurar_do_supabase() -> None:
 
 _FIPE_CACHE_TTL_DIAS = 30
 
-# URLs candidatas da API parallelum (tentadas em ordem)
-_PARALLELUM_URLS = [
-    "https://fipe.parallelum.com.br/api/v2",   # CDN/nova URL
-    "https://parallelum.com.br/fipe/api/v2",   # URL original
-]
-
-# API oficial FIPE (POST-based, usada como fallback absoluto)
+# API oficial FIPE — site veiculos.fipe.org.br (POST)
 _FIPE_OFICIAL_BASE = "https://veiculos.fipe.org.br/api/veiculos"
 _FIPE_TIPO_COD     = {"carros": 1, "motos": 2, "caminhoes": 3}
+
+# Cabeçalhos que imitam um navegador acessando o site FIPE
+_FIPE_HEADERS = {
+    "Content-Type":   "application/json;charset=UTF-8",
+    "Accept":         "application/json, text/javascript, */*; q=0.01",
+    "User-Agent":     (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Origin":         "https://veiculos.fipe.org.br",
+    "Referer":        "https://veiculos.fipe.org.br/",
+    "X-Requested-With": "XMLHttpRequest",
+}
+
+# BrasilAPI FIPE (marcas) — alternativa gratuita e confiável
+_BRASILAPI_FIPE = "https://brasilapi.com.br/api/fipe"
 
 
 def _fipe_normalizar_placa(placa: str) -> str:
@@ -4228,236 +4239,181 @@ def _fipe_parse_valor(valor_str: str) -> float | None:
 
 def _fipe_api_get(endpoint: str) -> list | dict:
     """
-    GET na API parallelum FIPE.
-    Tenta múltiplas URLs; retorna [] em caso de falha total.
-    Armazena último erro em st.session_state['_fipe_api_ultimo_erro'].
+    Mantida por compatibilidade. Chama diretamente a API oficial FIPE.
+    Retorna [] em caso de falha.
+    """
+    return []   # parallelum descontinuado — usar _fipe_marcas/_fipe_modelos/_fipe_anos/_fipe_valor
+
+
+def _fipe_ref_code() -> int:
+    """
+    Retorna o código da tabela de referência mais recente da FIPE.
+    Usa cache em session_state por 1 hora.
     """
     import requests as _req
-    _erros = []
-    for _base in _PARALLELUM_URLS:
-        try:
-            _r = _req.get(
-                f"{_base}{endpoint}",
-                timeout=15,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; FNI-Frota/2.0)",
-                    "Accept": "application/json",
-                    "Referer": "https://parallelum.com.br/",
-                },
-                verify=True,
-            )
-            if _r.status_code == 200:
-                _data = _r.json()
-                # limpa erro anterior se teve sucesso
-                if hasattr(st, "session_state"):
-                    st.session_state.pop("_fipe_api_ultimo_erro", None)
-                return _data
-            _erros.append(f"{_base}: HTTP {_r.status_code}")
-        except Exception as _e:
-            _erros.append(f"{_base}: {type(_e).__name__} — {_e}")
-
-    # Persiste erro para diagnóstico na UI
-    if hasattr(st, "session_state"):
-        st.session_state["_fipe_api_ultimo_erro"] = " | ".join(_erros)
-    return []
-
-
-# ── API oficial FIPE (fallback POST) ────────────────────────────────────────
-
-def _fipe_oficial_marcas(tipo: str) -> list:
-    """
-    Busca marcas via API oficial do site FIPE (POST).
-    Retorna lista no mesmo formato do parallelum: [{nome, codigo}].
-    tipo: 'carros' | 'motos' | 'caminhoes'
-    """
-    import requests as _req
-    _cod_tipo = _FIPE_TIPO_COD.get(tipo, 1)
+    import time as _time
+    _key = "_fipe_ref_code_cache"
+    _cached = st.session_state.get(_key)
+    if _cached and (_time.time() - _cached.get("ts", 0)) < 3600:
+        return _cached["cod"]
     try:
         _r = _req.post(
-            f"{_FIPE_OFICIAL_BASE}/ConsultarMarcas",
-            json={"codigoTabelaReferencia": 0, "codigoTipoVeiculo": _cod_tipo},
+            f"{_FIPE_OFICIAL_BASE}/ConsultarTabelaDeReferencia",
+            json={},
             timeout=15,
-            headers={
-                "Content-Type": "application/json;charset=UTF-8",
-                "User-Agent": "Mozilla/5.0 (compatible; FNI-Frota/2.0)",
-                "Origin": "https://veiculos.fipe.org.br",
-                "Referer": "https://veiculos.fipe.org.br/",
-            },
+            headers=_FIPE_HEADERS,
         )
         if _r.status_code == 200:
-            _data = _r.json()
-            # formato: [{"Label": "AGRALE", "Value": 102}, ...]
-            return [{"nome": d["Label"], "codigo": str(d["Value"])} for d in _data]
+            _lista = _r.json()
+            if _lista:
+                _cod = int(_lista[0]["Codigo"])
+                st.session_state[_key] = {"cod": _cod, "ts": _time.time()}
+                return _cod
     except Exception:
         pass
-    return []
+    return 0   # 0 = tabela atual (aceitável como fallback)
 
 
-def _fipe_oficial_modelos(tipo: str, marca_cod: str) -> list:
+def _fipe_post(endpoint: str, body: dict) -> list | dict:
     """
-    Busca modelos via API oficial FIPE (POST).
-    Retorna [{nome, codigo}] compatível com parallelum.
+    POST genérico para a API oficial FIPE.
+    Registra erros em session_state['_fipe_api_ultimo_erro'].
     """
     import requests as _req
-    _cod_tipo = _FIPE_TIPO_COD.get(tipo, 1)
     try:
         _r = _req.post(
-            f"{_FIPE_OFICIAL_BASE}/ConsultarModelos",
-            json={
-                "codigoTipoVeiculo": _cod_tipo,
-                "codigoTabelaReferencia": 0,
-                "codigoMarca": int(marca_cod),
-            },
-            timeout=15,
-            headers={
-                "Content-Type": "application/json;charset=UTF-8",
-                "User-Agent": "Mozilla/5.0 (compatible; FNI-Frota/2.0)",
-                "Origin": "https://veiculos.fipe.org.br",
-                "Referer": "https://veiculos.fipe.org.br/",
-            },
+            f"{_FIPE_OFICIAL_BASE}/{endpoint}",
+            json=body,
+            timeout=20,
+            headers=_FIPE_HEADERS,
         )
         if _r.status_code == 200:
-            _data = _r.json()
-            _modelos = _data.get("Modelos", _data) if isinstance(_data, dict) else _data
-            return [{"nome": d["Label"], "codigo": str(d["Value"])} for d in _modelos]
-    except Exception:
-        pass
+            st.session_state.pop("_fipe_api_ultimo_erro", None)
+            return _r.json()
+        _msg = f"FIPE oficial HTTP {_r.status_code}: {_r.text[:120]}"
+        st.session_state["_fipe_api_ultimo_erro"] = _msg
+    except Exception as _e:
+        st.session_state["_fipe_api_ultimo_erro"] = f"FIPE oficial: {type(_e).__name__} — {_e}"
     return []
-
-
-def _fipe_oficial_anos(tipo: str, marca_cod: str, modelo_cod: str) -> list:
-    """
-    Busca anos/combustíveis via API oficial FIPE (POST).
-    Retorna [{nome, codigo}] compatível com parallelum.
-    """
-    import requests as _req
-    _cod_tipo = _FIPE_TIPO_COD.get(tipo, 1)
-    try:
-        _r = _req.post(
-            f"{_FIPE_OFICIAL_BASE}/ConsultarAnoModelo",
-            json={
-                "codigoTipoVeiculo": _cod_tipo,
-                "codigoTabelaReferencia": 0,
-                "codigoMarca": int(marca_cod),
-                "codigoModelo": int(modelo_cod),
-            },
-            timeout=15,
-            headers={
-                "Content-Type": "application/json;charset=UTF-8",
-                "User-Agent": "Mozilla/5.0 (compatible; FNI-Frota/2.0)",
-                "Origin": "https://veiculos.fipe.org.br",
-                "Referer": "https://veiculos.fipe.org.br/",
-            },
-        )
-        if _r.status_code == 200:
-            _data = _r.json()
-            # formato: [{"Label": "2021 Gasolina", "Value": "2021-1"}, ...]
-            return [{"nome": d["Label"], "codigo": str(d["Value"])} for d in _data]
-    except Exception:
-        pass
-    return []
-
-
-def _fipe_oficial_valor(
-    tipo: str, marca_cod: str, modelo_cod: str, ano_cod: str
-) -> dict:
-    """
-    Busca valor/detalhe via API oficial FIPE (POST).
-    Retorna dict compatível com parallelum (chaves: Marca, Modelo, AnoModelo,
-    Combustivel, CodigoFipe, Valor, MesReferencia).
-    ano_cod formato: "2021-1" (anoModelo-codigoTipoCombustivel).
-    """
-    import requests as _req
-    _cod_tipo = _FIPE_TIPO_COD.get(tipo, 1)
-    try:
-        _partes = ano_cod.split("-")
-        _ano_num = int(_partes[0]) if _partes else 0
-        _comb_cod = int(_partes[1]) if len(_partes) > 1 else 1
-        _r = _req.post(
-            f"{_FIPE_OFICIAL_BASE}/ConsultarValorComTodosParametros",
-            json={
-                "codigoTipoVeiculo": _cod_tipo,
-                "codigoTabelaReferencia": 0,
-                "codigoMarca": int(marca_cod),
-                "codigoModelo": int(modelo_cod),
-                "ano": ano_cod,
-                "codigoTipoCombustivel": _comb_cod,
-                "anoModelo": _ano_num,
-                "modeloCodigoExterno": "",
-                "tipoConsulta": "tradicional",
-            },
-            timeout=15,
-            headers={
-                "Content-Type": "application/json;charset=UTF-8",
-                "User-Agent": "Mozilla/5.0 (compatible; FNI-Frota/2.0)",
-                "Origin": "https://veiculos.fipe.org.br",
-                "Referer": "https://veiculos.fipe.org.br/",
-            },
-        )
-        if _r.status_code == 200:
-            return _r.json()  # já tem Marca, Modelo, Valor, CodigoFipe etc.
-    except Exception:
-        pass
-    return {}
 
 
 def _fipe_marcas(tipo: str) -> list:
     """
-    Busca marcas — tenta parallelum primeiro, depois API oficial FIPE.
+    Busca marcas FIPE.
+    Tenta: 1) API oficial FIPE (POST)  2) BrasilAPI FIPE (GET).
     Retorna [{nome, codigo}].
     """
-    _dados = _fipe_api_get(f"/{tipo}/marcas")
-    if _dados:
-        return _dados
-    return _fipe_oficial_marcas(tipo)
+    import requests as _req
+    _cod_tipo = _FIPE_TIPO_COD.get(tipo, 1)
+    _ref      = _fipe_ref_code()
+
+    # 1 — API oficial
+    _erros = []
+    _raw = _fipe_post(
+        "ConsultarMarcas",
+        {"codigoTabelaReferencia": _ref, "codigoTipoVeiculo": _cod_tipo},
+    )
+    if isinstance(_raw, list) and _raw:
+        return [{"nome": d["Label"], "codigo": str(d["Value"])} for d in _raw]
+    _erros.append(st.session_state.get("_fipe_api_ultimo_erro", "FIPE oficial sem dados"))
+
+    # 2 — BrasilAPI FIPE
+    try:
+        _r2 = _req.get(
+            f"{_BRASILAPI_FIPE}/marcas/v1/{tipo}",
+            timeout=15,
+            headers={"User-Agent": "FNI-Frota/2.0", "Accept": "application/json"},
+        )
+        if _r2.status_code == 200:
+            _dados2 = _r2.json()
+            if _dados2:
+                st.session_state.pop("_fipe_api_ultimo_erro", None)
+                # BrasilAPI retorna {nome, valor} — "valor" é o código
+                return [{"nome": d.get("nome", d.get("Label","")),
+                         "codigo": str(d.get("valor", d.get("Value","")))}
+                        for d in _dados2]
+        _erros.append(f"BrasilAPI HTTP {_r2.status_code}")
+    except Exception as _e2:
+        _erros.append(f"BrasilAPI: {type(_e2).__name__}")
+
+    st.session_state["_fipe_api_ultimo_erro"] = " | ".join(_erros)
+    return []
 
 
 def _fipe_modelos(tipo: str, marca_cod: str) -> list:
     """
-    Busca modelos — tenta parallelum primeiro, depois API oficial FIPE.
+    Busca modelos FIPE para uma marca.
+    Retorna [{nome, codigo}].
     """
-    _resp = _fipe_api_get(f"/{tipo}/marcas/{marca_cod}/modelos")
-    _dados = (
-        _resp.get("modelos", []) if isinstance(_resp, dict) else _resp
+    _cod_tipo = _FIPE_TIPO_COD.get(tipo, 1)
+    _ref      = _fipe_ref_code()
+    _raw = _fipe_post(
+        "ConsultarModelos",
+        {
+            "codigoTipoVeiculo":    _cod_tipo,
+            "codigoTabelaReferencia": _ref,
+            "codigoMarca":          int(marca_cod),
+        },
     )
-    if _dados:
-        return _dados
-    return _fipe_oficial_modelos(tipo, marca_cod)
+    if isinstance(_raw, dict):
+        _lista = _raw.get("Modelos", _raw.get("modelos", []))
+    elif isinstance(_raw, list):
+        _lista = _raw
+    else:
+        _lista = []
+    return [{"nome": d["Label"], "codigo": str(d["Value"])} for d in _lista if "Label" in d]
 
 
 def _fipe_anos(tipo: str, marca_cod: str, modelo_cod: str) -> list:
     """
-    Busca anos/combustíveis — tenta parallelum primeiro, depois API oficial.
+    Busca anos/combustíveis FIPE para um modelo.
+    Retorna [{nome, codigo}].
     """
-    _dados = _fipe_api_get(f"/{tipo}/marcas/{marca_cod}/modelos/{modelo_cod}/anos")
-    if _dados:
-        return _dados
-    return _fipe_oficial_anos(tipo, marca_cod, modelo_cod)
+    _cod_tipo = _FIPE_TIPO_COD.get(tipo, 1)
+    _ref      = _fipe_ref_code()
+    _raw = _fipe_post(
+        "ConsultarAnoModelo",
+        {
+            "codigoTipoVeiculo":    _cod_tipo,
+            "codigoTabelaReferencia": _ref,
+            "codigoMarca":          int(marca_cod),
+            "codigoModelo":         int(modelo_cod),
+        },
+    )
+    if isinstance(_raw, list):
+        return [{"nome": d["Label"], "codigo": str(d["Value"])} for d in _raw if "Label" in d]
+    return []
 
 
 def _fipe_valor(tipo: str, marca_cod: str, modelo_cod: str, ano_cod: str) -> dict:
     """
-    Busca detalhe/valor — tenta parallelum primeiro, depois API oficial.
-    Normaliza resposta para as chaves padrão do parallelum.
+    Busca valor/detalhe FIPE para marca+modelo+ano específicos.
+    ano_cod formato "AAAA-C" (ex: "2021-1" = 2021 Gasolina).
+    Retorna dict com chaves: Marca, Modelo, AnoModelo, Combustivel,
+    CodigoFipe, Valor, MesReferencia.
     """
-    _det = _fipe_api_get(
-        f"/{tipo}/marcas/{marca_cod}/modelos/{modelo_cod}/anos/{ano_cod}"
+    _cod_tipo = _FIPE_TIPO_COD.get(tipo, 1)
+    _ref      = _fipe_ref_code()
+    _partes   = str(ano_cod).split("-")
+    _ano_num  = int(_partes[0]) if _partes and _partes[0].isdigit() else 0
+    _comb_cod = int(_partes[1]) if len(_partes) > 1 and _partes[1].isdigit() else 1
+
+    _raw = _fipe_post(
+        "ConsultarValorComTodosParametros",
+        {
+            "codigoTipoVeiculo":    _cod_tipo,
+            "codigoTabelaReferencia": _ref,
+            "codigoMarca":          int(marca_cod),
+            "codigoModelo":         int(modelo_cod),
+            "ano":                  ano_cod,
+            "codigoTipoCombustivel": _comb_cod,
+            "anoModelo":            _ano_num,
+            "modeloCodigoExterno":  "",
+            "tipoConsulta":         "tradicional",
+        },
     )
-    if isinstance(_det, dict) and _det:
-        return _det
-    # fallback oficial
-    _det_of = _fipe_oficial_valor(tipo, marca_cod, modelo_cod, ano_cod)
-    if isinstance(_det_of, dict) and _det_of:
-        # mapeia chaves da API oficial para o formato parallelum
-        return {
-            "Marca":         _det_of.get("Marca", ""),
-            "Modelo":        _det_of.get("Modelo", ""),
-            "AnoModelo":     _det_of.get("AnoModelo", ""),
-            "Combustivel":   _det_of.get("Combustivel", ""),
-            "CodigoFipe":    _det_of.get("CodigoFipe", ""),
-            "Valor":         _det_of.get("Valor", ""),
-            "MesReferencia": _det_of.get("MesReferencia", ""),
-        }
+    if isinstance(_raw, dict) and _raw.get("Valor"):
+        return _raw
     return {}
 
 
