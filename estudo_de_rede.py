@@ -6011,6 +6011,7 @@ COR_CERCADO_FILL      = "#FF8F00"   # laranja âmbar — alerta visual
 COR_CERCADO_BORDA     = "#E65100"   # laranja escuro
 ARQUIVO_PP_REPO       = "preco_posto.xlsx"   # planilha de preços por posto
 _PP_PARSER_VERSION    = "v5"                 # incrementar aqui força re-parse automático
+ARQUIVO_ANP_REPO      = "precos_anp.xlsx"    # planilha semanal de preços ANP
 ARQUIVO_DOC_PDF       = "documentacao_gestao_frotas.pdf"   # documentação da aplicação
 
 # Candidatos de nome para o PDF de documentação (ordem de prioridade)
@@ -6755,6 +6756,251 @@ def _github_sync_ja_feito_hoje(tabela_versoes: str) -> bool:
         return False
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  ANP — Persistência no Supabase (tabela historico_precos_anp)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _anp_salvar_historico(sheets: dict, semana: str, fonte: str = "github_auto") -> bool:
+    """
+    Serializa os preços médios nacionais, por estado e por região do arquivo ANP
+    e persiste na tabela `historico_precos_anp` do Supabase.
+
+    Estrutura da tabela:
+        data_referencia  TEXT  PK (ex: '2026-05-28' ou semana extraída do nome)
+        semana_label     TEXT  (nome do arquivo / label descritivo)
+        nivel            TEXT  ('brasil'|'estado'|'regiao'|'municipio')
+        uf               TEXT  (sigla UF, NULL para nível Brasil/Região)
+        regiao           TEXT  (nome da região, NULL para outros níveis)
+        municipio        TEXT  (nome do município, NULL para outros níveis)
+        produto_pk       TEXT  (chave normalizada: 'gasolina_c', 'diesel_s10', etc.)
+        produto_nome     TEXT  (nome original do produto na planilha)
+        preco_medio      FLOAT
+        n_postos         INT
+        unidade          TEXT
+        fonte            TEXT  ('github_auto' | 'upload_manual')
+        created_at       TIMESTAMPTZ DEFAULT now()
+
+    Retorna True se gravou com sucesso, False caso contrário.
+    """
+    _db = _db_client()
+    if _db is None or not sheets:
+        return False
+
+    try:
+        from datetime import date as _date, datetime as _dt
+        import re as _re
+
+        # ── Extrair data de referência da semana ──────────────────
+        # semana pode ser "ca-05-2026" ou "precos_anp_2026-05" ou o nome do arquivo sem extensão
+        _data_ref = semana or _date.today().isoformat()
+        # Tenta identificar formato YYYY-MM ou DD-MM-YYYY no nome
+        _m_ano_mes = _re.search(r'(\d{4})[_\-](\d{1,2})(?:[_\-]\d{1,2})?', semana or "")
+        _m_dia     = _re.search(r'(\d{1,2})[_\-](\d{1,2})[_\-](\d{4})', semana or "")
+        if _m_dia:
+            try:
+                _data_ref = _dt.strptime(
+                    f"{_m_dia.group(3)}-{_m_dia.group(2).zfill(2)}-{_m_dia.group(1).zfill(2)}",
+                    "%Y-%m-%d"
+                ).date().isoformat()
+            except ValueError:
+                pass
+        elif _m_ano_mes:
+            try:
+                _data_ref = f"{_m_ano_mes.group(1)}-{_m_ano_mes.group(2).zfill(2)}-01"
+            except (ValueError, AttributeError):
+                pass
+
+        # ── Verificar se esta semana já foi gravada ───────────────
+        _check = (_db.table("historico_precos_anp")
+                     .select("semana_label")
+                     .eq("semana_label", semana or _data_ref)
+                     .limit(1)
+                     .execute())
+        if _check.data:
+            return True  # já persistida — não duplicar
+
+        # ── Montar linhas para upsert ─────────────────────────────
+        _rows: list[dict] = []
+        _semana_label = semana or _data_ref
+
+        def _add_rows(nivel: str, uf: str | None, regiao: str | None,
+                      municipio: str | None, precos_lista: list):
+            for _r in precos_lista:
+                _rows.append({
+                    "data_referencia": _data_ref,
+                    "semana_label":    _semana_label,
+                    "nivel":           nivel,
+                    "uf":              uf,
+                    "regiao":          regiao,
+                    "municipio":       municipio,
+                    "produto_pk":      str(_r.get("_pk", "")),
+                    "produto_nome":    str(_r.get("Produto", "")),
+                    "preco_medio":     float(_r["Preço Médio"]) if _r.get("Preço Médio") else None,
+                    "n_postos":        int(_r["Postos"]) if _r.get("Postos") else None,
+                    "unidade":         str(_r.get("Unidade", "R$/L")),
+                    "fonte":           fonte,
+                })
+
+        def _cols_df(df):
+            return {
+                "est":  _anp_col(df, "estado", "estados"),
+                "reg":  _anp_col(df, "regiao"),
+                "mun":  _anp_col(df, "munic"),
+                "prod": _anp_col(df, "produto"),
+                "med":  _anp_col(df, "medio revenda", "media revenda", "preco medio"),
+                "uni":  _anp_col(df, "unidade"),
+                "npos": _anp_col(df, "postos pesq", "numero de postos", "n postos", "numero postos"),
+            }
+
+        # Brasil
+        if "brasil" in sheets:
+            _df_b = sheets["brasil"]
+            _c    = _cols_df(_df_b)
+            if _c["prod"] and _c["med"]:
+                _add_rows("brasil", None, None, None,
+                          _anp_preco_medio(_df_b, None, None, _c["prod"], _c["med"],
+                                           _c["uni"], _c["npos"]))
+
+        # Por estado
+        if "estados" in sheets:
+            _df_e = sheets["estados"]
+            _ce   = _cols_df(_df_e)
+            if _ce["est"] and _ce["prod"] and _ce["med"]:
+                for _uf_nome in _df_e[_ce["est"]].dropna().unique():
+                    _uf_n  = _anp_norm(str(_uf_nome))
+                    # Encontrar sigla UF pelo nome normalizado
+                    _sigla = next((k for k, v in UF_NOME.items()
+                                   if _anp_norm(v) == _uf_n), str(_uf_nome))
+                    _add_rows("estado", _sigla, None, None,
+                              _anp_preco_medio(_df_e, _ce["est"], _uf_n,
+                                               _ce["prod"], _ce["med"],
+                                               _ce["uni"], _ce["npos"]))
+
+        # Por região
+        if "regioes" in sheets:
+            _df_r = sheets["regioes"]
+            _cr   = _cols_df(_df_r)
+            if _cr["reg"] and _cr["prod"] and _cr["med"]:
+                for _reg_nome in _df_r[_cr["reg"]].dropna().unique():
+                    _reg_n = _anp_norm(str(_reg_nome))
+                    _add_rows("regiao", None, str(_reg_nome), None,
+                              _anp_preco_medio(_df_r, _cr["reg"], _reg_n,
+                                               _cr["prod"], _cr["med"],
+                                               _cr["uni"], _cr["npos"]))
+
+        # Por município (amostra — capitais para não gerar milhares de linhas)
+        if "capitais" in sheets:
+            _df_c = sheets["capitais"]
+            _cc   = _cols_df(_df_c)
+            if _cc["est"] and _cc["mun"] and _cc["prod"] and _cc["med"]:
+                for _, _row_c in _df_c[[_cc["est"], _cc["mun"]]].drop_duplicates().iterrows():
+                    _uf_n  = _anp_norm(str(_row_c[_cc["est"]]))
+                    _mun_n = _anp_norm(str(_row_c[_cc["mun"]]))
+                    _sigla = next((k for k, v in UF_NOME.items()
+                                   if _anp_norm(v) == _uf_n), str(_row_c[_cc["est"]]))
+                    _df_fil = _df_c[
+                        (_df_c[_cc["est"]].apply(_anp_norm) == _uf_n) &
+                        (_df_c[_cc["mun"]].apply(_anp_norm) == _mun_n)
+                    ]
+                    _add_rows("municipio", _sigla, None, str(_row_c[_cc["mun"]]),
+                              _anp_preco_medio(_df_fil, None, None,
+                                               _cc["prod"], _cc["med"],
+                                               _cc["uni"], _cc["npos"]))
+
+        if not _rows:
+            return False
+
+        # ── Upsert em lotes de 500 ────────────────────────────────
+        _lote = 500
+        for _i in range(0, len(_rows), _lote):
+            (_db.table("historico_precos_anp")
+                .upsert(_rows[_i:_i + _lote],
+                        on_conflict="data_referencia,nivel,uf,regiao,municipio,produto_pk")
+                .execute())
+        return True
+    except Exception as _e:
+        return False
+
+
+def _anp_carregar_historico_brasil(produto_pk: str = None,
+                                   limite_semanas: int = 52) -> pd.DataFrame:
+    """
+    Carrega o histórico de preços ANP nível Brasil do Supabase.
+    Retorna DataFrame com colunas: data_referencia, semana_label, produto_pk,
+                                   produto_nome, preco_medio, n_postos.
+    """
+    _db = _db_client()
+    if _db is None:
+        return pd.DataFrame()
+    try:
+        _q = (_db.table("historico_precos_anp")
+                  .select("data_referencia,semana_label,produto_pk,produto_nome,"
+                          "preco_medio,n_postos,unidade")
+                  .eq("nivel", "brasil")
+                  .order("data_referencia", desc=True)
+                  .limit(limite_semanas * 10))  # ~10 produtos por semana
+        if produto_pk:
+            _q = _q.eq("produto_pk", produto_pk)
+        _res = _q.execute()
+        if not _res.data:
+            return pd.DataFrame()
+        _df = pd.DataFrame(_res.data)
+        _df["preco_medio"] = pd.to_numeric(_df["preco_medio"], errors="coerce")
+        _df["data_referencia"] = pd.to_datetime(_df["data_referencia"], errors="coerce")
+        return _df.sort_values("data_referencia")
+    except Exception:
+        return pd.DataFrame()
+
+
+def _anp_carregar_historico_uf(uf: str, produto_pk: str = None,
+                                limite_semanas: int = 52) -> pd.DataFrame:
+    """
+    Carrega histórico de preços ANP por UF.
+    """
+    _db = _db_client()
+    if _db is None:
+        return pd.DataFrame()
+    try:
+        _q = (_db.table("historico_precos_anp")
+                  .select("data_referencia,semana_label,uf,produto_pk,produto_nome,"
+                          "preco_medio,n_postos")
+                  .eq("nivel", "estado")
+                  .eq("uf", uf)
+                  .order("data_referencia", desc=True)
+                  .limit(limite_semanas * 10))
+        if produto_pk:
+            _q = _q.eq("produto_pk", produto_pk)
+        _res = _q.execute()
+        if not _res.data:
+            return pd.DataFrame()
+        _df = pd.DataFrame(_res.data)
+        _df["preco_medio"] = pd.to_numeric(_df["preco_medio"], errors="coerce")
+        _df["data_referencia"] = pd.to_datetime(_df["data_referencia"], errors="coerce")
+        return _df.sort_values("data_referencia")
+    except Exception:
+        return pd.DataFrame()
+
+
+def _auto_carregar_anp_repo():
+    """
+    Baixa precos_anp.xlsx do GitHub, processa e retorna (sheets, semana, erro).
+    Usa cache de servidor de 1h (via _github_baixar_bytes).
+    """
+    _bytes, _err = _github_baixar_bytes(ARQUIVO_ANP_REPO)
+    if not _bytes:
+        return None, None, f"Erro ao baixar {ARQUIVO_ANP_REPO}: {_err}"
+    try:
+        _sheets = _anp_processar_arquivo(io.BytesIO(_bytes))
+        if not _sheets:
+            return None, None, f"{ARQUIVO_ANP_REPO}: nenhuma aba reconhecida"
+        # Usa o hash do conteúdo como "semana" caso não haja data no nome
+        import hashlib as _hl
+        _semana = _hl.md5(_bytes).hexdigest()[:12]
+        return _sheets, _semana, None
+    except Exception as _e:
+        return None, None, f"{ARQUIVO_ANP_REPO}: {type(_e).__name__}: {_e}"
+
+
 def _startup_sincronizar_github() -> None:
     """
     Sincroniza todas as planilhas base do GitHub com o Supabase e com o session_state.
@@ -6850,6 +7096,27 @@ def _startup_sincronizar_github() -> None:
             _sync_erros.append(f"Acordos.xlsx: {_msg_ac or 'download falhou'}")
     except Exception as _e_ac:
         _sync_erros.append(f"Acordos.xlsx: {type(_e_ac).__name__}: {_e_ac}")
+
+    # ── 5. Preços ANP (precos_anp.xlsx) ──────────────────────────────
+    try:
+        _sheets_anp_gh, _semana_anp, _err_anp = _auto_carregar_anp_repo()
+        if _sheets_anp_gh:
+            # Atualiza session_state com os dados mais recentes
+            _anp_atual = st.session_state.get("_precos_anp_cache", {})
+            if not _anp_atual.get("sheets"):
+                # Só sobrescreve se ainda não há ANP carregada na sessão
+                st.session_state["_precos_anp_cache"] = {
+                    "sheets": _sheets_anp_gh,
+                    "semana": _semana_anp,
+                    "fonte":  "github_auto",
+                }
+            # Persiste no Supabase (histórico) — verifica se esta versão já foi salva
+            if not _github_sync_ja_feito_hoje("historico_precos_anp"):
+                _anp_salvar_historico(_sheets_anp_gh, _semana_anp, "github_auto")
+        else:
+            _sync_erros.append(f"precos_anp.xlsx: {_err_anp or 'download falhou'}")
+    except Exception as _e_anp:
+        _sync_erros.append(f"precos_anp.xlsx: {type(_e_anp).__name__}: {_e_anp}")
 
     # Armazena erros para exibição no sidebar (debug)
     if _sync_erros:
