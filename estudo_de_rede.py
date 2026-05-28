@@ -6043,12 +6043,28 @@ def _github_baixar_bytes(nome_arquivo: str) -> "tuple[bytes | None, str]":
         return None, str(_e)
 
 
-@st.cache_data(show_spinner=False, ttl=86400)   # 24 h — relê o PDF do repo uma vez por dia
-def _carregar_doc_pdf():
+def _doc_pdf_hash() -> str:
+    """Retorna hash MD5 do PDF de documentação (para invalidar cache quando o arquivo muda)."""
+    import hashlib as _hl
+    for _nome in _DOC_PDF_CANDIDATOS:
+        _p = os.path.join(_DIR, _nome)
+        if os.path.exists(_p):
+            try:
+                with open(_p, "rb") as _f:
+                    return _hl.md5(_f.read()).hexdigest()
+            except Exception:
+                pass
+    return "no_file"
+
+
+@st.cache_data(show_spinner=False)   # cache invalidado pelo hash do arquivo
+def _carregar_doc_pdf(_cache_key: str = ""):
     """
     Carrega o PDF de documentação do repositório.
     Tenta vários nomes possíveis para o arquivo.
     Retorna (bytes, nome_arquivo) ou (None, None) se não encontrado.
+    O parâmetro _cache_key (hash MD5) garante que o cache é invalidado
+    sempre que o arquivo PDF é substituído por uma versão nova.
     """
     for _nome in _DOC_PDF_CANDIDATOS:
         _caminho_doc = os.path.join(_DIR, _nome)
@@ -26188,7 +26204,7 @@ elif modo == "🧭 Roteirização":
 elif modo == "📚 Documentação":
     import streamlit.components.v1 as _components
 
-    _doc_bytes, _doc_nome = _carregar_doc_pdf()
+    _doc_bytes, _doc_nome = _carregar_doc_pdf(_cache_key=_doc_pdf_hash())
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
