@@ -10018,18 +10018,57 @@ def _popup_simples(row):
               "margin-bottom:4px'>⭐ GESTÃO DE FROTAS</div>"
               if row.get("_pro_frotas") else "")
 
+    # Preços do posto (preco_posto → ANP)
+    _cnpj_s = str(row.get("_cnpj_norm", row.get("cnpj", ""))).replace(" ", "")
+    _uf_s   = str(row.get("uf", "")).strip().upper()
+    _precos_s_html = ""
+    try:
+        _pp_df_s = st.session_state.get("_pp_df")
+        _linhas_s = []
+        if (_pp_df_s is not None and not _pp_df_s.empty
+                and _cnpj_s and "cnpj_norm" in _pp_df_s.columns):
+            _rows_s = _pp_df_s[_pp_df_s["cnpj_norm"] == _cnpj_s]
+            for _, _r_s in _rows_s.iterrows():
+                _lbl_s = str(_r_s.get("combustivel_label", "") or "").strip()
+                try:
+                    _preco_s = float(_r_s["preco"])
+                    if _lbl_s:
+                        _linhas_s.append(f"<b>{_lbl_s}:</b> R$ {_preco_s:.3f}/L")
+                except Exception:
+                    pass
+        if not _linhas_s:
+            _cache_s = st.session_state.get("_precos_anp_cache", {})
+            _sh_s    = _cache_s.get("sheets", {})
+            if _sh_s and _uf_s:
+                for _pk_s, _nm_s in [("gasolina","Gasolina"),("etanol","Etanol"),
+                                      ("diesel","Diesel"),("diesels10","Diesel S10")]:
+                    _v_s = _anp_preco_uf(_sh_s, _pk_s, _uf_s) or _anp_preco_brasil(_sh_s, _pk_s)
+                    if _v_s:
+                        _linhas_s.append(f"<b>{_nm_s}:</b> R$ {_v_s:.3f}/L")
+        if _linhas_s:
+            _precos_s_html = (
+                f"<hr style='margin:5px 0'>"
+                f"<b style='font-size:11px'>💰 Preços:</b><br>"
+                + "<br>".join(f"<span style='font-size:11px'>{l}</span>" for l in _linhas_s)
+            )
+    except Exception:
+        pass
+
     return folium.Popup(
-        f"<div style='font-family:sans-serif;font-size:12px;min-width:200px;max-width:260px'>"
+        f"<div style='font-family:sans-serif;font-size:12px;min-width:200px;max-width:280px'>"
         f"{pf_txt}"
         f"<b>⛽ {v('razaoSocial')}</b><br>"
         f"<span style='color:#777;font-size:11px'>{v('distribuidora')}</span>"
         f"<hr style='margin:5px 0'>"
         f"<b>CNPJ:</b> {v('cnpj')}<br>"
         f"<b>📍</b> {v('municipio')} / {v('uf')}<br>"
+        f"{_precos_s_html}"
+        f"<div style='margin-top:8px'>"
         f"<a href='{maps_url}' target='_blank' "
         f"style='font-size:11px;color:#1a73e8'>🗺️ Ver no Google Maps</a>"
+        f"</div>"
         f"</div>",
-        max_width=280,
+        max_width=300,
     )
 
 
@@ -10288,6 +10327,77 @@ def marcar_perfil_venda(df: pd.DataFrame, perfil_map: dict) -> pd.DataFrame:
     return df
 
 
+def _precos_tooltip_html(cnpj_norm: str, uf: str) -> str:
+    """Retorna bloco HTML com preços de combustíveis para o tooltip do mapa.
+
+    Prioridade: _pp_df (preco_posto) → ANP por UF → ANP Brasil.
+    Retorna "" se não houver dados.
+    """
+    try:
+        _pp_df_tt = st.session_state.get("_pp_df")
+        linhas = []
+        fonte = ""
+
+        # ── Prioridade 1: preco_posto (_pp_df) ──────────────────────────────
+        if (_pp_df_tt is not None
+                and not _pp_df_tt.empty
+                and cnpj_norm
+                and "cnpj_norm" in _pp_df_tt.columns):
+            _rows = _pp_df_tt[_pp_df_tt["cnpj_norm"] == cnpj_norm]
+            for _, _r in _rows.iterrows():
+                _lbl  = str(_r.get("combustivel_label", "") or "").strip()
+                _preco = None
+                try:
+                    _preco = float(_r["preco"])
+                except Exception:
+                    pass
+                if _lbl and _preco is not None:
+                    linhas.append(f"<b>{_lbl}:</b> R$ {_preco:.3f}/L")
+            if linhas:
+                _data_tt = str(_rows.iloc[0].get("data_atualizacao", "") or "").strip()
+                _data_tt = _data_tt if _data_tt and _data_tt not in ("nan", "None") else ""
+                fonte = f"PP{(' · ' + _data_tt) if _data_tt else ''}"
+
+        # ── Prioridade 2: ANP por UF (semana atual) ─────────────────────────
+        if not linhas:
+            _cache_att = st.session_state.get("_precos_anp_cache", {})
+            _sheets_att = _cache_att.get("sheets", {})
+            _semana_att = _cache_att.get("semana", "")
+            if _sheets_att and uf:
+                _pks_nomes = [
+                    ("gasolina", "Gasolina"),
+                    ("gasolinaaditivada", "Gasolina Aditivada"),
+                    ("etanol", "Etanol"),
+                    ("diesel", "Diesel"),
+                    ("diesels10", "Diesel S10"),
+                    ("gnv", "GNV"),
+                ]
+                for _pk, _nome in _pks_nomes:
+                    _v = _anp_preco_uf(_sheets_att, _pk, uf)
+                    if _v is None:
+                        _v = _anp_preco_brasil(_sheets_att, _pk)
+                    if _v is not None:
+                        linhas.append(f"<b>{_nome}:</b> R$ {_v:.3f}/L")
+                if linhas:
+                    _geo_src = uf if uf else "BR"
+                    fonte = f"ANP {_geo_src}{(' · ' + _semana_att) if _semana_att else ''}"
+
+        if not linhas:
+            return ""
+
+        _items_html = "<br>".join(linhas)
+        _fonte_html = (f"<span style='font-size:9px;color:#aaa'>Fonte: {fonte}</span>"
+                       if fonte else "")
+        return (
+            f"<br><span style='font-size:10px;color:#b0b0b0'>──────────────</span>"
+            f"<br><span style='font-size:10px;color:#ffd54f'><b>💰 Preços</b></span>"
+            f"<br><span style='font-size:11px'>{_items_html}</span>"
+            f"<br>{_fonte_html}"
+        )
+    except Exception:
+        return ""
+
+
 def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino",
                waypoints=None):
@@ -10409,18 +10519,20 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         mask_reg     = ~mask_cer & ~mask_rr & ~_pf_base
 
         def _hover_txt(row):
-            """Texto do tooltip: nome, bandeira, cidade/UF, CNPJ."""
+            """Texto do tooltip: nome, bandeira, cidade/UF, CNPJ + preços."""
             nome = str(row.get("razaoSocial", "?"))[:40]
             dist = str(row.get("distribuidora", "?"))
             mun  = str(row.get("municipio", ""))
-            uf_  = str(row.get("uf", ""))
+            uf_  = str(row.get("uf", "")).strip().upper()
             cnpj = str(row.get("cnpj", ""))
+            cnpj_norm = str(row.get("_cnpj_norm", cnpj)).replace(" ", "")
             geo  = f"{mun}/{uf_}" if mun and uf_ else mun or uf_
             pf_  = " ⭐" if row.get("_pro_frotas") else ""
             rr_  = " · Rodo Rede" if row.get("_rodo_rede")  else ""
             cer_ = " ⚠️" if row.get("_cercado")    else ""
             cnpj_str = f"<br>📋 {cnpj}" if cnpj else ""
-            return f"<b>{nome}</b>{pf_}{rr_}{cer_}<br>{dist}<br>{geo}{cnpj_str}"
+            _precos = _precos_tooltip_html(cnpj_norm, uf_)
+            return f"<b>{nome}</b>{pf_}{rr_}{cer_}<br>{dist}<br>{geo}{cnpj_str}{_precos}"
 
         def _customdata(sub_df: pd.DataFrame) -> list:
             """customdata por ponto: [cnpj, nome, distribuidora, municipio/uf, lat, lon]"""
