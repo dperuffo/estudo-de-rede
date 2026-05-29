@@ -232,7 +232,8 @@ def _mfa_verificar_codigo(segredo: str, codigo: str) -> bool:
         return False
 
 def _mfa_gerar_qr_bytes(uri: str) -> bytes | None:
-    """Retorna PNG do QR code como bytes, ou None se qrcode não disponível."""
+    """Retorna PNG do QR code como bytes (tenta lib local, senão API pública)."""
+    # 1. Tenta biblioteca local (qrcode[pil])
     try:
         import qrcode as _qr
         import io as _io
@@ -240,8 +241,24 @@ def _mfa_gerar_qr_bytes(uri: str) -> bytes | None:
         buf = _io.BytesIO()
         img.save(buf, format="PNG")
         return buf.getvalue()
-    except ImportError:
+    except Exception:
+        pass
+    # 2. Fallback: API pública qrserver.com
+    try:
+        import urllib.request as _ur
+        import urllib.parse as _up
+        _api = "https://api.qrserver.com/v1/create-qr-code/"
+        _params = _up.urlencode({"size": "220x220", "data": uri, "ecc": "M"})
+        with _ur.urlopen(f"{_api}?{_params}", timeout=5) as _r:
+            return _r.read()
+    except Exception:
         return None
+
+def _mfa_qr_url(uri: str) -> str:
+    """Retorna URL de QR code via API pública (para uso direto em <img>)."""
+    import urllib.parse as _up
+    _params = _up.urlencode({"size": "220x220", "data": uri, "ecc": "M"})
+    return f"https://api.qrserver.com/v1/create-qr-code/?{_params}"
 
 def _mfa_salvar_no_db(email: str, segredo: str, habilitado: bool = True) -> bool:
     """
@@ -343,69 +360,77 @@ def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
 
 def _mfa_render_setup_inicial(email: str, segredo: str):
     """
-    Exibe tela de configuração inicial do MFA (primeiro login com 2FA).
-    O usuário escaneia o QR e confirma com um código antes de acessar o app.
+    Tela de configuração inicial do MFA.
+    Exibe QR code via <img> apontando para API pública — sem dependência de lib.
     """
-    _uri = _mfa_uri(email, segredo)
-    _qr_bytes = _mfa_gerar_qr_bytes(_uri)
+    import urllib.parse as _up
+    _uri    = _mfa_uri(email, segredo)
+    _params = _up.urlencode({"size": "220x220", "data": _uri, "ecc": "M"})
+    _qr_url = f"https://api.qrserver.com/v1/create-qr-code/?{_params}"
 
-    st.markdown(
-        "<div style='max-width:480px;margin:40px auto 0;padding:32px 28px;"
-        "background:#fff;border:1px solid #e0e0e0;border-radius:14px;"
-        "box-shadow:0 4px 20px rgba(0,0,0,.08)'>"
-        "<div style='text-align:center;margin-bottom:20px'>"
-        "<div style='font-size:2rem'>🔐</div>"
-        "<h2 style='margin:8px 0 4px;font-size:1.25rem;color:#1B2B5E'>"
-        "Configure a autenticação em duas etapas</h2>"
-        "<p style='color:#666;font-size:13px;margin:0'>"
-        "Esta é sua primeira vez com 2FA ativo. Configure agora para continuar.</p>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    _sc1, _sc2, _sc3 = st.columns([1, 2, 1])
+    with _sc2:
+        st.markdown(
+            "<div style='text-align:center;padding:28px 20px 20px;"
+            "background:#fff;border:1px solid #dde3f0;border-radius:14px;"
+            "box-shadow:0 4px 18px rgba(27,43,94,.10);margin-bottom:16px'>"
+            "<div style='font-size:2.4rem;margin-bottom:8px'>🔐</div>"
+            "<h2 style='margin:0 0 4px;font-size:1.2rem;color:#1B2B5E'>"
+            "Configure a autenticação em 2 etapas</h2>"
+            f"<p style='color:#888;font-size:12px;margin:0 0 20px'>{email}</p>"
+            f"<img src='{_qr_url}' width='200' height='200' "
+            "style='border:6px solid #f5f5f5;border-radius:8px;"
+            "box-shadow:0 2px 8px rgba(0,0,0,.12);display:block;margin:0 auto 16px' "
+            "alt='QR Code 2FA'/>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
-    st.markdown("**Passo 1** — Abra o Google Authenticator ou Authy no seu celular")
-    st.markdown("**Passo 2** — Toque em **+** e escolha 'Ler QR code'")
+        st.markdown(
+            "**Como configurar (uma única vez):**\n\n"
+            "1. Instale o **Google Authenticator** ou **Authy** no celular\n"
+            "2. Toque em **+** > **Ler QR code**\n"
+            "3. Aponte a camera para o QR acima\n"
+            "4. Digite abaixo o codigo de 6 digitos que aparecer no app"
+        )
 
-    if _qr_bytes:
-        _qrc1, _qrc2, _qrc3 = st.columns([1, 2, 1])
-        with _qrc2:
-            st.image(_qr_bytes, caption="Escaneie este QR code", use_container_width=True)
-    else:
-        st.markdown("**Chave manual** (caso não consiga escanear):")
-        st.code(segredo, language=None)
+        with st.expander("🔑 Não consegue escanear? Use a chave manual"):
+            st.code(segredo, language=None)
+            st.caption(
+                "No Authenticator: toque em **+** → **Inserir chave de configuração** "
+                "→ cole a chave acima → Tipo: **Baseado em tempo**"
+            )
 
-    st.markdown("**Passo 3** — Digite o código gerado pelo app para confirmar:")
+        _codigo_setup = st.text_input(
+            "Código de 6 dígitos gerado pelo app",
+            max_chars=6,
+            placeholder="000000",
+            key="_mfa_setup_codigo",
+        )
+        _c1s, _c2s = st.columns([3, 1])
+        with _c1s:
+            _btn_confirmar = st.button(
+                "✅ Confirmar e acessar", type="primary",
+                use_container_width=True, key="_mfa_setup_confirmar"
+            )
+        with _c2s:
+            if st.button("↩ Sair", use_container_width=True, key="_mfa_setup_sair"):
+                for _k in list(st.session_state.keys()):
+                    if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
+                                       "_admin_empresa", "_github_sync", "_mfa")):
+                        del st.session_state[_k]
+                st.rerun()
 
-    _codigo_setup = st.text_input(
-        "Código de confirmação",
-        max_chars=6,
-        placeholder="000000",
-        key="_mfa_setup_codigo",
-        label_visibility="collapsed",
-    )
-    _c1s, _c2s = st.columns([3, 1])
-    with _c1s:
-        _btn_confirmar = st.button("✅ Confirmar e acessar", type="primary",
-                                   use_container_width=True, key="_mfa_setup_confirmar")
-    with _c2s:
-        if st.button("↩ Sair", use_container_width=True, key="_mfa_setup_sair"):
-            for _k in list(st.session_state.keys()):
-                if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
-                                   "_admin_empresa", "_github_sync", "_mfa")):
-                    del st.session_state[_k]
-            st.rerun()
+        if _btn_confirmar:
+            if not _codigo_setup or len(_codigo_setup.strip()) != 6:
+                st.error("Digite os 6 dígitos exibidos no app.")
+            elif _mfa_verificar_codigo(segredo, _codigo_setup):
+                st.session_state["_auth_mfa_verificado"] = True
+                st.success("✅ 2FA configurado! Redirecionando...")
+                st.rerun()
+            else:
+                st.error("❌ Código inválido. Aguarde o próximo código (30s) e tente novamente.")
 
-    if _btn_confirmar:
-        if not _codigo_setup or len(_codigo_setup.strip()) != 6:
-            st.error("Digite os 6 dígitos gerados pelo app.")
-        elif _mfa_verificar_codigo(segredo, _codigo_setup):
-            st.session_state["_auth_mfa_verificado"] = True
-            st.success("✅ 2FA configurado com sucesso!")
-            st.rerun()
-        else:
-            st.error("❌ Código inválido. Verifique o app e tente novamente.")
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -554,18 +579,24 @@ def _render_admin_usuarios():
         _prev_email  = st.session_state.get("_admin_mfa_preview_email", "")
         _prev_secret = st.session_state.get("_admin_mfa_preview_secret", "")
         if _prev_email == _sel_email_mfa and _prev_secret:
-            _uri_adm = _mfa_uri(_prev_email, _prev_secret)
-            _qr_adm  = _mfa_gerar_qr_bytes(_uri_adm)
+            import urllib.parse as _up_adm
+            _uri_adm    = _mfa_uri(_prev_email, _prev_secret)
+            _params_adm = _up_adm.urlencode({"size": "220x220", "data": _uri_adm, "ecc": "M"})
+            _qr_url_adm = f"https://api.qrserver.com/v1/create-qr-code/?{_params_adm}"
             st.markdown(f"**QR code para** `{_prev_email}`:")
-            if _qr_adm:
-                _qa1, _qa2, _qa3 = st.columns([1, 2, 1])
-                with _qa2:
-                    st.image(_qr_adm, caption="Escaneie com Google Authenticator / Authy",
-                             use_container_width=True)
-            else:
-                st.code(_uri_adm, language=None)
+            _qa1, _qa2, _qa3 = st.columns([1, 2, 1])
+            with _qa2:
+                st.markdown(
+                    f"<img src='{_qr_url_adm}' width='200' height='200' "
+                    "style='border:6px solid #f5f5f5;border-radius:8px;"
+                    "box-shadow:0 2px 8px rgba(0,0,0,.12);display:block;margin:0 auto' "
+                    "alt='QR Code 2FA'/>",
+                    unsafe_allow_html=True,
+                )
             st.info("📌 Instrua o usuário a escanear este QR antes do próximo login. "
                     "O código expira a cada 30 segundos.")
+            with st.expander("🔑 Chave manual (se não conseguir escanear)"):
+                st.code(_prev_secret, language=None)
 
         # Status atual
         if _mfa_ja_ativo and _mfa_tem_seg:
