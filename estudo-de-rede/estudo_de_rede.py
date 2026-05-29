@@ -33802,6 +33802,155 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
             language="sql",
         )
 
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 5 — GestãoFrotas — Integração de Abastecimentos
+    # ════════════════════════════════════════════════════════════════
+    with _api_t5:
+        try:
+            import datetime as _pf_dt, re as _pf_re
+
+            st.markdown(
+                "<div style='background:linear-gradient(135deg,#0D47A1,#1565C0);"
+                "border-radius:10px;padding:14px 20px;margin-bottom:16px'>"
+                "<span style='color:#fff;font-size:1.1rem;font-weight:700'>"
+                "🔌 GestãoFrotas — Integração de Abastecimentos</span><br>"
+                "<span style='color:#BBDEFB;font-size:12px'>"
+                "Sincronize abastecimentos via API GestãoFrotas · JWT Bearer Auth</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+            _pf_secao = st.radio(
+                "Seção",
+                ["🔑 Chaves de Acesso", "🔄 Sincronização", "📊 Abastecimentos"],
+                horizontal=True, label_visibility="collapsed",
+                key="pf_secao_radio",
+            )
+            st.divider()
+
+            if _pf_secao == "🔑 Chaves de Acesso":
+                st.markdown("#### 🔑 Cadastrar Chave de Acesso do Cliente")
+                st.info("Informe o token JWT obtido no portal **portal.profrotas.com.br**.", icon="ℹ️")
+                with st.form("form_pf_chave", clear_on_submit=False):
+                    _pf_cnpj_inp  = st.text_input("CNPJ da Frota *", placeholder="00.000.000/0001-00")
+                    _pf_nome_inp  = st.text_input("Nome da Empresa *", placeholder="Ex: Lenarge Transportes Ltda")
+                    _pf_token_inp = st.text_area("Token JWT *",
+                                                  placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                                                  height=100)
+                    _pf_c1, _pf_c2 = st.columns(2)
+                    with _pf_c1:
+                        _pf_btn_val  = st.form_submit_button("✅ Validar", use_container_width=True)
+                    with _pf_c2:
+                        _pf_btn_salv = st.form_submit_button("💾 Salvar", use_container_width=True, type="primary")
+                if _pf_btn_val and _pf_token_inp.strip():
+                    _pf_ok, _pf_msg = _profrotas_validar_token(_pf_token_inp.strip())
+                    (st.success if _pf_ok else st.error)(f"{'✅' if _pf_ok else '❌'} {_pf_msg}")
+                if _pf_btn_salv:
+                    _pf_cnpj_v = _pf_re.sub(r"\D", "", _pf_cnpj_inp.strip())
+                    if not _pf_cnpj_v or len(_pf_cnpj_v) != 14:
+                        st.error("CNPJ inválido.")
+                    elif not _pf_nome_inp.strip() or not _pf_token_inp.strip():
+                        st.error("Preencha todos os campos.")
+                    else:
+                        _ok2, _msg2 = _profrotas_salvar_chave(
+                            _pf_cnpj_v, _pf_nome_inp.strip(),
+                            _pf_token_inp.strip(), st.session_state.get("_auth_email",""))
+                        (st.success if _ok2 else st.error)(f"{'✅' if _ok2 else '❌'} {_msg2}")
+                        if _ok2: st.rerun()
+                st.markdown("---")
+                st.markdown("#### 📋 Chaves Cadastradas")
+                _pf_chaves = _profrotas_listar_chaves()
+                if not _pf_chaves:
+                    st.info("Nenhuma chave cadastrada.", icon="ℹ️")
+                else:
+                    for _pfc in _pf_chaves:
+                        with st.expander(
+                            f"{'🟢' if _pfc.get('ativo') else '🔴'} "
+                            f"**{_pfc.get('nome_empresa','?')}** — {_pfc.get('cnpj_frota','?')}"
+                        ):
+                            _ps = _pfc.get("ultimo_sync") or "—"
+                            try: _ps = _pf_dt.datetime.fromisoformat(_ps.replace("Z","")).strftime("%d/%m/%Y %H:%M")
+                            except Exception: pass
+                            st.write(f"**Último sync:** {_ps} | **Registros:** {_pfc.get('registros_sync',0):,}")
+                            if st.button("🗑️ Remover", key=f"rm_{_pfc.get('cnpj_frota')}"):
+                                _db2 = _get_supabase()
+                                if _db2:
+                                    _db2.table("profrotas_api_keys").delete().eq("cnpj_frota", _pfc.get("cnpj_frota")).execute()
+                                    st.success("Removida."); st.rerun()
+
+            elif _pf_secao == "🔄 Sincronização":
+                st.markdown("#### 🔄 Sincronizar Abastecimentos")
+                _pf_ativos = [c for c in _profrotas_listar_chaves() if c.get("ativo")]
+                if not _pf_ativos:
+                    st.warning("Nenhuma chave ativa. Cadastre em **🔑 Chaves de Acesso**.")
+                else:
+                    _pf_opts  = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c for c in _pf_ativos}
+                    _pf_sel   = _pf_opts[st.selectbox("Cliente", list(_pf_opts.keys()), key="pf_sync_cli")]
+                    try: _ini = _pf_dt.datetime.fromisoformat((_pf_sel.get("data_inicio_sync","")).replace("Z","")).date()
+                    except Exception: _ini = _pf_dt.date.today()
+                    _pf_data_sel = st.date_input("📅 Data inicial", value=_ini,
+                                                   max_value=_pf_dt.date.today(), key="pf_sync_data")
+                    _s1, _s2 = st.columns(2)
+                    _btn_all = _s1.button("▶️ Sincronizar período", use_container_width=True, type="primary", key="btn_sync_all")
+                    _btn_hj  = _s2.button("⚡ Só hoje",             use_container_width=True, key="btn_sync_hj")
+                    if _btn_all or _btn_hj:
+                        _iso = (_pf_dt.datetime.utcnow().strftime("%Y-%m-%dT00:00:00Z") if _btn_hj
+                                else _pf_data_sel.strftime("%Y-%m-%dT00:00:00Z"))
+                        _pb = st.progress(0, text="Iniciando...")
+                        def _prog(p,tot,tam): _pb.progress(min(1.0,(p*tam)/max(tot,1)), text=f"Pág {p} — {min(p*tam,tot):,}/{tot:,}")
+                        with st.spinner("Sincronizando..."):
+                            _pp, _ps2, _pnt = _profrotas_sync(_pf_sel["cnpj_frota"], _pf_sel["token"], _iso, _prog)
+                        _pb.progress(1.0, text="Concluído!")
+                        st.success(f"✅ {_ps2:,} registros em {_pp} página(s).")
+                        if _pnt: st.info("🔄 Token renovado automaticamente.")
+                        st.rerun()
+                    _ult = _pf_sel.get("ultimo_sync")
+                    if _ult:
+                        try: _ult = _pf_dt.datetime.fromisoformat(_ult.replace("Z","")).strftime("%d/%m/%Y %H:%M")
+                        except Exception: pass
+                        st.caption(f"🕐 Último sync: **{_ult}** — **{_pf_sel.get('registros_sync',0):,}** registros")
+
+            elif _pf_secao == "📊 Abastecimentos":
+                st.markdown("#### 📊 Abastecimentos Sincronizados")
+                _opts3 = {"Todos": None}
+                for _c3 in _profrotas_listar_chaves():
+                    _opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
+                _d1, _d2 = st.columns([2,1])
+                _cli3  = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli")
+                _dias3 = _d2.selectbox("Período", [7,30,60,90,180,365], index=2,
+                                        format_func=lambda x: f"{x} dias", key="pf_d_dias")
+                _df3 = _profrotas_carregar_abast(_opts3[_cli3], _dias3)
+                if _df3.empty:
+                    st.info("Nenhum abastecimento. Sincronize primeiro.", icon="ℹ️")
+                else:
+                    _k1,_k2,_k3,_k4 = st.columns(4)
+                    _vol = pd.to_numeric(_df3.get("item_quantidade", pd.Series()), errors="coerce").sum()
+                    _val = pd.to_numeric(_df3.get("item_valor_total", pd.Series()), errors="coerce").sum()
+                    _k1.metric("🧾 Registros", f"{len(_df3):,}")
+                    _k2.metric("⛽ Litros",    f"{_vol:,.0f}")
+                    _k3.metric("💰 Total",     f"R$ {_val:,.2f}")
+                    _k4.metric("🚗 Veículos",  str(_df3["veiculo_placa"].nunique() if "veiculo_placa" in _df3.columns else 0))
+                    _c3s = [c for c in ["data_abastecimento","veiculo_placa","motorista_nome",
+                            "item_nome","item_quantidade","item_valor_unitario","item_valor_total",
+                            "hodometro","pv_razao_social","pv_municipio","pv_uf"] if c in _df3.columns]
+                    _dfs = _df3[_c3s].copy()
+                    if "data_abastecimento" in _dfs.columns:
+                        _dfs["data_abastecimento"] = pd.to_datetime(_dfs["data_abastecimento"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
+                    _dfs.rename(columns={"data_abastecimento":"Data","veiculo_placa":"Placa",
+                        "motorista_nome":"Motorista","item_nome":"Combustível","item_quantidade":"Litros",
+                        "item_valor_unitario":"R$/L","item_valor_total":"Total R$","hodometro":"Hodômetro",
+                        "pv_razao_social":"Posto","pv_municipio":"Município","pv_uf":"UF"}, inplace=True)
+                    st.dataframe(_dfs, use_container_width=True, height=460)
+                    st.download_button("⬇️ Exportar CSV", _df3.to_csv(index=False).encode("utf-8-sig"),
+                                       file_name=f"abastecimentos_{_dias3}d.csv", mime="text/csv",
+                                       use_container_width=True)
+
+        except Exception as _pf_err:
+            st.error(f"❌ Erro na aba GestãoFrotas: {_pf_err}")
+            import traceback as _pf_tb
+            st.code(_pf_tb.format_exc(), language="text")
+
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 if (
     st.session_state.get("modo_selecionado") == "📍 Por UF/Município"
@@ -33826,224 +33975,3 @@ if (
     st.session_state.pop("_restore_recalc_rota_m1", None)
     st.rerun()
 
-    # ════════════════════════════════════════════════════════════════
-    #  TAB 5 — GestãoFrotas — Integração de Abastecimentos
-    # ════════════════════════════════════════════════════════════════
-    with _api_t5:
-        try:
-            import datetime as _pf_dt, re as _pf_re
-
-            st.markdown(
-                "<div style='background:linear-gradient(135deg,#0D47A1,#1565C0);"
-                "border-radius:10px;padding:14px 20px;margin-bottom:16px'>"
-                "<span style='color:#fff;font-size:1.1rem;font-weight:700'>"
-                "🔌 GestãoFrotas — Integração de Abastecimentos</span><br>"
-                "<span style='color:#BBDEFB;font-size:12px'>"
-                "Sincronize abastecimentos via API GestãoFrotas · JWT Bearer Auth</span>"
-                "</div>",
-                unsafe_allow_html=True,
-            )
-
-            _pf_secao = st.radio(
-                "Seção",
-                ["🔑 Chaves de Acesso", "🔄 Sincronização", "📊 Abastecimentos"],
-                horizontal=True,
-                label_visibility="collapsed",
-                key="pf_secao_radio",
-            )
-            st.divider()
-
-            # ── Seção 1: Cadastro de Chaves ────────────────────────────
-            if _pf_secao == "🔑 Chaves de Acesso":
-                st.markdown("#### 🔑 Cadastrar Chave de Acesso do Cliente")
-                st.info(
-                    "Informe o token JWT obtido no portal **portal.profrotas.com.br** "
-                    "para iniciar a sincronização de abastecimentos.",
-                    icon="ℹ️",
-                )
-                with st.form("form_pf_chave", clear_on_submit=False):
-                    _pf_cnpj_inp  = st.text_input("CNPJ da Frota *",
-                                                   placeholder="00.000.000/0001-00")
-                    _pf_nome_inp  = st.text_input("Nome da Empresa *",
-                                                   placeholder="Ex: Lenarge Transportes Ltda")
-                    _pf_token_inp = st.text_area("Token JWT (Bearer) *",
-                                                  placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-                                                  height=100)
-                    _pf_c1, _pf_c2 = st.columns(2)
-                    with _pf_c1:
-                        _pf_btn_val = st.form_submit_button("✅ Validar Token",
-                                                             use_container_width=True)
-                    with _pf_c2:
-                        _pf_btn_salv = st.form_submit_button("💾 Salvar Chave",
-                                                              use_container_width=True,
-                                                              type="primary")
-
-                if _pf_btn_val and _pf_token_inp.strip():
-                    with st.spinner("Validando token..."):
-                        _pf_ok, _pf_msg = _profrotas_validar_token(_pf_token_inp.strip())
-                    if _pf_ok:
-                        st.success(f"✅ {_pf_msg}")
-                    else:
-                        st.error(f"❌ {_pf_msg}")
-
-                if _pf_btn_salv:
-                    _pf_cnpj_v = _pf_re.sub(r"\D", "", _pf_cnpj_inp.strip())
-                    if not _pf_cnpj_v or len(_pf_cnpj_v) != 14:
-                        st.error("CNPJ inválido — informe 14 dígitos.")
-                    elif not _pf_nome_inp.strip():
-                        st.error("Nome da empresa é obrigatório.")
-                    elif not _pf_token_inp.strip():
-                        st.error("Token JWT é obrigatório.")
-                    else:
-                        _pf_usr = st.session_state.get("_auth_email", "")
-                        _ok2, _msg2 = _profrotas_salvar_chave(
-                            _pf_cnpj_v, _pf_nome_inp.strip(),
-                            _pf_token_inp.strip(), _pf_usr)
-                        if _ok2:
-                            st.success(f"✅ {_msg2}")
-                            st.rerun()
-                        else:
-                            st.error(f"❌ {_msg2}")
-
-                st.markdown("---")
-                st.markdown("#### 📋 Chaves Cadastradas")
-                _pf_chaves = _profrotas_listar_chaves()
-                if not _pf_chaves:
-                    st.info("Nenhuma chave cadastrada ainda.", icon="ℹ️")
-                else:
-                    for _pfc in _pf_chaves:
-                        _pfc_ativo = "🟢" if _pfc.get("ativo") else "🔴"
-                        _pfc_sync  = _pfc.get("ultimo_sync") or "—"
-                        if _pfc_sync and _pfc_sync != "—":
-                            try:
-                                _pfc_sync = _pf_dt.datetime.fromisoformat(
-                                    _pfc_sync.replace("Z","")).strftime("%d/%m/%Y %H:%M")
-                            except Exception:
-                                pass
-                        with st.expander(
-                            f"{_pfc_ativo} **{_pfc.get('nome_empresa','?')}** "
-                            f"— {_pfc.get('cnpj_frota','?')}"
-                        ):
-                            st.write(f"**Último sync:** {_pfc_sync}")
-                            st.write(f"**Registros:** {_pfc.get('registros_sync',0):,}")
-                            st.write(f"**Cadastrado em:** {_pfc.get('data_cadastro','?')}")
-                            _tok_prev = (_pfc.get("token","")[:40]+"...") if _pfc.get("token") else "—"
-                            st.write(f"**Token:** `{_tok_prev}`")
-                            if st.button("🗑️ Remover", key=f"rm_pfc_{_pfc.get('cnpj_frota')}"):
-                                _db2 = _get_supabase()
-                                if _db2:
-                                    _db2.table("profrotas_api_keys").delete().eq(
-                                        "cnpj_frota", _pfc.get("cnpj_frota")).execute()
-                                    st.success("Removida.")
-                                    st.rerun()
-
-            # ── Seção 2: Sincronização ────────────────────────────────
-            elif _pf_secao == "🔄 Sincronização":
-                st.markdown("#### 🔄 Sincronizar Abastecimentos")
-                _pf_chaves2 = _profrotas_listar_chaves()
-                _pf_ativos  = [c for c in _pf_chaves2 if c.get("ativo")]
-                if not _pf_ativos:
-                    st.warning("Nenhuma chave ativa. Cadastre uma na aba **🔑 Chaves de Acesso**.")
-                else:
-                    _pf_opts = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c
-                                for c in _pf_ativos}
-                    _pf_sel_l = st.selectbox("Cliente", list(_pf_opts.keys()),
-                                              key="pf_sync_cli")
-                    _pf_sel   = _pf_opts[_pf_sel_l]
-                    _pf_ini_d = None
-                    try:
-                        _pf_ini_d = _pf_dt.datetime.fromisoformat(
-                            (_pf_sel.get("data_inicio_sync") or "").replace("Z","")).date()
-                    except Exception:
-                        _pf_ini_d = _pf_dt.date.today()
-                    _pf_data_sel = st.date_input("📅 Data inicial",
-                                                   value=_pf_ini_d,
-                                                   max_value=_pf_dt.date.today(),
-                                                   key="pf_sync_data")
-                    _s1, _s2 = st.columns(2)
-                    with _s1:
-                        _btn_sync_all = st.button("▶️ Sincronizar período",
-                                                   use_container_width=True, type="primary",
-                                                   key="btn_sync_all")
-                    with _s2:
-                        _btn_sync_hj = st.button("⚡ Só hoje",
-                                                   use_container_width=True,
-                                                   key="btn_sync_hj")
-                    if _btn_sync_all or _btn_sync_hj:
-                        _pf_iso = (_pf_dt.datetime.utcnow().strftime("%Y-%m-%dT00:00:00Z")
-                                   if _btn_sync_hj
-                                   else _pf_data_sel.strftime("%Y-%m-%dT00:00:00Z"))
-                        _pb = st.progress(0, text="Iniciando...")
-                        def _prog(p, tot, tam):
-                            _pb.progress(min(1.0,(p*tam)/max(tot,1)),
-                                         text=f"Pág {p} — {min(p*tam,tot):,}/{tot:,}")
-                        with st.spinner("Sincronizando..."):
-                            _pp, _ps, _pnt = _profrotas_sync(
-                                _pf_sel["cnpj_frota"], _pf_sel["token"], _pf_iso, _prog)
-                        _pb.progress(1.0, text="Concluído!")
-                        st.success(f"✅ {_ps:,} registros salvos em {_pp} página(s).")
-                        if _pnt:
-                            st.info("🔄 Token renovado automaticamente.")
-                        st.rerun()
-
-                    _ult = _pf_sel.get("ultimo_sync")
-                    if _ult:
-                        try:
-                            _ult = _pf_dt.datetime.fromisoformat(
-                                _ult.replace("Z","")).strftime("%d/%m/%Y %H:%M")
-                        except Exception:
-                            pass
-                        st.caption(f"🕐 Último sync: **{_ult}** — "
-                                   f"**{_pf_sel.get('registros_sync',0):,}** registros")
-
-            # ── Seção 3: Abastecimentos ───────────────────────────────
-            elif _pf_secao == "📊 Abastecimentos":
-                st.markdown("#### 📊 Abastecimentos Sincronizados")
-                _pf_ch3   = _profrotas_listar_chaves()
-                _pf_opts3 = {"Todos": None}
-                for _c3 in _pf_ch3:
-                    _pf_opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
-                _d1, _d2  = st.columns([2, 1])
-                with _d1:
-                    _pf_cli3  = st.selectbox("Cliente", list(_pf_opts3.keys()), key="pf_d_cli")
-                with _d2:
-                    _pf_dias3 = st.selectbox("Período", [7,30,60,90,180,365], index=2,
-                                              format_func=lambda x: f"{x} dias", key="pf_d_dias")
-                _pf_df3 = _profrotas_carregar_abast(_pf_opts3[_pf_cli3], _pf_dias3)
-                if _pf_df3.empty:
-                    st.info("Nenhum abastecimento. Execute uma sincronização primeiro.", icon="ℹ️")
-                else:
-                    _k1,_k2,_k3,_k4 = st.columns(4)
-                    _vol3 = pd.to_numeric(_pf_df3.get("item_quantidade", pd.Series()), errors="coerce").sum()
-                    _val3 = pd.to_numeric(_pf_df3.get("item_valor_total", pd.Series()), errors="coerce").sum()
-                    _k1.metric("🧾 Registros", f"{len(_pf_df3):,}")
-                    _k2.metric("⛽ Litros",    f"{_vol3:,.0f}")
-                    _k3.metric("💰 Total",     f"R$ {_val3:,.2f}")
-                    _k4.metric("🚗 Veículos",  str(_pf_df3["veiculo_placa"].nunique()
-                                                    if "veiculo_placa" in _pf_df3.columns else 0))
-                    _cols3 = [c for c in ["data_abastecimento","veiculo_placa","motorista_nome",
-                                          "item_nome","item_quantidade","item_valor_unitario",
-                                          "item_valor_total","hodometro","pv_razao_social",
-                                          "pv_municipio","pv_uf"] if c in _pf_df3.columns]
-                    _df3s = _pf_df3[_cols3].copy()
-                    if "data_abastecimento" in _df3s.columns:
-                        _df3s["data_abastecimento"] = pd.to_datetime(
-                            _df3s["data_abastecimento"], errors="coerce"
-                        ).dt.strftime("%d/%m/%Y %H:%M")
-                    _df3s.rename(columns={
-                        "data_abastecimento":"Data","veiculo_placa":"Placa",
-                        "motorista_nome":"Motorista","item_nome":"Combustível",
-                        "item_quantidade":"Litros","item_valor_unitario":"R$/L",
-                        "item_valor_total":"Total R$","hodometro":"Hodômetro",
-                        "pv_razao_social":"Posto","pv_municipio":"Município","pv_uf":"UF",
-                    }, inplace=True)
-                    st.dataframe(_df3s, use_container_width=True, height=460)
-                    st.download_button("⬇️ Exportar CSV",
-                                       _pf_df3.to_csv(index=False).encode("utf-8-sig"),
-                                       file_name=f"abastecimentos_{_pf_dias3}d.csv",
-                                       mime="text/csv", use_container_width=True)
-
-        except Exception as _pf_err:
-            st.error(f"❌ Erro na aba GestãoFrotas: {_pf_err}")
-            import traceback as _pf_tb
-            st.code(_pf_tb.format_exc(), language="text")
