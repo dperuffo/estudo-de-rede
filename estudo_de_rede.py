@@ -4236,7 +4236,7 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                 "pv_uf":                   _end.get("uf"),
                 "pv_latitude":             _end.get("latitude"),
                 "pv_longitude":            _end.get("longitude"),
-                "payload_raw":             _json.dumps(reg, ensure_ascii=False, default=str),
+                "payload_raw":             reg,  # JSONB — passar dict diretamente
             }
 
             if _itens:
@@ -4260,8 +4260,8 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                     on_conflict="cnpj_frota,identificador,item_id"
                 ).execute()
                 total_salvos += len(rows_batch)
-            except Exception:
-                pass
+            except Exception as _save_e:
+                return pagina, total_salvos, novo_token, f"Erro ao salvar pág {pagina}: {_save_e}", total_items or 0
 
         # Próxima página?
         if not registros or len(registros) < tam_pag:
