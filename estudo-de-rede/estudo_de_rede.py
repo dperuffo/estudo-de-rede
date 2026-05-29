@@ -25626,15 +25626,6 @@ elif modo == "🛡️ Admin":
     with _adm_tab_users:
         _render_admin_usuarios()
 
-    # Reatribuir tabs para o código original que usa variáveis antigas
-    _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs = _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs
-
-    _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs = st.tabs([
-        "🏢 Empresas & Usuários",
-        "🔑 Controle de Acesso",
-        "📋 Logs de Atividade",
-    ])
-
     # ══════════════════════════════════════════════════════════════
     #  ABA 1 — EMPRESAS & USUÁRIOS
     # ══════════════════════════════════════════════════════════════
