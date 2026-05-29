@@ -4143,15 +4143,15 @@ def _profrotas_listar_chaves() -> list:
 
 
 def _profrotas_sync(cnpj_frota: str, token: str,
-                    data_inicio: str, progress_cb=None) -> tuple[int, int, str | None]:
+                    data_inicio: str, progress_cb=None) -> tuple[int, int, str | None, str, int]:
     """Busca todos os abastecimentos desde data_inicio e salva no Supabase.
 
-    Retorna (total_paginas_buscadas, total_registros_salvos, novo_token_ou_None).
+    Retorna (paginas, salvos, novo_token_ou_None, erro_msg, total_api).
     """
     import datetime as _dt, json as _json
     _db = _db_client()
     if not _db:
-        return 0, 0, None
+        return 0, 0, None, "Supabase não disponível.", 0
 
     novo_token = None
     pagina = 1
@@ -4168,13 +4168,13 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         try:
             data, _novo = _profrotas_request(token, payload)
         except RuntimeError as e:
-            return pagina - 1, total_salvos, novo_token
+            return pagina - 1, total_salvos, novo_token, f"Erro API pág {pagina}: {e}", total_items or 0
 
         if _novo:
             novo_token = _novo
 
         if not isinstance(data, dict):
-            break
+            return pagina, total_salvos, novo_token, "", total_items or 0, f"Resposta inválida: {str(data)[:100]}", total_items or 0
 
         registros = data.get("registros") or []
         if total_items is None:
@@ -33900,11 +33900,23 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                         _pb = st.progress(0, text="Iniciando...")
                         def _prog(p,tot,tam): _pb.progress(min(1.0,(p*tam)/max(tot,1)), text=f"Pág {p} — {min(p*tam,tot):,}/{tot:,}")
                         with st.spinner("Sincronizando..."):
-                            _pp, _ps2, _pnt = _profrotas_sync(_pf_sel["cnpj_frota"], _pf_sel["token"], _iso, _prog)
+                            _pp, _ps2, _pnt, _perr, _ptot = _profrotas_sync(
+                                _pf_sel["cnpj_frota"], _pf_sel["token"], _iso, _prog)
                         _pb.progress(1.0, text="Concluído!")
-                        st.success(f"✅ {_ps2:,} registros em {_pp} página(s).")
+                        if _perr:
+                            st.error(f"❌ Erro durante sincronização: {_perr}")
+                        elif _ps2 == 0:
+                            st.warning(
+                                f"⚠️ API respondeu com **{_ptot}** registro(s) no total, "
+                                f"mas nenhum foi salvo. "
+                                f"Verifique se a tabela `profrotas_abastecimentos` existe no Supabase "
+                                f"(execute `profrotas_api.sql`) e se o período selecionado tem dados."
+                            )
+                        else:
+                            st.success(f"✅ {_ps2:,} registros salvos em {_pp} página(s). "
+                                       f"Total na API: {_ptot:,}.")
                         if _pnt: st.info("🔄 Token renovado automaticamente.")
-                        st.rerun()
+                        if _ps2 > 0: st.rerun()
                     _ult = _pf_sel.get("ultimo_sync")
                     if _ult:
                         try: _ult = _pf_dt.datetime.fromisoformat(_ult.replace("Z","")).strftime("%d/%m/%Y %H:%M")
