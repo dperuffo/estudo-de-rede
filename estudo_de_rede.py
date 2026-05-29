@@ -503,7 +503,7 @@ def _admin_salvar_usuario(email: str, nome: str, perfil: str,
         return True, f"Usuário {email} salvo com sucesso."
     except Exception as _e:
         _emsg = str(_e)
-        if "42P01" in _emsg or "PGRST205" in _emsg or "usuarios_app" in _emsg:
+        if "42P01" in _emsg or "PGRST205" in _emsg:
             return False, "Tabela usuarios_app não encontrada. Execute setup_completo.sql no Supabase."
         return False, _emsg
 
