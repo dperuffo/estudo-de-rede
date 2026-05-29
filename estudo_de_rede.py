@@ -4107,7 +4107,7 @@ def _profrotas_salvar_chave(cnpj_frota: str, nome_empresa: str,
                              token: str, criado_por: str = "") -> tuple[bool, str]:
     """Salva ou atualiza a chave API de um cliente no Supabase."""
     import datetime as _dt
-    _db = _get_supabase()
+    _db = _db_client()
     if not _db:
         return False, "Supabase não disponível."
     cnpj_norm = str(cnpj_frota).strip().replace(r"\D", "")
@@ -4132,7 +4132,7 @@ def _profrotas_salvar_chave(cnpj_frota: str, nome_empresa: str,
 
 def _profrotas_listar_chaves() -> list:
     """Retorna lista de chaves cadastradas."""
-    _db = _get_supabase()
+    _db = _db_client()
     if not _db:
         return []
     try:
@@ -4149,7 +4149,7 @@ def _profrotas_sync(cnpj_frota: str, token: str,
     Retorna (total_paginas_buscadas, total_registros_salvos, novo_token_ou_None).
     """
     import datetime as _dt, json as _json
-    _db = _get_supabase()
+    _db = _db_client()
     if not _db:
         return 0, 0, None
 
@@ -4271,7 +4271,7 @@ def _profrotas_carregar_abast(cnpj_frota: str | None = None,
                                dias: int = 90) -> "pd.DataFrame":
     """Carrega abastecimentos do Supabase, opcionalmente filtrado por CNPJ."""
     import datetime as _dt
-    _db = _get_supabase()
+    _db = _db_client()
     if not _db:
         return pd.DataFrame()
     try:
@@ -33874,7 +33874,7 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                             except Exception: pass
                             st.write(f"**Último sync:** {_ps} | **Registros:** {_pfc.get('registros_sync',0):,}")
                             if st.button("🗑️ Remover", key=f"rm_{_pfc.get('cnpj_frota')}"):
-                                _db2 = _get_supabase()
+                                _db2 = _db_client()
                                 if _db2:
                                     _db2.table("profrotas_api_keys").delete().eq("cnpj_frota", _pfc.get("cnpj_frota")).execute()
                                     st.success("Removida."); st.rerun()
