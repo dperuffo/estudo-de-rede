@@ -4242,9 +4242,17 @@ def _profrotas_sync(cnpj_frota: str, token: str,
             if _itens:
                 for item in _itens:
                     row = dict(_base)
+                    # tipo pode ser int OU {"codigo": N, "valor": "..."} 
+                    _tipo_raw = item.get("tipo")
+                    if isinstance(_tipo_raw, dict):
+                        _tipo_int = _tipo_raw.get("codigo")
+                        _item_nome_extra = _tipo_raw.get("valor")
+                    else:
+                        _tipo_int = _tipo_raw
+                        _item_nome_extra = None
                     row["item_id"]             = str(item.get("identificador", "") or "")
-                    row["item_nome"]           = item.get("nome")
-                    row["item_tipo"]           = item.get("tipo")
+                    row["item_nome"]           = item.get("nome") or _item_nome_extra
+                    row["item_tipo"]           = _tipo_int
                     row["item_quantidade"]     = item.get("quantidade")
                     row["item_valor_unitario"] = item.get("valorUnitario")
                     row["item_valor_total"]    = item.get("valorTotal")
