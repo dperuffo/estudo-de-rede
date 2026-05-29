@@ -174,7 +174,7 @@ def _auth_carregar_usuario_db(email: str) -> dict | None:
         return None
     try:
         _res = (_db.table("usuarios_app")
-                   .select("perfil,cnpj_vinculado,empresa_nome,ativo,nome")
+                   .select("perfil,cnpj_vinculado,empresa_nome,ativo,nome,mfa_habilitado,mfa_secret")
                    .eq("email", email)
                    .eq("ativo", True)
                    .limit(1)
@@ -187,6 +187,204 @@ def _auth_carregar_usuario_db(email: str) -> dict | None:
 def _auth_logado() -> bool:
     """True se há usuário autenticado na sessão (compatível com sistema streamlit_oauth)."""
     return bool(st.session_state.get("_auth_user"))
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MFA / 2FA — Autenticação de Dois Fatores (TOTP)
+# ═══════════════════════════════════════════════════════════════════
+
+_MFA_ISSUER = "FNI Pró-Frotas"   # nome exibido no app authenticator
+
+def _mfa_gerar_segredo() -> str:
+    """Gera um novo segredo TOTP aleatório (base32, 32 chars)."""
+    try:
+        import pyotp as _pyotp
+        return _pyotp.random_base32()
+    except ImportError:
+        import base64, os
+        return base64.b32encode(os.urandom(20)).decode().rstrip("=")
+
+def _mfa_uri(email: str, segredo: str) -> str:
+    """Retorna a URI otpauth:// para gerar o QR code."""
+    try:
+        import pyotp as _pyotp
+        return _pyotp.totp.TOTP(segredo).provisioning_uri(
+            name=email,
+            issuer_name=_MFA_ISSUER,
+        )
+    except ImportError:
+        import urllib.parse
+        return (f"otpauth://totp/{urllib.parse.quote(_MFA_ISSUER)}:{urllib.parse.quote(email)}"
+                f"?secret={segredo}&issuer={urllib.parse.quote(_MFA_ISSUER)}")
+
+def _mfa_verificar_codigo(segredo: str, codigo: str) -> bool:
+    """Verifica código TOTP de 6 dígitos. Aceita janela de ±1 intervalo (30 s)."""
+    try:
+        import pyotp as _pyotp
+        totp = _pyotp.TOTP(segredo)
+        return totp.verify(str(codigo).strip(), valid_window=1)
+    except Exception:
+        return False
+
+def _mfa_gerar_qr_bytes(uri: str) -> bytes | None:
+    """Retorna PNG do QR code como bytes, ou None se qrcode não disponível."""
+    try:
+        import qrcode as _qr
+        import io as _io
+        img = _qr.make(uri)
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+    except ImportError:
+        return None
+
+def _mfa_salvar_no_db(email: str, segredo: str, habilitado: bool = True) -> bool:
+    """Persiste mfa_secret e mfa_habilitado na tabela usuarios_app."""
+    _db = _db_client()
+    if _db is None:
+        return False
+    try:
+        (_db.table("usuarios_app")
+            .update({"mfa_secret": segredo, "mfa_habilitado": habilitado})
+            .eq("email", email)
+            .execute())
+        return True
+    except Exception:
+        return False
+
+def _mfa_obrigatorio(perfil: str) -> bool:
+    """Retorna True se o perfil exige 2FA em todo login."""
+    return perfil in ("admin", "analista", "gestor_frota", "posto")
+
+def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
+    """
+    Exibe tela de verificação MFA.
+    Retorna True se o código foi validado com sucesso nesta chamada.
+    """
+    st.markdown(
+        "<div style='max-width:420px;margin:60px auto 0;padding:32px 28px;"
+        "background:#fff;border:1px solid #e0e0e0;border-radius:14px;"
+        "box-shadow:0 4px 20px rgba(0,0,0,.08)'>"
+        "<div style='text-align:center;margin-bottom:24px'>"
+        "<div style='font-size:2.2rem'>🔐</div>"
+        "<h2 style='margin:8px 0 4px;font-size:1.3rem;color:#1B2B5E'>Verificação em duas etapas</h2>"
+        "<p style='color:#666;font-size:13px;margin:0'>"
+        f"Conta: <strong>{email}</strong></p>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p style='color:#555;font-size:13px;text-align:center;margin-bottom:8px'>"
+        "Abra o <strong>Google Authenticator</strong> ou <strong>Authy</strong> "
+        "e insira o código de 6 dígitos:</p>",
+        unsafe_allow_html=True,
+    )
+    _codigo = st.text_input(
+        "Código 2FA",
+        max_chars=6,
+        placeholder="000000",
+        key="_mfa_codigo_input",
+        label_visibility="collapsed",
+    )
+    _col_ok, _col_sair = st.columns([3, 1])
+    with _col_ok:
+        _btn_ok = st.button("✅ Verificar", type="primary", use_container_width=True,
+                            key="_mfa_btn_verificar")
+    with _col_sair:
+        if st.button("↩ Sair", use_container_width=True, key="_mfa_btn_sair"):
+            for _k in list(st.session_state.keys()):
+                if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
+                                   "_admin_empresa", "_github_sync", "_mfa")):
+                    del st.session_state[_k]
+            st.rerun()
+
+    if _btn_ok:
+        if not _codigo or len(_codigo.strip()) != 6:
+            st.error("Digite os 6 dígitos do código.")
+        elif _mfa_verificar_codigo(segredo, _codigo):
+            st.session_state["_auth_mfa_verificado"] = True
+            st.rerun()
+            return True
+        else:
+            st.error("❌ Código inválido ou expirado. Tente novamente.")
+            # controla tentativas para evitar brute-force
+            _tent = st.session_state.get("_mfa_tentativas", 0) + 1
+            st.session_state["_mfa_tentativas"] = _tent
+            if _tent >= 5:
+                st.warning("🚫 Muitas tentativas. Faça login novamente.")
+                for _k in list(st.session_state.keys()):
+                    if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
+                                       "_admin_empresa", "_github_sync", "_mfa")):
+                        del st.session_state[_k]
+                st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+    return False
+
+def _mfa_render_setup_inicial(email: str, segredo: str):
+    """
+    Exibe tela de configuração inicial do MFA (primeiro login com 2FA).
+    O usuário escaneia o QR e confirma com um código antes de acessar o app.
+    """
+    _uri = _mfa_uri(email, segredo)
+    _qr_bytes = _mfa_gerar_qr_bytes(_uri)
+
+    st.markdown(
+        "<div style='max-width:480px;margin:40px auto 0;padding:32px 28px;"
+        "background:#fff;border:1px solid #e0e0e0;border-radius:14px;"
+        "box-shadow:0 4px 20px rgba(0,0,0,.08)'>"
+        "<div style='text-align:center;margin-bottom:20px'>"
+        "<div style='font-size:2rem'>🔐</div>"
+        "<h2 style='margin:8px 0 4px;font-size:1.25rem;color:#1B2B5E'>"
+        "Configure a autenticação em duas etapas</h2>"
+        "<p style='color:#666;font-size:13px;margin:0'>"
+        "Esta é sua primeira vez com 2FA ativo. Configure agora para continuar.</p>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("**Passo 1** — Abra o Google Authenticator ou Authy no seu celular")
+    st.markdown("**Passo 2** — Toque em **+** e escolha 'Ler QR code'")
+
+    if _qr_bytes:
+        _qrc1, _qrc2, _qrc3 = st.columns([1, 2, 1])
+        with _qrc2:
+            st.image(_qr_bytes, caption="Escaneie este QR code", use_container_width=True)
+    else:
+        st.markdown("**Chave manual** (caso não consiga escanear):")
+        st.code(segredo, language=None)
+
+    st.markdown("**Passo 3** — Digite o código gerado pelo app para confirmar:")
+
+    _codigo_setup = st.text_input(
+        "Código de confirmação",
+        max_chars=6,
+        placeholder="000000",
+        key="_mfa_setup_codigo",
+        label_visibility="collapsed",
+    )
+    _c1s, _c2s = st.columns([3, 1])
+    with _c1s:
+        _btn_confirmar = st.button("✅ Confirmar e acessar", type="primary",
+                                   use_container_width=True, key="_mfa_setup_confirmar")
+    with _c2s:
+        if st.button("↩ Sair", use_container_width=True, key="_mfa_setup_sair"):
+            for _k in list(st.session_state.keys()):
+                if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
+                                   "_admin_empresa", "_github_sync", "_mfa")):
+                    del st.session_state[_k]
+            st.rerun()
+
+    if _btn_confirmar:
+        if not _codigo_setup or len(_codigo_setup.strip()) != 6:
+            st.error("Digite os 6 dígitos gerados pelo app.")
+        elif _mfa_verificar_codigo(segredo, _codigo_setup):
+            st.session_state["_auth_mfa_verificado"] = True
+            st.success("✅ 2FA configurado com sucesso!")
+            st.rerun()
+        else:
+            st.error("❌ Código inválido. Verifique o app e tente novamente.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -268,11 +466,82 @@ def _render_admin_usuarios():
         _df_u["Perfil"]  = _df_u["perfil"].map(_badge).fillna(_df_u["perfil"])
         _df_u["Status"]  = _df_u["ativo"].map({True: "✅ Ativo", False: "❌ Inativo"})
         _df_u["Criado"]  = pd.to_datetime(_df_u["created_at"]).dt.strftime("%d/%m/%Y")
-        _df_show = _df_u[["email","nome","Perfil","cnpj_vinculado","empresa_nome","Status","Criado"]]
-        _df_show.columns = ["E-mail","Nome","Perfil","CNPJ Vinculado","Empresa","Status","Criado"]
+        _df_u["2FA"]     = _df_u.get("mfa_habilitado", pd.Series([False]*len(_df_u))).map(
+                               {True: "🔐 Ativo", False: "⬜ Inativo"})
+        _df_show = _df_u[["email","nome","Perfil","cnpj_vinculado","empresa_nome","Status","2FA","Criado"]]
+        _df_show.columns = ["E-mail","Nome","Perfil","CNPJ Vinculado","Empresa","Status","2FA","Criado"]
         st.dataframe(_df_show, use_container_width=True, hide_index=True)
     else:
         st.info("Nenhum usuário cadastrado ainda.")
+
+    st.divider()
+
+    # ── Seção MFA ─────────────────────────────────────────────────
+    st.markdown("#### 🔐 Gerenciar 2FA dos Usuários")
+    st.caption(
+        "Gere o QR code de configuração do Google Authenticator para cada usuário. "
+        "Envie o QR (screenshot) para o usuário escanear no app Authenticator."
+    )
+
+    if _usuarios:
+        _emails_mfa = [u["email"] for u in _usuarios if u.get("ativo", True)]
+        _sel_email_mfa = st.selectbox(
+            "Selecione o usuário", _emails_mfa, key="admin_mfa_email_sel"
+        )
+        _usuario_sel = next((u for u in _usuarios if u["email"] == _sel_email_mfa), {})
+        _mfa_ja_ativo = _usuario_sel.get("mfa_habilitado", False)
+        _mfa_tem_seg  = bool(_usuario_sel.get("mfa_secret"))
+
+        _mc1, _mc2 = st.columns(2)
+        with _mc1:
+            if st.button(
+                "🔐 Gerar novo QR code para este usuário",
+                key="btn_admin_gerar_mfa",
+                use_container_width=True,
+                type="primary",
+            ):
+                _novo_seg_admin = _mfa_gerar_segredo()
+                if _mfa_salvar_no_db(_sel_email_mfa, _novo_seg_admin, True):
+                    st.session_state["_admin_mfa_preview_email"]  = _sel_email_mfa
+                    st.session_state["_admin_mfa_preview_secret"] = _novo_seg_admin
+                    st.success(f"✅ Segredo 2FA gerado para {_sel_email_mfa}. Mostre o QR abaixo ao usuário.")
+                    st.rerun()
+                else:
+                    st.error("Erro ao salvar segredo no banco.")
+        with _mc2:
+            if _mfa_ja_ativo and st.button(
+                "🚫 Desativar 2FA deste usuário",
+                key="btn_admin_desativar_mfa",
+                use_container_width=True,
+            ):
+                _mfa_salvar_no_db(_sel_email_mfa, "", False)
+                st.warning(f"2FA desativado para {_sel_email_mfa}.")
+                st.rerun()
+
+        # Exibe QR se acabou de ser gerado
+        _prev_email  = st.session_state.get("_admin_mfa_preview_email", "")
+        _prev_secret = st.session_state.get("_admin_mfa_preview_secret", "")
+        if _prev_email == _sel_email_mfa and _prev_secret:
+            _uri_adm = _mfa_uri(_prev_email, _prev_secret)
+            _qr_adm  = _mfa_gerar_qr_bytes(_uri_adm)
+            st.markdown(f"**QR code para** `{_prev_email}`:")
+            if _qr_adm:
+                _qa1, _qa2, _qa3 = st.columns([1, 2, 1])
+                with _qa2:
+                    st.image(_qr_adm, caption="Escaneie com Google Authenticator / Authy",
+                             use_container_width=True)
+            else:
+                st.code(_uri_adm, language=None)
+            st.info("📌 Instrua o usuário a escanear este QR antes do próximo login. "
+                    "O código expira a cada 30 segundos.")
+
+        # Status atual
+        if _mfa_ja_ativo and _mfa_tem_seg:
+            st.success(f"🔐 2FA **ativo** para {_sel_email_mfa}")
+        elif _mfa_ja_ativo and not _mfa_tem_seg:
+            st.warning(f"⚠️ 2FA marcado como ativo mas sem segredo. Gere um novo QR.")
+        else:
+            st.info(f"⬜ 2FA **inativo** para {_sel_email_mfa}. Clique em 'Gerar novo QR code' para ativar.")
 
     st.divider()
 
@@ -3319,11 +3588,14 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
     _email_perm = (st.session_state["_auth_user"] or {}).get("email", "")
     if _email_perm and not st.session_state.get("_auth_perfil"):
         if _email_perm.lower() == _ADMIN_EMAIL.lower():
-            # Admin FNI hardcoded
+            # Admin FNI hardcoded — busca também config MFA do banco
+            _pdb_admin = _auth_carregar_usuario_db(_email_perm) or {}
             st.session_state["_auth_perfil"]         = "admin"
             st.session_state["_auth_cnpj_vinculado"] = None
             st.session_state["_auth_usuario_db"]     = {
-                "email": _email_perm, "perfil": "admin", "cnpj_vinculado": None
+                "email": _email_perm, "perfil": "admin", "cnpj_vinculado": None,
+                "mfa_habilitado": _pdb_admin.get("mfa_habilitado", False),
+                "mfa_secret":     _pdb_admin.get("mfa_secret"),
             }
         else:
             _pdb = _auth_carregar_usuario_db(_email_perm)
@@ -3337,6 +3609,29 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
                 # E-mail autenticado mas sem perfil cadastrado → trata como 'viewer' restrito
                 st.session_state["_auth_perfil"]         = "viewer"
                 st.session_state["_auth_cnpj_vinculado"] = None
+
+# ── Interceptar para verificação MFA (se ainda não verificado) ───────
+if _OAUTH_ATIVO and st.session_state.get("_auth_perfil"):
+    _udb = st.session_state.get("_auth_usuario_db", {})
+    _perfil_mfa  = st.session_state.get("_auth_perfil", "")
+    _mfa_hab     = _udb.get("mfa_habilitado", False)
+    _mfa_sec     = _udb.get("mfa_secret")
+    _mfa_verif   = st.session_state.get("_auth_mfa_verificado", False)
+    _email_mfa   = _udb.get("email", "")
+
+    if _mfa_obrigatorio(_perfil_mfa) and not _mfa_verif:
+        if _mfa_hab and _mfa_sec:
+            # MFA ativo: pede o código
+            _mfa_render_tela_verificacao(_email_mfa, _mfa_sec)
+            st.stop()
+        elif _mfa_hab and not _mfa_sec:
+            # MFA marcado como ativo mas sem segredo — gera novo e exibe setup
+            _novo_seg = _mfa_gerar_segredo()
+            _mfa_salvar_no_db(_email_mfa, _novo_seg, True)
+            st.session_state["_auth_usuario_db"]["mfa_secret"] = _novo_seg
+            _mfa_render_setup_inicial(_email_mfa, _novo_seg)
+            st.stop()
+        # Se mfa_habilitado=False → permite acesso sem 2FA (admin ainda não configurou)
 
 # ── Resolver empresa(s) do usuário logado ───────────────────────────
 if _OAUTH_ATIVO and st.session_state.get("_auth_user"):

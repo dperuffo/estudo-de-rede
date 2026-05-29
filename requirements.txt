@@ -27,3 +27,6 @@ fastapi>=0.111.0          # framework REST API
 uvicorn[standard]>=0.29.0 # servidor ASGI
 python-jose[cryptography]>=3.3.0  # JWT Bearer auth
 passlib[bcrypt]>=1.7.4    # hashing de senhas (para futura gestão de usuários API)
+
+pyotp>=2.9.0              # TOTP para autenticação de dois fatores (MFA)
+qrcode[pil]>=7.4.0        # geração de QR code para configuração do MFA
