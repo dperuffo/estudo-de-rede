@@ -33841,14 +33841,19 @@ if (
             unsafe_allow_html=True,
         )
 
-        _pf_tab_cad, _pf_tab_sync, _pf_tab_dados = st.tabs([
-            "🔑 Chaves de Acesso",
-            "🔄 Sincronização",
-            "📊 Abastecimentos",
-        ])
+        _pf_secao = st.radio(
+            "Seção",
+            ["🔑 Chaves de Acesso", "🔄 Sincronização", "📊 Abastecimentos"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="pf_secao_radio",
+        )
+        st.divider()
 
-        # ── Sub-aba 1: Cadastro de Chaves ──────────────────────────
-        with _pf_tab_cad:
+        # ── Seção 1: Cadastro de Chaves ────────────────────────────
+        if _pf_secao == "🔑 Chaves de Acesso":
+            _pf_tab_cad = True
+        if _pf_secao == "🔑 Chaves de Acesso":
             st.markdown("#### 🔑 Cadastrar Chave de Acesso do Cliente")
             st.info(
                 "Cada cliente ProFrotas fornece um token JWT obtido no portal "
@@ -33947,8 +33952,8 @@ if (
                                 except Exception as _e_pfc:
                                     st.error(str(_e_pfc))
 
-        # ── Sub-aba 2: Sincronização ───────────────────────────────
-        with _pf_tab_sync:
+        # ── Seção 2: Sincronização ────────────────────────────────
+        if _pf_secao == "🔄 Sincronização":
             st.markdown("#### 🔄 Sincronizar Abastecimentos")
 
             _pf_chaves_sync = _profrotas_listar_chaves()
@@ -34045,8 +34050,8 @@ if (
                             f"**{_pf_sel.get('registros_sync', 0):,}** registros acumulados"
                         )
 
-        # ── Sub-aba 3: Abastecimentos ──────────────────────────────
-        with _pf_tab_dados:
+        # ── Seção 3: Abastecimentos ───────────────────────────────
+        if _pf_secao == "📊 Abastecimentos":
             st.markdown("#### 📊 Abastecimentos Sincronizados")
 
             _pf_chaves_d = _profrotas_listar_chaves()
