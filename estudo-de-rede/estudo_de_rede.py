@@ -83,6 +83,239 @@ def _db_email() -> str:
     return (st.session_state.get("_auth_user") or {}).get("email", "anonimo")
 
 
+# ═══════════════════════════════════════════════════════════════════
+#  AUTENTICAÇÃO — Google SSO via Supabase Auth
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Matriz de permissões por perfil ───────────────────────────────
+#   Chave: slug da aba/funcionalidade.  Valor: set de perfis autorizados.
+_PERFIS_TODOS = {"admin", "analista", "gestor_frota", "posto"}
+
+_PERMISSOES: dict[str, set] = {
+    # ── Abas do menu ──────────────────────────────────────────────
+    "aba_dashboard":        {"admin", "analista", "gestor_frota"},
+    "aba_roteirizacao":     {"admin", "analista", "gestor_frota", "posto"},
+    "aba_analise_cliente":  {"admin", "analista", "posto"},
+    "aba_inteligencia":     {"admin", "analista"},
+    "aba_variacao_precos":  {"admin", "analista"},
+    "aba_recomendador":     {"admin", "analista", "gestor_frota"},
+    "aba_frotas":           {"admin", "analista", "gestor_frota"},
+    "aba_telemetria":       {"admin", "analista", "gestor_frota"},
+    "aba_relatorios":       {"admin", "analista", "gestor_frota", "posto"},
+    "aba_api_integracoes":  {"admin", "analista"},
+    "aba_admin":            {"admin"},
+    "aba_configuracoes":    {"admin", "analista"},
+    "aba_documentacao":     _PERFIS_TODOS,
+    # ── Funcionalidades dentro das abas ───────────────────────────
+    "func_exportar":        {"admin", "analista", "gestor_frota", "posto"},
+    "func_editar_acordos":  {"admin", "analista"},
+    "func_upload_planilha": {"admin", "analista"},
+    "func_ver_todos_cnpj":  {"admin", "analista"},          # ver dados de outros CNPJs
+    "func_gerenciar_users": {"admin"},
+    "func_ver_telem_todos": {"admin", "analista"},          # telemetria de todos os clientes
+}
+
+
+def _auth_tem_permissao(funcionalidade: str) -> bool:
+    """Retorna True se o usuário logado tem permissão para a funcionalidade."""
+    _perfil = st.session_state.get("_auth_perfil", "")
+    return _perfil in _PERMISSOES.get(funcionalidade, set())
+
+
+def _auth_perfil() -> str:
+    """Retorna o perfil do usuário logado ('admin','analista','gestor_frota','posto','')."""
+    return st.session_state.get("_auth_perfil", "")
+
+
+def _auth_cnpj_vinculado() -> str | None:
+    """CNPJ vinculado ao usuário (posto ou empresa de frota). None para admin/analista."""
+    return st.session_state.get("_auth_cnpj_vinculado")
+
+
+def _auth_filtrar_df(df: "pd.DataFrame", col_cnpj: str = "cnpj") -> "pd.DataFrame":
+    """
+    Filtra um DataFrame pelo CNPJ vinculado ao usuário logado.
+    - admin / analista: retorna df completo (sem filtro).
+    - gestor_frota / posto: retorna apenas linhas cujo col_cnpj normalizado
+      bate com o CNPJ do usuário.
+    Usa normalização (só dígitos) para tolerar formatos diferentes.
+    """
+    _perfil = _auth_perfil()
+    if _perfil in ("admin", "analista", ""):
+        return df
+    _cnpj = _auth_cnpj_vinculado()
+    if not _cnpj or col_cnpj not in df.columns:
+        return df
+    _cnpj_norm = "".join(c for c in str(_cnpj) if c.isdigit())
+    return df[
+        df[col_cnpj].fillna("").astype(str)
+            .str.replace(r"\D", "", regex=True)
+            .eq(_cnpj_norm)
+    ]
+
+
+def _auth_usuario() -> dict:
+    """Retorna dict completo do usuário logado."""
+    return st.session_state.get("_auth_usuario_db", {})
+
+
+def _auth_logado() -> bool:
+    """True se há usuário autenticado na sessão."""
+    return bool(st.session_state.get("_auth_perfil"))
+
+
+def _auth_carregar_usuario_db(email: str) -> dict | None:
+    """
+    Busca o perfil do usuário na tabela usuarios_app pelo e-mail.
+    Retorna dict com {perfil, cnpj_vinculado, empresa_nome, ativo} ou None.
+    """
+    _db = _db_client()
+    if _db is None:
+        return None
+    try:
+        _res = (_db.table("usuarios_app")
+                   .select("perfil,cnpj_vinculado,empresa_nome,ativo,nome")
+                   .eq("email", email)
+                   .eq("ativo", True)
+                   .limit(1)
+                   .execute())
+        return _res.data[0] if _res.data else None
+    except Exception:
+        return None
+
+
+def _auth_logado() -> bool:
+    """True se há usuário autenticado na sessão (compatível com sistema streamlit_oauth)."""
+    return bool(st.session_state.get("_auth_user"))
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  ADMIN — Gestão de Usuários
+# ═══════════════════════════════════════════════════════════════════
+
+def _admin_listar_usuarios() -> list[dict]:
+    """Retorna lista de todos os usuários cadastrados."""
+    _db = _db_client()
+    if _db is None:
+        return []
+    try:
+        _r = (_db.table("usuarios_app")
+                  .select("id,email,nome,perfil,cnpj_vinculado,empresa_nome,ativo,created_at")
+                  .order("created_at", desc=True)
+                  .execute())
+        return _r.data or []
+    except Exception:
+        return []
+
+
+def _admin_salvar_usuario(email: str, nome: str, perfil: str,
+                          cnpj: str, empresa: str, ativo: bool) -> tuple[bool, str]:
+    """Cria ou atualiza um usuário. Retorna (sucesso, mensagem)."""
+    _db = _db_client()
+    if _db is None:
+        return False, "Banco não disponível"
+    try:
+        _dados = {
+            "email":          email.strip().lower(),
+            "nome":           nome.strip(),
+            "perfil":         perfil,
+            "cnpj_vinculado": cnpj.strip() or None,
+            "empresa_nome":   empresa.strip() or None,
+            "ativo":          ativo,
+        }
+        (_db.table("usuarios_app")
+            .upsert(_dados, on_conflict="email")
+            .execute())
+        return True, f"Usuário {email} salvo com sucesso."
+    except Exception as _e:
+        return False, str(_e)
+
+
+def _admin_excluir_usuario(email: str) -> tuple[bool, str]:
+    """Desativa (soft-delete) um usuário."""
+    _db = _db_client()
+    if _db is None:
+        return False, "Banco não disponível"
+    try:
+        (_db.table("usuarios_app")
+            .update({"ativo": False})
+            .eq("email", email)
+            .execute())
+        return True, f"Usuário {email} desativado."
+    except Exception as _e:
+        return False, str(_e)
+
+
+def _render_admin_usuarios():
+    """Renderiza o painel de gerenciamento de usuários (apenas para admin)."""
+    if not _auth_tem_permissao("func_gerenciar_users"):
+        st.warning("⛔ Acesso restrito a administradores.")
+        return
+
+    st.markdown("### 👥 Gerenciamento de Usuários")
+
+    _usuarios = _admin_listar_usuarios()
+
+    # ── Tabela de usuários ────────────────────────────────────────
+    if _usuarios:
+        _df_u = pd.DataFrame(_usuarios)
+        _badge = {
+            "admin":        "🔴 Admin",
+            "analista":     "🟠 Analista",
+            "gestor_frota": "🟢 Gestor de Frota",
+            "posto":        "🔵 Posto / Rede",
+        }
+        _df_u["Perfil"]  = _df_u["perfil"].map(_badge).fillna(_df_u["perfil"])
+        _df_u["Status"]  = _df_u["ativo"].map({True: "✅ Ativo", False: "❌ Inativo"})
+        _df_u["Criado"]  = pd.to_datetime(_df_u["created_at"]).dt.strftime("%d/%m/%Y")
+        _df_show = _df_u[["email","nome","Perfil","cnpj_vinculado","empresa_nome","Status","Criado"]]
+        _df_show.columns = ["E-mail","Nome","Perfil","CNPJ Vinculado","Empresa","Status","Criado"]
+        st.dataframe(_df_show, use_container_width=True, hide_index=True)
+    else:
+        st.info("Nenhum usuário cadastrado ainda.")
+
+    st.divider()
+
+    # ── Formulário: Adicionar / Editar ────────────────────────────
+    st.markdown("#### ➕ Adicionar / Editar Usuário")
+    with st.form("form_add_usuario", clear_on_submit=True):
+        _c1, _c2 = st.columns(2)
+        with _c1:
+            _u_email   = st.text_input("E-mail Google *", placeholder="usuario@empresa.com")
+            _u_nome    = st.text_input("Nome", placeholder="João Silva")
+            _u_perfil  = st.selectbox("Perfil *", [
+                "posto", "gestor_frota", "analista", "admin"
+            ], format_func=lambda x: {
+                "admin":        "🔴 Admin (acesso total)",
+                "analista":     "🟠 Analista Interno",
+                "gestor_frota": "🟢 Gestor de Frota",
+                "posto":        "🔵 Posto / Rede",
+            }.get(x, x))
+        with _c2:
+            _u_cnpj    = st.text_input("CNPJ Vinculado",
+                                       placeholder="Obrigatório para Posto e Gestor de Frota",
+                                       help="CNPJ do posto ou da empresa de frota (só dígitos ou formatado)")
+            _u_empresa = st.text_input("Nome da Empresa / Posto",
+                                       placeholder="Ex: Posto Central Ltda")
+            _u_ativo   = st.checkbox("Usuário ativo", value=True)
+        _sub = st.form_submit_button("💾 Salvar Usuário", type="primary",
+                                     use_container_width=True)
+        if _sub:
+            if not _u_email or "@" not in _u_email:
+                st.error("E-mail inválido.")
+            elif _u_perfil in ("posto", "gestor_frota") and not _u_cnpj:
+                st.error("CNPJ é obrigatório para Posto e Gestor de Frota.")
+            else:
+                _ok, _msg = _admin_salvar_usuario(
+                    _u_email, _u_nome, _u_perfil, _u_cnpj, _u_empresa, _u_ativo
+                )
+                if _ok:
+                    st.success(_msg)
+                    st.rerun()
+                else:
+                    st.error(f"Erro: {_msg}")
+
+
 # ── Rotas ──────────────────────────────────────────────────────────
 
 def _db_carregar_rotas() -> list:
@@ -3080,6 +3313,30 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
                 </div>
                 """, unsafe_allow_html=True)
             st.stop()
+
+# ── Carregar perfil de permissionamento da tabela usuarios_app ───────
+if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
+    _email_perm = (st.session_state["_auth_user"] or {}).get("email", "")
+    if _email_perm and not st.session_state.get("_auth_perfil"):
+        if _email_perm.lower() == _ADMIN_EMAIL.lower():
+            # Admin FNI hardcoded
+            st.session_state["_auth_perfil"]         = "admin"
+            st.session_state["_auth_cnpj_vinculado"] = None
+            st.session_state["_auth_usuario_db"]     = {
+                "email": _email_perm, "perfil": "admin", "cnpj_vinculado": None
+            }
+        else:
+            _pdb = _auth_carregar_usuario_db(_email_perm)
+            if _pdb:
+                st.session_state["_auth_perfil"]         = _pdb["perfil"]
+                st.session_state["_auth_cnpj_vinculado"] = _pdb.get("cnpj_vinculado")
+                st.session_state["_auth_usuario_db"]     = {
+                    "email": _email_perm, **_pdb
+                }
+            else:
+                # E-mail autenticado mas sem perfil cadastrado → trata como 'viewer' restrito
+                st.session_state["_auth_perfil"]         = "viewer"
+                st.session_state["_auth_cnpj_vinculado"] = None
 
 # ── Resolver empresa(s) do usuário logado ───────────────────────────
 if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
@@ -13376,6 +13633,47 @@ with st.sidebar:
                 unsafe_allow_html=True,
             )
 
+    # ── Badge do usuário logado + Logout ──────────────────────────
+    _perfil_atual = _auth_perfil()
+    if _perfil_atual:
+        _badge_cores = {
+            "admin":        ("🔴", "#fff0f0", "#c62828"),
+            "analista":     ("🟠", "#fff8e1", "#e65100"),
+            "gestor_frota": ("🟢", "#e8f5e9", "#1b5e20"),
+            "posto":        ("🔵", "#e3f2fd", "#0d47a1"),
+        }
+        _badge_icon, _badge_bg, _badge_fg = _badge_cores.get(
+            _perfil_atual, ("⚪", "#f5f5f5", "#333")
+        )
+        _perfil_label = {
+            "admin": "Admin FNI", "analista": "Analista",
+            "gestor_frota": "Gestor de Frota", "posto": "Posto / Rede",
+        }.get(_perfil_atual, _perfil_atual.title())
+        _nome_sb = (_auth_usuario().get("nome") or
+                    (st.session_state.get("_auth_user") or {}).get("name", ""))
+        _email_sb = (st.session_state.get("_auth_user") or {}).get("email", "")
+        _cnpj_sb  = _auth_cnpj_vinculado()
+        st.markdown(
+            f"<div style='background:{_badge_bg};border:1px solid {_badge_fg}33;"
+            f"border-radius:10px;padding:8px 12px;margin-bottom:6px'>"
+            f"<div style='font-size:11px;font-weight:700;color:{_badge_fg}'>"
+            f"{_badge_icon} {_perfil_label}</div>"
+            f"<div style='font-size:11.5px;color:#333;white-space:nowrap;overflow:hidden;"
+            f"text-overflow:ellipsis'>{_nome_sb or _email_sb}</div>"
+            + (f"<div style='font-size:10px;color:#888'>CNPJ: {_cnpj_sb}</div>"
+               if _cnpj_sb else "") +
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+        if st.button("🚪 Sair", use_container_width=True, key="btn_sidebar_logout",
+                     help="Encerrar sessão"):
+            # Limpa estado de autenticação
+            for _k in [k for k in st.session_state
+                       if k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
+                                        "_admin_empresa", "_github_sync"))]:
+                del st.session_state[_k]
+            st.rerun()
+
     _col_m1, _col_m2, _col_m3 = st.columns(3)
     with _col_m1:
         if st.button(
@@ -13441,80 +13739,87 @@ with st.sidebar:
     # ── Linha 3: Dashboard · Inteligência (2 cols) ──────────────────
     _col_a1, _col_a2 = st.columns(2)
     with _col_a1:
-        if st.button(
-            "📈 Dashboard",
-            use_container_width=True,
-            type="primary" if _modo_atual == "📈 Dashboard" else "secondary",
-            key="btn_dashboard",
-            help="KPIs de cobertura e penetração GF por estado",
-        ):
-            st.session_state["modo_selecionado"] = "📈 Dashboard"
-            _log_acesso("MODO_SELECIONADO", "📈 Dashboard", modo_override="📈 Dashboard")
-            st.rerun()
+        if _auth_tem_permissao("aba_dashboard"):
+            if st.button(
+                "📈 Dashboard",
+                use_container_width=True,
+                type="primary" if _modo_atual == "📈 Dashboard" else "secondary",
+                key="btn_dashboard",
+                help="KPIs de cobertura e penetração GF por estado",
+            ):
+                st.session_state["modo_selecionado"] = "📈 Dashboard"
+                _log_acesso("MODO_SELECIONADO", "📈 Dashboard", modo_override="📈 Dashboard")
+                st.rerun()
     with _col_a2:
-        if st.button(
-            "💡 Inteligência",
-            use_container_width=True,
-            type="primary" if _modo_atual == "💡 Inteligência" else "secondary",
-            key="btn_inteligencia",
-            help="Histórico de preços, score de postos e relatório de alertas",
-        ):
-            st.session_state["modo_selecionado"] = "💡 Inteligência"
-            _log_acesso("MODO_SELECIONADO", "💡 Inteligência", modo_override="💡 Inteligência")
-            st.rerun()
+        if _auth_tem_permissao("aba_inteligencia"):
+            if st.button(
+                "💡 Inteligência",
+                use_container_width=True,
+                type="primary" if _modo_atual == "💡 Inteligência" else "secondary",
+                key="btn_inteligencia",
+                help="Histórico de preços, score de postos e relatório de alertas",
+            ):
+                st.session_state["modo_selecionado"] = "💡 Inteligência"
+                _log_acesso("MODO_SELECIONADO", "💡 Inteligência", modo_override="💡 Inteligência")
+                st.rerun()
 
     # ── Linha 4: Recomendador IA · Variação de Preços (2 cols) ──────
     _var_badge_sb = (" 🔔" if st.session_state.get("_pp_variacao") is not None
                      and not st.session_state["_pp_variacao"].empty else "")
     _col_b1, _col_b2 = st.columns(2)
     with _col_b1:
-        if st.button(
-            "🎯 Recomendador IA",
-            use_container_width=True,
-            type="primary" if _modo_atual == "🎯 Recomendador IA" else "secondary",
-            key="btn_recomendador",
-            help="Melhor posto por custo, qualidade e confiabilidade — baseado em histórico e comportamento da frota",
-        ):
-            st.session_state["modo_selecionado"] = "🎯 Recomendador IA"
-            _log_acesso("MODO_SELECIONADO", "🎯 Recomendador IA", modo_override="🎯 Recomendador IA")
-            st.rerun()
+        if _auth_tem_permissao("aba_recomendador"):
+            if st.button(
+                "🎯 Recomendador IA",
+                use_container_width=True,
+                type="primary" if _modo_atual == "🎯 Recomendador IA" else "secondary",
+                key="btn_recomendador",
+                help="Melhor posto por custo, qualidade e confiabilidade",
+            ):
+                st.session_state["modo_selecionado"] = "🎯 Recomendador IA"
+                _log_acesso("MODO_SELECIONADO", "🎯 Recomendador IA", modo_override="🎯 Recomendador IA")
+                st.rerun()
     with _col_b2:
-        if st.button(
-            f"💹 Variação de Preços{_var_badge_sb}",
-            use_container_width=True,
-            type="primary" if _modo_atual == "💹 Variação de Preços" else "secondary",
-            key="btn_variacao_precos",
-            help="Compara nova carga de preços com a anterior — detecta altas, quedas e novos postos",
-        ):
-            st.session_state["modo_selecionado"] = "💹 Variação de Preços"
-            _log_acesso("MODO_SELECIONADO", "💹 Variação de Preços",
-                        modo_override="💹 Variação de Preços")
-            st.rerun()
+        if _auth_tem_permissao("aba_variacao_precos"):
+            if st.button(
+                f"💹 Variação de Preços{_var_badge_sb}",
+                use_container_width=True,
+                type="primary" if _modo_atual == "💹 Variação de Preços" else "secondary",
+                key="btn_variacao_precos",
+                help="Compara nova carga de preços com a anterior — detecta altas, quedas e novos postos",
+            ):
+                st.session_state["modo_selecionado"] = "💹 Variação de Preços"
+                _log_acesso("MODO_SELECIONADO", "💹 Variação de Preços",
+                            modo_override="💹 Variação de Preços")
+                st.rerun()
 
     # ── Linha 5: Análise de Cliente · Relatórios (2 cols) ───────────
     _col_c1, _col_c2 = st.columns(2)
     with _col_c1:
-        if st.button(
-            "👥 Análise de Cliente",
-            use_container_width=True,
-            type="primary" if _modo_atual == "👥 Análise de Cliente" else "secondary",
-            key="btn_analise_cliente",
-            help="Análise de abastecimentos e custos da frota do cliente",
-        ):
-            st.session_state["modo_selecionado"] = "👥 Análise de Cliente"
-            _log_acesso("MODO_SELECIONADO", "👥 Análise de Cliente", modo_override="👥 Análise de Cliente")
-            st.rerun()
+        if _auth_tem_permissao("aba_analise_cliente"):
+            if st.button(
+                "👥 Análise de Cliente",
+                use_container_width=True,
+                type="primary" if _modo_atual == "👥 Análise de Cliente" else "secondary",
+                key="btn_analise_cliente",
+                help="Análise de abastecimentos e custos da frota do cliente",
+            ):
+                st.session_state["modo_selecionado"] = "👥 Análise de Cliente"
+                _log_acesso("MODO_SELECIONADO", "👥 Análise de Cliente",
+                            modo_override="👥 Análise de Cliente")
+                st.rerun()
     with _col_c2:
-        if st.button(
-            "📑 Relatórios",
-            use_container_width=True,
-            type="primary" if _modo_atual == "📑 Relatórios" else "secondary",
-            key="btn_relatorios",
-            help="Relatórios executivos, oportunidades comerciais e performance por posto",
-        ):
-            st.session_state["modo_selecionado"] = "📑 Relatórios"
-            _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
-            st.rerun()
+        if _auth_tem_permissao("aba_relatorios"):
+            if st.button(
+                "📑 Relatórios",
+                use_container_width=True,
+                type="primary" if _modo_atual == "📑 Relatórios" else "secondary",
+                key="btn_relatorios",
+                help="Relatórios executivos, oportunidades comerciais e performance por posto",
+            ):
+                st.session_state["modo_selecionado"] = "📑 Relatórios"
+                _log_acesso("MODO_SELECIONADO", "📑 Relatórios", modo_override="📑 Relatórios")
+                st.rerun()
 
     modo = _modo_atual
     st.divider()
@@ -14309,28 +14614,29 @@ with st.sidebar:
             st.session_state["modo_selecionado"] = "⚡ API & Integrações"
             _log_acesso("MODO_SELECIONADO", "⚡ API & Integrações", modo_override="⚡ API & Integrações")
             st.rerun()
-    if _email_atual.lower() == _ADMIN_EMAIL.lower():
+    if _auth_tem_permissao("aba_admin"):
         with _col_adm:
             if st.button(
                 "🛡️ Admin",
                 use_container_width=True,
                 type="primary" if _modo_atual == "🛡️ Admin" else "secondary",
                 key="btn_admin",
-                help="Painel de controle de acesso de usuários",
+                help="Painel de controle: usuários, permissões e acesso",
             ):
                 st.session_state["modo_selecionado"] = "🛡️ Admin"
                 st.rerun()
 
-    if st.button(
-        "🛰️ Telemetria",
-        use_container_width=True,
-        type="primary" if _modo_atual == "🛰️ Telemetria" else "secondary",
-        key="btn_telemetria",
-        help="Integração com telemetria de veículos — consumo real, abastecimentos e alertas",
-    ):
-        st.session_state["modo_selecionado"] = "🛰️ Telemetria"
-        _log_acesso("MODO_SELECIONADO", "🛰️ Telemetria", modo_override="🛰️ Telemetria")
-        st.rerun()
+    if _auth_tem_permissao("aba_telemetria"):
+        if st.button(
+            "🛰️ Telemetria",
+            use_container_width=True,
+            type="primary" if _modo_atual == "🛰️ Telemetria" else "secondary",
+            key="btn_telemetria",
+            help="Integração com telemetria de veículos — consumo real, abastecimentos e alertas",
+        ):
+            st.session_state["modo_selecionado"] = "🛰️ Telemetria"
+            _log_acesso("MODO_SELECIONADO", "🛰️ Telemetria", modo_override="🛰️ Telemetria")
+            st.rerun()
 
     # ── Botão de recarga de página ───────────────────────────────────
     if st.button(
@@ -25006,12 +25312,27 @@ elif modo == "💡 Inteligência":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🛡️ Admin":
-    _email_admin_check = (st.session_state.get("_auth_user") or {}).get("email", "")
-    if _email_admin_check.lower() != _ADMIN_EMAIL.lower():
-        st.error("🚫 Acesso restrito ao administrador.")
+    if not _auth_tem_permissao("aba_admin"):
+        st.error("🚫 Acesso restrito a administradores.")
         st.stop()
 
     st.markdown("## 🔐 Painel de Administração")
+
+    _adm_tab_users, _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs = st.tabs([
+        "👥 Perfis & Permissões",
+        "🏢 Empresas & Usuários",
+        "🔑 Controle de Acesso",
+        "📋 Logs de Atividade",
+    ])
+
+    # ══════════════════════════════════════════════════════════════
+    #  ABA 0 — PERFIS & PERMISSÕES (usuarios_app)
+    # ══════════════════════════════════════════════════════════════
+    with _adm_tab_users:
+        _render_admin_usuarios()
+
+    # Reatribuir tabs para o código original que usa variáveis antigas
+    _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs = _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs
 
     _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs = st.tabs([
         "🏢 Empresas & Usuários",
@@ -27714,6 +28035,14 @@ elif modo == "👥 Análise de Cliente":
         else:
             st.warning("Nenhum dado salvo no banco ainda. Carregue um arquivo primeiro.")
 
+    # ── Filtro de segurança: usuário externo vê apenas seus dados ──
+    if _df_abast is not None and not _df_abast.empty:
+        _perfil_ab = _auth_perfil()
+        if _perfil_ab == "gestor_frota":
+            _df_abast = _auth_filtrar_df(_df_abast, "_cnpj_frota")
+        elif _perfil_ab == "posto":
+            _df_abast = _auth_filtrar_df(_df_abast, "_cnpj_posto")
+
     # ═══════ ANÁLISES (só se há dados) ═══════════════════════════
     if _df_abast is not None and len(_df_abast) > 0:
         # persiste referência no session_state para outras seções (ex: Relatórios FIPE)
@@ -29917,6 +30246,10 @@ elif modo == "📑 Relatórios":
                 })
 
         _re_df = pd.DataFrame(_re_rows) if _re_rows else pd.DataFrame()
+
+        # Posto só vê seus próprios dados de preço no relatório
+        if not _re_df.empty and _auth_perfil() == "posto":
+            _re_df = _auth_filtrar_df(_re_df, "cnpj")
 
         if _re_df.empty:
             st.info(
