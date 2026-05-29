@@ -13382,7 +13382,10 @@ with st.sidebar:
             key="btn_logout",
             help="Encerrar sessão e voltar ao login",
         ):
-            st.session_state["_auth_user"] = None
+            for _k in [k for k in st.session_state
+                       if k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
+                                        "_admin_empresa", "_github_sync", "_mfa"))]:
+                del st.session_state[_k]
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
 
@@ -14068,14 +14071,7 @@ with st.sidebar:
             f"</div>",
             unsafe_allow_html=True,
         )
-        if st.button("🚪 Sair", use_container_width=True, key="btn_sidebar_logout",
-                     help="Encerrar sessão"):
-            # Limpa estado de autenticação
-            for _k in [k for k in st.session_state
-                       if k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
-                                        "_admin_empresa", "_github_sync"))]:
-                del st.session_state[_k]
-            st.rerun()
+
 
     _col_m1, _col_m2, _col_m3 = st.columns(3)
     with _col_m1:
