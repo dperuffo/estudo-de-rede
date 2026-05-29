@@ -4189,7 +4189,7 @@ def _profrotas_sync(cnpj_frota: str, token: str,
             novo_token = _novo
 
         if not isinstance(data, dict):
-            return pagina, total_salvos, novo_token, "", total_items or 0, f"Resposta inválida: {str(data)[:100]}", total_items or 0
+            return pagina, total_salvos, novo_token, f"Resposta inválida: {str(data)[:100]}", total_items or 0, total_items or 0
 
         registros = data.get("registros") or []
         if total_items is None:
@@ -4282,7 +4282,7 @@ def _profrotas_sync(cnpj_frota: str, token: str,
     except Exception:
         pass
 
-    return pagina, total_salvos, novo_token
+    return pagina, total_salvos, novo_token, "", total_items or 0
 
 
 def _profrotas_carregar_abast(cnpj_frota: str | None = None,
