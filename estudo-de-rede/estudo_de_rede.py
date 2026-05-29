@@ -227,7 +227,7 @@ def _mfa_verificar_codigo(segredo: str, codigo: str) -> bool:
     try:
         import pyotp as _pyotp
         totp = _pyotp.TOTP(segredo)
-        return totp.verify(str(codigo).strip(), valid_window=1)
+        return totp.verify(str(codigo).strip(), valid_window=2)
     except Exception:
         return False
 
@@ -3705,15 +3705,18 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_perfil"):
             _mfa_render_tela_verificacao(_email_mfa, _mfa_sec)
             st.stop()
         else:
-            # Sem segredo → setup obrigatório: gera e exibe QR para configurar agora
-            # (admin/analista/gestor/posto sem 2FA configurado devem configurar no 1º acesso)
-            _novo_seg = _mfa_gerar_segredo()
-            _mfa_salvar_no_db(_email_mfa, _novo_seg, True)
-            if "_auth_usuario_db" not in st.session_state:
-                st.session_state["_auth_usuario_db"] = {}
-            st.session_state["_auth_usuario_db"]["mfa_secret"]    = _novo_seg
-            st.session_state["_auth_usuario_db"]["mfa_habilitado"] = True
-            _mfa_render_setup_inicial(_email_mfa, _novo_seg)
+            # Sem segredo → setup obrigatório na 1ª vez
+            # Usa segredo já gerado na sessão (evita gerar novo a cada rerun)
+            _seg_sessao = st.session_state.get("_mfa_setup_secret_tmp")
+            if not _seg_sessao:
+                _seg_sessao = _mfa_gerar_segredo()
+                st.session_state["_mfa_setup_secret_tmp"] = _seg_sessao
+                _mfa_salvar_no_db(_email_mfa, _seg_sessao, True)
+                if "_auth_usuario_db" not in st.session_state:
+                    st.session_state["_auth_usuario_db"] = {}
+                st.session_state["_auth_usuario_db"]["mfa_secret"]     = _seg_sessao
+                st.session_state["_auth_usuario_db"]["mfa_habilitado"] = True
+            _mfa_render_setup_inicial(_email_mfa, _seg_sessao)
             st.stop()
 
 # ── Resolver empresa(s) do usuário logado ───────────────────────────
