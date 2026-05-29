@@ -547,32 +547,49 @@ def _render_admin_usuarios():
 
     # ── Formulário: Adicionar / Editar ────────────────────────────
     st.markdown("#### ➕ Adicionar / Editar Usuário")
+
+    # Seletor de perfil FORA do form para controlar campos dinamicamente
+    _u_perfil = st.selectbox("Perfil *", [
+        "posto", "gestor_frota", "analista", "admin"
+    ], format_func=lambda x: {
+        "admin":        "🔴 Admin (acesso total — sem CNPJ necessário)",
+        "analista":     "🟠 Analista Interno — sem CNPJ necessário",
+        "gestor_frota": "🟢 Gestor de Frota",
+        "posto":        "🔵 Posto / Rede",
+    }.get(x, x), key="form_perfil_sel")
+
+    _precisa_cnpj = _u_perfil in ("posto", "gestor_frota")
+
     with st.form("form_add_usuario", clear_on_submit=True):
         _c1, _c2 = st.columns(2)
         with _c1:
             _u_email   = st.text_input("E-mail Google *", placeholder="usuario@empresa.com")
             _u_nome    = st.text_input("Nome", placeholder="João Silva")
-            _u_perfil  = st.selectbox("Perfil *", [
-                "posto", "gestor_frota", "analista", "admin"
-            ], format_func=lambda x: {
-                "admin":        "🔴 Admin (acesso total)",
-                "analista":     "🟠 Analista Interno",
-                "gestor_frota": "🟢 Gestor de Frota",
-                "posto":        "🔵 Posto / Rede",
-            }.get(x, x))
+            st.markdown(
+                f"**Perfil selecionado:** { {'admin':'🔴 Admin','analista':'🟠 Analista','gestor_frota':'🟢 Gestor de Frota','posto':'🔵 Posto / Rede'}.get(_u_perfil,_u_perfil) }"
+            )
         with _c2:
-            _u_cnpj    = st.text_input("CNPJ Vinculado",
-                                       placeholder="Obrigatório para Posto e Gestor de Frota",
-                                       help="CNPJ do posto ou da empresa de frota (só dígitos ou formatado)")
-            _u_empresa = st.text_input("Nome da Empresa / Posto",
-                                       placeholder="Ex: Posto Central Ltda")
-            _u_ativo   = st.checkbox("Usuário ativo", value=True)
+            if _precisa_cnpj:
+                _u_cnpj    = st.text_input("CNPJ Vinculado *",
+                                           placeholder="CNPJ do posto ou empresa de frota",
+                                           help="Somente dígitos ou formatado (XX.XXX.XXX/XXXX-XX)")
+                _u_empresa = st.text_input("Nome da Empresa / Posto *",
+                                           placeholder="Ex: Posto Central Ltda")
+            else:
+                _u_cnpj    = ""
+                _u_empresa = ""
+                st.info(
+                    "🔓 Perfil **Admin** e **Analista** têm visão total da aplicação "
+                    "— CNPJ e empresa não são necessários.",
+                    icon="ℹ️",
+                )
+            _u_ativo = st.checkbox("Usuário ativo", value=True)
         _sub = st.form_submit_button("💾 Salvar Usuário", type="primary",
                                      use_container_width=True)
         if _sub:
             if not _u_email or "@" not in _u_email:
                 st.error("E-mail inválido.")
-            elif _u_perfil in ("posto", "gestor_frota") and not _u_cnpj:
+            elif _precisa_cnpj and not _u_cnpj:
                 st.error("CNPJ é obrigatório para Posto e Gestor de Frota.")
             else:
                 _ok, _msg = _admin_salvar_usuario(
