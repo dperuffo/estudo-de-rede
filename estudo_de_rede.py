@@ -244,14 +244,30 @@ def _mfa_gerar_qr_bytes(uri: str) -> bytes | None:
         return None
 
 def _mfa_salvar_no_db(email: str, segredo: str, habilitado: bool = True) -> bool:
-    """Persiste mfa_secret e mfa_habilitado na tabela usuarios_app."""
+    """
+    Persiste mfa_secret e mfa_habilitado na tabela usuarios_app.
+    Usa upsert para garantir que o registro exista (cria se necessário).
+    Armazena também em session_state como cache de sessão.
+    """
+    # Cache na sessão para uso imediato (independente do banco)
+    _udb = st.session_state.get("_auth_usuario_db", {})
+    _udb["mfa_secret"]    = segredo
+    _udb["mfa_habilitado"] = habilitado
+    st.session_state["_auth_usuario_db"] = _udb
+
     _db = _db_client()
     if _db is None:
         return False
     try:
+        # Upsert: cria o registro se não existir, atualiza se existir
         (_db.table("usuarios_app")
-            .update({"mfa_secret": segredo, "mfa_habilitado": habilitado})
-            .eq("email", email)
+            .upsert({
+                "email":          email,
+                "mfa_secret":     segredo if segredo else None,
+                "mfa_habilitado": habilitado,
+                "perfil":         st.session_state.get("_auth_perfil", "admin"),
+                "ativo":          True,
+            }, on_conflict="email")
             .execute())
         return True
     except Exception:
@@ -3653,18 +3669,21 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_perfil"):
     _email_mfa   = _udb.get("email", "")
 
     if _mfa_obrigatorio(_perfil_mfa) and not _mfa_verif:
-        if _mfa_hab and _mfa_sec:
-            # MFA ativo: pede o código
+        if _mfa_sec:
+            # Segredo existe → sempre pede o código (independente do flag mfa_habilitado)
             _mfa_render_tela_verificacao(_email_mfa, _mfa_sec)
             st.stop()
-        elif _mfa_hab and not _mfa_sec:
-            # MFA marcado como ativo mas sem segredo — gera novo e exibe setup
+        else:
+            # Sem segredo → setup obrigatório: gera e exibe QR para configurar agora
+            # (admin/analista/gestor/posto sem 2FA configurado devem configurar no 1º acesso)
             _novo_seg = _mfa_gerar_segredo()
             _mfa_salvar_no_db(_email_mfa, _novo_seg, True)
-            st.session_state["_auth_usuario_db"]["mfa_secret"] = _novo_seg
+            if "_auth_usuario_db" not in st.session_state:
+                st.session_state["_auth_usuario_db"] = {}
+            st.session_state["_auth_usuario_db"]["mfa_secret"]    = _novo_seg
+            st.session_state["_auth_usuario_db"]["mfa_habilitado"] = True
             _mfa_render_setup_inicial(_email_mfa, _novo_seg)
             st.stop()
-        # Se mfa_habilitado=False → permite acesso sem 2FA (admin ainda não configurou)
 
 # ── Resolver empresa(s) do usuário logado ───────────────────────────
 if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
