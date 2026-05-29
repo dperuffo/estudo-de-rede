@@ -223,11 +223,31 @@ def _mfa_uri(email: str, segredo: str) -> str:
                 f"?secret={segredo}&issuer={urllib.parse.quote(_MFA_ISSUER)}")
 
 def _mfa_verificar_codigo(segredo: str, codigo: str) -> bool:
-    """Verifica código TOTP de 6 dígitos. Aceita janela de ±1 intervalo (30 s)."""
+    """
+    Verifica código TOTP (RFC 6238) — implementação pura Python, sem pyotp.
+    Aceita janela de ±2 intervalos de 30s (tolerância de 60s de drift de relógio).
+    """
+    import hmac as _hmac, hashlib as _hl, struct as _st, time as _time, base64 as _b32
     try:
-        import pyotp as _pyotp
-        totp = _pyotp.TOTP(segredo)
-        return totp.verify(str(codigo).strip(), valid_window=2)
+        _code = str(codigo).strip().zfill(6)
+        # Decodifica segredo base32 (padding automático)
+        _pad = segredo.upper() + "=" * (-len(segredo) % 8)
+        _key = _b32.b32decode(_pad)
+        _now = int(_time.time()) // 30
+        for _offset in range(-2, 3):   # janela ±2 × 30s = ±60s
+            _msg = _st.pack(">Q", _now + _offset)
+            _h   = _hmac.new(_key, _msg, _hl.sha1).digest()
+            _o   = _h[-1] & 0x0F
+            _val = _st.unpack(">I", _h[_o:_o + 4])[0] & 0x7FFFFFFF
+            if f"{_val % 1_000_000:06d}" == _code:
+                return True
+        # Fallback: tenta pyotp se disponível
+        try:
+            import pyotp as _pyotp
+            return _pyotp.TOTP(segredo).verify(_code, valid_window=2)
+        except Exception:
+            pass
+        return False
     except Exception:
         return False
 
@@ -425,8 +445,10 @@ def _mfa_render_setup_inicial(email: str, segredo: str):
             if not _codigo_setup or len(_codigo_setup.strip()) != 6:
                 st.error("Digite os 6 dígitos exibidos no app.")
             elif _mfa_verificar_codigo(segredo, _codigo_setup):
-                st.session_state["_auth_mfa_verificado"] = True
-                st.success("✅ 2FA configurado! Redirecionando...")
+                # Setup OK: marca como verificado e limpa tmp para não regenerar
+                st.session_state["_auth_mfa_verificado"]  = True
+                st.session_state.pop("_mfa_setup_secret_tmp", None)
+                st.session_state["_mfa_tentativas"]       = 0
                 st.rerun()
             else:
                 st.error("❌ Código inválido. Aguarde o próximo código (30s) e tente novamente.")
