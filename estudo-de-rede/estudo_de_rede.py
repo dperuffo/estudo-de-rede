@@ -84,6 +84,201 @@ def _db_email() -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  SEGURANÇA — OWASP Top 10 Controls
+#  A01 Broken Access Control  → _auth_tem_permissao() + _auth_filtrar_df()
+#  A03 Injection              → _sec_sanitizar() + Supabase SDK (parameterizado)
+#  A04 Insecure Design        → _sec_rate_limit() + session timeout
+#  A07 Auth Failures          → rate limit MFA/login + lockout temporal
+#  A09 Security Logging       → _sec_log_evento() → Supabase security_logs
+# ═══════════════════════════════════════════════════════════════════
+
+import html as _html_mod
+
+# ── A07 / Rate Limiting ──────────────────────────────────────────
+_SEC_RATE_LIMITS: dict[str, dict] = {
+    "mfa_verify":    {"max": 5,  "window": 300},   # 5 tentativas / 5 min
+    "mfa_setup":     {"max": 10, "window": 300},   # 10 tentativas / 5 min
+    "login_attempt": {"max": 10, "window": 600},   # 10 tentativas / 10 min
+    "admin_action":  {"max": 50, "window": 60},    # 50 ações admin / min
+    "export":        {"max": 20, "window": 60},    # 20 exports / min
+}
+
+def _sec_rate_limit(chave: str, operacao: str = "default") -> tuple[bool, int]:
+    """
+    Verifica rate limit para uma operação.
+    Retorna (permitido: bool, segundos_bloqueado: int).
+    Armazena contadores em session_state com TTL automático.
+    """
+    _cfg    = _SEC_RATE_LIMITS.get(operacao, {"max": 20, "window": 60})
+    _max    = _cfg["max"]
+    _window = _cfg["window"]
+    _key    = f"_sec_rl_{operacao}_{chave}"
+    _now    = time.time()
+
+    _entry = st.session_state.get(_key, {"count": 0, "window_start": _now, "blocked_until": 0})
+
+    # Verifica bloqueio ativo
+    if _entry["blocked_until"] > _now:
+        return False, int(_entry["blocked_until"] - _now)
+
+    # Reinicia janela se expirou
+    if _now - _entry["window_start"] > _window:
+        _entry = {"count": 0, "window_start": _now, "blocked_until": 0}
+
+    _entry["count"] += 1
+    if _entry["count"] > _max:
+        _entry["blocked_until"] = _now + _window
+        st.session_state[_key] = _entry
+        _sec_log_evento("RATE_LIMIT", f"Operação '{operacao}' bloqueada para '{chave}'", "WARN")
+        return False, _window
+
+    st.session_state[_key] = _entry
+    return True, 0
+
+def _sec_reset_rate_limit(chave: str, operacao: str = "default"):
+    """Reseta contador de rate limit após sucesso (ex: login bem-sucedido)."""
+    st.session_state.pop(f"_sec_rl_{operacao}_{chave}", None)
+
+# ── A03 / Input Validation & Sanitization ───────────────────────
+def _sec_sanitizar(texto: str, max_len: int = 500, permitir_html: bool = False) -> str:
+    """
+    Sanitiza entrada de texto:
+    - Remove/escapa HTML para prevenir XSS
+    - Limita comprimento
+    - Remove caracteres de controle
+    """
+    if not isinstance(texto, str):
+        texto = str(texto) if texto is not None else ""
+    # Remove caracteres de controle (exceto tab e newline)
+    texto = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", texto)
+    # Limita comprimento
+    texto = texto[:max_len]
+    # Escapa HTML se não permitido
+    if not permitir_html:
+        texto = _html_mod.escape(texto)
+    return texto.strip()
+
+def _sec_validar_email(email: str) -> tuple[bool, str]:
+    """Valida formato de e-mail. Retorna (válido, mensagem)."""
+    email = email.strip().lower() if email else ""
+    if not email:
+        return False, "E-mail obrigatório."
+    if len(email) > 254:
+        return False, "E-mail muito longo (máx 254 caracteres)."
+    _pat = r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
+    if not re.match(_pat, email):
+        return False, "Formato de e-mail inválido."
+    # Bloqueia domínios temporários conhecidos (lista mínima)
+    _blocked = {"mailinator.com", "tempmail.com", "guerrillamail.com", "10minutemail.com"}
+    _domain = email.split("@")[-1]
+    if _domain in _blocked:
+        return False, "Domínio de e-mail temporário não permitido."
+    return True, ""
+
+def _sec_validar_cnpj(cnpj: str) -> tuple[bool, str]:
+    """Valida CNPJ com dígitos verificadores. Retorna (válido, mensagem)."""
+    if not cnpj:
+        return False, "CNPJ obrigatório."
+    _d = re.sub(r"\D", "", str(cnpj))
+    if len(_d) != 14:
+        return False, "CNPJ deve ter 14 dígitos."
+    if len(set(_d)) == 1:
+        return False, "CNPJ inválido (dígitos repetidos)."
+    # Cálculo dos dígitos verificadores
+    def _calc(digits, weights):
+        s = sum(int(d) * w for d, w in zip(digits, weights))
+        r = s % 11
+        return 0 if r < 2 else 11 - r
+    _w1 = [5,4,3,2,9,8,7,6,5,4,3,2]
+    _w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2]
+    if _calc(_d[:12], _w1) != int(_d[12]):
+        return False, "CNPJ inválido (dígito verificador)."
+    if _calc(_d[:13], _w2) != int(_d[13]):
+        return False, "CNPJ inválido (dígito verificador)."
+    return True, ""
+
+def _sec_validar_upload(nome_arquivo: str, tamanho_bytes: int,
+                        tipos_permitidos: list[str] | None = None,
+                        tamanho_max_mb: float = 50.0) -> tuple[bool, str]:
+    """
+    Valida arquivo de upload:
+    - Extensão permitida
+    - Tamanho máximo
+    - Nome sem path traversal
+    """
+    if not nome_arquivo:
+        return False, "Nome de arquivo inválido."
+    # Previne path traversal
+    _nome = os.path.basename(nome_arquivo).strip()
+    if ".." in _nome or "/" in _nome or "\\" in _nome:
+        return False, "Nome de arquivo inválido."
+    # Verifica extensão
+    _ext = _nome.rsplit(".", 1)[-1].lower() if "." in _nome else ""
+    _tipos = tipos_permitidos or ["xlsx", "xls", "csv", "pdf", "png", "jpg", "jpeg"]
+    if _ext not in _tipos:
+        return False, f"Tipo de arquivo não permitido. Permitidos: {', '.join(_tipos)}"
+    # Verifica tamanho
+    _max_bytes = tamanho_max_mb * 1024 * 1024
+    if tamanho_bytes > _max_bytes:
+        return False, f"Arquivo muito grande (máx {tamanho_max_mb:.0f} MB)."
+    return True, ""
+
+# ── A04 / Session Timeout ────────────────────────────────────────
+_SEC_SESSION_TIMEOUT_H = 8   # horas de inatividade → logout automático
+
+def _sec_verificar_timeout_sessao() -> bool:
+    """
+    Verifica timeout de inatividade da sessão.
+    Retorna True se sessão ainda válida, False se expirada (e faz logout).
+    """
+    if not st.session_state.get("_auth_perfil"):
+        return True  # não autenticado — sem timeout a aplicar
+    _ts = st.session_state.get("_last_activity_ts")
+    _now = time.time()
+    if _ts and (_now - _ts) > (_SEC_SESSION_TIMEOUT_H * 3600):
+        _sec_log_evento("SESSION_TIMEOUT",
+                        f"Sessão expirada por inatividade ({_SEC_SESSION_TIMEOUT_H}h)",
+                        "INFO")
+        for _k in [k for k in st.session_state
+                   if k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
+                                    "_admin_empresa", "_github_sync", "_mfa"))]:
+            del st.session_state[_k]
+        st.session_state.pop("_last_activity_ts", None)
+        return False
+    # Atualiza timestamp a cada interação
+    st.session_state["_last_activity_ts"] = _now
+    return True
+
+# ── A09 / Security Audit Log ─────────────────────────────────────
+def _sec_log_evento(tipo: str, descricao: str, nivel: str = "INFO"):
+    """
+    Registra evento de segurança no Supabase (tabela security_logs).
+    Silencioso em caso de falha — nunca bloqueia o fluxo principal.
+    tipos: LOGIN_OK | LOGIN_FAIL | MFA_OK | MFA_FAIL | RATE_LIMIT |
+           PERM_DENIED | SESSION_TIMEOUT | ADMIN_ACTION | DATA_EXPORT
+    níveis: INFO | WARN | ERROR
+    """
+    try:
+        _db = _db_client()
+        if _db is None:
+            return
+        _email = ""
+        try:
+            _email = (st.session_state.get("_auth_user") or {}).get("email", "") or                      st.session_state.get("_auth_usuario_db", {}).get("email", "")
+        except Exception:
+            pass
+        _db.table("security_logs").insert({
+            "tipo":      tipo[:50],
+            "nivel":     nivel[:10],
+            "email":     _email[:254],
+            "descricao": str(descricao)[:500],
+            "ip_hint":   "",   # Streamlit Cloud não expõe IP diretamente
+            "ts":        datetime.now().isoformat(),
+        }).execute()
+    except Exception:
+        pass  # Log nunca deve travar o app
+
+# ═══════════════════════════════════════════════════════════════════
 #  AUTENTICAÇÃO — Google SSO via Supabase Auth
 # ═══════════════════════════════════════════════════════════════════
 
@@ -116,10 +311,15 @@ _PERMISSOES: dict[str, set] = {
 }
 
 
-def _auth_tem_permissao(funcionalidade: str) -> bool:
+def _auth_tem_permissao(funcionalidade: str, _log_deny: bool = False) -> bool:
     """Retorna True se o usuário logado tem permissão para a funcionalidade."""
     _perfil = st.session_state.get("_auth_perfil", "")
-    return _perfil in _PERMISSOES.get(funcionalidade, set())
+    _ok = _perfil in _PERMISSOES.get(funcionalidade, set())
+    if not _ok and _log_deny and _perfil:
+        _sec_log_evento("PERM_DENIED",
+                        f"Acesso negado: perfil='{_perfil}' func='{funcionalidade}'",
+                        "WARN")
+    return _ok
 
 
 def _auth_perfil() -> str:
@@ -359,22 +559,21 @@ def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
     if _btn_ok:
         if not _codigo or len(_codigo.strip()) != 6:
             st.error("Digite os 6 dígitos do código.")
-        elif _mfa_verificar_codigo(segredo, _codigo):
-            st.session_state["_auth_mfa_verificado"] = True
-            st.rerun()
-            return True
         else:
-            st.error("❌ Código inválido ou expirado. Tente novamente.")
-            # controla tentativas para evitar brute-force
-            _tent = st.session_state.get("_mfa_tentativas", 0) + 1
-            st.session_state["_mfa_tentativas"] = _tent
-            if _tent >= 5:
-                st.warning("🚫 Muitas tentativas. Faça login novamente.")
-                for _k in list(st.session_state.keys()):
-                    if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
-                                       "_admin_empresa", "_github_sync", "_mfa")):
-                        del st.session_state[_k]
+            # A07: Rate limiting nas tentativas de verificação MFA
+            _rl_ok, _rl_wait = _sec_rate_limit(segredo[:8], "mfa_verify")
+            if not _rl_ok:
+                st.error(f"🚫 Muitas tentativas incorretas. Aguarde {_rl_wait}s antes de tentar novamente.")
+                _sec_log_evento("MFA_FAIL", "Rate limit MFA atingido", "WARN")
+            elif _mfa_verificar_codigo(segredo, _codigo):
+                _sec_reset_rate_limit(segredo[:8], "mfa_verify")
+                _sec_log_evento("MFA_OK", "Verificação MFA bem-sucedida", "INFO")
+                st.session_state["_auth_mfa_verificado"] = True
                 st.rerun()
+                return True
+            else:
+                _sec_log_evento("MFA_FAIL", "Código TOTP inválido", "WARN")
+                st.error("❌ Código inválido ou expirado. Tente novamente.")
     st.markdown("</div>", unsafe_allow_html=True)
     return False
 
@@ -672,15 +871,23 @@ def _render_admin_usuarios():
         _sub = st.form_submit_button("💾 Salvar Usuário", type="primary",
                                      use_container_width=True)
         if _sub:
-            if not _u_email or "@" not in _u_email:
-                st.error("E-mail inválido.")
-            elif _precisa_cnpj and not _u_cnpj:
-                st.error("CNPJ é obrigatório para Posto e Gestor de Frota.")
+            _email_ok, _email_err = _sec_validar_email(_u_email)
+            _cnpj_ok  = True
+            _cnpj_err = ""
+            if _precisa_cnpj:
+                _cnpj_ok, _cnpj_err = _sec_validar_cnpj(_u_cnpj)
+            if not _email_ok:
+                st.error(f"E-mail inválido: {_email_err}")
+            elif _precisa_cnpj and not _cnpj_ok:
+                st.error(f"CNPJ inválido: {_cnpj_err}")
             else:
                 _ok, _msg = _admin_salvar_usuario(
                     _u_email, _u_nome, _u_perfil, _u_cnpj, _u_empresa, _u_ativo
                 )
                 if _ok:
+                    _sec_log_evento("ADMIN_ACTION",
+                                    f"Usuário salvo: {_sec_sanitizar(_u_email)} perfil={_u_perfil}",
+                                    "INFO")
                     st.success(_msg)
                     st.rerun()
                 else:
@@ -3711,6 +3918,11 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
                 # E-mail autenticado mas sem perfil cadastrado → trata como 'viewer' restrito
                 st.session_state["_auth_perfil"]         = "viewer"
                 st.session_state["_auth_cnpj_vinculado"] = None
+
+# ── A04: Verificar timeout de sessão por inatividade ────────────────
+if not _sec_verificar_timeout_sessao():
+    st.warning("⏱️ Sua sessão expirou por inatividade. Por favor, faça login novamente.")
+    st.rerun()
 
 # ── Interceptar para verificação MFA (se ainda não verificado) ───────
 if _OAUTH_ATIVO and st.session_state.get("_auth_perfil"):
