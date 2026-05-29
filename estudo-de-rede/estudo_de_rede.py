@@ -168,6 +168,7 @@ def _auth_carregar_usuario_db(email: str) -> dict | None:
     """
     Busca o perfil do usuário na tabela usuarios_app pelo e-mail.
     Retorna dict com {perfil, cnpj_vinculado, empresa_nome, ativo} ou None.
+    Silencioso se a tabela ainda não foi criada no Supabase.
     """
     _db = _db_client()
     if _db is None:
@@ -180,7 +181,11 @@ def _auth_carregar_usuario_db(email: str) -> dict | None:
                    .limit(1)
                    .execute())
         return _res.data[0] if _res.data else None
-    except Exception:
+    except Exception as _e:
+        # Tabela ainda não criada (42P01) ou outro erro de banco — ignora silenciosamente
+        _err_str = str(_e)
+        if "42P01" not in _err_str and "PGRST205" not in _err_str:
+            pass  # outros erros também ignorados para não travar o login
         return None
 
 
@@ -398,11 +403,19 @@ def _admin_listar_usuarios() -> list[dict]:
         return []
     try:
         _r = (_db.table("usuarios_app")
-                  .select("id,email,nome,perfil,cnpj_vinculado,empresa_nome,ativo,created_at")
+                  .select("id,email,nome,perfil,cnpj_vinculado,empresa_nome,ativo,mfa_habilitado,created_at")
                   .order("created_at", desc=True)
                   .execute())
         return _r.data or []
-    except Exception:
+    except Exception as _e:
+        _err = str(_e)
+        if "42P01" in _err or "PGRST205" in _err or "usuarios_app" in _err:
+            st.warning(
+                "⚠️ A tabela **usuarios_app** ainda não foi criada no Supabase. "
+                "Execute o arquivo **`setup_completo.sql`** no SQL Editor do Supabase Dashboard "
+                "para ativar o sistema de usuários.",
+                icon="🗄️",
+            )
         return []
 
 
@@ -426,7 +439,10 @@ def _admin_salvar_usuario(email: str, nome: str, perfil: str,
             .execute())
         return True, f"Usuário {email} salvo com sucesso."
     except Exception as _e:
-        return False, str(_e)
+        _emsg = str(_e)
+        if "42P01" in _emsg or "PGRST205" in _emsg or "usuarios_app" in _emsg:
+            return False, "Tabela usuarios_app não encontrada. Execute setup_completo.sql no Supabase."
+        return False, _emsg
 
 
 def _admin_excluir_usuario(email: str) -> tuple[bool, str]:
