@@ -4055,6 +4055,76 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             st.stop()
 
 
+def _profrotas_para_df_analise(cnpj_frota: str | None = None,
+                                dias: int = 180) -> "pd.DataFrame":
+    """Converte dados do GestãoFrotas (profrotas_abastecimentos) para o
+    formato normalizado usado pela Análise de Cliente e Relatórios.
+
+    Colunas de saída: _placa, _data, _hora, _produto, _litros, _preco_litro,
+    _valor_total, _motorista, _cnpj_posto, _nome_posto, _cidade_posto, _uf_posto,
+    _hod_atual, _cnpj_frota, _fonte
+    """
+    _df_raw = _profrotas_carregar_abast(cnpj_frota, dias)
+    if _df_raw.empty:
+        return pd.DataFrame()
+
+    import numpy as _np2
+
+    def _safe_f(v):
+        try:
+            f = float(v)
+            return None if (_np2.isnan(f) or _np2.isinf(f)) else f
+        except Exception:
+            return None
+
+    rows = []
+    for _, r in _df_raw.iterrows():
+        _dt = pd.to_datetime(r.get("data_abastecimento"), errors="coerce")
+        rows.append({
+            "_id_transacao":  r.get("identificador"),
+            "_data":          _dt.date() if _dt is not pd.NaT else None,
+            "_hora":          _dt.strftime("%H:%M") if _dt is not pd.NaT else "",
+            "_cnpj_frota":    str(r.get("cnpj_frota", "") or ""),
+            "_razao_frota":   str(r.get("frota_razao_social", "") or ""),
+            "_placa":         str(r.get("veiculo_placa", "") or "").upper().strip(),
+            "_tipo_veiculo":  "",
+            "_motorista":     str(r.get("motorista_nome", "") or ""),
+            "_produto":       str(r.get("item_nome", "") or ""),
+            "_litros":        _safe_f(r.get("item_quantidade")),
+            "_preco_litro":   _safe_f(r.get("item_valor_unitario")),
+            "_valor_comb":    _safe_f(r.get("item_valor_total")),
+            "_valor_total":   _safe_f(r.get("item_valor_total")),
+            "_hod_atual":     _safe_f(r.get("hodometro")),
+            "_hod_anterior":  None,
+            "_km_perc":       None,
+            "_media_km_l":    None,
+            "_cnpj_posto":    str(r.get("pv_cnpj", "") or ""),
+            "_nome_posto":    str(r.get("pv_razao_social", "") or ""),
+            "_cidade_posto":  str(r.get("pv_municipio", "") or ""),
+            "_uf_posto":      str(r.get("pv_uf", "") or ""),
+            "_lat_posto":     _safe_f(r.get("pv_latitude")),
+            "_lon_posto":     _safe_f(r.get("pv_longitude")),
+            "_status":        str(r.get("status_autorizacao", "") or ""),
+            "_centro_custo":  "",
+            "_nome_arquivo":  "GestãoFrotas API",
+            "_fonte":         "gestaoFrotas",
+        })
+
+    df = pd.DataFrame(rows)
+
+    # Calcular km_percorrido e media_km_l por placa (ordenado por data+hodômetro)
+    if not df.empty and "_hod_atual" in df.columns:
+        df = df.sort_values(["_placa", "_data", "_hod_atual"], na_position="last")
+        df["_hod_anterior"] = df.groupby("_placa")["_hod_atual"].shift(1)
+        df["_km_perc"] = (df["_hod_atual"] - df["_hod_anterior"]).clip(lower=0)
+        mask = (df["_km_perc"] > 0) & (df["_litros"] > 0)
+        df.loc[mask, "_media_km_l"] = (df.loc[mask, "_km_perc"] / df.loc[mask, "_litros"]).round(2)
+        df = df.sort_values(["_data", "_placa"], ascending=[False, True])
+
+    return df
+
+
+
 # ═══════════════════════════════════════════════════════════════════
 #  PROFROTAS API — Integração de Abastecimentos
 # ═══════════════════════════════════════════════════════════════════
@@ -28943,17 +29013,45 @@ elif modo == "👥 Análise de Cliente":
             })
         return rows
 
-    # ── Fonte de dados: upload ou banco ───────────────────────────
+    # ── Fonte de dados: upload, banco ou GestãoFrotas ───────────
+    # Verificar se há chaves ProFrotas cadastradas
+    _pf_chaves_ac = _profrotas_listar_chaves()
+    _pf_src_opts  = ["📂 Carregar arquivo", "☁️ Dados salvos no banco"]
+    if _pf_chaves_ac:
+        _pf_src_opts.append("🔌 GestãoFrotas (API)")
+
     _src_opcao = st.radio(
         "Fonte dos dados:",
-        ["📂 Carregar arquivo", "☁️ Dados salvos no banco"],
+        _pf_src_opts,
         horizontal=True,
         key="frota_src_opcao",
     )
 
     _df_abast = None  # dataframe normalizado final
 
-    if _src_opcao == "📂 Carregar arquivo":
+    if _src_opcao == "🔌 GestãoFrotas (API)":
+        _pf_opts_ac = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c["cnpj_frota"]
+                       for c in _pf_chaves_ac}
+        _pf_opts_ac = {"Todos os clientes": None, **_pf_opts_ac}
+        _pf_col1, _pf_col2 = st.columns([2, 1])
+        with _pf_col1:
+            _pf_cli_ac = st.selectbox("Cliente GestãoFrotas",
+                                       list(_pf_opts_ac.keys()), key="ac_pf_cli")
+        with _pf_col2:
+            _pf_dias_ac = st.selectbox("Período", [30, 60, 90, 180, 365], index=2,
+                                        format_func=lambda x: f"{x} dias", key="ac_pf_dias")
+        with st.spinner("Carregando dados do GestãoFrotas..."):
+            _df_abast = _profrotas_para_df_analise(_pf_opts_ac[_pf_cli_ac], _pf_dias_ac)
+        if _df_abast is not None and not _df_abast.empty:
+            st.success(
+                f"🔌 **{len(_df_abast)}** registros do GestãoFrotas — "
+                f"**{_df_abast['_placa'].nunique()}** veículos · "
+                f"**{_pf_dias_ac}** dias"
+            )
+        else:
+            st.warning("Nenhum dado encontrado. Sincronize na aba **⚡ API & Integrações → GestãoFrotas**.")
+
+    elif _src_opcao == "📂 Carregar arquivo":
         _arq = st.file_uploader(
             "Selecione a planilha de abastecimentos (.xlsx / .csv)",
             type=["xlsx", "xls", "csv"],
@@ -29018,7 +29116,7 @@ elif modo == "👥 Análise de Cliente":
             except Exception as _ex_up:
                 st.error(f"❌ Erro ao ler arquivo: {_ex_up}")
 
-    else:  # banco
+    elif _src_opcao == "☁️ Dados salvos no banco":  # banco
         _rows_db = _db_carregar_abastecimentos()
         if _rows_db:
             _df_abast = _pd.DataFrame(_rows_db).rename(columns={
@@ -29065,7 +29163,9 @@ elif modo == "👥 Análise de Cliente":
     # ═══════ ANÁLISES (só se há dados) ═══════════════════════════
     if _df_abast is not None and len(_df_abast) > 0:
         # persiste referência no session_state para outras seções (ex: Relatórios FIPE)
-        st.session_state["_fipe_abast_df"] = _df_abast
+        st.session_state["_fipe_abast_df"]   = _df_abast
+        st.session_state["frota_abast_df"]   = _df_abast  # usado em Relatórios
+        st.session_state["abastecimentos_df"] = _df_abast  # compatibilidade
 
         # ── Formatador de CNPJ (usado aqui e no banner) ───────────
         def _fmt_cnpj(c: str) -> str:
@@ -32556,8 +32656,35 @@ elif modo == "📑 Relatórios":
             or st.session_state.get("frota_abast_df")
             or st.session_state.get("abastecimentos_df")
         )
+        # Opção de carregar do GestãoFrotas se não há dados em session_state
         if _rlt_abast_df is None or (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
-            st.info("Carregue dados de abastecimentos para visualizar as informações FIPE da frota.")
+            _pf_chaves_rlt = _profrotas_listar_chaves()
+            if _pf_chaves_rlt:
+                st.info("Nenhum dado de abastecimento em sessão. Carregue via **👥 Análise de Cliente** ou use o GestãoFrotas:", icon="ℹ️")
+                _pf_opts_rlt = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c["cnpj_frota"]
+                                for c in _pf_chaves_rlt}
+                _pf_opts_rlt = {"Todos": None, **_pf_opts_rlt}
+                _rc1, _rc2, _rc3 = st.columns([2, 1, 1])
+                with _rc1:
+                    _pf_cli_rlt = st.selectbox("Cliente GestãoFrotas",
+                                                list(_pf_opts_rlt.keys()), key="rlt_pf_cli")
+                with _rc2:
+                    _pf_dias_rlt = st.selectbox("Período", [30,60,90,180,365], index=2,
+                                                 format_func=lambda x: f"{x} dias", key="rlt_pf_dias")
+                with _rc3:
+                    st.write("")
+                    if st.button("🔌 Carregar GestãoFrotas", key="btn_rlt_pf",
+                                  use_container_width=True, type="primary"):
+                        with st.spinner("Carregando..."):
+                            _rlt_abast_df = _profrotas_para_df_analise(
+                                _pf_opts_rlt[_pf_cli_rlt], _pf_dias_rlt)
+                        if _rlt_abast_df is not None and not _rlt_abast_df.empty:
+                            st.session_state["_fipe_abast_df"] = _rlt_abast_df
+                            st.rerun()
+                        else:
+                            st.warning("Nenhum dado encontrado.")
+            else:
+                st.info("Carregue dados de abastecimentos na seção **👥 Análise de Cliente**.")
         else:
             _fipe_cache_rlt = st.session_state.get(
                 "fipe_relatorio_cache_fipe",
