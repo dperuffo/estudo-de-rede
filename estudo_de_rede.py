@@ -4295,21 +4295,32 @@ def _profrotas_sync(cnpj_frota: str, token: str,
 
 def _profrotas_carregar_abast(cnpj_frota: str | None = None,
                                dias: int = 90) -> "pd.DataFrame":
-    """Carrega abastecimentos do Supabase, opcionalmente filtrado por CNPJ."""
+    """Carrega abastecimentos do Supabase com paginação (sem limite de 1000)."""
     import datetime as _dt
     _db = _db_client()
     if not _db:
         return pd.DataFrame()
     try:
         desde = (_dt.datetime.utcnow() - _dt.timedelta(days=dias)).isoformat()
-        q = (_db.table("profrotas_abastecimentos")
-             .select("*")
-             .gte("data_abastecimento", desde)
-             .order("data_abastecimento", desc=True))
-        if cnpj_frota:
-            q = q.eq("cnpj_frota", cnpj_frota)
-        r = q.limit(5000).execute()
-        return pd.DataFrame(r.data or [])
+        todos = []
+        _page_size = 1000
+        _offset = 0
+        while True:
+            q = (_db.table("profrotas_abastecimentos")
+                 .select("*")
+                 .gte("data_abastecimento", desde)
+                 .order("data_abastecimento", desc=True)
+                 .limit(_page_size)
+                 .offset(_offset))
+            if cnpj_frota:
+                q = q.eq("cnpj_frota", cnpj_frota)
+            r = q.execute()
+            batch = r.data or []
+            todos.extend(batch)
+            if len(batch) < _page_size:
+                break
+            _offset += _page_size
+        return pd.DataFrame(todos)
     except Exception:
         return pd.DataFrame()
 
