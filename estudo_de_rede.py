@@ -4064,26 +4064,38 @@ _PROFROTAS_PESQ = f"{_PROFROTAS_API}/frotista/abastecimento/pesquisa"
 _PROFROTAS_PAGE_SIZE = 100   # registros por página
 
 
-def _profrotas_request(token: str, payload: dict) -> tuple[dict | None, str | None]:
-    """POST autenticado na API ProFrotas.
+def _profrotas_request(token: str, payload: dict,
+                        _retry: int = 3) -> tuple[dict | None, str | None]:
+    """POST autenticado na API ProFrotas com retry automático em 429/5xx.
     Retorna (data_dict, novo_token_ou_None) ou levanta exceção com mensagem.
     """
-    import urllib.request, urllib.error, json as _json, ssl as _ssl
+    import urllib.request, urllib.error, json as _json, ssl as _ssl, time as _time
     ctx = _ssl.create_default_context()
     body = _json.dumps(payload).encode()
-    req = urllib.request.Request(_PROFROTAS_PESQ, data=body, method="POST")
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Accept", "application/json")
-    try:
-        with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
-            novo_token = resp.headers.get("Renovacao-Automatica-JWT")
-            data = _json.loads(resp.read().decode())
-            return data, novo_token
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"HTTP {e.code}: {e.reason}")
-    except Exception as e:
-        raise RuntimeError(str(e))
+
+    for _tentativa in range(1, _retry + 1):
+        req = urllib.request.Request(_PROFROTAS_PESQ, data=body, method="POST")
+        req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("Accept", "application/json")
+        try:
+            with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
+                novo_token = resp.headers.get("Renovacao-Automatica-JWT")
+                data = _json.loads(resp.read().decode())
+                return data, novo_token
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and _tentativa < _retry:
+                # Rate limit — espera progressiva: 5s, 15s, 30s
+                _wait = [5, 15, 30][_tentativa - 1]
+                _time.sleep(_wait)
+                continue
+            raise RuntimeError(f"HTTP {e.code}: {e.reason}")
+        except Exception as e:
+            if _tentativa < _retry:
+                _time.sleep(3)
+                continue
+            raise RuntimeError(str(e))
+    raise RuntimeError("Máximo de tentativas atingido.")
 
 
 def _profrotas_validar_token(token: str) -> tuple[bool, str]:
@@ -4168,7 +4180,10 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         try:
             data, _novo = _profrotas_request(token, payload)
         except RuntimeError as e:
-            return pagina - 1, total_salvos, novo_token, f"Erro API pág {pagina}: {e}", total_items or 0
+            _err_msg = f"Erro API pág {pagina}: {e}"
+            if total_salvos > 0:
+                _err_msg += f" (⚠️ {total_salvos} registros das páginas anteriores já foram salvos)"
+            return pagina - 1, total_salvos, novo_token, _err_msg, total_items or 0
 
         if _novo:
             novo_token = _novo
@@ -4252,6 +4267,9 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         if not registros or len(registros) < tam_pag:
             break
         pagina += 1
+        # Delay entre páginas para evitar rate limit (429)
+        import time as _time_pag
+        _time_pag.sleep(1.0)
 
     # Atualiza metadados da chave
     try:
