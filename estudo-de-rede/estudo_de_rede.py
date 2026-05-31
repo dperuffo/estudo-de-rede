@@ -7913,25 +7913,22 @@ def _processar_bytes_pro_frotas(nome: str, conteudo: bytes):
 
 def _processar_bytes_anp_postos(nome: str, conteudo: bytes):
     """
-    Lê o arquivo XLSX de postos ANP baixado manualmente do site da ANP.
-    Detecta automaticamente as colunas de CNPJ, lat/lon, nome, bandeira, município e UF.
+    Lê o arquivo XLSX de postos ANP (≤ 40 000 linhas) de forma vetorizada.
     Retorna (DataFrame, msg) ou (None, msg_erro).
-    O DataFrame terá colunas: cnpj, _lat, _lon, razaoSocial, distribuidora, municipio, uf
+    Colunas: cnpj, _lat, _lon, razaoSocial, distribuidora, municipio, uf
+
+    Versão 5.2 — pandas/numpy vetorizado (~20× mais rápido que iterrows).
     """
     try:
         buf = io.BytesIO(conteudo)
-        nome_l = nome.lower()
-        if nome_l.endswith(".xls"):
-            df = pd.read_excel(buf, dtype=str, engine="xlrd")
-        else:
-            df = pd.read_excel(buf, dtype=str, engine="openpyxl")
+        engine = "xlrd" if nome.lower().endswith(".xls") else "openpyxl"
+        df = pd.read_excel(buf, dtype=str, engine=engine)
     except Exception as e:
         return None, f"Erro ao ler o arquivo: {type(e).__name__} — {e}"
 
     if df.empty:
         return None, "O arquivo está vazio."
 
-    # Normaliza nomes de colunas para detecção
     df.columns = [str(c).strip().upper() for c in df.columns]
 
     col_cnpj = _detectar_col(df, [
@@ -7955,42 +7952,58 @@ def _processar_bytes_anp_postos(nome: str, conteudo: bytes):
             "Verifique se o arquivo correto (postos ANP) foi selecionado."
         )
 
-    rows = []
-    for _, row in df.iterrows():
-        cnpj_n = re.sub(r"\D", "", str(row.get(col_cnpj, "") or ""))
-        if len(cnpj_n) != 14:
-            continue
-        try:
-            lat = float(str(row[col_lat]).replace(",", ".")) if col_lat else float("nan")
-            lon = float(str(row[col_lon]).replace(",", ".")) if col_lon else float("nan")
-        except (ValueError, TypeError):
-            lat, lon = float("nan"), float("nan")
+    # ── CNPJ: remove não-dígitos e filtra 14 dígitos — vetorizado ─────────
+    cnpj_series = (
+        df[col_cnpj]
+        .fillna("")
+        .astype(str)
+        .str.replace(r"\D", "", regex=True)
+    )
+    mask_cnpj = cnpj_series.str.len() == 14
+    df = df[mask_cnpj].copy()
+    cnpj_series = cnpj_series[mask_cnpj].reset_index(drop=True)
+    df = df.reset_index(drop=True)
 
-        # Rejeita coordenadas fora do Brasil
-        if col_lat and col_lon and not (math.isnan(lat) or math.isnan(lon)):
-            if not (-33.8 <= lat <= 5.3 and -73.9 <= lon <= -34.7):
-                continue
-
-        rows.append({
-            "cnpj":          cnpj_n,
-            "_lat":          lat if col_lat else None,
-            "_lon":          lon if col_lon else None,
-            "razaoSocial":   str(row.get(col_nome, "")).strip() if col_nome else "",
-            "distribuidora": str(row.get(col_dist, "")).strip() if col_dist else "",
-            "municipio":     str(row.get(col_mun,  "")).strip() if col_mun  else "",
-            "uf":            str(row.get(col_uf,   "")).strip().upper() if col_uf else "",
-        })
-
-    if not rows:
+    if df.empty:
         return None, "Nenhum CNPJ válido (14 dígitos) encontrado no arquivo."
 
-    result_df = pd.DataFrame(rows)
+    # ── Coordenadas: parse vetorizado ──────────────────────────────────────
+    if col_lat and col_lon:
+        lat_s = pd.to_numeric(
+            df[col_lat].astype(str).str.replace(",", ".", regex=False),
+            errors="coerce",
+        )
+        lon_s = pd.to_numeric(
+            df[col_lon].astype(str).str.replace(",", ".", regex=False),
+            errors="coerce",
+        )
+        # Rejeita coordenadas fora do Brasil
+        mask_br = (
+            lat_s.between(-33.8, 5.3, inclusive="both") &
+            lon_s.between(-73.9, -34.7, inclusive="both")
+        )
+        lat_s = lat_s.where(mask_br)
+        lon_s = lon_s.where(mask_br)
+    else:
+        lat_s = pd.Series([float("nan")] * len(df))
+        lon_s = pd.Series([float("nan")] * len(df))
+
+    # ── Monta DataFrame resultado de uma só vez ────────────────────────────
+    result_df = pd.DataFrame({
+        "cnpj":          cnpj_series.values,
+        "_lat":          lat_s.values,
+        "_lon":          lon_s.values,
+        "razaoSocial":   df[col_nome].fillna("").astype(str).str.strip().values if col_nome else "",
+        "distribuidora": df[col_dist].fillna("").astype(str).str.strip().values if col_dist else "",
+        "municipio":     df[col_mun ].fillna("").astype(str).str.strip().values if col_mun  else "",
+        "uf":            df[col_uf  ].fillna("").astype(str).str.strip().str.upper().values if col_uf else "",
+    })
+
     for _c in ["razaoSocial", "distribuidora", "municipio", "uf"]:
         result_df[_c] = result_df[_c].replace({"nan": "", "None": "", "NaN": ""})
-    # Normaliza distribuidora para Title Case uniforme
+
     result_df["distribuidora"] = _normalizar_distribuidora(result_df["distribuidora"])
 
-    # Remove linhas sem coordenadas válidas (necessário para o mapa)
     _n_total = len(result_df)
     if col_lat and col_lon:
         result_df = result_df.dropna(subset=["_lat", "_lon"]).reset_index(drop=True)
@@ -11216,6 +11229,163 @@ def _precos_tooltip_html(cnpj_norm: str, uf: str) -> str:
         return ""
 
 
+def _montar_html_precos(linhas: list, fonte: str) -> str:
+    """Monta bloco HTML de preços para tooltip do mapa."""
+    _items_html = "<br>".join(linhas)
+    _fonte_html = (
+        f"<span style='font-size:9px;color:#aaa'>Fonte: {fonte}</span>" if fonte else ""
+    )
+    return (
+        f"<br><span style='font-size:10px;color:#b0b0b0'>──────────────</span>"
+        f"<br><span style='font-size:10px;color:#ffd54f'><b>💰 Preços</b></span>"
+        f"<br><span style='font-size:11px'>{_items_html}</span>"
+        f"<br>{_fonte_html}"
+    )
+
+
+def _precos_tooltip_html_bulk(cnpjs: "pd.Series", ufs: "pd.Series") -> dict:
+    """
+    Pré-computa HTML de preços para todos os CNPJs de uma vez.
+    Retorna dict {cnpj_norm: html_str}.
+
+    Elimina a complexidade O(n²) de chamar _precos_tooltip_html() por linha.
+    Versão 5.2 — chamada uma única vez antes do loop de traces em criar_mapa.
+    """
+    resultado: dict = {}
+    _pp_df_tt = st.session_state.get("_pp_df")
+
+    pp_index: dict = {}
+    if (
+        _pp_df_tt is not None
+        and not _pp_df_tt.empty
+        and "cnpj_norm" in _pp_df_tt.columns
+    ):
+        for cnpj_n, grupo in _pp_df_tt.groupby("cnpj_norm", sort=False):
+            linhas = []
+            _rows_sorted = sorted(
+                grupo.iterrows(),
+                key=lambda x: _comb_sort_key(
+                    str(x[1].get("combustivel_label", "") or x[1].get("combustivel_pk", ""))
+                ),
+            )
+            for _, _r in _rows_sorted:
+                _lbl = str(_r.get("combustivel_label", "") or "").strip()
+                try:
+                    _preco = float(_r["preco"])
+                except Exception:
+                    _preco = None
+                if _lbl and _preco is not None:
+                    linhas.append(f"<b>{_lbl}:</b> R$ {_preco:.3f}/L")
+            if linhas:
+                _data_tt = str(grupo.iloc[0].get("data_atualizacao", "") or "").strip()
+                _data_tt = _data_tt if _data_tt and _data_tt not in ("nan", "None") else ""
+                fonte = f"PP{(' · ' + _data_tt) if _data_tt else ''}"
+                pp_index[str(cnpj_n)] = _montar_html_precos(linhas, fonte)
+
+    _cache_att  = st.session_state.get("_precos_anp_cache", {})
+    _sheets_att = _cache_att.get("sheets", {})
+    _semana_att = _cache_att.get("semana", "")
+    anp_por_uf: dict = {}
+    if _sheets_att:
+        _pks_nomes = [
+            ("diesels10",         "Diesel S10"),
+            ("diesel",            "Diesel"),
+            ("gasolinaaditivada", "Gasolina Aditivada"),
+            ("gasolina",          "Gasolina"),
+            ("etanol",            "Etanol"),
+            ("gnv",               "GNV"),
+        ]
+        for uf_val in ufs.dropna().unique():
+            uf_val = str(uf_val).strip().upper()
+            if not uf_val:
+                continue
+            linhas = []
+            for _pk, _nome in _pks_nomes:
+                _v = _anp_preco_uf(_sheets_att, _pk, uf_val)
+                if _v is None:
+                    _v = _anp_preco_brasil(_sheets_att, _pk)
+                if _v is not None:
+                    linhas.append(f"<b>{_nome}:</b> R$ {_v:.3f}/L")
+            if linhas:
+                fonte = f"ANP {uf_val}{(' · ' + _semana_att) if _semana_att else ''}"
+                anp_por_uf[uf_val] = _montar_html_precos(linhas, fonte)
+
+    cnpjs_arr = cnpjs.fillna("").astype(str).values
+    ufs_arr   = ufs.fillna("").astype(str).str.strip().str.upper().values
+    for cnpj_n, uf_val in zip(cnpjs_arr, ufs_arr):
+        if cnpj_n in pp_index:
+            resultado[cnpj_n] = pp_index[cnpj_n]
+        elif uf_val in anp_por_uf:
+            resultado[cnpj_n] = anp_por_uf[uf_val]
+        else:
+            resultado[cnpj_n] = ""
+
+    return resultado
+
+
+def _hover_txt_vec(sub_df: pd.DataFrame, precos_bulk: dict) -> list:
+    """
+    Gera lista de textos de tooltip para todos os pontos de uma vez (vetorizado).
+    Substitui: sub_df.apply(_hover_txt, axis=1).tolist()
+    Versão 5.2.
+    """
+    nomes  = sub_df.get("razaoSocial",   pd.Series([""] * len(sub_df))).fillna("").astype(str).str[:40].values
+    dists  = sub_df.get("distribuidora", pd.Series([""] * len(sub_df))).fillna("").astype(str).values
+    muns   = sub_df.get("municipio",     pd.Series([""] * len(sub_df))).fillna("").astype(str).values
+    ufs_   = sub_df.get("uf",            pd.Series([""] * len(sub_df))).fillna("").astype(str).str.strip().str.upper().values
+    cnpjs  = sub_df.get("cnpj",          pd.Series([""] * len(sub_df))).fillna("").astype(str).values
+    if "_cnpj_norm" in sub_df.columns:
+        cnpj_norms = sub_df["_cnpj_norm"].fillna("").astype(str).str.replace(" ", "", regex=False).values
+    else:
+        cnpj_norms = cnpjs
+    pf_  = sub_df["_pro_frotas"].fillna(False).values if "_pro_frotas" in sub_df.columns else np.zeros(len(sub_df), dtype=bool)
+    cer_ = sub_df["_cercado"   ].fillna(False).values if "_cercado"    in sub_df.columns else np.zeros(len(sub_df), dtype=bool)
+    rr_  = sub_df["_rodo_rede" ].fillna(False).values if "_rodo_rede"  in sub_df.columns else np.zeros(len(sub_df), dtype=bool)
+    textos = []
+    for i in range(len(sub_df)):
+        geo      = f"{muns[i]}/{ufs_[i]}" if muns[i] and ufs_[i] else muns[i] or ufs_[i]
+        pf_tag   = " ⭐" if pf_[i]  else ""
+        rr_tag   = " · Rodo Rede" if rr_[i] else ""
+        cer_tag  = " ⚠️" if cer_[i] else ""
+        cnpj_str = f"<br>📋 {cnpjs[i]}" if cnpjs[i] else ""
+        precos   = precos_bulk.get(cnpj_norms[i], "")
+        textos.append(
+            f"<b>{nomes[i]}</b>{pf_tag}{rr_tag}{cer_tag}"
+            f"<br>{dists[i]}<br>{geo}{cnpj_str}{precos}"
+        )
+    return textos
+
+
+def _customdata_vec(sub_df: pd.DataFrame) -> list:
+    """
+    Gera customdata com to_numpy() — sem iterrows().
+    Substitui: _customdata(sub_df)
+    Versão 5.2.
+    """
+    muns  = sub_df.get("municipio",     pd.Series([""] * len(sub_df))).fillna("").astype(str).values
+    ufs_  = sub_df.get("uf",            pd.Series([""] * len(sub_df))).fillna("").astype(str).values
+    geos  = np.where(
+        (muns != "") & (ufs_ != ""),
+        np.char.add(np.char.add(muns, "/"), ufs_),
+        np.where(muns != "", muns, ufs_),
+    )
+    cnpjs = sub_df.get("cnpj",          pd.Series([""] * len(sub_df))).fillna("").astype(str).values
+    nomes = sub_df.get("razaoSocial",   pd.Series([""] * len(sub_df))).fillna("").astype(str).values
+    dists = sub_df.get("distribuidora", pd.Series([""] * len(sub_df))).fillna("").astype(str).values
+    lats  = sub_df["_lat"].astype(float).values
+    lons  = sub_df["_lon"].astype(float).values
+    pf_  = sub_df["_pro_frotas"].fillna(False).astype(bool).values if "_pro_frotas" in sub_df.columns else np.zeros(len(sub_df), dtype=bool)
+    cer_ = sub_df["_cercado"   ].fillna(False).astype(bool).values if "_cercado"    in sub_df.columns else np.zeros(len(sub_df), dtype=bool)
+    rr_  = sub_df["_rodo_rede" ].fillna(False).astype(bool).values if "_rodo_rede"  in sub_df.columns else np.zeros(len(sub_df), dtype=bool)
+    pf_s  = np.where(pf_,  "1", "")
+    cer_s = np.where(cer_, "1", "")
+    rr_s  = np.where(rr_,  "1", "")
+    arr = np.column_stack([cnpjs, nomes, dists, geos,
+                           lats.astype(object), lons.astype(object),
+                           pf_s, cer_s, rr_s])
+    return arr.tolist()
+
+
 def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino",
                waypoints=None):
@@ -11336,41 +11506,11 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         mask_pf_out  = _pf_base & ~mask_pf_ipi
         mask_reg     = ~mask_cer & ~mask_rr & ~_pf_base
 
-        def _hover_txt(row):
-            """Texto do tooltip: nome, bandeira, cidade/UF, CNPJ + preços."""
-            nome = str(row.get("razaoSocial", "?"))[:40]
-            dist = str(row.get("distribuidora", "?"))
-            mun  = str(row.get("municipio", ""))
-            uf_  = str(row.get("uf", "")).strip().upper()
-            cnpj = str(row.get("cnpj", ""))
-            cnpj_norm = str(row.get("_cnpj_norm", cnpj)).replace(" ", "")
-            geo  = f"{mun}/{uf_}" if mun and uf_ else mun or uf_
-            pf_  = " ⭐" if row.get("_pro_frotas") else ""
-            rr_  = " · Rodo Rede" if row.get("_rodo_rede")  else ""
-            cer_ = " ⚠️" if row.get("_cercado")    else ""
-            cnpj_str = f"<br>📋 {cnpj}" if cnpj else ""
-            _precos = _precos_tooltip_html(cnpj_norm, uf_)
-            return f"<b>{nome}</b>{pf_}{rr_}{cer_}<br>{dist}<br>{geo}{cnpj_str}{_precos}"
-
-        def _customdata(sub_df: pd.DataFrame) -> list:
-            """customdata por ponto: [cnpj, nome, distribuidora, municipio/uf, lat, lon]"""
-            rows = []
-            for _, r in sub_df.iterrows():
-                mun = str(r.get("municipio", ""))
-                uf_ = str(r.get("uf", ""))
-                geo = f"{mun}/{uf_}" if mun and uf_ else mun or uf_
-                rows.append([
-                    str(r.get("cnpj", "")),
-                    str(r.get("razaoSocial", "")),
-                    str(r.get("distribuidora", "")),
-                    geo,
-                    float(r["_lat"]),
-                    float(r["_lon"]),
-                    "1" if r.get("_pro_frotas") else "",
-                    "1" if r.get("_cercado")    else "",
-                    "1" if r.get("_rodo_rede")  else "",
-                ])
-            return rows
+        # Pré-computa lookup CNPJ→HTML de preços uma única vez (evita O(n²))
+        _precos_bulk = _precos_tooltip_html_bulk(
+            df.get("_cnpj_norm", df.get("cnpj", pd.Series(dtype=str))),
+            df.get("uf", pd.Series(dtype=str)),
+        )
 
         # Postos Cercados — laranja
         if mask_cer.any():
@@ -11379,8 +11519,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 lat=dfc["_lat"].tolist(), lon=dfc["_lon"].tolist(),
                 mode="markers",
                 marker=dict(size=13, color=COR_CERCADO_FILL, opacity=0.92),
-                text=dfc.apply(_hover_txt, axis=1).tolist(),
-                customdata=_customdata(dfc),
+                text=_hover_txt_vec(dfc, _precos_bulk),
+                customdata=_customdata_vec(dfc),
                 hoverinfo="text",
                 name="⚠️ Postos Cercados",
             ))
@@ -11392,8 +11532,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 lat=dfr["_lat"].tolist(), lon=dfr["_lon"].tolist(),
                 mode="markers",
                 marker=dict(size=15, color=COR_RR_FILL, opacity=0.95),
-                text=dfr.apply(_hover_txt, axis=1).tolist(),
-                customdata=_customdata(dfr),
+                text=_hover_txt_vec(dfr, _precos_bulk),
+                customdata=_customdata_vec(dfr),
                 hoverinfo="text",
                 name="⭐ Ipiranga RodoRede",
             ))
@@ -11405,8 +11545,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 lat=dfi["_lat"].tolist(), lon=dfi["_lon"].tolist(),
                 mode="markers",
                 marker=dict(size=14, color="#FFB300", opacity=0.95),
-                text=dfi.apply(_hover_txt, axis=1).tolist(),
-                customdata=_customdata(dfi),
+                text=_hover_txt_vec(dfi, _precos_bulk),
+                customdata=_customdata_vec(dfi),
                 hoverinfo="text",
                 name="⭐ GF Ipiranga",
             ))
@@ -11418,8 +11558,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 lat=dfp["_lat"].tolist(), lon=dfp["_lon"].tolist(),
                 mode="markers",
                 marker=dict(size=14, color=COR_PF_FILL, opacity=0.95),
-                text=dfp.apply(_hover_txt, axis=1).tolist(),
-                customdata=_customdata(dfp),
+                text=_hover_txt_vec(dfp, _precos_bulk),
+                customdata=_customdata_vec(dfp),
                 hoverinfo="text",
                 name="⭐ Gestão de Frotas",
             ))
@@ -11432,8 +11572,8 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                 lat=dfg["_lat"].tolist(), lon=dfg["_lon"].tolist(),
                 mode="markers",
                 marker=dict(size=8, color=dfg["_cor_plot"].tolist(), opacity=0.85),
-                text=dfg.apply(_hover_txt, axis=1).tolist(),
-                customdata=_customdata(dfg),
+                text=_hover_txt_vec(dfg, _precos_bulk),
+                customdata=_customdata_vec(dfg),
                 hoverinfo="text",
                 name="⛽ Postos ANP",
             ))
