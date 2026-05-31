@@ -33343,6 +33343,32 @@ elif modo == "📑 Relatórios":
             ("table",    "📋 Tabela"),
         ]
 
+        # ── Cache único de dados (evita múltiplas chamadas ao banco) ─
+        _rp_cache_key = "_rp_dados_cache"
+        _rp_recarregar = st.button(
+            "🔄 Recarregar dados", key="rp_reload_cache",
+            help="Atualiza os dados do banco (útil após nova sincronização)",
+        )
+        if _rp_cache_key not in st.session_state or _rp_recarregar:
+            with st.spinner("Carregando dados…"):
+                _rp_dados_cache = _carregar_abastecimentos_unificados(dias=730)
+                _col_map_cache = {
+                    "_placa":"placa","_motorista":"motorista","_produto":"produto",
+                    "_litros":"volume","_preco_litro":"preco_litro",
+                    "_valor_total":"valor","_cnpj_posto":"cnpj_posto",
+                    "_nome_posto":"nome_posto","_uf_posto":"uf_posto",
+                    "_hod_atual":"hodometro","_data":"data",
+                    "_media_km_l":"media_km_l",
+                }
+                _rp_dados_cache.rename(
+                    columns={k:v for k,v in _col_map_cache.items() if k in _rp_dados_cache.columns},
+                    inplace=True,
+                )
+                if "data" in _rp_dados_cache.columns:
+                    _rp_dados_cache["data"] = pd.to_datetime(_rp_dados_cache["data"], errors="coerce")
+                st.session_state[_rp_cache_key] = _rp_dados_cache
+        _rp_dados_cache: pd.DataFrame = st.session_state.get(_rp_cache_key, pd.DataFrame())
+
         # ── Header ────────────────────────────────────────────────
         st.markdown(
             "<div style='background:linear-gradient(135deg,#1e1b4b,#3730a3,#6366f1);"
@@ -33417,15 +33443,11 @@ elif modo == "📑 Relatórios":
             _rp_f_comb = st.selectbox("Combustível", ["Todos","Diesel S10","Diesel","Gasolina","Etanol","GNV","Arla 32"], key="rp_f_comb")
             _rp_f_placa = ""
             _rp_f_mot   = ""
-            if _rp_fonte == "abastecimentos":
-                _abuni_rp = _carregar_abastecimentos_unificados(dias=730)
-                if not _abuni_rp.empty:
-                    _col_pl = "_placa" if "_placa" in _abuni_rp.columns else "placa"
-                    _col_mo = "_motorista" if "_motorista" in _abuni_rp.columns else "motorista"
-                    _placas_rp = sorted(_abuni_rp[_col_pl].dropna().unique().tolist()) if _col_pl in _abuni_rp.columns else []
-                    _mots_rp   = sorted(_abuni_rp[_col_mo].dropna().unique().tolist()) if _col_mo in _abuni_rp.columns else []
-                    _rp_f_placa = st.selectbox("Veículo (Placa)", ["Todos"] + _placas_rp, key="rp_f_placa")
-                    _rp_f_mot   = st.selectbox("Motorista", ["Todos"] + _mots_rp, key="rp_f_mot")
+            if _rp_fonte == "abastecimentos" and not _rp_dados_cache.empty:
+                _placas_rp = sorted(_rp_dados_cache["placa"].dropna().unique().tolist()) if "placa" in _rp_dados_cache.columns else []
+                _mots_rp   = sorted(_rp_dados_cache["motorista"].dropna().unique().tolist()) if "motorista" in _rp_dados_cache.columns else []
+                _rp_f_placa = st.selectbox("Veículo (Placa)", ["Todos"] + _placas_rp, key="rp_f_placa")
+                _rp_f_mot   = st.selectbox("Motorista", ["Todos"] + _mots_rp, key="rp_f_mot")
 
             _rp_gerar = st.button("▶ Gerar Relatório", type="primary",
                                    use_container_width=True, key="rp_gerar")
@@ -33459,79 +33481,74 @@ elif modo == "📑 Relatórios":
                         st.warning("Selecione pelo menos uma métrica.")
                         st.stop()
 
-                    _rp_df_raw = _carregar_abastecimentos_unificados(dias=730)
-
+                    # ── Usa cache — sem chamada ao banco ─────────────
                     if _rp_fonte == "abastecimentos":
-                        _df_rp = _rp_df_raw.copy() if not _rp_df_raw.empty else pd.DataFrame()
-                        # Mapeamento de colunas
-                        _col_map_rp = {
-                            "_placa":"placa","_motorista":"motorista","_produto":"produto",
-                            "_litros":"volume","_preco_litro":"preco_litro",
-                            "_valor_total":"valor","_cnpj_posto":"cnpj_posto",
-                            "_nome_posto":"nome_posto","_uf_posto":"uf_posto",
-                            "_hod_atual":"hodometro","_data":"data",
-                        }
-                        _df_rp.rename(columns={k:v for k,v in _col_map_rp.items() if k in _df_rp.columns}, inplace=True)
-                        # Filtros
+                        _df_rp = _rp_dados_cache.copy() if not _rp_dados_cache.empty else pd.DataFrame()
                         if _rp_f_comb != "Todos" and "produto" in _df_rp.columns:
                             _df_rp = _df_rp[_df_rp["produto"].str.contains(_rp_f_comb, case=False, na=False)]
                         if _rp_f_placa and _rp_f_placa != "Todos" and "placa" in _df_rp.columns:
                             _df_rp = _df_rp[_df_rp["placa"].astype(str) == _rp_f_placa]
                         if _rp_f_mot and _rp_f_mot != "Todos" and "motorista" in _df_rp.columns:
                             _df_rp = _df_rp[_df_rp["motorista"].astype(str) == _rp_f_mot]
+                        _date_col = "data"
 
                     elif _rp_fonte == "manutencao":
                         _man_rp = _manut_listar()
                         _df_rp = pd.DataFrame(_man_rp) if _man_rp else pd.DataFrame()
+                        _date_col = "data_manutencao" if "data_manutencao" in _df_rp.columns else None
 
                     elif _rp_fonte == "negociacoes":
-                        _ac_rp = st.session_state.get("_ac_df") or _db_carregar_acordos()
+                        _ac_rp = st.session_state.get("_ac_df")
+                        if _ac_rp is None or (hasattr(_ac_rp,"empty") and _ac_rp.empty):
+                            _ac_rp = _db_carregar_acordos()
                         _df_rp = _ac_rp.copy() if not (hasattr(_ac_rp,"empty") and _ac_rp.empty) else pd.DataFrame()
+                        _date_col = "dt_vigencia" if "dt_vigencia" in _df_rp.columns else None
 
-                    # Filtro de data
-                    _date_col = "data" if "data" in _df_rp.columns else (
-                                "data_abastecimento" if "data_abastecimento" in _df_rp.columns else None)
-                    if _date_col and not _df_rp.empty:
+                    else:
+                        _df_rp = pd.DataFrame()
+                        _date_col = None
+
+                    # Filtro de data — vetorizado
+                    if _date_col and _date_col in _df_rp.columns and not _df_rp.empty:
                         _df_rp[_date_col] = pd.to_datetime(_df_rp[_date_col], errors="coerce")
-                        _df_rp = _df_rp[
+                        _mask_dt = (
                             (_df_rp[_date_col].dt.date >= _rp_ini) &
                             (_df_rp[_date_col].dt.date <= _rp_fim)
-                        ]
-
-                    # ── Agrupamento por dimensão ───────────────────
-                    def _rp_chave_dim(row, dim, date_col):
-                        if dim == "periodo_dia":
-                            d = row.get(date_col)
-                            return str(pd.Timestamp(d).strftime("%d/%m/%Y")) if pd.notna(d) else "—"
-                        elif dim == "periodo_mes":
-                            d = row.get(date_col)
-                            return str(pd.Timestamp(d).strftime("%m/%Y")) if pd.notna(d) else "—"
-                        elif dim == "periodo_semana":
-                            d = row.get(date_col)
-                            return f"S{pd.Timestamp(d).isocalendar()[1]}/{pd.Timestamp(d).year}" if pd.notna(d) else "—"
-                        elif dim in ("produto","combustivel","neg_combustivel"):
-                            return str(row.get("produto") or row.get("combustivel") or "—")
-                        elif dim in ("placa","veiculo","man_veiculo"):
-                            return str(row.get("placa") or "—")
-                        elif dim == "motorista":
-                            return str(row.get("motorista") or "—")
-                        elif dim in ("cnpj_posto","posto","neg_posto","man_oficina"):
-                            return str(row.get("nome_posto") or row.get("oficina") or row.get("posto") or "—")
-                        elif dim in ("uf_posto","uf","neg_uf"):
-                            return str(row.get("uf_posto") or row.get("uf") or "—")
-                        elif dim == "status":
-                            return str(row.get("status") or "—")
-                        elif dim == "oficina":
-                            return str(row.get("oficina") or "—")
-                        return "—"
+                        )
+                        _df_rp = _df_rp[_mask_dt]
 
                     if _df_rp.empty:
                         st.warning("Nenhum dado encontrado para os filtros selecionados.")
                         st.stop()
 
-                    _df_rp["_rp_grupo"] = _df_rp.apply(
-                        lambda r: _rp_chave_dim(r.to_dict(), _rp_dim, _date_col or "data"), axis=1
-                    )
+                    # ── Agrupamento VETORIZADO (sem apply row-by-row) ─
+                    _dc = _date_col or "data"
+                    if _rp_dim == "periodo_dia" and _dc in _df_rp.columns:
+                        _df_rp["_rp_grupo"] = pd.to_datetime(_df_rp[_dc], errors="coerce").dt.strftime("%d/%m/%Y").fillna("—")
+                    elif _rp_dim == "periodo_mes" and _dc in _df_rp.columns:
+                        _df_rp["_rp_grupo"] = pd.to_datetime(_df_rp[_dc], errors="coerce").dt.strftime("%m/%Y").fillna("—")
+                    elif _rp_dim == "periodo_semana" and _dc in _df_rp.columns:
+                        _ts = pd.to_datetime(_df_rp[_dc], errors="coerce")
+                        _df_rp["_rp_grupo"] = ("S" + _ts.dt.isocalendar().week.astype(str) + "/" + _ts.dt.year.astype(str)).where(_ts.notna(), "—")
+                    elif _rp_dim in ("produto","combustivel"):
+                        _c = next((c for c in ("produto","combustivel") if c in _df_rp.columns), None)
+                        _df_rp["_rp_grupo"] = _df_rp[_c].fillna("—").astype(str) if _c else "—"
+                    elif _rp_dim in ("placa","veiculo","man_veiculo"):
+                        _df_rp["_rp_grupo"] = _df_rp["placa"].fillna("—").astype(str) if "placa" in _df_rp.columns else "—"
+                    elif _rp_dim == "motorista":
+                        _df_rp["_rp_grupo"] = _df_rp["motorista"].fillna("—").astype(str) if "motorista" in _df_rp.columns else "—"
+                    elif _rp_dim in ("cnpj_posto","posto","neg_posto"):
+                        _c = next((c for c in ("nome_posto","posto") if c in _df_rp.columns), None)
+                        _df_rp["_rp_grupo"] = _df_rp[_c].fillna("—").astype(str) if _c else "—"
+                    elif _rp_dim in ("uf_posto","uf","neg_uf"):
+                        _c = next((c for c in ("uf_posto","uf") if c in _df_rp.columns), None)
+                        _df_rp["_rp_grupo"] = _df_rp[_c].fillna("—").astype(str) if _c else "—"
+                    elif _rp_dim in ("man_oficina","oficina"):
+                        _df_rp["_rp_grupo"] = _df_rp["oficina"].fillna("—").astype(str) if "oficina" in _df_rp.columns else "—"
+                    elif _rp_dim == "status":
+                        _df_rp["_rp_grupo"] = _df_rp["status"].fillna("—").astype(str) if "status" in _df_rp.columns else "—"
+                    else:
+                        _df_rp["_rp_grupo"] = "—"
 
                     # ── Agrega métricas ────────────────────────────
                     _rp_agg = {}
