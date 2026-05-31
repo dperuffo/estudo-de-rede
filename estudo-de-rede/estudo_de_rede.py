@@ -26961,7 +26961,20 @@ elif modo == "🧭 Roteirização":
                         for r in _mg_valid.to_dict("records")
                     ]
 
-        _ests = []   # garante que _ests existe mesmo se nenhuma condição abaixo for verdadeira
+        # Defaults para variáveis definidas dentro do bloco condicional abaixo
+        _ests     = []
+        _est_key  = "⚖️ Equilíbrio"
+        _sugest   = []
+        _ESTRATEGIAS_DEF = {
+            "💰 Economia":        {"preco": 0.80, "score": 0.10, "desvio": 0.10, "fill": "normal",
+                                   "desc": "Minimiza custo total — prioriza sempre o posto mais barato"},
+            "⚖️ Equilíbrio":      {"preco": 0.50, "score": 0.30, "desvio": 0.20, "fill": "normal",
+                                   "desc": "Pondera preço, qualidade do posto (score A-D) e distância da rota"},
+            "⭐ Qualidade":       {"preco": 0.30, "score": 0.50, "desvio": 0.20, "fill": "normal",
+                                   "desc": "Prioriza postos com score A e B — pode custar um pouco mais"},
+            "🛑 Mínimas Paradas": {"preco": 0.80, "score": 0.10, "desvio": 0.10, "fill": "minimo",
+                                   "desc": "Para o mínimo de vezes — abastece só o necessário a cada parada"},
+        }
 
         if _cands and _rc and _raut > 0:
             _MAX_DEV = 5.0   # km do corredor
