@@ -15383,14 +15383,37 @@ with st.sidebar:
         elif _modo_sb == "🔍 Consulta por Posto":
             st.markdown("<div class='nav-group-header'>🔍 Busca por Posto</div>",
                         unsafe_allow_html=True)
+
+            _m3_termo_w = st.text_input(
+                "Razão social, CNPJ ou cidade",
+                value=st.session_state.get("_m3_termo", ""),
+                placeholder="Ex: Ipiranga, 12.345.678, Campinas…",
+                key="sb_m3_termo",
+                help="Digite o nome do posto, CNPJ (números) ou nome da cidade",
+            )
+
             _m3_uf_opts = [""] + UFS
             _m3_uf_cur  = st.session_state.get("_m3_uf", "")
             _m3_uf_idx  = _m3_uf_opts.index(_m3_uf_cur) if _m3_uf_cur in _m3_uf_opts else 0
             _m3_uf_w    = st.selectbox(
-                "Filtrar por UF", _m3_uf_opts, index=_m3_uf_idx, key="sb_m3_uf",
-                format_func=lambda u: u if u else "— Todos —",
+                "Estado (opcional)", _m3_uf_opts, index=_m3_uf_idx, key="sb_m3_uf",
+                format_func=lambda u: f"{u} — {UF_NOME.get(u,'')}" if u else "— Todos os estados —",
             )
-            st.session_state["_m3_uf"] = _m3_uf_w
+
+            if st.button("🔍 Buscar Postos", key="sb_btn_m3_buscar",
+                         type="primary", use_container_width=True,
+                         disabled=not _m3_termo_w.strip()):
+                st.session_state["_m3_termo"]    = _m3_termo_w.strip()
+                st.session_state["_m3_uf"]       = _m3_uf_w
+                st.session_state["_m3_resultado"] = None  # força nova busca
+                st.rerun()
+
+            if st.session_state.get("_m3_termo"):
+                if st.button("✕ Limpar busca", key="sb_btn_m3_limpar",
+                             use_container_width=True):
+                    for _k3 in ["_m3_termo", "_m3_resultado", "_m3_uf"]:
+                        st.session_state.pop(_k3, None)
+                    st.rerun()
 
         # ════════════════════════════════════════════════════════
         #  MODO 4 — Roteirização
