@@ -15206,8 +15206,199 @@ with st.sidebar:
     _label_rotas = f"Rotas Salvas{f' ({_n_rotas_sb})' if _n_rotas_sb else ''}"
     _nav_btn(_label_rotas, "🔖 Rotas Salvas", "rotas_salvas")
 
-    # Parâmetros de consulta (UF / Rota) aparecem aqui
+    # ── Parâmetros de consulta — renderizados conforme o modo ────────
     _sb_params_container = st.container()
+    with _sb_params_container:
+        _modo_sb = st.session_state.get("modo_selecionado", "📍 Por UF/Município")
+
+        # ════════════════════════════════════════════════════════
+        #  MODO 1 — Por UF / Município
+        # ════════════════════════════════════════════════════════
+        if _modo_sb == "📍 Por UF/Município":
+            st.markdown("<div class='nav-group-header'>📍 Consulta por UF</div>",
+                        unsafe_allow_html=True)
+
+            _uf_opts = [""] + UFS
+            _uf_idx  = _uf_opts.index(st.session_state.get("uf","")) \
+                       if st.session_state.get("uf","") in _uf_opts else 0
+            _uf_sel  = st.selectbox(
+                "Estado", _uf_opts, index=_uf_idx, key="sb_uf_sel",
+                format_func=lambda u: f"{u} — {UF_NOME.get(u,'')}" if u else "— Selecione —",
+                help="Selecione o estado para carregar os postos",
+            )
+            st.session_state["uf"] = _uf_sel
+
+            _mun_val = st.session_state.get("municipio_input", "")
+            _mun_inp = st.text_input(
+                "Município (opcional)", value=_mun_val,
+                placeholder="Ex: Campinas", key="sb_mun_inp",
+                help="Filtra os postos pelo município digitado",
+            )
+            st.session_state["municipio_input"] = _mun_inp
+
+            # Distribuidoras disponíveis no estado carregado
+            _dist_disp = st.session_state.get("distribuidoras_disponiveis", [])
+            if _dist_disp:
+                _dist_sel = st.multiselect(
+                    "Distribuidoras", _dist_disp,
+                    default=st.session_state.get("distribuidoras_filtro", []),
+                    key="sb_dist_sel",
+                    placeholder="Todas",
+                )
+                st.session_state["distribuidoras_filtro"] = _dist_sel
+
+            # Filtros Avançados
+            with st.expander("⚙️ Filtros Avançados", expanded=False):
+                _pp_df_sb = st.session_state.get("_pp_df")
+                _fuel_opts_sb = ["— Todos —"]
+                if _pp_df_sb is not None and "combustivel_label" in _pp_df_sb.columns:
+                    _fuel_opts_sb += sorted(_pp_df_sb["combustivel_label"].dropna().unique().tolist())
+
+                _fuel_cur = st.session_state.get("_fuel_sel_m1", "— Todos —")
+                _fuel_idx = _fuel_opts_sb.index(_fuel_cur) if _fuel_cur in _fuel_opts_sb else 0
+                _fuel_sel_w = st.selectbox(
+                    "Combustível", _fuel_opts_sb, index=_fuel_idx, key="sb_fuel_m1"
+                )
+                st.session_state["_fuel_sel_m1"] = _fuel_sel_w
+
+                if _fuel_sel_w != "— Todos —" and _pp_df_sb is not None:
+                    _pp_fuel = _pp_df_sb[
+                        _pp_df_sb["combustivel_label"] == _fuel_sel_w
+                    ]["preco"].dropna()
+                    if not _pp_fuel.empty:
+                        _p_min = float(_pp_fuel.min())
+                        _p_max = float(_pp_fuel.max())
+                        _cur_faixa = st.session_state.get("_preco_faixa_m1")
+                        _def_lo = _cur_faixa[0] if _cur_faixa else _p_min
+                        _def_hi = _cur_faixa[1] if _cur_faixa else _p_max
+                        _faixa_w = st.slider(
+                            "Faixa de preço (R$/L)", _p_min, _p_max,
+                            (_def_lo, _def_hi), step=0.01, key="sb_preco_m1",
+                            format="R$ %.2f",
+                        )
+                        st.session_state["_preco_faixa_m1"] = _faixa_w
+                    else:
+                        st.session_state["_preco_faixa_m1"] = None
+                else:
+                    st.session_state["_preco_faixa_m1"] = None
+
+                _svc_opts = {
+                    "pista_caminhao": "🚛 Pista Caminhão",
+                    "arla":           "🧪 ARLA 32",
+                    "conveniencia":   "🏪 Conveniência",
+                }
+                _svc_sel = st.multiselect(
+                    "Serviços", list(_svc_opts.keys()),
+                    default=st.session_state.get("_filtro_servicos_m1", []),
+                    format_func=lambda s: _svc_opts[s],
+                    key="sb_svc_m1",
+                )
+                st.session_state["_filtro_servicos_m1"] = _svc_sel
+
+                _24h_w = st.checkbox(
+                    "🕐 Apenas 24 horas",
+                    value=st.session_state.get("_filtro_24h_m1", False),
+                    key="sb_24h_m1",
+                )
+                st.session_state["_filtro_24h_m1"] = _24h_w
+
+        # ════════════════════════════════════════════════════════
+        #  MODO 2 — Por Rota
+        # ════════════════════════════════════════════════════════
+        elif _modo_sb == "🗺️ Por Rota":
+            st.markdown("<div class='nav-group-header'>🗺️ Consulta por Rota</div>",
+                        unsafe_allow_html=True)
+
+            st.markdown("<small style='color:#666'>**Origem**</small>",
+                        unsafe_allow_html=True)
+            _campo_rota_compacto(
+                placeholder="Cidade, estado ou posto…",
+                key_texto="rota_txt_orig",
+                key_estado="orig_sel",
+                icon_bg="#2E7D32",
+                icon_number="A",
+            )
+
+            st.markdown("<small style='color:#666'>**Destino**</small>",
+                        unsafe_allow_html=True)
+            _campo_rota_compacto(
+                placeholder="Cidade, estado ou posto…",
+                key_texto="rota_txt_dest",
+                key_estado="dest_sel",
+                icon_bg="#C62828",
+                icon_number="B",
+            )
+
+            _raio_val = st.session_state.get("raio", 5000)
+            _raio_w   = st.slider(
+                "Raio da rota (m)", 500, 20000, int(_raio_val),
+                step=500, key="sb_raio",
+                help="Distância máxima do posto em relação à rota",
+                format="%d m",
+            )
+            st.session_state["raio"] = _raio_w
+
+            # Filtros Avançados (rota)
+            with st.expander("⚙️ Filtros Avançados", expanded=False):
+                _pp_df_sb2 = st.session_state.get("_pp_df")
+                _fuel_opts2 = ["— Todos —"]
+                if _pp_df_sb2 is not None and "combustivel_label" in _pp_df_sb2.columns:
+                    _fuel_opts2 += sorted(_pp_df_sb2["combustivel_label"].dropna().unique().tolist())
+
+                _fuel_cur2 = st.session_state.get("_fuel_sel_m2", "— Todos —")
+                _fuel_idx2 = _fuel_opts2.index(_fuel_cur2) if _fuel_cur2 in _fuel_opts2 else 0
+                _fuel_sel_w2 = st.selectbox(
+                    "Combustível", _fuel_opts2, index=_fuel_idx2, key="sb_fuel_m2"
+                )
+                st.session_state["_fuel_sel_m2"] = _fuel_sel_w2
+
+                _svc_opts2 = {
+                    "pista_caminhao": "🚛 Pista Caminhão",
+                    "arla":           "🧪 ARLA 32",
+                    "conveniencia":   "🏪 Conveniência",
+                }
+                _svc_sel2 = st.multiselect(
+                    "Serviços", list(_svc_opts2.keys()),
+                    default=st.session_state.get("_filtro_servicos_m2", []),
+                    format_func=lambda s: _svc_opts2[s],
+                    key="sb_svc_m2",
+                )
+                st.session_state["_filtro_servicos_m2"] = _svc_sel2
+
+                _24h_w2 = st.checkbox(
+                    "🕐 Apenas 24 horas",
+                    value=st.session_state.get("_filtro_24h_m2", False),
+                    key="sb_24h_m2",
+                )
+                st.session_state["_filtro_24h_m2"] = _24h_w2
+
+            if st.button("🔍 Buscar Rota", key="sb_btn_buscar_rota",
+                         type="primary", use_container_width=True):
+                st.session_state["_trigger_buscar_rota"] = True
+                st.rerun()
+
+        # ════════════════════════════════════════════════════════
+        #  MODO 3 — Busca por Posto
+        # ════════════════════════════════════════════════════════
+        elif _modo_sb == "🔍 Consulta por Posto":
+            st.markdown("<div class='nav-group-header'>🔍 Busca por Posto</div>",
+                        unsafe_allow_html=True)
+            _m3_uf_opts = [""] + UFS
+            _m3_uf_cur  = st.session_state.get("_m3_uf", "")
+            _m3_uf_idx  = _m3_uf_opts.index(_m3_uf_cur) if _m3_uf_cur in _m3_uf_opts else 0
+            _m3_uf_w    = st.selectbox(
+                "Filtrar por UF", _m3_uf_opts, index=_m3_uf_idx, key="sb_m3_uf",
+                format_func=lambda u: u if u else "— Todos —",
+            )
+            st.session_state["_m3_uf"] = _m3_uf_w
+
+        # ════════════════════════════════════════════════════════
+        #  MODO 4 — Roteirização
+        # ════════════════════════════════════════════════════════
+        elif _modo_sb == "🧭 Roteirização":
+            st.markdown("<div class='nav-group-header'>🧭 Roteirização</div>",
+                        unsafe_allow_html=True)
+            st.caption("Configure a rota na área principal →")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
