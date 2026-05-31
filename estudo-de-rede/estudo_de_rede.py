@@ -1087,6 +1087,79 @@ def _db_carregar_abastecimentos() -> list:
             return []
 
 
+def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
+    """
+    Carrega abastecimentos de TODAS as fontes disponíveis e retorna um
+    DataFrame unificado com colunas no formato padrão (sem prefixo _):
+      data_abastecimento, placa, motorista, produto, litros, preco_litro,
+      valor_total, cnpj_posto, nome_posto, cidade_posto, uf_posto,
+      lat_posto, lon_posto, cnpj_frota, fonte.
+
+    Fontes combinadas:
+      1. frota_abastecimentos  — uploads manuais via Análise de Cliente
+      2. profrotas_abastecimentos — API GestãoFrotas sincronizada
+    """
+    dfs = []
+
+    # ── Fonte 1: uploads manuais ───────────────────────────────────
+    try:
+        _rows = _db_carregar_abastecimentos()
+        if _rows:
+            _df1 = pd.DataFrame(_rows)
+            # Garante colunas normalizadas sem prefixo
+            _df1["fonte"] = _df1.get("nome_arquivo", pd.Series(["upload"] * len(_df1)))
+            dfs.append(_df1)
+    except Exception:
+        pass
+
+    # ── Fonte 2: API ProFrotas ─────────────────────────────────────
+    try:
+        _df_pf = _profrotas_para_df_analise(None, dias)
+        if _df_pf is not None and not _df_pf.empty:
+            # _profrotas_para_df_analise retorna colunas com prefixo _.
+            # Remapeia para o formato padrão sem prefixo.
+            _map = {
+                "_data":          "data_abastecimento",
+                "_placa":         "placa",
+                "_motorista":     "motorista",
+                "_produto":       "produto",
+                "_litros":        "litros",
+                "_preco_litro":   "preco_litro",
+                "_valor_total":   "valor_total",
+                "_cnpj_posto":    "cnpj_posto",
+                "_nome_posto":    "nome_posto",
+                "_cidade_posto":  "cidade_posto",
+                "_uf_posto":      "uf_posto",
+                "_lat_posto":     "lat_posto",
+                "_lon_posto":     "lon_posto",
+                "_cnpj_frota":    "cnpj_frota",
+                "_razao_frota":   "razao_frota",
+                "_hod_atual":     "hodometro",
+                "_fonte":         "fonte",
+            }
+            _df2 = _df_pf.rename(columns=_map)
+            dfs.append(_df2)
+    except Exception:
+        pass
+
+    if not dfs:
+        return pd.DataFrame()
+
+    _unified = pd.concat(dfs, ignore_index=True)
+
+    # Normaliza tipos
+    for _c in ["litros", "preco_litro", "valor_total", "lat_posto", "lon_posto"]:
+        if _c in _unified.columns:
+            _unified[_c] = pd.to_numeric(_unified[_c], errors="coerce")
+
+    if "data_abastecimento" in _unified.columns:
+        _unified["data_abastecimento"] = pd.to_datetime(
+            _unified["data_abastecimento"], errors="coerce"
+        )
+
+    return _unified
+
+
 # ── Rede GF — postos_gf ───────────────────────────────────────────
 
 def _normalizar_cnpj14(v) -> str:
@@ -24301,25 +24374,25 @@ if modo == "📈 Dashboard":
                     "e preço médio real pago por UF comparado à referência ANP."
                 )
 
-                # Carrega abastecimentos do banco
-                _cx4_rows = []
-                try:
-                    _cx4_rows = _db_carregar_abastecimentos()
-                except Exception:
-                    _cx4_rows = []
+                # Carrega abastecimentos unificados (uploads + API GestãoFrotas)
+                with st.spinner("Carregando abastecimentos…"):
+                    _cx4_df = _carregar_abastecimentos_unificados(dias=730)
 
-                if not _cx4_rows:
+                if _cx4_df.empty:
                     st.info(
-                        "Nenhum abastecimento salvo no banco. "
-                        "Carregue a planilha de abastecimentos na seção **👥 Análise de Cliente** "
-                        "para habilitar esta análise.",
+                        "Nenhum abastecimento encontrado. "
+                        "Carregue dados na seção **👥 Análise de Cliente** "
+                        "ou sincronize via **⚡ API & Integrações → GestãoFrotas**.",
                         icon="🚛",
                     )
                 else:
-                    _cx4_df = pd.DataFrame(_cx4_rows)
-                    for _cx4_c in ["preco_litro", "litros", "valor_total", "lat_posto", "lon_posto"]:
-                        if _cx4_c in _cx4_df.columns:
-                            _cx4_df[_cx4_c] = pd.to_numeric(_cx4_df[_cx4_c], errors="coerce")
+                    _n_upload = len(_cx4_df[_cx4_df.get("fonte", pd.Series()).str.contains("upload|frota", na=False, case=False)]) if "fonte" in _cx4_df.columns else 0
+                    _n_api    = len(_cx4_df) - _n_upload
+                    _fontes_txt = []
+                    if _n_upload: _fontes_txt.append(f"{_br_num(_n_upload,0)} via upload")
+                    if _n_api:    _fontes_txt.append(f"{_br_num(_n_api,0)} via API GestãoFrotas")
+                    if _fontes_txt:
+                        st.caption(f"📊 {_br_num(len(_cx4_df),0)} abastecimentos — " + " · ".join(_fontes_txt))
 
                     # ── KPIs de topo ─────────────────────────────────────────
                     _cx4_k1, _cx4_k2, _cx4_k3, _cx4_k4 = st.columns(4)
@@ -33123,41 +33196,23 @@ elif modo == "📑 Relatórios":
             "Cache Supabase de 30 dias evita chamadas repetidas.</div>",
             unsafe_allow_html=True,
         )
+        # Tenta session_state primeiro (dados já carregados na sessão)
         _rlt_abast_df = (
             st.session_state.get("_fipe_abast_df")
             or st.session_state.get("frota_abast_df")
             or st.session_state.get("abastecimentos_df")
         )
-        # Opção de carregar do GestãoFrotas se não há dados em session_state
+        # Se não há dados na sessão, carrega automaticamente de todas as fontes
         if _rlt_abast_df is None or (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
-            _pf_chaves_rlt = _profrotas_listar_chaves()
-            if _pf_chaves_rlt:
-                st.info("Nenhum dado de abastecimento em sessão. Carregue via **👥 Análise de Cliente** ou use o GestãoFrotas:", icon="ℹ️")
-                _pf_opts_rlt = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c["cnpj_frota"]
-                                for c in _pf_chaves_rlt}
-                _pf_opts_rlt = {"Todos": None, **_pf_opts_rlt}
-                _rc1, _rc2, _rc3 = st.columns([2, 1, 1])
-                with _rc1:
-                    _pf_cli_rlt = st.selectbox("Cliente GestãoFrotas",
-                                                list(_pf_opts_rlt.keys()), key="rlt_pf_cli")
-                with _rc2:
-                    _pf_dias_rlt = st.selectbox("Período", [30,60,90,180,365], index=2,
-                                                 format_func=lambda x: f"{x} dias", key="rlt_pf_dias")
-                with _rc3:
-                    st.write("")
-                    if st.button("🔌 Carregar GestãoFrotas", key="btn_rlt_pf",
-                                  use_container_width=True, type="primary"):
-                        with st.spinner("Carregando..."):
-                            _rlt_abast_df = _profrotas_para_df_analise(
-                                _pf_opts_rlt[_pf_cli_rlt], _pf_dias_rlt)
-                        if _rlt_abast_df is not None and not _rlt_abast_df.empty:
-                            st.session_state["_fipe_abast_df"] = _rlt_abast_df
-                            st.rerun()
-                        else:
-                            st.warning("Nenhum dado encontrado.")
+            with st.spinner("Carregando abastecimentos (uploads + API GestãoFrotas)…"):
+                _rlt_abast_df = _carregar_abastecimentos_unificados(dias=730)
+            if _rlt_abast_df is not None and not _rlt_abast_df.empty:
+                st.session_state["_fipe_abast_df"] = _rlt_abast_df
+                st.caption(f"📊 {_br_num(len(_rlt_abast_df),0)} abastecimentos carregados de todas as fontes.")
             else:
-                st.info("Carregue dados de abastecimentos na seção **👥 Análise de Cliente**.")
-        else:
+                st.info("Carregue dados de abastecimentos na seção **👥 Análise de Cliente** "
+                        "ou sincronize via **⚡ API & Integrações → GestãoFrotas**.")
+        if _rlt_abast_df is not None and not (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
             _fipe_cache_rlt = st.session_state.get(
                 "fipe_relatorio_cache_fipe",
                 _fipe_carregar_cache(),
