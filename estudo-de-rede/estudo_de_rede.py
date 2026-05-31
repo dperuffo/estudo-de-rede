@@ -15396,9 +15396,96 @@ with st.sidebar:
         #  MODO 4 — Roteirização
         # ════════════════════════════════════════════════════════
         elif _modo_sb == "🧭 Roteirização":
-            st.markdown("<div class='nav-group-header'>🧭 Roteirização</div>",
+            st.markdown("<div class='nav-group-header'>🧭 Veículo</div>",
                         unsafe_allow_html=True)
-            st.caption("Configure a rota na área principal →")
+
+            # ── Carregar perfil salvo ──────────────────────────
+            _perfis_rot = _db_perfis_veiculo()
+            if _perfis_rot:
+                _perfil_opts = {"— Novo veículo —": None}
+                for _pv in _perfis_rot:
+                    _lbl = f"{_pv.get('nome') or _pv.get('placa','?')} · {_pv.get('combustivel','')}"
+                    _perfil_opts[_lbl] = _pv
+                _perfil_sel_lbl = st.selectbox(
+                    "Perfil salvo", list(_perfil_opts.keys()), key="sb_rot_perfil",
+                    help="Selecione um perfil para preencher os campos automaticamente",
+                )
+                _perfil_carregado = _perfil_opts[_perfil_sel_lbl]
+                if _perfil_carregado and st.session_state.get("_rot_perfil_aplicado") != _perfil_carregado.get("id"):
+                    st.session_state["rot_placa"]       = _perfil_carregado.get("placa", "")
+                    st.session_state["rot_combustivel"] = _perfil_carregado.get("combustivel", "")
+                    st.session_state["rot_capacidade"]  = float(_perfil_carregado.get("tanque") or 80.0)
+                    st.session_state["rot_autonomia"]   = float(_perfil_carregado.get("autonomia") or 10.0)
+                    st.session_state["_rot_perfil_aplicado"] = _perfil_carregado.get("id")
+
+            # ── Campos do veículo ──────────────────────────────
+            _rot_placa_w = st.text_input(
+                "Placa",
+                value=st.session_state.get("rot_placa", ""),
+                placeholder="ABC-1234",
+                key="sb_rot_placa",
+                max_chars=8,
+            ).upper().strip()
+            st.session_state["rot_placa"] = _rot_placa_w
+
+            _combust_opts = [
+                "ÓLEO DIESEL S10", "ÓLEO DIESEL", "GASOLINA COMUM",
+                "GASOLINA ADITIVADA", "ETANOL HIDRATADO COMBUSTIVEL",
+                "GNV", "GLP",
+            ]
+            _comb_cur = st.session_state.get("rot_combustivel", "ÓLEO DIESEL S10")
+            _comb_idx = _combust_opts.index(_comb_cur) if _comb_cur in _combust_opts else 0
+            _rot_comb_w = st.selectbox(
+                "Combustível", _combust_opts, index=_comb_idx, key="sb_rot_comb",
+                format_func=lambda c: PRODUTO_CURTO.get(c, c),
+            )
+            st.session_state["rot_combustivel"] = _rot_comb_w
+
+            _rot_cap_w = st.number_input(
+                "Capacidade do tanque (L)",
+                min_value=10.0, max_value=2000.0,
+                value=float(st.session_state.get("rot_capacidade") or 80.0),
+                step=5.0, key="sb_rot_cap",
+            )
+            st.session_state["rot_capacidade"] = _rot_cap_w
+
+            _rot_aut_w = st.number_input(
+                "Autonomia (km/L)",
+                min_value=1.0, max_value=100.0,
+                value=float(st.session_state.get("rot_autonomia") or 10.0),
+                step=0.5, key="sb_rot_aut",
+                help="Consumo médio do veículo em km por litro",
+            )
+            st.session_state["rot_autonomia"] = _rot_aut_w
+
+            # ── Salvar perfil ──────────────────────────────────
+            with st.expander("💾 Salvar como perfil", expanded=False):
+                _rot_nome_p = st.text_input(
+                    "Nome do perfil",
+                    value=_rot_placa_w or "Meu veículo",
+                    key="sb_rot_nome_perfil",
+                    placeholder="Ex: Carreta Volvo, Frota SP…",
+                )
+                if st.button("✅ Salvar perfil", key="sb_btn_salvar_perfil",
+                             use_container_width=True):
+                    if _db_salvar_perfil_veiculo(
+                        _rot_nome_p, _rot_placa_w, _rot_comb_w,
+                        _rot_cap_w, _rot_aut_w
+                    ):
+                        st.toast(f"Perfil **{_rot_nome_p}** salvo!", icon="💾")
+                        st.session_state.pop("_rot_perfil_aplicado", None)
+                        st.rerun()
+                    else:
+                        st.error("Erro ao salvar. Verifique a tabela `perfis_veiculo` no Supabase.")
+
+            # ── Excluir perfil carregado ───────────────────────
+            if _perfis_rot and _perfil_carregado:
+                if st.button("🗑️ Excluir este perfil", key="sb_btn_del_perfil",
+                             use_container_width=True):
+                    if _db_deletar_perfil_veiculo(_perfil_carregado["id"]):
+                        st.toast("Perfil excluído.", icon="🗑️")
+                        st.session_state.pop("_rot_perfil_aplicado", None)
+                        st.rerun()
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
