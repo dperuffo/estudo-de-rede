@@ -33260,22 +33260,13 @@ elif modo == "📑 Relatórios":
             "Cache Supabase de 30 dias evita chamadas repetidas.</div>",
             unsafe_allow_html=True,
         )
-        # Tenta session_state primeiro — usa helper para evitar ValueError com DataFrames
-        def _rlt_df_valido(key):
-            """Retorna df do session_state se existir e não estiver vazio."""
-            _v = st.session_state.get(key)
-            if _v is None:
-                return None
-            try:
-                return _v if (hasattr(_v, "empty") and not _v.empty) else None
-            except Exception:
-                return None
-
-        _rlt_abast_df = (
-            _rlt_df_valido("_fipe_abast_df")
-            or _rlt_df_valido("frota_abast_df")
-            or _rlt_df_valido("abastecimentos_df")
-        )
+        # Tenta session_state primeiro — evita `or` com DataFrames (ValueError)
+        _rlt_abast_df = None
+        for _rlt_key in ("_fipe_abast_df", "frota_abast_df", "abastecimentos_df"):
+            _rlt_cand = st.session_state.get(_rlt_key)
+            if _rlt_cand is not None and hasattr(_rlt_cand, "empty") and not _rlt_cand.empty:
+                _rlt_abast_df = _rlt_cand
+                break
         # Se não há dados na sessão, carrega automaticamente de todas as fontes
         if _rlt_abast_df is None or (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
             with st.spinner("Carregando abastecimentos (uploads + API GestãoFrotas)…"):
