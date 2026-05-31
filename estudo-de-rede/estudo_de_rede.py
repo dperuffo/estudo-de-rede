@@ -31731,15 +31731,44 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                             st.markdown("##### 📝 Registrar Manutenção Realizada")
                             st.caption("Registre manutenções realizadas para melhorar a precisão da análise preditiva.")
 
+                            # ── Placa fora do form para atualizar hodômetro dinamicamente ──
+                            _mr_placa = st.selectbox(
+                                "🚗 Veículo (Placa) *",
+                                [""] + sorted(_mp_placas),
+                                key="mr_placa",
+                            )
+
+                            # Busca último hodômetro do banco para a placa selecionada
+                            _mr_hod_default = 0
+                            if _mr_placa:
+                                try:
+                                    _abast_uni = _carregar_abastecimentos_unificados(dias=730)
+                                    if not _abast_uni.empty:
+                                        _col_placa = "_placa" if "_placa" in _abast_uni.columns else "placa"
+                                        _col_hod   = "_hod_atual" if "_hod_atual" in _abast_uni.columns else "hodometro"
+                                        _ab_placa  = _abast_uni[
+                                            _abast_uni[_col_placa].astype(str).str.upper().str.strip()
+                                            == _mr_placa.upper().strip()
+                                        ]
+                                        if not _ab_placa.empty and _col_hod in _ab_placa.columns:
+                                            _hod_series = pd.to_numeric(_ab_placa[_col_hod], errors="coerce").dropna()
+                                            if not _hod_series.empty:
+                                                _mr_hod_default = int(_hod_series.max())
+                                except Exception:
+                                    pass
+                                if _mr_hod_default > 0:
+                                    st.caption(
+                                        f"📏 Último hodômetro registrado para **{_mr_placa}**: "
+                                        f"**{_br_num(_mr_hod_default, 0)} km**"
+                                    )
+
                             with st.form("form_manut_reg", clear_on_submit=True):
                                 _mr_c1, _mr_c2 = st.columns(2)
                                 with _mr_c1:
-                                    _mr_placa = st.selectbox("🚗 Veículo (Placa) *",
-                                                              [""] + sorted(_mp_placas), key="mr_placa")
                                     _mr_data  = st.date_input("📅 Data da Manutenção *",
                                                                value=_mp_dt.date.today(), key="mr_data")
                                     _mr_hod   = st.number_input("🛣️ Hodômetro (km)", min_value=0,
-                                                                  value=0, step=100, key="mr_hod")
+                                                                  value=_mr_hod_default, step=100, key="mr_hod")
                                 with _mr_c2:
                                     _mr_tec   = st.text_input("👤 Técnico / Mecânico", key="mr_tec")
                                     _mr_of    = st.text_input("🏭 Oficina", key="mr_of")
