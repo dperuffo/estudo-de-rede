@@ -33430,8 +33430,18 @@ elif modo == "📑 Relatórios":
             _rp_gerar = st.button("▶ Gerar Relatório", type="primary",
                                    use_container_width=True, key="rp_gerar")
 
+        # Helper: verifica se _rp_dados tem conteúdo sem acionar __bool__ do DataFrame
+        def _rp_tem_dados():
+            _d = st.session_state.get("_rp_dados")
+            if _d is None:
+                return False
+            try:
+                return hasattr(_d, "empty") and not _d.empty
+            except Exception:
+                return False
+
         with _rp_res:
-            if not _rp_gerar and not st.session_state.get("_rp_dados"):
+            if not _rp_gerar and not _rp_tem_dados():
                 st.markdown(
                     "<div style='display:flex;flex-direction:column;align-items:center;"
                     "justify-content:center;min-height:400px;color:#94a3b8;text-align:center'>"
@@ -33441,7 +33451,7 @@ elif modo == "📑 Relatórios":
                     "</div>",
                     unsafe_allow_html=True,
                 )
-            elif _rp_gerar or st.session_state.get("_rp_dados"):
+            elif _rp_gerar or _rp_tem_dados():
 
                 # ── Carrega dados ──────────────────────────────────
                 if _rp_gerar:
