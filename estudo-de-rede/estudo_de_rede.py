@@ -31416,14 +31416,45 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                         deg   = max(0.0, (base - atual) / base) if base > 0 else 0.0
                         return {"atual": round(atual, 2), "base": round(base, 2), "degradacao": round(deg, 3)}
 
-                    def _mp_score_comp(km_atual, tipo, is_pesado, deg):
-                        """Score (0-100) e urgência de um componente."""
-                        cfg      = _PRED_CONFIG[tipo]
+                    # ── Carregar histórico real de manutenções do banco ───────
+                    _mp_cnpj_hist = str(_df["_cnpj_frota"].dropna().iloc[0]
+                                        if "_cnpj_frota" in _df.columns and not _df["_cnpj_frota"].dropna().empty
+                                        else "")
+                    _mp_historico_bd = _manut_listar(cnpj_frota=_mp_cnpj_hist or None)
+
+                    def _mp_ultima_manut_real(placa, tipo):
+                        """Retorna km da última manutenção registrada para placa+tipo (ou None)."""
+                        matches = [
+                            r for r in _mp_historico_bd
+                            if r.get("placa","").upper() == placa.upper()
+                            and tipo in (r.get("itens_realizados") or [])
+                            and r.get("hodometro")
+                        ]
+                        if not matches:
+                            return None
+                        return max(matches, key=lambda r: r.get("hodometro", 0))
+
+                    def _mp_score_comp(km_atual, tipo, is_pesado, deg, placa=None):
+                        """Score (0-100) e urgência de um componente.
+                        Usa registro real do banco se disponível (mais preciso que cálculo modular).
+                        """
+                        cfg       = _PRED_CONFIG[tipo]
                         intervalo = cfg["pesado"] if is_pesado else cfg["leve"]
                         if not km_atual:
-                            return {"score": 65, "km_since": 0, "km_next": intervalo, "urgencia": "ok", "pct": 0.0}
-                        fase = km_atual % intervalo
-                        pct  = fase / intervalo
+                            return {"score": 65, "km_since": 0, "km_next": intervalo,
+                                    "urgencia": "ok", "pct": 0.0, "fonte": "estimado"}
+
+                        # ── Prioridade: registro real do banco ────────────
+                        fonte = "estimado"
+                        ultimo_reg = _mp_ultima_manut_real(placa, tipo) if placa else None
+                        if ultimo_reg and ultimo_reg.get("hodometro", 0) > 0 and km_atual >= ultimo_reg["hodometro"]:
+                            fase  = km_atual - float(ultimo_reg["hodometro"])
+                            fonte = "real"
+                        else:
+                            # Cálculo modular (sem registro real)
+                            fase = km_atual % intervalo
+
+                        pct = fase / intervalo
                         # Modificadores por degradação de consumo
                         if tipo in ("oleo","ruidos") and deg > 0.10:
                             pct = min(1.0, pct + deg * 0.5)
@@ -31436,7 +31467,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                         if pct >= 0.85: urgencia = "critico"
                         elif pct >= 0.65: urgencia = "alerta"
                         return {"score": score, "km_since": km_since, "km_next": km_next,
-                                "urgencia": urgencia, "pct": round(pct, 3)}
+                                "urgencia": urgencia, "pct": round(pct, 3), "fonte": fonte}
 
                     def _mp_analisar_veiculo(placa, df_p, tipo_v="Leve", ano_fab=None):
                         """Análise completa de um veículo."""
@@ -31445,11 +31476,11 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                         consumo    = _mp_consumo(df_p)
                         deg        = consumo["degradacao"]
                         idade_anos = (_mp_dt.date.today().year - int(ano_fab)) if ano_fab and str(ano_fab).isdigit() else 0
-                        # Score por componente
+                        # Score por componente — passa a placa para usar registros reais
                         comps = {}
                         score_total = 0.0; peso_total = 0.0
                         for key, cfg in _PRED_CONFIG.items():
-                            c = _mp_score_comp(km_atual, key, is_pesado, deg)
+                            c = _mp_score_comp(km_atual, key, is_pesado, deg, placa=placa)
                             # Penalidade por idade (> 8 anos)
                             if idade_anos > 8:
                                 pen = min(0.15, (idade_anos - 8) * 0.02)
@@ -31654,6 +31685,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                                             "Km desde manutenção": f"{_cv['km_since']:,}",
                                             "Km para próxima": f"{_cv['km_next']:,}",
                                             "Status": {"critico":"🔴 Crítico","alerta":"🟡 Alerta","ok":"🟢 OK"}[_cv["urgencia"]],
+                                            "Fonte": "✅ Registro real" if _cv.get("fonte") == "real" else "📐 Estimado",
                                         })
                                     st.dataframe(
                                         _pd.DataFrame(_rows_comp).set_index("Componente"),
