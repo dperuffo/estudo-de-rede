@@ -24734,8 +24734,12 @@ if modo == "📈 Dashboard":
 
         # ── Carregar dados ────────────────────────────────────────────────────
         _d12_rotas = _carregar_rotas_salvas()          # lista de rotas salvas
-        _d12_abast = _db_carregar_abastecimentos()     # abastecimentos históricos
         _d12_gf    = st.session_state.get("pf_coords_df", pd.DataFrame()).copy()
+
+        # Abastecimentos unificados (uploads + API GestãoFrotas)
+        _d12_abast_df = _carregar_abastecimentos_unificados(dias=730)
+        # Converte para lista de dicts compatível com o loop abaixo
+        _d12_abast = _d12_abast_df.to_dict("records") if not _d12_abast_df.empty else []
 
         # ── Coordenadas de centróides dos estados (lat/lon aproximados) ───────
         _UF_CENTROID = {
@@ -24771,10 +24775,13 @@ if modo == "📈 Dashboard":
                 for _u in set(_ufs_rota):
                     _d12_demanda[_u] = _d12_demanda.get(_u, 0) + 1.0
 
-        # Contribuição de abastecimentos históricos
+        # Contribuição de abastecimentos históricos (uploads + GestãoFrotas API)
         if _d12_abast:
             for _ab in _d12_abast:
-                _ab_uf = str(_ab.get("uf", "") or "").upper().strip()
+                # Aceita colunas de ambas as fontes: uf_posto (unificada) ou uf (legado)
+                _ab_uf = (
+                    str(_ab.get("uf_posto") or _ab.get("uf") or "")
+                ).upper().strip()
                 if _ab_uf in _d12_demanda:
                     _d12_demanda[_ab_uf] = _d12_demanda.get(_ab_uf, 0) + 0.5
 
