@@ -4369,18 +4369,44 @@ def _profrotas_garantir_tabela(db) -> tuple[bool, str]:
         return True, ""
     except Exception:
         pass
-    # Fallback: só testa se a tabela existe com SELECT
+    # Fallback: verifica se a tabela existe (coluna cnpj_frota sempre presente)
     try:
-        db.table("profrotas_abastecimentos").select("sync_key").limit(1).execute()
-        return True, ""
+        db.table("profrotas_abastecimentos").select("cnpj_frota").limit(1).execute()
     except Exception as _e:
         _msg = str(_e)
-        if "42P01" in _msg or "does not exist" in _msg.lower():
+        if "42P01" in _msg or "relation" in _msg.lower():
             return False, (
                 "A tabela `profrotas_abastecimentos` não existe no Supabase. "
                 "Execute o arquivo `profrotas_api.sql` no SQL Editor do Supabase para criá-la."
             )
-        return False, f"Erro ao verificar tabela: {_msg}"
+        # Outro erro (ex: RLS) — tabela existe, continua
+    # Verifica se a coluna sync_key existe; se não, tenta adicioná-la via RPC
+    try:
+        db.table("profrotas_abastecimentos").select("sync_key").limit(1).execute()
+    except Exception:
+        # sync_key ausente — tabela antiga; tenta adicionar a coluna
+        _alter = """
+        ALTER TABLE profrotas_abastecimentos
+            ADD COLUMN IF NOT EXISTS sync_key text;
+        UPDATE profrotas_abastecimentos
+           SET sync_key = md5(cnpj_frota || '|' || COALESCE(identificador,'sem_id') || '|' || COALESCE(item_id,''))
+         WHERE sync_key IS NULL;
+        ALTER TABLE profrotas_abastecimentos
+            ALTER COLUMN sync_key SET NOT NULL;
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                 WHERE conname = 'profrotas_abastecimentos_pkey'
+            ) THEN
+                ALTER TABLE profrotas_abastecimentos ADD PRIMARY KEY (sync_key);
+            END IF;
+        END $$;
+        """
+        try:
+            db.rpc("exec_sql", {"sql": _alter}).execute()
+        except Exception:
+            pass   # sem RPC — o upsert usará INSERT com fallback
+    return True, ""
 
 
 def _profrotas_sync(cnpj_frota: str, token: str,
@@ -4428,33 +4454,46 @@ def _profrotas_sync(cnpj_frota: str, token: str,
             return None
 
     def _upsert_batch(rows: list) -> str | None:
-        """Faz upsert de um lote; retorna mensagem de erro ou None."""
+        """Faz upsert de um lote com 3 estratégias em cascata."""
         import json as _j
-        # Serializa payload_raw como string JSON para compatibilidade com JSONB
         _rows_safe = []
         for _r in rows:
             _row = dict(_r)
             if isinstance(_row.get("payload_raw"), dict):
                 _row["payload_raw"] = _j.dumps(_row["payload_raw"], ensure_ascii=False, default=str)
             _rows_safe.append(_row)
+
+        # Estratégia 1: upsert por sync_key (tabela migrada com PK)
         try:
             _db.table("profrotas_abastecimentos").upsert(
-                _rows_safe,
-                on_conflict="sync_key"   # coluna PK — nunca NULL
+                _rows_safe, on_conflict="sync_key"
             ).execute()
             return None
-        except Exception as _e:
-            _emsg = str(_e)
-            # Tenta INSERT simples se upsert falhar (ex: constraint ausente)
+        except Exception as _e1:
+            pass
+
+        # Estratégia 2: upsert por identificador+cnpj_frota+item_id (tabela antiga com unique constraint)
+        _rows_sem_sk = [{k: v for k, v in r.items() if k != "sync_key"} for r in _rows_safe]
+        try:
+            _db.table("profrotas_abastecimentos").upsert(
+                _rows_sem_sk, on_conflict="cnpj_frota,identificador,item_id"
+            ).execute()
+            return None
+        except Exception as _e2:
+            pass
+
+        # Estratégia 3: INSERT individual ignorando duplicatas (último recurso)
+        _salvos3 = 0
+        _last_err = ""
+        for _single in _rows_sem_sk:
             try:
-                for _single in _rows_safe:
-                    try:
-                        _db.table("profrotas_abastecimentos").insert(_single).execute()
-                    except Exception:
-                        pass   # ignora duplicatas em modo de fallback
-                return None
-            except Exception as _e2:
-                return f"{_emsg} | fallback: {_e2}"
+                _db.table("profrotas_abastecimentos").insert(_single).execute()
+                _salvos3 += 1
+            except Exception as _e3:
+                _last_err = str(_e3)[:80]
+        if _salvos3 > 0:
+            return None   # pelo menos alguns salvos
+        return f"Todas as estratégias falharam. Último erro: {_last_err}"
 
     while True:
         payload = {"pagina": pagina, "dataInicial": data_inicio, "dataFinal": hoje}
