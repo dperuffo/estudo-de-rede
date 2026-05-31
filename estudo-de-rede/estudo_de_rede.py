@@ -26961,6 +26961,8 @@ elif modo == "🧭 Roteirização":
                         for r in _mg_valid.to_dict("records")
                     ]
 
+        _ests = []   # garante que _ests existe mesmo se nenhuma condição abaixo for verdadeira
+
         if _cands and _rc and _raut > 0:
             _MAX_DEV = 5.0   # km do corredor
 
