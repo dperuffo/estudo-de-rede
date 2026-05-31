@@ -4629,23 +4629,27 @@ def _profrotas_sync(cnpj_frota: str, token: str,
 
 def _profrotas_carregar_abast(cnpj_frota: str | None = None,
                                dias: int = 90) -> "pd.DataFrame":
-    """Carrega abastecimentos do Supabase com paginação (sem limite de 1000)."""
+    """Carrega abastecimentos do Supabase com paginação (sem limite de 1000).
+    Salva o último erro em session_state['_profrotas_read_error'] para diagnóstico.
+    """
     import datetime as _dt
     _db = _db_client()
     if not _db:
         return pd.DataFrame()
     try:
-        desde = (_dt.datetime.utcnow() - _dt.timedelta(days=dias)).isoformat()
         todos = []
         _page_size = 1000
         _offset = 0
         while True:
             q = (_db.table("profrotas_abastecimentos")
                  .select("*")
-                 .gte("data_abastecimento", desde)
                  .order("data_abastecimento", desc=True)
                  .limit(_page_size)
                  .offset(_offset))
+            # Aplica filtro de data apenas se dias > 0
+            if dias and dias > 0:
+                desde = (_dt.datetime.utcnow() - _dt.timedelta(days=dias)).isoformat()
+                q = q.gte("data_abastecimento", desde)
             if cnpj_frota:
                 q = q.eq("cnpj_frota", cnpj_frota)
             r = q.execute()
@@ -4654,8 +4658,12 @@ def _profrotas_carregar_abast(cnpj_frota: str | None = None,
             if len(batch) < _page_size:
                 break
             _offset += _page_size
+        import streamlit as _st2
+        _st2.session_state.pop("_profrotas_read_error", None)
         return pd.DataFrame(todos)
-    except Exception:
+    except Exception as _re:
+        import streamlit as _st2
+        _st2.session_state["_profrotas_read_error"] = str(_re)
         return pd.DataFrame()
 
 
@@ -28719,9 +28727,12 @@ elif modo == "👥 Análise de Cliente":
                 st.error(f"❌ Erro ao ler arquivo: {_ex_up}")
 
     elif _src_opcao == "☁️ Dados salvos no banco":  # banco
+        _dfs_banco = []
+
+        # ── Fonte 1: uploads manuais (frota_abastecimentos) ────────
         _rows_db = _db_carregar_abastecimentos()
         if _rows_db:
-            _df_abast = _pd.DataFrame(_rows_db).rename(columns={
+            _df_upload = _pd.DataFrame(_rows_db).rename(columns={
                 "id_transacao":       "_id_transacao",
                 "data_abastecimento": "_data",
                 "hora_abastecimento": "_hora",
@@ -28749,10 +28760,37 @@ elif modo == "👥 Análise de Cliente":
                 "lon_posto":          "_lon_posto",
                 "nome_arquivo":       "_nome_arquivo",
             })
-            _df_abast["_data"] = _pd.to_datetime(_df_abast["_data"], errors="coerce").dt.date
-            st.info(f"☁️ **{len(_df_abast)}** registros do banco — {_df_abast['_placa'].nunique()} veículos")
+            _df_upload["_data"] = _pd.to_datetime(_df_upload["_data"], errors="coerce").dt.date
+            if "_fonte" not in _df_upload.columns:
+                _df_upload["_fonte"] = "upload"
+            _dfs_banco.append(_df_upload)
+
+        # ── Fonte 2: API ProFrotas (profrotas_abastecimentos) ───────
+        _df_pf_banco = _profrotas_para_df_analise(None, 365)
+        if _df_pf_banco is not None and not _df_pf_banco.empty:
+            _dfs_banco.append(_df_pf_banco)
+
+        if _dfs_banco:
+            _df_abast = _pd.concat(_dfs_banco, ignore_index=True)
+            _n_upload = len(_rows_db) if _rows_db else 0
+            _n_pf     = len(_df_pf_banco) if (_df_pf_banco is not None and not _df_pf_banco.empty) else 0
+            _fontes   = []
+            if _n_upload: _fontes.append(f"**{_br_num(_n_upload, 0)}** via upload")
+            if _n_pf:     _fontes.append(f"**{_br_num(_n_pf, 0)}** via API ProFrotas")
+            st.info(
+                f"☁️ **{_br_num(len(_df_abast), 0)}** registros do banco "
+                f"({' + '.join(_fontes)}) — "
+                f"{_df_abast['_placa'].nunique()} veículos"
+            )
         else:
-            st.warning("Nenhum dado salvo no banco ainda. Carregue um arquivo primeiro.")
+            st.warning(
+                "Nenhum dado salvo no banco ainda. "
+                "Carregue um arquivo **ou** sincronize via **⚡ API & Integrações → GestãoFrotas**."
+            )
+            _rd_err = st.session_state.get("_profrotas_read_error")
+            if _rd_err:
+                with st.expander("🔍 Detalhe do erro de leitura"):
+                    st.code(_rd_err)
 
     # ── Filtro de segurança: usuário externo vê apenas seus dados ──
     if _df_abast is not None and not _df_abast.empty:
