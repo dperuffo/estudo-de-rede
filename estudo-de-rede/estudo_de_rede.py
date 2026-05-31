@@ -2109,6 +2109,42 @@ def _db_remover_usuario_empresa(email: str, empresa_id: str) -> bool:
         return False
 
 
+def _db_dominios_corporativos() -> list[dict]:
+    """
+    Retorna lista de domínios corporativos confiáveis cadastrados.
+    Cada item: {"dominio": "empresa.com.br", "perfil_padrao": "viewer",
+                "cnpj_vinculado": "...", "empresa_nome": "..."}
+    Armazenado na tabela configuracoes com chave 'dominios_corporativos' (JSON).
+    """
+    db = _db_client()
+    if not db:
+        return []
+    try:
+        import json as _json
+        _res = db.table("configuracoes").select("valor").eq("chave", "dominios_corporativos").limit(1).execute()
+        if _res.data:
+            return _json.loads(_res.data[0]["valor"]) or []
+    except Exception:
+        pass
+    return []
+
+
+def _db_salvar_dominios_corporativos(dominios: list) -> bool:
+    """Persiste a lista de domínios corporativos na tabela configuracoes."""
+    db = _db_client()
+    if not db:
+        return False
+    try:
+        import json as _json
+        db.table("configuracoes").upsert({
+            "chave": "dominios_corporativos",
+            "valor": _json.dumps(dominios, ensure_ascii=False),
+        }, on_conflict="chave").execute()
+        return True
+    except Exception:
+        return False
+
+
 def _db_verificar_acesso(email: str) -> tuple[bool, str]:
     """
     Verifica se o e-mail tem permissão para acessar o app.
@@ -2156,7 +2192,29 @@ def _db_verificar_acesso(email: str) -> tuple[bool, str]:
                   .execute()
                 return True, "permitido"
 
-        # Sem registro: depende do modo
+        # ── Verificação por domínio corporativo confiável ─────────────
+        _dominio_email = email.lower().split("@")[-1] if "@" in email else ""
+        if _dominio_email:
+            _dominios = _db_dominios_corporativos()
+            for _dc in _dominios:
+                if _dc.get("dominio", "").lower() == _dominio_email:
+                    # Domínio confiável — registra acesso automático
+                    try:
+                        db.table("controle_acesso").upsert({
+                            "email":  email.lower(),
+                            "status": "permitido",
+                            "motivo": f"Domínio corporativo: @{_dominio_email}",
+                            "adicionado_por": "sistema",
+                            "adicionado_em":  datetime.now().isoformat(),
+                            "ultimo_acesso":  datetime.now().isoformat(),
+                        }, on_conflict="email").execute()
+                    except Exception:
+                        pass
+                    # Guarda config do domínio na sessão para auto-provisioning
+                    st.session_state["_dominio_corporativo_config"] = _dc
+                    return True, f"dominio-corporativo:{_dominio_email}"
+
+        # Sem registro e sem domínio confiável: depende do modo
         if _modo == "allowlist":
             # Registra como pendente para o admin revisar
             db.table("controle_acesso").upsert({
@@ -3908,6 +3966,37 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             }
         else:
             _pdb = _auth_carregar_usuario_db(_email_perm)
+            if not _pdb:
+                # ── Auto-provisionamento para domínios corporativos confiáveis ──
+                _dc_cfg = st.session_state.pop("_dominio_corporativo_config", None)
+                if _dc_cfg:
+                    _perfil_dc  = _dc_cfg.get("perfil_padrao", "viewer")
+                    _cnpj_dc    = _dc_cfg.get("cnpj_vinculado") or None
+                    _empresa_dc = _dc_cfg.get("empresa_nome", "")
+                    _nome_dc    = (st.session_state.get("_auth_user") or {}).get("name", _email_perm)
+                    _db_prov    = _db_client()
+                    if _db_prov:
+                        try:
+                            _db_prov.table("usuarios_app").upsert({
+                                "email":          _email_perm.lower(),
+                                "nome":           _nome_dc,
+                                "perfil":         _perfil_dc,
+                                "cnpj_vinculado": _cnpj_dc,
+                                "empresa_nome":   _empresa_dc,
+                                "ativo":          True,
+                                "criado_em":      datetime.now().isoformat(),
+                                "origem":         "sso_corporativo",
+                            }, on_conflict="email").execute()
+                            # Recarrega perfil recém-criado
+                            _pdb = _auth_carregar_usuario_db(_email_perm)
+                            st.toast(
+                                f"👋 Bem-vindo! Conta provisionada automaticamente "
+                                f"como **{_perfil_dc}** via domínio corporativo.",
+                                icon="🏢",
+                            )
+                        except Exception:
+                            pass
+
             if _pdb:
                 st.session_state["_auth_perfil"]         = _pdb["perfil"]
                 st.session_state["_auth_cnpj_vinculado"] = _pdb.get("cnpj_vinculado")
@@ -25682,10 +25771,11 @@ elif modo == "🛡️ Admin":
 
     st.markdown("## 🔐 Painel de Administração")
 
-    _adm_tab_users, _adm_tab_emp, _adm_tab_acesso, _adm_tab_logs = st.tabs([
+    _adm_tab_users, _adm_tab_emp, _adm_tab_acesso, _adm_tab_dom, _adm_tab_logs = st.tabs([
         "👥 Perfis & Permissões",
         "🏢 Empresas & Usuários",
         "🔑 Controle de Acesso",
+        "🌐 Domínios Corporativos",
         "📋 Logs de Atividade",
     ])
 
@@ -25974,7 +26064,89 @@ elif modo == "🛡️ Admin":
 
 
     # ══════════════════════════════════════════════════════════════
-    #  ABA 3 — LOGS DE ATIVIDADE
+    #  ABA 3 — DOMÍNIOS CORPORATIVOS
+    # ══════════════════════════════════════════════════════════════
+    with _adm_tab_dom:
+        st.markdown("### 🌐 Domínios Corporativos Confiáveis")
+        st.info(
+            "Usuários que fizerem login com e-mail de um domínio cadastrado aqui serão "
+            "**autorizados automaticamente** e terão uma conta criada com o perfil padrão definido. "
+            "Ideal para empresas clientes que usam Google Workspace ou Microsoft 365.",
+            icon="ℹ️",
+        )
+
+        _doms = _db_dominios_corporativos()
+
+        # ── Adicionar novo domínio ──────────────────────────────
+        with st.expander("➕ Adicionar domínio corporativo", expanded=not _doms):
+            _dc1, _dc2, _dc3 = st.columns([2, 2, 1])
+            with _dc1:
+                _nd_dom = st.text_input("Domínio", key="nd_dom",
+                                        placeholder="empresa.com.br",
+                                        help="Apenas o domínio, sem @")
+            with _dc2:
+                _nd_perfil = st.selectbox("Perfil padrão", key="nd_perfil",
+                                          options=["viewer", "operador", "gestor_frota",
+                                                   "analista", "supervisor"],
+                                          help="Perfil atribuído automaticamente no primeiro login")
+            _dc4, _dc5 = st.columns([2, 2])
+            with _dc4:
+                _nd_cnpj = st.text_input("CNPJ vinculado (opcional)", key="nd_cnpj",
+                                         placeholder="00.000.000/0001-00")
+            with _dc5:
+                _nd_emp = st.text_input("Nome da empresa (opcional)", key="nd_emp",
+                                        placeholder="Empresa Transportes Ltda")
+            if st.button("✅ Adicionar domínio", key="btn_add_dom", type="primary"):
+                _nd_dom_clean = (_nd_dom or "").strip().lower().lstrip("@")
+                if not _nd_dom_clean or "." not in _nd_dom_clean:
+                    st.warning("Digite um domínio válido (ex: empresa.com.br)")
+                elif any(d.get("dominio") == _nd_dom_clean for d in _doms):
+                    st.warning(f"O domínio **{_nd_dom_clean}** já está cadastrado.")
+                else:
+                    _doms.append({
+                        "dominio":        _nd_dom_clean,
+                        "perfil_padrao":  _nd_perfil,
+                        "cnpj_vinculado": re.sub(r"\D", "", _nd_cnpj) or None,
+                        "empresa_nome":   _nd_emp.strip() or "",
+                    })
+                    if _db_salvar_dominios_corporativos(_doms):
+                        st.success(f"✅ Domínio **@{_nd_dom_clean}** adicionado!")
+                        st.rerun()
+                    else:
+                        st.error("Erro ao salvar. Verifique a tabela `configuracoes` no Supabase.")
+
+        st.divider()
+
+        # ── Lista de domínios cadastrados ───────────────────────
+        if not _doms:
+            st.info("Nenhum domínio corporativo cadastrado ainda.")
+        else:
+            st.markdown(f"**{len(_doms)} domínio(s) configurado(s):**")
+            for _di, _d in enumerate(_doms):
+                _col_a, _col_b, _col_c, _col_d, _col_rm = st.columns([2, 2, 2, 2, 1])
+                _col_a.markdown(f"🌐 `@{_d.get('dominio','')}`")
+                _col_b.markdown(f"👤 {_d.get('perfil_padrao','—')}")
+                _cnpj_fmt = _d.get('cnpj_vinculado') or '—'
+                _col_c.markdown(f"🏢 {_d.get('empresa_nome') or '—'}")
+                _col_d.markdown(f"📄 CNPJ: {_cnpj_fmt}")
+                if _col_rm.button("🗑️", key=f"rm_dom_{_di}",
+                                  help=f"Remover @{_d.get('dominio','')}"):
+                    _doms.pop(_di)
+                    if _db_salvar_dominios_corporativos(_doms):
+                        st.toast(f"Domínio @{_d.get('dominio','')} removido.", icon="🗑️")
+                        st.rerun()
+
+        st.divider()
+        st.markdown(
+            "**Como funciona:**\n\n"
+            "1. Usuário clica **Continuar com Google** (ou Microsoft) com e-mail corporativo\n"
+            "2. Se o domínio do e-mail estiver na lista acima → acesso **liberado automaticamente**\n"
+            "3. Se o usuário ainda não tem conta → criado em `usuarios_app` com o perfil padrão\n"
+            "4. Próximos logins funcionam normalmente sem nenhuma ação do admin"
+        )
+
+    # ══════════════════════════════════════════════════════════════
+    #  ABA 4 — LOGS DE ATIVIDADE
     # ══════════════════════════════════════════════════════════════
     with _adm_tab_logs:
         st.markdown('### 📋 Logs de Atividade')
