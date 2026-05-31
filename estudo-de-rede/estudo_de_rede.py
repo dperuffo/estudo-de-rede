@@ -29286,7 +29286,7 @@ elif modo == "👥 Análise de Cliente":
             st.warning("Nenhum registro no período selecionado.")
         else:
             # ── abas principais ───────────────────────────────────
-            _ta, _tb, _tc, _td, _te, _tf, _tg, _th = st.tabs([
+            _ta, _tb, _tc, _td, _te, _tf, _tg, _th, _ti = st.tabs([
                 "📊 Resumo",
                 "🚗 Veículos",
                 "📈 Consumo & Custo/km",
@@ -29295,6 +29295,7 @@ elif modo == "👥 Análise de Cliente":
                 "💰 Contratos & Savings",
                 "🏁 Rede GF vs Fora da Rede",
                 "🚘 FIPE",
+                "🔧 Manutenção Preditiva",
             ])
 
             # ════════════════════════════════════════════════════
@@ -31279,6 +31280,306 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                     _fipe_carregar_cache(),
                 )
                 _fipe_secao_ui(_df, _fipe_cache_ac, key_prefix="fipe_analise")
+
+            # ══════════════════════════════════════════════════════════
+            #  TAB — 🔧 MANUTENÇÃO PREDITIVA
+            # ══════════════════════════════════════════════════════════
+            with _ti:
+                import math as _mp_math, datetime as _mp_dt
+
+                # ── Configuração de intervalos por componente ─────────
+                _PRED_CONFIG = {
+                    "oleo":          {"leve": 8000,  "pesado": 15000, "label": "Troca de Óleo",             "icon": "🛢️",  "peso": 1.8},
+                    "pneus":         {"leve": 12000, "pesado": 25000, "label": "Rodízio / Troca de Pneus",  "icon": "🛞",  "peso": 1.5},
+                    "filtros":       {"leve": 15000, "pesado": 20000, "label": "Filtros (Ar/Combustível)",   "icon": "🔧",  "peso": 1.2},
+                    "lubrificacao":  {"leve": 20000, "pesado": 20000, "label": "Lubrificação Geral",         "icon": "⚙️",  "peso": 1.0},
+                    "alinhamento":   {"leve": 20000, "pesado": 12000, "label": "Alinhamento de Eixos",       "icon": "🎯",  "peso": 1.3},
+                    "arrefecimento": {"leve": 40000, "pesado": 40000, "label": "Sistema de Arrefecimento",   "icon": "🌡️",  "peso": 1.4},
+                    "ruidos":        {"leve": 8000,  "pesado": 8000,  "label": "Monitoramento de Ruídos",    "icon": "🔊",  "peso": 1.1},
+                    "revisao":       {"leve": 30000, "pesado": 30000, "label": "Revisão Geral",              "icon": "📋",  "peso": 1.0},
+                }
+
+                st.markdown(
+                    "<div style='background:linear-gradient(135deg,#7c2d12,#ea580c);"
+                    "border-radius:12px;padding:20px 24px;margin-bottom:20px'>"
+                    "<h3 style='color:#fff;margin:0 0 4px;font-size:1.2rem'>🔧 Gestão Preditiva de Manutenção</h3>"
+                    "<p style='color:rgba(255,255,255,0.8);margin:0;font-size:0.85rem'>"
+                    "Análise inteligente de desgaste da frota com score por veículo e recomendações automáticas</p>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+
+                if _df is None or _df.empty or "_placa" not in _df.columns:
+                    st.info("Carregue dados de abastecimentos com hodômetro para ativar a análise preditiva.", icon="ℹ️")
+                else:
+                    # ── Calcular análise por veículo ──────────────────
+                    def _mp_consumo(df_placa):
+                        """Consumo médio km/L — retorna {atual, base, degradacao}."""
+                        hist = df_placa[
+                            ~df_placa["_produto"].str.upper().str.contains("ARLA", na=False) &
+                            df_placa["_hod_atual"].notna() &
+                            (df_placa["_hod_atual"] > 0) &
+                            df_placa["_litros"].notna() &
+                            (df_placa["_litros"] > 0)
+                        ].sort_values("_hod_atual")
+                        if len(hist) < 2:
+                            return {"atual": None, "base": None, "degradacao": 0.0}
+                        pares = []
+                        for i in range(1, len(hist)):
+                            delta = float(hist.iloc[i]["_hod_atual"]) - float(hist.iloc[i-1]["_hod_atual"])
+                            if 50 < delta < 5000:
+                                pares.append(delta / float(hist.iloc[i]["_litros"]))
+                        if not pares:
+                            return {"atual": None, "base": None, "degradacao": 0.0}
+                        sl = max(1, len(pares) // 3)
+                        base  = sum(pares[:sl]) / sl
+                        atual = sum(pares[-sl:]) / sl
+                        deg   = max(0.0, (base - atual) / base) if base > 0 else 0.0
+                        return {"atual": round(atual, 2), "base": round(base, 2), "degradacao": round(deg, 3)}
+
+                    def _mp_score_comp(km_atual, tipo, is_pesado, deg):
+                        """Score (0-100) e urgência de um componente."""
+                        cfg      = _PRED_CONFIG[tipo]
+                        intervalo = cfg["pesado"] if is_pesado else cfg["leve"]
+                        if not km_atual:
+                            return {"score": 65, "km_since": 0, "km_next": intervalo, "urgencia": "ok", "pct": 0.0}
+                        fase = km_atual % intervalo
+                        pct  = fase / intervalo
+                        # Modificadores por degradação de consumo
+                        if tipo in ("oleo","ruidos") and deg > 0.10:
+                            pct = min(1.0, pct + deg * 0.5)
+                        if tipo == "filtros" and deg > 0.08:
+                            pct = min(1.0, pct + deg * 0.3)
+                        score    = max(0, round(100 - pct * 110))
+                        km_since = round(fase)
+                        km_next  = max(0, round(intervalo - fase))
+                        urgencia = "ok"
+                        if pct >= 0.85: urgencia = "critico"
+                        elif pct >= 0.65: urgencia = "alerta"
+                        return {"score": score, "km_since": km_since, "km_next": km_next,
+                                "urgencia": urgencia, "pct": round(pct, 3)}
+
+                    def _mp_analisar_veiculo(placa, df_p, tipo_v="Leve", ano_fab=None):
+                        """Análise completa de um veículo."""
+                        is_pesado  = tipo_v.lower() == "pesado"
+                        km_atual   = float(df_p["_hod_atual"].max()) if df_p["_hod_atual"].notna().any() else 0
+                        consumo    = _mp_consumo(df_p)
+                        deg        = consumo["degradacao"]
+                        idade_anos = (_mp_dt.date.today().year - int(ano_fab)) if ano_fab and str(ano_fab).isdigit() else 0
+                        # Score por componente
+                        comps = {}
+                        score_total = 0.0; peso_total = 0.0
+                        for key, cfg in _PRED_CONFIG.items():
+                            c = _mp_score_comp(km_atual, key, is_pesado, deg)
+                            # Penalidade por idade (> 8 anos)
+                            if idade_anos > 8:
+                                pen = min(0.15, (idade_anos - 8) * 0.02)
+                                c["score"] = max(0, round(c["score"] * (1 - pen)))
+                                if c["urgencia"] == "ok" and c["pct"] >= 0.5:
+                                    c["urgencia"] = "alerta"
+                            comps[key]   = c
+                            score_total += c["score"] * cfg["peso"]
+                            peso_total  += cfg["peso"]
+                        score_geral = round(score_total / peso_total) if peso_total else 0
+                        status = "OK" if score_geral >= 70 else ("Alerta" if score_geral >= 40 else "Crítico")
+                        # Top alertas
+                        alertas = sorted(
+                            [(k, v) for k, v in comps.items() if v["urgencia"] != "ok"],
+                            key=lambda x: x[1]["score"]
+                        )[:3]
+                        # Recomendações
+                        recs = []
+                        criticos = [(k,v) for k,v in comps.items() if v["urgencia"] == "critico"]
+                        if criticos:
+                            nomes = ", ".join(_PRED_CONFIG[k]["label"] for k,_ in criticos)
+                            recs.append(f"🔴 **Ação imediata:** {nomes} — vencidos pelo hodômetro.")
+                        if deg > 0.15:
+                            recs.append(f"🛢️ **Consumo degradado {round(deg*100)}%** (base: {consumo['base']} → atual: {consumo['atual']} km/L). Verificar filtros e injeção.")
+                        elif deg > 0.07:
+                            recs.append(f"⚠️ Leve queda de rendimento ({round(deg*100)}%). Monitorar tendência.")
+                        if idade_anos >= 10:
+                            recs.append(f"📅 Veículo com **{idade_anos} anos**. Reduzir intervalos em 20-30%.")
+                        alertas_med = [(k,v) for k,v in comps.items() if v["urgencia"] == "alerta"]
+                        if alertas_med and not criticos:
+                            proximos = ", ".join(f"{_PRED_CONFIG[k]['icon']} {_PRED_CONFIG[k]['label']} (~{v['km_next']:,} km)" for k,v in alertas_med[:2])
+                            recs.append(f"🟡 **Próximos:** {proximos}")
+                        if not criticos and not alertas_med:
+                            recs.append("✅ Veículo em bom estado. Manter cronograma preventivo.")
+                        return {
+                            "placa": placa, "km_atual": km_atual, "consumo": consumo,
+                            "score_geral": score_geral, "status": status,
+                            "comps": comps, "alertas": alertas,
+                            "recomendacoes": recs, "is_pesado": is_pesado,
+                            "idade_anos": idade_anos,
+                        }
+
+                    # ── Rodar análise ──────────────────────────────────
+                    _mp_df = _df.copy()
+                    _mp_df["_hod_atual"] = _pd.to_numeric(_mp_df.get("_hod_atual"), errors="coerce")
+                    _mp_df["_litros"]    = _pd.to_numeric(_mp_df.get("_litros"), errors="coerce")
+
+                    _mp_placas = sorted(_mp_df["_placa"].dropna().unique().tolist())
+
+                    # Filtros
+                    _mp_col1, _mp_col2, _mp_col3 = st.columns([2,1,1])
+                    with _mp_col1:
+                        _mp_placas_sel = st.multiselect("Veículos", _mp_placas, placeholder="Todos",
+                                                         key="mp_placas_sel")
+                    with _mp_col2:
+                        _mp_tipo_sel = st.selectbox("Tipo", ["Todos","Leve","Pesado"], key="mp_tipo_sel")
+                    with _mp_col3:
+                        _mp_ord = st.selectbox("Ordenar por", ["Pior estado","Maior km","Placa A→Z"],
+                                                key="mp_ord")
+
+                    _mp_placas_run = _mp_placas_sel if _mp_placas_sel else _mp_placas
+
+                    # Filtrar por tipo se necessário
+                    _mp_resultados = []
+                    for _p in _mp_placas_run:
+                        _df_p = _mp_df[_mp_df["_placa"] == _p]
+                        if _df_p.empty: continue
+                        # Determinar tipo de veículo (de _tipo_veiculo se disponível)
+                        _tipo_v = "Leve"
+                        if "_tipo_veiculo" in _df_p.columns:
+                            _tv = _df_p["_tipo_veiculo"].dropna()
+                            if not _tv.empty:
+                                _tipo_v = "Pesado" if "pesado" in str(_tv.iloc[0]).lower() else "Leve"
+                        if _mp_tipo_sel != "Todos" and _tipo_v != _mp_tipo_sel:
+                            continue
+                        _res = _mp_analisar_veiculo(_p, _df_p, _tipo_v)
+                        _mp_resultados.append(_res)
+
+                    # Ordenação
+                    if _mp_ord == "Pior estado":
+                        _mp_resultados.sort(key=lambda x: x["score_geral"])
+                    elif _mp_ord == "Maior km":
+                        _mp_resultados.sort(key=lambda x: -x["km_atual"])
+                    else:
+                        _mp_resultados.sort(key=lambda x: x["placa"])
+
+                    if not _mp_resultados:
+                        st.info("Nenhum veículo com hodômetro registrado encontrado.", icon="ℹ️")
+                    else:
+                        # ── KPIs ─────────────────────────────────────────
+                        _mp_total    = len(_mp_resultados)
+                        _mp_criticos = sum(1 for r in _mp_resultados if r["status"] == "Crítico")
+                        _mp_alertas  = sum(1 for r in _mp_resultados if r["status"] == "Alerta")
+                        _mp_ok       = sum(1 for r in _mp_resultados if r["status"] == "OK")
+                        _mp_score_m  = round(sum(r["score_geral"] for r in _mp_resultados) / _mp_total)
+
+                        _mk1, _mk2, _mk3, _mk4, _mk5 = st.columns(5)
+                        _mk1.metric("🚗 Veículos",        _mp_total)
+                        _mk2.metric("🔴 Críticos",        _mp_criticos,
+                                    delta=f"-{_mp_criticos}" if _mp_criticos else None,
+                                    delta_color="inverse")
+                        _mk3.metric("🟡 Em Alerta",       _mp_alertas)
+                        _mk4.metric("🟢 OK",              _mp_ok)
+                        _mk5.metric("📊 Score Médio",     f"{_mp_score_m}/100")
+
+                        # Banner de críticos
+                        if _mp_criticos > 0:
+                            _mp_nomes_crit = [r["placa"] for r in _mp_resultados if r["status"] == "Crítico"]
+                            st.error(
+                                f"🚨 **{_mp_criticos} veículo(s) em estado CRÍTICO:** "
+                                f"{', '.join(_mp_nomes_crit[:5])}{'...' if len(_mp_nomes_crit)>5 else ''}. "
+                                f"Agendar manutenção com urgência.",
+                                icon="🚨"
+                            )
+
+                        st.divider()
+
+                        # ── Cards por veículo ─────────────────────────────
+                        _mp_cols = st.columns(3)
+                        for _mi, _res in enumerate(_mp_resultados):
+                            _col_idx = _mi % 3
+                            with _mp_cols[_col_idx]:
+                                _s = _res["score_geral"]
+                                _cor_s = "#16a34a" if _s >= 70 else ("#d97706" if _s >= 40 else "#dc2626")
+                                _bg_s  = "#f0fdf4"  if _s >= 70 else ("#fffbeb"  if _s >= 40 else "#fef2f2")
+                                _borda = "#bbf7d0"  if _s >= 70 else ("#fde68a"  if _s >= 40 else "#fca5a5")
+                                _st_icon = "🟢" if _s >= 70 else ("🟡" if _s >= 40 else "🔴")
+
+                                # Card HTML
+                                _card_alertas_html = ""
+                                if _res["alertas"]:
+                                    for _ak, _av in _res["alertas"]:
+                                        _urgc = "#dc2626" if _av["urgencia"] == "critico" else "#d97706"
+                                        _km_txt = "Vencido" if _av["urgencia"] == "critico" else f"~{_av['km_next']:,} km"
+                                        _card_alertas_html += (
+                                            f"<div style='display:flex;align-items:center;gap:6px;"
+                                            f"padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:0.78rem'>"
+                                            f"<span>{_PRED_CONFIG[_ak]['icon']}</span>"
+                                            f"<span style='flex:1'>{_PRED_CONFIG[_ak]['label']}</span>"
+                                            f"<span style='color:{_urgc};font-weight:700'>{_km_txt}</span>"
+                                            f"</div>"
+                                        )
+                                else:
+                                    _card_alertas_html = "<div style='font-size:0.78rem;color:#16a34a;padding:4px 0'>✅ Todos os itens no prazo</div>"
+
+                                _consumo_txt = ""
+                                if _res["consumo"]["atual"]:
+                                    _consumo_txt = f"· {_res['consumo']['atual']} km/L"
+                                    if _res["consumo"]["degradacao"] > 0.05:
+                                        _consumo_txt += f" ↓{round(_res['consumo']['degradacao']*100)}%"
+
+                                st.markdown(
+                                    f"<div style='border:1.5px solid {_borda};border-radius:12px;"
+                                    f"overflow:hidden;margin-bottom:12px;background:#fff'>"
+                                    # Header
+                                    f"<div style='background:{_bg_s};padding:12px 14px 10px;border-bottom:1px solid #f1f5f9'>"
+                                    f"<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px'>"
+                                    f"<div><div style='font-size:1rem;font-weight:800'>{_res['placa']}</div>"
+                                    f"<div style='font-size:0.73rem;color:#6b7280'>{'Pesado' if _res['is_pesado'] else 'Leve'}"
+                                    f"{'  · '+str(_res['idade_anos'])+' anos' if _res['idade_anos'] else ''}</div></div>"
+                                    f"<span style='background:{_bg_s};color:{_cor_s};border:1.5px solid {_borda};"
+                                    f"border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700'>"
+                                    f"{_st_icon} {_res['status']}</span></div>"
+                                    # Barra de score
+                                    f"<div style='display:flex;align-items:center;gap:8px'>"
+                                    f"<div style='flex:1;height:7px;background:#e5e7eb;border-radius:4px'>"
+                                    f"<div style='height:100%;width:{_s}%;background:{_cor_s};border-radius:4px'></div></div>"
+                                    f"<span style='font-size:0.82rem;font-weight:800;color:{_cor_s}'>{_s}/100</span></div>"
+                                    f"</div>"
+                                    # Alertas
+                                    f"<div style='padding:10px 14px 8px'>"
+                                    f"<div style='font-size:0.7rem;font-weight:700;color:#6b7280;text-transform:uppercase;"
+                                    f"letter-spacing:.04em;margin-bottom:5px'>Itens em Atenção</div>"
+                                    f"{_card_alertas_html}</div>"
+                                    # Footer
+                                    f"<div style='padding:8px 14px 12px;background:#f8fafc;border-top:1px solid #f1f5f9;"
+                                    f"font-size:0.76rem;color:#6b7280'>"
+                                    f"<span style='font-weight:700;color:#111'>{int(_res['km_atual']):,}</span> km {_consumo_txt}"
+                                    f"</div></div>",
+                                    unsafe_allow_html=True,
+                                )
+
+                        # ── Recomendações detalhadas ──────────────────────
+                        st.divider()
+                        st.markdown("#### 💡 Recomendações por Veículo")
+                        for _res in _mp_resultados:
+                            if _res["recomendacoes"] and _res["recomendacoes"] != ["✅ Sem recomendações pendentes no momento."]:
+                                with st.expander(
+                                    f"{'🔴' if _res['status']=='Crítico' else '🟡' if _res['status']=='Alerta' else '🟢'} "
+                                    f"**{_res['placa']}** — Score {_res['score_geral']}/100 — {_res['status']}",
+                                    expanded=(_res["status"] == "Crítico"),
+                                ):
+                                    for _rec in _res["recomendacoes"]:
+                                        st.markdown(_rec)
+                                    # Tabela de componentes
+                                    st.markdown("**Detalhamento por componente:**")
+                                    _rows_comp = []
+                                    for _ck, _cv in _res["comps"].items():
+                                        _rows_comp.append({
+                                            "Componente": f"{_PRED_CONFIG[_ck]['icon']} {_PRED_CONFIG[_ck]['label']}",
+                                            "Score": _cv["score"],
+                                            "Km desde manutenção": f"{_cv['km_since']:,}",
+                                            "Km para próxima": f"{_cv['km_next']:,}",
+                                            "Status": {"critico":"🔴 Crítico","alerta":"🟡 Alerta","ok":"🟢 OK"}[_cv["urgencia"]],
+                                        })
+                                    st.dataframe(
+                                        _pd.DataFrame(_rows_comp).set_index("Componente"),
+                                        use_container_width=True,
+                                    )
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Relatórios e Exportações Evoluídas
