@@ -4192,7 +4192,7 @@ def _profrotas_salvar_chave(cnpj_frota: str, nome_empresa: str,
     _db = _db_client()
     if not _db:
         return False, "Supabase não disponível."
-    cnpj_norm = str(cnpj_frota).strip().replace(r"\D", "")
+    cnpj_norm = re.sub(r"\D", "", str(cnpj_frota).strip())
     try:
         payload = {
             "cnpj_frota":       cnpj_norm,
@@ -4255,15 +4255,27 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                 _err_msg += f" (⚠️ {total_salvos} registros das páginas anteriores já foram salvos)"
             return pagina - 1, total_salvos, novo_token, _err_msg, total_items or 0
 
+        # Salva resposta da primeira página para debug (mostra no expander se 0 registros)
+        if pagina == 1 and isinstance(data, dict):
+            import streamlit as _st_dbg
+            _st_dbg.session_state["_profrotas_last_response"] = {
+                k: v for k, v in data.items() if k != "registros"
+            }
+
         if _novo:
             novo_token = _novo
 
         if not isinstance(data, dict):
-            return pagina, total_salvos, novo_token, f"Resposta inválida: {str(data)[:100]}", total_items or 0, total_items or 0
+            return pagina, total_salvos, novo_token, f"Resposta inválida: {str(data)[:100]}", total_items or 0
 
-        registros = data.get("registros") or []
+        # Tenta chaves alternativas que a API pode retornar
+        registros = (data.get("registros") or data.get("items") or
+                     data.get("data") or data.get("content") or [])
         if total_items is None:
-            total_items = int(data.get("totalItems", 0))
+            total_items = int(
+                data.get("totalItems") or data.get("total") or
+                data.get("totalRegistros") or data.get("count") or 0
+            )
         tam_pag = int(data.get("tamanhoPagina", _PROFROTAS_PAGE_SIZE)) or _PROFROTAS_PAGE_SIZE
 
         if progress_cb:
@@ -33792,13 +33804,28 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                         _pb.progress(1.0, text="Concluído!")
                         if _perr:
                             st.error(f"❌ Erro durante sincronização: {_perr}")
+                            # Exibe resposta bruta da API para diagnóstico
+                            _raw_debug = st.session_state.get("_profrotas_last_response")
+                            if _raw_debug:
+                                with st.expander("🔍 Resposta bruta da API (debug)"):
+                                    st.json(_raw_debug)
                         elif _ps2 == 0:
-                            st.warning(
-                                f"⚠️ API respondeu com **{_ptot}** registro(s) no total, "
-                                f"mas nenhum foi salvo. "
-                                f"Verifique se a tabela `profrotas_abastecimentos` existe no Supabase "
-                                f"(execute `profrotas_api.sql`) e se o período selecionado tem dados."
-                            )
+                            if _ptot == 0:
+                                st.warning(
+                                    f"⚠️ A API não retornou registros para o período selecionado. "
+                                    f"Tente ampliar o intervalo de datas ou verifique se há abastecimentos "
+                                    f"neste período para o cliente selecionado."
+                                )
+                            else:
+                                st.warning(
+                                    f"⚠️ API retornou **{_ptot}** registro(s) mas nenhum foi salvo. "
+                                    f"Verifique se a tabela `profrotas_abastecimentos` existe no Supabase "
+                                    f"(execute `profrotas_api.sql`)."
+                                )
+                            _raw_debug = st.session_state.get("_profrotas_last_response")
+                            if _raw_debug:
+                                with st.expander("🔍 Resposta bruta da API (debug)"):
+                                    st.json(_raw_debug)
                         else:
                             st.success(f"✅ {_ps2:,} registros salvos em {_pp} página(s). "
                                        f"Total na API: {_ptot:,}.")
