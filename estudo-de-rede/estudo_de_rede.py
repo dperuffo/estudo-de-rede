@@ -4663,11 +4663,16 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                 for item in _itens:
                     _tipo_raw = item.get("tipo")
                     if isinstance(_tipo_raw, dict):
-                        _tipo_int  = _tipo_raw.get("codigo")
+                        _tipo_raw_val = _tipo_raw.get("codigo")
                         _item_nome_extra = _tipo_raw.get("valor")
                     else:
-                        _tipo_int  = _tipo_raw
+                        _tipo_raw_val = _tipo_raw
                         _item_nome_extra = None
+                    # Converte para int seguro — rejeita booleans e strings inválidas
+                    try:
+                        _tipo_int = int(_tipo_raw_val) if (_tipo_raw_val is not None and not isinstance(_tipo_raw_val, bool)) else None
+                    except (TypeError, ValueError):
+                        _tipo_int = None
                     _iid = str(item.get("identificador") or "")
                     row  = dict(_base)
                     row["item_id"]             = _iid
