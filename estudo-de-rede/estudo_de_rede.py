@@ -24431,7 +24431,7 @@ if modo == "📈 Dashboard":
                         _cx4_n_ab = len(_cx4_df)
                         st.markdown(
                             f'<div style="{_cx4_css}">'
-                            f'<div style="font-size:1.8rem;font-weight:700">{_cx4_n_ab:,}</div>'
+                            f'<div style="font-size:1.8rem;font-weight:700">{_br_num(_cx4_n_ab, 0)}</div>'
                             f'<div style="font-size:.8rem;color:#c5cae9">Abastecimentos</div>'
                             f"</div>",
                             unsafe_allow_html=True,
@@ -24440,7 +24440,7 @@ if modo == "📈 Dashboard":
                         _cx4_n_postos = _cx4_df["cnpj_posto"].nunique() if "cnpj_posto" in _cx4_df.columns else 0
                         st.markdown(
                             f'<div style="{_cx4_css}">'
-                            f'<div style="font-size:1.8rem;font-weight:700">{_cx4_n_postos}</div>'
+                            f'<div style="font-size:1.8rem;font-weight:700">{_br_num(_cx4_n_postos, 0)}</div>'
                             f'<div style="font-size:.8rem;color:#c5cae9">Postos distintos</div>'
                             f"</div>",
                             unsafe_allow_html=True,
@@ -24449,7 +24449,7 @@ if modo == "📈 Dashboard":
                         _cx4_n_ufs = _cx4_df["uf_posto"].nunique() if "uf_posto" in _cx4_df.columns else 0
                         st.markdown(
                             f'<div style="{_cx4_css}">'
-                            f'<div style="font-size:1.8rem;font-weight:700">{_cx4_n_ufs}</div>'
+                            f'<div style="font-size:1.8rem;font-weight:700">{_br_num(_cx4_n_ufs, 0)}</div>'
                             f'<div style="font-size:.8rem;color:#c5cae9">UFs cobertas</div>'
                             f"</div>",
                             unsafe_allow_html=True,
@@ -24459,7 +24459,7 @@ if modo == "📈 Dashboard":
                             _cx4_df["preco_litro"].mean()
                             if "preco_litro" in _cx4_df.columns else None
                         )
-                        _cx4_preco_txt = f"R$ {_cx4_preco_med:.3f}" if _cx4_preco_med and pd.notna(_cx4_preco_med) else "—"
+                        _cx4_preco_txt = _br_moeda(_cx4_preco_med, 3) if _cx4_preco_med and pd.notna(_cx4_preco_med) else "—"
                         st.markdown(
                             f'<div style="{_cx4_css}">'
                             f'<div style="font-size:1.8rem;font-weight:700">{_cx4_preco_txt}</div>'
