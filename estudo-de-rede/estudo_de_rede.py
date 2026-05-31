@@ -1300,6 +1300,12 @@ def _db_carregar_acordos() -> "pd.DataFrame":
             return None
         _df = pd.DataFrame(rows)
         _df["dt_vigencia"] = pd.to_datetime(_df["dt_vigencia"], errors="coerce")
+        # Normaliza preco_negociado: valores > 50 estão em centésimos de centavo (×10000)
+        if "preco_negociado" in _df.columns:
+            _df["preco_negociado"] = pd.to_numeric(_df["preco_negociado"], errors="coerce")
+            _pn_med = _df["preco_negociado"].dropna()
+            if not _pn_med.empty and _pn_med.median() > 50:
+                _df["preco_negociado"] = (_df["preco_negociado"] / 10_000).round(4)
         return _df
 
     try:
@@ -1759,6 +1765,14 @@ def _processar_acordos_df(df_raw: "pd.DataFrame") -> "pd.DataFrame":
         df["preco_negociado"] if "preco_negociado" in df.columns else pd.Series(dtype=float),
         errors="coerce",
     )
+    # ── Normalização automática de unidade ─────────────────────────────────
+    # Planilhas legadas podem trazer o preço em centésimos de centavo (×10000):
+    #   38400 → 3.84 R$/L   |   66300 → 6.63 R$/L
+    # Detecta: se mediana dos preços válidos > 50, divide tudo por 10.000.
+    if "preco_negociado" in df.columns:
+        _pn_validos = df["preco_negociado"].dropna()
+        if not _pn_validos.empty and _pn_validos.median() > 50:
+            df["preco_negociado"] = (df["preco_negociado"] / 10_000).round(4)
     df["va_desconto"] = pd.to_numeric(
         df["va_desconto"] if "va_desconto" in df.columns else pd.Series(dtype=float),
         errors="coerce",
@@ -16920,6 +16934,19 @@ ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                      "combustivel","preco_negociado","va_desconto","dt_vigencia"]
                     if c in _ac_vigentes.columns]
                 _ac_show = _ac_vigentes[_ac_show_cols].copy()
+                # Formata preço negociado em R$/L (padrão BR)
+                if "preco_negociado" in _ac_show.columns:
+                    _ac_show["preco_negociado"] = pd.to_numeric(
+                        _ac_show["preco_negociado"], errors="coerce"
+                    ).apply(lambda v: _br_moeda(v) if pd.notna(v) else "—")
+                if "va_desconto" in _ac_show.columns:
+                    _ac_show["va_desconto"] = pd.to_numeric(
+                        _ac_show["va_desconto"], errors="coerce"
+                    ).apply(lambda v: f"R$ {_br_num(v, 3)}/L" if pd.notna(v) else "—")
+                if "dt_vigencia" in _ac_show.columns:
+                    _ac_show["dt_vigencia"] = pd.to_datetime(
+                        _ac_show["dt_vigencia"], errors="coerce"
+                    ).dt.strftime("%d/%m/%Y")
                 _ac_show.columns = [
                     {"cnpj_posto":"CNPJ Posto","nome_posto":"Nome Posto",
                      "cnpj_frota":"CNPJ Frota","razao_social_frota":"Razão Social Frota",
