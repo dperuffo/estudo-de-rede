@@ -33393,24 +33393,34 @@ elif modo == "📑 Relatórios":
             )
 
             st.markdown("**📅 Período**")
-            _rp_c1, _rp_c2 = st.columns(2)
-            _rp_ini = _rp_c1.date_input("De", value=_rp_dt.date.today() - _rp_dt.timedelta(days=30), key="rp_ini", label_visibility="visible")
-            _rp_fim = _rp_c2.date_input("Até", value=_rp_dt.date.today(), key="rp_fim", label_visibility="visible")
+            # Atalhos rápidos — definem defaults ANTES de criar os date_inputs
+            _today_rp = _rp_dt.date.today()
             _rp_qs = st.columns(5)
-            _rp_q_labels = ["7d","30d","Mês","Trim.","Ano"]
-            _rp_q_days   = [7, 30, None, None, None]
-            for _qi, (_ql, _qd) in enumerate(zip(_rp_q_labels, _rp_q_days)):
+            for _qi, _ql in enumerate(["7d","30d","Mês","Trim.","Ano"]):
                 if _rp_qs[_qi].button(_ql, key=f"rp_q{_qi}", use_container_width=True):
-                    _today = _rp_dt.date.today()
-                    if _ql == "7d":   st.session_state["rp_ini"] = _today - _rp_dt.timedelta(days=7)
-                    elif _ql == "30d":st.session_state["rp_ini"] = _today - _rp_dt.timedelta(days=30)
-                    elif _ql == "Mês":st.session_state["rp_ini"] = _today.replace(day=1)
+                    if _ql == "7d":
+                        st.session_state["rp_ini_val"] = _today_rp - _rp_dt.timedelta(days=7)
+                    elif _ql == "30d":
+                        st.session_state["rp_ini_val"] = _today_rp - _rp_dt.timedelta(days=30)
+                    elif _ql == "Mês":
+                        st.session_state["rp_ini_val"] = _today_rp.replace(day=1)
                     elif _ql == "Trim.":
-                        _qm = ((_today.month - 1) // 3) * 3 + 1
-                        st.session_state["rp_ini"] = _today.replace(month=_qm, day=1)
-                    elif _ql == "Ano":st.session_state["rp_ini"] = _today.replace(month=1, day=1)
-                    st.session_state["rp_fim"] = _today
+                        _qm = ((_today_rp.month - 1) // 3) * 3 + 1
+                        st.session_state["rp_ini_val"] = _today_rp.replace(month=_qm, day=1)
+                    elif _ql == "Ano":
+                        st.session_state["rp_ini_val"] = _today_rp.replace(month=1, day=1)
+                    st.session_state["rp_fim_val"] = _today_rp
                     st.rerun()
+
+            # date_inputs usam valores do session_state (sem conflito de key)
+            _ini_default = st.session_state.get("rp_ini_val", _today_rp - _rp_dt.timedelta(days=30))
+            _fim_default = st.session_state.get("rp_fim_val", _today_rp)
+            _rp_c1, _rp_c2 = st.columns(2)
+            _rp_ini = _rp_c1.date_input("De",  value=_ini_default, key="rp_ini")
+            _rp_fim = _rp_c2.date_input("Até", value=_fim_default, key="rp_fim")
+            # Sincroniza de volta caso o usuário mude manualmente
+            st.session_state["rp_ini_val"] = _rp_ini
+            st.session_state["rp_fim_val"] = _rp_fim
 
             st.markdown("**📐 Dimensão (Eixo X)**")
             _rp_dim_opts = []
