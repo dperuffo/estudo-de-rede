@@ -33440,14 +33440,49 @@ elif modo == "📑 Relatórios":
             )
 
             st.markdown("**🔍 Filtros Adicionais**")
-            _rp_f_comb = st.selectbox("Combustível", ["Todos","Diesel S10","Diesel","Gasolina","Etanol","GNV","Arla 32"], key="rp_f_comb")
+
+            # ── Cliente / Frota ────────────────────────────────────
+            _rp_f_cliente = "Todos"
+            _rp_f_cnpj_frota = ""
+            if _rp_fonte == "abastecimentos" and not _rp_dados_cache.empty:
+                # Monta dicionário razao_frota → cnpj_frota
+                _cli_map = {}
+                if "cnpj_frota" in _rp_dados_cache.columns:
+                    _razao_col = "razao_frota" if "razao_frota" in _rp_dados_cache.columns else None
+                    for _, _rc in (
+                        _rp_dados_cache[["cnpj_frota"] + ([_razao_col] if _razao_col else [])]
+                        .dropna(subset=["cnpj_frota"])
+                        .drop_duplicates("cnpj_frota")
+                        .iterrows()
+                    ):
+                        _cnpj_c = str(_rc["cnpj_frota"]).strip()
+                        _razao_c = str(_rc[_razao_col]).strip() if _razao_col else ""
+                        _label_c = f"{_razao_c}  ({_cnpj_c})" if _razao_c and _razao_c != "nan" else _cnpj_c
+                        _cli_map[_label_c] = _cnpj_c
+
+                if _cli_map:
+                    _rp_f_cliente = st.selectbox(
+                        "🏢 Cliente / Frota",
+                        ["Todos"] + sorted(_cli_map.keys()),
+                        key="rp_f_cliente",
+                    )
+                    if _rp_f_cliente != "Todos":
+                        _rp_f_cnpj_frota = _cli_map.get(_rp_f_cliente, "")
+
+            _rp_f_comb = st.selectbox("⛽ Combustível", ["Todos","Diesel S10","Diesel","Gasolina","Etanol","GNV","Arla 32"], key="rp_f_comb")
             _rp_f_placa = ""
             _rp_f_mot   = ""
             if _rp_fonte == "abastecimentos" and not _rp_dados_cache.empty:
-                _placas_rp = sorted(_rp_dados_cache["placa"].dropna().unique().tolist()) if "placa" in _rp_dados_cache.columns else []
-                _mots_rp   = sorted(_rp_dados_cache["motorista"].dropna().unique().tolist()) if "motorista" in _rp_dados_cache.columns else []
-                _rp_f_placa = st.selectbox("Veículo (Placa)", ["Todos"] + _placas_rp, key="rp_f_placa")
-                _rp_f_mot   = st.selectbox("Motorista", ["Todos"] + _mots_rp, key="rp_f_mot")
+                # Filtra cache pelo cliente selecionado para popular placa/motorista
+                _cache_filtrado = _rp_dados_cache
+                if _rp_f_cnpj_frota and "cnpj_frota" in _cache_filtrado.columns:
+                    _cache_filtrado = _cache_filtrado[
+                        _cache_filtrado["cnpj_frota"].astype(str) == _rp_f_cnpj_frota
+                    ]
+                _placas_rp = sorted(_cache_filtrado["placa"].dropna().unique().tolist()) if "placa" in _cache_filtrado.columns else []
+                _mots_rp   = sorted(_cache_filtrado["motorista"].dropna().unique().tolist()) if "motorista" in _cache_filtrado.columns else []
+                _rp_f_placa = st.selectbox("🚗 Veículo (Placa)", ["Todos"] + _placas_rp, key="rp_f_placa")
+                _rp_f_mot   = st.selectbox("👤 Motorista", ["Todos"] + _mots_rp, key="rp_f_mot")
 
             _rp_gerar = st.button("▶ Gerar Relatório", type="primary",
                                    use_container_width=True, key="rp_gerar")
@@ -33484,6 +33519,9 @@ elif modo == "📑 Relatórios":
                     # ── Usa cache — sem chamada ao banco ─────────────
                     if _rp_fonte == "abastecimentos":
                         _df_rp = _rp_dados_cache.copy() if not _rp_dados_cache.empty else pd.DataFrame()
+                        # Filtro de cliente (cnpj_frota)
+                        if _rp_f_cnpj_frota and "cnpj_frota" in _df_rp.columns:
+                            _df_rp = _df_rp[_df_rp["cnpj_frota"].astype(str) == _rp_f_cnpj_frota]
                         if _rp_f_comb != "Todos" and "produto" in _df_rp.columns:
                             _df_rp = _df_rp[_df_rp["produto"].str.contains(_rp_f_comb, case=False, na=False)]
                         if _rp_f_placa and _rp_f_placa != "Todos" and "placa" in _df_rp.columns:
@@ -33614,7 +33652,8 @@ elif modo == "📑 Relatórios":
                     f"<div style='background:#f0f4ff;border:1.5px solid #c7d2fe;border-radius:8px;"
                     f"padding:10px 14px;margin-bottom:14px;font-size:12px;color:#3730a3'>"
                     f"<b>Fonte:</b> {_RP_FONTES.get(_rp_fonte,_rp_fonte)} &nbsp;·&nbsp; "
-                    f"<b>Dimensão:</b> {_rp_dim_lbl} &nbsp;·&nbsp; "
+                    + (f"<b>Cliente:</b> {_rp_f_cliente} &nbsp;·&nbsp; " if _rp_f_cliente != 'Todos' else "")
+                    + f"<b>Dimensão:</b> {_rp_dim_lbl} &nbsp;·&nbsp; "
                     f"<b>Métricas:</b> {_met_labels} &nbsp;·&nbsp; "
                     f"<b>Período:</b> {_rp_ini.strftime('%d/%m/%Y')} a {_rp_fim.strftime('%d/%m/%Y')}"
                     f"</div>",
