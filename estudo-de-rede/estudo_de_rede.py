@@ -11578,26 +11578,67 @@ def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") 
     _geo_html  = f"<span style='color:#666;font-size:12px'>📍 {_geo}</span>" if _geo else ""
     _dist_html = f"&nbsp;·&nbsp;<span style='color:#888'>{_dist}</span>" if _dist else ""
 
+    # ── Preços do posto (busca no _pp_df pelo CNPJ) ─────────────────────────────
+    _precos_html = ""
+    try:
+        _pp_df_card = st.session_state.get("_pp_df")
+        _cnpj_norm  = re.sub(r"\D", "", str(_cnpj))
+        if _pp_df_card is not None and _cnpj_norm and "cnpj_norm" in _pp_df_card.columns:
+            _pp_posto = _pp_df_card[_pp_df_card["cnpj_norm"] == _cnpj_norm]
+            if not _pp_posto.empty:
+                _linhas_preco = []
+                for _, _pr in _pp_posto.iterrows():
+                    _lbl = str(_pr.get("combustivel_label") or _pr.get("combustivel_pk", ""))
+                    _prc = _pr.get("preco")
+                    if _lbl and _prc is not None:
+                        _linhas_preco.append(
+                            f"<span style='display:inline-block;margin-right:14px;"
+                            f"font-size:11.5px'>"
+                            f"<b>{_lbl}:</b> R$ {float(_prc):.3f}/L</span>"
+                        )
+                if _linhas_preco:
+                    _precos_html = (
+                        "<div style='margin-top:8px;padding-top:6px;"
+                        "border-top:1px solid rgba(21,101,192,0.2)'>"
+                        "<span style='font-size:11px;font-weight:700;color:#1565c0'>"
+                        "⛽ Preços</span><br>"
+                        + "".join(_linhas_preco)
+                        + "</div>"
+                    )
+    except Exception:
+        pass
+
     # ── Card de detalhe destacado (abaixo do mapa) ──────────────────────────────
-    col_info, col_btn = st.columns([5, 1])
+    col_info, col_maps, col_limpar = st.columns([5, 1, 1])
     with col_info:
         st.markdown(
             f"<div style='"
-            f"background:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);"
-            f"border-left:5px solid #1565c0;"
+            f"background:linear-gradient(135deg,#fff8e1 0%,#fffde7 100%);"
+            f"border-left:5px solid #f9a825;"
             f"border-radius:0 10px 10px 0;"
             f"padding:12px 16px;"
-            f"box-shadow:0 3px 12px rgba(21,101,192,0.18);"
+            f"box-shadow:0 3px 12px rgba(249,168,37,0.18);"
             f"margin-top:4px'>"
-            f"<div style='font-size:15px;font-weight:700;color:#0d47a1'>"
+            f"<div style='font-size:15px;font-weight:700;color:#5f4307'>"
             f"🏪 {_nome}{_dist_html}</div>"
             f"<div style='margin:6px 0 4px'>{_badges_html}</div>"
             f"<div style='margin-top:4px'>{_cnpj_html}{_geo_html}</div>"
+            f"{_precos_html}"
             f"</div>",
             unsafe_allow_html=True,
         )
-    with col_btn:
+    with col_maps:
         st.link_button("📍 Maps", _maps_url, use_container_width=True)
+    with col_limpar:
+        if st.button(
+            "✕ Limpar",
+            key=f"_desel_card_{key}",
+            use_container_width=True,
+            help="Remover seleção",
+        ):
+            st.session_state.pop(_sel_key, None)
+            st.session_state[_ver_key] = _ver + 1
+            st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════
