@@ -13619,9 +13619,10 @@ def _deletar_rota_local(rota_id: str) -> bool:
 
 
 # Aliases públicos — usam Supabase se disponível, JSON local como fallback
-def _carregar_rotas_salvas() -> list:   return _db_carregar_rotas()
+def _carregar_rotas_salvas() -> list:     return _db_carregar_rotas()
 def _salvar_rota_nova(nome, tipo, dados): return _db_salvar_rota(nome, tipo, dados)
-def _deletar_rota(rota_id):             return _db_deletar_rota(rota_id)
+def _deletar_rota(rota_id):               return _db_deletar_rota(rota_id)
+def _gravar_rotas_salvas(rotas: list):    return _gravar_rotas_salvas_local(rotas)
 
 
 def _icone_tipo(tipo: str) -> str:
@@ -17099,7 +17100,29 @@ if _var_df_global is not None and not _var_df_global.empty:
 # ═══════════════════════════════════════════════════════════════════
 #  MODO 1 — Por Estado / Município
 # ═══════════════════════════════════════════════════════════════════
+
 modo = st.session_state.get("modo_selecionado", "📍 Por UF/Município")
+
+# ── Variáveis de parâmetros da sidebar (fallback seguro) ──────────────
+# Estas variáveis são normalmente definidas pelos widgets da sidebar.
+# Os valores abaixo são lidos do session_state (persistido entre reruns)
+# para manter o comportamento correto após cada interação do usuário.
+uf                    = st.session_state.get("uf", "")
+municipio_input       = st.session_state.get("municipio_input", "")
+distribuidoras_filtro = st.session_state.get("distribuidoras_filtro", [])
+perfis_filtro_m1      = st.session_state.get("perfis_filtro_m1", [])
+perfis_filtro_m2      = st.session_state.get("perfis_filtro_m2", [])
+buscar_rota_btn       = st.session_state.pop("_trigger_buscar_rota", False)
+raio                  = st.session_state.get("raio", 5000)
+_filtro_servicos_m1   = st.session_state.get("_filtro_servicos_m1", [])
+_filtro_24h_m1        = st.session_state.get("_filtro_24h_m1", False)
+_fuel_sel_m1          = st.session_state.get("_fuel_sel_m1", "— Todos —")
+_preco_faixa_m1       = st.session_state.get("_preco_faixa_m1", None)
+_filtro_servicos_m2   = st.session_state.get("_filtro_servicos_m2", [])
+_filtro_24h_m2        = st.session_state.get("_filtro_24h_m2", False)
+_fuel_sel_m2          = st.session_state.get("_fuel_sel_m2", "— Todos —")
+_preco_faixa_m2       = st.session_state.get("_preco_faixa_m2", None)
+
 if modo == "📍 Por UF/Município":
     _render_filtros_inteligentes(modo)
 
