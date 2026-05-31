@@ -32120,7 +32120,7 @@ elif modo == "📑 Relatórios":
                 with st.spinner("Gerando PDF..."):
                     try:
                         from reportlab.lib.pagesizes import A4
-                        from reportlab.lib import colors as _rl_colors
+                        from reportlab.lib import colors
                         from reportlab.lib.units import cm
                         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
                         from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -32138,17 +32138,17 @@ elif modo == "📑 Relatórios":
                         _stls = getSampleStyleSheet()
                         _sTit = ParagraphStyle("sTit", parent=_stls["Normal"],
                             fontSize=16, fontName="Helvetica-Bold",
-                            textColor=_rl_colors.HexColor("#1A237E"),
+                            textColor=colors.HexColor("#1A237E"),
                             spaceAfter=4, alignment=TA_CENTER)
                         _sH2e = ParagraphStyle("sH2e", parent=_stls["Normal"],
                             fontSize=12, fontName="Helvetica-Bold",
-                            textColor=_rl_colors.HexColor("#283593"),
+                            textColor=colors.HexColor("#283593"),
                             spaceBefore=10, spaceAfter=4)
                         _sNe  = ParagraphStyle("sNe", parent=_stls["Normal"],
                             fontSize=9, fontName="Helvetica", spaceAfter=2)
                         _sSub = ParagraphStyle("sSub", parent=_stls["Normal"],
                             fontSize=10, fontName="Helvetica",
-                            textColor=_rl_colors.grey, alignment=TA_CENTER)
+                            textColor=colors.grey, alignment=TA_CENTER)
 
                         _story_re = []
                         _story_re.append(Paragraph("Fleet Network Intelligence", _sTit))
@@ -32160,7 +32160,7 @@ elif modo == "📑 Relatórios":
                         ))
                         _story_re.append(Spacer(1, 0.3*cm))
                         _story_re.append(HRFlowable(width="100%", thickness=2,
-                                                     color=_rl_colors.HexColor("#283593")))
+                                                     color=colors.HexColor("#283593")))
                         _story_re.append(Spacer(1, 0.4*cm))
 
                         # KPIs
@@ -32172,14 +32172,14 @@ elif modo == "📑 Relatórios":
                         ]
                         _kpi_tbl = Table(_kpi_data, colWidths=[4*cm, 4*cm, 4*cm, 4*cm])
                         _kpi_tbl.setStyle(TableStyle([
-                            ("BACKGROUND", (0, 0), (-1, 0), _rl_colors.HexColor("#283593")),
-                            ("TEXTCOLOR",  (0, 0), (-1, 0), _rl_colors.white),
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#283593")),
+                            ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
                             ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
                             ("FONTSIZE",   (0, 0), (-1, -1), 9),
                             ("ALIGN",      (0, 0), (-1, -1), "CENTER"),
                             ("ROWBACKGROUNDS", (0, 1), (-1, -1),
-                             [_rl_colors.HexColor("#EEF1FB"), _rl_colors.white]),
-                            ("GRID",       (0, 0), (-1, -1), 0.5, _rl_colors.HexColor("#BDBDBD")),
+                             [colors.HexColor("#EEF1FB"), colors.white]),
+                            ("GRID",       (0, 0), (-1, -1), 0.5, colors.HexColor("#BDBDBD")),
                             ("TOPPADDING", (0, 0), (-1, -1), 5),
                             ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
                         ]))
@@ -32204,14 +32204,14 @@ elif modo == "📑 Relatórios":
                             ])
                         _ev_tbl = Table(_ev_rows_pdf, colWidths=[6*cm, 3.5*cm, 3.5*cm, 3.5*cm])
                         _ev_tbl.setStyle(TableStyle([
-                            ("BACKGROUND", (0, 0), (-1, 0), _rl_colors.HexColor("#3949AB")),
-                            ("TEXTCOLOR",  (0, 0), (-1, 0), _rl_colors.white),
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3949AB")),
+                            ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
                             ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
                             ("FONTSIZE",   (0, 0), (-1, -1), 9),
                             ("ALIGN",      (1, 1), (-1, -1), "RIGHT"),
                             ("ROWBACKGROUNDS", (0, 1), (-1, -1),
-                             [_rl_colors.HexColor("#F5F5F5"), _rl_colors.white]),
-                            ("GRID",       (0, 0), (-1, -1), 0.5, _rl_colors.HexColor("#BDBDBD")),
+                             [colors.HexColor("#F5F5F5"), colors.white]),
+                            ("GRID",       (0, 0), (-1, -1), 0.5, colors.HexColor("#BDBDBD")),
                             ("TOPPADDING", (0, 0), (-1, -1), 4),
                             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
                         ]))
@@ -32232,14 +32232,14 @@ elif modo == "📑 Relatórios":
                                 ])
                             _sv_tbl = Table(_sv_rows_pdf, colWidths=[5.5*cm, 4*cm, 4*cm, 3*cm])
                             _sv_tbl.setStyle(TableStyle([
-                                ("BACKGROUND", (0, 0), (-1, 0), _rl_colors.HexColor("#1B5E20")),
-                                ("TEXTCOLOR",  (0, 0), (-1, 0), _rl_colors.white),
+                                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1B5E20")),
+                                ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
                                 ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
                                 ("FONTSIZE",   (0, 0), (-1, -1), 9),
                                 ("ALIGN",      (1, 1), (-1, -1), "RIGHT"),
                                 ("ROWBACKGROUNDS", (0, 1), (-1, -1),
-                                 [_rl_colors.HexColor("#E8F5E9"), _rl_colors.white]),
-                                ("GRID",       (0, 0), (-1, -1), 0.5, _rl_colors.HexColor("#BDBDBD")),
+                                 [colors.HexColor("#E8F5E9"), colors.white]),
+                                ("GRID",       (0, 0), (-1, -1), 0.5, colors.HexColor("#BDBDBD")),
                                 ("TOPPADDING", (0, 0), (-1, -1), 4),
                                 ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
                             ]))
@@ -32256,12 +32256,12 @@ elif modo == "📑 Relatórios":
 
                         _story_re.append(Spacer(1, 0.5*cm))
                         _story_re.append(HRFlowable(width="100%", thickness=1,
-                                                     color=_rl_colors.HexColor("#BDBDBD")))
+                                                     color=colors.HexColor("#BDBDBD")))
                         _story_re.append(Paragraph(
                             f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · "
                             "Fleet Network Intelligence",
                             ParagraphStyle("sFooter", parent=_stls["Normal"],
-                                fontSize=7, textColor=_rl_colors.grey, alignment=TA_CENTER),
+                                fontSize=7, textColor=colors.grey, alignment=TA_CENTER),
                         ))
 
                         _doc_re.build(_story_re)
@@ -33260,11 +33260,21 @@ elif modo == "📑 Relatórios":
             "Cache Supabase de 30 dias evita chamadas repetidas.</div>",
             unsafe_allow_html=True,
         )
-        # Tenta session_state primeiro (dados já carregados na sessão)
+        # Tenta session_state primeiro — usa helper para evitar ValueError com DataFrames
+        def _rlt_df_valido(key):
+            """Retorna df do session_state se existir e não estiver vazio."""
+            _v = st.session_state.get(key)
+            if _v is None:
+                return None
+            try:
+                return _v if (hasattr(_v, "empty") and not _v.empty) else None
+            except Exception:
+                return None
+
         _rlt_abast_df = (
-            st.session_state.get("_fipe_abast_df")
-            or st.session_state.get("frota_abast_df")
-            or st.session_state.get("abastecimentos_df")
+            _rlt_df_valido("_fipe_abast_df")
+            or _rlt_df_valido("frota_abast_df")
+            or _rlt_df_valido("abastecimentos_df")
         )
         # Se não há dados na sessão, carrega automaticamente de todas as fontes
         if _rlt_abast_df is None or (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
@@ -33668,9 +33678,11 @@ elif modo == "📑 Relatórios":
                     with st.expander("📋 Ver tabela de dados"):
                         st.dataframe(_rp_result, use_container_width=True, hide_index=True)
 
-                # ── Exportar Excel ────────────────────────────────
+                # ── Exportar ─────────────────────────────────────
                 st.divider()
-                _rp_ec1, _rp_ec2 = st.columns(2)
+                _rp_ec1, _rp_ec2, _rp_ec3 = st.columns(3)
+
+                # Excel
                 with _rp_ec1:
                     try:
                         import io as _rp_io
@@ -33685,15 +33697,193 @@ elif modo == "📑 Relatórios":
                             use_container_width=True,
                         )
                     except Exception:
-                        _rp_csv = _rp_result.to_csv(index=False).encode("utf-8-sig")
-                        st.download_button("⬇️ Exportar CSV", _rp_csv,
-                                           file_name=f"relatorio_{_rp_fonte}.csv",
-                                           use_container_width=True)
+                        pass
+
+                # CSV
                 with _rp_ec2:
                     _rp_csv2 = _rp_result.to_csv(index=False).encode("utf-8-sig")
                     st.download_button("📄 Exportar CSV", _rp_csv2,
                                        file_name=f"relatorio_{_rp_fonte}.csv",
                                        mime="text/csv", use_container_width=True)
+
+                # PDF
+                with _rp_ec3:
+                    try:
+                        import io as _rp_io2
+                        from reportlab.lib.pagesizes import A4, landscape
+                        from reportlab.lib.units import cm
+                        from reportlab.lib import colors
+                        from reportlab.platypus import (
+                            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+                        )
+                        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+                        def _gerar_pdf_relatorio(df, fonte, dim_lbl, mets, ini, fim, viz):
+                            buf = _rp_io2.BytesIO()
+                            doc = SimpleDocTemplate(
+                                buf, pagesize=landscape(A4),
+                                leftMargin=1.5*cm, rightMargin=1.5*cm,
+                                topMargin=1.5*cm, bottomMargin=1.5*cm,
+                            )
+                            styles = getSampleStyleSheet()
+                            story  = []
+
+                            # ── Estilo personalizado ───────────────────────
+                            s_title = ParagraphStyle("rp_title",
+                                fontSize=16, fontName="Helvetica-Bold",
+                                textColor=colors.HexColor("#1e1b4b"),
+                                spaceAfter=4, alignment=TA_LEFT,
+                            )
+                            s_sub = ParagraphStyle("rp_sub",
+                                fontSize=9, fontName="Helvetica",
+                                textColor=colors.HexColor("#64748b"),
+                                spaceAfter=10, alignment=TA_LEFT,
+                            )
+                            s_sec = ParagraphStyle("rp_sec",
+                                fontSize=10, fontName="Helvetica-Bold",
+                                textColor=colors.HexColor("#3730a3"),
+                                spaceBefore=12, spaceAfter=6,
+                            )
+                            s_cell = ParagraphStyle("rp_cell",
+                                fontSize=8, fontName="Helvetica",
+                                textColor=colors.HexColor("#1e293b"),
+                            )
+
+                            fonte_nome = _RP_FONTES.get(fonte, fonte)
+                            met_labels = " · ".join(m[1] for m in mets)
+
+                            # ── Cabeçalho ──────────────────────────────────
+                            story.append(Paragraph("Relatório Personalizado", s_title))
+                            story.append(Paragraph(
+                                f"Fonte: {fonte_nome}  |  Dimensão: {dim_lbl}  |  "
+                                f"Métricas: {met_labels}  |  "
+                                f"Período: {ini.strftime('%d/%m/%Y')} a {fim.strftime('%d/%m/%Y')}",
+                                s_sub,
+                            ))
+                            story.append(HRFlowable(
+                                width="100%", thickness=2,
+                                color=colors.HexColor("#3730a3"), spaceAfter=10,
+                            ))
+
+                            # ── KPIs de resumo ─────────────────────────────
+                            _kpi_data = []
+                            for _mk, _mlbl, _mfmt in mets:
+                                if _mlbl in df.columns:
+                                    _kv = pd.to_numeric(df[_mlbl], errors="coerce").sum()
+                                    if _mfmt == "int":   _kvs = _br_num(_kv, 0)
+                                    elif _mfmt == "pct": _kvs = f"{_br_num(_kv/max(len(df),1),2)}%"
+                                    elif _mfmt in ("money","money3"): _kvs = _br_moeda(_kv)
+                                    else:                _kvs = _br_num(_kv, 2)
+                                    _kpi_data.append([_mlbl, _kvs])
+
+                            if _kpi_data:
+                                story.append(Paragraph("Resumo", s_sec))
+                                # Agrupa em linhas de 3 KPIs
+                                _kpi_rows = []
+                                for _ki in range(0, len(_kpi_data), 3):
+                                    _row_kpi = _kpi_data[_ki:_ki+3]
+                                    # Preenche até 3 colunas
+                                    while len(_row_kpi) < 3:
+                                        _row_kpi.append(["", ""])
+                                    _kpi_rows.append(
+                                        [Paragraph(f"<b>{k[0]}</b><br/>{k[1]}", s_cell)
+                                         for k in _row_kpi]
+                                    )
+                                _kpi_tbl = Table(_kpi_rows, colWidths=[8.5*cm]*3, rowHeights=1.4*cm)
+                                _kpi_tbl.setStyle(TableStyle([
+                                    ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#f0f4ff")),
+                                    ("BOX",        (0,0), (-1,-1), 0.5, colors.HexColor("#c7d2fe")),
+                                    ("INNERGRID",  (0,0), (-1,-1), 0.3, colors.HexColor("#c7d2fe")),
+                                    ("ALIGN",      (0,0), (-1,-1), "CENTER"),
+                                    ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
+                                    ("TOPPADDING", (0,0), (-1,-1), 8),
+                                    ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+                                ]))
+                                story.append(_kpi_tbl)
+                                story.append(Spacer(1, 0.4*cm))
+
+                            # ── Tabela de dados ────────────────────────────
+                            story.append(Paragraph("Dados do Relatório", s_sec))
+
+                            _cols = ["Dimensão"] + [m[1] for m in mets if m[1] in df.columns]
+                            _header = [Paragraph(f"<b>{c}</b>", s_cell) for c in _cols]
+                            _rows_pdf = [_header]
+
+                            for _, _row in df.iterrows():
+                                _row_data = []
+                                for _ci, _cn in enumerate(_cols):
+                                    _v = _row.get(_cn, "")
+                                    if _ci > 0:
+                                        try:
+                                            _fv = float(_v)
+                                            _fmt = next((m[2] for m in mets if m[1]==_cn), "dec")
+                                            if _fmt == "int":        _v = _br_num(_fv, 0)
+                                            elif _fmt in ("money","money3"): _v = _br_moeda(_fv)
+                                            elif _fmt == "pct":      _v = f"{_br_num(_fv,2)}%"
+                                            else:                    _v = _br_num(_fv, 2)
+                                        except Exception:
+                                            pass
+                                    _row_data.append(Paragraph(str(_v), s_cell))
+                                _rows_pdf.append(_row_data)
+
+                            # Largura das colunas
+                            _pw = landscape(A4)[0] - 3*cm
+                            _dim_w = _pw * 0.35
+                            _met_w = (_pw - _dim_w) / max(len(_cols)-1, 1)
+                            _col_ws = [_dim_w] + [_met_w]*(len(_cols)-1)
+
+                            _tbl = Table(_rows_pdf, colWidths=_col_ws, repeatRows=1)
+                            _tbl.setStyle(TableStyle([
+                                ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1e1b4b")),
+                                ("TEXTCOLOR",  (0,0), (-1,0), colors.white),
+                                ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
+                                ("FONTSIZE",   (0,0), (-1,0), 8),
+                                ("ROWBACKGROUNDS", (0,1), (-1,-1),
+                                 [colors.HexColor("#f8fafc"), colors.white]),
+                                ("GRID",       (0,0), (-1,-1), 0.3, colors.HexColor("#e2e8f0")),
+                                ("ALIGN",      (1,0), (-1,-1), "RIGHT"),
+                                ("ALIGN",      (0,0), (0,-1), "LEFT"),
+                                ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
+                                ("TOPPADDING", (0,0), (-1,-1), 5),
+                                ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+                                ("LEFTPADDING",   (0,0), (-1,-1), 6),
+                                ("RIGHTPADDING",  (0,0), (-1,-1), 6),
+                            ]))
+                            story.append(_tbl)
+
+                            # ── Rodapé com data de geração ─────────────────
+                            story.append(Spacer(1, 0.5*cm))
+                            story.append(HRFlowable(
+                                width="100%", thickness=0.5,
+                                color=colors.HexColor("#e2e8f0"), spaceAfter=4,
+                            ))
+                            story.append(Paragraph(
+                                f"Gerado em {_rp_dt.datetime.now().strftime('%d/%m/%Y %H:%M')} "
+                                f"· Estudo de Rede · Relatório Personalizado",
+                                ParagraphStyle("rp_foot", fontSize=7,
+                                               textColor=colors.HexColor("#94a3b8"),
+                                               alignment=TA_CENTER),
+                            ))
+
+                            doc.build(story)
+                            buf.seek(0)
+                            return buf.read()
+
+                        _pdf_bytes = _gerar_pdf_relatorio(
+                            _rp_result, _rp_fonte, _rp_dim_lbl,
+                            _rp_mets_cur, _rp_ini, _rp_fim, _rp_viz_cur,
+                        )
+                        st.download_button(
+                            "📄 Exportar PDF",
+                            _pdf_bytes,
+                            file_name=f"relatorio_{_rp_fonte}_{_rp_ini}_{_rp_fim}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                            type="primary",
+                        )
+                    except Exception as _rp_pdf_err:
+                        st.error(f"Erro ao gerar PDF: {_rp_pdf_err}")
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Telemetria de Frota
