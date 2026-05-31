@@ -10695,6 +10695,85 @@ _COMB_ORDEM = {
 def _comb_sort_key(label: str) -> int:
     return _COMB_ORDEM.get(label.lower().strip(), 99)
 
+# ═══════════════════════════════════════════════════════════════════
+#  MANUTENÇÃO PREDITIVA — Persistência Supabase
+# ═══════════════════════════════════════════════════════════════════
+
+def _manut_salvar(cnpj_frota: str, placa: str, data: str,
+                  hodometro: int | None, tecnico: str, oficina: str,
+                  custo: float | None, itens: list[str],
+                  obs: str, criado_por: str = "") -> tuple[bool, str]:
+    """Salva um registro de manutenção no Supabase."""
+    _db = _db_client()
+    if not _db:
+        return False, "Supabase não disponível."
+    try:
+        payload = {
+            "cnpj_frota":       cnpj_frota.strip(),
+            "placa":            placa.upper().strip(),
+            "data_manutencao":  data,
+            "hodometro":        hodometro,
+            "tecnico":          tecnico.strip() or None,
+            "oficina":          oficina.strip() or None,
+            "custo_total":      custo,
+            "itens_realizados": itens,
+            "obs_gerais":       obs.strip() or None,
+            "criado_por":       criado_por,
+        }
+        _db.table("manutencoes_realizadas").insert(payload).execute()
+        return True, "Manutenção registrada com sucesso."
+    except Exception as e:
+        return False, str(e)
+
+
+def _manut_listar(cnpj_frota: str | None = None,
+                  placa: str | None = None,
+                  limit: int = 500) -> list:
+    """Carrega histórico de manutenções do Supabase."""
+    _db = _db_client()
+    if not _db:
+        return []
+    try:
+        q = (_db.table("manutencoes_realizadas")
+             .select("*")
+             .order("data_manutencao", desc=True)
+             .limit(limit))
+        if cnpj_frota:
+            q = q.eq("cnpj_frota", cnpj_frota)
+        if placa:
+            q = q.eq("placa", placa.upper().strip())
+        r = q.execute()
+        return r.data or []
+    except Exception:
+        return []
+
+
+def _manut_ultima_por_tipo(placa: str, tipo: str,
+                            historico: list) -> dict | None:
+    """Retorna o registro mais recente de manutenção para placa+tipo."""
+    matches = [
+        r for r in historico
+        if r.get("placa","").upper() == placa.upper()
+        and tipo in (r.get("itens_realizados") or [])
+        and r.get("hodometro")
+    ]
+    if not matches:
+        return None
+    return max(matches, key=lambda r: r.get("hodometro", 0))
+
+
+def _manut_excluir(id_reg: int) -> tuple[bool, str]:
+    """Remove um registro de manutenção."""
+    _db = _db_client()
+    if not _db:
+        return False, "Supabase não disponível."
+    try:
+        _db.table("manutencoes_realizadas").delete().eq("id", id_reg).execute()
+        return True, "Registro excluído."
+    except Exception as e:
+        return False, str(e)
+
+
 def _precos_tooltip_html(cnpj_norm: str, uf: str) -> str:
     """Retorna bloco HTML com preços de combustíveis para o tooltip do mapa.
 
@@ -31580,6 +31659,125 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                                         _pd.DataFrame(_rows_comp).set_index("Componente"),
                                         use_container_width=True,
                                     )
+
+                        # ── Registro e Histórico de Manutenções ───────────
+                        st.divider()
+                        _mp_reg_tab, _mp_hist_tab = st.tabs(["📝 Registrar Manutenção", "📋 Histórico"])
+
+                        with _mp_reg_tab:
+                            st.markdown("##### 📝 Registrar Manutenção Realizada")
+                            st.caption("Registre manutenções realizadas para melhorar a precisão da análise preditiva.")
+
+                            with st.form("form_manut_reg", clear_on_submit=True):
+                                _mr_c1, _mr_c2 = st.columns(2)
+                                with _mr_c1:
+                                    _mr_placa = st.selectbox("🚗 Veículo (Placa) *",
+                                                              [""] + sorted(_mp_placas), key="mr_placa")
+                                    _mr_data  = st.date_input("📅 Data da Manutenção *",
+                                                               value=_mp_dt.date.today(), key="mr_data")
+                                    _mr_hod   = st.number_input("🛣️ Hodômetro (km)", min_value=0,
+                                                                  value=0, step=100, key="mr_hod")
+                                with _mr_c2:
+                                    _mr_tec   = st.text_input("👤 Técnico / Mecânico", key="mr_tec")
+                                    _mr_of    = st.text_input("🏭 Oficina", key="mr_of")
+                                    _mr_custo = st.number_input("💰 Custo Total (R$)", min_value=0.0,
+                                                                  value=0.0, step=50.0,
+                                                                  format="%.2f", key="mr_custo")
+
+                                st.markdown("**✅ Itens realizados nesta manutenção:**")
+                                _mr_cols_itens = st.columns(4)
+                                _mr_itens_sel = []
+                                for _ii, (_ik, _icfg) in enumerate(_PRED_CONFIG.items()):
+                                    with _mr_cols_itens[_ii % 4]:
+                                        if st.checkbox(f"{_icfg['icon']} {_icfg['label']}",
+                                                        key=f"mr_item_{_ik}"):
+                                            _mr_itens_sel.append(_ik)
+
+                                _mr_obs = st.text_area("📝 Observações", height=80, key="mr_obs",
+                                                         placeholder="Condições do veículo, peças substituídas, pendências...")
+
+                                _mr_sub = st.form_submit_button("💾 Registrar Manutenção",
+                                                                  type="primary", use_container_width=True)
+
+                            if _mr_sub:
+                                if not _mr_placa:
+                                    st.error("Selecione um veículo.")
+                                elif not _mr_itens_sel:
+                                    st.error("Selecione ao menos um item de manutenção realizado.")
+                                else:
+                                    _mr_cnpj = str(_df["_cnpj_frota"].dropna().iloc[0]
+                                                   if "_cnpj_frota" in _df.columns and not _df["_cnpj_frota"].dropna().empty
+                                                   else "")
+                                    _mr_usr  = st.session_state.get("_auth_email", "")
+                                    _mr_ok, _mr_msg = _manut_salvar(
+                                        _mr_cnpj, _mr_placa, str(_mr_data),
+                                        int(_mr_hod) if _mr_hod > 0 else None,
+                                        _mr_tec, _mr_of,
+                                        float(_mr_custo) if _mr_custo > 0 else None,
+                                        _mr_itens_sel, _mr_obs, _mr_usr
+                                    )
+                                    if _mr_ok:
+                                        st.success(f"✅ {_mr_msg}")
+                                        st.rerun()
+                                    else:
+                                        st.error(f"❌ {_mr_msg}")
+
+                        with _mp_hist_tab:
+                            st.markdown("##### 📋 Histórico de Manutenções Registradas")
+                            _mh_placa_f = st.selectbox("Filtrar por veículo",
+                                                         ["Todos"] + sorted(_mp_placas),
+                                                         key="mh_placa_f")
+                            _mh_cnpj = str(_df["_cnpj_frota"].dropna().iloc[0]
+                                           if "_cnpj_frota" in _df.columns and not _df["_cnpj_frota"].dropna().empty
+                                           else "")
+                            _mh_hist = _manut_listar(
+                                cnpj_frota=_mh_cnpj or None,
+                                placa=None if _mh_placa_f == "Todos" else _mh_placa_f,
+                            )
+                            if not _mh_hist:
+                                st.info("Nenhuma manutenção registrada ainda. Use a aba **📝 Registrar Manutenção**.", icon="ℹ️")
+                            else:
+                                # KPIs do histórico
+                                _mh_df = _pd.DataFrame(_mh_hist)
+                                _mh_c1, _mh_c2, _mh_c3 = st.columns(3)
+                                _mh_custo_tot = _pd.to_numeric(_mh_df.get("custo_total", _pd.Series()), errors="coerce").sum()
+                                _mh_c1.metric("🔧 Registros", len(_mh_hist))
+                                _mh_c2.metric("🚗 Veículos", _mh_df["placa"].nunique())
+                                _mh_c3.metric("💰 Custo Total", f"R$ {_mh_custo_tot:,.2f}")
+
+                                # Tabela
+                                _mh_show = []
+                                for _mh in _mh_hist:
+                                    _itens_str = ", ".join(
+                                        f"{_PRED_CONFIG[i]['icon']} {_PRED_CONFIG[i]['label']}"
+                                        for i in (_mh.get("itens_realizados") or [])
+                                        if i in _PRED_CONFIG
+                                    )
+                                    _mh_show.append({
+                                        "ID": _mh.get("id"),
+                                        "Data": _mh.get("data_manutencao",""),
+                                        "Placa": _mh.get("placa",""),
+                                        "Km": f"{int(_mh['hodometro']):,}" if _mh.get("hodometro") else "—",
+                                        "Itens": _itens_str or "—",
+                                        "Oficina": _mh.get("oficina","") or "—",
+                                        "Custo": f"R$ {float(_mh['custo_total']):,.2f}" if _mh.get("custo_total") else "—",
+                                        "Registrado por": _mh.get("criado_por","") or "—",
+                                    })
+                                _mh_df_show = _pd.DataFrame(_mh_show)
+                                st.dataframe(_mh_df_show.drop(columns=["ID"]),
+                                             use_container_width=True, height=350)
+
+                                # Exclusão
+                                with st.expander("🗑️ Excluir registro"):
+                                    _del_id = st.number_input("ID do registro para excluir", min_value=1,
+                                                               step=1, key="mh_del_id")
+                                    if st.button("🗑️ Confirmar exclusão", key="btn_mh_del",
+                                                  type="secondary"):
+                                        _del_ok, _del_msg = _manut_excluir(int(_del_id))
+                                        if _del_ok:
+                                            st.success(_del_msg); st.rerun()
+                                        else:
+                                            st.error(_del_msg)
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Relatórios e Exportações Evoluídas
