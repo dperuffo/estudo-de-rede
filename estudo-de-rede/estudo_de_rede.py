@@ -33827,15 +33827,15 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                                 with st.expander("🔍 Resposta bruta da API (debug)"):
                                     st.json(_raw_debug)
                         else:
-                            st.success(f"✅ {_ps2:,} registros salvos em {_pp} página(s). "
-                                       f"Total na API: {_ptot:,}.")
+                            st.success(f"✅ {_br_num(_ps2, 0)} registros salvos em {_pp} página(s). "
+                                       f"Total na API: {_br_num(_ptot, 0)}.")
                         if _pnt: st.info("🔄 Token renovado automaticamente.")
                         if _ps2 > 0: st.rerun()
                     _ult = _pf_sel.get("ultimo_sync")
                     if _ult:
                         try: _ult = _pf_dt.datetime.fromisoformat(_ult.replace("Z","")).strftime("%d/%m/%Y %H:%M")
                         except Exception: pass
-                        st.caption(f"🕐 Último sync: **{_ult}** — **{_pf_sel.get('registros_sync',0):,}** registros")
+                        st.caption(f"🕐 Último sync: **{_ult}** — **{_br_num(_pf_sel.get('registros_sync', 0), 0)}** registros")
 
             elif _pf_secao == "📊 Abastecimentos":
                 st.markdown("#### 📊 Abastecimentos Sincronizados")
@@ -33853,16 +33853,24 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                     _k1,_k2,_k3,_k4 = st.columns(4)
                     _vol = pd.to_numeric(_df3.get("item_quantidade", pd.Series()), errors="coerce").sum()
                     _val = pd.to_numeric(_df3.get("item_valor_total", pd.Series()), errors="coerce").sum()
-                    _k1.metric("🧾 Registros", f"{len(_df3):,}")
-                    _k2.metric("⛽ Litros",    f"{_vol:,.0f}")
-                    _k3.metric("💰 Total",     f"R$ {_val:,.2f}")
-                    _k4.metric("🚗 Veículos",  str(_df3["veiculo_placa"].nunique() if "veiculo_placa" in _df3.columns else 0))
+                    _n_veic = _df3["veiculo_placa"].nunique() if "veiculo_placa" in _df3.columns else 0
+                    _k1.metric("🧾 Registros", _br_num(len(_df3), 0))
+                    _k2.metric("⛽ Litros",    _br_num(_vol, 0))
+                    _k3.metric("💰 Total",     _br_moeda(_val))
+                    _k4.metric("🚗 Veículos",  _br_num(_n_veic, 0))
                     _c3s = [c for c in ["data_abastecimento","veiculo_placa","motorista_nome",
                             "item_nome","item_quantidade","item_valor_unitario","item_valor_total",
                             "hodometro","pv_razao_social","pv_municipio","pv_uf"] if c in _df3.columns]
                     _dfs = _df3[_c3s].copy()
                     if "data_abastecimento" in _dfs.columns:
                         _dfs["data_abastecimento"] = pd.to_datetime(_dfs["data_abastecimento"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
+                    # Formata campos numéricos no padrão brasileiro
+                    for _col_l in ["item_quantidade","hodometro"]:
+                        if _col_l in _dfs.columns:
+                            _dfs[_col_l] = pd.to_numeric(_dfs[_col_l], errors="coerce").apply(lambda v: _br_num(v, 0) if pd.notna(v) else "—")
+                    for _col_r in ["item_valor_unitario","item_valor_total"]:
+                        if _col_r in _dfs.columns:
+                            _dfs[_col_r] = pd.to_numeric(_dfs[_col_r], errors="coerce").apply(lambda v: _br_moeda(v) if pd.notna(v) else "—")
                     _dfs.rename(columns={"data_abastecimento":"Data","veiculo_placa":"Placa",
                         "motorista_nome":"Motorista","item_nome":"Combustível","item_quantidade":"Litros",
                         "item_valor_unitario":"R$/L","item_valor_total":"Total R$","hodometro":"Hodômetro",
