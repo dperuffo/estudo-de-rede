@@ -4084,7 +4084,7 @@ def _profrotas_para_df_analise(cnpj_frota: str | None = None,
             "_id_transacao":  r.get("identificador"),
             "_data":          _dt.date() if _dt is not pd.NaT else None,
             "_hora":          _dt.strftime("%H:%M") if _dt is not pd.NaT else "",
-            "_cnpj_frota":    str(r.get("cnpj_frota", "") or ""),
+            "_cnpj_frota":    re.sub(r"\D","",str(r.get("cnpj_frota","") or "")).zfill(14),
             "_razao_frota":   str(r.get("frota_razao_social", "") or ""),
             "_placa":         str(r.get("veiculo_placa", "") or "").upper().strip(),
             "_tipo_veiculo":  "",
@@ -4098,7 +4098,7 @@ def _profrotas_para_df_analise(cnpj_frota: str | None = None,
             "_hod_anterior":  None,
             "_km_perc":       None,
             "_media_km_l":    None,
-            "_cnpj_posto":    str(r.get("pv_cnpj", "") or ""),
+            "_cnpj_posto":    re.sub(r"\D","",str(r.get("pv_cnpj","") or "")).zfill(14),
             "_nome_posto":    str(r.get("pv_razao_social", "") or ""),
             "_cidade_posto":  str(r.get("pv_municipio", "") or ""),
             "_uf_posto":      str(r.get("pv_uf", "") or ""),
@@ -4293,13 +4293,13 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                 "motivo_cancelamento":     reg.get("motivoCancelamento"),
                 "hodometro":               reg.get("hodometro"),
                 "horimetro":               reg.get("horimetro"),
-                "frota_cnpj":              str(_frt.get("cnpj", "") or ""),
+                "frota_cnpj":              re.sub(r"\D","",str(_frt.get("cnpj","") or "")).zfill(14),
                 "frota_razao_social":      _frt.get("razaoSocial"),
                 "motorista_id":            _mot.get("identificador"),
                 "motorista_nome":          _mot.get("nome"),
                 "veiculo_id":              _vei.get("identificador"),
                 "veiculo_placa":           _vei.get("placa"),
-                "pv_cnpj":                 str(_pv.get("cnpj", "") or ""),
+                "pv_cnpj":                 re.sub(r"\D","",str(_pv.get("cnpj","") or "")).zfill(14),
                 "pv_razao_social":         _pv.get("razaoSocial"),
                 "pv_posto_interno":        _pv.get("postoInterno"),
                 "pv_municipio":            _end.get("municipio"),
@@ -30034,6 +30034,20 @@ elif modo == "👥 Análise de Cliente":
                         # Monta dois lookups:
                         #   _ac_lkp3: (cnpj_posto, cnpj_frota, apk) → preco  [match exato]
                         #   _ac_lkp2: (cnpj_posto, apk)             → preco  [fallback sem frota]
+                        # Detectar acordos com preços suspeitos (> R$ 50/L)
+                        _MAX_PRECO_RAZOAVEL = 50.0
+                        _ac_suspeitos = _ac_vig_sv[
+                            pd.to_numeric(_ac_vig_sv.get("preco_negociado",
+                                pd.Series(dtype=float)), errors="coerce") > _MAX_PRECO_RAZOAVEL
+                        ] if not _ac_vig_sv.empty and "preco_negociado" in _ac_vig_sv.columns else pd.DataFrame()
+                        if not _ac_suspeitos.empty:
+                            st.warning(
+                                f"⚠️ **{len(_ac_suspeitos)} acordo(s)** com Preço Negociado acima de "
+                                f"R$ {_MAX_PRECO_RAZOAVEL:.0f}/L detectado(s) — verifique a planilha de acordos. "
+                                f"Esses acordos serão **ignorados** no cálculo de desvio.",
+                                icon="⚠️"
+                            )
+
                         _ac_lkp3 = {}
                         _ac_lkp2 = {}
                         for _, _acr in _ac_vig_sv.iterrows():
@@ -30041,6 +30055,9 @@ elif modo == "👥 Análise de Cliente":
                             _cf  = _norm14(_acr.get("cnpj_frota",""))
                             _apk = _comb_to_apk(_acr.get("combustivel",""))
                             _pn  = float(_acr.get("preco_negociado") or 0)
+                            # Ignorar preços suspeitos (> R$ 50/L)
+                            if _pn <= 0 or _pn > _MAX_PRECO_RAZOAVEL:
+                                continue
                             if _pn > 0:
                                 _ac_lkp3[(_cp, _cf, _apk)] = _pn
                                 # fallback: guarda apenas se ainda não existe
