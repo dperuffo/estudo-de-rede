@@ -17099,7 +17099,7 @@ if _var_df_global is not None and not _var_df_global.empty:
 # ═══════════════════════════════════════════════════════════════════
 #  MODO 1 — Por Estado / Município
 # ═══════════════════════════════════════════════════════════════════
-
+modo = st.session_state.get("modo_selecionado", "📍 Por UF/Município")
 if modo == "📍 Por UF/Município":
     _render_filtros_inteligentes(modo)
 
