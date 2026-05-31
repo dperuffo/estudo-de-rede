@@ -33393,10 +33393,16 @@ elif modo == "📑 Relatórios":
             )
 
             st.markdown("**📅 Período**")
+            # CSS: impede quebra de linha nos botões de atalho de período
+            st.markdown("""
+<style>
+[class*="st-key-rp_q"] button p { white-space: nowrap !important; font-size: 0.78rem !important; }
+[class*="st-key-rp_q"] button { padding: 4px 2px !important; }
+</style>""", unsafe_allow_html=True)
             # Atalhos rápidos — definem defaults ANTES de criar os date_inputs
             _today_rp = _rp_dt.date.today()
             _rp_qs = st.columns(5)
-            for _qi, _ql in enumerate(["7d","30d","Mês","Trim.","Ano"]):
+            for _qi, _ql in enumerate(["7d","30d","Mês","Trim","Ano"]):
                 if _rp_qs[_qi].button(_ql, key=f"rp_q{_qi}", use_container_width=True):
                     if _ql == "7d":
                         st.session_state["rp_ini_val"] = _today_rp - _rp_dt.timedelta(days=7)
@@ -33404,7 +33410,7 @@ elif modo == "📑 Relatórios":
                         st.session_state["rp_ini_val"] = _today_rp - _rp_dt.timedelta(days=30)
                     elif _ql == "Mês":
                         st.session_state["rp_ini_val"] = _today_rp.replace(day=1)
-                    elif _ql == "Trim.":
+                    elif _ql == "Trim":
                         _qm = ((_today_rp.month - 1) // 3) * 3 + 1
                         st.session_state["rp_ini_val"] = _today_rp.replace(month=_qm, day=1)
                     elif _ql == "Ano":
