@@ -31892,13 +31892,14 @@ elif modo == "📑 Relatórios":
         unsafe_allow_html=True,
     )
 
-    _rlt1, _rlt2, _rlt3, _rlt4, _rlt5, _rlt6 = st.tabs([
+    _rlt1, _rlt2, _rlt3, _rlt4, _rlt5, _rlt6, _rlt_custom = st.tabs([
         "📊 Relatório Executivo",
         "🌎 Oportunidades Comerciais",
         "⭐ Performance por Posto",
         "🎯 Score × Performance",
         "🔍 Anomalias",
         "🚘 Frota FIPE",
+        "🗂️ Relatórios Personalizados",
     ])
 
     # ════════════════════════════════════════════════════════════════
@@ -33281,6 +33282,418 @@ elif modo == "📑 Relatórios":
                 _fipe_carregar_cache(),
             )
             _fipe_secao_ui(_rlt_abast_df, _fipe_cache_rlt, key_prefix="fipe_relatorio")
+
+    # ════════════════════════════════════════════════════════════════
+    #  TAB 7 — RELATÓRIOS PERSONALIZADOS
+    # ════════════════════════════════════════════════════════════════
+    with _rlt_custom:
+        import datetime as _rp_dt
+
+        # ── Definições de dimensões e métricas por fonte ──────────
+        _RP_FONTES = {
+            "abastecimentos": "⛽ Abastecimentos",
+            "manutencao":     "🔧 Manutenção",
+            "negociacoes":    "🤝 Negociações",
+        }
+        _RP_DIMS = {
+            "abastecimentos": {
+                "Tempo":   [("periodo_dia","Período (por dia)"),("periodo_mes","Período (por mês)"),("periodo_semana","Período (por semana)")],
+                "Produto": [("produto","Combustível")],
+                "Frota":   [("placa","Veículo (Placa)"),("motorista","Motorista")],
+                "Posto":   [("cnpj_posto","Posto / Fornecedor"),("uf_posto","Estado (UF)")],
+            },
+            "manutencao": {
+                "Tempo":   [("periodo_mes","Período (por mês)"),("periodo_dia","Período (por dia)")],
+                "Frota":   [("placa","Veículo (Placa)")],
+                "Serviço": [("oficina","Oficina")],
+            },
+            "negociacoes": {
+                "Produto": [("combustivel","Combustível")],
+                "Posto":   [("cnpj_posto","Posto / Fornecedor"),("uf_posto","Estado (UF)")],
+                "Gestão":  [("status","Status")],
+            },
+        }
+        _RP_METS = {
+            "abastecimentos": [
+                ("qtd",        "Nº de Abastecimentos",  "int"),
+                ("volume",     "Volume Total (L)",       "dec"),
+                ("valor",      "Valor Total (R$)",       "money"),
+                ("ticket_med", "Ticket Médio (R$)",      "money"),
+                ("preco_med",  "Preço Médio (R$/L)",     "money3"),
+                ("consumo",    "Consumo Médio (km/L)",   "dec"),
+            ],
+            "manutencao": [
+                ("man_custo",    "Custo Total (R$)",     "money"),
+                ("man_qtd",      "Nº de Registros",      "int"),
+                ("man_custo_med","Custo Médio (R$)",      "money"),
+            ],
+            "negociacoes": [
+                ("neg_qtd",       "Nº de Acordos",          "int"),
+                ("neg_preco_neg", "Preço Negociado (R$/L)", "money3"),
+                ("neg_desc_pct",  "% Desconto Médio",        "pct"),
+            ],
+        }
+        _RP_VIZ = [
+            ("bar",      "📊 Barras"),
+            ("bar_h",    "📉 Barras Horiz."),
+            ("line",     "📈 Linhas"),
+            ("pie",      "🥧 Pizza"),
+            ("doughnut", "🍩 Rosca"),
+            ("table",    "📋 Tabela"),
+        ]
+
+        # ── Header ────────────────────────────────────────────────
+        st.markdown(
+            "<div style='background:linear-gradient(135deg,#1e1b4b,#3730a3,#6366f1);"
+            "border-radius:12px;padding:18px 22px;margin-bottom:18px'>"
+            "<div style='color:#fff;font-size:1.15rem;font-weight:700;margin-bottom:4px'>"
+            "🗂️ Relatórios Personalizados</div>"
+            "<div style='color:rgba(255,255,255,0.72);font-size:0.82rem'>"
+            "Combine dimensões, métricas e tipo de gráfico — exporte em PDF ou Excel</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        # ── Painel de configuração + área de resultado ────────────
+        _rp_cfg, _rp_res = st.columns([1, 2], gap="large")
+
+        with _rp_cfg:
+            st.markdown("**🗃️ Fonte de Dados**")
+            _rp_fonte = st.radio(
+                "Fonte", list(_RP_FONTES.keys()),
+                format_func=lambda k: _RP_FONTES[k],
+                key="rp_fonte", label_visibility="collapsed",
+            )
+
+            st.markdown("**📅 Período**")
+            _rp_c1, _rp_c2 = st.columns(2)
+            _rp_ini = _rp_c1.date_input("De", value=_rp_dt.date.today() - _rp_dt.timedelta(days=30), key="rp_ini", label_visibility="visible")
+            _rp_fim = _rp_c2.date_input("Até", value=_rp_dt.date.today(), key="rp_fim", label_visibility="visible")
+            _rp_qs = st.columns(5)
+            _rp_q_labels = ["7d","30d","Mês","Trim.","Ano"]
+            _rp_q_days   = [7, 30, None, None, None]
+            for _qi, (_ql, _qd) in enumerate(zip(_rp_q_labels, _rp_q_days)):
+                if _rp_qs[_qi].button(_ql, key=f"rp_q{_qi}", use_container_width=True):
+                    _today = _rp_dt.date.today()
+                    if _ql == "7d":   st.session_state["rp_ini"] = _today - _rp_dt.timedelta(days=7)
+                    elif _ql == "30d":st.session_state["rp_ini"] = _today - _rp_dt.timedelta(days=30)
+                    elif _ql == "Mês":st.session_state["rp_ini"] = _today.replace(day=1)
+                    elif _ql == "Trim.":
+                        _qm = ((_today.month - 1) // 3) * 3 + 1
+                        st.session_state["rp_ini"] = _today.replace(month=_qm, day=1)
+                    elif _ql == "Ano":st.session_state["rp_ini"] = _today.replace(month=1, day=1)
+                    st.session_state["rp_fim"] = _today
+                    st.rerun()
+
+            st.markdown("**📐 Dimensão (Eixo X)**")
+            _rp_dim_opts = []
+            for _grp, _items in _RP_DIMS.get(_rp_fonte, {}).items():
+                for _did, _dlbl in _items:
+                    _rp_dim_opts.append((_did, f"{_dlbl}  —  {_grp}"))
+            _rp_dim = st.radio(
+                "Dimensão", [d[0] for d in _rp_dim_opts],
+                format_func=lambda k: next((d[1] for d in _rp_dim_opts if d[0]==k), k),
+                key="rp_dim", label_visibility="collapsed",
+            )
+
+            st.markdown("**📏 Métricas (o que medir)**")
+            _rp_mets_all = _RP_METS.get(_rp_fonte, [])
+            _rp_mets_sel = []
+            for _mid, _mlbl, _mfmt in _rp_mets_all:
+                if st.checkbox(_mlbl, key=f"rp_met_{_rp_fonte}_{_mid}",
+                               value=(_mid in ("qtd","volume","valor","man_custo","neg_qtd"))):
+                    _rp_mets_sel.append((_mid, _mlbl, _mfmt))
+
+            st.markdown("**📊 Tipo de Visualização**")
+            _rp_viz_cols = st.columns(3)
+            _rp_viz = st.radio(
+                "Viz", [v[0] for v in _RP_VIZ],
+                format_func=lambda k: next((v[1] for v in _RP_VIZ if v[0]==k), k),
+                key="rp_viz", label_visibility="collapsed", horizontal=False,
+            )
+
+            st.markdown("**🔍 Filtros Adicionais**")
+            _rp_f_comb = st.selectbox("Combustível", ["Todos","Diesel S10","Diesel","Gasolina","Etanol","GNV","Arla 32"], key="rp_f_comb")
+            _rp_f_placa = ""
+            _rp_f_mot   = ""
+            if _rp_fonte == "abastecimentos":
+                _abuni_rp = _carregar_abastecimentos_unificados(dias=730)
+                if not _abuni_rp.empty:
+                    _col_pl = "_placa" if "_placa" in _abuni_rp.columns else "placa"
+                    _col_mo = "_motorista" if "_motorista" in _abuni_rp.columns else "motorista"
+                    _placas_rp = sorted(_abuni_rp[_col_pl].dropna().unique().tolist()) if _col_pl in _abuni_rp.columns else []
+                    _mots_rp   = sorted(_abuni_rp[_col_mo].dropna().unique().tolist()) if _col_mo in _abuni_rp.columns else []
+                    _rp_f_placa = st.selectbox("Veículo (Placa)", ["Todos"] + _placas_rp, key="rp_f_placa")
+                    _rp_f_mot   = st.selectbox("Motorista", ["Todos"] + _mots_rp, key="rp_f_mot")
+
+            _rp_gerar = st.button("▶ Gerar Relatório", type="primary",
+                                   use_container_width=True, key="rp_gerar")
+
+        with _rp_res:
+            if not _rp_gerar and not st.session_state.get("_rp_dados"):
+                st.markdown(
+                    "<div style='display:flex;flex-direction:column;align-items:center;"
+                    "justify-content:center;min-height:400px;color:#94a3b8;text-align:center'>"
+                    "<div style='font-size:3rem;margin-bottom:12px'>🗂️</div>"
+                    "<div style='font-size:1rem;font-weight:600;color:#64748b'>Configure e gere seu relatório</div>"
+                    "<div style='font-size:0.85rem;margin-top:6px'>Selecione dimensão, métricas e clique em <b>Gerar Relatório</b></div>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+            elif _rp_gerar or st.session_state.get("_rp_dados"):
+
+                # ── Carrega dados ──────────────────────────────────
+                if _rp_gerar:
+                    if not _rp_mets_sel:
+                        st.warning("Selecione pelo menos uma métrica.")
+                        st.stop()
+
+                    _rp_df_raw = _carregar_abastecimentos_unificados(dias=730)
+
+                    if _rp_fonte == "abastecimentos":
+                        _df_rp = _rp_df_raw.copy() if not _rp_df_raw.empty else pd.DataFrame()
+                        # Mapeamento de colunas
+                        _col_map_rp = {
+                            "_placa":"placa","_motorista":"motorista","_produto":"produto",
+                            "_litros":"volume","_preco_litro":"preco_litro",
+                            "_valor_total":"valor","_cnpj_posto":"cnpj_posto",
+                            "_nome_posto":"nome_posto","_uf_posto":"uf_posto",
+                            "_hod_atual":"hodometro","_data":"data",
+                        }
+                        _df_rp.rename(columns={k:v for k,v in _col_map_rp.items() if k in _df_rp.columns}, inplace=True)
+                        # Filtros
+                        if _rp_f_comb != "Todos" and "produto" in _df_rp.columns:
+                            _df_rp = _df_rp[_df_rp["produto"].str.contains(_rp_f_comb, case=False, na=False)]
+                        if _rp_f_placa and _rp_f_placa != "Todos" and "placa" in _df_rp.columns:
+                            _df_rp = _df_rp[_df_rp["placa"].astype(str) == _rp_f_placa]
+                        if _rp_f_mot and _rp_f_mot != "Todos" and "motorista" in _df_rp.columns:
+                            _df_rp = _df_rp[_df_rp["motorista"].astype(str) == _rp_f_mot]
+
+                    elif _rp_fonte == "manutencao":
+                        _man_rp = _manut_listar()
+                        _df_rp = pd.DataFrame(_man_rp) if _man_rp else pd.DataFrame()
+
+                    elif _rp_fonte == "negociacoes":
+                        _ac_rp = st.session_state.get("_ac_df") or _db_carregar_acordos()
+                        _df_rp = _ac_rp.copy() if not (hasattr(_ac_rp,"empty") and _ac_rp.empty) else pd.DataFrame()
+
+                    # Filtro de data
+                    _date_col = "data" if "data" in _df_rp.columns else (
+                                "data_abastecimento" if "data_abastecimento" in _df_rp.columns else None)
+                    if _date_col and not _df_rp.empty:
+                        _df_rp[_date_col] = pd.to_datetime(_df_rp[_date_col], errors="coerce")
+                        _df_rp = _df_rp[
+                            (_df_rp[_date_col].dt.date >= _rp_ini) &
+                            (_df_rp[_date_col].dt.date <= _rp_fim)
+                        ]
+
+                    # ── Agrupamento por dimensão ───────────────────
+                    def _rp_chave_dim(row, dim, date_col):
+                        if dim == "periodo_dia":
+                            d = row.get(date_col)
+                            return str(pd.Timestamp(d).strftime("%d/%m/%Y")) if pd.notna(d) else "—"
+                        elif dim == "periodo_mes":
+                            d = row.get(date_col)
+                            return str(pd.Timestamp(d).strftime("%m/%Y")) if pd.notna(d) else "—"
+                        elif dim == "periodo_semana":
+                            d = row.get(date_col)
+                            return f"S{pd.Timestamp(d).isocalendar()[1]}/{pd.Timestamp(d).year}" if pd.notna(d) else "—"
+                        elif dim in ("produto","combustivel","neg_combustivel"):
+                            return str(row.get("produto") or row.get("combustivel") or "—")
+                        elif dim in ("placa","veiculo","man_veiculo"):
+                            return str(row.get("placa") or "—")
+                        elif dim == "motorista":
+                            return str(row.get("motorista") or "—")
+                        elif dim in ("cnpj_posto","posto","neg_posto","man_oficina"):
+                            return str(row.get("nome_posto") or row.get("oficina") or row.get("posto") or "—")
+                        elif dim in ("uf_posto","uf","neg_uf"):
+                            return str(row.get("uf_posto") or row.get("uf") or "—")
+                        elif dim == "status":
+                            return str(row.get("status") or "—")
+                        elif dim == "oficina":
+                            return str(row.get("oficina") or "—")
+                        return "—"
+
+                    if _df_rp.empty:
+                        st.warning("Nenhum dado encontrado para os filtros selecionados.")
+                        st.stop()
+
+                    _df_rp["_rp_grupo"] = _df_rp.apply(
+                        lambda r: _rp_chave_dim(r.to_dict(), _rp_dim, _date_col or "data"), axis=1
+                    )
+
+                    # ── Agrega métricas ────────────────────────────
+                    _rp_agg = {}
+                    for _mid, _mlbl, _mfmt in _rp_mets_sel:
+                        if _mid == "qtd":
+                            _rp_agg[_mlbl] = _df_rp.groupby("_rp_grupo").size()
+                        elif _mid == "volume":
+                            _c = next((c for c in ["volume","litros","_litros","item_quantidade"] if c in _df_rp.columns), None)
+                            if _c: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_c],errors="coerce").groupby(_df_rp["_rp_grupo"]).sum()
+                        elif _mid == "valor":
+                            _c = next((c for c in ["valor","valor_total","_valor_total","item_valor_total"] if c in _df_rp.columns), None)
+                            if _c: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_c],errors="coerce").groupby(_df_rp["_rp_grupo"]).sum()
+                        elif _mid == "ticket_med":
+                            _cv = next((c for c in ["valor","valor_total"] if c in _df_rp.columns), None)
+                            if _cv: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_cv],errors="coerce").groupby(_df_rp["_rp_grupo"]).mean()
+                        elif _mid == "preco_med":
+                            _c = next((c for c in ["preco_litro","_preco_litro","item_valor_unitario"] if c in _df_rp.columns), None)
+                            if _c: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_c],errors="coerce").groupby(_df_rp["_rp_grupo"]).mean()
+                        elif _mid == "consumo":
+                            _c = next((c for c in ["_media_km_l","media_km_l"] if c in _df_rp.columns), None)
+                            if _c: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_c],errors="coerce").groupby(_df_rp["_rp_grupo"]).mean()
+                        elif _mid == "man_custo":
+                            _c = next((c for c in ["custo_total","custo"] if c in _df_rp.columns), None)
+                            if _c: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_c],errors="coerce").groupby(_df_rp["_rp_grupo"]).sum()
+                        elif _mid == "man_qtd":
+                            _rp_agg[_mlbl] = _df_rp.groupby("_rp_grupo").size()
+                        elif _mid == "man_custo_med":
+                            _c = next((c for c in ["custo_total","custo"] if c in _df_rp.columns), None)
+                            if _c: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_c],errors="coerce").groupby(_df_rp["_rp_grupo"]).mean()
+                        elif _mid == "neg_qtd":
+                            _rp_agg[_mlbl] = _df_rp.groupby("_rp_grupo").size()
+                        elif _mid == "neg_preco_neg":
+                            _c = next((c for c in ["preco_negociado"] if c in _df_rp.columns), None)
+                            if _c: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_c],errors="coerce").groupby(_df_rp["_rp_grupo"]).mean()
+                        elif _mid == "neg_desc_pct":
+                            _c = next((c for c in ["va_desconto"] if c in _df_rp.columns), None)
+                            if _c: _rp_agg[_mlbl] = pd.to_numeric(_df_rp[_c],errors="coerce").groupby(_df_rp["_rp_grupo"]).mean()
+
+                    if not _rp_agg:
+                        st.warning("Nenhuma métrica pôde ser calculada com os dados disponíveis.")
+                        st.stop()
+
+                    _rp_result = pd.DataFrame(_rp_agg).reset_index().rename(columns={"_rp_grupo":"Dimensão"})
+                    _rp_result = _rp_result.sort_values("Dimensão").reset_index(drop=True)
+                    st.session_state["_rp_dados"]  = _rp_result
+                    st.session_state["_rp_viz"]    = _rp_viz
+                    st.session_state["_rp_fonte"]  = _rp_fonte
+                    st.session_state["_rp_mets"]   = _rp_mets_sel
+                    st.session_state["_rp_dim_lbl"]= next((d[1].split("  —")[0] for d in _rp_dim_opts if d[0]==_rp_dim), _rp_dim)
+
+                _rp_result  = st.session_state.get("_rp_dados", pd.DataFrame())
+                _rp_viz_cur = st.session_state.get("_rp_viz", "bar")
+                _rp_mets_cur= st.session_state.get("_rp_mets", [])
+                _rp_dim_lbl = st.session_state.get("_rp_dim_lbl", "")
+
+                if _rp_result.empty:
+                    st.info("Nenhum dado para exibir.")
+                    st.stop()
+
+                # ── Banner de parâmetros ───────────────────────────
+                _met_labels = " · ".join(m[1] for m in _rp_mets_cur)
+                st.markdown(
+                    f"<div style='background:#f0f4ff;border:1.5px solid #c7d2fe;border-radius:8px;"
+                    f"padding:10px 14px;margin-bottom:14px;font-size:12px;color:#3730a3'>"
+                    f"<b>Fonte:</b> {_RP_FONTES.get(_rp_fonte,_rp_fonte)} &nbsp;·&nbsp; "
+                    f"<b>Dimensão:</b> {_rp_dim_lbl} &nbsp;·&nbsp; "
+                    f"<b>Métricas:</b> {_met_labels} &nbsp;·&nbsp; "
+                    f"<b>Período:</b> {_rp_ini.strftime('%d/%m/%Y')} a {_rp_fim.strftime('%d/%m/%Y')}"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+                # ── KPIs resumo ────────────────────────────────────
+                _kpi_cols = st.columns(min(len(_rp_mets_cur), 4))
+                for _ki, (_mid2, _mlbl2, _mfmt2) in enumerate(_rp_mets_cur[:4]):
+                    if _mlbl2 in _rp_result.columns:
+                        _kv = pd.to_numeric(_rp_result[_mlbl2], errors="coerce").sum()
+                        if _mfmt2 == "int":   _kvs = _br_num(_kv, 0)
+                        elif _mfmt2 == "pct": _kvs = f"{_br_num(_kv/len(_rp_result),2)}%"
+                        elif _mfmt2 in ("money","money3"): _kvs = _br_moeda(_kv)
+                        else:                 _kvs = _br_num(_kv, 1)
+                        _kpi_cols[_ki].metric(_mlbl2, _kvs)
+
+                # ── Visualização ────────────────────────────────────
+                _met_cols = [m[1] for m in _rp_mets_cur if m[1] in _rp_result.columns]
+
+                if _rp_viz_cur == "table":
+                    # Formata colunas numéricas
+                    _disp = _rp_result.copy()
+                    for _mid2, _mlbl2, _mfmt2 in _rp_mets_cur:
+                        if _mlbl2 in _disp.columns:
+                            if _mfmt2 == "int":
+                                _disp[_mlbl2] = pd.to_numeric(_disp[_mlbl2],errors="coerce").apply(lambda v: _br_num(v,0) if pd.notna(v) else "—")
+                            elif _mfmt2 in ("money","money3"):
+                                _disp[_mlbl2] = pd.to_numeric(_disp[_mlbl2],errors="coerce").apply(lambda v: _br_moeda(v) if pd.notna(v) else "—")
+                            elif _mfmt2 == "pct":
+                                _disp[_mlbl2] = pd.to_numeric(_disp[_mlbl2],errors="coerce").apply(lambda v: f"{_br_num(v,2)}%" if pd.notna(v) else "—")
+                            else:
+                                _disp[_mlbl2] = pd.to_numeric(_disp[_mlbl2],errors="coerce").apply(lambda v: _br_num(v,2) if pd.notna(v) else "—")
+                    st.dataframe(_disp, use_container_width=True, hide_index=True)
+
+                elif _rp_viz_cur in ("pie","doughnut"):
+                    if _met_cols:
+                        _pie_vals = pd.to_numeric(_rp_result[_met_cols[0]], errors="coerce").fillna(0)
+                        _pie_fig  = go.Figure(go.Pie(
+                            labels=_rp_result["Dimensão"],
+                            values=_pie_vals,
+                            hole=0.4 if _rp_viz_cur == "doughnut" else 0,
+                            textinfo="label+percent",
+                        ))
+                        _pie_fig.update_layout(
+                            title=f"{_met_cols[0]} por {_rp_dim_lbl}",
+                            height=450, margin=dict(l=0,r=0,t=40,b=0),
+                            legend=dict(orientation="h",yanchor="bottom",y=-0.3),
+                        )
+                        st.plotly_chart(_pie_fig, use_container_width=True)
+
+                else:  # bar, bar_h, line
+                    import plotly.express as _px_rp
+                    _bar_df = _rp_result.melt(id_vars="Dimensão", value_vars=_met_cols,
+                                               var_name="Métrica", value_name="Valor")
+                    _orientation = "h" if _rp_viz_cur == "bar_h" else "v"
+                    if _rp_viz_cur == "line":
+                        _viz_fig = _px_rp.line(
+                            _bar_df, x="Dimensão", y="Valor", color="Métrica",
+                            markers=True, title=f"{' · '.join(_met_cols)} por {_rp_dim_lbl}",
+                        )
+                    elif _rp_viz_cur == "bar_h":
+                        _viz_fig = _px_rp.bar(
+                            _bar_df, x="Valor", y="Dimensão", color="Métrica",
+                            orientation="h", barmode="group",
+                            title=f"{' · '.join(_met_cols)} por {_rp_dim_lbl}",
+                        )
+                    else:
+                        _viz_fig = _px_rp.bar(
+                            _bar_df, x="Dimensão", y="Valor", color="Métrica",
+                            barmode="group",
+                            title=f"{' · '.join(_met_cols)} por {_rp_dim_lbl}",
+                        )
+                    _viz_fig.update_layout(height=420, margin=dict(l=0,r=0,t=40,b=60))
+                    st.plotly_chart(_viz_fig, use_container_width=True)
+
+                # Tabela de dados sempre abaixo do gráfico
+                if _rp_viz_cur != "table":
+                    with st.expander("📋 Ver tabela de dados"):
+                        st.dataframe(_rp_result, use_container_width=True, hide_index=True)
+
+                # ── Exportar Excel ────────────────────────────────
+                st.divider()
+                _rp_ec1, _rp_ec2 = st.columns(2)
+                with _rp_ec1:
+                    try:
+                        import io as _rp_io
+                        _rp_buf = _rp_io.BytesIO()
+                        with pd.ExcelWriter(_rp_buf, engine="xlsxwriter") as _rp_xw:
+                            _rp_result.to_excel(_rp_xw, index=False, sheet_name="Relatório")
+                        st.download_button(
+                            "⬇️ Exportar Excel",
+                            _rp_buf.getvalue(),
+                            file_name=f"relatorio_{_rp_fonte}_{_rp_ini}_{_rp_fim}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                        )
+                    except Exception:
+                        _rp_csv = _rp_result.to_csv(index=False).encode("utf-8-sig")
+                        st.download_button("⬇️ Exportar CSV", _rp_csv,
+                                           file_name=f"relatorio_{_rp_fonte}.csv",
+                                           use_container_width=True)
+                with _rp_ec2:
+                    _rp_csv2 = _rp_result.to_csv(index=False).encode("utf-8-sig")
+                    st.download_button("📄 Exportar CSV", _rp_csv2,
+                                       file_name=f"relatorio_{_rp_fonte}.csv",
+                                       mime="text/csv", use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Telemetria de Frota
