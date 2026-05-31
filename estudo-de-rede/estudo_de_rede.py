@@ -4313,51 +4313,175 @@ def _profrotas_listar_chaves() -> list:
         return []
 
 
+_PROFROTAS_BATCH_SIZE = 25   # linhas por upsert — evita limite de payload Supabase
+
+
+def _profrotas_garantir_tabela(db) -> tuple[bool, str]:
+    """
+    Garante que a tabela profrotas_abastecimentos existe no Supabase.
+    Tenta criar via SQL RPC; se não disponível, testa com SELECT.
+    Retorna (ok, mensagem_erro).
+    """
+    _ddl = """
+    CREATE TABLE IF NOT EXISTS profrotas_abastecimentos (
+        id                      bigserial,
+        sync_key                text        NOT NULL,
+        cnpj_frota              text        NOT NULL,
+        identificador           text,
+        item_id                 text        NOT NULL DEFAULT '',
+        abastecimento_estornado boolean,
+        data_abastecimento      timestamptz,
+        data_atualizacao        timestamptz,
+        data_transacao          timestamptz,
+        status_autorizacao      text,
+        motivo_recusa           text,
+        motivo_cancelamento     text,
+        hodometro               numeric,
+        horimetro               numeric,
+        frota_cnpj              text,
+        frota_razao_social      text,
+        motorista_id            text,
+        motorista_nome          text,
+        veiculo_id              text,
+        veiculo_placa           text,
+        pv_cnpj                 text,
+        pv_razao_social         text,
+        pv_posto_interno        boolean,
+        pv_municipio            text,
+        pv_uf                   text,
+        pv_latitude             numeric,
+        pv_longitude            numeric,
+        item_nome               text,
+        item_tipo               integer,
+        item_quantidade         numeric,
+        item_valor_unitario     numeric,
+        item_valor_total        numeric,
+        payload_raw             jsonb,
+        criado_em               timestamptz DEFAULT now(),
+        PRIMARY KEY (sync_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_pfa_cnpj_frota   ON profrotas_abastecimentos(cnpj_frota);
+    CREATE INDEX IF NOT EXISTS idx_pfa_data         ON profrotas_abastecimentos(data_abastecimento DESC);
+    CREATE INDEX IF NOT EXISTS idx_pfa_placa        ON profrotas_abastecimentos(veiculo_placa);
+    """
+    try:
+        db.rpc("exec_sql", {"sql": _ddl}).execute()
+        return True, ""
+    except Exception:
+        pass
+    # Fallback: só testa se a tabela existe com SELECT
+    try:
+        db.table("profrotas_abastecimentos").select("sync_key").limit(1).execute()
+        return True, ""
+    except Exception as _e:
+        _msg = str(_e)
+        if "42P01" in _msg or "does not exist" in _msg.lower():
+            return False, (
+                "A tabela `profrotas_abastecimentos` não existe no Supabase. "
+                "Execute o arquivo `profrotas_api.sql` no SQL Editor do Supabase para criá-la."
+            )
+        return False, f"Erro ao verificar tabela: {_msg}"
+
+
 def _profrotas_sync(cnpj_frota: str, token: str,
                     data_inicio: str, progress_cb=None) -> tuple[int, int, str | None, str, int]:
     """Busca todos os abastecimentos desde data_inicio e salva no Supabase.
 
     Retorna (paginas, salvos, novo_token_ou_None, erro_msg, total_api).
     """
-    import datetime as _dt, json as _json
+    import datetime as _dt, json as _json, hashlib as _hl
     _db = _db_client()
     if not _db:
-        return 0, 0, None, "Supabase não disponível.", 0
+        return 0, 0, None, "Supabase não disponível. Verifique as configurações em st.secrets.", 0
 
-    novo_token = None
-    pagina = 1
+    # ── Garante que a tabela existe antes de tentar salvar ──────────
+    _tab_ok, _tab_err = _profrotas_garantir_tabela(_db)
+    if not _tab_ok:
+        return 0, 0, None, _tab_err, 0
+
+    novo_token  = None
+    pagina      = 1
     total_salvos = 0
-    total_items = None
+    total_items  = None
+    erros_batch  = []
     hoje = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    def _make_sync_key(cnpj: str, ident, item: str) -> str:
+        """Chave determinística para upsert — nunca é NULL."""
+        _raw = f"{cnpj}|{ident or 'sem_id'}|{item or ''}"
+        return _hl.md5(_raw.encode()).hexdigest()
+
+    def _safe_ts(val):
+        """Converte string de data para ISO sem fuso horário extra."""
+        if not val:
+            return None
+        try:
+            return str(val).replace("Z", "+00:00")
+        except Exception:
+            return None
+
+    def _safe_num(val):
+        """Converte para float seguro ou None."""
+        try:
+            return float(val) if val is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    def _upsert_batch(rows: list) -> str | None:
+        """Faz upsert de um lote; retorna mensagem de erro ou None."""
+        import json as _j
+        # Serializa payload_raw como string JSON para compatibilidade com JSONB
+        _rows_safe = []
+        for _r in rows:
+            _row = dict(_r)
+            if isinstance(_row.get("payload_raw"), dict):
+                _row["payload_raw"] = _j.dumps(_row["payload_raw"], ensure_ascii=False, default=str)
+            _rows_safe.append(_row)
+        try:
+            _db.table("profrotas_abastecimentos").upsert(
+                _rows_safe,
+                on_conflict="sync_key"   # coluna PK — nunca NULL
+            ).execute()
+            return None
+        except Exception as _e:
+            _emsg = str(_e)
+            # Tenta INSERT simples se upsert falhar (ex: constraint ausente)
+            try:
+                for _single in _rows_safe:
+                    try:
+                        _db.table("profrotas_abastecimentos").insert(_single).execute()
+                    except Exception:
+                        pass   # ignora duplicatas em modo de fallback
+                return None
+            except Exception as _e2:
+                return f"{_emsg} | fallback: {_e2}"
+
     while True:
-        payload = {
-            "pagina":       pagina,
-            "dataInicial":  data_inicio,
-            "dataFinal":    hoje,
-        }
+        payload = {"pagina": pagina, "dataInicial": data_inicio, "dataFinal": hoje}
         try:
             data, _novo = _profrotas_request(token, payload)
         except RuntimeError as e:
             _err_msg = f"Erro API pág {pagina}: {e}"
             if total_salvos > 0:
-                _err_msg += f" (⚠️ {total_salvos} registros das páginas anteriores já foram salvos)"
+                _err_msg += f" ({total_salvos} registros anteriores já salvos)"
             return pagina - 1, total_salvos, novo_token, _err_msg, total_items or 0
 
-        # Salva resposta da primeira página para debug (mostra no expander se 0 registros)
+        # Salva resposta da 1ª página para debug
         if pagina == 1 and isinstance(data, dict):
             import streamlit as _st_dbg
             _st_dbg.session_state["_profrotas_last_response"] = {
-                k: v for k, v in data.items() if k != "registros"
+                k: (v if k != "registros" else f"[{len(v)} registros]")
+                for k, v in data.items()
             }
 
         if _novo:
             novo_token = _novo
 
         if not isinstance(data, dict):
-            return pagina, total_salvos, novo_token, f"Resposta inválida: {str(data)[:100]}", total_items or 0
+            return pagina, total_salvos, novo_token, \
+                   f"Resposta inválida da API: {str(data)[:200]}", total_items or 0
 
-        # Tenta chaves alternativas que a API pode retornar
+        # Chaves alternativas que a API ProFrotas pode retornar
         registros = (data.get("registros") or data.get("items") or
                      data.get("data") or data.get("content") or [])
         if total_items is None:
@@ -4370,98 +4494,98 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         if progress_cb:
             progress_cb(pagina, total_items, tam_pag)
 
-        rows_batch = []
+        rows_pagina = []
         for reg in registros:
-            _id   = reg.get("identificador")
-            _data = reg.get("data") or reg.get("dataTransacao")
-            _data_atu = reg.get("dataAtualizacao")
-            _frt  = reg.get("frota") or {}
-            _mot  = reg.get("motorista") or {}
-            _vei  = reg.get("veiculo") or {}
-            _pv   = reg.get("pontoVenda") or {}
-            _end  = _pv.get("endereco") or {}
+            _id    = str(reg.get("identificador") or "")
+            _data  = _safe_ts(reg.get("data") or reg.get("dataTransacao"))
+            _frt   = reg.get("frota") or {}
+            _mot   = reg.get("motorista") or {}
+            _vei   = reg.get("veiculo") or {}
+            _pv    = reg.get("pontoVenda") or {}
+            _end   = _pv.get("endereco") or {}
             _itens = reg.get("items") or []
 
             _base = {
                 "cnpj_frota":              cnpj_frota,
-                "identificador":           _id,
-                "abastecimento_estornado": reg.get("abastecimentoEstornado"),
+                "identificador":           _id or None,
+                "abastecimento_estornado": bool(reg.get("abastecimentoEstornado")),
                 "data_abastecimento":      _data,
-                "data_atualizacao":        _data_atu,
-                "data_transacao":          reg.get("dataTransacao"),
+                "data_atualizacao":        _safe_ts(reg.get("dataAtualizacao")),
+                "data_transacao":          _safe_ts(reg.get("dataTransacao")),
                 "status_autorizacao":      reg.get("statusAutorizacao"),
                 "motivo_recusa":           reg.get("motivoRecusa"),
                 "motivo_cancelamento":     reg.get("motivoCancelamento"),
-                "hodometro":               reg.get("hodometro"),
-                "horimetro":               reg.get("horimetro"),
-                "frota_cnpj":              re.sub(r"\D","",str(_frt.get("cnpj","") or "")).zfill(14),
+                "hodometro":               _safe_num(reg.get("hodometro")),
+                "horimetro":               _safe_num(reg.get("horimetro")),
+                "frota_cnpj":              re.sub(r"\D", "", str(_frt.get("cnpj") or "")).zfill(14),
                 "frota_razao_social":      _frt.get("razaoSocial"),
-                "motorista_id":            _mot.get("identificador"),
+                "motorista_id":            str(_mot.get("identificador") or "") or None,
                 "motorista_nome":          _mot.get("nome"),
-                "veiculo_id":              _vei.get("identificador"),
+                "veiculo_id":              str(_vei.get("identificador") or "") or None,
                 "veiculo_placa":           _vei.get("placa"),
-                "pv_cnpj":                 re.sub(r"\D","",str(_pv.get("cnpj","") or "")).zfill(14),
+                "pv_cnpj":                 re.sub(r"\D", "", str(_pv.get("cnpj") or "")).zfill(14),
                 "pv_razao_social":         _pv.get("razaoSocial"),
-                "pv_posto_interno":        _pv.get("postoInterno"),
+                "pv_posto_interno":        bool(_pv.get("postoInterno")),
                 "pv_municipio":            _end.get("municipio"),
                 "pv_uf":                   _end.get("uf"),
-                "pv_latitude":             _end.get("latitude"),
-                "pv_longitude":            _end.get("longitude"),
-                "payload_raw":             reg,  # JSONB — passar dict diretamente
+                "pv_latitude":             _safe_num(_end.get("latitude")),
+                "pv_longitude":            _safe_num(_end.get("longitude")),
+                "payload_raw":             reg,
             }
 
             if _itens:
                 for item in _itens:
-                    row = dict(_base)
-                    # tipo pode ser int OU {"codigo": N, "valor": "..."} 
                     _tipo_raw = item.get("tipo")
                     if isinstance(_tipo_raw, dict):
-                        _tipo_int = _tipo_raw.get("codigo")
+                        _tipo_int  = _tipo_raw.get("codigo")
                         _item_nome_extra = _tipo_raw.get("valor")
                     else:
-                        _tipo_int = _tipo_raw
+                        _tipo_int  = _tipo_raw
                         _item_nome_extra = None
-                    row["item_id"]             = str(item.get("identificador", "") or "")
+                    _iid = str(item.get("identificador") or "")
+                    row  = dict(_base)
+                    row["item_id"]             = _iid
                     row["item_nome"]           = item.get("nome") or _item_nome_extra
                     row["item_tipo"]           = _tipo_int
-                    row["item_quantidade"]     = item.get("quantidade")
-                    row["item_valor_unitario"] = item.get("valorUnitario")
-                    row["item_valor_total"]    = item.get("valorTotal")
-                    rows_batch.append(row)
+                    row["item_quantidade"]     = _safe_num(item.get("quantidade"))
+                    row["item_valor_unitario"] = _safe_num(item.get("valorUnitario"))
+                    row["item_valor_total"]    = _safe_num(item.get("valorTotal"))
+                    row["sync_key"]            = _make_sync_key(cnpj_frota, _id, _iid)
+                    rows_pagina.append(row)
             else:
-                _base["item_id"] = ""
-                rows_batch.append(_base)
+                _base["item_id"]  = ""
+                _base["sync_key"] = _make_sync_key(cnpj_frota, _id, "")
+                rows_pagina.append(_base)
 
-        if rows_batch:
-            try:
-                _db.table("profrotas_abastecimentos").upsert(
-                    rows_batch,
-                    on_conflict="cnpj_frota,identificador,item_id"
-                ).execute()
-                total_salvos += len(rows_batch)
-            except Exception as _save_e:
-                return pagina, total_salvos, novo_token, f"Erro ao salvar pág {pagina}: {_save_e}", total_items or 0
+        # Salva em micro-lotes de _PROFROTAS_BATCH_SIZE
+        for _i in range(0, len(rows_pagina), _PROFROTAS_BATCH_SIZE):
+            _lote = rows_pagina[_i: _i + _PROFROTAS_BATCH_SIZE]
+            _err  = _upsert_batch(_lote)
+            if _err:
+                erros_batch.append(f"Pág {pagina} lote {_i//25+1}: {_err[:120]}")
+            else:
+                total_salvos += len(_lote)
 
         # Próxima página?
         if not registros or len(registros) < tam_pag:
             break
         pagina += 1
-        # Delay entre páginas para evitar rate limit (429)
         import time as _time_pag
-        _time_pag.sleep(1.0)
+        _time_pag.sleep(0.5)
 
     # Atualiza metadados da chave
     try:
         import datetime as _dt2
         _db.table("profrotas_api_keys").update({
-            "ultimo_sync":   _dt2.datetime.utcnow().isoformat(),
+            "ultimo_sync":    _dt2.datetime.utcnow().isoformat(),
             "registros_sync": total_salvos,
             **({"token": novo_token} if novo_token else {}),
         }).eq("cnpj_frota", cnpj_frota).execute()
     except Exception:
         pass
 
-    return pagina, total_salvos, novo_token, "", total_items or 0
+    _err_final = "; ".join(erros_batch) if erros_batch else ""
+    return pagina, total_salvos, novo_token, _err_final, total_items or 0
 
 
 def _profrotas_carregar_abast(cnpj_frota: str | None = None,
@@ -33953,6 +34077,30 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
 
             elif _pf_secao == "🔄 Sincronização":
                 st.markdown("#### 🔄 Sincronizar Abastecimentos")
+
+                # ── Diagnóstico de conexão e tabela ──────────────────
+                with st.expander("🔧 Diagnóstico de conexão", expanded=False):
+                    if st.button("▶ Verificar agora", key="btn_diag_pf"):
+                        _diag_db = _db_client()
+                        if not _diag_db:
+                            st.error("❌ Supabase não conectado. Verifique `st.secrets` com `supabase.url` e `supabase.key`.")
+                        else:
+                            st.success("✅ Supabase conectado.")
+                            _tab_ok2, _tab_err2 = _profrotas_garantir_tabela(_diag_db)
+                            if _tab_ok2:
+                                try:
+                                    _cnt = _diag_db.table("profrotas_abastecimentos").select("sync_key", count="exact").execute()
+                                    _total_db = _cnt.count or len(_cnt.data or [])
+                                    st.success(f"✅ Tabela OK — **{_br_num(_total_db, 0)}** registros no banco.")
+                                except Exception as _ec:
+                                    st.warning(f"⚠️ Tabela existe mas erro ao contar: {_ec}")
+                            else:
+                                st.error(f"❌ {_tab_err2}")
+                        _last_resp = st.session_state.get("_profrotas_last_response")
+                        if _last_resp:
+                            st.markdown("**Última resposta da API ProFrotas:**")
+                            st.json(_last_resp)
+
                 _pf_ativos = [c for c in _profrotas_listar_chaves() if c.get("ativo")]
                 if not _pf_ativos:
                     st.warning("Nenhuma chave ativa. Cadastre em **🔑 Chaves de Acesso**.")
