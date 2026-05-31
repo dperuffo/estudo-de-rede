@@ -26934,10 +26934,16 @@ elif modo == "🧭 Roteirização":
         _range_avail = (_rcap - _rmin) * _raut
 
         if _pp_df_r is not None and not _pf_df_r.empty and _rcomb:
-            _cm = _pp_df_r[
-                _pp_df_r["combustivel_label"].str.upper().str.strip()
-                == _rcomb.upper().strip()
-            ]
+            # Matching flexível: usa _fuel_mask para aceitar variações do nome
+            # Ex: "ÓLEO DIESEL S10" encontra "🛢️ Diesel S10", "Diesel S-10", etc.
+            _mask_comb = _fuel_mask(_pp_df_r["combustivel_label"], _rcomb)
+            # Fallback: tenta também por combustivel_pk normalizado
+            if not _mask_comb.any() and "combustivel_pk" in _pp_df_r.columns:
+                _rcomb_norm = _anp_norm(_rcomb).replace("OLEO ", "").replace("O ", "")
+                _mask_comb  = _pp_df_r["combustivel_pk"].apply(
+                    lambda pk: _rcomb_norm in _anp_norm(str(pk))
+                )
+            _cm = _pp_df_r[_mask_comb]
             if not _cm.empty:
                 _cpk = _cm["combustivel_pk"].iloc[0]
                 _pr  = (_pp_df_r[_pp_df_r["combustivel_pk"] == _cpk]
