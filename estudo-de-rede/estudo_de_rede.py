@@ -4744,23 +4744,20 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         _BOOL_COLS = {"abastecimento_estornado", "pv_posto_interno"}
 
         def _fix(k, v):
+            # Converte TODOS os booleans Python para int 0/1.
+            # PostgreSQL aceita 0/1 para colunas boolean E integer.
+            # Evita "invalid input syntax for type integer: false".
+            if isinstance(v, bool):
+                return int(v)
             if k in _INT_COLS:
-                # bool ou string "false"/"true" → None para integer
-                if isinstance(v, bool):
+                if v is None:
                     return None
                 if isinstance(v, str) and v.strip().lower() in ("false", "true", ""):
                     return None
                 try:
-                    return int(v) if v is not None else None
+                    return int(v)
                 except (TypeError, ValueError):
                     return None
-            if k in _BOOL_COLS:
-                # garante bool puro para colunas boolean
-                if isinstance(v, bool):
-                    return v
-                if isinstance(v, str):
-                    return v.strip().lower() not in ("false", "0", "")
-                return bool(v) if v is not None else None
             return v
 
         _rows_safe = []
