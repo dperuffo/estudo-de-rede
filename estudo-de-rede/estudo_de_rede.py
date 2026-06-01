@@ -33542,124 +33542,140 @@ elif modo == "📑 Relatórios":
         # ── Painel de configuração + área de resultado ────────────
         _rp_cfg, _rp_res = st.columns([1, 2], gap="large")
 
+        # ── Pré-computa listas para os filtros (fora do form, sem rerun) ──────
+        _today_rp = _rp_dt.date.today()
+        _cli_map: dict = {}
+        _placas_rp: list = []
+        _mots_rp:   list = []
+        if not _rp_dados_cache.empty:
+            if "cnpj_frota" in _rp_dados_cache.columns:
+                _razao_col = "razao_frota" if "razao_frota" in _rp_dados_cache.columns else None
+                _dedup = (
+                    _rp_dados_cache[["cnpj_frota"] + ([_razao_col] if _razao_col else [])]
+                    .dropna(subset=["cnpj_frota"])
+                    .drop_duplicates("cnpj_frota")
+                )
+                # Vetorizado — sem iterrows
+                for _cnpj_c, _razao_c in zip(
+                    _dedup["cnpj_frota"].astype(str).str.strip(),
+                    _dedup[_razao_col].fillna("").astype(str).str.strip() if _razao_col else [""] * len(_dedup),
+                ):
+                    _label_c = f"{_razao_c}  ({_cnpj_c})" if _razao_c and _razao_c != "nan" else _cnpj_c
+                    _cli_map[_label_c] = _cnpj_c
+            if "placa" in _rp_dados_cache.columns:
+                _placas_rp = sorted(_rp_dados_cache["placa"].dropna().unique().tolist())
+            if "motorista" in _rp_dados_cache.columns:
+                _mots_rp = sorted(_rp_dados_cache["motorista"].dropna().unique().tolist())
+
         with _rp_cfg:
-            st.markdown("**🗃️ Fonte de Dados**")
-            _rp_fonte = st.radio(
-                "Fonte", list(_RP_FONTES.keys()),
-                format_func=lambda k: _RP_FONTES[k],
-                key="rp_fonte", label_visibility="collapsed",
-            )
+            # ── st.form: nenhuma seleção dispara rerun — só o submit ──────────
+            with st.form("rp_form", border=False):
+                st.markdown("**🗃️ Fonte de Dados**")
+                _rp_fonte = st.radio(
+                    "Fonte", list(_RP_FONTES.keys()),
+                    format_func=lambda k: _RP_FONTES[k],
+                    key="rp_fonte", label_visibility="collapsed",
+                )
 
-            st.markdown("**📅 Período**")
-            # CSS: impede quebra de linha nos botões de atalho de período
-            st.markdown("""
-<style>
-[class*="st-key-rp_q"] button p { white-space: nowrap !important; font-size: 0.78rem !important; }
-[class*="st-key-rp_q"] button { padding: 4px 2px !important; }
-</style>""", unsafe_allow_html=True)
-            # Atalhos rápidos — definem defaults ANTES de criar os date_inputs
-            _today_rp = _rp_dt.date.today()
-            _rp_qs = st.columns(5)
-            for _qi, _ql in enumerate(["7d","30d","Mês","Trim","Ano"]):
-                if _rp_qs[_qi].button(_ql, key=f"rp_q{_qi}", use_container_width=True):
-                    if _ql == "7d":
-                        st.session_state["rp_ini_val"] = _today_rp - _rp_dt.timedelta(days=7)
-                    elif _ql == "30d":
-                        st.session_state["rp_ini_val"] = _today_rp - _rp_dt.timedelta(days=30)
-                    elif _ql == "Mês":
-                        st.session_state["rp_ini_val"] = _today_rp.replace(day=1)
-                    elif _ql == "Trim":
-                        _qm = ((_today_rp.month - 1) // 3) * 3 + 1
-                        st.session_state["rp_ini_val"] = _today_rp.replace(month=_qm, day=1)
-                    elif _ql == "Ano":
-                        st.session_state["rp_ini_val"] = _today_rp.replace(month=1, day=1)
-                    st.session_state["rp_fim_val"] = _today_rp
-                    st.rerun()
+                st.markdown("**📅 Período**")
+                _rp_periodo_rapido = st.selectbox(
+                    "Atalho de período",
+                    ["Personalizado", "Últimos 7 dias", "Últimos 30 dias",
+                     "Mês atual", "Trimestre atual", "Ano atual"],
+                    key="rp_periodo_rapido",
+                    label_visibility="collapsed",
+                )
+                _rp_c1, _rp_c2 = st.columns(2)
+                _ini_default = st.session_state.get("rp_ini_val", _today_rp - _rp_dt.timedelta(days=30))
+                _fim_default = st.session_state.get("rp_fim_val", _today_rp)
+                _rp_ini = _rp_c1.date_input("De",  value=_ini_default, key="rp_ini")
+                _rp_fim = _rp_c2.date_input("Até", value=_fim_default, key="rp_fim")
 
-            # date_inputs usam valores do session_state (sem conflito de key)
-            _ini_default = st.session_state.get("rp_ini_val", _today_rp - _rp_dt.timedelta(days=30))
-            _fim_default = st.session_state.get("rp_fim_val", _today_rp)
-            _rp_c1, _rp_c2 = st.columns(2)
-            _rp_ini = _rp_c1.date_input("De",  value=_ini_default, key="rp_ini")
-            _rp_fim = _rp_c2.date_input("Até", value=_fim_default, key="rp_fim")
-            # Sincroniza de volta caso o usuário mude manualmente
-            st.session_state["rp_ini_val"] = _rp_ini
-            st.session_state["rp_fim_val"] = _rp_fim
+                st.markdown("**📐 Dimensão (Eixo X)**")
+                _rp_dim_opts = []
+                _rp_fonte_val = st.session_state.get("rp_fonte", list(_RP_FONTES.keys())[0])
+                for _grp, _items in _RP_DIMS.get(_rp_fonte_val, {}).items():
+                    for _did, _dlbl in _items:
+                        _rp_dim_opts.append((_did, f"{_dlbl}  —  {_grp}"))
+                _rp_dim = st.radio(
+                    "Dimensão", [d[0] for d in _rp_dim_opts],
+                    format_func=lambda k: next((d[1] for d in _rp_dim_opts if d[0]==k), k),
+                    key="rp_dim", label_visibility="collapsed",
+                )
 
-            st.markdown("**📐 Dimensão (Eixo X)**")
-            _rp_dim_opts = []
-            for _grp, _items in _RP_DIMS.get(_rp_fonte, {}).items():
-                for _did, _dlbl in _items:
-                    _rp_dim_opts.append((_did, f"{_dlbl}  —  {_grp}"))
-            _rp_dim = st.radio(
-                "Dimensão", [d[0] for d in _rp_dim_opts],
-                format_func=lambda k: next((d[1] for d in _rp_dim_opts if d[0]==k), k),
-                key="rp_dim", label_visibility="collapsed",
-            )
+                st.markdown("**📏 Métricas (o que medir)**")
+                _rp_mets_all = _RP_METS.get(_rp_fonte_val, [])
+                _rp_mets_sel = []
+                for _mid, _mlbl, _mfmt in _rp_mets_all:
+                    if st.checkbox(_mlbl, key=f"rp_met_{_rp_fonte_val}_{_mid}",
+                                   value=(_mid in ("qtd","volume","valor","man_custo","neg_qtd"))):
+                        _rp_mets_sel.append((_mid, _mlbl, _mfmt))
 
-            st.markdown("**📏 Métricas (o que medir)**")
-            _rp_mets_all = _RP_METS.get(_rp_fonte, [])
-            _rp_mets_sel = []
-            for _mid, _mlbl, _mfmt in _rp_mets_all:
-                if st.checkbox(_mlbl, key=f"rp_met_{_rp_fonte}_{_mid}",
-                               value=(_mid in ("qtd","volume","valor","man_custo","neg_qtd"))):
-                    _rp_mets_sel.append((_mid, _mlbl, _mfmt))
+                st.markdown("**📊 Tipo de Visualização**")
+                _rp_viz = st.radio(
+                    "Viz", [v[0] for v in _RP_VIZ],
+                    format_func=lambda k: next((v[1] for v in _RP_VIZ if v[0]==k), k),
+                    key="rp_viz", label_visibility="collapsed", horizontal=False,
+                )
 
-            st.markdown("**📊 Tipo de Visualização**")
-            _rp_viz_cols = st.columns(3)
-            _rp_viz = st.radio(
-                "Viz", [v[0] for v in _RP_VIZ],
-                format_func=lambda k: next((v[1] for v in _RP_VIZ if v[0]==k), k),
-                key="rp_viz", label_visibility="collapsed", horizontal=False,
-            )
+                st.markdown("**🔍 Filtros Adicionais**")
 
-            st.markdown("**🔍 Filtros Adicionais**")
-
-            # ── Cliente / Frota ────────────────────────────────────
-            _rp_f_cliente = "Todos"
-            _rp_f_cnpj_frota = ""
-            if _rp_fonte == "abastecimentos" and not _rp_dados_cache.empty:
-                # Monta dicionário razao_frota → cnpj_frota
-                _cli_map = {}
-                if "cnpj_frota" in _rp_dados_cache.columns:
-                    _razao_col = "razao_frota" if "razao_frota" in _rp_dados_cache.columns else None
-                    for _, _rc in (
-                        _rp_dados_cache[["cnpj_frota"] + ([_razao_col] if _razao_col else [])]
-                        .dropna(subset=["cnpj_frota"])
-                        .drop_duplicates("cnpj_frota")
-                        .iterrows()
-                    ):
-                        _cnpj_c = str(_rc["cnpj_frota"]).strip()
-                        _razao_c = str(_rc[_razao_col]).strip() if _razao_col else ""
-                        _label_c = f"{_razao_c}  ({_cnpj_c})" if _razao_c and _razao_c != "nan" else _cnpj_c
-                        _cli_map[_label_c] = _cnpj_c
-
+                # ── Cliente / Frota ────────────────────────────────
+                _rp_f_cliente = "Todos"
+                _rp_f_cnpj_frota = ""
                 if _cli_map:
                     _rp_f_cliente = st.selectbox(
                         "🏢 Cliente / Frota",
                         ["Todos"] + sorted(_cli_map.keys()),
                         key="rp_f_cliente",
                     )
-                    if _rp_f_cliente != "Todos":
-                        _rp_f_cnpj_frota = _cli_map.get(_rp_f_cliente, "")
+                    _rp_f_cnpj_frota = _cli_map.get(_rp_f_cliente, "") if _rp_f_cliente != "Todos" else ""
 
-            _rp_f_comb = st.selectbox("⛽ Combustível", ["Todos","Diesel S10","Diesel","Gasolina","Etanol","GNV","Arla 32"], key="rp_f_comb")
-            _rp_f_placa = ""
-            _rp_f_mot   = ""
-            if _rp_fonte == "abastecimentos" and not _rp_dados_cache.empty:
-                # Filtra cache pelo cliente selecionado para popular placa/motorista
-                _cache_filtrado = _rp_dados_cache
-                if _rp_f_cnpj_frota and "cnpj_frota" in _cache_filtrado.columns:
-                    _cache_filtrado = _cache_filtrado[
-                        _cache_filtrado["cnpj_frota"].astype(str) == _rp_f_cnpj_frota
-                    ]
-                _placas_rp = sorted(_cache_filtrado["placa"].dropna().unique().tolist()) if "placa" in _cache_filtrado.columns else []
-                _mots_rp   = sorted(_cache_filtrado["motorista"].dropna().unique().tolist()) if "motorista" in _cache_filtrado.columns else []
-                _rp_f_placa = st.selectbox("🚗 Veículo (Placa)", ["Todos"] + _placas_rp, key="rp_f_placa")
-                _rp_f_mot   = st.selectbox("👤 Motorista", ["Todos"] + _mots_rp, key="rp_f_mot")
+                _rp_f_comb = st.selectbox(
+                    "⛽ Combustível",
+                    ["Todos","Diesel S10","Diesel","Gasolina","Etanol","GNV","Arla 32"],
+                    key="rp_f_comb",
+                )
 
-            _rp_gerar = st.button("▶ Gerar Relatório", type="primary",
-                                   use_container_width=True, key="rp_gerar")
+                _rp_f_placa = st.selectbox("🚗 Veículo (Placa)", ["Todos"] + _placas_rp, key="rp_f_placa") if _placas_rp else "Todos"
+                _rp_f_mot   = st.selectbox("👤 Motorista", ["Todos"] + _mots_rp,        key="rp_f_mot")   if _mots_rp   else "Todos"
+
+                _rp_gerar = st.form_submit_button(
+                    "▶ Gerar Relatório",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+            # ── Aplica atalho de período APÓS o submit ────────────────────────
+            if _rp_gerar:
+                _pr = st.session_state.get("rp_periodo_rapido", "Personalizado")
+                if _pr == "Últimos 7 dias":
+                    _rp_ini = _today_rp - _rp_dt.timedelta(days=7);  _rp_fim = _today_rp
+                elif _pr == "Últimos 30 dias":
+                    _rp_ini = _today_rp - _rp_dt.timedelta(days=30); _rp_fim = _today_rp
+                elif _pr == "Mês atual":
+                    _rp_ini = _today_rp.replace(day=1);               _rp_fim = _today_rp
+                elif _pr == "Trimestre atual":
+                    _qm = ((_today_rp.month - 1) // 3) * 3 + 1
+                    _rp_ini = _today_rp.replace(month=_qm, day=1);    _rp_fim = _today_rp
+                elif _pr == "Ano atual":
+                    _rp_ini = _today_rp.replace(month=1, day=1);      _rp_fim = _today_rp
+                # Persiste para o próximo render
+                st.session_state["rp_ini_val"] = _rp_ini
+                st.session_state["rp_fim_val"] = _rp_fim
+                # Persiste seleções do form para uso no bloco de resultado
+                st.session_state["_rp_form_state"] = {
+                    "fonte":       st.session_state.get("rp_fonte",  list(_RP_FONTES.keys())[0]),
+                    "ini":         _rp_ini,
+                    "fim":         _rp_fim,
+                    "dim":         st.session_state.get("rp_dim"),
+                    "mets_sel":    _rp_mets_sel,
+                    "viz":         st.session_state.get("rp_viz"),
+                    "f_cnpj_frota": _rp_f_cnpj_frota,
+                    "f_comb":      st.session_state.get("rp_f_comb", "Todos"),
+                    "f_placa":     st.session_state.get("rp_f_placa", "Todos"),
+                    "f_mot":       st.session_state.get("rp_f_mot",   "Todos"),
+                }
 
         # Helper: verifica se _rp_dados tem conteúdo sem acionar __bool__ do DataFrame
         def _rp_tem_dados():
@@ -33683,6 +33699,23 @@ elif modo == "📑 Relatórios":
                     unsafe_allow_html=True,
                 )
             elif _rp_gerar or _rp_tem_dados():
+
+                # ── Recupera seleções persistidas pelo form ────────
+                _fs = st.session_state.get("_rp_form_state", {})
+                if _rp_gerar and not _fs:
+                    st.warning("Selecione pelo menos uma métrica e clique em Gerar Relatório.")
+                    st.stop()
+
+                _rp_fonte     = _fs.get("fonte",    list(_RP_FONTES.keys())[0])
+                _rp_ini       = _fs.get("ini",       _today_rp - _rp_dt.timedelta(days=30))
+                _rp_fim       = _fs.get("fim",       _today_rp)
+                _rp_dim       = _fs.get("dim",       "periodo_mes")
+                _rp_mets_sel  = _fs.get("mets_sel",  [])
+                _rp_viz       = _fs.get("viz",       "bar")
+                _rp_f_cnpj_frota = _fs.get("f_cnpj_frota", "")
+                _rp_f_comb    = _fs.get("f_comb",   "Todos")
+                _rp_f_placa   = _fs.get("f_placa",  "Todos")
+                _rp_f_mot     = _fs.get("f_mot",    "Todos")
 
                 # ── Carrega dados ──────────────────────────────────
                 if _rp_gerar:
