@@ -216,16 +216,19 @@ def _auto_sync_ensure_running(cnpj_frota: str, token: str) -> bool:
 
 def _auto_sync_ensure_all():
     """
-    Chamada uma vez no startup do app.
-    Inicia threads para todas as chaves ProFrotas ativas no Supabase.
+    Chamada a cada nova sessão.
+    Inicia ou re-verifica threads para todas as chaves ProFrotas ativas.
+    _auto_sync_ensure_running() é idempotente — não recria threads vivas.
     """
     try:
         _chaves = _profrotas_listar_chaves()
         for _c in _chaves:
             if _c.get("ativo") and _c.get("token") and _c.get("cnpj_frota"):
                 _auto_sync_ensure_running(_c["cnpj_frota"], _c["token"])
-    except Exception:
-        pass   # silencioso — não bloqueia o startup do app
+    except Exception as _e_as:
+        _AUTO_SYNC_STATUS["_startup_error"] = {
+            "status": "erro", "msg": str(_e_as)[:200],
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -36514,6 +36517,11 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                 _as_chaves = _profrotas_listar_chaves()
                 _as_ativos = [c for c in _as_chaves if c.get("ativo")]
                 if _as_ativos:
+                    # Mostra erro de startup se houver
+                    _as_err_start = _AUTO_SYNC_STATUS.get("_startup_error", {})
+                    if _as_err_start.get("msg"):
+                        st.error(f"❌ Erro ao iniciar auto-sync: {_as_err_start['msg']}")
+
                     st.markdown("**🤖 Sincronização Automática (a cada 1 hora)**")
                     for _asc in _as_ativos:
                         _asc_cnpj = _asc.get("cnpj_frota","")
