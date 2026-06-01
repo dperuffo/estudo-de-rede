@@ -50,11 +50,26 @@ def _fragment(func=None, *, run_every=None):
 # ═══════════════════════════════════════════════════════════════════
 import threading as _threading
 
-_AUTO_SYNC_INTERVAL   = 3600          # segundos entre cada ciclo (1 hora)
-_AUTO_SYNC_THREADS:   dict = {}       # cnpj_frota → threading.Thread
-_AUTO_SYNC_STATUS:    dict = {}       # cnpj_frota → dict de status
-_AUTO_SYNC_LOCK             = _threading.Lock()
-_AUTO_SYNC_INITIALIZED      = False   # garante startup único por processo
+_AUTO_SYNC_INTERVAL = 3600  # segundos entre cada ciclo (1 hora)
+
+# @st.cache_resource garante que os dicts sobrevivem a reruns do Streamlit.
+# Sem isso, _AUTO_SYNC_THREADS = {} no módulo é re-executado a cada rerun,
+# destruindo referências de threads ativas.
+@st.cache_resource
+def _get_auto_sync_state():
+    """Retorna dicts de estado do auto-sync — criados UMA vez por processo."""
+    return {
+        "threads":     {},        # cnpj_frota → threading.Thread
+        "status":      {},        # cnpj_frota → dict de status
+        "lock":        _threading.Lock(),
+        "initialized": False,
+    }
+
+_AUTO_SYNC_STATE       = _get_auto_sync_state()
+_AUTO_SYNC_THREADS     = _AUTO_SYNC_STATE["threads"]
+_AUTO_SYNC_STATUS      = _AUTO_SYNC_STATE["status"]
+_AUTO_SYNC_LOCK        = _AUTO_SYNC_STATE["lock"]
+_AUTO_SYNC_INITIALIZED = False   # flag local; _STATE persiste
 
 
 def _auto_sync_create_db():
