@@ -34163,6 +34163,19 @@ elif modo == "📑 Relatórios":
                     # ── Usa cache — sem chamada ao banco ─────────────
                     if _rp_fonte == "abastecimentos":
                         _df_rp = _rp_dados_cache.copy() if not _rp_dados_cache.empty else pd.DataFrame()
+                        # Normaliza: a coluna de data pode vir como data_abastecimento ou data
+                        if "data_abastecimento" in _df_rp.columns and "data" not in _df_rp.columns:
+                            _df_rp = _df_rp.rename(columns={"data_abastecimento": "data"})
+                        # Normaliza colunas de valor para os nomes esperados pelas métricas
+                        _col_renames_rp = {
+                            "valor_combustivel": "valor_total",
+                            "hod_atual": "hodometro",
+                            "nome_motorista": "motorista",
+                        }
+                        _df_rp = _df_rp.rename(
+                            columns={k: v for k, v in _col_renames_rp.items()
+                                     if k in _df_rp.columns and v not in _df_rp.columns}
+                        )
                         # Filtro de cliente (cnpj_frota)
                         if _rp_f_cnpj_frota and "cnpj_frota" in _df_rp.columns:
                             _df_rp = _df_rp[_df_rp["cnpj_frota"].astype(str) == _rp_f_cnpj_frota]
@@ -34172,7 +34185,7 @@ elif modo == "📑 Relatórios":
                             _df_rp = _df_rp[_df_rp["placa"].astype(str) == _rp_f_placa]
                         if _rp_f_mot and _rp_f_mot != "Todos" and "motorista" in _df_rp.columns:
                             _df_rp = _df_rp[_df_rp["motorista"].astype(str) == _rp_f_mot]
-                        _date_col = "data"
+                        _date_col = "data"   # após rename data_abastecimento → data
 
                     elif _rp_fonte == "manutencao":
                         _man_rp = _manut_listar()
