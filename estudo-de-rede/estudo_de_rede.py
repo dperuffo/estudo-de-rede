@@ -23693,13 +23693,13 @@ if modo == "📈 Dashboard":
                 "carregados diretamente dos registros de abastecimento salvos."
             )
 
-            _rt9_abast_rows = []
+            _rt9_df = pd.DataFrame()
             try:
-                _rt9_abast_rows = _db_carregar_abastecimentos()
+                _rt9_df = _carregar_abastecimentos_unificados(dias=730)
             except Exception:
-                _rt9_abast_rows = []
+                _rt9_df = pd.DataFrame()
 
-            if not _rt9_abast_rows:
+            if _rt9_df.empty:
                 st.info(
                     "Nenhum abastecimento salvo no banco ainda. "
                     "Carregue a planilha de abastecimentos na seção **👥 Análise de Cliente** "
@@ -23707,7 +23707,6 @@ if modo == "📈 Dashboard":
                     icon="🚛",
                 )
             else:
-                _rt9_df = pd.DataFrame(_rt9_abast_rows)
                 for _rt9_c in ["km_percorrido", "media_km_l", "litros", "preco_litro", "valor_total"]:
                     if _rt9_c in _rt9_df.columns:
                         _rt9_df[_rt9_c] = pd.to_numeric(_rt9_df[_rt9_c], errors="coerce")
