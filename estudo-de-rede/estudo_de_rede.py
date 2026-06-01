@@ -35871,35 +35871,62 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                             _pp, _ps2, _pnt, _perr, _ptot = _profrotas_sync(
                                 _pf_sel["cnpj_frota"], _pf_sel["token"], _iso, _prog)
                         _pb.progress(1.0, text="Concluído!")
-                        if _perr:
-                            st.error(f"❌ Erro durante sincronização: {_perr}")
-                            # Exibe resposta bruta da API para diagnóstico
-                            _raw_debug = st.session_state.get("_profrotas_last_response")
-                            if _raw_debug:
-                                with st.expander("🔍 Resposta bruta da API (debug)"):
-                                    st.json(_raw_debug)
-                        elif _ps2 == 0:
-                            if _ptot == 0:
+
+                        # Persiste resultado no session_state para sobreviver ao rerun
+                        st.session_state["_pf_sync_result"] = {
+                            "salvos": _ps2, "paginas": _pp,
+                            "total_api": _ptot, "erro": _perr or "",
+                            "token_renovado": bool(_pnt),
+                        }
+                        if _ps2 > 0:
+                            st.rerun()   # atualiza contadores sem perder o resultado
+
+                    # Exibe resultado persistido (sobrevive ao rerun)
+                    _sr = st.session_state.get("_pf_sync_result")
+                    if _sr:
+                        _sr_salvos = _sr["salvos"]
+                        _sr_erro   = _sr["erro"]
+                        _sr_ptot   = _sr["total_api"]
+                        _sr_pp     = _sr["paginas"]
+
+                        if _sr_salvos > 0:
+                            if _sr_erro:
+                                # Sucesso parcial: salvou alguns mas teve erros
                                 st.warning(
-                                    f"⚠️ A API não retornou registros para o período selecionado. "
-                                    f"Tente ampliar o intervalo de datas ou verifique se há abastecimentos "
-                                    f"neste período para o cliente selecionado."
+                                    f"⚠️ **{_br_num(_sr_salvos, 0)}** registros salvos "
+                                    f"em {_sr_pp} página(s) de {_br_num(_sr_ptot, 0)} na API. "
+                                    f"Alguns lotes falharam (veja abaixo)."
                                 )
                             else:
-                                st.warning(
-                                    f"⚠️ API retornou **{_ptot}** registro(s) mas nenhum foi salvo. "
-                                    f"Verifique se a tabela `profrotas_abastecimentos` existe no Supabase "
-                                    f"(execute `profrotas_api.sql`)."
+                                st.success(
+                                    f"✅ **{_br_num(_sr_salvos, 0)}** registros salvos "
+                                    f"em {_sr_pp} página(s). Total na API: {_br_num(_sr_ptot, 0)}."
                                 )
+                        elif _sr_ptot == 0:
+                            st.warning(
+                                "⚠️ A API não retornou registros para o período. "
+                                "Tente ampliar o intervalo de datas."
+                            )
+                        else:
+                            st.warning(
+                                f"⚠️ API retornou **{_sr_ptot}** registro(s) mas nenhum foi salvo. "
+                                "Verifique a tabela `profrotas_abastecimentos` no Supabase."
+                            )
+
+                        if _sr_erro:
+                            with st.expander("🔍 Detalhes dos erros de lote", expanded=True):
+                                # Exibe cada erro de lote em linha separada
+                                for _ln in _sr_erro.split(";"):
+                                    _ln = _ln.strip()
+                                    if _ln:
+                                        st.caption(f"• {_ln}")
                             _raw_debug = st.session_state.get("_profrotas_last_response")
                             if _raw_debug:
                                 with st.expander("🔍 Resposta bruta da API (debug)"):
                                     st.json(_raw_debug)
-                        else:
-                            st.success(f"✅ {_br_num(_ps2, 0)} registros salvos em {_pp} página(s). "
-                                       f"Total na API: {_br_num(_ptot, 0)}.")
-                        if _pnt: st.info("🔄 Token renovado automaticamente.")
-                        if _ps2 > 0: st.rerun()
+
+                        if _sr.get("token_renovado"):
+                            st.info("🔄 Token renovado automaticamente.")
                     _ult = _pf_sel.get("ultimo_sync")
                     if _ult:
                         try: _ult = _pf_dt.datetime.fromisoformat(_ult.replace("Z","")).strftime("%d/%m/%Y %H:%M")
