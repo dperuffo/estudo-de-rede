@@ -29,6 +29,20 @@ from matplotlib.lines import Line2D
 # Diretório onde este script está — usado para localizar arquivos do repo
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Helper de fuso horário Brasil (UTC-3) — usado em todo o app
+import datetime as _datetime_mod
+_TZ_BRASILIA = _datetime_mod.timezone(_datetime_mod.timedelta(hours=-3))
+
+def _now_br():
+    """datetime.now() no fuso de Brasília (UTC-3)."""
+    return _datetime_mod.datetime.now(tz=_TZ_BRASILIA)
+
+def _today_br():
+    """date.today() no fuso de Brasília (UTC-3)."""
+    return _datetime_mod.datetime.now(tz=_TZ_BRASILIA).date()
+
+
+
 # ── Compatibilidade @st.fragment (Streamlit >= 1.37) ──────────────────────
 def _fragment(func=None, *, run_every=None):
     """Decorator que usa st.fragment se disponível, senão é no-op."""
@@ -124,7 +138,7 @@ def _auto_sync_worker(cnpj_frota: str, token_inicial: str):
                 _AUTO_SYNC_STATUS[cnpj_frota] = {
                     "status": "erro",
                     "msg": "Supabase indisponível — verifique secrets/env vars.",
-                    "last_attempt": _dt.datetime.utcnow().isoformat(),
+                    "last_attempt": _dt.datetime.now(tz=_dt.timezone(_dt.timedelta(hours=-3))).isoformat(),
                 }
                 _tm.sleep(300)   # retry em 5 min se sem DB
                 continue
@@ -196,7 +210,7 @@ def _auto_sync_worker(cnpj_frota: str, token_inicial: str):
             _AUTO_SYNC_STATUS[cnpj_frota] = {
                 "status":       "erro",
                 "msg":          str(_ex)[:300],
-                "last_attempt": _dt.datetime.utcnow().isoformat(),
+                "last_attempt": _dt.datetime.now(tz=_dt.timezone(_dt.timedelta(hours=-3))).isoformat(),
             }
 
         _tm.sleep(_AUTO_SYNC_INTERVAL)
@@ -490,7 +504,7 @@ def _sec_log_evento(tipo: str, descricao: str, nivel: str = "INFO"):
             "email":     _email[:254],
             "descricao": str(descricao)[:500],
             "ip_hint":   "",   # Streamlit Cloud não expõe IP diretamente
-            "ts":        datetime.now().isoformat(),
+            "ts":        _now_br().isoformat(),
         }).execute()
     except Exception:
         pass  # Log nunca deve travar o app
@@ -4608,8 +4622,8 @@ def _profrotas_salvar_chave(cnpj_frota: str, nome_empresa: str,
             "nome_empresa":     nome_empresa.strip(),
             "token":            token.strip(),
             "ativo":            True,
-            "data_cadastro":    _dt.datetime.utcnow().isoformat(),
-            "data_inicio_sync": _dt.datetime.utcnow().isoformat(),
+            "data_cadastro":    _dt.datetime.now(tz=_dt.timezone(_dt.timedelta(hours=-3))).isoformat(),
+            "data_inicio_sync": _dt.datetime.now(tz=_dt.timezone(_dt.timedelta(hours=-3))).isoformat(),
             "criado_por":       criado_por,
             "registros_sync":   0,
         }
@@ -14398,8 +14412,10 @@ def _aplicar_rank_barato(df: "pd.DataFrame", top5: dict) -> "pd.DataFrame":
 
 
 def _agora() -> str:
-    """Retorna data e hora atual formatada: 06/05/2026 às 20:53."""
-    return datetime.now().strftime("%d/%m/%Y às %H:%M")
+    """Retorna data e hora atual no fuso de Brasília (UTC-3): 06/05/2026 às 20:53."""
+    import datetime as _dt_ag
+    _tz_br = _dt_ag.timezone(_dt_ag.timedelta(hours=-3))
+    return _dt_ag.datetime.now(tz=_tz_br).strftime("%d/%m/%Y às %H:%M")
 
 
 def _n(valor, dec: int = 0) -> str:
@@ -36524,7 +36540,12 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                             f"**{_pfc.get('nome_empresa','?')}** — {_pfc.get('cnpj_frota','?')}"
                         ):
                             _ps = _pfc.get("ultimo_sync") or "—"
-                            try: _ps = _pf_dt.datetime.fromisoformat(_ps.replace("Z","")).strftime("%d/%m/%Y %H:%M")
+                            try:
+                                _ps_dt = _pf_dt.datetime.fromisoformat(_ps.replace("Z",""))
+                                if _ps_dt.tzinfo is None:
+                                    _ps_dt = _ps_dt.replace(tzinfo=_pf_dt.timezone.utc)
+                                _tz_br = _pf_dt.timezone(_pf_dt.timedelta(hours=-3))
+                                _ps = _ps_dt.astimezone(_tz_br).strftime("%d/%m/%Y %H:%M")
                             except Exception: pass
                             st.write(f"**Último sync:** {_ps} | **Registros:** {_pfc.get('registros_sync',0):,}")
                             if st.button("🗑️ Remover", key=f"rm_{_pfc.get('cnpj_frota')}"):
@@ -36559,8 +36580,12 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                                 else "⚪")
                         def _fmt_dt_as(iso):
                             try:
-                                return _pf_dt2.datetime.fromisoformat(
-                                    iso.replace("Z","")).strftime("%d/%m %H:%M")
+                                _ts = _pf_dt2.datetime.fromisoformat(iso.replace("Z",""))
+                                # Converte UTC → Brasília (UTC-3) para exibição
+                                if _ts.tzinfo is None:
+                                    _ts = _ts.replace(tzinfo=_pf_dt2.timezone.utc)
+                                _tz_br = _pf_dt2.timezone(_pf_dt2.timedelta(hours=-3))
+                                return _ts.astimezone(_tz_br).strftime("%d/%m %H:%M")
                             except Exception:
                                 return "—"
                         _last_lbl = _fmt_dt_as(_asc_st.get("last_sync",""))
@@ -36687,7 +36712,12 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                             st.info("🔄 Token renovado automaticamente.")
                     _ult = _pf_sel.get("ultimo_sync")
                     if _ult:
-                        try: _ult = _pf_dt.datetime.fromisoformat(_ult.replace("Z","")).strftime("%d/%m/%Y %H:%M")
+                        try:
+                            _ult_dt = _pf_dt.datetime.fromisoformat(_ult.replace("Z",""))
+                            if _ult_dt.tzinfo is None:
+                                _ult_dt = _ult_dt.replace(tzinfo=_pf_dt.timezone.utc)
+                            _tz_br_cap = _pf_dt.timezone(_pf_dt.timedelta(hours=-3))
+                            _ult = _ult_dt.astimezone(_tz_br_cap).strftime("%d/%m/%Y %H:%M")
                         except Exception: pass
                         st.caption(f"🕐 Último sync: **{_ult}** — **{_br_num(_pf_sel.get('registros_sync', 0), 0)}** registros")
 
