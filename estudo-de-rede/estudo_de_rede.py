@@ -27941,7 +27941,7 @@ elif modo == "🧭 Roteirização":
                         _uf_origem = _ro.get("uf", "") or ""
                         _pk_r = _anp_norm(_rcomb)
                         _anp_vals = []
-                        for _, _rr in _df_est_r.to_dict("records"):
+                        for _rr in _df_est_r.to_dict("records"):
                             _uf_n = _anp_norm(str(_rr.get(_ce_r, "")))
                             _pk_n = _anp_norm(str(_rr.get(_cp_r, "")))
                             if _uf_n == _anp_norm(_uf_origem) or _uf_n in _anp_norm(_uf_origem):
