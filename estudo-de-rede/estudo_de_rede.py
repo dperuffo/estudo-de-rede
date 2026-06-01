@@ -34659,22 +34659,35 @@ elif modo == "🛰️ Telemetria":
     #  TAB 2 — Importar / Entrada Manual
     # ════════════════════════════════════════════
     with _tele_t2:
-        _imp_modo = st.radio(
-            "Forma de entrada",
-            ["📁 Upload CSV/Excel", "✍️ Entrada manual"],
-            horizontal=True,
-            label_visibility="collapsed",
+        st.markdown("#### 📥 Importar Abastecimentos")
+        st.caption(
+            "Escolha como deseja importar abastecimentos. "
+            "Todos os dados são salvos na tabela unificada e ficam disponíveis em Dashboard, "
+            "Relatórios e Análise de Cliente."
         )
 
+        _imp_modo = st.radio(
+            "Forma de importação",
+            ["📁 Upload CSV/Excel", "🔄 API ProFrotas (Gestão de Frotas)", "✍️ Entrada Manual"],
+            horizontal=False,
+            label_visibility="collapsed",
+            key="tele_imp_modo",
+        )
+
+        st.markdown("---")
+
+        # ════════════════════════════════════════════
+        #  OPÇÃO 1 — Upload CSV/Excel
+        # ════════════════════════════════════════════
         if _imp_modo == "📁 Upload CSV/Excel":
-            st.markdown("#### 📁 Importar arquivo de abastecimentos")
+            st.markdown("##### 📁 Importar arquivo de abastecimentos")
             st.caption(
-                "Exporte a planilha de abastecimentos do seu sistema de telemetria (Sascar, Cobli, Onixsat, etc.) "
-                "e faça o upload abaixo. O arquivo deve ter pelo menos as colunas: **Placa, Data, Litros e Valor**."
+                "Exporte a planilha do seu sistema de telemetria (Sascar, Cobli, Onixsat, etc.) "
+                "e faça o upload. O arquivo deve ter pelo menos: **Placa, Data, Litros**."
             )
 
             _tele_file = st.file_uploader(
-                "Arquivo de abastecimentos (.csv ou .xlsx)",
+                "Arquivo (.csv ou .xlsx)",
                 type=["csv", "xlsx", "xls"],
                 key="tele_upload_file",
             )
@@ -34686,89 +34699,210 @@ elif modo == "🛰️ Telemetria":
                     else:
                         _tdf_raw = pd.read_excel(_tele_file)
 
-                    st.success(f"Arquivo lido: **{len(_tdf_raw)} linhas** · {len(_tdf_raw.columns)} colunas")
-                    st.markdown("**Mapeamento de colunas** — identifique quais colunas do seu arquivo correspondem a cada campo:")
+                    st.success(f"**{len(_tdf_raw)} linhas** · {len(_tdf_raw.columns)} colunas")
+                    st.markdown("**Mapeie as colunas do seu arquivo:**")
 
-                    _cols_arq = ["(não disponível)"] + list(_tdf_raw.columns)
+                    _cols_arq = ["(não mapeado)"] + list(_tdf_raw.columns)
                     _mc1, _mc2, _mc3 = st.columns(3)
                     with _mc1:
-                        _map_placa    = st.selectbox("Placa *",         _cols_arq, key="tmap_placa")
-                        _map_data     = st.selectbox("Data *",          _cols_arq, key="tmap_data")
+                        _map_placa  = st.selectbox("Placa *",         _cols_arq, key="tmap_placa")
+                        _map_data   = st.selectbox("Data *",          _cols_arq, key="tmap_data")
+                        _map_prod   = st.selectbox("Produto/Combustível", _cols_arq, key="tmap_prod")
                     with _mc2:
-                        _map_litros   = st.selectbox("Litros *",        _cols_arq, key="tmap_litros")
-                        _map_valor    = st.selectbox("Valor total (R$)", _cols_arq, key="tmap_valor")
+                        _map_litros = st.selectbox("Litros *",        _cols_arq, key="tmap_litros")
+                        _map_valor  = st.selectbox("Valor total (R$)", _cols_arq, key="tmap_valor")
+                        _map_preco  = st.selectbox("Preço/L",         _cols_arq, key="tmap_preco")
                     with _mc3:
-                        _map_hodo     = st.selectbox("Hodômetro (km)",  _cols_arq, key="tmap_hodo")
-                        _map_posto    = st.selectbox("Nome do posto",   _cols_arq, key="tmap_posto")
-                        _map_cnpj_p   = st.selectbox("CNPJ do posto",  _cols_arq, key="tmap_cnpj")
+                        _map_hodo   = st.selectbox("Hodômetro (km)",  _cols_arq, key="tmap_hodo")
+                        _map_posto  = st.selectbox("Nome do posto",   _cols_arq, key="tmap_posto")
+                        _map_cnpj_p = st.selectbox("CNPJ do posto",  _cols_arq, key="tmap_cnpj")
 
-                    if st.button("✅ Importar registros", key="btn_tele_importar_csv", use_container_width=True):
-                        if _map_placa == "(não disponível)" or _map_data == "(não disponível)" or _map_litros == "(não disponível)":
+                    if st.button("✅ Importar para tabela unificada", key="btn_tele_importar_csv",
+                                 use_container_width=True, type="primary"):
+                        if _map_placa == "(não mapeado)" or _map_data == "(não mapeado)" or _map_litros == "(não mapeado)":
                             st.error("Mapeie pelo menos Placa, Data e Litros.")
                         else:
-                            _novos = []
-                            for _, _row in _tdf_raw.iterrows():
-                                _rec = {
-                                    "placa":       str(_row[_map_placa]).strip().upper() if _map_placa != "(não disponível)" else "",
-                                    "data":        str(_row[_map_data]).strip()          if _map_data  != "(não disponível)" else "",
-                                    "litros":      pd.to_numeric(_row[_map_litros],   errors="coerce") if _map_litros != "(não disponível)" else None,
-                                    "valor_total": pd.to_numeric(_row[_map_valor],    errors="coerce") if _map_valor  != "(não disponível)" else None,
-                                    "hodometro":   pd.to_numeric(_row[_map_hodo],     errors="coerce") if _map_hodo   != "(não disponível)" else None,
-                                    "nome_posto":  str(_row[_map_posto]).strip()       if _map_posto  != "(não disponível)" else "",
-                                    "cnpj_posto":  str(_row[_map_cnpj_p]).strip()      if _map_cnpj_p != "(não disponível)" else "",
-                                    "fonte":       "csv",
-                                }
-                                if _rec["litros"] and _rec["litros"] > 0:
-                                    _novos.append(_rec)
+                            import hashlib as _hl_t
+                            _novos_rows = []
+                            for _tdf_row in _tdf_raw.to_dict("records"):
+                                _placa_v = str(_tdf_row.get(_map_placa, "") or "").strip().upper()
+                                _data_v  = str(_tdf_row.get(_map_data,  "") or "").strip()[:10]
+                                _lit_v   = pd.to_numeric(_tdf_row.get(_map_litros), errors="coerce") if _map_litros != "(não mapeado)" else None
+                                if not _placa_v or not _data_v or not (_lit_v and _lit_v > 0):
+                                    continue
+                                _val_v   = pd.to_numeric(_tdf_row.get(_map_valor),  errors="coerce") if _map_valor  != "(não mapeado)" else None
+                                _preco_v = pd.to_numeric(_tdf_row.get(_map_preco),  errors="coerce") if _map_preco  != "(não mapeado)" else None
+                                if not _preco_v and _val_v and _lit_v:
+                                    _preco_v = round(_val_v / _lit_v, 3)
+                                _hodo_v  = pd.to_numeric(_tdf_row.get(_map_hodo),   errors="coerce") if _map_hodo   != "(não mapeado)" else None
+                                _posto_v = str(_tdf_row.get(_map_posto,  "") or "").strip() if _map_posto  != "(não mapeado)" else ""
+                                _cnpjp_v = str(_tdf_row.get(_map_cnpj_p, "") or "").strip() if _map_cnpj_p != "(não mapeado)" else ""
+                                _prod_v  = str(_tdf_row.get(_map_prod,   "") or "").strip() if _map_prod   != "(não mapeado)" else ""
+                                # Gera id_transacao determinístico para deduplicação
+                                _raw_key = f"{_placa_v}|{_data_v}|{_lit_v}|{_val_v}"
+                                _id_tr   = abs(hash(_raw_key)) % (10**12)
+                                _novos_rows.append({
+                                    "id_transacao":       _id_tr,
+                                    "data_abastecimento": _data_v,
+                                    "placa":              _placa_v,
+                                    "produto":            _prod_v or None,
+                                    "litros":             float(_lit_v),
+                                    "preco_litro":        float(_preco_v) if _preco_v else None,
+                                    "valor_combustivel":  float(_val_v)   if _val_v   else None,
+                                    "hod_atual":          float(_hodo_v)  if pd.notna(_hodo_v) else None,
+                                    "nome_posto":         _posto_v or None,
+                                    "cnpj_posto":         _cnpjp_v or None,
+                                    "nome_arquivo":       _tele_file.name,
+                                })
 
-                            st.session_state["_tele_abast"].extend(_novos)
-                            _tele_salvar_abastecimentos_supabase(_novos)
-                            st.success(f"✅ {len(_novos)} abastecimentos importados.")
-                            st.rerun()
+                            if _novos_rows:
+                                _n_ok, _err_imp = _db_salvar_abastecimentos(_novos_rows, _tele_file.name)
+                                _db_carregar_abastecimentos.clear()
+                                _carregar_abastecimentos_unificados.clear()
+                                if _err_imp:
+                                    st.warning(f"⚠️ {_err_imp}")
+                                else:
+                                    st.success(
+                                        f"✅ **{_n_ok} abastecimentos** salvos na tabela unificada "
+                                        f"({len(_novos_rows)} processados do arquivo)."
+                                    )
+                            else:
+                                st.warning("Nenhum registro válido encontrado. Verifique o mapeamento.")
 
-                except Exception as _e:
-                    st.error(f"Erro ao ler o arquivo: {_e}")
+                except Exception as _e_tele:
+                    st.error(f"Erro ao ler o arquivo: {_e_tele}")
 
+        # ════════════════════════════════════════════
+        #  OPÇÃO 2 — API ProFrotas
+        # ════════════════════════════════════════════
+        elif _imp_modo == "🔄 API ProFrotas (Gestão de Frotas)":
+            st.markdown("##### 🔄 Sincronização via API ProFrotas")
+            st.caption(
+                "Abastecimentos da API ProFrotas são sincronizados automaticamente a cada hora "
+                "e salvos diretamente na tabela unificada. "
+                "Use esta opção para forçar uma sincronização imediata."
+            )
+
+            _pf_chaves_tele = _profrotas_listar_chaves()
+            _pf_ativos_tele = [c for c in _pf_chaves_tele if c.get("ativo")]
+
+            if not _pf_ativos_tele:
+                st.warning(
+                    "Nenhuma chave ProFrotas ativa. "
+                    "Cadastre em **⚡ API & Integrações → 🔑 Chaves de Acesso**."
+                )
+            else:
+                # Status do auto-sync
+                st.markdown("**Status do auto-sync:**")
+                for _asc in _pf_ativos_tele:
+                    _asc_cnpj = _asc.get("cnpj_frota", "")
+                    _asc_nome = _asc.get("nome_empresa", _asc_cnpj)
+                    _asc_st   = _AUTO_SYNC_STATUS.get(_asc_cnpj, {})
+                    _asc_status = _asc_st.get("status", "—")
+                    _ico_s = ("🟢" if _asc_status == "ok" else "🔵" if _asc_status == "syncing"
+                              else "🟡" if _asc_status == "iniciado" else "🔴" if _asc_status == "erro" else "⚪")
+                    try:
+                        _last_s = __import__("datetime").datetime.fromisoformat(
+                            _asc_st.get("last_sync", "").replace("Z","")).strftime("%d/%m %H:%M")
+                    except Exception:
+                        _last_s = "nunca"
+                    st.info(f"{_ico_s} **{_asc_nome}** — último sync: {_last_s} · "
+                            f"{_br_int(_asc_st.get('records_last', 0))} registros")
+
+                st.markdown("**Sincronização manual:**")
+                _pf_opts_tele = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c for c in _pf_ativos_tele}
+                _pf_sel_tele  = _pf_opts_tele[st.selectbox("Cliente", list(_pf_opts_tele.keys()), key="tele_pf_cli")]
+                _tele_data_ini = st.date_input(
+                    "Desde",
+                    value=__import__("datetime").date.today() - __import__("datetime").timedelta(days=7),
+                    key="tele_pf_data",
+                )
+                if st.button("▶️ Sincronizar agora", key="btn_tele_sync_pf", type="primary",
+                             use_container_width=True):
+                    _iso_tele = _tele_data_ini.strftime("%Y-%m-%dT00:00:00Z")
+                    _pb_tele  = st.progress(0, text="Iniciando...")
+                    def _prog_tele(p, tot, tam):
+                        _pb_tele.progress(min(1.0, (p * tam) / max(tot, 1)),
+                                          text=f"Pág {p} — {min(p*tam,tot):,}/{tot:,}")
+                    with st.spinner("Sincronizando..."):
+                        _pp2, _ps3, _pnt2, _perr2, _ptot2 = _profrotas_sync(
+                            _pf_sel_tele["cnpj_frota"], _pf_sel_tele["token"], _iso_tele, _prog_tele)
+                    _pb_tele.progress(1.0, text="Concluído!")
+                    _carregar_abastecimentos_unificados.clear()
+                    if _perr2 and _ps3 == 0:
+                        st.error(f"❌ {_perr2}")
+                    elif _ps3 > 0:
+                        st.success(f"✅ **{_br_int(_ps3)}** registros sincronizados em {_pp2} páginas.")
+                        if _perr2:
+                            st.warning(f"⚠️ Alguns lotes com erro: {_perr2[:200]}")
+                    else:
+                        st.info("Nenhum registro novo neste período.")
+
+        # ════════════════════════════════════════════
+        #  OPÇÃO 3 — Entrada Manual
+        # ════════════════════════════════════════════
         else:
-            st.markdown("#### ✍️ Registrar abastecimento manualmente")
-            _placas_cadastradas = [v["placa"] for v in st.session_state["_tele_frota"]]
+            st.markdown("##### ✍️ Registrar abastecimento manualmente")
+            _placas_cadastradas = [v["placa"] for v in st.session_state.get("_tele_frota", [])]
 
-            with st.form("form_add_abast", clear_on_submit=True):
+            with st.form("form_add_abast_tele", clear_on_submit=True):
                 _fa1, _fa2, _fa3 = st.columns(3)
                 with _fa1:
-                    _a_placa  = st.text_input("Placa *", placeholder="ABC1D23").strip().upper() if not _placas_cadastradas else st.selectbox("Placa *", _placas_cadastradas)
-                    _a_data   = st.date_input("Data *")
-                with _fa2:
-                    _a_litros = st.number_input("Litros abastecidos *", min_value=1.0, max_value=2000.0, step=0.5)
-                    _a_valor  = st.number_input("Valor total (R$) *",   min_value=0.01, max_value=50000.0, step=0.01)
-                with _fa3:
-                    _a_hodo   = st.number_input("Hodômetro (km)", min_value=0, max_value=9_999_999, step=1)
-                    _a_posto  = st.text_input("Nome do posto", placeholder="Posto Brasil")
-                    _a_cnpj_p = st.text_input("CNPJ do posto", placeholder="00.000.000/0001-00")
-
-                _submitted_a = st.form_submit_button("➕ Registrar abastecimento", use_container_width=True)
-                if _submitted_a:
-                    st.session_state["_tele_abast"].append({
-                        "placa":       _a_placa,
-                        "data":        str(_a_data),
-                        "litros":      float(_a_litros),
-                        "valor_total": float(_a_valor),
-                        "hodometro":   int(_a_hodo) if _a_hodo else None,
-                        "nome_posto":  _a_posto,
-                        "cnpj_posto":  _a_cnpj_p,
-                        "fonte":       "manual",
-                    })
-                    _tele_salvar_abastecimentos_supabase(
-                        [st.session_state["_tele_abast"][-1]]
+                    _a_placa = (
+                        st.selectbox("Placa *", _placas_cadastradas, key="tele_m_placa")
+                        if _placas_cadastradas
+                        else st.text_input("Placa *", placeholder="ABC1D23", key="tele_m_placa_txt").strip().upper()
                     )
-                    st.success("✅ Abastecimento registrado.")
-                    st.rerun()
+                    _a_data  = st.date_input("Data *", key="tele_m_data")
+                    _a_prod  = st.selectbox("Combustível", ["Diesel S10","Diesel","Gasolina","Etanol","GNV",""], key="tele_m_prod")
+                with _fa2:
+                    _a_litros = st.number_input("Litros *", min_value=1.0, max_value=5000.0, step=0.5, key="tele_m_lit")
+                    _a_valor  = st.number_input("Valor total (R$)", min_value=0.0, max_value=100000.0, step=0.01, key="tele_m_val")
+                    _a_preco  = st.number_input("Preço/L (R$)", min_value=0.0, max_value=30.0, step=0.001, key="tele_m_preco")
+                with _fa3:
+                    _a_hodo  = st.number_input("Hodômetro (km)", min_value=0, max_value=9_999_999, step=1, key="tele_m_hod")
+                    _a_posto = st.text_input("Nome do posto", key="tele_m_posto")
+                    _a_cnpjp = st.text_input("CNPJ do posto", key="tele_m_cnpj")
 
-        if st.session_state["_tele_abast"]:
-            st.caption(f"**{len(st.session_state['_tele_abast'])} abastecimento(s)** registrado(s) nesta sessão.")
-            if st.button("🗑️ Limpar todos os abastecimentos", key="btn_tele_limpar_abast"):
-                st.session_state["_tele_abast"] = []
-                st.rerun()
+                _sub_m = st.form_submit_button("➕ Salvar na tabela unificada",
+                                               use_container_width=True, type="primary")
+                if _sub_m:
+                    _pr_calc = _a_preco if _a_preco > 0 else (round(_a_valor / _a_litros, 3) if _a_valor and _a_litros else None)
+                    _raw_key_m = f"{_a_placa}|{_a_data}|{_a_litros}|manual"
+                    _id_tr_m   = abs(hash(_raw_key_m)) % (10**12)
+                    _row_m = {
+                        "id_transacao":       _id_tr_m,
+                        "data_abastecimento": str(_a_data),
+                        "placa":              _a_placa,
+                        "produto":            _a_prod or None,
+                        "litros":             float(_a_litros),
+                        "preco_litro":        float(_pr_calc) if _pr_calc else None,
+                        "valor_combustivel":  float(_a_valor) if _a_valor else None,
+                        "hod_atual":          float(_a_hodo)  if _a_hodo  else None,
+                        "nome_posto":         _a_posto or None,
+                        "cnpj_posto":         _a_cnpjp or None,
+                        "nome_arquivo":       "entrada_manual",
+                    }
+                    _n_ok_m, _err_m = _db_salvar_abastecimentos([_row_m], "entrada_manual")
+                    _db_carregar_abastecimentos.clear()
+                    _carregar_abastecimentos_unificados.clear()
+                    if _err_m:
+                        st.error(f"❌ {_err_m}")
+                    else:
+                        st.success("✅ Abastecimento salvo na tabela unificada.")
+
+        # ── Resumo do banco ──────────────────────────────────────
+        st.markdown("---")
+        _tele_df_resumo = _carregar_abastecimentos_unificados(dias=30)
+        if not _tele_df_resumo.empty:
+            _tc_a, _tc_b, _tc_c = st.columns(3)
+            _tc_a.metric("Abastecimentos (30d)", _br_int(len(_tele_df_resumo)))
+            _data_col = "data_abastecimento" if "data_abastecimento" in _tele_df_resumo.columns else None
+            if _data_col:
+                _ult_data = pd.to_datetime(_tele_df_resumo[_data_col], errors="coerce").max()
+                _tc_b.metric("Último registro", _ult_data.strftime("%d/%m/%Y") if pd.notna(_ult_data) else "—")
+            _fontes = _tele_df_resumo.get("fonte", pd.Series()).dropna().unique()
+            _tc_c.metric("Fontes ativas", str(len(_fontes)))
 
     # ════════════════════════════════════════════
     #  Dados consolidados (usado pelas tabs 3-5)
