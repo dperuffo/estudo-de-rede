@@ -4514,9 +4514,10 @@ def _profrotas_sync(cnpj_frota: str, token: str,
 
     novo_token  = None
     pagina      = 1
-    total_salvos = 0
-    total_items  = None
-    erros_batch  = []
+    total_salvos        = 0
+    total_items         = None
+    total_registros_api = 0   # registros da API (≠ rows expandidas por item)
+    erros_batch         = []
     hoje = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def _make_sync_key(cnpj: str, ident, item: str) -> str:
@@ -4548,7 +4549,7 @@ def _profrotas_sync(cnpj_frota: str, token: str,
             _row = dict(_r)
             if isinstance(_row.get("payload_raw"), dict):
                 _row["payload_raw"] = _j.dumps(_row["payload_raw"], ensure_ascii=False, default=str)
-            _rows_safe.append(_row)
+            _rows_safe.append(_sanitize_row(_row))
 
         # Estratégia 1: upsert por sync_key (tabela migrada com PK)
         try:
@@ -4581,6 +4582,21 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         if _salvos3 > 0:
             return None   # pelo menos alguns salvos
         return f"Todas as estratégias falharam. Último erro: {_last_err}"
+
+    def _sanitize_row(row: dict) -> dict:
+        """Converte booleans Python para None em colunas integer do Supabase.
+        Evita erro: invalid input syntax for type integer: "false".
+        """
+        _INT_COLS = {"item_tipo"}
+        out = {}
+        for k, v in row.items():
+            if k in _INT_COLS and isinstance(v, bool):
+                out[k] = None
+            elif k in _INT_COLS and isinstance(v, str) and v.strip().lower() in ("false","true",""):
+                out[k] = None
+            else:
+                out[k] = v
+        return out
 
     while True:
         payload = {"pagina": pagina, "dataInicial": data_inicio, "dataFinal": hoje}
@@ -4620,6 +4636,7 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         if progress_cb:
             progress_cb(pagina, total_items, tam_pag)
 
+        total_registros_api += len(registros)
         rows_pagina = []
         for reg in registros:
             _id    = str(reg.get("identificador") or "")
@@ -4670,7 +4687,16 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                         _item_nome_extra = None
                     # Converte para int seguro — rejeita booleans e strings inválidas
                     try:
-                        _tipo_int = int(_tipo_raw_val) if (_tipo_raw_val is not None and not isinstance(_tipo_raw_val, bool)) else None
+                        # Cobre: None, bool Python, string "false"/"true" (API retorna campo vazio)
+                        if (_tipo_raw_val is None or isinstance(_tipo_raw_val, bool)
+                                or (isinstance(_tipo_raw_val, str)
+                                    and _tipo_raw_val.strip().lower() in ("false","true",""))):
+                            _tipo_int = None
+                        else:
+                            try:
+                                _tipo_int = int(_tipo_raw_val)
+                            except (TypeError, ValueError):
+                                _tipo_int = None
                     except (TypeError, ValueError):
                         _tipo_int = None
                     _iid = str(item.get("identificador") or "")
@@ -4697,12 +4723,22 @@ def _profrotas_sync(cnpj_frota: str, token: str,
             else:
                 total_salvos += len(_lote)
 
-        # Próxima página?
-        if not registros or len(registros) < tam_pag:
-            break
+        # ── Condição de parada robusta — usa totalItems como controle primário ──
+        # Não para em páginas parciais (falsos negativos causavam sync incompleto).
+        import math as _math_pg
+        _total_pg = (_math_pg.ceil(total_items / tam_pag)
+                     if total_items and tam_pag else None)
+        if not registros:
+            break   # página vazia = fim real
+        if _total_pg and pagina >= _total_pg:
+            break   # última página esperada atingida
+        if total_items and total_registros_api >= total_items:
+            break   # todos os registros da API já buscados
+        if not total_items and len(registros) < tam_pag:
+            break   # fallback: sem totalItems, página curta = fim
         pagina += 1
         import time as _time_pag
-        _time_pag.sleep(0.5)
+        _time_pag.sleep(0.3)  # reduzido: 0.5s → 0.3s
 
     # Atualiza metadados da chave
     try:
