@@ -33172,6 +33172,19 @@ elif modo == "📑 Relatórios":
             if _pp_anom is None or _pp_anom.empty:
                 st.info("Carregue a planilha de Preços PP para ativar esta análise.", icon="📋")
             else:
+                # Lookup CNPJ → nome do posto (usa pf_coords_df se disponível)
+                _posto_nome_lookup: dict = {}
+                _pf_df_an = st.session_state.get("pf_coords_df")
+                if _pf_df_an is not None and not _pf_df_an.empty:
+                    _cnpj_col_an = "cnpj_norm" if "cnpj_norm" in _pf_df_an.columns else (
+                                   "cnpj"      if "cnpj"      in _pf_df_an.columns else None)
+                    _nome_col_an = "razaoSocial" if "razaoSocial" in _pf_df_an.columns else None
+                    if _cnpj_col_an and _nome_col_an:
+                        _posto_nome_lookup = dict(
+                            zip(_pf_df_an[_cnpj_col_an].astype(str).str.strip(),
+                                _pf_df_an[_nome_col_an].fillna("").astype(str))
+                        )
+
                 _anom_rows = []
                 _combs_an = (
                     _pp_anom["combustivel_pk"].dropna().unique().tolist()
@@ -33201,7 +33214,7 @@ elif modo == "📑 Relatórios":
                         _anom_rows.append({
                             "Combustível":   PRODUTO_CURTO.get(_cb_an, _cb_an),
                             "CNPJ":          str(_row_an.get("cnpj_norm", "—")),
-                            "Posto":         str(_row_an.get("combustivel_label") or "—")[:35],
+                            "Posto":         (_posto_nome_lookup.get(str(_row_an.get("cnpj_norm","")).strip()) or str(_row_an.get("cnpj_norm") or "—"))[:40],
                             "Preço (R$/L)":  _br_moeda(_prc, 3),
                             "Mediana rede":  _br_moeda(_med, 3),
                             "Δ Mediana":     f"{_delta_pct:+.1f}%",
