@@ -29,6 +29,20 @@ from matplotlib.lines import Line2D
 # Diretório onde este script está — usado para localizar arquivos do repo
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ── Compatibilidade @st.fragment (Streamlit >= 1.37) ──────────────────────
+def _fragment(func=None, *, run_every=None):
+    """Decorator que usa st.fragment se disponível, senão é no-op."""
+    def _decorator(f):
+        try:
+            import streamlit as _st
+            if hasattr(_st, "fragment"):
+                kwargs = {"run_every": run_every} if run_every else {}
+                return _st.fragment(f, **kwargs)
+        except Exception:
+            pass
+        return f
+    return _decorator(func) if func is not None else _decorator
+
 # ═══════════════════════════════════════════════════════════════════
 #  AUTO-SYNC ProFrotas — Sincronização automática de hora em hora
 #  Roda em background threads (daemon) — uma thread por cliente.
@@ -907,6 +921,7 @@ def _admin_excluir_usuario(email: str) -> tuple[bool, str]:
         return False, str(_e)
 
 
+@_fragment
 def _render_admin_usuarios():
     """Renderiza o painel de gerenciamento de usuários (apenas para admin)."""
     if not _auth_tem_permissao("func_gerenciar_users"):
@@ -1081,6 +1096,7 @@ def _render_admin_usuarios():
 
 # ── Rotas ──────────────────────────────────────────────────────────
 
+@st.cache_data(show_spinner=False, ttl=600)  # 10 min
 def _db_carregar_rotas() -> list:
     """Carrega rotas do Supabase. Fallback para JSON local."""
     db = _db_client()
@@ -1224,6 +1240,7 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
         return 0, str(_e)
 
 
+@st.cache_data(show_spinner=False, ttl=300)  # 5 min — invalidar após sync
 def _db_carregar_abastecimentos() -> list:
     """
     Carrega abastecimentos do Supabase com paginação automática.
@@ -1272,6 +1289,7 @@ def _db_carregar_abastecimentos() -> list:
             return []
 
 
+@st.cache_data(show_spinner=False, ttl=300)  # 5 min
 def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
     """
     Carrega abastecimentos de TODAS as fontes disponíveis e retorna um
@@ -1419,6 +1437,7 @@ def _db_carregar_cnpjs_postos_gf() -> set:
     return set()
 
 
+@st.cache_data(show_spinner=False, ttl=600)  # 10 min — dados de rede mudam menos
 def _db_carregar_postos_gf_df() -> "pd.DataFrame":
     """
     Retorna DataFrame completo da rede GF (cnpj, razao_social,
@@ -1469,6 +1488,7 @@ def _normalizar_cnpj_str(v) -> str:
     return re.sub(r"\D", "", str(int(v)) if isinstance(v, float) else str(v or "")).zfill(14)
 
 
+@st.cache_data(show_spinner=False, ttl=300)  # 5 min
 def _db_carregar_acordos() -> "pd.DataFrame":
     """
     Carrega acordos de preço do Supabase com paginação automática.
@@ -3566,7 +3586,8 @@ def _auth_user_from_token(token_result: dict, provider: str) -> dict:
 def _auth_login_page():
     """Página de login — design moderno com fundo animado e glassmorphism."""
 
-    st.markdown("""
+    if "_css_466a6690" not in st.session_state:
+        st.markdown("""
     <style>
     /* ── Esconde elementos padrão do Streamlit na tela de login ── */
     #MainMenu, header[data-testid="stHeader"], footer,
@@ -3868,6 +3889,7 @@ def _auth_login_page():
     .fni-btn-origin-hidden { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
+        st.session_state["_css_466a6690"] = True
 
     # ── Carrega logo FNI como base64 ──────────────────────────────
     import base64 as _b64, io as _io, pathlib as _pl
@@ -4196,7 +4218,8 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             _nome_bloq = (st.session_state["_auth_user"] or {}).get("name", _email_logado)
             st.session_state["_auth_user"] = None
             st.session_state["_acesso_verificado"] = False
-            st.markdown("""
+            if "_css_254757d5" not in st.session_state:
+                st.markdown("""
             <style>
             #MainMenu, header, footer, [data-testid="stSidebar"],
             [data-testid="stToolbar"] { display: none !important; }
@@ -4207,6 +4230,7 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             }
             </style>
             """, unsafe_allow_html=True)
+                st.session_state["_css_254757d5"] = True
             _, _cc, _ = st.columns([1, 2, 1])
             with _cc:
                 st.markdown(f"""
@@ -11382,6 +11406,7 @@ def _manut_salvar(cnpj_frota: str, placa: str, data: str,
         return False, str(e)
 
 
+@st.cache_data(show_spinner=False, ttl=300)  # 5 min
 def _manut_listar(cnpj_frota: str | None = None,
                   placa: str | None = None,
                   limit: int = 500) -> list:
@@ -11939,6 +11964,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
     return fig
 
 
+@_fragment
 def _renderizar_mapa(fig: go.Figure, height: int = 660, key: str = "mapa_plot") -> None:
     """
     Renderiza o mapa Plotly e exibe painel de detalhe ao clicar num posto.
@@ -12453,6 +12479,7 @@ def _render_insights_html(insights: list, compact: bool = True) -> str:
         )
 
 
+@_fragment
 def _render_insights_st(insights: list) -> None:
     """Renderiza insights via st.markdown (para seções Streamlit)."""
     if not insights:
@@ -13621,7 +13648,8 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 </div>""", unsafe_allow_html=True)
 
         # CSS injetado uma vez
-        st.markdown("""
+        if "_css_bcba1458" not in st.session_state:
+            st.markdown("""
 <style>
 .pc-row{display:flex;align-items:stretch;margin-bottom:8px;border-radius:10px;
         overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
@@ -13640,6 +13668,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 .pc-badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;
           margin-top:2px;letter-spacing:.3px}
 </style>""", unsafe_allow_html=True)
+            st.session_state["_css_bcba1458"] = True
 
         # ── Referências (Região + Brasil) ─────────────────────────
         regioes_rota = [r for r in df_rota["Nome Região"].dropna().unique() if r]
@@ -13750,7 +13779,8 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     st.markdown(_cab_html, unsafe_allow_html=True)
 
     # ── CSS dos cards (injetado uma vez) ─────────────────────────
-    st.markdown("""
+    if "_css_4f2d6a71" not in st.session_state:
+        st.markdown("""
 <style>
 .fc{background:#fff;border-radius:12px;padding:16px 18px 12px;
     box-shadow:0 2px 10px rgba(0,0,0,.08);
@@ -13774,6 +13804,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
              padding:1px 6px;border-radius:20px;white-space:nowrap}
 .fc-postos{font-size:10px;color:#bbb;margin-top:6px;text-align:right}
 </style>""", unsafe_allow_html=True)
+        st.session_state["_css_4f2d6a71"] = True
 
     # ── Helper: badge de variação ─────────────────────────────────
     def _ref_row_html(label, ref, pm):
@@ -14883,7 +14914,8 @@ with st.sidebar:
         _prov_u  = _auth_u.get("provider", "")
 
         # ── CSS separado (não misturar com f-string do HTML) ──────────
-        st.markdown("""
+        if "_css_9f1835a4" not in st.session_state:
+            st.markdown("""
 <style>
 .fni-user-card {
     background: linear-gradient(145deg,
@@ -14935,6 +14967,7 @@ with st.sidebar:
     color: inherit !important; font-size: 11px !important; margin: 0 !important;
 }
 </style>""", unsafe_allow_html=True)
+            st.session_state["_css_9f1835a4"] = True
 
         # ── Avatar ────────────────────────────────────────────────────
         if _pic_u:
@@ -15057,7 +15090,8 @@ with st.sidebar:
         )
 
     # CSS exclusivo para os 3 botões de modo (seletores st-key-* + data-testid)
-    st.markdown("""
+    if "_css_247bf69b" not in st.session_state:
+        st.markdown("""
 <style>
 /* ── base: altura e texto para os 3 botões de modo ── */
 .st-key-btn_modo_estado button,
@@ -15571,6 +15605,7 @@ with st.sidebar:
     background: rgba(11,38,96,.06) !important;
 }
 </style>""", unsafe_allow_html=True)
+        st.session_state["_css_247bf69b"] = True
 
     if "modo_selecionado" not in st.session_state:
         st.session_state["modo_selecionado"] = "📍 Por UF/Município"
@@ -15681,7 +15716,8 @@ with st.sidebar:
     # ══════════════════════════════════════════════════════════════════
 
     # CSS do menu lista
-    st.markdown("""
+    if "_css_5a7d8e51" not in st.session_state:
+        st.markdown("""
 <style>
 /* ── Reset e base do menu lista ── */
 [data-testid="stSidebar"] .nav-group-header {
@@ -15734,6 +15770,7 @@ with st.sidebar:
 }
 </style>
 """, unsafe_allow_html=True)
+        st.session_state["_css_5a7d8e51"] = True
 
     def _nav_btn(label, modo, key, sub=False):
         """Botão de menu lista — ativo = primary, inativo = secondary."""
@@ -35879,6 +35916,8 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                             "token_renovado": bool(_pnt),
                         }
                         if _ps2 > 0:
+                            _db_carregar_abastecimentos.clear()
+                            _carregar_abastecimentos_unificados.clear()
                             st.rerun()   # atualiza contadores sem perder o resultado
 
                     # Exibe resultado persistido (sobrevive ao rerun)
