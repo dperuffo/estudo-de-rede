@@ -4544,12 +4544,38 @@ def _profrotas_sync(cnpj_frota: str, token: str,
     def _upsert_batch(rows: list) -> str | None:
         """Faz upsert de um lote com 3 estratégias em cascata."""
         import json as _j
+
+        # ── Sanitização inline — sem dependência de _sanitize_row ────────────
+        # Colunas integer no Supabase não aceitam Python bool nem string "false".
+        _INT_COLS  = {"item_tipo"}
+        _BOOL_COLS = {"abastecimento_estornado", "pv_posto_interno"}
+
+        def _fix(k, v):
+            if k in _INT_COLS:
+                # bool ou string "false"/"true" → None para integer
+                if isinstance(v, bool):
+                    return None
+                if isinstance(v, str) and v.strip().lower() in ("false", "true", ""):
+                    return None
+                try:
+                    return int(v) if v is not None else None
+                except (TypeError, ValueError):
+                    return None
+            if k in _BOOL_COLS:
+                # garante bool puro para colunas boolean
+                if isinstance(v, bool):
+                    return v
+                if isinstance(v, str):
+                    return v.strip().lower() not in ("false", "0", "")
+                return bool(v) if v is not None else None
+            return v
+
         _rows_safe = []
         for _r in rows:
-            _row = dict(_r)
+            _row = {k: _fix(k, v) for k, v in _r.items()}
             if isinstance(_row.get("payload_raw"), dict):
                 _row["payload_raw"] = _j.dumps(_row["payload_raw"], ensure_ascii=False, default=str)
-            _rows_safe.append(_sanitize_row(_row))
+            _rows_safe.append(_row)
 
         # Estratégia 1: upsert por sync_key (tabela migrada com PK)
         try:
