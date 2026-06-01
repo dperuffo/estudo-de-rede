@@ -30,6 +30,191 @@ from matplotlib.lines import Line2D
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ═══════════════════════════════════════════════════════════════════
+#  AUTO-SYNC ProFrotas — Sincronização automática de hora em hora
+#  Roda em background threads (daemon) — uma thread por cliente.
+#  Persiste entre reruns do Streamlit enquanto o servidor estiver ativo.
+# ═══════════════════════════════════════════════════════════════════
+import threading as _threading
+
+_AUTO_SYNC_INTERVAL   = 3600          # segundos entre cada ciclo (1 hora)
+_AUTO_SYNC_THREADS:   dict = {}       # cnpj_frota → threading.Thread
+_AUTO_SYNC_STATUS:    dict = {}       # cnpj_frota → dict de status
+_AUTO_SYNC_LOCK             = _threading.Lock()
+_AUTO_SYNC_INITIALIZED      = False   # garante startup único por processo
+
+
+def _auto_sync_create_db():
+    """Cria cliente Supabase sem st.session_state (thread-safe)."""
+    try:
+        from supabase import create_client as _cc
+        # 1) Variáveis de ambiente
+        _url = os.environ.get("SUPABASE_URL", "")
+        _key = os.environ.get("SUPABASE_KEY", "")
+        # 2) Arquivo secrets.toml do Streamlit (local)
+        if not (_url and _key):
+            for _sp in [
+                os.path.join(_DIR, ".streamlit", "secrets.toml"),
+                os.path.expanduser("~/.streamlit/secrets.toml"),
+            ]:
+                if os.path.exists(_sp):
+                    try:
+                        import tomllib as _tl
+                    except ImportError:
+                        try:
+                            import tomli as _tl
+                        except ImportError:
+                            _tl = None
+                    if _tl:
+                        with open(_sp, "rb") as _f:
+                            _sec = _tl.load(_f)
+                        _url = _sec.get("supabase", {}).get("url", "")
+                        _key = _sec.get("supabase", {}).get("key", "")
+                        if _url and _key:
+                            break
+        if _url and _key:
+            return _cc(_url, _key)
+    except Exception:
+        pass
+    return None
+
+
+def _auto_sync_worker(cnpj_frota: str, token_inicial: str):
+    """
+    Worker de sincronização automática.
+    Executa a cada _AUTO_SYNC_INTERVAL segundos em background.
+    Busca registros das últimas 3 horas (+ 1h de overlap para segurança).
+    """
+    import datetime as _dt
+    import time as _tm
+    import re as _re_th
+
+    while True:
+        try:
+            _db_th = _auto_sync_create_db()
+            if not _db_th:
+                _AUTO_SYNC_STATUS[cnpj_frota] = {
+                    "status": "erro",
+                    "msg": "Supabase indisponível — verifique secrets/env vars.",
+                    "last_attempt": _dt.datetime.utcnow().isoformat(),
+                }
+                _tm.sleep(300)   # retry em 5 min se sem DB
+                continue
+
+            # ── Descobre o token mais recente e último sync ───────────
+            _cur_token = token_inicial
+            try:
+                _r = (_db_th.table("profrotas_api_keys")
+                      .select("token,ultimo_sync")
+                      .eq("cnpj_frota", cnpj_frota)
+                      .execute())
+                _row = (_r.data or [{}])[0] if _r.data else {}
+                _cur_token = _row.get("token") or token_inicial
+                _last_sync = _row.get("ultimo_sync")
+            except Exception:
+                _last_sync = None
+
+            # ── Calcula data_inicio: re-busca overlap de 2h ───────────
+            if _last_sync:
+                try:
+                    _ts = _dt.datetime.fromisoformat(_last_sync.replace("Z", "+00:00"))
+                    _ts_naive = _ts.replace(tzinfo=None)
+                    _data_inicio = (
+                        _ts_naive - _dt.timedelta(hours=2)
+                    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+                except Exception:
+                    _data_inicio = (
+                        _dt.datetime.utcnow() - _dt.timedelta(hours=4)
+                    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+            else:
+                # Primeiro sync automático: pega as últimas 4 horas
+                _data_inicio = (
+                    _dt.datetime.utcnow() - _dt.timedelta(hours=4)
+                ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            _inicio_ts = _dt.datetime.utcnow()
+            _AUTO_SYNC_STATUS[cnpj_frota] = {
+                "status":  "syncing",
+                "started": _inicio_ts.isoformat(),
+                "msg":     "Sincronizando...",
+            }
+
+            # ── Executa sync (usa _db_override para evitar session_state) ──
+            _pags, _salvos, _novo_tok, _erro, _total = _profrotas_sync(
+                cnpj_frota, _cur_token, _data_inicio,
+                _db_override=_db_th,
+            )
+
+            # Atualiza token se renovado
+            if _novo_tok:
+                token_inicial = _novo_tok
+
+            _fim_ts = _dt.datetime.utcnow()
+            _duracao = int((_fim_ts - _inicio_ts).total_seconds())
+            _next_ts = _fim_ts + _dt.timedelta(seconds=_AUTO_SYNC_INTERVAL)
+
+            _AUTO_SYNC_STATUS[cnpj_frota] = {
+                "status":       "ok" if not _erro else "erro_parcial",
+                "last_sync":    _fim_ts.isoformat(),
+                "next_sync":    _next_ts.isoformat(),
+                "records_last": _salvos,
+                "total_api":    _total,
+                "paginas":      _pags,
+                "erro":         _erro or "",
+                "duracao_s":    _duracao,
+            }
+
+        except Exception as _ex:
+            _AUTO_SYNC_STATUS[cnpj_frota] = {
+                "status":       "erro",
+                "msg":          str(_ex)[:300],
+                "last_attempt": _dt.datetime.utcnow().isoformat(),
+            }
+
+        _tm.sleep(_AUTO_SYNC_INTERVAL)
+
+
+def _auto_sync_ensure_running(cnpj_frota: str, token: str) -> bool:
+    """Inicia ou verifica thread de sync automático para um cliente.
+    Retorna True se a thread foi iniciada agora, False se já estava rodando."""
+    with _AUTO_SYNC_LOCK:
+        _t = _AUTO_SYNC_THREADS.get(cnpj_frota)
+        if _t and _t.is_alive():
+            return False
+        _t = _threading.Thread(
+            target=_auto_sync_worker,
+            args=(cnpj_frota, token),
+            daemon=True,
+            name=f"auto_sync_{cnpj_frota}",
+        )
+        _AUTO_SYNC_THREADS[cnpj_frota] = _t
+        _t.start()
+        _AUTO_SYNC_STATUS[cnpj_frota] = {
+            "status":    "iniciado",
+            "msg":       "Thread iniciada — primeiro sync em andamento.",
+            "started":   __import__("datetime").datetime.utcnow().isoformat(),
+            "next_sync": (
+                __import__("datetime").datetime.utcnow() +
+                __import__("datetime").timedelta(seconds=_AUTO_SYNC_INTERVAL)
+            ).isoformat(),
+        }
+        return True
+
+
+def _auto_sync_ensure_all():
+    """
+    Chamada uma vez no startup do app.
+    Inicia threads para todas as chaves ProFrotas ativas no Supabase.
+    """
+    try:
+        _chaves = _profrotas_listar_chaves()
+        for _c in _chaves:
+            if _c.get("ativo") and _c.get("token") and _c.get("cnpj_frota"):
+                _auto_sync_ensure_running(_c["cnpj_frota"], _c["token"])
+    except Exception:
+        pass   # silencioso — não bloqueia o startup do app
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  FORMATAÇÃO NUMÉRICA — Padrão Brasileiro (pt-BR)
 #  Separador decimal: vírgula  |  Separador de milhar: ponto
 #  Exemplos:  1234.56 → "1.234,56"  |  1234 → "1.234"
@@ -2503,6 +2688,11 @@ for _fni_nome in ["Logo plataforma FNI.png", "logo plataforma FNI.png",
         _FNI_SRC = f"data:image/png;base64,{_FNI_B64}"
         break
 
+# ─── Auto-sync: inicia threads para todas as chaves ativas ──────────────────
+if not _AUTO_SYNC_INITIALIZED:
+    _auto_sync_ensure_all()
+    _AUTO_SYNC_INITIALIZED = True   # type: ignore[assignment]  # var. módulo
+
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
     page_title="Fleet Network Intelligence",
@@ -4497,13 +4687,16 @@ def _profrotas_garantir_tabela(db) -> tuple[bool, str]:
 
 
 def _profrotas_sync(cnpj_frota: str, token: str,
-                    data_inicio: str, progress_cb=None) -> tuple[int, int, str | None, str, int]:
+                    data_inicio: str, progress_cb=None,
+                    _db_override=None) -> tuple[int, int, str | None, str, int]:
     """Busca todos os abastecimentos desde data_inicio e salva no Supabase.
 
+    _db_override: cliente Supabase externo (usado pelo auto-sync em threads
+    background para evitar dependência de st.session_state).
     Retorna (paginas, salvos, novo_token_ou_None, erro_msg, total_api).
     """
     import datetime as _dt, json as _json, hashlib as _hl
-    _db = _db_client()
+    _db = _db_override or _db_client()
     if not _db:
         return 0, 0, None, "Supabase não disponível. Verifique as configurações em st.secrets.", 0
 
@@ -4634,13 +4827,16 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                 _err_msg += f" ({total_salvos} registros anteriores já salvos)"
             return pagina - 1, total_salvos, novo_token, _err_msg, total_items or 0
 
-        # Salva resposta da 1ª página para debug
-        if pagina == 1 and isinstance(data, dict):
-            import streamlit as _st_dbg
-            _st_dbg.session_state["_profrotas_last_response"] = {
-                k: (v if k != "registros" else f"[{len(v)} registros]")
-                for k, v in data.items()
-            }
+        # Salva resposta da 1ª página para debug (só em contexto Streamlit)
+        if pagina == 1 and isinstance(data, dict) and _db_override is None:
+            try:
+                import streamlit as _st_dbg
+                _st_dbg.session_state["_profrotas_last_response"] = {
+                    k: (v if k != "registros" else f"[{len(v)} registros]")
+                    for k, v in data.items()
+                }
+            except Exception:
+                pass   # ignora em threads background
 
         if _novo:
             novo_token = _novo
@@ -35540,7 +35736,10 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                             _pf_cnpj_v, _pf_nome_inp.strip(),
                             _pf_token_inp.strip(), st.session_state.get("_auth_email",""))
                         (st.success if _ok2 else st.error)(f"{'✅' if _ok2 else '❌'} {_msg2}")
-                        if _ok2: st.rerun()
+                        if _ok2:
+                            # Inicia auto-sync imediatamente para a nova chave
+                            _auto_sync_ensure_running(_pf_cnpj_v, _pf_token_inp.strip())
+                            st.rerun()
                 st.markdown("---")
                 st.markdown("#### 📋 Chaves Cadastradas")
                 _pf_chaves = _profrotas_listar_chaves()
@@ -35564,6 +35763,47 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
 
             elif _pf_secao == "🔄 Sincronização":
                 st.markdown("#### 🔄 Sincronizar Abastecimentos")
+
+                # ── Status do Auto-Sync ───────────────────────────────────
+                import datetime as _pf_dt2
+                _as_chaves = _profrotas_listar_chaves()
+                _as_ativos = [c for c in _as_chaves if c.get("ativo")]
+                if _as_ativos:
+                    st.markdown("**🤖 Sincronização Automática (a cada 1 hora)**")
+                    for _asc in _as_ativos:
+                        _asc_cnpj = _asc.get("cnpj_frota","")
+                        _asc_nome = _asc.get("nome_empresa", _asc_cnpj)
+                        _asc_st   = _AUTO_SYNC_STATUS.get(_asc_cnpj, {})
+                        _asc_status = _asc_st.get("status","—")
+                        _ico = ("🟢" if _asc_status == "ok"
+                                else "🔵" if _asc_status == "syncing"
+                                else "🟡" if _asc_status in ("iniciado","erro_parcial")
+                                else "🔴" if _asc_status == "erro"
+                                else "⚪")
+                        def _fmt_dt_as(iso):
+                            try:
+                                return _pf_dt2.datetime.fromisoformat(
+                                    iso.replace("Z","")).strftime("%d/%m %H:%M")
+                            except Exception:
+                                return "—"
+                        _last_lbl = _fmt_dt_as(_asc_st.get("last_sync",""))
+                        _next_lbl = _fmt_dt_as(_asc_st.get("next_sync",""))
+                        _rec_lbl  = _br_int(_asc_st.get("records_last", 0))
+                        with st.container(border=True):
+                            _col_a, _col_b, _col_c, _col_d = st.columns([3,2,2,2])
+                            _col_a.markdown(f"{_ico} **{_asc_nome}**")
+                            _col_b.caption(f"Último: {_last_lbl}")
+                            _col_c.caption(f"Próximo: {_next_lbl}")
+                            _col_d.caption(f"Salvos: {_rec_lbl}")
+                            if _asc_st.get("erro"):
+                                st.caption(f"⚠️ {_asc_st['erro'][:120]}")
+                            if _asc_status in ("—", "erro"):
+                                if st.button("▶ Reiniciar auto-sync",
+                                             key=f"as_restart_{_asc_cnpj}",
+                                             use_container_width=False):
+                                    _auto_sync_ensure_running(_asc_cnpj, _asc.get("token",""))
+                                    st.success("Thread reiniciada."); st.rerun()
+                    st.markdown("---")
 
                 # ── Diagnóstico de conexão e tabela ──────────────────
                 with st.expander("🔧 Diagnóstico de conexão", expanded=False):
