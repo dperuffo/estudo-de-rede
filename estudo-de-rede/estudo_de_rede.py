@@ -1359,6 +1359,13 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
         _unified["data_abastecimento"] = pd.to_datetime(
             _unified["data_abastecimento"], errors="coerce"
         )
+        # Aplica corte por data_abastecimento em TODAS as fontes de forma uniforme.
+        # Este é o filtro primário: dados fora do período simplesmente não são retornados.
+        _cutoff_dt = pd.Timestamp.now(tz=None) - pd.Timedelta(days=dias)
+        _unified = _unified[
+            _unified["data_abastecimento"].dt.tz_localize(None).fillna(
+                pd.Timestamp("2000-01-01")) >= _cutoff_dt
+        ].copy()
 
     return _unified
 
@@ -14759,6 +14766,21 @@ _CHIPS_CONFIG = {
 
 _chips_rendered_run: set = set()  # reset a cada rerun do Streamlit
 
+def _get_periodo_dias(default: int = 90) -> int:
+    """
+    Retorna o número de dias selecionado pelo usuário nos chips de período.
+    Usa session_state["_chip_periodo_dias"] se definido, senão retorna default.
+    Garante que o período sempre se refere a data_abastecimento.
+    """
+    v = st.session_state.get("_chip_periodo_dias")
+    if v is not None:
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            pass
+    return default
+
+
 def _render_filtros_inteligentes(modo: str) -> None:
     """Renderiza chips de filtros inteligentes contextuais por modo."""
     global _chips_rendered_run
@@ -21024,6 +21046,13 @@ if modo == "📈 Dashboard":
         unsafe_allow_html=True,
     )
 
+    # Exibe período ativo dos filtros de abastecimento
+    _dias_ativo = _get_periodo_dias(90)
+    st.caption(
+        f"⏱️ Período de análise (abastecimentos): **últimos {_dias_ativo} dias** "
+        f"— baseado em `data_abastecimento`. Altere com os chips de filtro acima."
+    )
+
     if _pf_dash.empty:
         st.warning(
             "⚠️ Nenhum dado GF carregado. "
@@ -24956,7 +24985,7 @@ if modo == "📈 Dashboard":
 
                 # Carrega abastecimentos unificados (uploads + API GestãoFrotas)
                 with st.spinner("Carregando abastecimentos…"):
-                    _cx4_df = _carregar_abastecimentos_unificados(dias=730)
+                    _cx4_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
 
                 if _cx4_df.empty:
                     st.info(
@@ -25290,7 +25319,7 @@ if modo == "📈 Dashboard":
         _d12_gf    = st.session_state.get("pf_coords_df", pd.DataFrame()).copy()
 
         # Abastecimentos unificados (uploads + API GestãoFrotas)
-        _d12_abast_df = _carregar_abastecimentos_unificados(dias=730)
+        _d12_abast_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
         # Converte para lista de dicts compatível com o loop abaixo
         _d12_abast = _d12_abast_df.to_dict("records") if not _d12_abast_df.empty else []
 
@@ -32295,7 +32324,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                             _mr_hod_default = 0
                             if _mr_placa:
                                 try:
-                                    _abast_uni = _carregar_abastecimentos_unificados(dias=730)
+                                    _abast_uni = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(90))
                                     if not _abast_uni.empty:
                                         _col_placa = "_placa" if "_placa" in _abast_uni.columns else "placa"
                                         _col_hod   = "_hod_atual" if "_hod_atual" in _abast_uni.columns else "hodometro"
@@ -33836,7 +33865,7 @@ elif modo == "📑 Relatórios":
         # Se não há dados na sessão, carrega automaticamente de todas as fontes
         if _rlt_abast_df is None or (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
             with st.spinner("Carregando abastecimentos (uploads + API GestãoFrotas)…"):
-                _rlt_abast_df = _carregar_abastecimentos_unificados(dias=730)
+                _rlt_abast_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(365))
             if _rlt_abast_df is not None and not _rlt_abast_df.empty:
                 st.session_state["_fipe_abast_df"] = _rlt_abast_df
                 st.caption(f"📊 {_br_num(len(_rlt_abast_df),0)} abastecimentos carregados de todas as fontes.")
@@ -33917,7 +33946,7 @@ elif modo == "📑 Relatórios":
         )
         if _rp_cache_key not in st.session_state or _rp_recarregar:
             with st.spinner("Carregando dados…"):
-                _rp_dados_cache = _carregar_abastecimentos_unificados(dias=730)
+                _rp_dados_cache = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(365))
                 _col_map_cache = {
                     "_placa":"placa","_motorista":"motorista","_produto":"produto",
                     "_litros":"volume","_preco_litro":"preco_litro",
