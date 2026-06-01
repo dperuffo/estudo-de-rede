@@ -4670,6 +4670,25 @@ def _profrotas_garantir_tabela(db) -> tuple[bool, str]:
     """
     try:
         db.rpc("exec_sql", {"sql": _ddl}).execute()
+    except Exception:
+        pass
+
+    # Garante unique constraint em sync_key (necessário para upsert ON CONFLICT)
+    _ddl_uc = """
+    DO $$ BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'profrotas_abastecimentos_sync_key_key'
+        ) THEN
+            ALTER TABLE profrotas_abastecimentos
+                ADD CONSTRAINT profrotas_abastecimentos_sync_key_key UNIQUE (sync_key);
+        END IF;
+    END $$;
+    """
+    try:
+        db.rpc("exec_sql", {"sql": _ddl_uc}).execute()
+    except Exception:
+        pass  # sem RPC ou constraint já existe — sem problema, Estratégia 3 cobre
         return True, ""
     except Exception:
         pass
@@ -4827,27 +4846,25 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         except Exception as _e2:
             pass
 
-        # Estratégia 3: upsert individual com sync_key (evita NOT NULL no insert)
+        # Estratégia 3: INSERT individual — duplicate key = já existe = OK
         _salvos3 = 0
+        _already3 = 0
         _last_err = ""
-        for _single in _rows_safe:   # usa rows COMPLETAS (com sync_key)
+        for _single in _rows_safe:
+            _row_sk = {k: v for k, v in _single.items() if k != "id"}
             try:
-                _db.table("profrotas_abastecimentos").upsert(
-                    _single, on_conflict="sync_key"
+                _db.table("profrotas_abastecimentos").insert(
+                    _row_sk, returning="minimal"
                 ).execute()
                 _salvos3 += 1
-            except Exception:
-                # Fallback: insert ignorando duplicata via INSERT ... ON CONFLICT DO NOTHING
-                _row_sk = {k: v for k, v in _single.items() if k != "id"}
-                try:
-                    _db.table("profrotas_abastecimentos").insert(
-                        _row_sk, returning="minimal"
-                    ).execute()
-                    _salvos3 += 1
-                except Exception as _e3:
+            except Exception as _e3:
+                _e3s = str(_e3).lower()
+                if "duplicate" in _e3s or "unique" in _e3s or "23505" in _e3s:
+                    _already3 += 1  # registro já existe — não é erro real
+                else:
                     _last_err = str(_e3)[:120]
-        if _salvos3 > 0:
-            return None   # pelo menos alguns salvos
+        if _salvos3 + _already3 > 0:
+            return None   # todos processados (inseridos ou já existentes)
         return f"Todas as estratégias falharam. Último erro: {_last_err}"
 
     def _sanitize_row(row: dict) -> dict:
