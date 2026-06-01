@@ -35503,62 +35503,64 @@ elif modo == "🛰️ Telemetria":
 
                 try:
                     import plotly.graph_objects as _pgo_pj
+
+                    # Converte datas para pd.Timestamp (eixo temporal nativo do Plotly)
+                    def _to_ts(d):
+                        return pd.Timestamp(d) if not isinstance(d, pd.Timestamp) else d
+
+                    _x_hist  = [_to_ts(d) for d in _pj_serie_hist["data"].tolist()]
+                    _y_hist  = [float(v) for v in _pj_serie_hist["litros"].tolist()]
+
+                    _x_proj, _y_proj = [], []
+                    if not _pj_df_proj_serie.empty:
+                        _x_proj = [_to_ts(d) for d in _pj_df_proj_serie["data"].tolist()]
+                        _y_proj = [float(v) for v in _pj_df_proj_serie["litros"].tolist()]
+
+                    _all_x   = _x_hist + _x_proj
+                    _med_val  = float(_pj_media_total_dia) if _pj_media_total_dia else 0.0
+
                     _fig_pj = _pgo_pj.Figure()
 
-                    # Barras de consumo real
                     _fig_pj.add_bar(
-                        x=_pj_serie_hist["data"].astype(str),
-                        y=_pj_serie_hist["litros"],
+                        x=_x_hist, y=_y_hist,
                         name="✅ Consumido",
-                        marker_color="#1565c0",
-                        opacity=0.85,
+                        marker_color="#1565c0", opacity=0.85,
                     )
-
-                    # Barras de projeção
-                    if not _pj_df_proj_serie.empty:
+                    if _x_proj:
                         _fig_pj.add_bar(
-                            x=_pj_df_proj_serie["data"].astype(str),
-                            y=_pj_df_proj_serie["litros"],
+                            x=_x_proj, y=_y_proj,
                             name="🔮 Projetado",
-                            marker_color="#42a5f5",
-                            opacity=0.55,
+                            marker_color="#42a5f5", opacity=0.55,
+                        )
+                    if _all_x:
+                        _fig_pj.add_scatter(
+                            x=_all_x,
+                            y=[_med_val] * len(_all_x),
+                            name=f"📐 Média {_pj_base_dias}d ({_br_num(_med_val,0)} L/dia)",
+                            mode="lines",
+                            line=dict(color="#ff7043", dash="dash", width=2),
+                        )
+                        _fig_pj.add_vline(
+                            x=_to_ts(_pj_hoje).timestamp() * 1000,
+                            line_dash="dot", line_color="#2e7d32",
+                            annotation_text="Hoje", annotation_position="top",
                         )
 
-                    # Linha de média diária
-                    _all_dates = (
-                        list(_pj_serie_hist["data"].astype(str)) +
-                        (list(_pj_df_proj_serie["data"].astype(str)) if not _pj_df_proj_serie.empty else [])
-                    )
-                    _fig_pj.add_scatter(
-                        x=_all_dates,
-                        y=[_pj_media_total_dia] * len(_all_dates),
-                        name=f"📐 Média {_pj_base_dias}d ({_br_num(_pj_media_total_dia,0)} L/dia)",
-                        mode="lines",
-                        line=dict(color="#ff7043", dash="dash", width=2),
-                    )
-
-                    # Linha vertical "hoje"
-                    _fig_pj.add_vline(
-                        x=str(_pj_hoje),
-                        line_dash="dot",
-                        line_color="#2e7d32",
-                        annotation_text="Hoje",
-                        annotation_position="top",
-                    )
-
                     _fig_pj.update_layout(
-                        barmode="stack",
-                        height=380,
+                        barmode="stack", height=380,
                         margin=dict(t=30, b=40, l=0, r=0),
                         legend=dict(orientation="h", y=-0.18),
-                        xaxis_title="Data",
+                        xaxis=dict(title="Data", type="date"),
                         yaxis_title="Litros",
                         plot_bgcolor="rgba(0,0,0,0)",
                         paper_bgcolor="rgba(0,0,0,0)",
                     )
                     st.plotly_chart(_fig_pj, use_container_width=True)
                 except Exception as _e_pj_chart:
+                    import traceback as _tb_pj
                     st.warning(f"Erro ao gerar gráfico: {_e_pj_chart}")
+                    with st.expander("🔍 Detalhes do erro"):
+                        st.code(_tb_pj.format_exc())
 
                 st.markdown("---")
 
