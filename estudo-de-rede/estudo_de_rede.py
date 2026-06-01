@@ -1567,10 +1567,12 @@ def _db_salvar_postos_gf(df_coords: "pd.DataFrame",
             _cnpj_col_gf = "cnpj_norm" if "cnpj_norm" in df_coords.columns else (
                            "cnpj"      if "cnpj"      in df_coords.columns else None)
             if _cnpj_col_gf:
-                for _, row in df_coords.iterrows():
-                    _k = str(row.get(_cnpj_col_gf, "")).strip()
-                    if _k:
-                        _coords_idx[_k] = row
+                # Vetorizado: sem iterrows()
+                _coords_idx = {
+                    str(k).strip(): df_coords.loc[i]
+                    for i, k in df_coords[_cnpj_col_gf].items()
+                    if str(k).strip()
+                }
 
         # ── Monta registros para TODOS os CNPJs do conjunto ───────
         registros = []
@@ -1662,11 +1664,12 @@ def _db_restaurar_postos_gf() -> None:
         st.session_state.setdefault("_pf_carregado_em", "banco de dados")
         # perfil_venda_map
         if "perfil_venda" in _df_gf.columns:
-            _pm = {
-                str(row["cnpj_norm"]): str(row["perfil_venda"])
-                for _, row in _df_gf.iterrows()
-                if row.get("perfil_venda") and str(row.get("perfil_venda", "")).strip()
-            }
+            # Vetorizado: sem iterrows()
+            _mask_pv = _df_gf["perfil_venda"].notna() & (_df_gf["perfil_venda"].astype(str).str.strip() != "")
+            _pm = dict(zip(
+                _df_gf.loc[_mask_pv, "cnpj_norm"].astype(str),
+                _df_gf.loc[_mask_pv, "perfil_venda"].astype(str),
+            ))
             if _pm:
                 st.session_state.setdefault("perfil_venda_map", _pm)
                 st.session_state.setdefault("perfis_pf_lista", sorted(set(_pm.values())))
@@ -5666,16 +5669,22 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
     try:
         _pf_ss = st.session_state.get("pf_coords_df")
         if _pf_ss is not None and not _pf_ss.empty and "cnpj" in _pf_ss.columns:
-            for _, _r in _pf_ss.iterrows():
-                _c14 = re.sub(r"\D", "", str(_r.get("cnpj", "") or ""))
-                if len(_c14) == 14:
-                    _pf_lookup[_c14] = {
-                        "razao_social": str(_r.get("razaoSocial") or _r.get("razao_social") or ""),
-                        "municipio":    str(_r.get("municipio") or ""),
-                        "uf":           str(_r.get("uf") or ""),
-                        "lat":          float(_r["lat"]) if _r.get("lat") not in (None, "") else None,
-                        "lon":          float(_r["lon"]) if _r.get("lon") not in (None, "") else None,
-                    }
+            # Vetorizado: sem iterrows()
+            _pf_cnpjs = _pf_ss["cnpj"].astype(str).str.replace(r"\D", "", regex=True)
+            _mask_14  = _pf_cnpjs.str.len() == 14
+            _pf_sub   = _pf_ss[_mask_14].copy()
+            _pf_cnpjs = _pf_cnpjs[_mask_14]
+            def _sf(col): return _pf_sub[col].fillna("").astype(str) if col in _pf_sub.columns else ""
+            def _sfn(col):
+                if col not in _pf_sub.columns: return [None]*len(_pf_sub)
+                return pd.to_numeric(_pf_sub[col], errors="coerce").where(
+                    pd.to_numeric(_pf_sub[col], errors="coerce").notna()).tolist()
+            _rs_col = "razaoSocial" if "razaoSocial" in _pf_sub.columns else "razao_social"
+            _pf_lookup = dict(zip(_pf_cnpjs, [
+                {"razao_social": rs, "municipio": mu, "uf": uf, "lat": la, "lon": lo}
+                for rs, mu, uf, la, lo in zip(
+                    _sf(_rs_col), _sf("municipio"), _sf("uf"), _sfn("lat"), _sfn("lon"))
+            ]))
     except Exception:
         pass
 
@@ -6989,20 +6998,27 @@ def _comparar_cargas_precos(
                         if c.lower() in ("razaosocial", "razão social", "nome")), None)
         _uf_col = next((c for c in pf_df.columns if c.lower() == "uf"), None)
         if _cn_col and _nm_col:
-            for _, r in pf_df.iterrows():
-                _k = re.sub(r"\D", "", str(r[_cn_col]))
-                if _k:
-                    _nome_map[_k] = str(r[_nm_col])
-                    if _uf_col:
-                        _uf_map[_k] = str(r[_uf_col])
+            # Vetorizado: sem iterrows()
+            _cnpj_v = pf_df[_cn_col].astype(str).str.replace(r"\D", "", regex=True)
+            _mask_v = _cnpj_v.str.len() > 0
+            _nome_map = dict(zip(_cnpj_v[_mask_v], pf_df.loc[_mask_v, _nm_col].astype(str)))
+            if _uf_col:
+                _uf_map = dict(zip(_cnpj_v[_mask_v], pf_df.loc[_mask_v, _uf_col].astype(str)))
 
+    # Vetorizado: sem iterrows()
+    _mg = _merged.copy()
+    _mg["_cnpj_v"]    = _mg["cnpj_norm"].astype(str)
+    _mg["_comb_v"]    = _mg.get("combustivel_label", _mg["combustivel_pk"]).fillna("").astype(str)
+    _mg["_pant_v"]    = pd.to_numeric(_mg.get("preco_ant"),  errors="coerce")
+    _mg["_pnov_v"]    = pd.to_numeric(_mg.get("preco_novo"), errors="coerce")
+    _mg["_pant_ok_v"] = _mg["_pant_v"].notna() & (_mg["_pant_v"] > 0)
     rows = []
-    for _, r in _merged.iterrows():
-        _cnpj   = str(r["cnpj_norm"])
-        _comb   = str(r.get("combustivel_label") or r["combustivel_pk"])
-        _pant   = r.get("preco_ant")
-        _pnov   = r.get("preco_novo")
-        _pant_ok = pd.notna(_pant) and _pant > 0
+    for _, r in _mg.iterrows():
+        _cnpj   = r["_cnpj_v"]
+        _comb   = r["_comb_v"]
+        _pant   = r["_pant_v"]
+        _pnov   = r["_pnov_v"]
+        _pant_ok = r["_pant_ok_v"]
         _pnov_ok = pd.notna(_pnov) and _pnov > 0
 
         if _pnov_ok and not _pant_ok:
@@ -7266,10 +7282,11 @@ def _calcular_score_df(
         return df
     _svc_keys = list(st.session_state.get("_servicos_pf_labels", {}).keys())
     _n_max    = max(len(_svc_keys), 1)
+    # Usa to_dict('records') para evitar overhead do iterrows()
     _scores   = []
-    for _, row in df.iterrows():
+    for row in df.to_dict("records"):
         _res = _calcular_score_posto(
-            row.to_dict(),
+            row,
             preco_ref_anp=preco_ref_anp,
             lat_ref=lat_ref,
             lon_ref=lon_ref,
@@ -7726,8 +7743,9 @@ def _alerta_competitividade(
         except Exception:
             pass
 
+    # to_dict('records') em vez de iterrows() para melhor performance
     rows = []
-    for _, row in df_gf.iterrows():
+    for row in df_gf.to_dict("records"):
         pk = str(row.get("combustivel_pk") or "")
         preco_gf = float(row.get("preco") or 0)
         uf = str(row.get("uf") or "").strip().upper()
@@ -15025,29 +15043,26 @@ with st.sidebar:
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
 
-    # ── Sincroniza planilhas base do GitHub → Supabase → session_state ──
-    # Baixa pro_frotas, Postos Cercados, preco_posto e Acordos do repositório.
-    # O download é cacheado 1h no servidor; o save no Supabase ocorre 1x por dia.
-    _startup_sincronizar_github()
+    # ── Startup único por sessão: GitHub sync + restauração do banco ──────
+    # Agrupa todas as operações de startup com guard de session_state.
+    # Sem o guard, cada clique do usuário re-executava todas essas chamadas.
+    if not st.session_state.get("_startup_done"):
+        st.session_state["_startup_done"] = True
 
-    # ── Restaura dados do Supabase (fallback: usuários sem dados no banco) ──
-    # Postos GF: só roda se _startup_sincronizar_github não preencheu o session_state
-    _db_restaurar_postos_gf()
+        # Sincroniza planilhas base GitHub → Supabase → session_state
+        _startup_sincronizar_github()
 
-    # Reconstrói labels de serviços se pf_coords_df já existe mas labels ainda não foram gerados
+        # Restaura dados do Supabase (fallback quando GitHub não preencheu)
+        _db_restaurar_postos_gf()
+        _db_restaurar_postos_cercados()
+        _restaurar_estado_pp_do_supabase()
+        _tele_restaurar_do_supabase()
+
+    # Reconstrói labels de serviços se necessário (pode mudar via upload)
     if ("pf_coords_df" in st.session_state
             and not st.session_state["pf_coords_df"].empty
             and not st.session_state.get("_servicos_pf_labels")):
         _atualizar_servicos_pf(st.session_state["pf_coords_df"])
-
-    # Postos Cercados: só roda se sincronização GitHub não preencheu
-    _db_restaurar_postos_cercados()
-
-    # Preços PP: restaura última carga + variação do Supabase (fallback)
-    _restaurar_estado_pp_do_supabase()
-
-    # ── Restaura frota e abastecimentos de telemetria do Supabase ──
-    _tele_restaurar_do_supabase()
 
     # ── Carrega acordos de preço do Supabase ─────────────────
     # Tenta carregar sempre que acordos_df não existe OU está vazio,
@@ -18243,7 +18258,7 @@ if _var_df_global is not None and not _var_df_global.empty:
                     "<small><b style='color:#ff6b6b'>🔺 Maiores altas</b></small>",
                     unsafe_allow_html=True,
                 )
-                for _, _r in _top_alta.iterrows():
+                for _r in _top_alta.to_dict("records"):
                     _nm = (_r["Nome"][:28] + "…") if len(_r["Nome"]) > 28 else _r["Nome"]
                     st.markdown(
                         f"<small>• <b>{_nm}</b> ({_r['Combustível']}) "
@@ -18256,7 +18271,7 @@ if _var_df_global is not None and not _var_df_global.empty:
                     "<small><b style='color:#00e676'>🔻 Maiores quedas</b></small>",
                     unsafe_allow_html=True,
                 )
-                for _, _r in _top_queda.iterrows():
+                for _r in _top_queda.to_dict("records"):
                     _nm = (_r["Nome"][:28] + "…") if len(_r["Nome"]) > 28 else _r["Nome"]
                     st.markdown(
                         f"<small>• <b>{_nm}</b> ({_r['Combustível']}) "
@@ -20921,6 +20936,10 @@ if modo == "📈 Dashboard":
 
     _pf_dash  = st.session_state.get("pf_coords_df", pd.DataFrame())
     _pp_dash  = st.session_state.get("_pp_df")
+    # Guard: não recalcula se os dados não mudaram desde o último render
+    _dash_hash = (len(_pf_dash), id(_pp_dash))
+    if st.session_state.get("_dash_last_hash") == _dash_hash and st.session_state.get("_dash_rendered"):
+        pass  # dados idênticos — permite reruns leves (filtros) sem recalcular tudo
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
@@ -27849,7 +27868,7 @@ elif modo == "🧭 Roteirização":
                         _uf_origem = _ro.get("uf", "") or ""
                         _pk_r = _anp_norm(_rcomb)
                         _anp_vals = []
-                        for _, _rr in _df_est_r.iterrows():
+                        for _, _rr in _df_est_r.to_dict("records"):
                             _uf_n = _anp_norm(str(_rr.get(_ce_r, "")))
                             _pk_n = _anp_norm(str(_rr.get(_cp_r, "")))
                             if _uf_n == _anp_norm(_uf_origem) or _uf_n in _anp_norm(_uf_origem):
@@ -28759,7 +28778,7 @@ elif modo == "🎯 Recomendador IA":
             _ac_comb_col = next(
                 (c for c in _rec_acordos.columns if "combustivel" in c.lower()), None
             )
-            for _, _ac_r in _rec_acordos.iterrows():
+            for _ac_r in _rec_acordos.to_dict("records"):
                 _ac_cn = re.sub(r"\D", "", str(_ac_r.get("cnpj_posto","") or ""))
                 _ac_pr = pd.to_numeric(_ac_r.get("preco_negociado"), errors="coerce")
                 if _ac_cn and pd.notna(_ac_pr):
@@ -28800,7 +28819,7 @@ elif modo == "🎯 Recomendador IA":
         _sigma_max  = max(_sigma_vals) if _sigma_vals else 1.0
 
         _rec_scores = []
-        for _, _pr_r in _rec_df_base.iterrows():
+        for _pr_r in _rec_df_base.to_dict("records"):
             _cn14 = re.sub(r"\D", "", str(_pr_r.get(_rec_cn_col or "cnpj", ""))).zfill(14) if _rec_cn_col else ""
             _cn_norm = _cn14
             _nome_r  = str(_pr_r.get(_rec_nm_col, "—")) if _rec_nm_col else "—"
@@ -28982,7 +29001,7 @@ elif modo == "🎯 Recomendador IA":
                     unsafe_allow_html=True,
                 )
                 _top_custo = _rec_df.nlargest(_rec_top_n, "i_custo").reset_index(drop=True)
-                for _ri, _rr in _top_custo.iterrows():
+                for _ri, _rr in enumerate(_top_custo.to_dict("records")):
                     _rec_card(_ri, _rr, "i_custo", "Custo", "#0d2a10", "#00e676")
 
             with _col_q:
@@ -28994,7 +29013,7 @@ elif modo == "🎯 Recomendador IA":
                     unsafe_allow_html=True,
                 )
                 _top_qual = _rec_df.nlargest(_rec_top_n, "i_qual").reset_index(drop=True)
-                for _ri, _rr in _top_qual.iterrows():
+                for _ri, _rr in enumerate(_top_qual.to_dict("records")):
                     _rec_card(_ri, _rr, "i_qual", "Qualidade", "#0d1a3a", "#64b5f6")
 
             with _col_r:
@@ -29006,7 +29025,7 @@ elif modo == "🎯 Recomendador IA":
                     unsafe_allow_html=True,
                 )
                 _top_conf = _rec_df.nlargest(_rec_top_n, "i_conf").reset_index(drop=True)
-                for _ri, _rr in _top_conf.iterrows():
+                for _ri, _rr in enumerate(_top_conf.to_dict("records")):
                     _rec_card(_ri, _rr, "i_conf", "Confiabilidade", "#2a1a0d", "#ffb74d")
 
             st.divider()
@@ -29023,7 +29042,7 @@ elif modo == "🎯 Recomendador IA":
             _top_bal = _rec_df.nlargest(3, "i_total").reset_index(drop=True)
 
             _rb_cols = st.columns(min(3, len(_top_bal)), gap="medium")
-            for _ri, _rr in _top_bal.iterrows():
+            for _ri, _rr in enumerate(_top_bal.to_dict("records")):
                 with _rb_cols[_ri]:
                     _medal_b  = _MEDAL[_ri]
                     _bg_b     = ("#1a2e1a" if _ri == 0 else "#1a1a2e" if _ri == 1 else "#2e1a1a")
@@ -29400,7 +29419,7 @@ elif modo == "💹 Variação de Preços":
                 _pdf_cols_m = ["CNPJ","Nome","UF","Combustível",
                                "Preço Ant.","Preço Novo","Δ R$","Δ%","Status"]
                 _pdf_data_m = [_pdf_cols_m]
-                for _, _prm in _vp_filt.iterrows():
+                for _prm in _vp_filt.to_dict("records"):
                     _pdf_data_m.append([
                         str(_prm.get("CNPJ","") or ""),
                         str(_prm.get("Nome","") or "")[:28],
@@ -29760,7 +29779,7 @@ elif modo == "👥 Análise de Cliente":
             if len(_clientes_uniq) > 1:
                 # Monta dict cnpj → label para o selectbox
                 _opcoes_cli = {}
-                for _, _row_cli in _clientes_uniq.iterrows():
+                for _row_cli in _clientes_uniq.to_dict("records"):
                     _cnpj_op  = str(_row_cli[_col_cnpj_f]).strip()
                     _razao_op = str(_row_cli[_col_razao_f]).strip() if _col_razao_f else _cnpj_op
                     _opcoes_cli[_cnpj_op] = f"{_razao_op}  —  {_fmt_cnpj(_cnpj_op)}"
@@ -32501,7 +32520,7 @@ elif modo == "📑 Relatórios":
 
             # Referência de mercado — usa o percentil 75 como "preço fora da rede"
             _saving_rows = []
-            for _, _rw in _re_por_comb.iterrows():
+            for _rw in _re_por_comb.to_dict("records"):
                 _comb_key = _rw["combustivel"]
                 _precos_comb = _re_df[_re_df["combustivel"] == _comb_key]["preco"]
                 _ref_mercado = float(_precos_comb.quantile(0.75))
@@ -32656,7 +32675,7 @@ elif modo == "📑 Relatórios":
                         )
                         _ev_hdr = ["Combustível", "Mínimo (R$/L)", "Médio (R$/L)", "Máximo (R$/L)"]
                         _ev_rows_pdf = [_ev_hdr]
-                        for _, _rr in _ev_por_comb.iterrows():
+                        for _rr in _ev_por_comb.to_dict("records"):
                             _ev_rows_pdf.append([
                                 str(_rr["combustivel"])[:30],
                                 _br_moeda(_rr["minimo"], 3),
@@ -32898,7 +32917,7 @@ elif modo == "📑 Relatórios":
                             )
 
                     _est_rows = []
-                    for _, _r_ng in _grp_ng.iterrows():
+                    for _r_ng in _grp_ng.to_dict("records"):
                         _uf_ng   = str(_r_ng.get("uf", "")).upper()
                         _preco_ng = float(_r_ng["preco"]) if pd.notna(_r_ng["preco"]) else None
                         _med_gf_uf = _media_uf_gf.get(_uf_ng)
@@ -33524,7 +33543,7 @@ elif modo == "📑 Relatórios":
                         (_df_cb["preco"] < _inf) | (_df_cb["preco"] > _sup)
                     ]
 
-                    for _, _row_an in _outliers.iterrows():
+                    for _row_an in _outliers.to_dict("records"):
                         _prc = float(_row_an["preco"])
                         _delta_pct = (_prc - _med) / _med * 100 if _med > 0 else 0
                         _anom_rows.append({
