@@ -5824,6 +5824,48 @@ def _hist_record_pp_df(pp_df: "pd.DataFrame") -> int:
 
 # ── Persistência de cargas PP no Supabase ──────────────────────────────────
 
+def _garantir_tabelas_pp() -> bool:
+    """
+    Cria as tabelas cargas_precos_pp e variacoes_precos_pp se não existirem.
+    Chamada automaticamente antes do primeiro upload de Preço Posto.
+    """
+    _db = _db_client()
+    if _db is None:
+        return False
+    _ddl = """
+    CREATE TABLE IF NOT EXISTS cargas_precos_pp (
+        id              bigserial PRIMARY KEY,
+        created_at      timestamptz DEFAULT now(),
+        nome_arquivo    text,
+        total_postos    integer DEFAULT 0,
+        total_combustiveis integer DEFAULT 0,
+        dados           jsonb
+    );
+    CREATE TABLE IF NOT EXISTS variacoes_precos_pp (
+        id              bigserial PRIMARY KEY,
+        created_at      timestamptz DEFAULT now(),
+        carga_id        bigint,
+        carga_anterior_id bigint,
+        total_altas     integer DEFAULT 0,
+        total_quedas    integer DEFAULT 0,
+        total_novos     integer DEFAULT 0,
+        total_removidos integer DEFAULT 0,
+        dados           jsonb
+    );
+    """
+    try:
+        _db.rpc("exec_sql", {"sql": _ddl}).execute()
+        return True
+    except Exception:
+        pass
+    # Fallback: tenta verificar se as tabelas existem com SELECT
+    try:
+        _db.table("cargas_precos_pp").select("id").limit(1).execute()
+        return True
+    except Exception:
+        return False
+
+
 def _salvar_carga_pp_supabase(pp_df: "pd.DataFrame", nome_arquivo: str = "") -> "int | None":
     """
     Salva o snapshot completo de uma carga de Preços PP no Supabase.
@@ -16579,11 +16621,19 @@ with st.sidebar:
             )
             if arquivo_pp is not None:
                 # Evita loop infinito: só processa se for um arquivo novo
-                _pp_file_id = f"{arquivo_pp.name}_{arquivo_pp.size}"
+                # Usa hash do conteúdo para detectar arquivo realmente novo
+                # (nome+tamanho falha quando arquivo tem mesma estrutura mas preços diferentes)
+                _pp_bytes = arquivo_pp.getvalue()
+                import hashlib as _hl_pp
+                _pp_file_id = _hl_pp.md5(_pp_bytes[:8192]).hexdigest()  # hash primeiros 8KB
                 if st.session_state.get("_pp_last_upload_id") != _pp_file_id:
                     with st.spinner("Lendo planilha…"):
                         _pp_up, _pp_msg_up, _ = ler_planilha_precos_postos(arquivo_pp)
                     if _pp_up is not None:
+                        # ── Garante que as tabelas existem no Supabase ──
+                        if not st.session_state.get("_pp_tabelas_ok"):
+                            st.session_state["_pp_tabelas_ok"] = _garantir_tabelas_pp()
+
                         # ── Busca carga anterior do Supabase (persiste entre reboots) ──
                         _pp_ant_up = st.session_state.get("_pp_df")
                         _carga_ant_id_up = st.session_state.get("_pp_carga_id")
@@ -16605,13 +16655,19 @@ with st.sidebar:
                                 _pf_ref_up = st.session_state.get("pf_coords_df")
                                 _var_df_up = _comparar_cargas_precos(
                                     _pp_up, _pp_ant_up, _pf_ref_up)
-                                st.session_state["_pp_variacao"]    = _var_df_up
-                                st.session_state["_pp_variacao_ts"] = _agora()
+                                st.session_state["_pp_variacao"]        = _var_df_up
+                                st.session_state["_pp_variacao_ts"]     = _agora()
+                                st.session_state["_pp_variacao_origem"] = (
+                                    f"carga #{_carga_ant_id_up}" if _carga_ant_id_up
+                                    else "carga anterior (sessão)"
+                                )
                                 if _nova_carga_id_up:
                                     _salvar_variacao_pp_supabase(
                                         _var_df_up, _nova_carga_id_up, _carga_ant_id_up)
-                            except Exception:
-                                pass
+                            except Exception as _e_var:
+                                st.session_state["_pp_variacao_erro"] = str(_e_var)[:200]
+                        else:
+                            st.session_state["_pp_variacao_origem"] = "sem carga anterior — primeira vez"
                         st.session_state["_pp_df"]             = _pp_up
                         st.session_state["_pp_carga_id"]       = _nova_carga_id_up
                         st.session_state["_pp_fonte"]           = "manual"
@@ -16637,6 +16693,20 @@ with st.sidebar:
                             st.success(_pp_msg_up)
                             if _pp_db_err:
                                 st.warning(f"⚠️ Não foi possível salvar no banco: {_pp_db_err}")
+
+                        # ── Diagnóstico de erros do Supabase ──────────────────
+                        _hist_db_err = st.session_state.pop("_hist_db_erro", None)
+                        if _hist_db_err:
+                            st.warning(f"⚠️ Aviso ao salvar histórico: {_hist_db_err[:200]}")
+
+                        # ── Info sobre comparação ──────────────────────────────
+                        _comp_origem = st.session_state.get("_pp_variacao_origem", "")
+                        _comp_err    = st.session_state.pop("_pp_variacao_erro", None)
+                        if _comp_err:
+                            st.warning(f"⚠️ Erro na comparação de preços: {_comp_err}")
+                        elif _comp_origem:
+                            st.info(f"📊 Comparação realizada vs {_comp_origem}")
+
                         st.rerun()
                     else:
                         st.error(_pp_msg_up)
