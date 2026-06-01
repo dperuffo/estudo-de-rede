@@ -3589,8 +3589,7 @@ def _auth_user_from_token(token_result: dict, provider: str) -> dict:
 def _auth_login_page():
     """Página de login — design moderno com fundo animado e glassmorphism."""
 
-    if "_css_466a6690" not in st.session_state:
-        st.markdown("""
+    st.markdown("""
     <style>
     /* ── Esconde elementos padrão do Streamlit na tela de login ── */
     #MainMenu, header[data-testid="stHeader"], footer,
@@ -3892,7 +3891,6 @@ def _auth_login_page():
     .fni-btn-origin-hidden { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
-        st.session_state["_css_466a6690"] = True
 
     # ── Carrega logo FNI como base64 ──────────────────────────────
     import base64 as _b64, io as _io, pathlib as _pl
@@ -4221,8 +4219,7 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             _nome_bloq = (st.session_state["_auth_user"] or {}).get("name", _email_logado)
             st.session_state["_auth_user"] = None
             st.session_state["_acesso_verificado"] = False
-            if "_css_254757d5" not in st.session_state:
-                st.markdown("""
+            st.markdown("""
             <style>
             #MainMenu, header, footer, [data-testid="stSidebar"],
             [data-testid="stToolbar"] { display: none !important; }
@@ -4233,7 +4230,6 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             }
             </style>
             """, unsafe_allow_html=True)
-                st.session_state["_css_254757d5"] = True
             _, _cc, _ = st.columns([1, 2, 1])
             with _cc:
                 st.markdown(f"""
@@ -13725,8 +13721,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 </div>""", unsafe_allow_html=True)
 
         # CSS injetado uma vez
-        if "_css_bcba1458" not in st.session_state:
-            st.markdown("""
+        st.markdown("""
 <style>
 .pc-row{display:flex;align-items:stretch;margin-bottom:8px;border-radius:10px;
         overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
@@ -13745,7 +13740,6 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
 .pc-badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;
           margin-top:2px;letter-spacing:.3px}
 </style>""", unsafe_allow_html=True)
-            st.session_state["_css_bcba1458"] = True
 
         # ── Referências (Região + Brasil) ─────────────────────────
         regioes_rota = [r for r in df_rota["Nome Região"].dropna().unique() if r]
@@ -13856,8 +13850,7 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
     st.markdown(_cab_html, unsafe_allow_html=True)
 
     # ── CSS dos cards (injetado uma vez) ─────────────────────────
-    if "_css_4f2d6a71" not in st.session_state:
-        st.markdown("""
+    st.markdown("""
 <style>
 .fc{background:#fff;border-radius:12px;padding:16px 18px 12px;
     box-shadow:0 2px 10px rgba(0,0,0,.08);
@@ -13881,7 +13874,6 @@ def _renderizar_precos_anp(uf, municipio=None, ufs_multiplas=None):
              padding:1px 6px;border-radius:20px;white-space:nowrap}
 .fc-postos{font-size:10px;color:#bbb;margin-top:6px;text-align:right}
 </style>""", unsafe_allow_html=True)
-        st.session_state["_css_4f2d6a71"] = True
 
     # ── Helper: badge de variação ─────────────────────────────────
     def _ref_row_html(label, ref, pm):
@@ -14991,8 +14983,7 @@ with st.sidebar:
         _prov_u  = _auth_u.get("provider", "")
 
         # ── CSS separado (não misturar com f-string do HTML) ──────────
-        if "_css_9f1835a4" not in st.session_state:
-            st.markdown("""
+        st.markdown("""
 <style>
 .fni-user-card {
     background: linear-gradient(145deg,
@@ -15044,7 +15035,6 @@ with st.sidebar:
     color: inherit !important; font-size: 11px !important; margin: 0 !important;
 }
 </style>""", unsafe_allow_html=True)
-            st.session_state["_css_9f1835a4"] = True
 
         # ── Avatar ────────────────────────────────────────────────────
         if _pic_u:
@@ -15164,8 +15154,7 @@ with st.sidebar:
         )
 
     # CSS exclusivo para os 3 botões de modo (seletores st-key-* + data-testid)
-    if "_css_247bf69b" not in st.session_state:
-        st.markdown("""
+    st.markdown("""
 <style>
 /* ── base: altura e texto para os 3 botões de modo ── */
 .st-key-btn_modo_estado button,
@@ -15679,7 +15668,6 @@ with st.sidebar:
     background: rgba(11,38,96,.06) !important;
 }
 </style>""", unsafe_allow_html=True)
-        st.session_state["_css_247bf69b"] = True
 
     if "modo_selecionado" not in st.session_state:
         st.session_state["modo_selecionado"] = "📍 Por UF/Município"
@@ -15790,8 +15778,7 @@ with st.sidebar:
     # ══════════════════════════════════════════════════════════════════
 
     # CSS do menu lista
-    if "_css_5a7d8e51" not in st.session_state:
-        st.markdown("""
+    st.markdown("""
 <style>
 /* ── Reset e base do menu lista ── */
 [data-testid="stSidebar"] .nav-group-header {
@@ -15844,7 +15831,6 @@ with st.sidebar:
 }
 </style>
 """, unsafe_allow_html=True)
-        st.session_state["_css_5a7d8e51"] = True
 
     def _nav_btn(label, modo, key, sub=False):
         """Botão de menu lista — ativo = primary, inativo = secondary."""
