@@ -4740,8 +4740,13 @@ def _profrotas_sync(cnpj_frota: str, token: str,
 
         # ── Sanitização inline — sem dependência de _sanitize_row ────────────
         # Colunas integer no Supabase não aceitam Python bool nem string "false".
-        _INT_COLS  = {"item_tipo"}
-        _BOOL_COLS = {"abastecimento_estornado", "pv_posto_interno"}
+        # Todas as colunas integer/bigint da tabela real no Supabase
+        _INT_COLS = {
+            "item_tipo", "abastecimento_estornado",
+            "hodometro", "horimetro",
+            "status_autorizacao",
+            "identificador", "motorista_id", "veiculo_id",
+        }
 
         def _fix(k, v):
             # Regra 1: bool Python → 0/1 (aceito por boolean e integer no PG)
