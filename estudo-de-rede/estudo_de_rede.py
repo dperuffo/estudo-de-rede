@@ -4780,14 +4780,15 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                 _row["payload_raw"] = _j.dumps(_row["payload_raw"], ensure_ascii=False, default=str)
             _rows_safe.append(_row)
 
-        # Estratégia 1: upsert por sync_key (tabela migrada com PK)
+        # Estratégia 1: upsert por sync_key
+        _e1_msg = ""
         try:
             _db.table("profrotas_abastecimentos").upsert(
                 _rows_safe, on_conflict="sync_key"
             ).execute()
             return None
         except Exception as _e1:
-            pass
+            _e1_msg = str(_e1)[:120]
 
         # Estratégia 2: upsert por identificador+cnpj_frota+item_id (tabela antiga com unique constraint)
         _rows_sem_sk = [{k: v for k, v in r.items() if k != "sync_key"} for r in _rows_safe]
@@ -4799,15 +4800,25 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         except Exception as _e2:
             pass
 
-        # Estratégia 3: INSERT individual ignorando duplicatas (último recurso)
+        # Estratégia 3: upsert individual com sync_key (evita NOT NULL no insert)
         _salvos3 = 0
         _last_err = ""
-        for _single in _rows_sem_sk:
+        for _single in _rows_safe:   # usa rows COMPLETAS (com sync_key)
             try:
-                _db.table("profrotas_abastecimentos").insert(_single).execute()
+                _db.table("profrotas_abastecimentos").upsert(
+                    _single, on_conflict="sync_key"
+                ).execute()
                 _salvos3 += 1
-            except Exception as _e3:
-                _last_err = str(_e3)[:80]
+            except Exception:
+                # Fallback: insert ignorando duplicata via INSERT ... ON CONFLICT DO NOTHING
+                _row_sk = {k: v for k, v in _single.items() if k != "id"}
+                try:
+                    _db.table("profrotas_abastecimentos").insert(
+                        _row_sk, returning="minimal"
+                    ).execute()
+                    _salvos3 += 1
+                except Exception as _e3:
+                    _last_err = str(_e3)[:120]
         if _salvos3 > 0:
             return None   # pelo menos alguns salvos
         return f"Todas as estratégias falharam. Último erro: {_last_err}"
