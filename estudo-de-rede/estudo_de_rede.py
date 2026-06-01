@@ -4744,18 +4744,26 @@ def _profrotas_sync(cnpj_frota: str, token: str,
         _BOOL_COLS = {"abastecimento_estornado", "pv_posto_interno"}
 
         def _fix(k, v):
-            # Converte TODOS os booleans Python para int 0/1.
-            # PostgreSQL aceita 0/1 para colunas boolean E integer.
-            # Evita "invalid input syntax for type integer: false".
+            # Regra 1: bool Python → 0/1 (aceito por boolean e integer no PG)
             if isinstance(v, bool):
                 return int(v)
+            # Regra 2: float inteiro (ex: 193900.0) → int
+            # Colunas hodometro/horimetro podem ser integer na tabela real.
+            if isinstance(v, float):
+                try:
+                    if v == int(v):
+                        return int(v)
+                except (ValueError, OverflowError):
+                    pass
+                return v
+            # Regra 3: colunas explicitamente integer (item_tipo)
             if k in _INT_COLS:
                 if v is None:
                     return None
                 if isinstance(v, str) and v.strip().lower() in ("false", "true", ""):
                     return None
                 try:
-                    return int(v)
+                    return int(float(v))
                 except (TypeError, ValueError):
                     return None
             return v
