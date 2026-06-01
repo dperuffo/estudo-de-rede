@@ -9089,6 +9089,28 @@ def _startup_sincronizar_github() -> None:
             st.session_state["_restaurado_pp_supabase"] = True  # pula restauração redundante
             if not _github_sync_ja_feito_hoje("precos_posto_versoes"):
                 _db_salvar_precos_posto(_pp_df_gh, "github_auto")
+                # ── Variação de Preços: compara nova carga com anterior ──
+                try:
+                    _cargas_gh = _carregar_cargas_pp_supabase(n=1)
+                    _pp_ant_gh = None
+                    _carga_ant_id_gh = None
+                    if _cargas_gh and _cargas_gh[0].get("dados"):
+                        _pp_ant_gh = pd.DataFrame(_cargas_gh[0]["dados"])
+                        _carga_ant_id_gh = _cargas_gh[0]["id"]
+                    _nova_carga_id_gh = _salvar_carga_pp_supabase(_pp_df_gh, "github_auto")
+                    if _pp_ant_gh is not None and not _pp_ant_gh.empty:
+                        _var_df_gh = _comparar_cargas_precos(_pp_df_gh, _pp_ant_gh, None)
+                        st.session_state["_pp_variacao"]        = _var_df_gh
+                        st.session_state["_pp_variacao_ts"]     = _agora()
+                        st.session_state["_pp_variacao_origem"] = (
+                            f"carga #{_carga_ant_id_gh}" if _carga_ant_id_gh
+                            else "carga anterior (GitHub)"
+                        )
+                        if _nova_carga_id_gh:
+                            _salvar_variacao_pp_supabase(
+                                _var_df_gh, _nova_carga_id_gh, _carga_ant_id_gh)
+                except Exception:
+                    pass
         else:
             _sync_erros.append(f"preco_posto.xlsx: {_msg_pp or 'download falhou'}")
     except Exception as _e_pp:
