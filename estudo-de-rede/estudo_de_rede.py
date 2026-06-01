@@ -2721,11 +2721,6 @@ for _fni_nome in ["Logo plataforma FNI.png", "logo plataforma FNI.png",
         _FNI_SRC = f"data:image/png;base64,{_FNI_B64}"
         break
 
-# ─── Auto-sync: inicia threads para todas as chaves ativas ──────────────────
-if not _AUTO_SYNC_INITIALIZED:
-    _auto_sync_ensure_all()
-    _AUTO_SYNC_INITIALIZED = True   # type: ignore[assignment]  # var. módulo
-
 # ─── Configuração da página ────────────────────────────────────────
 st.set_page_config(
     page_title="Fleet Network Intelligence",
@@ -4621,6 +4616,20 @@ def _profrotas_listar_chaves() -> list:
         return r.data or []
     except Exception:
         return []
+
+
+# ─── Auto-sync: inicia threads (após _profrotas_listar_chaves estar definida) ─
+# session_state garante 1 tentativa por sessão; não seta flag se falhar.
+if not st.session_state.get("_auto_sync_startup_done"):
+    try:
+        _auto_sync_ensure_all()
+        st.session_state["_auto_sync_startup_done"] = True
+        _AUTO_SYNC_INITIALIZED = True   # type: ignore[assignment]
+    except Exception as _e_as_init:
+        _AUTO_SYNC_STATUS["_startup_error"] = {
+            "status": "erro", "msg": str(_e_as_init)[:200],
+        }
+
 
 
 _PROFROTAS_BATCH_SIZE = 25   # linhas por upsert — evita limite de payload Supabase
