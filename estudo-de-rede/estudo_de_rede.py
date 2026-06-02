@@ -131,6 +131,7 @@ def _auto_sync_worker(cnpj_frota: str, token_inicial: str):
     import time as _tm
     import re as _re_th
 
+    _retry_delay = 60  # espera 1 min após falha antes de tentar de novo
     while True:
         try:
             _db_th = _auto_sync_create_db()
@@ -245,7 +246,6 @@ def _auto_sync_ensure_running(cnpj_frota: str, token: str) -> bool:
 
 def _auto_sync_ensure_all():
     """
-    Chamada a cada nova sessão.
     Inicia ou re-verifica threads para todas as chaves ProFrotas ativas.
     _auto_sync_ensure_running() é idempotente — não recria threads vivas.
     """
@@ -258,6 +258,26 @@ def _auto_sync_ensure_all():
         _AUTO_SYNC_STATUS["_startup_error"] = {
             "status": "erro", "msg": str(_e_as)[:200],
         }
+
+
+@st.cache_resource
+def _auto_sync_watchdog_state():
+    """Estado global do watchdog — persiste entre reruns no mesmo processo."""
+    import time as _t
+    return {"last_check": 0.0}
+
+
+def _auto_sync_heartbeat():
+    """
+    Chamada em todo rerun. Garante threads vivas sem hammering do banco:
+    - executa _auto_sync_ensure_all() no máximo 1x por minuto
+    - detecta e reinicia threads mortas imediatamente após redeploy/restart
+    """
+    import time as _t
+    _wd = _auto_sync_watchdog_state()
+    if _t.time() - _wd["last_check"] > 60:
+        _wd["last_check"] = _t.time()
+        _auto_sync_ensure_all()
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -4647,17 +4667,14 @@ def _profrotas_listar_chaves() -> list:
         return []
 
 
-# ─── Auto-sync: inicia threads (após _profrotas_listar_chaves estar definida) ─
-# session_state garante 1 tentativa por sessão; não seta flag se falhar.
-if not st.session_state.get("_auto_sync_startup_done"):
-    try:
-        _auto_sync_ensure_all()
-        st.session_state["_auto_sync_startup_done"] = True
-        _AUTO_SYNC_INITIALIZED = True   # type: ignore[assignment]
-    except Exception as _e_as_init:
-        _AUTO_SYNC_STATUS["_startup_error"] = {
-            "status": "erro", "msg": str(_e_as_init)[:200],
-        }
+# ─── Auto-sync: watchdog global — reinicia threads mortas em todo rerun ───────
+try:
+    _auto_sync_heartbeat()
+    _AUTO_SYNC_INITIALIZED = True   # type: ignore[assignment]
+except Exception as _e_as_init:
+    _AUTO_SYNC_STATUS["_startup_error"] = {
+        "status": "erro", "msg": str(_e_as_init)[:200],
+    }
 
 
 
