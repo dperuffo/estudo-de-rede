@@ -767,27 +767,129 @@ def _mfa_obrigatorio(perfil: str) -> bool:
 
 def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
     """
-    Exibe tela de verificação MFA.
+    Exibe tela de verificação MFA com design glassmorphism idêntico ao login.
     Retorna True se o código foi validado com sucesso nesta chamada.
     """
+    st.markdown("""
+    <style>
+    #MainMenu, header[data-testid="stHeader"], footer,
+    [data-testid="stSidebar"], [data-testid="stToolbar"],
+    [data-testid="collapsedControl"] { display: none !important; }
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, #0a0e27 0%, #0d1b4b 35%, #0a2a6e 65%, #061840 100%);
+        min-height: 100vh; position: relative; overflow: hidden;
+    }
+    [data-testid="stAppViewContainer"]::before {
+        content: ""; position: fixed; inset: 0;
+        background:
+            radial-gradient(ellipse 80% 60% at 20% 30%, rgba(25,118,210,0.18) 0%, transparent 60%),
+            radial-gradient(ellipse 60% 50% at 80% 70%, rgba(0,200,150,0.10) 0%, transparent 55%),
+            radial-gradient(ellipse 50% 40% at 60% 10%, rgba(100,181,246,0.12) 0%, transparent 50%);
+        animation: bgPulse 8s ease-in-out infinite alternate;
+        pointer-events: none; z-index: 0;
+    }
+    @keyframes bgPulse {
+        0%   { opacity: 0.7; transform: scale(1); }
+        100% { opacity: 1;   transform: scale(1.04); }
+    }
+    [data-testid="stAppViewContainer"]::after {
+        content: ""; position: fixed; inset: 0;
+        background-image:
+            radial-gradient(circle 1.5px at 15% 20%, rgba(255,255,255,0.25) 0%, transparent 100%),
+            radial-gradient(circle 1px  at 35% 55%, rgba(255,255,255,0.18) 0%, transparent 100%),
+            radial-gradient(circle 2px  at 70% 15%, rgba(100,181,246,0.35) 0%, transparent 100%),
+            radial-gradient(circle 1px  at 85% 40%, rgba(255,255,255,0.20) 0%, transparent 100%),
+            radial-gradient(circle 1.5px at 50% 80%, rgba(255,255,255,0.15) 0%, transparent 100%),
+            radial-gradient(circle 1px  at 90% 75%, rgba(100,181,246,0.28) 0%, transparent 100%);
+        pointer-events: none; z-index: 0;
+        animation: particlesDrift 12s ease-in-out infinite alternate;
+    }
+    @keyframes particlesDrift {
+        0%   { transform: translateY(0px); }
+        100% { transform: translateY(-12px); }
+    }
+    section[data-testid="stMain"] > div:first-child {
+        display: flex !important; flex-direction: column !important;
+        align-items: center !important; justify-content: center !important;
+        min-height: 100vh !important; padding: 2rem 1rem !important;
+        position: relative; z-index: 1;
+    }
+    .block-container { padding: 0 !important; max-width: 100% !important; }
+    .mfa-card {
+        background: rgba(255,255,255,0.07);
+        backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255,255,255,0.14); border-radius: 28px;
+        padding: 2.8rem 2.8rem 2rem; text-align: center;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.45), 0 4px 20px rgba(0,0,0,0.3),
+                    inset 0 1px 0 rgba(255,255,255,0.12);
+        animation: cardAppear 0.6s cubic-bezier(0.16,1,0.3,1) both;
+        width: 100%; max-width: 420px; margin: 0 auto;
+    }
+    @keyframes cardAppear {
+        0%   { opacity: 0; transform: translateY(32px) scale(0.97); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .mfa-icon {
+        width: 72px; height: 72px;
+        background: linear-gradient(135deg, rgba(25,118,210,0.35), rgba(0,200,150,0.25));
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 18px; font-size: 2rem;
+        border: 1px solid rgba(255,255,255,0.18);
+        box-shadow: 0 4px 20px rgba(25,118,210,0.25);
+    }
+    .mfa-title { font-size: 1.45rem; font-weight: 700; color: #fff; margin: 0 0 6px; }
+    .mfa-email { font-size: 0.82rem; color: rgba(255,255,255,0.55); margin: 0 0 20px; }
+    .mfa-email strong { color: rgba(255,255,255,0.85); }
+    .mfa-hint  { font-size: 0.83rem; color: rgba(255,255,255,0.60); margin: 0 0 18px; line-height: 1.5; }
+    .mfa-hint strong { color: rgba(255,255,255,0.85); }
+    .mfa-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); margin: 0 0 20px; }
+    div[data-testid="stTextInput"] input {
+        background: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
+        border-radius: 14px !important; color: #fff !important;
+        font-size: 1.6rem !important; letter-spacing: 0.5rem !important;
+        text-align: center !important; padding: 14px 20px !important;
+        transition: border-color 0.2s, box-shadow 0.2s !important;
+    }
+    div[data-testid="stTextInput"] input:focus {
+        border-color: rgba(100,181,246,0.6) !important;
+        box-shadow: 0 0 0 3px rgba(25,118,210,0.25) !important; outline: none !important;
+    }
+    div[data-testid="stTextInput"] input::placeholder { color: rgba(255,255,255,0.25) !important; }
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(90deg, #1565C0, #1976D2) !important;
+        border: none !important; border-radius: 14px !important; color: #fff !important;
+        font-size: 0.95rem !important; font-weight: 600 !important; padding: 14px !important;
+        box-shadow: 0 4px 16px rgba(21,101,192,0.4) !important; transition: all 0.2s !important;
+    }
+    div[data-testid="stButton"] > button[kind="primary"]:hover {
+        background: linear-gradient(90deg, #0D47A1, #1565C0) !important;
+        box-shadow: 0 6px 24px rgba(21,101,192,0.55) !important; transform: translateY(-1px) !important;
+    }
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        background: rgba(255,255,255,0.06) !important;
+        border: 1px solid rgba(255,255,255,0.18) !important; border-radius: 14px !important;
+        color: rgba(255,255,255,0.70) !important; font-size: 0.88rem !important; padding: 14px !important;
+        transition: all 0.2s !important;
+    }
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        background: rgba(255,255,255,0.11) !important; color: #fff !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.markdown(
-        "<div style='max-width:420px;margin:60px auto 0;padding:32px 28px;"
-        "background:#fff;border:1px solid #e0e0e0;border-radius:14px;"
-        "box-shadow:0 4px 20px rgba(0,0,0,.08)'>"
-        "<div style='text-align:center;margin-bottom:24px'>"
-        "<div style='font-size:2.2rem'>🔐</div>"
-        "<h2 style='margin:8px 0 4px;font-size:1.3rem;color:#1B2B5E'>Verificação em duas etapas</h2>"
-        "<p style='color:#666;font-size:13px;margin:0'>"
-        f"Conta: <strong>{email}</strong></p>"
+        "<div class='mfa-card'>"
+        "<div class='mfa-icon'>🔐</div>"
+        "<h2 class='mfa-title'>Verificação em duas etapas</h2>"
+        f"<p class='mfa-email'>Conta: <strong>{email}</strong></p>"
+        "<p class='mfa-hint'>Abra o <strong>Google Authenticator</strong> ou "
+        "<strong>Authy</strong> e insira o código de 6 dígitos:</p>"
+        "<div class='mfa-divider'></div>"
         "</div>",
         unsafe_allow_html=True,
     )
-    st.markdown(
-        "<p style='color:#555;font-size:13px;text-align:center;margin-bottom:8px'>"
-        "Abra o <strong>Google Authenticator</strong> ou <strong>Authy</strong> "
-        "e insira o código de 6 dígitos:</p>",
-        unsafe_allow_html=True,
-    )
+
     _codigo = st.text_input(
         "Código 2FA",
         max_chars=6,
@@ -811,7 +913,6 @@ def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
         if not _codigo or len(_codigo.strip()) != 6:
             st.error("Digite os 6 dígitos do código.")
         else:
-            # A07: Rate limiting nas tentativas de verificação MFA
             _rl_ok, _rl_wait = _sec_rate_limit(segredo[:8], "mfa_verify")
             if not _rl_ok:
                 st.error(f"🚫 Muitas tentativas incorretas. Aguarde {_rl_wait}s antes de tentar novamente.")
@@ -825,7 +926,6 @@ def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
             else:
                 _sec_log_evento("MFA_FAIL", "Código TOTP inválido", "WARN")
                 st.error("❌ Código inválido ou expirado. Tente novamente.")
-    st.markdown("</div>", unsafe_allow_html=True)
     return False
 
 def _mfa_render_setup_inicial(email: str, segredo: str):
