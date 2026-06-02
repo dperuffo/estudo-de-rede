@@ -4778,7 +4778,8 @@ def _profrotas_garantir_tabela(db) -> tuple[bool, str]:
 
 def _profrotas_sync(cnpj_frota: str, token: str,
                     data_inicio: str, progress_cb=None,
-                    _db_override=None) -> tuple[int, int, str | None, str, int]:
+                    _db_override=None,
+                    _usuario_email: str | None = None) -> tuple[int, int, str | None, str, int]:
     """Busca todos os abastecimentos desde data_inicio e salva no Supabase.
 
     _db_override: cliente Supabase externo (usado pelo auto-sync em threads
@@ -5053,6 +5054,39 @@ def _profrotas_sync(cnpj_frota: str, token: str,
                 erros_batch.append(f"Pág {pagina} lote {_i//25+1}: {_err[:120]}")
             else:
                 total_salvos += len(_lote)
+                # ── Persiste também em frota_abastecimentos (tabela unificada) ──
+                if _usuario_email:
+                    try:
+                        _rows_unif = []
+                        for _r in _lote:
+                            _rows_unif.append({
+                                "usuario_email":      _usuario_email,
+                                "id_transacao":       _r.get("sync_key"),
+                                "data_abastecimento": _r.get("data_abastecimento"),
+                                "placa":              str(_r.get("veiculo_placa") or "").upper().strip(),
+                                "motorista":          str(_r.get("motorista_nome") or ""),
+                                "produto":            str(_r.get("item_nome") or ""),
+                                "litros":             _r.get("item_quantidade"),
+                                "preco_litro":        _r.get("item_valor_unitario"),
+                                "valor_total":        _r.get("item_valor_total"),
+                                "hodometro":          _r.get("hodometro"),
+                                "cnpj_posto":         str(_r.get("pv_cnpj") or ""),
+                                "nome_posto":         str(_r.get("pv_razao_social") or ""),
+                                "cidade_posto":       str(_r.get("pv_municipio") or ""),
+                                "uf_posto":           str(_r.get("pv_uf") or ""),
+                                "lat_posto":          _r.get("pv_latitude"),
+                                "lon_posto":          _r.get("pv_longitude"),
+                                "cnpj_frota":         _r.get("cnpj_frota"),
+                                "nome_arquivo":       "GestaoFrotas API",
+                                "fonte":              "gestaoFrotas",
+                            })
+                        _db.table("frota_abastecimentos").upsert(
+                            _rows_unif,
+                            on_conflict="usuario_email,id_transacao",
+                            ignore_duplicates=True,
+                        ).execute()
+                    except Exception:
+                        pass
 
         # ── Condição de parada robusta — usa totalItems como controle primário ──
         # Não para em páginas parciais (falsos negativos causavam sync incompleto).
@@ -34933,7 +34967,8 @@ elif modo == "🛰️ Telemetria":
                                           text=f"Pág {p} — {min(p*tam,tot):,}/{tot:,}")
                     with st.spinner("Sincronizando..."):
                         _pp2, _ps3, _pnt2, _perr2, _ptot2 = _profrotas_sync(
-                            _pf_sel_tele["cnpj_frota"], _pf_sel_tele["token"], _iso_tele, _prog_tele)
+                            _pf_sel_tele["cnpj_frota"], _pf_sel_tele["token"], _iso_tele, _prog_tele,
+                            _usuario_email=_db_email())
                     _pb_tele.progress(1.0, text="Concluído!")
                     _carregar_abastecimentos_unificados.clear()
                     if _perr2 and _ps3 == 0:
@@ -36671,7 +36706,8 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                         def _prog(p,tot,tam): _pb.progress(min(1.0,(p*tam)/max(tot,1)), text=f"Pág {p} — {min(p*tam,tot):,}/{tot:,}")
                         with st.spinner("Sincronizando..."):
                             _pp, _ps2, _pnt, _perr, _ptot = _profrotas_sync(
-                                _pf_sel["cnpj_frota"], _pf_sel["token"], _iso, _prog)
+                                _pf_sel["cnpj_frota"], _pf_sel["token"], _iso, _prog,
+                                _usuario_email=_db_email())
                         _pb.progress(1.0, text="Concluído!")
 
                         # Persiste resultado no session_state para sobreviver ao rerun
