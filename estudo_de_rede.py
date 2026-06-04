@@ -15369,6 +15369,25 @@ with st.sidebar:
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
 
+    # ── Fase 1: chip de plano/empresa na sidebar ─────────────────────────
+    _emp_ativa = st.session_state.get("_empresa_ativa") or {}
+    if _emp_ativa:
+        _plano_chip   = _emp_ativa.get("plano", "gratuito").capitalize()
+        _status_chip  = _emp_ativa.get("status", "ativo")
+        _nome_emp     = _emp_ativa.get("nome", "")[:22]
+        _cor_status   = {"ativo":"#27ae60","trial":"#f39c12","suspenso":"#e74c3c","cancelado":"#7f8c8d"}.get(_status_chip,"#7f8c8d")
+        _utils_ok_lbl = "✓ tenant_utils" if _TENANT_UTILS_OK else "⚠ fallback"
+        st.markdown(
+            f"<div style='background:rgba(16,64,160,0.08);border:1px solid rgba(16,64,160,0.18);"
+            f"border-radius:10px;padding:7px 10px;margin:4px 0 8px;font-size:10.5px;color:#0d1e50'>"
+            f"<b>{_nome_emp}</b><br>"
+            f"<span style='color:{_cor_status};font-weight:700'>{_status_chip.upper()}</span>"
+            f" · Plano <b>{_plano_chip}</b><br>"
+            f"<span style='color:#888;font-size:9px'>{_utils_ok_lbl}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
     # ── Startup único por sessão: GitHub sync + restauração do banco ──────
     # Agrupa todas as operações de startup com guard de session_state.
     # Sem o guard, cada clique do usuário re-executava todas essas chamadas.
