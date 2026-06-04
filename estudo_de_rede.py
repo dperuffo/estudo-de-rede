@@ -2913,6 +2913,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",  # sempre aberta
 )
 
+# ── Fase 1: diagnóstico (remover após confirmar) ─────────────────────────────
+if not st.session_state.get("_f1_diag_shown"):
+    st.session_state["_f1_diag_shown"] = True
+    try:
+        _ok_diag = _TENANT_UTILS_OK
+    except NameError:
+        _ok_diag = None
+    st.toast("Fase 1: tenant_utils OK" if _ok_diag else f"Fase 1: fallback (ok={_ok_diag})")
+
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
 <style>
@@ -4637,15 +4646,6 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             banner_tenant_suspenso()   # bloqueia se suspenso/cancelado
             banner_trial()             # avisa se trial expirando
 
-        # ── Fase 1: diagnóstico (remover após confirmar) ──────────────────
-        if not st.session_state.get("_f1_diag_shown"):
-            st.session_state["_f1_diag_shown"] = True
-            try:
-                _ok = _TENANT_UTILS_OK
-            except NameError:
-                _ok = None
-            _msg = "Fase 1 OK — tenant_utils carregado" if _ok else f"Fase 1 — fallback ativo (ok={_ok})"
-            st.toast(_msg)
 
 
 def _profrotas_para_df_analise(cnpj_frota: str | None = None,
