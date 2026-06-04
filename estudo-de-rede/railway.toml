@@ -1,0 +1,14 @@
+# ═══════════════════════════════════════════════════════════════════
+#  FNI Pró-Frotas — Railway Deployment Configuration
+#  App principal está em estudo-de-rede/ (subdiretório)
+# ═══════════════════════════════════════════════════════════════════
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand    = "streamlit run estudo_de_rede.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection true"
+healthcheckPath = "/_stcore/health"
+healthcheckTimeout = 30
+restartPolicyType  = "ON_FAILURE"
+restartPolicyMaxRetries = 3
