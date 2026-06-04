@@ -1,7 +1,33 @@
 # ═══════════════════════════════════════════════════════════════════
-#  Estudo de Rede – Gestão de Frotas
-#  Versão 5.1  |  Plotly WebGL map + NumPy vetorizado + cache 24h
+#  FNI Pró-Frotas – Gestão de Frotas
+#  Versão 6.0  |  Multitenant SaaS  |  Fase 1 implementada
 # ═══════════════════════════════════════════════════════════════════
+
+# ── Fase 1: utilitários de multitenância, feature flags e guards ──────────────
+try:
+    from tenant_utils import (
+        plano_permite, requer_plano, upgrade_banner,
+        get_limite, verificar_limite, get_plano_atual,
+        require_empresa_id, inject_empresa_id, inject_empresa_id_list,
+        tenant_ativo, banner_tenant_suspenso, banner_trial,
+        dias_restantes_trial, get_tenant_info, LIMITES_PLANO,
+    )
+    _TENANT_UTILS_OK = True
+except Exception:
+    # Captura ImportError, SyntaxError, e qualquer outro erro de importação
+    _TENANT_UTILS_OK = False
+    # Fallbacks seguros — funcionam mesmo sem o módulo instalado
+    def plano_permite(f): return True          # noqa: E704
+    def upgrade_banner(f, m=""): pass          # noqa: E704
+    def get_limite(c): return 999_999          # noqa: E704
+    def require_empresa_id(eid, op=""): return eid  # noqa: E704
+    def inject_empresa_id(rec, eid): return {**rec, "empresa_id": eid} if eid else rec  # noqa: E704
+    def inject_empresa_id_list(recs, eid): return [{**r, "empresa_id": eid} if eid else r for r in recs]  # noqa: E704
+    def tenant_ativo(): return True            # noqa: E704
+    def banner_tenant_suspenso(): return False # noqa: E704
+    def banner_trial(): pass                   # noqa: E704
+    def get_tenant_info(): return {}           # noqa: E704
+    LIMITES_PLANO = {}                         # noqa: E704
 
 import base64
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -519,12 +545,14 @@ def _sec_log_evento(tipo: str, descricao: str, nivel: str = "INFO"):
         except Exception:
             pass
         _db.table("security_logs").insert({
-            "tipo":      tipo[:50],
-            "nivel":     nivel[:10],
-            "email":     _email[:254],
-            "descricao": str(descricao)[:500],
-            "ip_hint":   "",   # Streamlit Cloud não expõe IP diretamente
-            "ts":        _now_br().isoformat(),
+            "tipo":       tipo[:50],
+            "nivel":      nivel[:10],
+            "email":      _email[:254],
+            "descricao":  str(descricao)[:500],
+            "ip_hint":    "",   # Streamlit Cloud não expõe IP diretamente
+            "ts":         _now_br().isoformat(),
+            # Fase 1: rastreia log por empresa (nullable — não bloqueia o log)
+            "empresa_id": (st.session_state.get("_empresa_ativa") or {}).get("id"),
         }).execute()
     except Exception:
         pass  # Log nunca deve travar o app
@@ -1278,14 +1306,14 @@ def _db_salvar_rota(nome: str, tipo: str, dados: dict) -> bool:
         _dados_json = {}
     if db:
         try:
-            db.table("rotas_salvas").insert({
+            db.table("rotas_salvas").insert(inject_empresa_id({
                 "id":            _id,
                 "usuario_email": _db_email(),
                 "nome":          nome.strip() or "Rota",
                 "tipo":          tipo,
                 "criado_em":     _agora(),
                 "dados":         _dados_json,
-            }).execute()
+            }, _db_empresa_id())).execute()
             return True
         except Exception as _e:
             st.warning(f"⚠️ Banco indisponível ({_e}), salvando localmente.", icon="💾")
@@ -1318,7 +1346,7 @@ def _db_salvar_preferencias(placa: str = "", combustivel: str = "",
     if not db:
         return False
     try:
-        db.table("preferencias").upsert({
+        db.table("preferencias").upsert(inject_empresa_id({
             "usuario_email": _db_email(),
             "placa":         placa,
             "combustivel":   combustivel,
@@ -1326,7 +1354,7 @@ def _db_salvar_preferencias(placa: str = "", combustivel: str = "",
             "capacidade":    capacidade,
             "extras":        extras or {},
             "atualizado_em": datetime.now().isoformat(),
-        }).execute()
+        }, _db_empresa_id())).execute()
         return True
     except Exception:
         return False
@@ -2301,7 +2329,7 @@ def _db_salvar_perfil_veiculo(nome: str, placa: str, combustivel: str,
     if not db:
         return False
     try:
-        db.table("perfis_veiculo").insert({
+        db.table("perfis_veiculo").insert(inject_empresa_id({
             "usuario_email": _db_email(),
             "nome":          nome.strip() or placa or "Veículo",
             "placa":         placa.strip().upper(),
@@ -2309,7 +2337,7 @@ def _db_salvar_perfil_veiculo(nome: str, placa: str, combustivel: str,
             "tanque":        tanque,
             "autonomia":     autonomia,
             "criado_em":     datetime.now().isoformat(),
-        }).execute()
+        }, _db_empresa_id())).execute()
         return True
     except Exception:
         return False
@@ -2440,7 +2468,8 @@ def _db_resolver_empresas(email: str) -> list:
     try:
         _res = (
             db.table("usuarios_empresas")
-            .select("empresa_id, role, empresas(id, nome, ativo)")
+            # Fase 1: inclui plano, status e trial_ends_at para feature flags e banners
+            .select("empresa_id, role, empresas(id, nome, ativo, plano, status, trial_ends_at, max_usuarios, max_veiculos)")
             .eq("user_email", email.lower())
             .eq("ativo", True)
             .execute()
@@ -2450,9 +2479,15 @@ def _db_resolver_empresas(email: str) -> list:
             _emp = _row.get("empresas") or {}
             if _emp and _emp.get("ativo"):
                 _empresas.append({
-                    "id":   _emp["id"],
-                    "nome": _emp["nome"],
-                    "role": _row.get("role", "viewer"),
+                    "id":            _emp["id"],
+                    "nome":          _emp["nome"],
+                    "role":          _row.get("role", "viewer"),
+                    # Fase 1: campos de plano para feature flags e banners
+                    "plano":         _emp.get("plano", "gratuito"),
+                    "status":        _emp.get("status", "ativo"),
+                    "trial_ends_at": _emp.get("trial_ends_at"),
+                    "max_usuarios":  _emp.get("max_usuarios", 1),
+                    "max_veiculos":  _emp.get("max_veiculos", 10),
                 })
         return _empresas
     except Exception:
@@ -2877,6 +2912,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",  # sempre aberta
 )
+
+# ── Fase 1: diagnóstico incondicional ────────────────────────────────────────
+st.error(f"FASE1_DIAG: _TENANT_UTILS_OK={_TENANT_UTILS_OK}")
 
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
@@ -4596,6 +4634,12 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
                         st.session_state["_empresa_ativa"] = _emp_opt
                         st.rerun()
             st.stop()
+
+        # ── Fase 1: banners de status do tenant (trial, suspenso) ────────────
+        if _empresa_ativa:
+            banner_tenant_suspenso()   # bloqueia se suspenso/cancelado
+            banner_trial()             # avisa se trial expirando
+
 
 
 def _profrotas_para_df_analise(cnpj_frota: str | None = None,
