@@ -15370,13 +15370,18 @@ with st.sidebar:
             st.rerun()
 
     # ── Fase 1: chip de plano/empresa na sidebar ─────────────────────────
+    # Admin usa _todas_empresas; usuário comum usa _empresa_ativa
     _emp_ativa = st.session_state.get("_empresa_ativa") or {}
-    if _emp_ativa:
-        _plano_chip   = _emp_ativa.get("plano", "gratuito").capitalize()
-        _status_chip  = _emp_ativa.get("status", "ativo")
-        _nome_emp     = _emp_ativa.get("nome", "")[:22]
-        _cor_status   = {"ativo":"#27ae60","trial":"#f39c12","suspenso":"#e74c3c","cancelado":"#7f8c8d"}.get(_status_chip,"#7f8c8d")
-        _utils_ok_lbl = "✓ tenant_utils" if _TENANT_UTILS_OK else "⚠ fallback"
+    if not _emp_ativa and _is_admin():
+        # Para admin, pega a primeira empresa disponível só para exibição
+        _todas = st.session_state.get("_todas_empresas", [])
+        _emp_ativa = _todas[0] if _todas else {"nome": "Admin Global", "plano": "enterprise", "status": "ativo"}
+    if _emp_ativa or _TENANT_UTILS_OK is not None:
+        _plano_chip  = (_emp_ativa.get("plano") or "enterprise" if _is_admin() else "gratuito").capitalize()
+        _status_chip = _emp_ativa.get("status", "ativo")
+        _nome_emp    = (_emp_ativa.get("nome", "Admin") if _emp_ativa else "—")[:22]
+        _cor_status  = {"ativo":"#27ae60","trial":"#f39c12","suspenso":"#e74c3c","cancelado":"#7f8c8d"}.get(_status_chip,"#7f8c8d")
+        _utils_ok_lbl = "✓ tenant_utils carregado" if _TENANT_UTILS_OK else "⚠ usando fallback"
         st.markdown(
             f"<div style='background:rgba(16,64,160,0.08);border:1px solid rgba(16,64,160,0.18);"
             f"border-radius:10px;padding:7px 10px;margin:4px 0 8px;font-size:10.5px;color:#0d1e50'>"
