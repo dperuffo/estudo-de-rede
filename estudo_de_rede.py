@@ -2913,14 +2913,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",  # sempre aberta
 )
 
-# ── Fase 1: diagnóstico (remover após confirmar) ─────────────────────────────
-if not st.session_state.get("_f1_diag_shown"):
-    st.session_state["_f1_diag_shown"] = True
-    try:
-        _ok_diag = _TENANT_UTILS_OK
-    except NameError:
-        _ok_diag = None
-    st.toast("Fase 1: tenant_utils OK" if _ok_diag else f"Fase 1: fallback (ok={_ok_diag})")
+# ── Fase 1: diagnóstico incondicional ────────────────────────────────────────
+st.error(f"FASE1_DIAG: _TENANT_UTILS_OK={_TENANT_UTILS_OK}")
 
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
