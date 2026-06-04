@@ -4637,6 +4637,16 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             banner_tenant_suspenso()   # bloqueia se suspenso/cancelado
             banner_trial()             # avisa se trial expirando
 
+        # ── Fase 1: diagnóstico (remover após confirmar) ──────────────────
+        if not st.session_state.get("_f1_diag_shown"):
+            st.session_state["_f1_diag_shown"] = True
+            try:
+                _ok = _TENANT_UTILS_OK
+            except NameError:
+                _ok = None
+            _msg = "Fase 1 OK — tenant_utils carregado" if _ok else f"Fase 1 — fallback ativo (ok={_ok})"
+            st.toast(_msg)
+
 
 def _profrotas_para_df_analise(cnpj_frota: str | None = None,
                                 dias: int = 180) -> "pd.DataFrame":
@@ -15369,16 +15379,6 @@ with st.sidebar:
                 del st.session_state[_k]
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
-
-    # ── Fase 1: diagnóstico ───────────────────────────────────────────────
-    if not st.session_state.get("_f1_diag_shown"):
-        st.session_state["_f1_diag_shown"] = True
-        try:
-            _ok = _TENANT_UTILS_OK
-        except NameError:
-            _ok = None
-        _msg = "Fase 1: tenant_utils carregado OK" if _ok is True else ("Fase 1: usando fallback" if _ok is False else "Fase 1: _TENANT_UTILS_OK nao definido")
-        st.toast(_msg)
 
     # ── Startup único por sessão: GitHub sync + restauração do banco ──────
     # Agrupa todas as operações de startup com guard de session_state.
