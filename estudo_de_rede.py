@@ -2913,8 +2913,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",  # sempre aberta
 )
 
-# ── Fase 1: diagnóstico incondicional ────────────────────────────────────────
-st.error(f"FASE1_DIAG: _TENANT_UTILS_OK={_TENANT_UTILS_OK}")
 
 # ─── CSS Global + Responsivo ───────────────────────────────────────
 st.markdown("""
