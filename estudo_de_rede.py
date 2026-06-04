@@ -13,7 +13,8 @@ try:
         dias_restantes_trial, get_tenant_info, LIMITES_PLANO,
     )
     _TENANT_UTILS_OK = True
-except ImportError:
+except Exception:
+    # Captura ImportError, SyntaxError, e qualquer outro erro de importação
     _TENANT_UTILS_OK = False
     # Fallbacks seguros — funcionam mesmo sem o módulo instalado
     def plano_permite(f): return True          # noqa: E704
@@ -15370,7 +15371,14 @@ with st.sidebar:
             st.rerun()
 
     # ── Fase 1: diagnóstico ───────────────────────────────────────────────
-    st.sidebar.caption(f"Fase 1 · tenant_utils: {'✓' if _TENANT_UTILS_OK else '⚠ fallback'}")
+    if not st.session_state.get("_f1_diag_shown"):
+        st.session_state["_f1_diag_shown"] = True
+        try:
+            _ok = _TENANT_UTILS_OK
+        except NameError:
+            _ok = None
+        _msg = "Fase 1: tenant_utils carregado OK" if _ok is True else ("Fase 1: usando fallback" if _ok is False else "Fase 1: _TENANT_UTILS_OK nao definido")
+        st.toast(_msg)
 
     # ── Startup único por sessão: GitHub sync + restauração do banco ──────
     # Agrupa todas as operações de startup com guard de session_state.
