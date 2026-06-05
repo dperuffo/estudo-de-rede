@@ -32,9 +32,10 @@ APP_URL = os.environ.get("APP_URL", "https://fxgestaodefrotasonline.com")
 # Price IDs dos planos (Stripe)
 PLANOS = {
     "gratuito":    {"price_id": None,                              "max_usuarios": 1,  "max_veiculos": 10},
-    "basico":      {"price_id": "price_1Tf1rIRoRAomG8bPJOQP0T8E", "max_usuarios": 5,  "max_veiculos": 50},
-    "profissional":{"price_id": "price_1Tf1sQRoRAomG8bPEvbWIqsj", "max_usuarios": 20, "max_veiculos": 200},
-    "enterprise":  {"price_id": "price_1Tf1tHRoRAomG8bPBw9zuWvl", "max_usuarios": -1, "max_veiculos": -1},
+    "basico":      {"price_id": "price_1Tf2ftRoRAomG8bP8hqJDGNC", "max_usuarios": 5,  "max_veiculos": 50},
+    "profissional":{"price_id": "price_1Tf2gJRoRAomG8bPxUCKnKZy", "max_usuarios": 20, "max_veiculos": 200},
+    "enterprise":  {"price_id": "price_1Tf2goRoRAomG8bPU40Yll9M", "max_usuarios": -1, "max_veiculos": -1},
+}
 }
 
 # Mapeamento price_id → nome do plano
