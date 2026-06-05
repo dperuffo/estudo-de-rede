@@ -1,2 +1,1 @@
-[deploy]
-startCommand = "sh -c '$START_COMMAND'"
+startCommand = "bash start.sh"
