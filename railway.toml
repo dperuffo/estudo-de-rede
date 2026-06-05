@@ -6,7 +6,7 @@ builder = "NIXPACKS"
 buildCommand = "pip install -r requirements.txt"
 
 [deploy]
-startCommand    = "sh -c 'streamlit run estudo_de_rede.py --server.port 8501 --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection true & sleep 5 && python webhook_server.py'"
+startCommand = "sh -c 'pip install stripe fastapi uvicorn python-multipart httpx --quiet && streamlit run estudo_de_rede.py --server.port 8501 --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection true & sleep 10 && python webhook_server.py'"
 healthcheckPath = "/_stcore/health"
 healthcheckTimeout = 30
 restartPolicyType  = "ON_FAILURE"
