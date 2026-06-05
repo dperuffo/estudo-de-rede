@@ -36,7 +36,6 @@ PLANOS = {
     "profissional":{"price_id": "price_1Tf2gJRoRAomG8bPxUCKnKZy", "max_usuarios": 20, "max_veiculos": 200},
     "enterprise":  {"price_id": "price_1Tf2goRoRAomG8bPU40Yll9M", "max_usuarios": -1, "max_veiculos": -1},
 }
-}
 
 # Mapeamento price_id → nome do plano
 PRICE_ID_PARA_PLANO = {v["price_id"]: k for k, v in PLANOS.items() if v["price_id"]}
