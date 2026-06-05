@@ -340,12 +340,24 @@ def _br_int(v) -> str:
 # ═══════════════════════════════════════════════════════════════════
 
 def _db_client():
-    """Retorna o cliente Supabase. Cria uma vez por sessão via session_state."""
+    """Retorna o cliente Supabase. Cria uma vez por sessão via session_state.
+    Suporta Railway (env vars) e Streamlit Cloud (secrets.toml) automaticamente.
+    """
     if "_supabase_client" not in st.session_state:
+        _url, _key = "", ""
+        # 1. Env vars — Railway, Render, qualquer PaaS
+        _url = os.environ.get("SUPABASE_URL", "")
+        _key = os.environ.get("SUPABASE_KEY", "")
+        # 2. st.secrets — Streamlit Cloud / local secrets.toml (pode lançar exceção)
+        if not (_url and _key):
+            try:
+                _url = st.secrets.get("supabase", {}).get("url", "") or _url
+                _key = st.secrets.get("supabase", {}).get("key", "") or _key
+            except Exception:
+                pass
+        # 3. Criar cliente
         try:
             from supabase import create_client
-            _url = st.secrets.get("supabase", {}).get("url") or os.environ.get("SUPABASE_URL", "")
-            _key = st.secrets.get("supabase", {}).get("key") or os.environ.get("SUPABASE_KEY", "")
             if _url and _key:
                 st.session_state["_supabase_client"] = create_client(_url, _key)
             else:
