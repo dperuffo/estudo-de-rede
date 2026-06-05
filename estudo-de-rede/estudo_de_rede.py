@@ -3746,13 +3746,28 @@ except ImportError:
     _OAUTH_LIB_OK   = False
 
 
-def _oauth_cfg(provider: str) -> bool:
-    """True se as credenciais do provider existem em st.secrets."""
+def _oauth_get(provider: str, key: str, env_fallback: str = "") -> str:
+    """Lê credencial OAuth de st.secrets ou variável de ambiente (Railway)."""
     try:
-        return (provider in st.secrets
-                and bool(st.secrets[provider].get("client_id")))
+        val = st.secrets.get(provider, {}).get(key, "")
+        if val:
+            return val
     except Exception:
-        return False
+        pass
+    return os.environ.get(env_fallback, "")
+
+
+def _oauth_cfg(provider: str) -> bool:
+    """True se as credenciais do provider existem em st.secrets ou env vars."""
+    if provider == "oauth_google":
+        return bool(_OAUTH_LIB_OK and (
+            _oauth_get("oauth_google", "client_id", "GOOGLE_CLIENT_ID")
+        ))
+    if provider == "oauth_microsoft":
+        return bool(_OAUTH_LIB_OK and (
+            _oauth_get("oauth_microsoft", "client_id", "AZURE_CLIENT_ID")
+        ))
+    return False
 
 
 _OAUTH_GOOGLE_OK = _OAUTH_LIB_OK and _oauth_cfg("oauth_google")
@@ -4305,17 +4320,20 @@ def _auth_login_page():
         </script>
         """, unsafe_allow_html=True)
 
-        # ── Redirect URI ──
+        # ── Redirect URI — st.secrets > env var > fallback Streamlit Cloud ──
         try:
-            _redir = st.secrets.get("redirect_uri") or "https://fleetnetworkintelligence.streamlit.app/"
+            _redir = (st.secrets.get("redirect_uri")
+                      or os.environ.get("OAUTH_REDIRECT_URI")
+                      or "https://fleetnetworkintelligence.streamlit.app/")
         except Exception:
-            _redir = "https://fleetnetworkintelligence.streamlit.app/"
+            _redir = (os.environ.get("OAUTH_REDIRECT_URI")
+                      or "https://fleetnetworkintelligence.streamlit.app/")
 
         # ── Botão Google ──
         if _OAUTH_GOOGLE_OK:
             _g_oauth = OAuth2Component(
-                client_id=st.secrets["oauth_google"]["client_id"],
-                client_secret=st.secrets["oauth_google"]["client_secret"],
+                client_id=_oauth_get("oauth_google","client_id","GOOGLE_CLIENT_ID"),
+                client_secret=_oauth_get("oauth_google","client_secret","GOOGLE_CLIENT_SECRET"),
                 authorize_endpoint="https://accounts.google.com/o/oauth2/v2/auth",
                 token_endpoint="https://oauth2.googleapis.com/token",
                 refresh_token_endpoint="https://oauth2.googleapis.com/token",
