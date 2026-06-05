@@ -5,7 +5,7 @@
 
 [server]
 headless            = true
-port                = 8501
+# port removido — Railway injeta $PORT; Streamlit Cloud usa 8501 por padrão
 enableCORS          = false
 enableXsrfProtection = false
 maxUploadSize       = 10        # MB — para upload da planilha Pró-Frotas
