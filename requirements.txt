@@ -30,3 +30,8 @@ passlib[bcrypt]>=1.7.4    # hashing de senhas (para futura gestão de usuários 
 
 pyotp>=2.9.0              # TOTP para autenticação de dois fatores (MFA)
 qrcode[pil]>=7.4.0        # geração de QR code para configuração do MFA
+stripe>=8.0.0
+fastapi>=0.110.0
+uvicorn>=0.27.0
+python-multipart>=0.0.9
+httpx>=0.27.0
