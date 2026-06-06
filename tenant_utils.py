@@ -405,7 +405,7 @@ def assert_tenant_isolation(
             resultados[tabela] = True  # erro = tabela não existe ou vazia
     return resultados
 
-# ADICIONE ESTE BLOCO NO FINAL DO tenant_utils.py NO GITHUB
+
 # ─────────────────────────────────────────────────────────────────────────────
 # STRIPE CHECKOUT
 # ─────────────────────────────────────────────────────────────────────────────
@@ -420,13 +420,16 @@ APP_URL = os.environ.get("APP_URL", "https://fxgestaodefrotasonline.com")
 
 
 def criar_checkout_url(plano: str, empresa_id: str, email: str) -> str | None:
-    """Cria sessão de checkout no Stripe e retorna a URL de pagamento."""
+    """
+    Cria sessão de checkout no Stripe e retorna a URL de pagamento.
+    """
     try:
         import stripe
         from supabase import create_client
         stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
         sb = create_client(os.environ.get("SUPABASE_URL", ""), os.environ.get("SUPABASE_KEY", ""))
 
+        # Busca ou cria customer
         empresa = sb.table("empresas").select("stripe_customer_id").eq("id", empresa_id).single().execute()
         customer_id = empresa.data.get("stripe_customer_id") if empresa.data else None
 
@@ -445,7 +448,7 @@ def criar_checkout_url(plano: str, empresa_id: str, email: str) -> str | None:
             metadata={"empresa_id": empresa_id, "plano": plano},
         )
         return session.url
-    except Exception:
+    except Exception as e:
         return None
 
 
