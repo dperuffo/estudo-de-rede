@@ -15401,6 +15401,9 @@ with st.sidebar:
                 del st.session_state[_k]
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
+        # ── Botão de Planos & Assinatura ──────────────────────────────
+        if st.button("🚀 Planos & Assinatura", use_container_width=True, key="btn_planos"):
+            st.session_state["_mostrar_planos"] = True
 
     # ── Startup único por sessão: GitHub sync + restauração do banco ──────
     # Agrupa todas as operações de startup com guard de session_state.
@@ -18007,6 +18010,7 @@ _TOUR_STEPS = [
 
 @st.dialog("🧭 Fleet Network Intelligence — Onboarding", width="large")
 def _tour_dialog():
+
     """Onboarding inteligente: quick actions + próximos passos + tutorial opcional."""
 
     _ob_mode = st.session_state.get("_ob_mode", "welcome")  # "welcome" | "tutorial"
@@ -18307,6 +18311,17 @@ if st.session_state.get("_tour_ativo", False):
     st.session_state.setdefault("_ob_mode", "welcome")
     st.session_state.setdefault("_tour_step", 0)
     _tour_dialog()
+
+# ── Tela de Planos & Assinatura ────────────────────────────────────────
+if st.session_state.get("_mostrar_planos"):
+    st.session_state["_mostrar_planos"] = False
+    try:
+        from tenant_utils import mostrar_tela_planos
+        mostrar_tela_planos()
+        st.stop()
+    except Exception as _e:
+        st.error(f"Erro ao carregar tela de planos: {_e}")
+
 
 
 # ── BLOCO ANTIGO REMOVIDO (era st.markdown com script JS — não funciona no Streamlit) ──
