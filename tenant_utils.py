@@ -404,3 +404,125 @@ def assert_tenant_isolation(
         except Exception:
             resultados[tabela] = True  # erro = tabela não existe ou vazia
     return resultados
+
+# ADICIONE ESTE BLOCO NO FINAL DO tenant_utils.py NO GITHUB
+# ─────────────────────────────────────────────────────────────────────────────
+# STRIPE CHECKOUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+STRIPE_PRICE_IDS = {
+    "basico":       "price_1Tf2ftRoRAomG8bP8hqJDGNC",
+    "profissional": "price_1Tf2gJRoRAomG8bPxUCKnKZy",
+    "enterprise":   "price_1Tf2goRoRAomG8bPU40Yll9M",
+}
+
+APP_URL = os.environ.get("APP_URL", "https://fxgestaodefrotasonline.com")
+
+
+def criar_checkout_url(plano: str, empresa_id: str, email: str) -> str | None:
+    """Cria sessão de checkout no Stripe e retorna a URL de pagamento."""
+    try:
+        import stripe
+        from supabase import create_client
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+        sb = create_client(os.environ.get("SUPABASE_URL", ""), os.environ.get("SUPABASE_KEY", ""))
+
+        empresa = sb.table("empresas").select("stripe_customer_id").eq("id", empresa_id).single().execute()
+        customer_id = empresa.data.get("stripe_customer_id") if empresa.data else None
+
+        if not customer_id:
+            customer = stripe.Customer.create(email=email, metadata={"empresa_id": empresa_id})
+            customer_id = customer.id
+            sb.table("empresas").update({"stripe_customer_id": customer_id}).eq("id", empresa_id).execute()
+
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[{"price": STRIPE_PRICE_IDS[plano], "quantity": 1}],
+            mode="subscription",
+            success_url=f"{APP_URL}?checkout=success",
+            cancel_url=f"{APP_URL}?checkout=cancelled",
+            metadata={"empresa_id": empresa_id, "plano": plano},
+        )
+        return session.url
+    except Exception:
+        return None
+
+
+def criar_portal_url(empresa_id: str) -> str | None:
+    """Retorna URL do portal de billing do Stripe."""
+    try:
+        import stripe
+        from supabase import create_client
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+        sb = create_client(os.environ.get("SUPABASE_URL", ""), os.environ.get("SUPABASE_KEY", ""))
+
+        empresa = sb.table("empresas").select("stripe_customer_id").eq("id", empresa_id).single().execute()
+        customer_id = empresa.data.get("stripe_customer_id") if empresa.data else None
+        if not customer_id:
+            return None
+
+        portal = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=APP_URL,
+        )
+        return portal.url
+    except Exception:
+        return None
+
+
+def mostrar_tela_planos() -> None:
+    """Renderiza tela de upgrade de planos no Streamlit."""
+    import streamlit as st
+    empresa = st.session_state.get("_empresa_ativa") or {}
+    empresa_id = empresa.get("id", "")
+    email = st.session_state.get("user_email", "")
+    plano_atual = empresa.get("plano", "gratuito")
+
+    st.title("🚀 Planos FNI Pró-Frotas")
+    st.caption("Escolha o plano ideal para sua frota.")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.markdown("### 🆓 Gratuito")
+        st.markdown("**R$ 0/mês**")
+        st.markdown("- 1 usuário\n- 10 veículos\n- 2 postos")
+        if plano_atual == "gratuito":
+            st.button("Plano atual", disabled=True, key="btn_gr")
+
+    with col2:
+        st.markdown("### 📦 Básico")
+        st.markdown("**R$ 149/mês**")
+        st.markdown("- 5 usuários\n- 50 veículos\n- 10 postos\n- Exportação Excel")
+        if plano_atual != "basico":
+            if st.button("Assinar Básico", key="btn_ba", type="primary"):
+                url = criar_checkout_url("basico", empresa_id, email)
+                if url:
+                    st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
+
+    with col3:
+        st.markdown("### ⭐ Pro")
+        st.markdown("**R$ 349/mês**")
+        st.markdown("- 20 usuários\n- 200 veículos\n- Postos ilimitados\n- Relatórios\n- API REST")
+        if plano_atual != "profissional":
+            if st.button("Assinar Pro", key="btn_pr", type="primary"):
+                url = criar_checkout_url("profissional", empresa_id, email)
+                if url:
+                    st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
+
+    with col4:
+        st.markdown("### 🏢 Enterprise")
+        st.markdown("**R$ 899/mês**")
+        st.markdown("- Ilimitado\n- SSO SAML\n- SLA 99,95%\n- Suporte dedicado")
+        if plano_atual != "enterprise":
+            if st.button("Assinar Enterprise", key="btn_en", type="primary"):
+                url = criar_checkout_url("enterprise", empresa_id, email)
+                if url:
+                    st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
+
+    st.divider()
+    if st.button("⚙️ Gerenciar assinatura atual"):
+        url = criar_portal_url(empresa_id)
+        if url:
+            st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
