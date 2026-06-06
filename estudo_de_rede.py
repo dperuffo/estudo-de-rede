@@ -15401,6 +15401,8 @@ with st.sidebar:
                 del st.session_state[_k]
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
+            if st.button("🚀 Planos & Assinatura", use_container_width=True, key="btn_planos"):
+            st.session_state["_mostrar_planos"] = True
         # ── Botão de Planos & Assinatura ──────────────────────────────
         if st.button("🚀 Planos & Assinatura", use_container_width=True, key="btn_planos"):
             st.session_state["_mostrar_planos"] = True
@@ -18311,6 +18313,24 @@ if st.session_state.get("_tour_ativo", False):
     st.session_state.setdefault("_ob_mode", "welcome")
     st.session_state.setdefault("_tour_step", 0)
     _tour_dialog()
+    # ── Tela de Planos & Assinatura ──────────────────────────────────
+if st.session_state.get("_mostrar_planos"):
+    st.session_state["_mostrar_planos"] = False
+    try:
+        from tenant_utils import mostrar_tela_planos
+        mostrar_tela_planos()
+        st.stop()
+    except Exception as _e:
+        st.error(f"Erro ao carregar tela de planos: {_e}")
+    # ── Tela de Planos & Assinatura ──────────────────────────────────
+if st.session_state.get("_mostrar_planos"):
+    st.session_state["_mostrar_planos"] = False
+    try:
+        from tenant_utils import mostrar_tela_planos
+        mostrar_tela_planos()
+        st.stop()
+    except Exception as _e:
+        st.error(f"Erro ao carregar tela de planos: {_e}")
 
 # ── Tela de Planos & Assinatura ────────────────────────────────────────
 if st.session_state.get("_mostrar_planos"):
