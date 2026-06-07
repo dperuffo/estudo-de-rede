@@ -15416,6 +15416,9 @@ with st.sidebar:
         )
         st.markdown(_card_html, unsafe_allow_html=True)
 
+        if st.button("⭐ Avaliar plataforma", use_container_width=True, key="btn_avaliar"):
+            st.session_state["_mostrar_avaliacao"] = True
+            st.rerun()
         if st.button("🎫 Suporte & Melhorias", use_container_width=True, key="btn_tickets"):
             st.session_state["_mostrar_tickets"] = True
             st.rerun()
@@ -18369,6 +18372,25 @@ if st.session_state.get("_tour_ativo", False):
     st.session_state.setdefault("_ob_mode", "welcome")
     st.session_state.setdefault("_tour_step", 0)
     _tour_dialog()
+
+# ── Tela Avaliacao ──────────────────────────────────────────────────────
+if st.session_state.get("_mostrar_avaliacao"):
+    try:
+        from avaliacoes import mostrar_avaliacao, mostrar_painel_admin_avaliacoes
+        if _is_admin():
+            _av_aba = st.radio("Visao", ["⭐ Avaliar", "📊 Ver avaliacoes"], horizontal=True, key="av_visao")
+            if _av_aba == "📊 Ver avaliacoes":
+                mostrar_painel_admin_avaliacoes()
+                if st.button("← Voltar", key="btn_voltar_av_admin"):
+                    st.session_state.pop("_mostrar_avaliacao", None)
+                    st.rerun()
+            else:
+                mostrar_avaliacao()
+        else:
+            mostrar_avaliacao()
+    except Exception as _e:
+        st.error(f"Erro ao carregar avaliacao: {_e}")
+    st.stop()
 
 # ── Tela Suporte & Melhorias ─────────────────────────────────────────────
 if st.session_state.get("_mostrar_tickets"):
