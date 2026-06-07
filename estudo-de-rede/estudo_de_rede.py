@@ -4572,6 +4572,11 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
         # Garante chave de empresa ativa do admin (pode ser None = todas)
         if "_admin_empresa_filtro" not in st.session_state:
             st.session_state["_admin_empresa_filtro"] = None
+        # Modo simulação: admin vê o app como usuário de outra empresa
+        if st.session_state.get("_simulando_empresa"):
+            _sim_emp = st.session_state["_simulando_empresa"]
+            st.session_state["_empresa_ativa"] = _sim_emp
+            st.session_state["_empresas_usuario"] = [_sim_emp]
         # Preview do onboarding (apenas admin)
         if st.session_state.get("_preview_onboarding"):
             if st.button("Fechar preview", key="btn_fechar_preview"):
@@ -16046,6 +16051,28 @@ with st.sidebar:
                         break
         else:
             st.caption("🌐 Admin · Nenhuma empresa cadastrada")
+        # Botão de simulação de usuário
+        _filtro_atual = st.session_state.get("_admin_empresa_filtro")
+        if _filtro_atual:
+            if st.button("👤 Simular usuário desta empresa", use_container_width=True, key="btn_simular_usuario"):
+                # Buscar dados completos da empresa selecionada
+                _emp_sim = next((e for e in st.session_state.get("_todas_empresas", []) if e["id"] == _filtro_atual), None)
+                if _emp_sim:
+                    st.session_state["_simulando_empresa"] = {
+                        "id":    _emp_sim["id"],
+                        "nome":  _emp_sim["nome"],
+                        "plano": _emp_sim.get("plano", "gratuito"),
+                        "status": _emp_sim.get("status", "ativo"),
+                        "trial_ends_at": _emp_sim.get("trial_ends_at"),
+                        "role":  "viewer",
+                    }
+                    st.rerun()
+        if st.session_state.get("_simulando_empresa"):
+            _sim = st.session_state["_simulando_empresa"]
+            st.warning(f"👤 Simulando: **{_sim['nome']}**")
+            if st.button("❌ Sair da simulação", use_container_width=True, key="btn_sair_simulacao"):
+                st.session_state.pop("_simulando_empresa", None)
+                st.rerun()
     else:
         # Usuário comum: mostra empresa ativa + troca de contexto se tiver múltiplas
         _emps_sb = st.session_state.get("_empresas_usuario", [])
