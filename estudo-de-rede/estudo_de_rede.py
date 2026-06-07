@@ -1433,7 +1433,6 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
 
 
 @st.cache_data(show_spinner=False, ttl=300)  # 5 min — invalidar após sync
-@st.cache_data(ttl=1800, show_spinner=False)
 def _db_carregar_abastecimentos() -> list:
     """
     Carrega abastecimentos do Supabase com paginação automática.
@@ -1638,7 +1637,6 @@ def _db_carregar_cnpjs_postos_gf() -> set:
 
 
 @st.cache_data(show_spinner=False, ttl=600)  # 10 min — dados de rede mudam menos
-@st.cache_data(ttl=3600, show_spinner=False)
 def _db_carregar_postos_gf_df() -> "pd.DataFrame":
     """
     Retorna DataFrame completo da rede GF (cnpj, razao_social,
@@ -1690,7 +1688,6 @@ def _normalizar_cnpj_str(v) -> str:
 
 
 @st.cache_data(show_spinner=False, ttl=300)  # 5 min
-@st.cache_data(ttl=3600, show_spinner=False)
 def _db_carregar_acordos() -> "pd.DataFrame":
     """
     Carrega acordos de preço do Supabase com paginação automática.
@@ -4670,7 +4667,17 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
         if _empresa_ativa:
             banner_tenant_suspenso()   # bloqueia se suspenso/cancelado
             banner_trial()             # avisa se trial expirando
-
+        # Preview do onboarding (apenas admin)
+        if st.session_state.get("_preview_onboarding"):
+            if st.button("Fechar preview", key="btn_fechar_preview"):
+                st.session_state.pop("_preview_onboarding", None)
+                st.rerun()
+            try:
+                from onboarding import mostrar_tela_onboarding
+                mostrar_tela_onboarding("preview@fni.com.br")
+            except Exception as _e:
+                st.error(f"Erro no preview: {_e}")
+            st.stop()
 
 
 
@@ -15392,18 +15399,10 @@ with st.sidebar:
         )
         st.markdown(_card_html, unsafe_allow_html=True)
 
-        if st.button(
-            "🚀 Planos & Assinatura",
-            use_container_width=True,
-            key="btn_planos",
-        ):
+        if st.button("🚀 Planos & Assinatura", use_container_width=True, key="btn_planos"):
             st.session_state["_mostrar_planos"] = True
             st.rerun()
-        if st.button(
-            "👁️ Preview Onboarding",
-            use_container_width=True,
-            key="btn_preview_onboard",
-        ):
+        if st.button("👁️ Preview Onboarding", use_container_width=True, key="btn_preview_onboard"):
             st.session_state["_preview_onboarding"] = True
             st.rerun()
         if st.button(
@@ -15419,8 +15418,23 @@ with st.sidebar:
                 del st.session_state[_k]
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
+            
+    # ── Startup único por sessão: GitHub sync + restauração do banco ──────
+    # Agrupa todas as operações de startup com guard de session_state.
+    # Sem o guard, cada clique do usuário re-executava todas essas chamadas.
+    if not st.session_state.get("_startup_done"):
+        st.session_state["_startup_done"] = True
 
-# Preview do onboarding (admin) — fora do with sidebar
+        # Sincroniza planilhas base GitHub → Supabase → session_state
+        _startup_sincronizar_github()
+
+        # Restaura dados do Supabase (fallback quando GitHub não preencheu)
+        _db_restaurar_postos_gf()
+        _db_restaurar_postos_cercados()
+        _restaurar_estado_pp_do_supabase()
+        _tele_restaurar_do_supabase()
+
+# Preview do onboarding (admin)
 if st.session_state.get("_preview_onboarding"):
     if st.button("Fechar preview", key="btn_fechar_preview"):
         st.session_state.pop("_preview_onboarding", None)
@@ -15432,34 +15446,18 @@ if st.session_state.get("_preview_onboarding"):
         st.error(f"Erro no preview: {_e}")
     st.stop()
 
-# ── Startup único por sessão: GitHub sync + restauração do banco ──────
-# Agrupa todas as operações de startup com guard de session_state.
-# Sem o guard, cada clique do usuário re-executava todas essas chamadas.
-if not st.session_state.get("_startup_done"):
-    st.session_state["_startup_done"] = True
+    # Reconstrói labels de serviços se necessário (pode mudar via upload)
+    if ("pf_coords_df" in st.session_state
+            and not st.session_state["pf_coords_df"].empty
+            and not st.session_state.get("_servicos_pf_labels")):
+        _atualizar_servicos_pf(st.session_state["pf_coords_df"])
 
-    # Sincroniza planilhas base GitHub → Supabase → session_state
-    # F3: paraleliza startup para reduzir tempo de carregamento
-    import concurrent.futures as _cf
-    with _cf.ThreadPoolExecutor(max_workers=2) as _ex:
-        _f1 = _ex.submit(_startup_sincronizar_github)
-        _f2 = _ex.submit(_db_restaurar_postos_gf)
-        _f3 = _ex.submit(_db_restaurar_postos_cercados)
-        _f4 = _ex.submit(_restaurar_estado_pp_do_supabase)
-        _f5 = _ex.submit(_tele_restaurar_do_supabase)
-        for _f in [_f1,_f2,_f3,_f4,_f5]: _f.result()
-# Reconstrói labels de serviços se necessário (pode mudar via upload)
-if ("pf_coords_df" in st.session_state
-        and not st.session_state["pf_coords_df"].empty
-        and not st.session_state.get("_servicos_pf_labels")):
-    _atualizar_servicos_pf(st.session_state["pf_coords_df"])
-
-# ── Carrega acordos de preço do Supabase ─────────────────
-# Tenta carregar sempre que acordos_df não existe OU está vazio,
-# com debounce de 5 minutos para não sobrecarregar o banco.
-_ac_need_load = "acordos_df" not in st.session_state or (
-    st.session_state.get("acordos_df", pd.DataFrame()).empty
-    and time.time() - st.session_state.get("_acordos_tentado_ts", 0) > 300
+    # ── Carrega acordos de preço do Supabase ─────────────────
+    # Tenta carregar sempre que acordos_df não existe OU está vazio,
+    # com debounce de 5 minutos para não sobrecarregar o banco.
+    _ac_need_load = "acordos_df" not in st.session_state or (
+        st.session_state.get("acordos_df", pd.DataFrame()).empty
+        and time.time() - st.session_state.get("_acordos_tentado_ts", 0) > 300
     )
     if _ac_need_load:
         st.session_state["_acordos_tentado_ts"] = time.time()
