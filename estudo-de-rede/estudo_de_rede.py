@@ -18375,7 +18375,11 @@ if st.session_state.get("_mostrar_tickets"):
     try:
         from tickets import mostrar_painel_tickets, mostrar_painel_admin_tickets
         if _is_admin():
-            mostrar_painel_admin_tickets()
+            _tk_aba = st.radio("Visão", ["👤 Meus tickets", "🔧 Gerenciar todos"], horizontal=True, key="tk_visao")
+            if _tk_aba == "🔧 Gerenciar todos":
+                mostrar_painel_admin_tickets()
+            else:
+                mostrar_painel_tickets()
         else:
             mostrar_painel_tickets()
         if st.button("← Voltar ao mapa", key="btn_voltar_tickets"):
@@ -18384,7 +18388,6 @@ if st.session_state.get("_mostrar_tickets"):
     except Exception as _e:
         st.error(f"Erro ao carregar suporte: {_e}")
     st.stop()
-
 # ── Tela LGPD ────────────────────────────────────────────────────────────
 if st.session_state.get("_mostrar_lgpd"):
     st.session_state["_mostrar_lgpd"] = False
