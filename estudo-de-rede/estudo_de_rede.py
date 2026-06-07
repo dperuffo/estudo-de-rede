@@ -15419,9 +15419,6 @@ with st.sidebar:
         if st.button("🎫 Suporte & Melhorias", use_container_width=True, key="btn_tickets"):
             st.session_state["_mostrar_tickets"] = True
             st.rerun()
-        if st.button("🎫 Suporte & Melhorias", use_container_width=True, key="btn_tickets"):
-            st.session_state["_mostrar_tickets"] = True
-            st.rerun()
         if st.button("🔒 Privacidade & LGPD", use_container_width=True, key="btn_lgpd"):
             st.session_state["_mostrar_lgpd"] = True
             st.rerun()
@@ -18379,19 +18376,6 @@ if st.session_state.get("_mostrar_tickets"):
     try:
         from tickets import mostrar_painel_tickets
         mostrar_painel_tickets()
-    except Exception as _e:
-        st.error(f"Erro ao carregar suporte: {_e}")
-    st.stop()
-
-# ── Tela Suporte & Melhorias (usuario) ──────────────────────────────────
-if st.session_state.get("_mostrar_tickets"):
-    st.session_state["_mostrar_tickets"] = False
-    try:
-        from tickets import mostrar_painel_tickets, mostrar_painel_admin_tickets
-        if _is_admin():
-            mostrar_painel_admin_tickets()
-        else:
-            mostrar_painel_tickets()
     except Exception as _e:
         st.error(f"Erro ao carregar suporte: {_e}")
     st.stop()
@@ -35045,7 +35029,6 @@ elif modo == "🛰️ Telemetria":
             with _tc2:
                 _v_tanque    = st.number_input("Capacidade do tanque (L) *", min_value=10.0, max_value=1000.0, value=300.0, step=10.0)
                 _v_consumo   = st.number_input("Consumo esperado (km/L) *", min_value=1.0, max_value=50.0, value=7.5, step=0.5)
-            with _tc3:
             with _tc3:
                 _v_tipo      = st.selectbox("Tipo de veículo *", ["Leve", "Pesado"], help="Leve: carros, vans, pickups. Pesado: caminhões, ônibus.")
                 _v_empresa   = st.text_input("Empresa", placeholder="Nome da empresa")
