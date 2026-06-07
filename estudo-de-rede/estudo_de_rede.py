@@ -4572,6 +4572,17 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
         # Garante chave de empresa ativa do admin (pode ser None = todas)
         if "_admin_empresa_filtro" not in st.session_state:
             st.session_state["_admin_empresa_filtro"] = None
+        # Preview do onboarding (apenas admin)
+        if st.session_state.get("_preview_onboarding"):
+            if st.button("Fechar preview", key="btn_fechar_preview"):
+                st.session_state.pop("_preview_onboarding", None)
+                st.rerun()
+            try:
+                from onboarding import mostrar_tela_onboarding
+                mostrar_tela_onboarding("preview@fni.com.br")
+            except Exception as _e:
+                st.error(f"Erro no preview: {_e}")
+            st.stop()
     else:
         # Usuário comum: resolver empresas na primeira execução da sessão
         if "_empresas_usuario" not in st.session_state:
