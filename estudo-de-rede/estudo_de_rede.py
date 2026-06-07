@@ -15416,6 +15416,12 @@ with st.sidebar:
         )
         st.markdown(_card_html, unsafe_allow_html=True)
 
+        if st.button("🎫 Suporte & Melhorias", use_container_width=True, key="btn_tickets"):
+            st.session_state["_mostrar_tickets"] = True
+            st.rerun()
+        if st.button("🎫 Suporte & Melhorias", use_container_width=True, key="btn_tickets"):
+            st.session_state["_mostrar_tickets"] = True
+            st.rerun()
         if st.button("🔒 Privacidade & LGPD", use_container_width=True, key="btn_lgpd"):
             st.session_state["_mostrar_lgpd"] = True
             st.rerun()
@@ -18366,6 +18372,29 @@ if st.session_state.get("_tour_ativo", False):
     st.session_state.setdefault("_ob_mode", "welcome")
     st.session_state.setdefault("_tour_step", 0)
     _tour_dialog()
+
+# ── Tela Suporte & Melhorias ─────────────────────────────────────────────
+if st.session_state.get("_mostrar_tickets"):
+    st.session_state["_mostrar_tickets"] = False
+    try:
+        from tickets import mostrar_painel_tickets
+        mostrar_painel_tickets()
+    except Exception as _e:
+        st.error(f"Erro ao carregar suporte: {_e}")
+    st.stop()
+
+# ── Tela Suporte & Melhorias (usuario) ──────────────────────────────────
+if st.session_state.get("_mostrar_tickets"):
+    st.session_state["_mostrar_tickets"] = False
+    try:
+        from tickets import mostrar_painel_tickets, mostrar_painel_admin_tickets
+        if _is_admin():
+            mostrar_painel_admin_tickets()
+        else:
+            mostrar_painel_tickets()
+    except Exception as _e:
+        st.error(f"Erro ao carregar suporte: {_e}")
+    st.stop()
 
 # ── Tela LGPD ────────────────────────────────────────────────────────────
 if st.session_state.get("_mostrar_lgpd"):
