@@ -15439,14 +15439,15 @@ if st.session_state.get("_preview_onboarding"):
         st.session_state["_startup_done"] = True
 
         # Sincroniza planilhas base GitHub → Supabase → session_state
-        _startup_sincronizar_github()
-
-        # Restaura dados do Supabase (fallback quando GitHub não preencheu)
-        _db_restaurar_postos_gf()
-        _db_restaurar_postos_cercados()
-        _restaurar_estado_pp_do_supabase()
-        _tele_restaurar_do_supabase()
-
+        # F3: paraleliza startup para reduzir tempo de carregamento
+        import concurrent.futures as _cf
+        with _cf.ThreadPoolExecutor(max_workers=2) as _ex:
+            _f1 = _ex.submit(_startup_sincronizar_github)
+            _f2 = _ex.submit(_db_restaurar_postos_gf)
+            _f3 = _ex.submit(_db_restaurar_postos_cercados)
+            _f4 = _ex.submit(_restaurar_estado_pp_do_supabase)
+            _f5 = _ex.submit(_tele_restaurar_do_supabase)
+            for _f in [_f1,_f2,_f3,_f4,_f5]: _f.result()
     # Reconstrói labels de serviços se necessário (pode mudar via upload)
     if ("pf_coords_df" in st.session_state
             and not st.session_state["pf_coords_df"].empty
