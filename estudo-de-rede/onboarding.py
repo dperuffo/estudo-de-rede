@@ -171,7 +171,7 @@ def _etapa_boas_vindas(email: str) -> None:
     st.markdown("## 🚀 Comece seu teste grátis de 14 dias")
     st.markdown(
         f"Olá! Você está logado como **{email}**. "
-        "Vamos configurar sua empresa para começar a usar o FNI Pró-Frotas."
+        "Vamos configurar sua empresa para começar a usar o FNI Gestão de Frotas."
     )
 
     col1, col2, col3 = st.columns(3)
