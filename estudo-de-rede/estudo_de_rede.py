@@ -9239,6 +9239,7 @@ def _anp_carregar_historico_uf(uf: str, produto_pk: str = None,
         return pd.DataFrame()
 
 
+@st.cache_data(show_spinner=False, ttl=3600)
 def _auto_carregar_anp_repo():
     """
     Baixa precos_anp.xlsx do GitHub, processa e retorna (sheets, semana, erro).
@@ -18334,7 +18335,6 @@ def _tour_dialog():
 if st.session_state.get("_tour_ativo", False):
     st.session_state.setdefault("_ob_mode", "welcome")
     st.session_state.setdefault("_tour_step", 0)
-    _tour_dialog()
     _tour_dialog()
 # ── Tela de Planos & Assinatura ──────────────────────────────────
 if st.session_state.get("_mostrar_planos"):
