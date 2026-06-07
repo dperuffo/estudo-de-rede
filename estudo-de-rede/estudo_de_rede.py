@@ -35017,6 +35017,8 @@ elif modo == "🛰️ Telemetria":
                 _v_tanque    = st.number_input("Capacidade do tanque (L) *", min_value=10.0, max_value=1000.0, value=300.0, step=10.0)
                 _v_consumo   = st.number_input("Consumo esperado (km/L) *", min_value=1.0, max_value=50.0, value=7.5, step=0.5)
             with _tc3:
+            with _tc3:
+                _v_tipo      = st.selectbox("Tipo de veículo *", ["Leve", "Pesado"], help="Leve: carros, vans, pickups. Pesado: caminhões, ônibus.")
                 _v_empresa   = st.text_input("Empresa", placeholder="Nome da empresa")
                 _v_modelo    = st.text_input("Marca / Modelo", placeholder="Ex: Volvo FH 460")
 
@@ -35032,6 +35034,7 @@ elif modo == "🛰️ Telemetria":
                         "combustivel": _v_comb,
                         "tanque_l": _v_tanque,
                         "consumo_esp_kml": _v_consumo,
+                        "tipo_veiculo": _v_tipo,
                         "empresa": _v_empresa,
                         "modelo": _v_modelo,
                     })
@@ -35045,10 +35048,11 @@ elif modo == "🛰️ Telemetria":
 
             # Download do template
             import io as _io_lote
-            _template_cols = ["placa","combustivel","tanque_l","consumo_esp_kml","empresa","modelo"]
+            _template_cols = ["placa","combustivel","tanque_l","consumo_esp_kml","tipo_veiculo","empresa","modelo"]
             _template_data = [
-                ["ABC1D23","Diesel S-10",300.0,7.5,"Transportadora Exemplo","Volvo FH 460"],
-                ["DEF2E34","Diesel S-500",250.0,8.0,"Transportadora Exemplo","Mercedes Actros"],
+                ["ABC1D23","Diesel S-10",300.0,7.5,"Pesado","Transportadora Exemplo","Volvo FH 460"],
+                ["DEF2E34","Diesel S-500",250.0,8.0,"Pesado","Transportadora Exemplo","Mercedes Actros"],
+                ["GHI3F45","Gasolina",60.0,12.0,"Leve","Transportadora Exemplo","Toyota Hilux"],
             ]
             _df_template = pd.DataFrame(_template_data, columns=_template_cols)
             _buf_template = _io_lote.BytesIO()
@@ -35081,7 +35085,7 @@ elif modo == "🛰️ Telemetria":
                     _df_lote.columns = [c.lower().strip().replace(" ","_") for c in _df_lote.columns]
 
                     # Verificar colunas obrigatórias
-                    _cols_obrig = ["placa","combustivel","tanque_l","consumo_esp_kml"]
+                    _cols_obrig = ["placa","combustivel","tanque_l","consumo_esp_kml","tipo_veiculo"]
                     _faltando = [c for c in _cols_obrig if c not in _df_lote.columns]
                     if _faltando:
                         st.error(f"Colunas obrigatórias faltando: {', '.join(_faltando)}")
@@ -35091,6 +35095,8 @@ elif modo == "🛰️ Telemetria":
                         _df_lote["combustivel"] = _df_lote["combustivel"].astype(str).str.strip()
                         _df_lote["tanque_l"] = pd.to_numeric(_df_lote["tanque_l"], errors="coerce").fillna(300.0)
                         _df_lote["consumo_esp_kml"] = pd.to_numeric(_df_lote["consumo_esp_kml"], errors="coerce").fillna(7.5)
+                        _df_lote["tipo_veiculo"] = _df_lote.get("tipo_veiculo", pd.Series(["Leve"] * len(_df_lote))).fillna("Leve").astype(str)
+                        _df_lote["tipo_veiculo"] = _df_lote["tipo_veiculo"].apply(lambda x: x if x in ["Leve","Pesado"] else "Leve")
                         _df_lote["empresa"] = _df_lote.get("empresa", pd.Series([""] * len(_df_lote))).fillna("").astype(str)
                         _df_lote["modelo"] = _df_lote.get("modelo", pd.Series([""] * len(_df_lote))).fillna("").astype(str)
 
@@ -35110,7 +35116,7 @@ elif modo == "🛰️ Telemetria":
                             st.warning(f"⚠️ {len(_df_dupl)} placa(s) já cadastrada(s) e serão ignoradas: {', '.join(_df_dupl['placa'].tolist())}")
                         if not _df_novos.empty:
                             st.success(f"✅ {len(_df_novos)} veículo(s) novo(s) serão importados")
-                            st.dataframe(_df_novos[["placa","combustivel","tanque_l","consumo_esp_kml","empresa","modelo"]], use_container_width=True, hide_index=True)
+                            st.dataframe(_df_novos[["placa","combustivel","tanque_l","consumo_esp_kml","tipo_veiculo","empresa","modelo"]], use_container_width=True, hide_index=True)
 
                             if st.button("📥 Confirmar importação", type="primary", use_container_width=True, key="btn_confirmar_lote"):
                                 _novos_lista = _df_novos.to_dict("records")
@@ -35123,6 +35129,7 @@ elif modo == "🛰️ Telemetria":
                                             "combustivel":     _vrow["combustivel"],
                                             "tanque_l":        float(_vrow["tanque_l"]),
                                             "consumo_esp_kml": float(_vrow["consumo_esp_kml"]),
+                                            "tipo_veiculo":    str(_vrow.get("tipo_veiculo","Leve")),
                                             "empresa":         str(_vrow.get("empresa","")),
                                             "modelo":          str(_vrow.get("modelo","")),
                                         })
