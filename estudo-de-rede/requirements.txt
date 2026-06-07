@@ -23,3 +23,4 @@ Pillow>=10.0.0            # manipulação de imagem no card PNG
 supabase>=2.3.0           # banco de dados para persistência
 pymupdf>=1.23.0           # renderização de PDF como imagens (visualizador sem iframe)
 stripe>=5.0.0
+upstash-redis
