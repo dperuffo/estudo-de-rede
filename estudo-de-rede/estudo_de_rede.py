@@ -15432,34 +15432,34 @@ if st.session_state.get("_preview_onboarding"):
         st.error(f"Erro no preview: {_e}")
     st.stop()
 
-    # ── Startup único por sessão: GitHub sync + restauração do banco ──────
-    # Agrupa todas as operações de startup com guard de session_state.
-    # Sem o guard, cada clique do usuário re-executava todas essas chamadas.
-    if not st.session_state.get("_startup_done"):
-        st.session_state["_startup_done"] = True
+# ── Startup único por sessão: GitHub sync + restauração do banco ──────
+# Agrupa todas as operações de startup com guard de session_state.
+# Sem o guard, cada clique do usuário re-executava todas essas chamadas.
+if not st.session_state.get("_startup_done"):
+    st.session_state["_startup_done"] = True
 
-        # Sincroniza planilhas base GitHub → Supabase → session_state
-        # F3: paraleliza startup para reduzir tempo de carregamento
-        import concurrent.futures as _cf
-        with _cf.ThreadPoolExecutor(max_workers=2) as _ex:
-            _f1 = _ex.submit(_startup_sincronizar_github)
-            _f2 = _ex.submit(_db_restaurar_postos_gf)
-            _f3 = _ex.submit(_db_restaurar_postos_cercados)
-            _f4 = _ex.submit(_restaurar_estado_pp_do_supabase)
-            _f5 = _ex.submit(_tele_restaurar_do_supabase)
-            for _f in [_f1,_f2,_f3,_f4,_f5]: _f.result()
-    # Reconstrói labels de serviços se necessário (pode mudar via upload)
-    if ("pf_coords_df" in st.session_state
-            and not st.session_state["pf_coords_df"].empty
-            and not st.session_state.get("_servicos_pf_labels")):
-        _atualizar_servicos_pf(st.session_state["pf_coords_df"])
+    # Sincroniza planilhas base GitHub → Supabase → session_state
+    # F3: paraleliza startup para reduzir tempo de carregamento
+    import concurrent.futures as _cf
+    with _cf.ThreadPoolExecutor(max_workers=2) as _ex:
+        _f1 = _ex.submit(_startup_sincronizar_github)
+        _f2 = _ex.submit(_db_restaurar_postos_gf)
+        _f3 = _ex.submit(_db_restaurar_postos_cercados)
+        _f4 = _ex.submit(_restaurar_estado_pp_do_supabase)
+        _f5 = _ex.submit(_tele_restaurar_do_supabase)
+        for _f in [_f1,_f2,_f3,_f4,_f5]: _f.result()
+# Reconstrói labels de serviços se necessário (pode mudar via upload)
+if ("pf_coords_df" in st.session_state
+        and not st.session_state["pf_coords_df"].empty
+        and not st.session_state.get("_servicos_pf_labels")):
+    _atualizar_servicos_pf(st.session_state["pf_coords_df"])
 
-    # ── Carrega acordos de preço do Supabase ─────────────────
-    # Tenta carregar sempre que acordos_df não existe OU está vazio,
-    # com debounce de 5 minutos para não sobrecarregar o banco.
-    _ac_need_load = "acordos_df" not in st.session_state or (
-        st.session_state.get("acordos_df", pd.DataFrame()).empty
-        and time.time() - st.session_state.get("_acordos_tentado_ts", 0) > 300
+# ── Carrega acordos de preço do Supabase ─────────────────
+# Tenta carregar sempre que acordos_df não existe OU está vazio,
+# com debounce de 5 minutos para não sobrecarregar o banco.
+_ac_need_load = "acordos_df" not in st.session_state or (
+    st.session_state.get("acordos_df", pd.DataFrame()).empty
+    and time.time() - st.session_state.get("_acordos_tentado_ts", 0) > 300
     )
     if _ac_need_load:
         st.session_state["_acordos_tentado_ts"] = time.time()
