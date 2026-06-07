@@ -15411,6 +15411,9 @@ with st.sidebar:
         )
         st.markdown(_card_html, unsafe_allow_html=True)
 
+        if st.button("🔒 Privacidade & LGPD", use_container_width=True, key="btn_lgpd"):
+            st.session_state["_mostrar_lgpd"] = True
+            st.rerun()
         if st.button("🚀 Planos & Assinatura", use_container_width=True, key="btn_planos"):
             st.session_state["_mostrar_planos"] = True
             st.rerun()
@@ -18336,6 +18339,17 @@ if st.session_state.get("_tour_ativo", False):
     st.session_state.setdefault("_ob_mode", "welcome")
     st.session_state.setdefault("_tour_step", 0)
     _tour_dialog()
+
+# ── Tela LGPD ────────────────────────────────────────────────────────────
+if st.session_state.get("_mostrar_lgpd"):
+    st.session_state["_mostrar_lgpd"] = False
+    try:
+        from lgpd import mostrar_painel_lgpd
+        mostrar_painel_lgpd()
+    except Exception as _e:
+        st.error(f"Erro ao carregar painel LGPD: {_e}")
+    st.stop()
+
 # ── Tela de Planos & Assinatura ──────────────────────────────────
 if st.session_state.get("_mostrar_planos"):
     st.session_state["_mostrar_planos"] = False
