@@ -656,6 +656,14 @@ def _auth_logado() -> bool:
 
 
 def _auth_carregar_usuario_db(email: str) -> dict | None:
+    # Camada 1: Redis cache de sessão
+    try:
+        from cache_redis import cache_sessao_get
+        _cached_u = cache_sessao_get(email)
+        if _cached_u:
+            return _cached_u
+    except Exception:
+        pass
     """
     Busca o perfil do usuário na tabela usuarios_app pelo e-mail.
     Retorna dict com {perfil, cnpj_vinculado, empresa_nome, ativo} ou None.
@@ -9248,8 +9256,16 @@ def _anp_carregar_historico_uf(uf: str, produto_pk: str = None,
 def _auto_carregar_anp_repo():
     """
     Baixa precos_anp.xlsx do GitHub, processa e retorna (sheets, semana, erro).
-    Usa cache de servidor de 1h (via _github_baixar_bytes).
+    Usa cache Redis (1h) + cache servidor Streamlit (1h) em camadas.
     """
+    # Camada 1: Redis cache
+    try:
+        from cache_redis import cache_anp_get, cache_anp_set
+        _cached = cache_anp_get("brasil")
+        if _cached and _cached.get("sheets"):
+            return _cached["sheets"], _cached.get("semana",""), None
+    except Exception:
+        pass
     _bytes, _err = _github_baixar_bytes(ARQUIVO_ANP_REPO)
     if not _bytes:
         return None, None, f"Erro ao baixar {ARQUIVO_ANP_REPO}: {_err}"
@@ -9260,6 +9276,12 @@ def _auto_carregar_anp_repo():
         # Usa o hash do conteúdo como "semana" caso não haja data no nome
         import hashlib as _hl
         _semana = _hl.md5(_bytes).hexdigest()[:12]
+        # Salvar no Redis para próximas sessões
+        try:
+            from cache_redis import cache_anp_set
+            cache_anp_set({"sheets": _sheets, "semana": _semana}, "brasil")
+        except Exception:
+            pass
         return _sheets, _semana, None
     except Exception as _e:
         return None, None, f"{ARQUIVO_ANP_REPO}: {type(_e).__name__}: {_e}"
