@@ -15483,6 +15483,13 @@ with st.sidebar:
     if not st.session_state.get("_startup_done"):
         st.session_state["_startup_done"] = True
         # Tela de carregamento com progresso visual
+        # Esconder sidebar durante loading
+        st.markdown("""
+        <style>
+        [data-testid='stSidebar'] { display: none !important; }
+        [data-testid='stSidebarNav'] { display: none !important; }
+        </style>
+        """, unsafe_allow_html=True)
         _load_container = st.empty()
         with _load_container.container():
             st.markdown("""
