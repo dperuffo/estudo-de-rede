@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FNI — Fleet Network Intelligence | Gestão de Frotas</title>
+<meta name="description" content="Plataforma SaaS para gestão de frotas. Compare preços ANP, monitore consumo e identifique os melhores postos. Trial grátis por 14 dias.">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#04112e;--blue:#0d2d6b;--electric:#1a56f0;--cyan:#00b4d8;--cyan2:#00c2ff;--gold:#f5a623;--white:#ffffff;--gray:#8a9bb5;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--white);overflow-x:hidden;}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 6%;background:rgba(4,17,46,0.92);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06);}
+.nav-links{display:flex;gap:36px;list-style:none;}
+.nav-links a{color:var(--gray);text-decoration:none;font-size:0.88rem;transition:color 0.2s;}
+.nav-links a:hover{color:var(--white);}
+.nav-cta{background:var(--cyan);color:var(--navy);text-decoration:none;padding:10px 24px;border-radius:8px;font-size:0.88rem;font-weight:600;transition:all 0.2s;}
+.nav-cta:hover{background:var(--cyan2);transform:translateY(-1px);}
+.hero{min-height:100vh;display:flex;align-items:center;padding:130px 6% 90px;position:relative;overflow:hidden;}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 65% 45%,rgba(0,180,216,0.12) 0%,transparent 65%),radial-gradient(ellipse 50% 40% at 20% 80%,rgba(26,86,240,0.10) 0%,transparent 60%);}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(ellipse 90% 80% at 50% 50%,black,transparent);}
+.hero-content{position:relative;z-index:2;max-width:680px;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,180,216,0.1);border:1px solid rgba(0,180,216,0.3);padding:6px 16px;border-radius:100px;font-size:0.78rem;color:var(--cyan);font-weight:500;margin-bottom:32px;animation:fadeUp 0.6s ease both;}
+.dot{width:6px;height:6px;background:var(--cyan);border-radius:50%;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+h1{font-family:'Outfit',sans-serif;font-size:clamp(2.4rem,4.5vw,3.6rem);font-weight:800;line-height:1.15;margin-bottom:24px;letter-spacing:-0.02em;animation:fadeUp 0.7s 0.1s ease both;}
+h1 em{font-style:normal;background:linear-gradient(135deg,var(--cyan),#1a56f0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sub{font-size:1.08rem;color:var(--gray);line-height:1.75;margin-bottom:44px;font-weight:300;animation:fadeUp 0.7s 0.2s ease both;}
+.actions{display:flex;gap:14px;flex-wrap:wrap;animation:fadeUp 0.7s 0.3s ease both;}
+.btn-p{display:inline-flex;align-items:center;gap:8px;background:var(--cyan);color:var(--navy);text-decoration:none;padding:15px 32px;border-radius:10px;font-size:0.95rem;font-weight:600;transition:all 0.2s;box-shadow:0 8px 32px rgba(0,180,216,0.3);}
+.btn-p:hover{background:var(--cyan2);transform:translateY(-2px);}
+.btn-s{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);color:var(--white);text-decoration:none;padding:15px 32px;border-radius:10px;font-size:0.95rem;font-weight:400;border:1px solid rgba(255,255,255,0.12);transition:all 0.2s;}
+.btn-s:hover{background:rgba(255,255,255,0.09);}
+.stats{display:flex;gap:48px;margin-top:56px;animation:fadeUp 0.7s 0.4s ease both;}
+.sn{font-family:'Outfit',sans-serif;font-size:2rem;font-weight:800;}
+.sn span{color:var(--cyan);}
+.sl{font-size:0.78rem;color:var(--gray);margin-top:3px;}
+.strip{padding:44px 6%;border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);text-align:center;}
+.strip-lbl{font-size:0.75rem;color:var(--gray);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:24px;}
+.logos{display:flex;justify-content:center;align-items:center;gap:52px;flex-wrap:wrap;}
+.logo-i{font-family:'Outfit',sans-serif;font-weight:700;font-size:0.9rem;color:rgba(255,255,255,0.2);letter-spacing:0.06em;text-transform:uppercase;}
+.section{padding:96px 6%;}
+.sec-lbl{font-size:0.75rem;color:var(--cyan);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:14px;font-weight:600;}
+.sec-title{font-family:'Outfit',sans-serif;font-size:clamp(1.9rem,3vw,2.6rem);font-weight:800;line-height:1.2;letter-spacing:-0.02em;margin-bottom:16px;}
+.sec-sub{font-size:1rem;color:var(--gray);line-height:1.75;max-width:520px;font-weight:300;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:52px;}
+.card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:30px;transition:all 0.3s;position:relative;overflow:hidden;}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cyan),var(--electric));opacity:0;transition:opacity 0.3s;}
+.card:hover{border-color:rgba(0,180,216,0.25);transform:translateY(-4px);}
+.card:hover::after{opacity:1;}
+.icon{width:46px;height:46px;border-radius:12px;background:rgba(0,180,216,0.1);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:18px;}
+.ct{font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:700;margin-bottom:10px;}
+.cd{font-size:0.875rem;color:var(--gray);line-height:1.7;font-weight:300;}
+.steps{display:flex;gap:0;margin-top:52px;position:relative;}
+.steps::before{content:'';position:absolute;top:27px;left:5%;right:5%;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0.3;}
+.step{flex:1;text-align:center;padding:0 16px;}
+.step-n{width:54px;height:54px;border-radius:50%;background:var(--navy);border:1.5px solid var(--cyan);display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;font-size:1.1rem;color:var(--cyan);margin:0 auto 18px;position:relative;z-index:2;}
+.step-t{font-family:'Outfit',sans-serif;font-weight:700;font-size:0.95rem;margin-bottom:8px;}
+.step-d{font-size:0.83rem;color:var(--gray);line-height:1.65;font-weight:300;}
+.pricing{padding:96px 6%;background:rgba(255,255,255,0.012);}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;margin-top:52px;max-width:1080px;margin-left:auto;margin-right:auto;}
+.pc{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:32px 26px;display:flex;flex-direction:column;transition:all 0.3s;}
+.pc.feat{background:linear-gradient(145deg,rgba(0,180,216,0.12),rgba(26,86,240,0.08));border-color:rgba(0,180,216,0.4);transform:scale(1.03);box-shadow:0 20px 60px rgba(0,180,216,0.18);}
+.pbadge{display:inline-block;background:var(--cyan);color:var(--navy);font-size:0.68rem;font-weight:700;padding:4px 12px;border-radius:100px;margin-bottom:18px;align-self:flex-start;text-transform:uppercase;letter-spacing:0.08em;}
+.pn{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:8px;}
+.pp{font-family:'Outfit',sans-serif;font-size:2.4rem;font-weight:800;margin-bottom:4px;letter-spacing:-0.02em;}
+.pp sup{font-size:1rem;vertical-align:top;margin-top:8px;}
+.pp span{font-size:0.95rem;font-weight:400;color:var(--gray);}
+.pd{font-size:0.82rem;color:var(--gray);margin-bottom:24px;font-weight:300;}
+.pf{list-style:none;margin-bottom:28px;flex:1;}
+.pf li{display:flex;align-items:center;gap:10px;font-size:0.85rem;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);color:rgba(255,255,255,0.8);font-weight:300;}
+.pf li::before{content:'✓';color:var(--cyan);font-weight:700;flex-shrink:0;font-size:0.8rem;}
+.pf li.off{color:rgba(255,255,255,0.25);}
+.pf li.off::before{content:'–';color:rgba(255,255,255,0.2);}
+.pbtn{display:block;text-align:center;text-decoration:none;padding:13px;border-radius:9px;font-size:0.9rem;font-weight:600;transition:all 0.2s;font-family:'Outfit',sans-serif;}
+.pbtn.p{background:var(--cyan);color:var(--navy);box-shadow:0 6px 20px rgba(0,180,216,0.3);}
+.pbtn.p:hover{background:var(--cyan2);transform:translateY(-2px);}
+.pbtn.o{border:1px solid rgba(255,255,255,0.18);color:var(--white);}
+.pbtn.o:hover{background:rgba(255,255,255,0.07);}
+.cta{padding:100px 6%;text-align:center;position:relative;overflow:hidden;}
+.cta::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:500px;background:radial-gradient(ellipse,rgba(0,180,216,0.12),transparent 70%);pointer-events:none;}
+.cta-t{font-family:'Outfit',sans-serif;font-size:clamp(2rem,4vw,3rem);font-weight:800;margin-bottom:18px;letter-spacing:-0.02em;position:relative;}
+.cta-s{font-size:1.05rem;color:var(--gray);margin-bottom:40px;position:relative;font-weight:300;}
+.cta-a{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;position:relative;}
+footer{padding:36px 6%;border-top:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;}
+.flinks{display:flex;gap:24px;}
+.flinks a{font-size:0.82rem;color:var(--gray);text-decoration:none;}
+.flinks a:hover{color:var(--white);}
+.fcopy{font-size:0.78rem;color:rgba(255,255,255,0.25);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@media(max-width:768px){.nav-links{display:none;}.hero{padding-top:100px;}.stats{gap:28px;flex-wrap:wrap;}.steps{flex-direction:column;gap:28px;}.steps::before{display:none;}.pc.feat{transform:scale(1);}footer{flex-direction:column;text-align:center;}}
+</style>
+</head>
+<body>
+<nav>
+  <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgNjQiIHdpZHRoPSIyMjAiIGhlaWdodD0iNDQiPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQsNCkiPjxsaW5lIHgxPSIyNCIgeTE9IjI0IiB4Mj0iOCIgeTI9IjEyIiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjQiIHkxPSIyNCIgeDI9IjUiIHkyPSIzMCIgc3Ryb2tlPSIjMDBiNGQ4IiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjI0IiB5MT0iMjQiIHgyPSIxMCIgeTI9IjQ0IiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjQiIHkxPSIyNCIgeDI9IjM2IiB5Mj0iOCIgc3Ryb2tlPSIjMDBiNGQ4IiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjI0IiB5MT0iMjQiIHgyPSI0MCIgeTI9IjM4IiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMjQgNSBDMTYgNSAxMCAxMSAxMCAxOCBDMTAgMjcgMjQgNDIgMjQgNDIgQzI0IDQyIDM4IDI3IDM4IDE4IEMzOCAxMSAzMiA1IDI0IDVaIiBmaWxsPSIjMDBiNGQ4Ii8+PGNpcmNsZSBjeD0iMjQiIGN5PSIxOCIgcj0iNiIgZmlsbD0iIzA0MTEyZSIvPjxjaXJjbGUgY3g9IjgiIGN5PSIxMiIgcj0iNCIgZmlsbD0iIzAwYjRkOCIvPjxjaXJjbGUgY3g9IjUiIGN5PSIzMCIgcj0iNCIgZmlsbD0iIzAwYjRkOCIvPjxjaXJjbGUgY3g9IjEwIiBjeT0iNDQiIHI9IjQiIGZpbGw9IiMwMGI0ZDgiLz48Y2lyY2xlIGN4PSIzNiIgY3k9IjgiIHI9IjQiIGZpbGw9IiMwMGI0ZDgiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjM4IiByPSI0IiBmaWxsPSIjMDBiNGQ4Ii8+PC9nPjx0ZXh0IHg9IjYyIiB5PSIyNiIgZm9udC1mYW1pbHk9Ik91dGZpdCxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iNzAwIiBmb250LXNpemU9IjE1IiBmaWxsPSIjZmZmZmZmIiBsZXR0ZXItc3BhY2luZz0iMC4zIj5GbGVldCBOZXR3b3JrIEludGVsbGlnZW5jZTwvdGV4dD48dGV4dCB4PSI2MiIgeT0iNDQiIGZvbnQtZmFtaWx5PSJPdXRmaXQsc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjUwMCIgZm9udC1zaXplPSIxMC41IiBmaWxsPSIjMDBiNGQ4IiBsZXR0ZXItc3BhY2luZz0iMiI+R0VTVMODTyBERSBGUk9UQVM8L3RleHQ+PC9zdmc+" alt="FNI Fleet Network Intelligence" height="38">
+  <ul class="nav-links">
+    <li><a href="#func">Funcionalidades</a></li>
+    <li><a href="#como">Como funciona</a></li>
+    <li><a href="#precos">Preços</a></li>
+  </ul>
+  <a href="https://fxgestaodefrotasonline.com" class="nav-cta">Começar grátis →</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div style="margin-bottom:36px;animation:fadeUp 0.6s ease both;">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MjAgMTQwIiB3aWR0aD0iNDgwIiBoZWlnaHQ9IjEzMCI+PGRlZnM+PGZpbHRlciBpZD0iZ2xvdyI+PGZlR2F1c3NpYW5CbHVyIHN0ZERldmlhdGlvbj0iMyIgcmVzdWx0PSJibHVyIi8+PGZlTWVyZ2U+PGZlTWVyZ2VOb2RlIGluPSJibHVyIi8+PGZlTWVyZ2VOb2RlIGluPSJTb3VyY2VHcmFwaGljIi8+PC9mZU1lcmdlPjwvZmlsdGVyPjxsaW5lYXJHcmFkaWVudCBpZD0icGciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMwMGMyZmYiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwMGI0ZDgiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxMCwxMCkiIGZpbHRlcj0idXJsKCNnbG93KSI+PGxpbmUgeDE9IjU1IiB5MT0iNTUiIHgyPSIxOCIgeTI9IjI2IiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjgiLz48bGluZSB4MT0iNTUiIHkxPSI1NSIgeDI9IjEwIiB5Mj0iNjIiIHN0cm9rZT0iIzAwYjRkOCIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIG9wYWNpdHk9IjAuOCIvPjxsaW5lIHgxPSI1NSIgeTE9IjU1IiB4Mj0iMjIiIHkyPSI5NSIgc3Ryb2tlPSIjMDBiNGQ4IiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iMC44Ii8+PGxpbmUgeDE9IjU1IiB5MT0iNTUiIHgyPSI4OCIgeTI9IjE4IiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjgiLz48bGluZSB4MT0iNTUiIHkxPSI1NSIgeDI9Ijk1IiB5Mj0iODIiIHN0cm9rZT0iIzAwYjRkOCIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiIG9wYWNpdHk9IjAuOCIvPjxwYXRoIGQ9Ik01NSAxNCBDMzggMTQgMjQgMjggMjQgNDQgQzI0IDYyIDU1IDkwIDU1IDkwIEM1NSA5MCA4NiA2MiA4NiA0NCBDODYgMjggNzIgMTQgNTUgMTRaIiBmaWxsPSJ1cmwoI3BnKSIvPjxjaXJjbGUgY3g9IjU1IiBjeT0iNDQiIHI9IjE0IiBmaWxsPSIjMDQxMTJlIi8+PGNpcmNsZSBjeD0iNTUiIGN5PSI0NCIgcj0iNyIgZmlsbD0iIzAwYjRkOCIgb3BhY2l0eT0iMC42Ii8+PGNpcmNsZSBjeD0iMTgiIGN5PSIyNiIgcj0iOSIgZmlsbD0iIzAwYjRkOCIgb3BhY2l0eT0iMC45Ii8+PGNpcmNsZSBjeD0iMTAiIGN5PSI2MiIgcj0iOSIgZmlsbD0iIzAwYjRkOCIgb3BhY2l0eT0iMC45Ii8+PGNpcmNsZSBjeD0iMjIiIGN5PSI5NSIgcj0iOSIgZmlsbD0iIzAwYjRkOCIgb3BhY2l0eT0iMC45Ii8+PGNpcmNsZSBjeD0iODgiIGN5PSIxOCIgcj0iOSIgZmlsbD0iIzAwYjRkOCIgb3BhY2l0eT0iMC45Ii8+PGNpcmNsZSBjeD0iOTUiIGN5PSI4MiIgcj0iOSIgZmlsbD0iIzAwYjRkOCIgb3BhY2l0eT0iMC45Ii8+PC9nPjx0ZXh0IHg9IjEyOCIgeT0iNTIiIGZvbnQtZmFtaWx5PSJPdXRmaXQsc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjgwMCIgZm9udC1zaXplPSIzNCIgZmlsbD0iI2ZmZmZmZiIgbGV0dGVyLXNwYWNpbmc9Ii0wLjUiPkZsZWV0IE5ldHdvcms8L3RleHQ+PHRleHQgeD0iMTI4IiB5PSI4OCIgZm9udC1mYW1pbHk9Ik91dGZpdCxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iODAwIiBmb250LXNpemU9IjM0IiBmaWxsPSIjZmZmZmZmIiBsZXR0ZXItc3BhY2luZz0iLTAuNSI+SW50ZWxsaWdlbmNlPC90ZXh0PjxyZWN0IHg9IjEyOCIgeT0iMTAwIiB3aWR0aD0iNDgiIGhlaWdodD0iMiIgZmlsbD0iIzAwYjRkOCIgcng9IjEiLz48dGV4dCB4PSIxMjgiIHk9IjEyMiIgZm9udC1mYW1pbHk9Ik91dGZpdCxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iNTAwIiBmb250LXNpemU9IjEzIiBmaWxsPSIjMDBiNGQ4IiBsZXR0ZXItc3BhY2luZz0iMyI+R0VTVMODTyBERSBGUk9UQVM8L3RleHQ+PC9zdmc+" alt="Fleet Network Intelligence" style="max-width:100%;height:auto;">
+    </div>
+    <div class="hero-badge"><div class="dot"></div>Plataforma SaaS para frotas brasileiras</div>
+    <h1>Inteligência de rede para <em>decisões que economizam</em></h1>
+    <p class="sub">Compare preços ANP em tempo real, monitore o consumo da sua frota e identifique os melhores postos credenciados — tudo em uma plataforma integrada e segura.</p>
+    <div class="actions">
+      <a href="https://fxgestaodefrotasonline.com" class="btn-p">Teste grátis por 14 dias →</a>
+      <a href="#func" class="btn-s">Ver funcionalidades</a>
+    </div>
+    <div class="stats">
+      <div><div class="sn">2.9<span>k+</span></div><div class="sl">Postos monitorados</div></div>
+      <div><div class="sn">14<span>dias</span></div><div class="sl">Trial gratuito</div></div>
+      <div><div class="sn">ANP<span>✓</span></div><div class="sl">Dados oficiais</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="strip">
+  <div class="strip-lbl">Compatível com os principais sistemas do mercado</div>
+  <div class="logos">
+    <div class="logo-i">TOTVS</div><div class="logo-i">SAP</div>
+    <div class="logo-i">SEFAZ</div><div class="logo-i">ANTT</div>
+    <div class="logo-i">ANP</div><div class="logo-i">SASCAR</div>
+  </div>
+</div>
+
+<section class="section" id="func">
+  <div class="sec-lbl">Funcionalidades</div>
+  <div class="sec-title">Tudo que sua frota precisa,<br>em um só lugar</div>
+  <p class="sec-sub">Da análise de preços à gestão completa — dados em tempo real para decisões melhores.</p>
+  <div class="grid">
+    <div class="card"><div class="icon">📊</div><div class="ct">Preços ANP em Tempo Real</div><div class="cd">Compare os preços praticados pelos postos com a tabela oficial da ANP por município e bandeira.</div></div>
+    <div class="card"><div class="icon">🗺️</div><div class="ct">Mapa de Rede de Postos</div><div class="cd">Visualize todos os postos credenciados na sua rota com scores de qualidade e preços negociados.</div></div>
+    <div class="card"><div class="icon">⛽</div><div class="ct">Telemetria de Frota</div><div class="cd">Monitore consumo real por veículo e detecte desvios com alertas automáticos.</div></div>
+    <div class="card"><div class="icon">💰</div><div class="ct">Acordos de Preços</div><div class="cd">Gerencie contratos com postos e valide automaticamente se os preços respeitam os acordos.</div></div>
+    <div class="card"><div class="icon">📈</div><div class="ct">Relatórios Avançados</div><div class="cd">Análises de consumo, custo por km e ranking de postos. Exporte para Excel ou integre via API.</div></div>
+    <div class="card"><div class="icon">🔌</div><div class="ct">Integrações Nativas</div><div class="cd">Conecte com TOTVS, SAP, rastreadores (Sascar, Onix, Autotrac) e valide NF-e pela SEFAZ.</div></div>
+  </div>
+</section>
+
+<section class="section" id="como" style="background:rgba(255,255,255,0.012)">
+  <div class="sec-lbl">Como funciona</div>
+  <div class="sec-title">Comece em minutos</div>
+  <div class="steps">
+    <div class="step"><div class="step-n">1</div><div class="step-t">Cadastre sua empresa</div><div class="step-d">14 dias grátis com acesso completo ao plano Profissional.</div></div>
+    <div class="step"><div class="step-n">2</div><div class="step-t">Importe sua frota</div><div class="step-d">Cadastre veículos individualmente ou em lote via Excel.</div></div>
+    <div class="step"><div class="step-n">3</div><div class="step-t">Conecte seus dados</div><div class="step-d">Integre com seu sistema ou registre via API.</div></div>
+    <div class="step"><div class="step-n">4</div><div class="step-t">Economize</div><div class="step-d">Análises em tempo real para reduzir custos imediatamente.</div></div>
+  </div>
+</section>
+
+<section class="pricing" id="precos">
+  <div style="text-align:center">
+    <div class="sec-lbl">Planos e Preços</div>
+    <div class="sec-title">Comece grátis. Cresça quando precisar.</div>
+    <p class="sec-sub" style="margin:0 auto">Sem cartão de crédito. Cancele quando quiser.</p>
+  </div>
+  <div class="pgrid">
+    <div class="pc"><div class="pn">Gratuito</div><div class="pp"><sup>R$</sup>0<span>/mês</span></div><div class="pd">Para começar</div><ul class="pf"><li>1 usuário</li><li>10 veículos</li><li>2 postos</li><li class="off">Histórico ANP</li><li class="off">Excel</li><li class="off">API</li></ul><a href="https://fxgestaodefrotasonline.com" class="pbtn o">Começar grátis</a></div>
+    <div class="pc"><div class="pn">Básico</div><div class="pp"><sup>R$</sup>149<span>/mês</span></div><div class="pd">Pequenas frotas</div><ul class="pf"><li>5 usuários</li><li>50 veículos</li><li>10 postos</li><li>ANP 30 dias</li><li>Exportação Excel</li><li class="off">API</li></ul><a href="https://fxgestaodefrotasonline.com" class="pbtn o">Assinar Básico</a></div>
+    <div class="pc feat"><div class="pbadge">Mais popular</div><div class="pn">Profissional</div><div class="pp"><sup>R$</sup>349<span>/mês</span></div><div class="pd">Frotas em crescimento</div><ul class="pf"><li>20 usuários</li><li>200 veículos</li><li>Postos ilimitados</li><li>ANP 365 dias</li><li>Relatórios avançados</li><li>API + Webhooks</li></ul><a href="https://fxgestaodefrotasonline.com" class="pbtn p">Trial grátis 14 dias</a></div>
+    <div class="pc"><div class="pn">Enterprise</div><div class="pp" style="font-size:1.5rem;margin-bottom:8px">Sob consulta</div><div class="pd">Grandes operações</div><ul class="pf"><li>Ilimitado</li><li>SSO SAML</li><li>SLA 99,95%</li><li>TOTVS/SAP</li><li>Gerente dedicado</li><li>Suporte 24/7</li></ul><a href="mailto:d.peruffo@gmail.com" class="pbtn o">Falar com vendas</a></div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="cta-t">Pronto para economizar<br>na sua frota?</div>
+  <p class="cta-s">14 dias grátis. Sem cartão. Sem burocracia.</p>
+  <div class="cta-a">
+    <a href="https://fxgestaodefrotasonline.com" class="btn-p">Começar agora — é grátis →</a>
+    <a href="mailto:d.peruffo@gmail.com" class="btn-s">💬 Falar com especialista</a>
+  </div>
+</section>
+
+<footer>
+  <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgNjQiIHdpZHRoPSIyMjAiIGhlaWdodD0iNDQiPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQsNCkiPjxsaW5lIHgxPSIyNCIgeTE9IjI0IiB4Mj0iOCIgeTI9IjEyIiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjQiIHkxPSIyNCIgeDI9IjUiIHkyPSIzMCIgc3Ryb2tlPSIjMDBiNGQ4IiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjI0IiB5MT0iMjQiIHgyPSIxMCIgeTI9IjQ0IiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iMjQiIHkxPSIyNCIgeDI9IjM2IiB5Mj0iOCIgc3Ryb2tlPSIjMDBiNGQ4IiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjI0IiB5MT0iMjQiIHgyPSI0MCIgeTI9IjM4IiBzdHJva2U9IiMwMGI0ZDgiIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMjQgNSBDMTYgNSAxMCAxMSAxMCAxOCBDMTAgMjcgMjQgNDIgMjQgNDIgQzI0IDQyIDM4IDI3IDM4IDE4IEMzOCAxMSAzMiA1IDI0IDVaIiBmaWxsPSIjMDBiNGQ4Ii8+PGNpcmNsZSBjeD0iMjQiIGN5PSIxOCIgcj0iNiIgZmlsbD0iIzA0MTEyZSIvPjxjaXJjbGUgY3g9IjgiIGN5PSIxMiIgcj0iNCIgZmlsbD0iIzAwYjRkOCIvPjxjaXJjbGUgY3g9IjUiIGN5PSIzMCIgcj0iNCIgZmlsbD0iIzAwYjRkOCIvPjxjaXJjbGUgY3g9IjEwIiBjeT0iNDQiIHI9IjQiIGZpbGw9IiMwMGI0ZDgiLz48Y2lyY2xlIGN4PSIzNiIgY3k9IjgiIHI9IjQiIGZpbGw9IiMwMGI0ZDgiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjM4IiByPSI0IiBmaWxsPSIjMDBiNGQ4Ii8+PC9nPjx0ZXh0IHg9IjYyIiB5PSIyNiIgZm9udC1mYW1pbHk9Ik91dGZpdCxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iNzAwIiBmb250LXNpemU9IjE1IiBmaWxsPSIjZmZmZmZmIiBsZXR0ZXItc3BhY2luZz0iMC4zIj5GbGVldCBOZXR3b3JrIEludGVsbGlnZW5jZTwvdGV4dD48dGV4dCB4PSI2MiIgeT0iNDQiIGZvbnQtZmFtaWx5PSJPdXRmaXQsc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjUwMCIgZm9udC1zaXplPSIxMC41IiBmaWxsPSIjMDBiNGQ4IiBsZXR0ZXItc3BhY2luZz0iMiI+R0VTVMODTyBERSBGUk9UQVM8L3RleHQ+PC9zdmc+" alt="FNI" height="30" style="opacity:0.4;">
+  <div class="flinks">
+    <a href="termos.html">Termos de Uso</a>
+    <a href="privacidade.html">Privacidade</a>
+    <a href="mailto:d.peruffo@gmail.com">Contato</a>
+  </div>
+  <div class="fcopy">© 2026 Fleet Network Intelligence Ltda.</div>
+</footer>
+</body></html>
