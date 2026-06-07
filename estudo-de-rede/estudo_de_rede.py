@@ -18372,10 +18372,15 @@ if st.session_state.get("_tour_ativo", False):
 
 # ── Tela Suporte & Melhorias ─────────────────────────────────────────────
 if st.session_state.get("_mostrar_tickets"):
-    st.session_state["_mostrar_tickets"] = False
     try:
-        from tickets import mostrar_painel_tickets
-        mostrar_painel_tickets()
+        from tickets import mostrar_painel_tickets, mostrar_painel_admin_tickets
+        if _is_admin():
+            mostrar_painel_admin_tickets()
+        else:
+            mostrar_painel_tickets()
+        if st.button("← Voltar ao mapa", key="btn_voltar_tickets"):
+            st.session_state.pop("_mostrar_tickets", None)
+            st.rerun()
     except Exception as _e:
         st.error(f"Erro ao carregar suporte: {_e}")
     st.stop()
