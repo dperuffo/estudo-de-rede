@@ -4667,6 +4667,17 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
         if _empresa_ativa:
             banner_tenant_suspenso()   # bloqueia se suspenso/cancelado
             banner_trial()             # avisa se trial expirando
+        # Preview do onboarding (apenas admin)
+        if st.session_state.get("_preview_onboarding"):
+            if st.button("Fechar preview", key="btn_fechar_preview"):
+                st.session_state.pop("_preview_onboarding", None)
+                st.rerun()
+            try:
+                from onboarding import mostrar_tela_onboarding
+                mostrar_tela_onboarding("preview@fni.com.br")
+            except Exception as _e:
+                st.error(f"Erro no preview: {_e}")
+            st.stop()
 
 
 
@@ -18312,7 +18323,7 @@ if st.session_state.get("_tour_ativo", False):
 if st.session_state.get("_mostrar_planos"):
     st.session_state["_mostrar_planos"] = False
     try:
-        from tenant_utils import mostrar_tela_planos
+        from stripe_billing import mostrar_tela_planos
         mostrar_tela_planos()
         st.stop()
     except Exception as _e:
