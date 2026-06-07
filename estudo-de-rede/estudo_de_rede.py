@@ -35039,6 +35039,106 @@ elif modo == "🛰️ Telemetria":
                     st.success(f"✅ Veículo {_v_placa} adicionado.")
                     st.rerun()
 
+        # ── Importação em lote ────────────────────────────────────
+        with st.expander("📤 Importar veículos em lote (Excel/CSV)", expanded=False):
+            st.caption("Baixe o template, preencha e faça upload para cadastrar múltiplos veículos de uma vez.")
+
+            # Download do template
+            import io as _io_lote
+            _template_cols = ["placa","combustivel","tanque_l","consumo_esp_kml","empresa","modelo"]
+            _template_data = [
+                ["ABC1D23","Diesel S-10",300.0,7.5,"Transportadora Exemplo","Volvo FH 460"],
+                ["DEF2E34","Diesel S-500",250.0,8.0,"Transportadora Exemplo","Mercedes Actros"],
+            ]
+            _df_template = pd.DataFrame(_template_data, columns=_template_cols)
+            _buf_template = _io_lote.BytesIO()
+            _df_template.to_excel(_buf_template, index=False)
+            st.download_button(
+                label="⬇️ Baixar planilha template",
+                data=_buf_template.getvalue(),
+                file_name="template_veiculos_frota.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+
+            st.markdown("**Campos obrigatórios:** `placa`, `combustivel`, `tanque_l`, `consumo_esp_kml`")
+            st.markdown("**Combustíveis aceitos:** Diesel S-10, Diesel S-500, Gasolina, Etanol, GNV, Flex")
+
+            _upload_lote = st.file_uploader(
+                "Selecione o arquivo Excel ou CSV",
+                type=["xlsx","xls","csv"],
+                key="upload_veiculos_lote"
+            )
+
+            if _upload_lote:
+                try:
+                    if _upload_lote.name.endswith(".csv"):
+                        _df_lote = pd.read_csv(_upload_lote)
+                    else:
+                        _df_lote = pd.read_excel(_upload_lote)
+
+                    # Normalizar colunas
+                    _df_lote.columns = [c.lower().strip().replace(" ","_") for c in _df_lote.columns]
+
+                    # Verificar colunas obrigatórias
+                    _cols_obrig = ["placa","combustivel","tanque_l","consumo_esp_kml"]
+                    _faltando = [c for c in _cols_obrig if c not in _df_lote.columns]
+                    if _faltando:
+                        st.error(f"Colunas obrigatórias faltando: {', '.join(_faltando)}")
+                    else:
+                        # Normalizar dados
+                        _df_lote["placa"] = _df_lote["placa"].astype(str).str.strip().str.upper()
+                        _df_lote["combustivel"] = _df_lote["combustivel"].astype(str).str.strip()
+                        _df_lote["tanque_l"] = pd.to_numeric(_df_lote["tanque_l"], errors="coerce").fillna(300.0)
+                        _df_lote["consumo_esp_kml"] = pd.to_numeric(_df_lote["consumo_esp_kml"], errors="coerce").fillna(7.5)
+                        _df_lote["empresa"] = _df_lote.get("empresa", pd.Series([""] * len(_df_lote))).fillna("").astype(str)
+                        _df_lote["modelo"] = _df_lote.get("modelo", pd.Series([""] * len(_df_lote))).fillna("").astype(str)
+
+                        # Remover linhas sem placa
+                        _df_lote = _df_lote[_df_lote["placa"].str.len() >= 7]
+
+                        # Detectar duplicatas internas
+                        _df_lote = _df_lote.drop_duplicates(subset=["placa"], keep="first")
+
+                        # Detectar duplicatas com frota existente
+                        _placas_existentes = {v["placa"] for v in st.session_state.get("_tele_frota", [])}
+                        _df_novos = _df_lote[~_df_lote["placa"].isin(_placas_existentes)]
+                        _df_dupl  = _df_lote[_df_lote["placa"].isin(_placas_existentes)]
+
+                        st.markdown(f"**Prévia:** {len(_df_lote)} veículo(s) encontrado(s)")
+                        if not _df_dupl.empty:
+                            st.warning(f"⚠️ {len(_df_dupl)} placa(s) já cadastrada(s) e serão ignoradas: {', '.join(_df_dupl['placa'].tolist())}")
+                        if not _df_novos.empty:
+                            st.success(f"✅ {len(_df_novos)} veículo(s) novo(s) serão importados")
+                            st.dataframe(_df_novos[["placa","combustivel","tanque_l","consumo_esp_kml","empresa","modelo"]], use_container_width=True, hide_index=True)
+
+                            if st.button("📥 Confirmar importação", type="primary", use_container_width=True, key="btn_confirmar_lote"):
+                                _novos_lista = _df_novos.to_dict("records")
+                                _importados = 0
+                                _erros_lote = []
+                                for _vrow in _novos_lista:
+                                    try:
+                                        st.session_state["_tele_frota"].append({
+                                            "placa":           _vrow["placa"],
+                                            "combustivel":     _vrow["combustivel"],
+                                            "tanque_l":        float(_vrow["tanque_l"]),
+                                            "consumo_esp_kml": float(_vrow["consumo_esp_kml"]),
+                                            "empresa":         str(_vrow.get("empresa","")),
+                                            "modelo":          str(_vrow.get("modelo","")),
+                                        })
+                                        _importados += 1
+                                    except Exception as _ev:
+                                        _erros_lote.append(f"{_vrow.get('placa','?')}: {_ev}")
+                                _tele_salvar_frota_supabase(st.session_state["_tele_frota"])
+                                st.success(f"✅ {_importados} veículo(s) importado(s) com sucesso!")
+                                if _erros_lote:
+                                    st.warning(f"Erros: {'; '.join(_erros_lote)}")
+                                st.rerun()
+                        else:
+                            st.info("Todos os veículos do arquivo já estão cadastrados.")
+                except Exception as _e_lote:
+                    st.error(f"Erro ao processar arquivo: {_e_lote}")
+
         _frota = st.session_state["_tele_frota"]
         if _frota:
             st.markdown(f"**{len(_frota)} veículo(s) cadastrado(s)**")
