@@ -15482,14 +15482,35 @@ with st.sidebar:
     # Sem o guard, cada clique do usuário re-executava todas essas chamadas.
     if not st.session_state.get("_startup_done"):
         st.session_state["_startup_done"] = True
-
-        # Sincroniza planilhas base GitHub → Supabase → session_state
+        # Tela de carregamento com progresso visual
+        _load_container = st.empty()
+        with _load_container.container():
+            st.markdown("""
+            <div style='text-align:center;padding:40px 20px;'>
+                <div style='font-size:48px;margin-bottom:16px;'>🚛</div>
+                <div style='font-size:1.4rem;font-weight:700;color:#0d1b4b;margin-bottom:8px;'>
+                    FNI Gestão de Frotas
+                </div>
+                <div style='font-size:14px;color:#666;margin-bottom:24px;'>
+                    Preparando sua plataforma...
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            _prog_bar = st.progress(0, text="Iniciando...")
+        _prog_bar.progress(10, text="🔐 Verificando autenticação...")
         _startup_sincronizar_github()
-
-        # Restaura dados do Supabase (fallback quando GitHub não preencheu)
+        _prog_bar.progress(40, text="📊 Carregando preços ANP...")
         _db_restaurar_postos_gf()
+        _prog_bar.progress(60, text="⛽ Carregando rede de postos...")
         _db_restaurar_postos_cercados()
+        _prog_bar.progress(75, text="🚗 Carregando dados de frota...")
         _restaurar_estado_pp_do_supabase()
+        _prog_bar.progress(90, text="📈 Finalizando configurações...")
+        _tele_restaurar_do_supabase()
+        _prog_bar.progress(100, text="✅ Pronto!")
+        import time as _time_load
+        _time_load.sleep(0.5)
+        _load_container.empty()
         _tele_restaurar_do_supabase()
 
     # Reconstrói labels de serviços se necessário (pode mudar via upload)
