@@ -1433,6 +1433,7 @@ def _db_salvar_abastecimentos(df_rows: list, nome_arquivo: str) -> tuple[int, st
 
 
 @st.cache_data(show_spinner=False, ttl=300)  # 5 min — invalidar após sync
+@st.cache_data(ttl=1800, show_spinner=False)
 def _db_carregar_abastecimentos() -> list:
     """
     Carrega abastecimentos do Supabase com paginação automática.
@@ -1637,6 +1638,7 @@ def _db_carregar_cnpjs_postos_gf() -> set:
 
 
 @st.cache_data(show_spinner=False, ttl=600)  # 10 min — dados de rede mudam menos
+@st.cache_data(ttl=3600, show_spinner=False)
 def _db_carregar_postos_gf_df() -> "pd.DataFrame":
     """
     Retorna DataFrame completo da rede GF (cnpj, razao_social,
@@ -1688,6 +1690,7 @@ def _normalizar_cnpj_str(v) -> str:
 
 
 @st.cache_data(show_spinner=False, ttl=300)  # 5 min
+@st.cache_data(ttl=3600, show_spinner=False)
 def _db_carregar_acordos() -> "pd.DataFrame":
     """
     Carrega acordos de preço do Supabase com paginação automática.
@@ -4667,17 +4670,7 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
         if _empresa_ativa:
             banner_tenant_suspenso()   # bloqueia se suspenso/cancelado
             banner_trial()             # avisa se trial expirando
-        # Preview do onboarding (apenas admin)
-        if st.session_state.get("_preview_onboarding"):
-            if st.button("Fechar preview", key="btn_fechar_preview"):
-                st.session_state.pop("_preview_onboarding", None)
-                st.rerun()
-            try:
-                from onboarding import mostrar_tela_onboarding
-                mostrar_tela_onboarding("preview@fni.com.br")
-            except Exception as _e:
-                st.error(f"Erro no preview: {_e}")
-            st.stop()
+
 
 
 
@@ -15426,7 +15419,19 @@ with st.sidebar:
                 del st.session_state[_k]
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
-            
+
+# Preview do onboarding (admin) — fora do with sidebar
+if st.session_state.get("_preview_onboarding"):
+    if st.button("Fechar preview", key="btn_fechar_preview"):
+        st.session_state.pop("_preview_onboarding", None)
+        st.rerun()
+    try:
+        from onboarding import mostrar_tela_onboarding
+        mostrar_tela_onboarding("preview@fni.com.br")
+    except Exception as _e:
+        st.error(f"Erro no preview: {_e}")
+    st.stop()
+
     # ── Startup único por sessão: GitHub sync + restauração do banco ──────
     # Agrupa todas as operações de startup com guard de session_state.
     # Sem o guard, cada clique do usuário re-executava todas essas chamadas.
