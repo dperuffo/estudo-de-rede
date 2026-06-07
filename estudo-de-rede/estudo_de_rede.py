@@ -36236,13 +36236,14 @@ elif modo == "⚡ API & Integrações":
     )
 
     # ── Tabs principais ────────────────────────────────────────────
-    _api_t1, _api_t2, _api_t3, _api_t4, _api_t5, _api_t6 = st.tabs([
+    _api_t1, _api_t2, _api_t3, _api_t4, _api_t5, _api_t6, _api_t7 = st.tabs([
         "📖 Endpoints",
         "🔐 Autenticação",
         "💻 Exemplos de Código",
         "⚙️ Configuração do Servidor",
         "🔌 Gestão de Frotas",
         "🔑 API Keys",
+        "🪝 Webhooks",
     ])
 
     # ════════════════════════════════════════════════════════════════
@@ -37285,7 +37286,15 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
         except Exception as _ek:
             st.error(f'Erro ao carregar API Keys: {_ek}')
 
+    with _api_t7:
+        try:
+            from webhooks import mostrar_painel_webhooks
+            mostrar_painel_webhooks()
+        except Exception as _ew:
+            st.error(f'Erro ao carregar Webhooks: {_ew}')
+
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
+
 if (
     st.session_state.get("modo_selecionado") == "📍 Por UF/Município"
     and st.session_state.get("_restore_recalc_rota_m1")
