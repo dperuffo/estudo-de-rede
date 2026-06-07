@@ -656,7 +656,17 @@ def _auth_logado() -> bool:
 
 
 def _auth_carregar_usuario_db(email: str) -> dict | None:
-    # Camada 1: Redis cache de sessão
+    # Rate limiting: max 10 tentativas de login por minuto por email
+    try:
+        from cache_redis import rate_limit_check
+        _permitido, _restantes = rate_limit_check(f"login:{email}", limite=10, janela=60)
+        if not _permitido:
+            import streamlit as st
+            st.error("⚠️ Muitas tentativas de login. Aguarde 1 minuto.")
+            st.stop()
+    except Exception:
+        pass
+    # Camada 2: Redis cache de sessão
     try:
         from cache_redis import cache_sessao_get
         _cached_u = cache_sessao_get(email)
