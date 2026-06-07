@@ -15400,6 +15400,20 @@ with st.sidebar:
         st.markdown(_card_html, unsafe_allow_html=True)
 
         if st.button(
+            "🚀 Planos & Assinatura",
+            use_container_width=True,
+            key="btn_planos",
+        ):
+            st.session_state["_mostrar_planos"] = True
+            st.rerun()
+        if st.button(
+            "👁️ Preview Onboarding",
+            use_container_width=True,
+            key="btn_preview_onboard",
+        ):
+            st.session_state["_preview_onboarding"] = True
+            st.rerun()
+        if st.button(
             "⎋  Sair da conta",
             use_container_width=True,
             type="secondary",
