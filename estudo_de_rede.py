@@ -15401,8 +15401,6 @@ with st.sidebar:
                 del st.session_state[_k]
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
-            if st.button("🚀 Planos & Assinatura", use_container_width=True, key="btn_planos"):
-                st.session_state["_mostrar_planos"] = True
 
     # ── Startup único por sessão: GitHub sync + restauração do banco ──────
     # Agrupa todas as operações de startup com guard de session_state.
