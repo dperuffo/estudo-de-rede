@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════
-#  FNI Pró-Frotas – Gestão de Frotas
+#  FNI Gestão de Frotas – Gestão de Frotas
 #  Versão 6.0  |  Multitenant SaaS  |  Fase 1 implementada
 # ═══════════════════════════════════════════════════════════════════
 
@@ -84,7 +84,7 @@ def _fragment(func=None, *, run_every=None):
     return _decorator(func) if func is not None else _decorator
 
 # ═══════════════════════════════════════════════════════════════════
-#  AUTO-SYNC ProFrotas — Sincronização automática de hora em hora
+#  AUTO-SYNC Gestão de Frotas — Sincronização automática de hora em hora
 #  Roda em background threads (daemon) — uma thread por cliente.
 #  Persiste entre reruns do Streamlit enquanto o servidor estiver ativo.
 # ═══════════════════════════════════════════════════════════════════
@@ -272,7 +272,7 @@ def _auto_sync_ensure_running(cnpj_frota: str, token: str) -> bool:
 
 def _auto_sync_ensure_all():
     """
-    Inicia ou re-verifica threads para todas as chaves ProFrotas ativas.
+    Inicia ou re-verifica threads para todas as chaves Gestão de Frotas ativas.
     _auto_sync_ensure_running() é idempotente — não recria threads vivas.
     """
     try:
@@ -689,7 +689,7 @@ def _auth_logado() -> bool:
 #  MFA / 2FA — Autenticação de Dois Fatores (TOTP)
 # ═══════════════════════════════════════════════════════════════════
 
-_MFA_ISSUER = "FNI Pró-Frotas"   # nome exibido no app authenticator
+_MFA_ISSUER = "FNI Gestão de Frotas"   # nome exibido no app authenticator
 
 def _mfa_gerar_segredo() -> str:
     """Gera um novo segredo TOTP aleatório (base32, 32 chars)."""
@@ -1492,7 +1492,7 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
 
     Fontes combinadas:
       1. frota_abastecimentos  — uploads manuais via Análise de Cliente
-      2. profrotas_abastecimentos — API GestãoFrotas sincronizada
+      2. profrotas_abastecimentos — API Gestão de Frotas sincronizada
     """
     dfs = []
 
@@ -1507,7 +1507,7 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
     except Exception:
         pass
 
-    # ── Fonte 2: API ProFrotas ─────────────────────────────────────
+    # ── Fonte 2: API Gestão de Frotas ─────────────────────────────────────
     try:
         _df_pf = _profrotas_para_df_analise(None, dias)
         if _df_pf is not None and not _df_pf.empty:
@@ -4396,7 +4396,7 @@ def _auth_login_page():
             "Em caso de dúvidas, contate o administrador do sistema.</p>",
             unsafe_allow_html=True,
         )
-        st.markdown("<div class='login-version'>v2.0 · Pró-Frotas</div>", unsafe_allow_html=True)
+        st.markdown("<div class='login-version'>v2.0 · Gestão de Frotas</div>", unsafe_allow_html=True)
 
 
 # ── Inicializar estado de autenticação ──────────────────────────────
@@ -4694,7 +4694,7 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
 
 def _profrotas_para_df_analise(cnpj_frota: str | None = None,
                                 dias: int = 180) -> "pd.DataFrame":
-    """Converte dados do GestãoFrotas (profrotas_abastecimentos) para o
+    """Converte dados do Gestão de Frotas (profrotas_abastecimentos) para o
     formato normalizado usado pela Análise de Cliente e Relatórios.
 
     Colunas de saída: _placa, _data, _hora, _produto, _litros, _preco_litro,
@@ -4743,7 +4743,7 @@ def _profrotas_para_df_analise(cnpj_frota: str | None = None,
             "_lon_posto":     _safe_f(r.get("pv_longitude")),
             "_status":        str(r.get("status_autorizacao", "") or ""),
             "_centro_custo":  "",
-            "_nome_arquivo":  "GestãoFrotas API",
+            "_nome_arquivo":  "Gestão de Frotas API",
             "_fonte":         "gestaoFrotas",
         })
 
@@ -4773,7 +4773,7 @@ _PROFROTAS_PAGE_SIZE = 100   # registros por página
 
 def _profrotas_request(token: str, payload: dict,
                         _retry: int = 3) -> tuple[dict | None, str | None]:
-    """POST autenticado na API ProFrotas com retry automático em 429/5xx.
+    """POST autenticado na API Gestão de Frotas com retry automático em 429/5xx.
     Retorna (data_dict, novo_token_ou_None) ou levanta exceção com mensagem.
     """
     import urllib.request, urllib.error, json as _json, ssl as _ssl, time as _time
@@ -5166,7 +5166,7 @@ def _profrotas_sync(cnpj_frota: str, token: str,
             return pagina, total_salvos, novo_token, \
                    f"Resposta inválida da API: {str(data)[:200]}", total_items or 0
 
-        # Chaves alternativas que a API ProFrotas pode retornar
+        # Chaves alternativas que a API Gestão de Frotas pode retornar
         registros = (data.get("registros") or data.get("items") or
                      data.get("data") or data.get("content") or [])
         if total_items is None:
@@ -7871,7 +7871,7 @@ def _gerar_relatorio_alertas_xlsx(
         _ws.row_dimensions[1].height = 26
 
         _ws.merge_cells("A2:H2")
-        _ws["A2"] = f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · Pró-Frotas"
+        _ws["A2"] = f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} · Gestão de Frotas"
         _ws["A2"].font = Font(italic=True, color="666666", size=10)
         _ws["A2"].alignment = Alignment(horizontal="center")
 
@@ -8261,7 +8261,7 @@ ARQUIVO_DOC_PDF       = "documentacao_gestao_frotas.pdf"   # documentação da a
 
 # Candidatos de nome para o PDF de documentação (ordem de prioridade)
 _DOC_PDF_CANDIDATOS = [
-    "Gestao de Frotas.pdf",
+    "Gestão de Frotas.pdf",
     "Gestão de Frotas.pdf",
     "gestao_de_frotas.pdf",
     "documentacao_gestao_frotas.pdf",
@@ -9883,7 +9883,7 @@ def _gerar_mapa_rota_png(coords_rota, orig, dest, paradas, sugest):
         _sm = StaticMap(
             _W, _H,
             url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            headers={"User-Agent": "EstudoDeRede-ProFrotas/2.0"},
+            headers={"User-Agent": "EstudoDeRede-Gestão de Frotas/2.0"},
         )
 
         # Linha da rota
@@ -10288,7 +10288,7 @@ def _gerar_card_rota_png(rot_res: dict, sugest: list) -> bytes:
     ax_ftr.set_xlim(0, 1); ax_ftr.set_ylim(0, 1)
     ax_ftr.axis("off")
     _now_str = datetime.now().strftime("%d/%m/%Y  %H:%M")
-    ax_ftr.text(0.5, 0.5, f"Gerado em {_now_str}  ·  Estudo de Rede — Pró-Frotas",
+    ax_ftr.text(0.5, 0.5, f"Gerado em {_now_str}  ·  Estudo de Rede — Gestão de Frotas",
                 ha="center", va="center", fontsize=7.5, color="#BBDEFB",
                 transform=ax_ftr.transAxes)
 
@@ -11528,7 +11528,7 @@ def _img_pro_frotas_b64() -> str:
     Tenta variações de nome e extensão. Retorna "" se não encontrado.
     """
     for nome in ["logo_profrotas.jpg", "logo_profrotas.jpeg", "logo_profrotas.png",
-                 "Logo_profrotas.jpg", "Logo_Profrotas.jpg", "logo_ProFrotas.jpg",
+                 "Logo_profrotas.jpg", "Logo_Profrotas.jpg", "logo_Gestão de Frotas.jpg",
                  "profrotas.jpg", "profrotas.png"]:
         caminho = os.path.join(_DIR, nome)
         if os.path.exists(caminho):
@@ -18429,7 +18429,7 @@ if False:
     { icon:'📍', title:'Modo 1 · Consulta por Estado (UF)',
       desc:'Selecione um <b>estado (UF)</b> na barra lateral para visualizar todos os postos '+
            'credenciados. Filtre por <b>municipio</b> para resultados mais precisos. '+
-           'Postos Gestao de Frotas aparecem em <b>azul e amarelo</b> destacados no mapa.',
+           'Postos Gestão de Frotas aparecem em <b>azul e amarelo</b> destacados no mapa.',
       visual:[
         {em:'1️⃣',label:'Escolha o Estado na sidebar',bg:'#e3f2fd'},
         {em:'🏙️',label:'Opcional: filtre por Municipio',bg:'#e8f5e9'},
@@ -18492,7 +18492,7 @@ if False:
            'Exporte os dados em <b>CSV</b> para seus relatorios.',
       visual:[
         {em:'⛽',label:'Total de postos na rede',bg:'#e3f2fd'},
-        {em:'⭐',label:'Postos Gestao de Frotas',bg:'#fff8e1'},
+        {em:'⭐',label:'Postos Gestão de Frotas',bg:'#fff8e1'},
         {em:'📈',label:'Penetracao GF por estado',bg:'#e8f5e9'},
         {em:'💰',label:'Economia media vs ANP',bg:'#fce4ec'}
       ],
@@ -25323,7 +25323,7 @@ if modo == "📈 Dashboard":
                     "e preço médio real pago por UF comparado à referência ANP."
                 )
 
-                # Carrega abastecimentos unificados (uploads + API GestãoFrotas)
+                # Carrega abastecimentos unificados (uploads + API Gestão de Frotas)
                 with st.spinner("Carregando abastecimentos…"):
                     _cx4_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
 
@@ -25331,7 +25331,7 @@ if modo == "📈 Dashboard":
                     st.info(
                         "Nenhum abastecimento encontrado. "
                         "Carregue dados na seção **👥 Análise de Cliente** "
-                        "ou sincronize via **⚡ API & Integrações → GestãoFrotas**.",
+                        "ou sincronize via **⚡ API & Integrações → Gestão de Frotas**.",
                         icon="🚛",
                     )
                 else:
@@ -25339,7 +25339,7 @@ if modo == "📈 Dashboard":
                     _n_api    = len(_cx4_df) - _n_upload
                     _fontes_txt = []
                     if _n_upload: _fontes_txt.append(f"{_br_num(_n_upload,0)} via upload")
-                    if _n_api:    _fontes_txt.append(f"{_br_num(_n_api,0)} via API GestãoFrotas")
+                    if _n_api:    _fontes_txt.append(f"{_br_num(_n_api,0)} via API Gestão de Frotas")
                     if _fontes_txt:
                         st.caption(f"📊 {_br_num(len(_cx4_df),0)} abastecimentos — " + " · ".join(_fontes_txt))
 
@@ -25658,7 +25658,7 @@ if modo == "📈 Dashboard":
         _d12_rotas = _carregar_rotas_salvas()          # lista de rotas salvas
         _d12_gf    = st.session_state.get("pf_coords_df", pd.DataFrame()).copy()
 
-        # Abastecimentos unificados (uploads + API GestãoFrotas)
+        # Abastecimentos unificados (uploads + API Gestão de Frotas)
         _d12_abast_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
         # Converte para lista de dicts compatível com o loop abaixo
         _d12_abast = _d12_abast_df.to_dict("records") if not _d12_abast_df.empty else []
@@ -25697,7 +25697,7 @@ if modo == "📈 Dashboard":
                 for _u in set(_ufs_rota):
                     _d12_demanda[_u] = _d12_demanda.get(_u, 0) + 1.0
 
-        # Contribuição de abastecimentos históricos (uploads + GestãoFrotas API)
+        # Contribuição de abastecimentos históricos (uploads + Gestão de Frotas API)
         if _d12_abast:
             for _ab in _d12_abast:
                 # Aceita colunas de ambas as fontes: uf_posto (unificada) ou uf (legado)
@@ -26755,7 +26755,7 @@ elif modo == "💡 Inteligência":
 | 🔴 **D** | < 35 pts | Abaixo da média — preço elevado ou sem serviços |
         """)
         st.info("💡 O Score aparece como primeira coluna na tabela de dados do Modo **📍 Por UF/Município**. "
-                "Quanto mais dados da planilha Pró-Frotas e ANP estiverem carregados, mais preciso ele fica.")
+                "Quanto mais dados da planilha Gestão de Frotas e ANP estiverem carregados, mais preciso ele fica.")
 
     # ══ ABA 3: Alertas Inteligentes ═══════════════════════════════
     with _tab_alertas:
@@ -29063,7 +29063,7 @@ elif modo == "📚 Documentação":
     else:
         st.warning(
             "📄 Arquivo de documentação não encontrado.\n\n"
-            "Certifique-se de que o arquivo **Gestao de Frotas.pdf** está na raiz do repositório."
+            "Certifique-se de que o arquivo **Gestão de Frotas.pdf** está na raiz do repositório."
         )
 
 # ═══════════════════════════════════════════════════════════════════
@@ -30015,12 +30015,12 @@ elif modo == "👥 Análise de Cliente":
             })
         return rows
 
-    # ── Fonte de dados: upload, banco ou GestãoFrotas ───────────
-    # Verificar se há chaves ProFrotas cadastradas
+    # ── Fonte de dados: upload, banco ou Gestão de Frotas ───────────
+    # Verificar se há chaves Gestão de Frotas cadastradas
     _pf_chaves_ac = _profrotas_listar_chaves()
     _pf_src_opts  = ["📂 Carregar arquivo", "☁️ Dados salvos no banco"]
     if _pf_chaves_ac:
-        _pf_src_opts.append("🔌 GestãoFrotas (API)")
+        _pf_src_opts.append("🔌 Gestão de Frotas (API)")
 
     _src_opcao = st.radio(
         "Fonte dos dados:",
@@ -30031,27 +30031,27 @@ elif modo == "👥 Análise de Cliente":
 
     _df_abast = None  # dataframe normalizado final
 
-    if _src_opcao == "🔌 GestãoFrotas (API)":
+    if _src_opcao == "🔌 Gestão de Frotas (API)":
         _pf_opts_ac = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c["cnpj_frota"]
                        for c in _pf_chaves_ac}
         _pf_opts_ac = {"Todos os clientes": None, **_pf_opts_ac}
         _pf_col1, _pf_col2 = st.columns([2, 1])
         with _pf_col1:
-            _pf_cli_ac = st.selectbox("Cliente GestãoFrotas",
+            _pf_cli_ac = st.selectbox("Cliente Gestão de Frotas",
                                        list(_pf_opts_ac.keys()), key="ac_pf_cli")
         with _pf_col2:
             _pf_dias_ac = st.selectbox("Período", [30, 60, 90, 180, 365], index=2,
                                         format_func=lambda x: f"{x} dias", key="ac_pf_dias")
-        with st.spinner("Carregando dados do GestãoFrotas..."):
+        with st.spinner("Carregando dados do Gestão de Frotas..."):
             _df_abast = _profrotas_para_df_analise(_pf_opts_ac[_pf_cli_ac], _pf_dias_ac)
         if _df_abast is not None and not _df_abast.empty:
             st.success(
-                f"🔌 **{len(_df_abast)}** registros do GestãoFrotas — "
+                f"🔌 **{len(_df_abast)}** registros do Gestão de Frotas — "
                 f"**{_df_abast['_placa'].nunique()}** veículos · "
                 f"**{_pf_dias_ac}** dias"
             )
         else:
-            st.warning("Nenhum dado encontrado. Sincronize na aba **⚡ API & Integrações → GestãoFrotas**.")
+            st.warning("Nenhum dado encontrado. Sincronize na aba **⚡ API & Integrações → Gestão de Frotas**.")
 
     elif _src_opcao == "📂 Carregar arquivo":
         _arq = st.file_uploader(
@@ -30157,7 +30157,7 @@ elif modo == "👥 Análise de Cliente":
                 _df_upload["_fonte"] = "upload"
             _dfs_banco.append(_df_upload)
 
-        # ── Fonte 2: API ProFrotas (profrotas_abastecimentos) ───────
+        # ── Fonte 2: API Gestão de Frotas (profrotas_abastecimentos) ───────
         _df_pf_banco = _profrotas_para_df_analise(None, 365)
         if _df_pf_banco is not None and not _df_pf_banco.empty:
             _dfs_banco.append(_df_pf_banco)
@@ -30168,7 +30168,7 @@ elif modo == "👥 Análise de Cliente":
             _n_pf     = len(_df_pf_banco) if (_df_pf_banco is not None and not _df_pf_banco.empty) else 0
             _fontes   = []
             if _n_upload: _fontes.append(f"**{_br_num(_n_upload, 0)}** via upload")
-            if _n_pf:     _fontes.append(f"**{_br_num(_n_pf, 0)}** via API ProFrotas")
+            if _n_pf:     _fontes.append(f"**{_br_num(_n_pf, 0)}** via API Gestão de Frotas")
             st.info(
                 f"☁️ **{_br_num(len(_df_abast), 0)}** registros do banco "
                 f"({' + '.join(_fontes)}) — "
@@ -30177,7 +30177,7 @@ elif modo == "👥 Análise de Cliente":
         else:
             st.warning(
                 "Nenhum dado salvo no banco ainda. "
-                "Carregue um arquivo **ou** sincronize via **⚡ API & Integrações → GestãoFrotas**."
+                "Carregue um arquivo **ou** sincronize via **⚡ API & Integrações → Gestão de Frotas**."
             )
             _rd_err = st.session_state.get("_profrotas_read_error")
             if _rd_err:
@@ -34204,14 +34204,14 @@ elif modo == "📑 Relatórios":
                 break
         # Se não há dados na sessão, carrega automaticamente de todas as fontes
         if _rlt_abast_df is None or (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
-            with st.spinner("Carregando abastecimentos (uploads + API GestãoFrotas)…"):
+            with st.spinner("Carregando abastecimentos (uploads + API Gestão de Frotas)…"):
                 _rlt_abast_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(365))
             if _rlt_abast_df is not None and not _rlt_abast_df.empty:
                 st.session_state["_fipe_abast_df"] = _rlt_abast_df
                 st.caption(f"📊 {_br_num(len(_rlt_abast_df),0)} abastecimentos carregados de todas as fontes.")
             else:
                 st.info("Carregue dados de abastecimentos na seção **👥 Análise de Cliente** "
-                        "ou sincronize via **⚡ API & Integrações → GestãoFrotas**.")
+                        "ou sincronize via **⚡ API & Integrações → Gestão de Frotas**.")
         if _rlt_abast_df is not None and not (hasattr(_rlt_abast_df, "empty") and _rlt_abast_df.empty):
             _fipe_cache_rlt = st.session_state.get(
                 "fipe_relatorio_cache_fipe",
@@ -35051,7 +35051,7 @@ elif modo == "🛰️ Telemetria":
 
         _imp_modo = st.radio(
             "Forma de importação",
-            ["📁 Upload CSV/Excel", "🔄 API ProFrotas (Gestão de Frotas)", "✍️ Entrada Manual"],
+            ["📁 Upload CSV/Excel", "🔄 API Gestão de Frotas (Gestão de Frotas)", "✍️ Entrada Manual"],
             horizontal=False,
             label_visibility="collapsed",
             key="tele_imp_modo",
@@ -35156,12 +35156,12 @@ elif modo == "🛰️ Telemetria":
                     st.error(f"Erro ao ler o arquivo: {_e_tele}")
 
         # ════════════════════════════════════════════
-        #  OPÇÃO 2 — API ProFrotas
+        #  OPÇÃO 2 — API Gestão de Frotas
         # ════════════════════════════════════════════
-        elif _imp_modo == "🔄 API ProFrotas (Gestão de Frotas)":
-            st.markdown("##### 🔄 Sincronização via API ProFrotas")
+        elif _imp_modo == "🔄 API Gestão de Frotas (Gestão de Frotas)":
+            st.markdown("##### 🔄 Sincronização via API Gestão de Frotas")
             st.caption(
-                "Abastecimentos da API ProFrotas são sincronizados automaticamente a cada hora "
+                "Abastecimentos da API Gestão de Frotas são sincronizados automaticamente a cada hora "
                 "e salvos diretamente na tabela unificada. "
                 "Use esta opção para forçar uma sincronização imediata."
             )
@@ -35171,7 +35171,7 @@ elif modo == "🛰️ Telemetria":
 
             if not _pf_ativos_tele:
                 st.warning(
-                    "Nenhuma chave ProFrotas ativa. "
+                    "Nenhuma chave Gestão de Frotas ativa. "
                     "Cadastre em **⚡ API & Integrações → 🔑 Chaves de Acesso**."
                 )
             else:
@@ -36033,7 +36033,7 @@ elif modo == "⚡ API & Integrações":
         "🔐 Autenticação",
         "💻 Exemplos de Código",
         "⚙️ Configuração do Servidor",
-        "🔌 GestãoFrotas",
+        "🔌 Gestão de Frotas",
     ])
 
     # ════════════════════════════════════════════════════════════════
@@ -36769,7 +36769,7 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
 
 
     # ════════════════════════════════════════════════════════════════
-    #  TAB 5 — GestãoFrotas — Integração de Abastecimentos
+    #  TAB 5 — Gestão de Frotas — Integração de Abastecimentos
     # ════════════════════════════════════════════════════════════════
     with _api_t5:
         try:
@@ -36779,9 +36779,9 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                 "<div style='background:linear-gradient(135deg,#0D47A1,#1565C0);"
                 "border-radius:10px;padding:14px 20px;margin-bottom:16px'>"
                 "<span style='color:#fff;font-size:1.1rem;font-weight:700'>"
-                "🔌 GestãoFrotas — Integração de Abastecimentos</span><br>"
+                "🔌 Gestão de Frotas — Integração de Abastecimentos</span><br>"
                 "<span style='color:#BBDEFB;font-size:12px'>"
-                "Sincronize abastecimentos via API GestãoFrotas · JWT Bearer Auth</span>"
+                "Sincronize abastecimentos via API Gestão de Frotas · JWT Bearer Auth</span>"
                 "</div>",
                 unsafe_allow_html=True,
             )
@@ -36925,7 +36925,7 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                                 st.error(f"❌ {_tab_err2}")
                         _last_resp = st.session_state.get("_profrotas_last_response")
                         if _last_resp:
-                            st.markdown("**Última resposta da API ProFrotas:**")
+                            st.markdown("**Última resposta da API Gestão de Frotas:**")
                             st.json(_last_resp)
 
                 _pf_ativos = [c for c in _profrotas_listar_chaves() if c.get("ativo")]
@@ -37064,7 +37064,7 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                                        use_container_width=True)
 
         except Exception as _pf_err:
-            st.error(f"❌ Erro na aba GestãoFrotas: {_pf_err}")
+            st.error(f"❌ Erro na aba Gestão de Frotas: {_pf_err}")
             import traceback as _pf_tb
             st.code(_pf_tb.format_exc(), language="text")
 
