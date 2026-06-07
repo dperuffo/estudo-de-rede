@@ -15446,54 +15446,54 @@ if st.session_state.get("_preview_onboarding"):
         st.error(f"Erro no preview: {_e}")
     st.stop()
 
-    # Reconstrói labels de serviços se necessário (pode mudar via upload)
-    if ("pf_coords_df" in st.session_state
-            and not st.session_state["pf_coords_df"].empty
-            and not st.session_state.get("_servicos_pf_labels")):
-        _atualizar_servicos_pf(st.session_state["pf_coords_df"])
+# Reconstrói labels de serviços se necessário (pode mudar via upload)
+if ("pf_coords_df" in st.session_state
+        and not st.session_state["pf_coords_df"].empty
+        and not st.session_state.get("_servicos_pf_labels")):
+    _atualizar_servicos_pf(st.session_state["pf_coords_df"])
 
-    # ── Carrega acordos de preço do Supabase ─────────────────
-    # Tenta carregar sempre que acordos_df não existe OU está vazio,
-    # com debounce de 5 minutos para não sobrecarregar o banco.
-    _ac_need_load = "acordos_df" not in st.session_state or (
-        st.session_state.get("acordos_df", pd.DataFrame()).empty
-        and time.time() - st.session_state.get("_acordos_tentado_ts", 0) > 300
+# ── Carrega acordos de preço do Supabase ─────────────────
+# Tenta carregar sempre que acordos_df não existe OU está vazio,
+# com debounce de 5 minutos para não sobrecarregar o banco.
+_ac_need_load = "acordos_df" not in st.session_state or (
+    st.session_state.get("acordos_df", pd.DataFrame()).empty
+    and time.time() - st.session_state.get("_acordos_tentado_ts", 0) > 300
+)
+if _ac_need_load:
+    st.session_state["_acordos_tentado_ts"] = time.time()
+    _ac_loaded = _db_carregar_acordos()
+    st.session_state["acordos_df"] = _ac_loaded
+
+# ── Modo de consulta — toggle buttons ─────────────────────
+# Banner: sutil quando Menu.jpg existe, com gradiente quando não existe
+if _MENU_B64:
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'>"
+        "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
+        "#040d26,#1040a0)'></div>"
+        "<div style='font-size:9px;font-weight:700;color:#0b2660;"
+        "letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap'>"
+        "Modo de Consulta</div>"
+        "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
+        "#1040a0,#040d26)'></div>"
+        "</div>",
+        unsafe_allow_html=True,
     )
-    if _ac_need_load:
-        st.session_state["_acordos_tentado_ts"] = time.time()
-        _ac_loaded = _db_carregar_acordos()
-        st.session_state["acordos_df"] = _ac_loaded
+else:
+    st.markdown(
+        "<div style='"
+        "background:linear-gradient(135deg,#040d26 0%,#0b2660 50%,#1040a0 100%);"
+        "border-radius:12px;padding:10px 14px 8px;margin-bottom:10px'>"
+        "<div style='color:rgba(144,202,249,.75);font-size:9px;font-weight:600;"
+        "letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px'>Modo de Consulta</div>"
+        "<div style='color:#fff;font-size:13px;font-weight:700;line-height:1.2'>"
+        "Selecione como deseja buscar</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    # ── Modo de consulta — toggle buttons ─────────────────────
-    # Banner: sutil quando Menu.jpg existe, com gradiente quando não existe
-    if _MENU_B64:
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'>"
-            "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
-            "#040d26,#1040a0)'></div>"
-            "<div style='font-size:9px;font-weight:700;color:#0b2660;"
-            "letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap'>"
-            "Modo de Consulta</div>"
-            "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
-            "#1040a0,#040d26)'></div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            "<div style='"
-            "background:linear-gradient(135deg,#040d26 0%,#0b2660 50%,#1040a0 100%);"
-            "border-radius:12px;padding:10px 14px 8px;margin-bottom:10px'>"
-            "<div style='color:rgba(144,202,249,.75);font-size:9px;font-weight:600;"
-            "letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px'>Modo de Consulta</div>"
-            "<div style='color:#fff;font-size:13px;font-weight:700;line-height:1.2'>"
-            "Selecione como deseja buscar</div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
-    # CSS exclusivo para os 3 botões de modo (seletores st-key-* + data-testid)
-    st.markdown("""
+# CSS exclusivo para os 3 botões de modo (seletores st-key-* + data-testid)
+st.markdown("""
 <style>
 /* ── base: altura e texto para os 3 botões de modo ── */
 .st-key-btn_modo_estado button,
