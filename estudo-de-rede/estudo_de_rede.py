@@ -36221,7 +36221,7 @@ elif modo == "⚡ API & Integrações":
 
     import urllib.parse as _urlparse
 
-    _BASE_URL = "https://estudo-de-rede-profrotas.fly.dev"
+    _BASE_URL = "https://fxgestaodefrotasonline.com"
     _API_BASE = f"{_BASE_URL}/api/v1"
 
     # ── Cabeçalho ──────────────────────────────────────────────────
@@ -36236,12 +36236,13 @@ elif modo == "⚡ API & Integrações":
     )
 
     # ── Tabs principais ────────────────────────────────────────────
-    _api_t1, _api_t2, _api_t3, _api_t4, _api_t5 = st.tabs([
+    _api_t1, _api_t2, _api_t3, _api_t4, _api_t5, _api_t6 = st.tabs([
         "📖 Endpoints",
         "🔐 Autenticação",
         "💻 Exemplos de Código",
         "⚙️ Configuração do Servidor",
         "🔌 Gestão de Frotas",
+        "🔑 API Keys",
     ])
 
     # ════════════════════════════════════════════════════════════════
@@ -37275,6 +37276,14 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
             st.error(f"❌ Erro na aba Gestão de Frotas: {_pf_err}")
             import traceback as _pf_tb
             st.code(_pf_tb.format_exc(), language="text")
+
+
+    with _api_t6:
+        try:
+            from api_keys import mostrar_painel_api_keys
+            mostrar_painel_api_keys()
+        except Exception as _ek:
+            st.error(f'Erro ao carregar API Keys: {_ek}')
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 if (
