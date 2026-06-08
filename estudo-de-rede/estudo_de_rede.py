@@ -8280,6 +8280,7 @@ COR_CERCADO_BORDA     = "#E65100"   # laranja escuro
 ARQUIVO_PP_REPO       = "preco_posto.xlsx"   # planilha de preços por posto
 _PP_PARSER_VERSION    = "v5"                 # incrementar aqui força re-parse automático
 ARQUIVO_ANP_REPO      = "precos_anp.xlsx"    # planilha semanal de preços ANP
+ARQUIVO_POSTOS_ANP_REPO = "postos_anp.xlsx"  # cadastro completo de postos ANP (~38k)
 ARQUIVO_DOC_PDF       = "documentacao_gestao_frotas.pdf"   # documentação da aplicação
 
 # Candidatos de nome para o PDF de documentação (ordem de prioridade)
@@ -9297,6 +9298,43 @@ def _auto_carregar_anp_repo():
         return None, None, f"{ARQUIVO_ANP_REPO}: {type(_e).__name__}: {_e}"
 
 
+@st.cache_data(show_spinner=False, ttl=86400)
+def _auto_carregar_postos_anp_repo():
+    """
+    Baixa postos_anp.xlsx do GitHub e retorna DataFrame com ~38k postos.
+    Cache de 24h no servidor.
+    """
+    # Camada 1: Redis cache
+    try:
+        from cache_redis import get as _redis_get, set as _redis_set
+        _cached = _redis_get("fni:postos_anp:df")
+        if _cached:
+            import json as _json
+            _df = pd.DataFrame(_json.loads(_cached))
+            if not _df.empty:
+                return _df, f"{len(_df)} postos (Redis cache)"
+    except Exception:
+        pass
+
+    _bytes, _err = _github_baixar_bytes(ARQUIVO_POSTOS_ANP_REPO)
+    if _err:
+        return None, f"Erro ao baixar postos_anp.xlsx: {_err}"
+    try:
+        _df, _msg = _processar_bytes_anp_postos(ARQUIVO_POSTOS_ANP_REPO, _bytes)
+        if _df is None:
+            return None, _msg
+        # Salvar no Redis por 24h
+        try:
+            from cache_redis import set as _redis_set
+            import json as _json
+            _redis_set("fni:postos_anp:df", _json.dumps(_df.to_dict(orient="records")), ttl=86400)
+        except Exception:
+            pass
+        return _df, f"{len(_df)} postos carregados"
+    except Exception as _e:
+        return None, f"postos_anp.xlsx: {type(_e).__name__}: {_e}"
+
+
 def _startup_sincronizar_github() -> None:
     """
     Sincroniza todas as planilhas base do GitHub com o Supabase e com o session_state.
@@ -9361,6 +9399,19 @@ def _startup_sincronizar_github() -> None:
             _sync_erros.append(f"Postos Cercados.xlsx: {_msg_c or 'download falhou'}")
     except Exception as _e_c:
         _sync_erros.append(f"Postos Cercados.xlsx: {type(_e_c).__name__}: {_e_c}")
+
+    # ── 2b. Postos ANP (postos_anp.xlsx) ─────────────────────────────
+    try:
+        _postos_anp_df, _msg_anp = _auto_carregar_postos_anp_repo()
+        if _postos_anp_df is not None and not _postos_anp_df.empty:
+            st.session_state["postos_anp_df"]          = _postos_anp_df
+            st.session_state["_postos_anp_carregado"]  = True
+            st.session_state["_postos_anp_total"]      = len(_postos_anp_df)
+            st.session_state["_postos_anp_fonte"]      = "GitHub (automático)"
+        else:
+            _sync_erros.append(f"postos_anp.xlsx: {_msg_anp or 'download falhou'}")
+    except Exception as _e_anp:
+        _sync_erros.append(f"postos_anp.xlsx: {type(_e_anp).__name__}: {_e_anp}")
 
     # ── 3. Preços por Posto (preco_posto.xlsx) ────────────────────────
     try:
@@ -18879,35 +18930,61 @@ if modo == "📍 Por UF/Município":
     if uf:
         # ── Carrega postos GF do estado diretamente da planilha (sem chamada à API ANP) ──
         if uf != st.session_state.get("_uf_carregada"):
-            _pf_df_m1 = st.session_state.get("pf_coords_df", pd.DataFrame())
-            if not _pf_df_m1.empty:
-                # Remove linhas sem coordenadas válidas (Supabase antigo pode ter NULL lat/lon)
-                if "_lat" in _pf_df_m1.columns and "_lon" in _pf_df_m1.columns:
-                    _pf_df_m1 = _pf_df_m1.dropna(subset=["_lat", "_lon"])
-                # Garante coluna uf
-                if "uf" not in _pf_df_m1.columns:
-                    _pf_df_m1 = _pf_df_m1.copy()
-                    _pf_df_m1["uf"] = ""
-                df_raw_full = _pf_df_m1[
-                    _pf_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
+            # ── Fonte principal: postos ANP (~38k postos) ──────────────
+            _anp_df_m1 = st.session_state.get("postos_anp_df", pd.DataFrame())
+            if _anp_df_m1.empty:
+                # Fallback: tentar carregar agora se não veio no startup
+                try:
+                    _anp_df_m1, _ = _auto_carregar_postos_anp_repo()
+                    if _anp_df_m1 is not None and not _anp_df_m1.empty:
+                        st.session_state["postos_anp_df"] = _anp_df_m1
+                except Exception:
+                    _anp_df_m1 = pd.DataFrame()
+
+            if not _anp_df_m1.empty:
+                # Filtrar por UF
+                if "uf" not in _anp_df_m1.columns:
+                    _anp_df_m1 = _anp_df_m1.copy()
+                    _anp_df_m1["uf"] = ""
+                # Mostrar todos os postos da UF — com e sem coordenadas
+                df_raw_full = _anp_df_m1[
+                    _anp_df_m1["uf"].fillna("").str.upper().str.strip() == uf.upper()
                 ].copy().reset_index(drop=True)
+                # Para o mapa, usar apenas postos com coordenadas
+                _df_mapa = df_raw_full.dropna(subset=["_lat", "_lon"])
+                st.session_state["_df_anp_mapa_uf"] = _df_mapa
                 if df_raw_full.empty:
-                    # Nenhum posto neste estado — pode ser UF inválida ou dados sem coords
-                    _n_total_pf = len(_pf_df_m1)
-                    _ufs_disponiveis = sorted(_pf_df_m1["uf"].dropna().unique().tolist()) if "uf" in _pf_df_m1.columns else []
+                    _n_total = len(_anp_df_m1)
+                    _ufs_disp = sorted(_anp_df_m1["uf"].dropna().unique().tolist()) if "uf" in _anp_df_m1.columns else []
                     st.info(
-                        f"⚠️ Nenhum posto encontrado para **{uf}** na planilha carregada "
-                        f"({_n_total_pf:,} postos com coordenadas no total). "
-                        + (f"Estados disponíveis: {', '.join(_ufs_disponiveis[:10])}" if _ufs_disponiveis else "")
+                        f"⚠️ Nenhum posto ANP encontrado para **{uf}** "
+                        f"({_n_total:,} postos no total). "
+                        + (f"UFs disponíveis: {', '.join(_ufs_disp[:10])}" if _ufs_disp else "")
                     )
             else:
                 df_raw_full = pd.DataFrame()
                 _sync_errs = st.session_state.get("_github_sync_erros", [])
-                _err_detalhe = (" Erros na carga automática: " + "; ".join(_sync_errs)) if _sync_errs else ""
+                _err_detalhe = (" Erros: " + "; ".join(_sync_errs)) if _sync_errs else ""
                 st.warning(
-                    "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
-                    "Verifique a seção **Configurações** na barra lateral." + _err_detalhe
+                    "⚠️ Postos ANP não carregados ainda. Aguarde o carregamento automático." + _err_detalhe
                 )
+
+            # ── Sobrepor postos do cliente (abastecimentos carregados) ──
+            _empresa_id_m1 = (st.session_state.get("_empresa_ativa") or {}).get("id")
+            if _empresa_id_m1:
+                _abast_df = st.session_state.get("_abastecimentos_cliente_df", pd.DataFrame())
+                if not _abast_df.empty and "cnpj_posto" in _abast_df.columns:
+                    _cnpjs_cliente = set(_abast_df["cnpj_posto"].dropna().unique())
+                    if not _anp_df_m1.empty and "cnpj" in _anp_df_m1.columns:
+                        _postos_cliente = _anp_df_m1[
+                            _anp_df_m1["cnpj"].isin(_cnpjs_cliente) &
+                            (_anp_df_m1["uf"].fillna("").str.upper() == uf.upper())
+                        ].copy()
+                        if not _postos_cliente.empty:
+                            _postos_cliente["_transacionado"] = True
+                            if not df_raw_full.empty:
+                                df_raw_full = df_raw_full.copy()
+                                df_raw_full["_transacionado"] = df_raw_full["cnpj"].isin(_cnpjs_cliente)
 
             st.session_state["df_raw_full"]  = df_raw_full
             st.session_state["_uf_carregada"] = uf
@@ -36257,14 +36334,15 @@ elif modo == "⚡ API & Integrações":
     )
 
     # ── Tabs principais ────────────────────────────────────────────
-    _api_t1, _api_t2, _api_t3, _api_t4, _api_t5, _api_t6, _api_t7 = st.tabs([
+    _api_t1, _api_t2, _api_t3, _api_t4, _api_t5, _api_t6, _api_t7, _api_t8 = st.tabs([
         "📖 Endpoints",
         "🔐 Autenticação",
         "💻 Exemplos de Código",
         "⚙️ Configuração do Servidor",
-        "🔌 Gestão de Frotas",
+        "💳 Meios de Pagamento",
         "🔑 API Keys",
         "🪝 Webhooks",
+        "🔌 Integrações",
     ])
 
     # ════════════════════════════════════════════════════════════════
@@ -37003,303 +37081,332 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
     #  TAB 5 — Gestão de Frotas — Integração de Abastecimentos
     # ════════════════════════════════════════════════════════════════
     with _api_t5:
-        try:
-            import datetime as _pf_dt, re as _pf_re
+        st.markdown("### 💳 Meios de Pagamento")
+        st.caption("Integre sua frota com os principais meios de pagamento de combustível do mercado brasileiro")
 
-            st.markdown(
-                "<div style='background:linear-gradient(135deg,#0D47A1,#1565C0);"
-                "border-radius:10px;padding:14px 20px;margin-bottom:16px'>"
-                "<span style='color:#fff;font-size:1.1rem;font-weight:700'>"
-                "🔌 Gestão de Frotas — Integração de Abastecimentos</span><br>"
-                "<span style='color:#BBDEFB;font-size:12px'>"
-                "Sincronize abastecimentos via API Gestão de Frotas · JWT Bearer Auth</span>"
-                "</div>",
-                unsafe_allow_html=True,
-            )
+        _mp_opcoes = ["🔵 Integração Pró-Frotas"]
+        _mp_sel = st.radio(
+            "Selecione o meio de pagamento:",
+            _mp_opcoes,
+            horizontal=True,
+            key="mp_sel"
+        )
 
-            _pf_secao = st.radio(
-                "Seção",
-                ["🔑 Chaves de Acesso", "🔄 Sincronização", "📊 Abastecimentos"],
-                horizontal=True, label_visibility="collapsed",
-                key="pf_secao_radio",
-            )
-            st.divider()
+        # Ticket Log, Rede Frota, Veloe — em breve
+        _mp_em_breve = ["🟡 Ticket Log", "🟠 Rede Frota", "🟢 Veloe", "🔴 Ticket Car"]
+        st.markdown("**Próximas integrações:**")
+        _cols_mp = st.columns(len(_mp_em_breve))
+        for _i_mp, _mp in enumerate(_mp_em_breve):
+            with _cols_mp[_i_mp]:
+                st.markdown(
+                    f"<div style='background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);"
+                    f"border-radius:8px;padding:10px;text-align:center;opacity:0.5'>"
+                    f"{_mp}<br><small>Em breve</small></div>",
+                    unsafe_allow_html=True
+                )
 
-            if _pf_secao == "🔑 Chaves de Acesso":
-                st.markdown("#### 🔑 Cadastrar Chave de Acesso do Cliente")
-                st.info("Informe o token JWT obtido no portal **portal.profrotas.com.br**.", icon="ℹ️")
-                with st.form("form_pf_chave", clear_on_submit=False):
-                    _pf_cnpj_inp  = st.text_input("CNPJ da Frota *", placeholder="00.000.000/0001-00")
-                    _pf_nome_inp  = st.text_input("Nome da Empresa *", placeholder="Ex: Lenarge Transportes Ltda")
-                    _pf_token_inp = st.text_area("Token JWT *",
-                                                  placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-                                                  height=100)
-                    _pf_c1, _pf_c2 = st.columns(2)
-                    with _pf_c1:
-                        _pf_btn_val  = st.form_submit_button("✅ Validar", use_container_width=True)
-                    with _pf_c2:
-                        _pf_btn_salv = st.form_submit_button("💾 Salvar", use_container_width=True, type="primary")
-                if _pf_btn_val and _pf_token_inp.strip():
-                    _pf_ok, _pf_msg = _profrotas_validar_token(_pf_token_inp.strip())
-                    (st.success if _pf_ok else st.error)(f"{'✅' if _pf_ok else '❌'} {_pf_msg}")
-                if _pf_btn_salv:
-                    _pf_cnpj_v = _pf_re.sub(r"\D", "", _pf_cnpj_inp.strip())
-                    if not _pf_cnpj_v or len(_pf_cnpj_v) != 14:
-                        st.error("CNPJ inválido.")
-                    elif not _pf_nome_inp.strip() or not _pf_token_inp.strip():
-                        st.error("Preencha todos os campos.")
-                    else:
-                        _ok2, _msg2 = _profrotas_salvar_chave(
-                            _pf_cnpj_v, _pf_nome_inp.strip(),
-                            _pf_token_inp.strip(), st.session_state.get("_auth_email",""))
-                        (st.success if _ok2 else st.error)(f"{'✅' if _ok2 else '❌'} {_msg2}")
-                        if _ok2:
-                            # Inicia auto-sync imediatamente para a nova chave
-                            _auto_sync_ensure_running(_pf_cnpj_v, _pf_token_inp.strip())
-                            st.rerun()
-                st.markdown("---")
-                st.markdown("#### 📋 Chaves Cadastradas")
-                _pf_chaves = _profrotas_listar_chaves()
-                if not _pf_chaves:
-                    st.info("Nenhuma chave cadastrada.", icon="ℹ️")
-                else:
-                    for _pfc in _pf_chaves:
-                        with st.expander(
-                            f"{'🟢' if _pfc.get('ativo') else '🔴'} "
-                            f"**{_pfc.get('nome_empresa','?')}** — {_pfc.get('cnpj_frota','?')}"
-                        ):
-                            _ps = _pfc.get("ultimo_sync") or "—"
-                            try:
-                                _ps_dt = _pf_dt.datetime.fromisoformat(_ps.replace("Z",""))
-                                if _ps_dt.tzinfo is None:
-                                    _ps_dt = _ps_dt.replace(tzinfo=_pf_dt.timezone.utc)
-                                _tz_br = _pf_dt.timezone(_pf_dt.timedelta(hours=-3))
-                                _ps = _ps_dt.astimezone(_tz_br).strftime("%d/%m/%Y %H:%M")
-                            except Exception: pass
-                            st.write(f"**Último sync:** {_ps} | **Registros:** {_pfc.get('registros_sync',0):,}")
-                            if st.button("🗑️ Remover", key=f"rm_{_pfc.get('cnpj_frota')}"):
-                                _db2 = _db_client()
-                                if _db2:
-                                    _db2.table("profrotas_api_keys").delete().eq("cnpj_frota", _pfc.get("cnpj_frota")).execute()
-                                    st.success("Removida."); st.rerun()
+        st.markdown("---")
 
-            elif _pf_secao == "🔄 Sincronização":
-                st.markdown("#### 🔄 Sincronizar Abastecimentos")
-
-                # ── Status do Auto-Sync ───────────────────────────────────
-                import datetime as _pf_dt2
-                _as_chaves = _profrotas_listar_chaves()
-                _as_ativos = [c for c in _as_chaves if c.get("ativo")]
-                if _as_ativos:
-                    # Mostra erro de startup se houver
-                    _as_err_start = _AUTO_SYNC_STATUS.get("_startup_error", {})
-                    if _as_err_start.get("msg"):
-                        st.error(f"❌ Erro ao iniciar auto-sync: {_as_err_start['msg']}")
-
-                    st.markdown("**🤖 Sincronização Automática (a cada 1 hora)**")
-                    for _asc in _as_ativos:
-                        _asc_cnpj = _asc.get("cnpj_frota","")
-                        _asc_nome = _asc.get("nome_empresa", _asc_cnpj)
-                        _asc_st   = _AUTO_SYNC_STATUS.get(_asc_cnpj, {})
-                        _asc_status = _asc_st.get("status","—")
-                        _ico = ("🟢" if _asc_status == "ok"
-                                else "🔵" if _asc_status == "syncing"
-                                else "🟡" if _asc_status in ("iniciado","erro_parcial")
-                                else "🔴" if _asc_status == "erro"
-                                else "⚪")
-                        def _fmt_dt_as(iso):
-                            try:
-                                _ts = _pf_dt2.datetime.fromisoformat(iso.replace("Z",""))
-                                # Converte UTC → Brasília (UTC-3) para exibição
-                                if _ts.tzinfo is None:
-                                    _ts = _ts.replace(tzinfo=_pf_dt2.timezone.utc)
-                                _tz_br = _pf_dt2.timezone(_pf_dt2.timedelta(hours=-3))
-                                return _ts.astimezone(_tz_br).strftime("%d/%m %H:%M")
-                            except Exception:
-                                return "—"
-                        _last_lbl = _fmt_dt_as(_asc_st.get("last_sync",""))
-                        _next_lbl = _fmt_dt_as(_asc_st.get("next_sync",""))
-                        _rec_lbl  = _br_int(_asc_st.get("records_last", 0))
-                        with st.container(border=True):
-                            _col_a, _col_b, _col_c, _col_d = st.columns([3,2,2,2])
-                            _col_a.markdown(f"{_ico} **{_asc_nome}**")
-                            _col_b.caption(f"Último: {_last_lbl}")
-                            _col_c.caption(f"Próximo: {_next_lbl}")
-                            _col_d.caption(f"Salvos: {_rec_lbl}")
-                            if _asc_st.get("erro"):
-                                st.caption(f"⚠️ {_asc_st['erro'][:120]}")
-                            if _asc_status in ("—", "erro"):
-                                if st.button("▶ Reiniciar auto-sync",
-                                             key=f"as_restart_{_asc_cnpj}",
-                                             use_container_width=False):
-                                    _auto_sync_ensure_running(_asc_cnpj, _asc.get("token",""))
-                                    st.success("Thread reiniciada."); st.rerun()
+        if _mp_sel == "🔵 Integração Pró-Frotas":
+            st.markdown("#### 🔵 Integração Pró-Frotas")
+            st.caption("Sincronize abastecimentos realizados via cartão Pró-Frotas")
+            try:
+                import datetime as _pf_dt, re as _pf_re
+    
+                st.markdown(
+                    "<div style='background:linear-gradient(135deg,#0D47A1,#1565C0);"
+                    "border-radius:10px;padding:14px 20px;margin-bottom:16px'>"
+                    "<span style='color:#fff;font-size:1.1rem;font-weight:700'>"
+                    "🔌 Gestão de Frotas — Integração de Abastecimentos</span><br>"
+                    "<span style='color:#BBDEFB;font-size:12px'>"
+                    "Sincronize abastecimentos via API Gestão de Frotas · JWT Bearer Auth</span>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+    
+                _pf_secao = st.radio(
+                    "Seção",
+                    ["🔑 Chaves de Acesso", "🔄 Sincronização", "📊 Abastecimentos"],
+                    horizontal=True, label_visibility="collapsed",
+                    key="pf_secao_radio",
+                )
+                st.divider()
+    
+                if _pf_secao == "🔑 Chaves de Acesso":
+                    st.markdown("#### 🔑 Cadastrar Chave de Acesso do Cliente")
+                    st.info("Informe o token JWT obtido no portal **portal.profrotas.com.br**.", icon="ℹ️")
+                    with st.form("form_pf_chave", clear_on_submit=False):
+                        _pf_cnpj_inp  = st.text_input("CNPJ da Frota *", placeholder="00.000.000/0001-00")
+                        _pf_nome_inp  = st.text_input("Nome da Empresa *", placeholder="Ex: Lenarge Transportes Ltda")
+                        _pf_token_inp = st.text_area("Token JWT *",
+                                                      placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                                                      height=100)
+                        _pf_c1, _pf_c2 = st.columns(2)
+                        with _pf_c1:
+                            _pf_btn_val  = st.form_submit_button("✅ Validar", use_container_width=True)
+                        with _pf_c2:
+                            _pf_btn_salv = st.form_submit_button("💾 Salvar", use_container_width=True, type="primary")
+                    if _pf_btn_val and _pf_token_inp.strip():
+                        _pf_ok, _pf_msg = _profrotas_validar_token(_pf_token_inp.strip())
+                        (st.success if _pf_ok else st.error)(f"{'✅' if _pf_ok else '❌'} {_pf_msg}")
+                    if _pf_btn_salv:
+                        _pf_cnpj_v = _pf_re.sub(r"\D", "", _pf_cnpj_inp.strip())
+                        if not _pf_cnpj_v or len(_pf_cnpj_v) != 14:
+                            st.error("CNPJ inválido.")
+                        elif not _pf_nome_inp.strip() or not _pf_token_inp.strip():
+                            st.error("Preencha todos os campos.")
+                        else:
+                            _ok2, _msg2 = _profrotas_salvar_chave(
+                                _pf_cnpj_v, _pf_nome_inp.strip(),
+                                _pf_token_inp.strip(), st.session_state.get("_auth_email",""))
+                            (st.success if _ok2 else st.error)(f"{'✅' if _ok2 else '❌'} {_msg2}")
+                            if _ok2:
+                                # Inicia auto-sync imediatamente para a nova chave
+                                _auto_sync_ensure_running(_pf_cnpj_v, _pf_token_inp.strip())
+                                st.rerun()
                     st.markdown("---")
-
-                # ── Diagnóstico de conexão e tabela ──────────────────
-                with st.expander("🔧 Diagnóstico de conexão", expanded=False):
-                    if st.button("▶ Verificar agora", key="btn_diag_pf"):
-                        _diag_db = _db_client()
-                        if not _diag_db:
-                            st.error("❌ Supabase não conectado. Verifique `st.secrets` com `supabase.url` e `supabase.key`.")
-                        else:
-                            st.success("✅ Supabase conectado.")
-                            _tab_ok2, _tab_err2 = _profrotas_garantir_tabela(_diag_db)
-                            if _tab_ok2:
+                    st.markdown("#### 📋 Chaves Cadastradas")
+                    _pf_chaves = _profrotas_listar_chaves()
+                    if not _pf_chaves:
+                        st.info("Nenhuma chave cadastrada.", icon="ℹ️")
+                    else:
+                        for _pfc in _pf_chaves:
+                            with st.expander(
+                                f"{'🟢' if _pfc.get('ativo') else '🔴'} "
+                                f"**{_pfc.get('nome_empresa','?')}** — {_pfc.get('cnpj_frota','?')}"
+                            ):
+                                _ps = _pfc.get("ultimo_sync") or "—"
                                 try:
-                                    _cnt = _diag_db.table("profrotas_abastecimentos").select("sync_key", count="exact").execute()
-                                    _total_db = _cnt.count or len(_cnt.data or [])
-                                    st.success(f"✅ Tabela OK — **{_br_num(_total_db, 0)}** registros no banco.")
-                                except Exception as _ec:
-                                    st.warning(f"⚠️ Tabela existe mas erro ao contar: {_ec}")
+                                    _ps_dt = _pf_dt.datetime.fromisoformat(_ps.replace("Z",""))
+                                    if _ps_dt.tzinfo is None:
+                                        _ps_dt = _ps_dt.replace(tzinfo=_pf_dt.timezone.utc)
+                                    _tz_br = _pf_dt.timezone(_pf_dt.timedelta(hours=-3))
+                                    _ps = _ps_dt.astimezone(_tz_br).strftime("%d/%m/%Y %H:%M")
+                                except Exception: pass
+                                st.write(f"**Último sync:** {_ps} | **Registros:** {_pfc.get('registros_sync',0):,}")
+                                if st.button("🗑️ Remover", key=f"rm_{_pfc.get('cnpj_frota')}"):
+                                    _db2 = _db_client()
+                                    if _db2:
+                                        _db2.table("profrotas_api_keys").delete().eq("cnpj_frota", _pfc.get("cnpj_frota")).execute()
+                                        st.success("Removida."); st.rerun()
+    
+                elif _pf_secao == "🔄 Sincronização":
+                    st.markdown("#### 🔄 Sincronizar Abastecimentos")
+    
+                    # ── Status do Auto-Sync ───────────────────────────────────
+                    import datetime as _pf_dt2
+                    _as_chaves = _profrotas_listar_chaves()
+                    _as_ativos = [c for c in _as_chaves if c.get("ativo")]
+                    if _as_ativos:
+                        # Mostra erro de startup se houver
+                        _as_err_start = _AUTO_SYNC_STATUS.get("_startup_error", {})
+                        if _as_err_start.get("msg"):
+                            st.error(f"❌ Erro ao iniciar auto-sync: {_as_err_start['msg']}")
+    
+                        st.markdown("**🤖 Sincronização Automática (a cada 1 hora)**")
+                        for _asc in _as_ativos:
+                            _asc_cnpj = _asc.get("cnpj_frota","")
+                            _asc_nome = _asc.get("nome_empresa", _asc_cnpj)
+                            _asc_st   = _AUTO_SYNC_STATUS.get(_asc_cnpj, {})
+                            _asc_status = _asc_st.get("status","—")
+                            _ico = ("🟢" if _asc_status == "ok"
+                                    else "🔵" if _asc_status == "syncing"
+                                    else "🟡" if _asc_status in ("iniciado","erro_parcial")
+                                    else "🔴" if _asc_status == "erro"
+                                    else "⚪")
+                            def _fmt_dt_as(iso):
+                                try:
+                                    _ts = _pf_dt2.datetime.fromisoformat(iso.replace("Z",""))
+                                    # Converte UTC → Brasília (UTC-3) para exibição
+                                    if _ts.tzinfo is None:
+                                        _ts = _ts.replace(tzinfo=_pf_dt2.timezone.utc)
+                                    _tz_br = _pf_dt2.timezone(_pf_dt2.timedelta(hours=-3))
+                                    return _ts.astimezone(_tz_br).strftime("%d/%m %H:%M")
+                                except Exception:
+                                    return "—"
+                            _last_lbl = _fmt_dt_as(_asc_st.get("last_sync",""))
+                            _next_lbl = _fmt_dt_as(_asc_st.get("next_sync",""))
+                            _rec_lbl  = _br_int(_asc_st.get("records_last", 0))
+                            with st.container(border=True):
+                                _col_a, _col_b, _col_c, _col_d = st.columns([3,2,2,2])
+                                _col_a.markdown(f"{_ico} **{_asc_nome}**")
+                                _col_b.caption(f"Último: {_last_lbl}")
+                                _col_c.caption(f"Próximo: {_next_lbl}")
+                                _col_d.caption(f"Salvos: {_rec_lbl}")
+                                if _asc_st.get("erro"):
+                                    st.caption(f"⚠️ {_asc_st['erro'][:120]}")
+                                if _asc_status in ("—", "erro"):
+                                    if st.button("▶ Reiniciar auto-sync",
+                                                 key=f"as_restart_{_asc_cnpj}",
+                                                 use_container_width=False):
+                                        _auto_sync_ensure_running(_asc_cnpj, _asc.get("token",""))
+                                        st.success("Thread reiniciada."); st.rerun()
+                        st.markdown("---")
+    
+                    # ── Diagnóstico de conexão e tabela ──────────────────
+                    with st.expander("🔧 Diagnóstico de conexão", expanded=False):
+                        if st.button("▶ Verificar agora", key="btn_diag_pf"):
+                            _diag_db = _db_client()
+                            if not _diag_db:
+                                st.error("❌ Supabase não conectado. Verifique `st.secrets` com `supabase.url` e `supabase.key`.")
                             else:
-                                st.error(f"❌ {_tab_err2}")
-                        _last_resp = st.session_state.get("_profrotas_last_response")
-                        if _last_resp:
-                            st.markdown("**Última resposta da API Gestão de Frotas:**")
-                            st.json(_last_resp)
-
-                _pf_ativos = [c for c in _profrotas_listar_chaves() if c.get("ativo")]
-                if not _pf_ativos:
-                    st.warning("Nenhuma chave ativa. Cadastre em **🔑 Chaves de Acesso**.")
-                else:
-                    _pf_opts  = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c for c in _pf_ativos}
-                    _pf_sel   = _pf_opts[st.selectbox("Cliente", list(_pf_opts.keys()), key="pf_sync_cli")]
-                    try: _ini = _pf_dt.datetime.fromisoformat((_pf_sel.get("data_inicio_sync","")).replace("Z","")).date()
-                    except Exception: _ini = _pf_dt.date.today()
-                    _pf_data_sel = st.date_input("📅 Data inicial", value=_ini,
-                                                   max_value=_pf_dt.date.today(), key="pf_sync_data")
-                    _s1, _s2 = st.columns(2)
-                    _btn_all = _s1.button("▶️ Sincronizar período", use_container_width=True, type="primary", key="btn_sync_all")
-                    _btn_hj  = _s2.button("⚡ Só hoje",             use_container_width=True, key="btn_sync_hj")
-                    if _btn_all or _btn_hj:
-                        _iso = (_pf_dt.datetime.utcnow().strftime("%Y-%m-%dT00:00:00Z") if _btn_hj
-                                else _pf_data_sel.strftime("%Y-%m-%dT00:00:00Z"))
-                        _pb = st.progress(0, text="Iniciando...")
-                        def _prog(p,tot,tam): _pb.progress(min(1.0,(p*tam)/max(tot,1)), text=f"Pág {p} — {min(p*tam,tot):,}/{tot:,}")
-                        with st.spinner("Sincronizando..."):
-                            _pp, _ps2, _pnt, _perr, _ptot = _profrotas_sync(
-                                _pf_sel["cnpj_frota"], _pf_sel["token"], _iso, _prog,
-                                _usuario_email=_db_email())
-                        _pb.progress(1.0, text="Concluído!")
-
-                        # Persiste resultado no session_state para sobreviver ao rerun
-                        st.session_state["_pf_sync_result"] = {
-                            "salvos": _ps2, "paginas": _pp,
-                            "total_api": _ptot, "erro": _perr or "",
-                            "token_renovado": bool(_pnt),
-                        }
-                        if _ps2 > 0:
-                            _db_carregar_abastecimentos.clear()
-                            _carregar_abastecimentos_unificados.clear()
-                            st.rerun()   # atualiza contadores sem perder o resultado
-
-                    # Exibe resultado persistido (sobrevive ao rerun)
-                    _sr = st.session_state.get("_pf_sync_result")
-                    if _sr:
-                        _sr_salvos = _sr["salvos"]
-                        _sr_erro   = _sr["erro"]
-                        _sr_ptot   = _sr["total_api"]
-                        _sr_pp     = _sr["paginas"]
-
-                        if _sr_salvos > 0:
-                            if _sr_erro:
-                                # Sucesso parcial: salvou alguns mas teve erros
+                                st.success("✅ Supabase conectado.")
+                                _tab_ok2, _tab_err2 = _profrotas_garantir_tabela(_diag_db)
+                                if _tab_ok2:
+                                    try:
+                                        _cnt = _diag_db.table("profrotas_abastecimentos").select("sync_key", count="exact").execute()
+                                        _total_db = _cnt.count or len(_cnt.data or [])
+                                        st.success(f"✅ Tabela OK — **{_br_num(_total_db, 0)}** registros no banco.")
+                                    except Exception as _ec:
+                                        st.warning(f"⚠️ Tabela existe mas erro ao contar: {_ec}")
+                                else:
+                                    st.error(f"❌ {_tab_err2}")
+                            _last_resp = st.session_state.get("_profrotas_last_response")
+                            if _last_resp:
+                                st.markdown("**Última resposta da API Gestão de Frotas:**")
+                                st.json(_last_resp)
+    
+                    _pf_ativos = [c for c in _profrotas_listar_chaves() if c.get("ativo")]
+                    if not _pf_ativos:
+                        st.warning("Nenhuma chave ativa. Cadastre em **🔑 Chaves de Acesso**.")
+                    else:
+                        _pf_opts  = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c for c in _pf_ativos}
+                        _pf_sel   = _pf_opts[st.selectbox("Cliente", list(_pf_opts.keys()), key="pf_sync_cli")]
+                        try: _ini = _pf_dt.datetime.fromisoformat((_pf_sel.get("data_inicio_sync","")).replace("Z","")).date()
+                        except Exception: _ini = _pf_dt.date.today()
+                        _pf_data_sel = st.date_input("📅 Data inicial", value=_ini,
+                                                       max_value=_pf_dt.date.today(), key="pf_sync_data")
+                        _s1, _s2 = st.columns(2)
+                        _btn_all = _s1.button("▶️ Sincronizar período", use_container_width=True, type="primary", key="btn_sync_all")
+                        _btn_hj  = _s2.button("⚡ Só hoje",             use_container_width=True, key="btn_sync_hj")
+                        if _btn_all or _btn_hj:
+                            _iso = (_pf_dt.datetime.utcnow().strftime("%Y-%m-%dT00:00:00Z") if _btn_hj
+                                    else _pf_data_sel.strftime("%Y-%m-%dT00:00:00Z"))
+                            _pb = st.progress(0, text="Iniciando...")
+                            def _prog(p,tot,tam): _pb.progress(min(1.0,(p*tam)/max(tot,1)), text=f"Pág {p} — {min(p*tam,tot):,}/{tot:,}")
+                            with st.spinner("Sincronizando..."):
+                                _pp, _ps2, _pnt, _perr, _ptot = _profrotas_sync(
+                                    _pf_sel["cnpj_frota"], _pf_sel["token"], _iso, _prog,
+                                    _usuario_email=_db_email())
+                            _pb.progress(1.0, text="Concluído!")
+    
+                            # Persiste resultado no session_state para sobreviver ao rerun
+                            st.session_state["_pf_sync_result"] = {
+                                "salvos": _ps2, "paginas": _pp,
+                                "total_api": _ptot, "erro": _perr or "",
+                                "token_renovado": bool(_pnt),
+                            }
+                            if _ps2 > 0:
+                                _db_carregar_abastecimentos.clear()
+                                _carregar_abastecimentos_unificados.clear()
+                                st.rerun()   # atualiza contadores sem perder o resultado
+    
+                        # Exibe resultado persistido (sobrevive ao rerun)
+                        _sr = st.session_state.get("_pf_sync_result")
+                        if _sr:
+                            _sr_salvos = _sr["salvos"]
+                            _sr_erro   = _sr["erro"]
+                            _sr_ptot   = _sr["total_api"]
+                            _sr_pp     = _sr["paginas"]
+    
+                            if _sr_salvos > 0:
+                                if _sr_erro:
+                                    # Sucesso parcial: salvou alguns mas teve erros
+                                    st.warning(
+                                        f"⚠️ **{_br_num(_sr_salvos, 0)}** registros salvos "
+                                        f"em {_sr_pp} página(s) de {_br_num(_sr_ptot, 0)} na API. "
+                                        f"Alguns lotes falharam (veja abaixo)."
+                                    )
+                                else:
+                                    st.success(
+                                        f"✅ **{_br_num(_sr_salvos, 0)}** registros salvos "
+                                        f"em {_sr_pp} página(s). Total na API: {_br_num(_sr_ptot, 0)}."
+                                    )
+                            elif _sr_ptot == 0:
                                 st.warning(
-                                    f"⚠️ **{_br_num(_sr_salvos, 0)}** registros salvos "
-                                    f"em {_sr_pp} página(s) de {_br_num(_sr_ptot, 0)} na API. "
-                                    f"Alguns lotes falharam (veja abaixo)."
+                                    "⚠️ A API não retornou registros para o período. "
+                                    "Tente ampliar o intervalo de datas."
                                 )
                             else:
-                                st.success(
-                                    f"✅ **{_br_num(_sr_salvos, 0)}** registros salvos "
-                                    f"em {_sr_pp} página(s). Total na API: {_br_num(_sr_ptot, 0)}."
+                                st.warning(
+                                    f"⚠️ API retornou **{_sr_ptot}** registro(s) mas nenhum foi salvo. "
+                                    "Verifique a tabela `profrotas_abastecimentos` no Supabase."
                                 )
-                        elif _sr_ptot == 0:
-                            st.warning(
-                                "⚠️ A API não retornou registros para o período. "
-                                "Tente ampliar o intervalo de datas."
-                            )
-                        else:
-                            st.warning(
-                                f"⚠️ API retornou **{_sr_ptot}** registro(s) mas nenhum foi salvo. "
-                                "Verifique a tabela `profrotas_abastecimentos` no Supabase."
-                            )
-
-                        if _sr_erro:
-                            with st.expander("🔍 Detalhes dos erros de lote", expanded=True):
-                                # Exibe cada erro de lote em linha separada
-                                for _ln in _sr_erro.split(";"):
-                                    _ln = _ln.strip()
-                                    if _ln:
-                                        st.caption(f"• {_ln}")
-                            _raw_debug = st.session_state.get("_profrotas_last_response")
-                            if _raw_debug:
-                                with st.expander("🔍 Resposta bruta da API (debug)"):
-                                    st.json(_raw_debug)
-
-                        if _sr.get("token_renovado"):
-                            st.info("🔄 Token renovado automaticamente.")
-                    _ult = _pf_sel.get("ultimo_sync")
-                    if _ult:
-                        try:
-                            _ult_dt = _pf_dt.datetime.fromisoformat(_ult.replace("Z",""))
-                            if _ult_dt.tzinfo is None:
-                                _ult_dt = _ult_dt.replace(tzinfo=_pf_dt.timezone.utc)
-                            _tz_br_cap = _pf_dt.timezone(_pf_dt.timedelta(hours=-3))
-                            _ult = _ult_dt.astimezone(_tz_br_cap).strftime("%d/%m/%Y %H:%M")
-                        except Exception: pass
-                        st.caption(f"🕐 Último sync: **{_ult}** — **{_br_num(_pf_sel.get('registros_sync', 0), 0)}** registros")
-
-            elif _pf_secao == "📊 Abastecimentos":
-                st.markdown("#### 📊 Abastecimentos Sincronizados")
-                _opts3 = {"Todos": None}
-                for _c3 in _profrotas_listar_chaves():
-                    _opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
-                _d1, _d2 = st.columns([2,1])
-                _cli3  = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli")
-                _dias3 = _d2.selectbox("Período", [7,30,60,90,180,365], index=2,
-                                        format_func=lambda x: f"{x} dias", key="pf_d_dias")
-                _df3 = _profrotas_carregar_abast(_opts3[_cli3], _dias3)
-                if _df3.empty:
-                    st.info("Nenhum abastecimento. Sincronize primeiro.", icon="ℹ️")
-                else:
-                    _k1,_k2,_k3,_k4 = st.columns(4)
-                    _vol = pd.to_numeric(_df3.get("item_quantidade", pd.Series()), errors="coerce").sum()
-                    _val = pd.to_numeric(_df3.get("item_valor_total", pd.Series()), errors="coerce").sum()
-                    _n_veic = _df3["veiculo_placa"].nunique() if "veiculo_placa" in _df3.columns else 0
-                    _k1.metric("🧾 Registros", _br_num(len(_df3), 0))
-                    _k2.metric("⛽ Litros",    _br_num(_vol, 0))
-                    _k3.metric("💰 Total",     _br_moeda(_val))
-                    _k4.metric("🚗 Veículos",  _br_num(_n_veic, 0))
-                    _c3s = [c for c in ["data_abastecimento","veiculo_placa","motorista_nome",
-                            "item_nome","item_quantidade","item_valor_unitario","item_valor_total",
-                            "hodometro","pv_razao_social","pv_municipio","pv_uf"] if c in _df3.columns]
-                    _dfs = _df3[_c3s].copy()
-                    if "data_abastecimento" in _dfs.columns:
-                        _dfs["data_abastecimento"] = pd.to_datetime(_dfs["data_abastecimento"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
-                    # Formata campos numéricos no padrão brasileiro
-                    for _col_l in ["item_quantidade","hodometro"]:
-                        if _col_l in _dfs.columns:
-                            _dfs[_col_l] = pd.to_numeric(_dfs[_col_l], errors="coerce").apply(lambda v: _br_num(v, 0) if pd.notna(v) else "—")
-                    for _col_r in ["item_valor_unitario","item_valor_total"]:
-                        if _col_r in _dfs.columns:
-                            _dfs[_col_r] = pd.to_numeric(_dfs[_col_r], errors="coerce").apply(lambda v: _br_moeda(v) if pd.notna(v) else "—")
-                    _dfs.rename(columns={"data_abastecimento":"Data","veiculo_placa":"Placa",
-                        "motorista_nome":"Motorista","item_nome":"Combustível","item_quantidade":"Litros",
-                        "item_valor_unitario":"R$/L","item_valor_total":"Total R$","hodometro":"Hodômetro",
-                        "pv_razao_social":"Posto","pv_municipio":"Município","pv_uf":"UF"}, inplace=True)
-                    st.dataframe(_dfs, use_container_width=True, height=460)
-                    st.download_button("⬇️ Exportar CSV", _df3.to_csv(index=False).encode("utf-8-sig"),
-                                       file_name=f"abastecimentos_{_dias3}d.csv", mime="text/csv",
-                                       use_container_width=True)
-
-        except Exception as _pf_err:
-            st.error(f"❌ Erro na aba Gestão de Frotas: {_pf_err}")
-            import traceback as _pf_tb
-            st.code(_pf_tb.format_exc(), language="text")
-
-
+    
+                            if _sr_erro:
+                                with st.expander("🔍 Detalhes dos erros de lote", expanded=True):
+                                    # Exibe cada erro de lote em linha separada
+                                    for _ln in _sr_erro.split(";"):
+                                        _ln = _ln.strip()
+                                        if _ln:
+                                            st.caption(f"• {_ln}")
+                                _raw_debug = st.session_state.get("_profrotas_last_response")
+                                if _raw_debug:
+                                    with st.expander("🔍 Resposta bruta da API (debug)"):
+                                        st.json(_raw_debug)
+    
+                            if _sr.get("token_renovado"):
+                                st.info("🔄 Token renovado automaticamente.")
+                        _ult = _pf_sel.get("ultimo_sync")
+                        if _ult:
+                            try:
+                                _ult_dt = _pf_dt.datetime.fromisoformat(_ult.replace("Z",""))
+                                if _ult_dt.tzinfo is None:
+                                    _ult_dt = _ult_dt.replace(tzinfo=_pf_dt.timezone.utc)
+                                _tz_br_cap = _pf_dt.timezone(_pf_dt.timedelta(hours=-3))
+                                _ult = _ult_dt.astimezone(_tz_br_cap).strftime("%d/%m/%Y %H:%M")
+                            except Exception: pass
+                            st.caption(f"🕐 Último sync: **{_ult}** — **{_br_num(_pf_sel.get('registros_sync', 0), 0)}** registros")
+    
+                elif _pf_secao == "📊 Abastecimentos":
+                    st.markdown("#### 📊 Abastecimentos Sincronizados")
+                    _opts3 = {"Todos": None}
+                    for _c3 in _profrotas_listar_chaves():
+                        _opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
+                    _d1, _d2 = st.columns([2,1])
+                    _cli3  = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli")
+                    _dias3 = _d2.selectbox("Período", [7,30,60,90,180,365], index=2,
+                                            format_func=lambda x: f"{x} dias", key="pf_d_dias")
+                    _df3 = _profrotas_carregar_abast(_opts3[_cli3], _dias3)
+                    if _df3.empty:
+                        st.info("Nenhum abastecimento. Sincronize primeiro.", icon="ℹ️")
+                    else:
+                        _k1,_k2,_k3,_k4 = st.columns(4)
+                        _vol = pd.to_numeric(_df3.get("item_quantidade", pd.Series()), errors="coerce").sum()
+                        _val = pd.to_numeric(_df3.get("item_valor_total", pd.Series()), errors="coerce").sum()
+                        _n_veic = _df3["veiculo_placa"].nunique() if "veiculo_placa" in _df3.columns else 0
+                        _k1.metric("🧾 Registros", _br_num(len(_df3), 0))
+                        _k2.metric("⛽ Litros",    _br_num(_vol, 0))
+                        _k3.metric("💰 Total",     _br_moeda(_val))
+                        _k4.metric("🚗 Veículos",  _br_num(_n_veic, 0))
+                        _c3s = [c for c in ["data_abastecimento","veiculo_placa","motorista_nome",
+                                "item_nome","item_quantidade","item_valor_unitario","item_valor_total",
+                                "hodometro","pv_razao_social","pv_municipio","pv_uf"] if c in _df3.columns]
+                        _dfs = _df3[_c3s].copy()
+                        if "data_abastecimento" in _dfs.columns:
+                            _dfs["data_abastecimento"] = pd.to_datetime(_dfs["data_abastecimento"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
+                        # Formata campos numéricos no padrão brasileiro
+                        for _col_l in ["item_quantidade","hodometro"]:
+                            if _col_l in _dfs.columns:
+                                _dfs[_col_l] = pd.to_numeric(_dfs[_col_l], errors="coerce").apply(lambda v: _br_num(v, 0) if pd.notna(v) else "—")
+                        for _col_r in ["item_valor_unitario","item_valor_total"]:
+                            if _col_r in _dfs.columns:
+                                _dfs[_col_r] = pd.to_numeric(_dfs[_col_r], errors="coerce").apply(lambda v: _br_moeda(v) if pd.notna(v) else "—")
+                        _dfs.rename(columns={"data_abastecimento":"Data","veiculo_placa":"Placa",
+                            "motorista_nome":"Motorista","item_nome":"Combustível","item_quantidade":"Litros",
+                            "item_valor_unitario":"R$/L","item_valor_total":"Total R$","hodometro":"Hodômetro",
+                            "pv_razao_social":"Posto","pv_municipio":"Município","pv_uf":"UF"}, inplace=True)
+                        st.dataframe(_dfs, use_container_width=True, height=460)
+                        st.download_button("⬇️ Exportar CSV", _df3.to_csv(index=False).encode("utf-8-sig"),
+                                           file_name=f"abastecimentos_{_dias3}d.csv", mime="text/csv",
+                                           use_container_width=True)
+    
+            except Exception as _pf_err:
+                st.error(f"❌ Erro na aba Gestão de Frotas: {_pf_err}")
+                import traceback as _pf_tb
+                st.code(_pf_tb.format_exc(), language="text")
+    
+    
     with _api_t6:
         try:
             from api_keys import mostrar_painel_api_keys
