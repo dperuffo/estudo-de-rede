@@ -11936,7 +11936,7 @@ def _montar_html_precos(linhas: list, fonte: str) -> str:
     )
 
 
-def _precos_tooltip_html_bulk(cnpjs: "pd.Series", ufs: "pd.Series") -> dict:
+def _precos_tooltip_html_bulk(cnpjs: "pd.Series", ufs: "pd.Series", municipios: "pd.Series | None" = None) -> dict:
     """
     Pré-computa HTML de preços para todos os CNPJs de uma vez.
     Retorna dict {cnpj_norm: html_str}.
@@ -12022,11 +12022,64 @@ def _precos_tooltip_html_bulk(cnpjs: "pd.Series", ufs: "pd.Series") -> dict:
                         fonte += f" · sem. {_sem_label} (media)"
                     anp_por_uf[uf_val] = _montar_html_precos(linhas, fonte)
 
-    cnpjs_arr = cnpjs.fillna('').astype(str).values
-    ufs_arr   = ufs.fillna('').astype(str).str.strip().str.upper().values
-    for cnpj_n, uf_val in zip(cnpjs_arr, ufs_arr):
+    # Pre-computa cache por municipio+uf
+    anp_por_mun: dict = {}
+    if _sheets_att and municipios is not None:
+        _pks_label2 = {
+            "diesels10":              "Diesel S10",
+            "diesel":                 "Diesel Comum",
+            "gasolinaaditivada":      "Gasolina Aditivada",
+            "gasolina":               "Gasolina Comum",
+            "etanolhidratadocombusti":"Etanol Hidratado",
+            "etanol":                 "Etanol",
+            "gnv":                    "GNV",
+        }
+        _mun_uf_pares = set(
+            zip(municipios.fillna("").astype(str).values,
+                ufs.fillna("").astype(str).str.upper().values)
+        )
+        for _mun_v, _uf_v in _mun_uf_pares:
+            if not _mun_v or not _uf_v:
+                continue
+            _key = f"{_mun_v}|{_uf_v}"
+            if _key in anp_por_mun:
+                continue
+            _rows_mun = _anp_extrair_precos(_sheets_att, uf=_uf_v, municipio=_mun_v)
+            if not _rows_mun:
+                continue
+            _nivel_mun = _rows_mun[0].get("Nível", _uf_v)
+            # Apenas usar se nivel for Municipio ou Capital
+            if _nivel_mun not in ("Município", "Capital"):
+                continue
+            linhas = []
+            _seen = set()
+            for _r in _rows_mun:
+                _pk   = _r.get("_pk", "")
+                _lbl  = _pks_label2.get(_pk, str(_r.get("Produto", _pk)).strip())
+                _preco = _r.get("Preço Médio") or _r.get("Preco Medio")
+                if _pk not in _seen and _preco is not None:
+                    _seen.add(_pk)
+                    try:
+                        _v_f = float(_preco)
+                        if 0.5 < _v_f < 50.0:
+                            linhas.append(f"<b>{_lbl}:</b> R$ {_v_f:.3f}/L")
+                    except Exception:
+                        pass
+            if linhas:
+                _sem = f" · sem. {str(_semana_att)[-10:]}" if _semana_att else ""
+                anp_por_mun[_key] = _montar_html_precos(
+                    linhas, f"ANP {_nivel_mun}{_sem} (media)")
+
+    cnpjs_arr = cnpjs.fillna("").astype(str).values
+    ufs_arr   = ufs.fillna("").astype(str).str.strip().str.upper().values
+    muns_arr  = municipios.fillna("").astype(str).values if municipios is not None else [""] * len(cnpjs_arr)
+
+    for cnpj_n, uf_val, mun_val in zip(cnpjs_arr, ufs_arr, muns_arr):
+        _mun_key = f"{mun_val}|{uf_val}"
         if cnpj_n in pp_index:
             resultado[cnpj_n] = pp_index[cnpj_n]
+        elif _mun_key in anp_por_mun:
+            resultado[cnpj_n] = anp_por_mun[_mun_key]
         elif uf_val in anp_por_uf:
             resultado[cnpj_n] = anp_por_uf[uf_val]
         else:
@@ -12197,6 +12250,7 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         _precos_bulk = _precos_tooltip_html_bulk(
             df.get("_cnpj_norm", df.get("cnpj", pd.Series(dtype=str))),
             df.get("uf", pd.Series(dtype=str)),
+            df.get("municipio", pd.Series(dtype=str)),
         )
 
         # ── Postos ANP por bandeira — legenda por marca ─────────────────────────────
