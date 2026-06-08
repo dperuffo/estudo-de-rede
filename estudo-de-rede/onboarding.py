@@ -243,7 +243,7 @@ def _etapa_dados_empresa(email: str) -> None:
             st.warning(
                 "Este CNPJ já está cadastrado. "
                 "Se você já tem uma conta, faça login normalmente. "
-                "Em caso de dúvidas, contate d.peruffo@gmail.com"
+                "Em caso de dúvidas, contate contato@fxgestaodefrotasonline.com"
             )
             return
 
@@ -296,7 +296,7 @@ def _etapa_confirmacao(email: str) -> None:
             else:
                 st.error(
                     "Não foi possível criar sua conta. "
-                    "Tente novamente ou contate d.peruffo@gmail.com"
+                    "Tente novamente ou contate contato@fxgestaodefrotasonline.com"
                 )
 
 
