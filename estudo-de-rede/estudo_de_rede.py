@@ -5641,7 +5641,7 @@ def _cor_marca(distribuidora: str) -> str:
 # Limite de marcadores no mapa. Acima disso os postos são amostrados
 # (Gestão de Frotas têm prioridade) e o popup é simplificado.
 # → evita serializar 5-6 MB de HTML para estados como SP (4 000+ postos).
-MAX_MAPA_POSTOS = 5000  # Plotly WebGL suporta 10 000+ marcadores sem travar
+MAX_MAPA_POSTOS = 15000  # ANP tem ~38k postos — filtrar por UF mantém ~2k por estado
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -12171,35 +12171,21 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
                lat_dest=None, lon_dest=None, label_orig="Origem", label_dest="Destino",
                waypoints=None):
     """Retorna go.Figure (Plotly Scattermapbox) — WebGL, suporta 10 000+ marcadores."""
-    # ── Cap de marcadores — Gestão de Frotas sempre priorizados ──────────────────────
-    MAX_PF_MAPA = 5000
+    # ── Cap de marcadores — postos ANP por bandeira ──────────────────────────────
     n_total = len(df)
     foi_limitado = False
     if not df.empty and n_total > MAX_MAPA_POSTOS:
         foi_limitado = True
-        tem_pf_col  = "_pro_frotas" in df.columns
-        tem_cer_col = "_cercado"    in df.columns
-        tem_rr_col  = "_rodo_rede"  in df.columns
-
-        _mask_prio = pd.Series(False, index=df.index)
-        if tem_pf_col:
-            _mask_prio |= df["_pro_frotas"].fillna(False)
-        if tem_cer_col:
-            _mask_prio |= df["_cercado"].fillna(False)
-        if tem_rr_col:
-            _mask_prio |= df["_rodo_rede"].fillna(False)
-
-        df_prio = df[_mask_prio]
-        df_reg  = df[~_mask_prio]
-
-        if len(df_prio) > MAX_PF_MAPA:
-            df_prio = df_prio.sample(n=MAX_PF_MAPA, random_state=42)
-
-        n_reg_max = max(0, MAX_MAPA_POSTOS - len(df_prio))
+        # Priorizar postos transacionados pelo cliente
+        _mask_trans = pd.Series(False, index=df.index)
+        if "_transacionado" in df.columns:
+            _mask_trans |= df["_transacionado"].fillna(False)
+        df_trans = df[_mask_trans]
+        df_reg   = df[~_mask_trans]
+        n_reg_max = max(0, MAX_MAPA_POSTOS - len(df_trans))
         if len(df_reg) > n_reg_max:
             df_reg = df_reg.sample(n=n_reg_max, random_state=42)
-
-        df = pd.concat([df_prio, df_reg], ignore_index=True)
+        df = pd.concat([df_trans, df_reg], ignore_index=True)
 
     # ── Centro e zoom do mapa ──────────────────────────────────────────────────
     if not df.empty:
@@ -12275,88 +12261,82 @@ def criar_mapa(df, coords_rota=None, lat_orig=None, lon_orig=None,
         distribuidoras = sorted(df["distribuidora"].dropna().unique())
         mapa_cores = {d.upper().strip(): _cor_marca(d) for d in distribuidoras}
 
-        tem_pf  = "_pro_frotas" in df.columns
-        tem_cer = "_cercado"    in df.columns
-        tem_rr  = "_rodo_rede"  in df.columns
 
-        # Máscaras de grupo (mutuamente exclusivas; cercado > rr > pf > regular)
-        mask_cer     = df["_cercado"].fillna(False)    if tem_cer else pd.Series(False, index=df.index)
-        mask_rr      = (df["_rodo_rede"].fillna(False) if tem_rr  else pd.Series(False, index=df.index)) & ~mask_cer
-        _pf_base     = (df["_pro_frotas"].fillna(False) if tem_pf else pd.Series(False, index=df.index)) & ~mask_cer & ~mask_rr
-        mask_pf_ipi  = _pf_base & df["distribuidora"].fillna("").apply(_is_ipiranga)
-        mask_pf_out  = _pf_base & ~mask_pf_ipi
-        mask_reg     = ~mask_cer & ~mask_rr & ~_pf_base
-
-        # Pré-computa lookup CNPJ→HTML de preços uma única vez (evita O(n²))
+        # Pre-computa lookup CNPJ->HTML de precos uma unica vez (evita O(n2))
         _precos_bulk = _precos_tooltip_html_bulk(
             df.get("_cnpj_norm", df.get("cnpj", pd.Series(dtype=str))),
             df.get("uf", pd.Series(dtype=str)),
         )
 
-        # Postos Cercados — laranja
-        if mask_cer.any():
-            dfc = df[mask_cer]
+        # ── Postos ANP por bandeira — legenda por marca ─────────────────────────────
+        # Postos transacionados pelo cliente — destaque especial
+        if "_transacionado" in df.columns and df["_transacionado"].fillna(False).any():
+            df_trans_map = df[df["_transacionado"].fillna(False)]
             traces.append(go.Scattermapbox(
-                lat=dfc["_lat"].tolist(), lon=dfc["_lon"].tolist(),
+                lat=df_trans_map["_lat"].tolist(), lon=df_trans_map["_lon"].tolist(),
                 mode="markers",
-                marker=dict(size=13, color=COR_CERCADO_FILL, opacity=0.92),
-                text=_hover_txt_vec(dfc, _precos_bulk),
-                customdata=_customdata_vec(dfc),
+                marker=dict(size=14, color="#00b4d8", opacity=1.0,
+                           symbol="circle"),
+                text=_hover_txt_vec(df_trans_map, _precos_bulk),
+                customdata=_customdata_vec(df_trans_map),
                 hoverinfo="text",
-                name="⚠️ Postos Cercados",
+                name="💳 Postos utilizados",
             ))
 
-        # Rodo Rede — amarelo com destaque
-        if mask_rr.any():
-            dfr = df[mask_rr]
+        # Bandeiras principais — cada uma com sua cor de identidade
+        _bandeiras_legenda = [
+            ("IPIRANGA",    "#FFB300", "🟡 Ipiranga"),
+            ("ULTRAPAR",    "#FFB300", "🟡 Ipiranga"),
+            ("VIBRA",       "#43A047", "🟢 Vibra/BR"),
+            ("BR DISTRIB",  "#43A047", "🟢 Vibra/BR"),
+            ("PETROBRAS D", "#43A047", "🟢 Vibra/BR"),
+            ("RAIZEN",      "#E53935", "🔴 Shell/Raízen"),
+            ("RAÍZEN",      "#E53935", "🔴 Shell/Raízen"),
+            ("SHELL",       "#E53935", "🔴 Shell/Raízen"),
+            ("ALESAT",      "#F57C00", "🟠 Ale"),
+            ("ALE COMB",    "#F57C00", "🟠 Ale"),
+        ]
+        _bandeiras_vistas = set()
+        for _substr, _cor_b, _nome_b in _bandeiras_legenda:
+            if _nome_b in _bandeiras_vistas:
+                continue
+            if "distribuidora" not in df.columns:
+                continue
+            _mask_b = df["distribuidora"].fillna("").str.upper().str.contains(_substr)
+            if "_transacionado" in df.columns:
+                _mask_b = _mask_b & ~df["_transacionado"].fillna(False)
+            if not _mask_b.any():
+                continue
+            _bandeiras_vistas.add(_nome_b)
+            _df_b = df[_mask_b]
             traces.append(go.Scattermapbox(
-                lat=dfr["_lat"].tolist(), lon=dfr["_lon"].tolist(),
+                lat=_df_b["_lat"].tolist(), lon=_df_b["_lon"].tolist(),
                 mode="markers",
-                marker=dict(size=15, color=COR_RR_FILL, opacity=0.95),
-                text=_hover_txt_vec(dfr, _precos_bulk),
-                customdata=_customdata_vec(dfr),
+                marker=dict(size=9, color=_cor_b, opacity=0.88),
+                text=_hover_txt_vec(_df_b, _precos_bulk),
+                customdata=_customdata_vec(_df_b),
                 hoverinfo="text",
-                name="⭐ Ipiranga RodoRede",
+                name=_nome_b,
             ))
 
-        # Gestão de Frotas Ipiranga — amarelo
-        if mask_pf_ipi.any():
-            dfi = df[mask_pf_ipi]
+        # Demais bandeiras — cor determinística por nome
+        _mask_demais = pd.Series(True, index=df.index)
+        for _substr, _, _ in _bandeiras_legenda:
+            _mask_demais &= ~df["distribuidora"].fillna("").str.upper().str.contains(_substr)
+        if "_transacionado" in df.columns:
+            _mask_demais &= ~df["_transacionado"].fillna(False)
+        if _mask_demais.any():
+            _df_demais = df[_mask_demais].copy()
+            _df_demais["_cor_plot"] = _df_demais["distribuidora"].apply(
+                lambda d: _cor(d, mapa_cores))
             traces.append(go.Scattermapbox(
-                lat=dfi["_lat"].tolist(), lon=dfi["_lon"].tolist(),
+                lat=_df_demais["_lat"].tolist(), lon=_df_demais["_lon"].tolist(),
                 mode="markers",
-                marker=dict(size=14, color="#FFB300", opacity=0.95),
-                text=_hover_txt_vec(dfi, _precos_bulk),
-                customdata=_customdata_vec(dfi),
+                marker=dict(size=8, color=_df_demais["_cor_plot"].tolist(), opacity=0.82),
+                text=_hover_txt_vec(_df_demais, _precos_bulk),
+                customdata=_customdata_vec(_df_demais),
                 hoverinfo="text",
-                name="⭐ GF Ipiranga",
-            ))
-
-        # Gestão de Frotas demais bandeiras — azul
-        if mask_pf_out.any():
-            dfp = df[mask_pf_out]
-            traces.append(go.Scattermapbox(
-                lat=dfp["_lat"].tolist(), lon=dfp["_lon"].tolist(),
-                mode="markers",
-                marker=dict(size=14, color=COR_PF_FILL, opacity=0.95),
-                text=_hover_txt_vec(dfp, _precos_bulk),
-                customdata=_customdata_vec(dfp),
-                hoverinfo="text",
-                name="⭐ Gestão de Frotas",
-            ))
-
-        # Postos regulares ANP — cor por marca
-        if mask_reg.any():
-            dfg = df[mask_reg].copy()
-            dfg["_cor_plot"] = dfg["distribuidora"].apply(lambda d: _cor(d, mapa_cores))
-            traces.append(go.Scattermapbox(
-                lat=dfg["_lat"].tolist(), lon=dfg["_lon"].tolist(),
-                mode="markers",
-                marker=dict(size=8, color=dfg["_cor_plot"].tolist(), opacity=0.85),
-                text=_hover_txt_vec(dfg, _precos_bulk),
-                customdata=_customdata_vec(dfg),
-                hoverinfo="text",
-                name="⛽ Postos ANP",
+                name="⚪ Outras bandeiras",
             ))
 
     # ── Trace Top 5 Mais Baratos — estrelas douradas sobrepostas ─────────────────
