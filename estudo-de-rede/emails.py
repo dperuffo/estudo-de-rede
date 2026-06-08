@@ -4,7 +4,7 @@ import os
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 APP_URL        = os.environ.get("APP_URL", "https://fxgestaodefrotasonline.com")
 FROM_EMAIL     = "FNI Gestão de Frotas <noreply@fxgestaodefrotasonline.com>"
-SUPORTE_EMAIL  = "d.peruffo@gmail.com"
+SUPORTE_EMAIL  = "contato@fxgestaodefrotasonline.com"
 
 def _enviar(to: str, subject: str, html: str) -> bool:
     if not RESEND_API_KEY:
