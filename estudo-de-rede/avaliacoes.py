@@ -122,7 +122,7 @@ def mostrar_avaliacao():
                     try:
                         from emails import _enviar, _base
                         _enviar(
-                            "d.peruffo@gmail.com",
+                            "contato@fxgestaodefrotasonline.com",
                             f"⭐ Nova avaliação: {nota}/5 — {email}",
                             _base(f"""
                             <h3>Nova avaliação recebida</h3>
