@@ -68,7 +68,7 @@ def solicitar_exclusao() -> bool:
         try:
             from emails import _enviar, _base
             _enviar(
-                "d.peruffo@gmail.com",
+                "contato@fxgestaodefrotasonline.com",
                 f"[LGPD] Solicitacao de exclusao — {email}",
                 _base(f"<p>Empresa ID: {eid}<br>Email: {email}<br>Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>", "LGPD Exclusao")
             )
@@ -133,7 +133,7 @@ def mostrar_painel_lgpd():
                     st.success("Solicitação registrada. Seus dados serão removidos em até 30 dias.")
                     st.session_state["lgpd_confirmar_exclusao"] = False
                 else:
-                    st.error("Erro ao processar solicitação. Contate d.peruffo@gmail.com")
+                    st.error("Erro ao processar solicitação. Contate contato@fxgestaodefrotasonline.com")
 
     st.markdown("---")
-    st.caption("Para dúvidas sobre privacidade: d.peruffo@gmail.com | Base legal: LGPD — Lei 13.709/2018")
+    st.caption("Para dúvidas sobre privacidade: contato@fxgestaodefrotasonline.com | Base legal: LGPD — Lei 13.709/2018")
