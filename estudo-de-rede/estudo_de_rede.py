@@ -19042,11 +19042,18 @@ if modo == "📍 Por UF/Município":
         _n_mapa_show  = min(_n_total_show, MAX_MAPA_POSTOS)
         _mapa_label   = (f"⛽ Postos ({_n(MAX_MAPA_POSTOS)} no mapa)"
                          if _n_total_show > MAX_MAPA_POSTOS else "⛽ Postos")
+        # Total de postos com meios de pagamento no estado
+        _abast_mp = _carregar_abastecimentos_unificados(dias=730)
+        _uf_col_mp = next((c for c in ["uf_posto","uf"] if c in _abast_mp.columns), None) if not _abast_mp.empty else None
+        _n_postos_mp = 0
+        if not _abast_mp.empty and _uf_col_mp:
+            _n_postos_mp = _abast_mp[_abast_mp[_uf_col_mp].fillna("").str.upper() == uf.upper()]["cnpj_posto"].nunique() if "cnpj_posto" in _abast_mp.columns else 0
+
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric(_mapa_label,          _n(_n_total_show))
-        c2.metric("⭐ Credenciados GF",  _n(n_pf(df_show)))
-        c3.metric("🏷️ Bandeiras",       _n(df_show['distribuidora'].nunique()) if not df_show.empty else "0")
-        c4.metric("📍 Estado",          uf)
+        c1.metric(_mapa_label,                    _n(_n_total_show))
+        c2.metric("💳 Postos c/ Meios Pagamento", _n(_n_postos_mp))
+        c3.metric("🏷️ Bandeiras",                _n(df_show["distribuidora"].nunique()) if not df_show.empty else "0")
+        c4.metric("📍 Estado",                    uf)
 
         # ── Botão Salvar (Modo 1) ─────────────────────────────────────
         _col_sv1, _col_sv2 = st.columns([3, 1])
@@ -19509,40 +19516,52 @@ if modo == "📍 Por UF/Município":
                 except Exception as _e_mp:
                     st.warning(f"Erro ao montar tabela: {_e_mp}")
 
-            # ── Tabela de dados ───────────────────────────────────────────────
-            cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
-                                 "endereco","bairro","municipio","uf","cep","autorizacao","statusSIGAF"]
-                    if c in df_show.columns]
-            df_exib = df_show[cols].copy()
-            if "_pro_frotas" in df_exib.columns:
-                df_exib = df_exib.rename(columns={"_pro_frotas":"Gestão de Frotas ⭐"})
-            # Coluna de ranking (se existir)
-            if "_rank_barato" in df_show.columns:
-                df_exib.insert(0, "💰 Rank",
-                    df_show["_rank_barato"].fillna(0).astype(int).map(
-                        lambda v: _RANK_EMOJI.get(v, "") if v > 0 else ""
+            # ── Postos ANP sem transacoes ────────────────────────────────────
+            # Identificar CNPJs com abastecimentos
+            try:
+                _abast_cnpjs = set()
+                if not _abast_mp.empty and "cnpj_posto" in _abast_mp.columns and _uf_col_mp:
+                    _abast_cnpjs = set(
+                        _abast_mp[_abast_mp[_uf_col_mp].fillna("").str.upper() == uf.upper()]["cnpj_posto"]
+                        .astype(str).str.replace(r"\D","",regex=True).tolist()
                     )
-                )
-            # ── Score de posto ─────────────────────────────────────────────────
-            _anp_ref_m1 = None
-            if st.session_state.get("_precos_anp_cache"):
-                try:
-                    _sh_m1 = st.session_state["_precos_anp_cache"].get("sheets", {})
-                    _pr_m1 = _anp_extrair_precos(_sh_m1.get("estados"), uf=uf)
-                    if _pr_m1:
-                        _anp_ref_m1 = next(
-                            (r["Preço Médio"] for r in _pr_m1 if "gasolina" in r.get("Combustível","").lower()),
-                            None)
-                except Exception:
-                    pass
-            _df_exib_scored = _calcular_score_df(
-                df_show,
-                preco_ref_anp=_anp_ref_m1,
-                lat_ref=None, lon_ref=None,
-            )
-            if "⭐ Score" in _df_exib_scored.columns:
-                df_exib.insert(0, "⭐ Score", _df_exib_scored["⭐ Score"].values)
-            st.dataframe(df_exib, use_container_width=True, height=450)
+            except Exception:
+                _abast_cnpjs = set()
+
+            # Separar postos com e sem transacoes
+            if not df_show.empty and "cnpj" in df_show.columns and _abast_cnpjs:
+                _cnpj_norm_show = df_show["cnpj"].astype(str).str.replace(r"\D","",regex=True)
+                _mask_com_trans = _cnpj_norm_show.isin(_abast_cnpjs)
+                _df_sem_trans   = df_show[~_mask_com_trans].copy()
+            else:
+                _df_sem_trans = df_show.copy()
+
+            with st.expander(f"⛽ Postos ANP sem transacoes ({len(_df_sem_trans):,})", expanded=False):
+                st.caption("Postos cadastrados na ANP para este estado sem abastecimentos registrados")
+                _cols_anp = [c for c in ["razaoSocial","cnpj","distribuidora",
+                             "municipio","uf"] if c in _df_sem_trans.columns]
+                _df_sem_exib = _df_sem_trans[_cols_anp].copy()
+                # Score
+                _anp_ref_m1 = None
+                if st.session_state.get("_precos_anp_cache"):
+                    try:
+                        _sh_m1 = st.session_state["_precos_anp_cache"].get("sheets",{})
+                        _pr_m1 = _anp_extrair_precos(_sh_m1, uf=uf)
+                        if _pr_m1:
+                            _anp_ref_m1 = next(
+                                (r["Preço Médio"] for r in _pr_m1 if "gasolina" in str(r.get("Produto","")).lower()),
+                                None)
+                    except Exception:
+                        pass
+                _df_scored = _calcular_score_df(_df_sem_trans, preco_ref_anp=_anp_ref_m1, lat_ref=None, lon_ref=None)
+                if "⭐ Score" in _df_scored.columns:
+                    _df_sem_exib.insert(0, "⭐ Score", _df_scored["⭐ Score"].values)
+                if "_rank_barato" in df_show.columns:
+                    _rank_sem = df_show.loc[~_mask_com_trans, "_rank_barato"].fillna(0).astype(int).map(
+                        lambda v: _RANK_EMOJI.get(v, "") if v > 0 else "") if _abast_cnpjs else df_show["_rank_barato"].fillna(0).astype(int).map(lambda v: _RANK_EMOJI.get(v,"") if v>0 else "")
+                    _df_sem_exib.insert(0, "💰 Rank", _rank_sem.values)
+                st.dataframe(_df_sem_exib, use_container_width=True, height=400)
+
 
             # ── Histórico de preço de posto selecionado ────────────────────────
             _hist_data = _intel_load().get("historico", {})
