@@ -11896,7 +11896,10 @@ def _precos_tooltip_html(cnpj_norm: str, uf: str, municipio: str = "") -> str:
                     if _pk not in _seen and _preco is not None:
                         _seen.add(_pk)
                         try:
-                            linhas.append(f"<b>{_lbl}:</b> R$ {float(_preco):.3f}/L")
+                            _v_float = float(_preco)
+                            # Filtrar valores absurdos (GLP em kg != L, erro de dados)
+                            if 0.5 < _v_float < 50.0:
+                                linhas.append(f"<b>{_lbl}:</b> R$ {_v_float:.3f}/L")
                         except Exception:
                             pass
                 if linhas:
@@ -11979,13 +11982,16 @@ def _precos_tooltip_html_bulk(cnpjs: "pd.Series", ufs: "pd.Series") -> dict:
     anp_por_uf: dict = {}
     if _sheets_att:
         _pks_label = {
-            "diesels10":         "Diesel S10",
-            "diesel":            "Diesel",
-            "gasolinaaditivada": "Gasolina Aditivada",
-            "gasolina":          "Gasolina",
-            "etanol":            "Etanol",
-            "gnv":               "GNV",
-            "glp":               "GLP",
+            "diesels10":              "Diesel S10",
+            "diesel":                 "Diesel Comum",
+            "gasolinaaditivada":      "Gasolina Aditivada",
+            "gasolina":               "Gasolina Comum",
+            "etanolhidratadocombusti":"Etanol Hidratado",
+            "etanol":                 "Etanol",
+            "gnv":                    "GNV",
+            "glp":                    "GLP",
+            "oleodiesel":             "Diesel Comum",
+            "oleodiesels10":          "Diesel S10",
         }
         for uf_val in ufs.dropna().unique():
             uf_val = str(uf_val).strip().upper()
@@ -12002,14 +12008,18 @@ def _precos_tooltip_html_bulk(cnpjs: "pd.Series", ufs: "pd.Series") -> dict:
                     if _pk not in _seen and _preco is not None:
                         _seen.add(_pk)
                         try:
-                            linhas.append(f"<b>{_lbl}:</b> R$ {float(_preco):.3f}/L")
+                            _v_float = float(_preco)
+                            # Filtrar valores absurdos (GLP em kg != L, erro de dados)
+                            if 0.5 < _v_float < 50.0:
+                                linhas.append(f"<b>{_lbl}:</b> R$ {_v_float:.3f}/L")
                         except Exception:
                             pass
                 if linhas:
                     _nivel = _rows_uf[0].get("Nível", uf_val)
                     fonte  = f"ANP {_nivel}"
                     if _semana_att:
-                        fonte += f" · {_semana_att} (media)"
+                        _sem_label = str(_semana_att)[-10:] if len(str(_semana_att)) > 10 else str(_semana_att)
+                        fonte += f" · sem. {_sem_label} (media)"
                     anp_por_uf[uf_val] = _montar_html_precos(linhas, fonte)
 
     cnpjs_arr = cnpjs.fillna('').astype(str).values
