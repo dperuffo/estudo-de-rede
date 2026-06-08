@@ -5,7 +5,7 @@ import base64
 import streamlit as st
 from datetime import datetime, timezone
 
-ADMIN_EMAIL     = "d.peruffo@gmail.com"
+ADMIN_EMAIL     = "contato@fxgestaodefrotasonline.com"
 MAX_ARQUIVO_MB  = 1
 MAX_TOTAL_MB    = 5
 MAX_ARQUIVO_B   = MAX_ARQUIVO_MB * 1024 * 1024
