@@ -1521,6 +1521,8 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
             _df1 = pd.DataFrame(_rows)
             # Garante colunas normalizadas sem prefixo
             _df1["fonte"] = _df1.get("nome_arquivo", pd.Series(["upload"] * len(_df1)))
+            if "meio_pagamento" not in _df1.columns:
+                _df1["meio_pagamento"] = _df1.get("fonte", pd.Series(["Upload"] * len(_df1)))
             dfs.append(_df1)
     except Exception:
         pass
@@ -1551,6 +1553,9 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
                 "_fonte":         "fonte",
             }
             _df2 = _df_pf.rename(columns=_map)
+            _df2 = _df_pf.rename(columns=_map)
+            if "meio_pagamento" not in _df2.columns:
+                _df2["meio_pagamento"] = "Pró-Frotas"
             dfs.append(_df2)
     except Exception:
         pass
@@ -19457,75 +19462,52 @@ if modo == "📍 Por UF/Município":
                     )
                 st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-            # ── Tabela Meios de Pagamento por Posto ──────────────────────────
-            _abast_df_tab = st.session_state.get("_abastecimentos_cliente_df", pd.DataFrame())
-            if not _abast_df_tab.empty:
-                with st.expander("💳 Postos utilizados por Meio de Pagamento", expanded=True):
-                    st.caption("Postos com abastecimentos registrados — último preço transacionado por meio de pagamento")
-                    try:
-                        # Colunas necessárias
-                        _cols_need = ["cnpj_posto","razao_social_posto","municipio_posto",
-                                      "uf_posto","meio_pagamento","combustivel","preco_unitario",
-                                      "data_abastecimento"]
-                        _cols_ok = [c for c in _cols_need if c in _abast_df_tab.columns]
-
-                        if "cnpj_posto" in _abast_df_tab.columns:
-                            # Filtrar pela UF selecionada
-                            _uf_col = next((c for c in ["uf_posto","uf"] if c in _abast_df_tab.columns), None)
-                            if _uf_col:
-                                _abast_uf = _abast_df_tab[
-                                    _abast_df_tab[_uf_col].fillna("").str.upper() == uf.upper()
-                                ]
-                            else:
-                                _abast_uf = _abast_df_tab
-
-                            if not _abast_uf.empty:
-                                # Meio de pagamento
-                                _mp_col = next((c for c in ["meio_pagamento","operadora","cartao"] if c in _abast_uf.columns), None)
-                                _mp_col = _mp_col or "meio_pagamento"
-                                if _mp_col not in _abast_uf.columns:
-                                    _abast_uf = _abast_uf.copy()
-                                    _abast_uf[_mp_col] = "Pró-Frotas"
-
-                                # Último preço por posto + combustivel + meio_pagamento
-                                _grp_cols = ["cnpj_posto", _mp_col]
-                                if "combustivel" in _abast_uf.columns:
-                                    _grp_cols.append("combustivel")
-
-                                _abast_sorted = _abast_uf.sort_values(
-                                    "data_abastecimento" if "data_abastecimento" in _abast_uf.columns else _abast_uf.columns[0],
-                                    ascending=False
-                                )
-                                _ult_preco = _abast_sorted.groupby(_grp_cols).first().reset_index()
-
-                                # Nome do posto
-                                _nome_col = next((c for c in ["razao_social_posto","nome_posto","razaoSocial"] if c in _abast_uf.columns), None)
-                                _mun_col  = next((c for c in ["municipio_posto","municipio"] if c in _abast_uf.columns), None)
-
-                                # Pivot: linhas=posto, colunas=meio_pagamento
-                                if "preco_unitario" in _ult_preco.columns and _mp_col in _ult_preco.columns:
-                                    _pivot = _ult_preco.pivot_table(
-                                        index=["cnpj_posto"] + ([_nome_col] if _nome_col else []) + ([_mun_col] if _mun_col else []),
-                                        columns=_mp_col,
-                                        values="preco_unitario",
-                                        aggfunc="first"
-                                    ).reset_index()
-                                    _pivot.columns.name = None
-                                    # Formatar preços
-                                    _mp_cols_pivot = [c for c in _pivot.columns if c not in ["cnpj_posto", _nome_col, _mun_col]]
-                                    for _mc in _mp_cols_pivot:
-                                        _pivot[_mc] = _pivot[_mc].apply(
-                                            lambda v: f"R$ {float(v):.3f}/L" if pd.notna(v) else "—"
-                                        )
-                                    st.dataframe(_pivot, use_container_width=True, height=300)
-                                else:
-                                    st.dataframe(_ult_preco[_cols_ok], use_container_width=True)
-                            else:
-                                st.info(f"Nenhum abastecimento registrado para {uf}.")
+            # ── Tabela Meios de Pagamento por Posto ──────────────────────
+            with st.expander("💳 Postos utilizados por Meio de Pagamento", expanded=True):
+                st.caption("Postos com abastecimentos — último preço por meio de pagamento")
+                try:
+                    _abast_unif = _carregar_abastecimentos_unificados(dias=730)
+                    if _abast_unif.empty:
+                        st.info("Nenhum abastecimento registrado. Integre via Pró-Frotas ou carregue planilha.")
+                    else:
+                        # Filtrar pela UF
+                        _uf_col_u = next((c for c in ["uf_posto","uf"] if c in _abast_unif.columns), None)
+                        _abast_uf_u = _abast_unif[_abast_unif[_uf_col_u].fillna("").str.upper() == uf.upper()].copy() if _uf_col_u else _abast_unif.copy()
+                        if _abast_uf_u.empty:
+                            st.info(f"Nenhum abastecimento para {uf}.")
                         else:
-                            st.info("Carregue abastecimentos via API ou planilha para ver esta tabela.")
-                    except Exception as _e_tab:
-                        st.warning(f"Erro ao montar tabela de meios de pagamento: {_e_tab}")
+                            if "meio_pagamento" not in _abast_uf_u.columns:
+                                _abast_uf_u["meio_pagamento"] = "Pró-Frotas"
+                            _nome_col_u  = next((c for c in ["nome_posto","razao_frota","cnpj_posto"] if c in _abast_uf_u.columns), "cnpj_posto")
+                            _mun_col_u   = next((c for c in ["cidade_posto","municipio"] if c in _abast_uf_u.columns), None)
+                            _comb_col_u  = next((c for c in ["produto","combustivel"] if c in _abast_uf_u.columns), None)
+                            _preco_col_u = next((c for c in ["preco_litro","preco_unitario"] if c in _abast_uf_u.columns), None)
+                            if _preco_col_u and "cnpj_posto" in _abast_uf_u.columns:
+                                if "data_abastecimento" in _abast_uf_u.columns:
+                                    _abast_uf_u = _abast_uf_u.sort_values("data_abastecimento", ascending=False)
+                                _grp = ["cnpj_posto", "meio_pagamento"]
+                                if _comb_col_u:
+                                    _grp.append(_comb_col_u)
+                                _ult = _abast_uf_u.groupby(_grp)[_preco_col_u].first().reset_index()
+                                if _comb_col_u:
+                                    _ult["_col_pivot"] = _ult["meio_pagamento"] + " · " + _ult[_comb_col_u].fillna("")
+                                else:
+                                    _ult["_col_pivot"] = _ult["meio_pagamento"]
+                                _info = _abast_uf_u.groupby("cnpj_posto")[[_nome_col_u] + ([_mun_col_u] if _mun_col_u else [])].first().reset_index()
+                                _ult = _ult.merge(_info, on="cnpj_posto", how="left")
+                                _idx = list(dict.fromkeys([c for c in ["cnpj_posto", _nome_col_u] + ([_mun_col_u] if _mun_col_u else []) if c in _ult.columns]))
+                                _pivot = _ult.pivot_table(index=_idx, columns="_col_pivot", values=_preco_col_u, aggfunc="first").reset_index()
+                                _pivot.columns.name = None
+                                _mp_cols_p = [c for c in _pivot.columns if c not in _idx]
+                                for _mc in _mp_cols_p:
+                                    _pivot[_mc] = _pivot[_mc].apply(lambda v: f"R$ {float(v):.3f}/L" if pd.notna(v) else "—")
+                                _pivot = _pivot.rename(columns={"cnpj_posto":"CNPJ", _nome_col_u:"Estabelecimento", _mun_col_u:"Município"} if _mun_col_u else {"cnpj_posto":"CNPJ", _nome_col_u:"Estabelecimento"})
+                                st.dataframe(_pivot, use_container_width=True, height=350)
+                                st.caption(f"{len(_pivot)} posto(s) · {len(_mp_cols_p)} coluna(s)")
+                            else:
+                                st.info("Dados insuficientes para montar a tabela.")
+                except Exception as _e_mp:
+                    st.warning(f"Erro ao montar tabela: {_e_mp}")
 
             # ── Tabela de dados ───────────────────────────────────────────────
             cols = [c for c in ["razaoSocial","cnpj","distribuidora","_pro_frotas",
