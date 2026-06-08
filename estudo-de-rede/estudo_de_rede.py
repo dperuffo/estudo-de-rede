@@ -11298,48 +11298,91 @@ def _popup(row):
     # ── Preço do posto via _pp_df + tendência vs ANP semana anterior ─
     _preco_posto_html = ""
     try:
-        _pp_df_popup = st.session_state.get("_pp_df")
-        _cnpj_n_popup = str(row.get("_cnpj_norm", row.get("cnpj", ""))).replace(r"\D", "")
-        if _pp_df_popup is not None and _cnpj_n_popup and "cnpj_norm" in _pp_df_popup.columns:
-            _pp_row = _pp_df_popup[_pp_df_popup["cnpj_norm"] == _cnpj_n_popup]
-            if not _pp_row.empty:
-                _uf_popup = str(row.get("uf", "")).strip().upper()
-                _cache_ant_popup  = st.session_state.get("_precos_anp_cache_anterior", {})
-                _sheets_ant_popup = _cache_ant_popup.get("sheets", {})
-                _semana_ant_popup = _cache_ant_popup.get("semana", "")
-                _linhas_popup = []
-                for _, _pp_r in _pp_row.iterrows():
-                    _comb_label = str(_pp_r.get("combustivel_label", "")).strip()
-                    _pk_popup   = _anp_norm(_pp_r.get("combustivel_pk", _comb_label))
-                    _preco_p    = float(_pp_r["preco"])
-                    # Preço ANP semana anterior para este UF/combustível
-                    _anp_ant = None
-                    if _sheets_ant_popup and _uf_popup:
-                        _anp_ant = _anp_preco_uf(_sheets_ant_popup, _pk_popup, _uf_popup)
-                        if _anp_ant is None:
-                            _anp_ant = _anp_preco_brasil(_sheets_ant_popup, _pk_popup)
-                    _tend_html = _tendencia_badge(_preco_p, _anp_ant, inline=True) if _anp_ant else ""
-                    _data_p    = str(_pp_r.get("data_atualizacao", "")).strip()
-                    _data_lbl  = f" · {_data_p}" if _data_p and _data_p not in ("nan","None","") else ""
-                    _linhas_popup.append(
-                        f"<tr>"
-                        f"<td style='padding:2px 6px;font-size:11px;color:#555'>{_comb_label}</td>"
-                        f"<td style='padding:2px 6px;font-size:12px;font-weight:700;color:#0d1b4b'>"
-                        f"R$ {_brl(_preco_p, 3)}</td>"
-                        f"<td style='padding:2px 6px'>{_tend_html}</td>"
-                        f"</tr>"
-                    )
+        _cnpj_n_popup = re.sub(r"\D", "", str(row.get("_cnpj_norm", row.get("cnpj", ""))))
+        _uf_popup     = str(row.get("uf", "")).strip().upper()
+        _mun_popup    = str(row.get("municipio", "")).strip()
+        _linhas_popup = []
+        _fonte_popup  = ""
+
+        # ── Prioridade 1: último abastecimento real do cliente ───────────
+        _abast_popup = _carregar_abastecimentos_unificados(dias=730)
+        if not _abast_popup.empty and _cnpj_n_popup and "cnpj_posto" in _abast_popup.columns:
+            _abast_posto = _abast_popup[
+                _abast_popup["cnpj_posto"].astype(str).str.replace(r"\D","",regex=True) == _cnpj_n_popup
+            ]
+            if not _abast_posto.empty:
+                if "data_abastecimento" in _abast_posto.columns:
+                    _abast_posto = _abast_posto.sort_values("data_abastecimento", ascending=False)
+                _comb_col_p  = next((c for c in ["produto","combustivel"] if c in _abast_posto.columns), None)
+                _preco_col_p = next((c for c in ["preco_litro","preco_unitario"] if c in _abast_posto.columns), None)
+                _mp_col_p    = "meio_pagamento" if "meio_pagamento" in _abast_posto.columns else None
+                if _comb_col_p and _preco_col_p:
+                    _ult_abast = _abast_posto.groupby(_comb_col_p).first().reset_index()
+                    for _, _ra in _ult_abast.iterrows():
+                        try:
+                            _preco_a = float(_ra[_preco_col_p])
+                            _comb_a  = str(_ra[_comb_col_p]).strip()
+                            _mp_a    = str(_ra.get(_mp_col_p,"")) if _mp_col_p else ""
+                            _mp_tag  = f"<span style='font-size:9px;color:#1565c0;margin-left:4px'>[{_mp_a}]</span>" if _mp_a else ""
+                            _linhas_popup.append(
+                                f"<tr>"
+                                f"<td style='padding:2px 6px;font-size:11px;color:#555'>{_comb_a}{_mp_tag}</td>"
+                                f"<td style='padding:2px 6px;font-size:12px;font-weight:700;color:#0d1b4b'>"
+                                f"R$ {_brl(_preco_a, 3)}</td>"
+                                f"</tr>"
+                            )
+                        except Exception:
+                            pass
+                    if _linhas_popup:
+                        _data_ult = str(_abast_posto.iloc[0].get("data_abastecimento",""))[:10]
+                        _fonte_popup = f"Último abastecimento{(' · ' + _data_ult) if _data_ult else ''}"
+
+        # ── Prioridade 2: ANP municipio → estado → Brasil ────────────────
+        if not _linhas_popup:
+            _cache_att  = st.session_state.get("_precos_anp_cache", {})
+            _sheets_att = _cache_att.get("sheets", {})
+            _semana_att = _cache_att.get("semana", "")
+            if _sheets_att:
+                _rows_anp_p = _anp_extrair_precos(_sheets_att, uf=_uf_popup, municipio=_mun_popup or None)
+                _pks_lbl = {
+                    "diesels10":"Diesel S10","diesel":"Diesel Comum",
+                    "gasolinaaditivada":"Gasolina Aditivada","gasolina":"Gasolina Comum",
+                    "etanolhidratadocombusti":"Etanol Hidratado","etanol":"Etanol",
+                    "gnv":"GNV",
+                }
+                _seen_p = set()
+                for _r in _rows_anp_p:
+                    _pk  = _r.get("_pk","")
+                    _lbl = _pks_lbl.get(_pk, str(_r.get("Produto",_pk)).strip())
+                    _preco = _r.get("Preço Médio") or _r.get("Preco Medio")
+                    if _pk not in _seen_p and _preco is not None:
+                        _seen_p.add(_pk)
+                        try:
+                            _v = float(_preco)
+                            if 0.5 < _v < 50.0:
+                                _linhas_popup.append(
+                                    f"<tr>"
+                                    f"<td style='padding:2px 6px;font-size:11px;color:#555'>{_lbl}</td>"
+                                    f"<td style='padding:2px 6px;font-size:12px;font-weight:700;color:#0d1b4b'>"
+                                    f"R$ {_brl(_v, 3)}</td>"
+                                    f"</tr>"
+                                )
+                        except Exception:
+                            pass
                 if _linhas_popup:
-                    _ant_nota = (f"<div style='font-size:9px;color:#aaa;margin-top:2px'>"
-                                 f"↑↓ vs ANP sem. {_semana_ant_popup}</div>"
-                                 if _semana_ant_popup else "")
-                    _preco_posto_html = (
-                        f"<hr style='margin:5px 0'>"
-                        f"<b style='font-size:11px'>💰 Preços cadastrados:</b>"
-                        f"<table style='width:100%;border-collapse:collapse;margin-top:3px'>"
-                        + "".join(_linhas_popup) +
-                        f"</table>{_ant_nota}"
-                    )
+                    _nivel_p = _rows_anp_p[0].get("Nível", _uf_popup) if _rows_anp_p else _uf_popup
+                    _sem_p   = str(_semana_att)[-10:] if _semana_att else ""
+                    _fonte_popup = f"ANP {_nivel_p}{(' · sem. ' + _sem_p) if _sem_p else ''} (média)"
+
+        if _linhas_popup:
+            _preco_posto_html = (
+                f"<hr style='margin:5px 0'>"
+                f"<b style='font-size:11px'>💰 Preços</b>"
+                f"<table style='width:100%;border-collapse:collapse;margin-top:3px'>"
+                + "".join(_linhas_popup) +
+                f"</table>"
+                f"<div style='font-size:9px;color:#aaa;margin-top:2px'>Fonte: {_fonte_popup}</div>"
+            )
     except Exception:
         pass
 
@@ -18936,20 +18979,34 @@ if modo == "📍 Por UF/Município":
 
             # ── Sobrepor postos do cliente (abastecimentos carregados) ──
             _empresa_id_m1 = (st.session_state.get("_empresa_ativa") or {}).get("id")
-            if _empresa_id_m1:
-                _abast_df = st.session_state.get("_abastecimentos_cliente_df", pd.DataFrame())
-                if not _abast_df.empty and "cnpj_posto" in _abast_df.columns:
-                    _cnpjs_cliente = set(_abast_df["cnpj_posto"].dropna().unique())
-                    if not _anp_df_m1.empty and "cnpj" in _anp_df_m1.columns:
-                        _postos_cliente = _anp_df_m1[
-                            _anp_df_m1["cnpj"].isin(_cnpjs_cliente) &
-                            (_anp_df_m1["uf"].fillna("").str.upper() == uf.upper())
-                        ].copy()
-                        if not _postos_cliente.empty:
-                            _postos_cliente["_transacionado"] = True
-                            if not df_raw_full.empty:
-                                df_raw_full = df_raw_full.copy()
-                                df_raw_full["_transacionado"] = df_raw_full["cnpj"].isin(_cnpjs_cliente)
+            _is_admin_m1   = _is_admin()
+            _abast_unif_m1 = _carregar_abastecimentos_unificados(dias=730)
+            _cnpjs_cliente_m1 = set()
+            if not _abast_unif_m1.empty and "cnpj_posto" in _abast_unif_m1.columns:
+                # Filtrar abastecimentos da empresa ativa (multitenancy)
+                if _empresa_id_m1 and "empresa_id" in _abast_unif_m1.columns:
+                    _abast_emp = _abast_unif_m1[
+                        _abast_unif_m1["empresa_id"].astype(str) == str(_empresa_id_m1)
+                    ]
+                else:
+                    _abast_emp = _abast_unif_m1
+                _uf_col_m1 = next((c for c in ["uf_posto","uf"] if c in _abast_emp.columns), None)
+                if _uf_col_m1:
+                    _abast_emp = _abast_emp[_abast_emp[_uf_col_m1].fillna("").str.upper() == uf.upper()]
+                _cnpjs_cliente_m1 = set(
+                    _abast_emp["cnpj_posto"].astype(str).str.replace(r"\D","",regex=True).dropna().unique()
+                )
+
+            if not df_raw_full.empty and "cnpj" in df_raw_full.columns:
+                _cnpj_norm_m1 = df_raw_full["cnpj"].astype(str).str.replace(r"\D","",regex=True)
+                df_raw_full = df_raw_full.copy()
+                df_raw_full["_transacionado"] = _cnpj_norm_m1.isin(_cnpjs_cliente_m1)
+
+                # Postos transacionados visíveis apenas para usuarios do tenant e admin
+                if not _is_admin_m1 and _empresa_id_m1:
+                    # Manter todos os postos ANP no mapa, mas marcar os transacionados
+                    pass  # todos ficam visiveis, apenas o badge muda
+                # Admin ve tudo sempre
 
             st.session_state["df_raw_full"]  = df_raw_full
             st.session_state["_uf_carregada"] = uf
