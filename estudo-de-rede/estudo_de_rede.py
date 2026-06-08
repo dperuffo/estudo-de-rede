@@ -11837,67 +11837,71 @@ def _manut_excluir(id_reg: int) -> tuple[bool, str]:
         return False, str(e)
 
 
-def _precos_tooltip_html(cnpj_norm: str, uf: str) -> str:
+def _precos_tooltip_html(cnpj_norm: str, uf: str, municipio: str = "") -> str:
     """Retorna bloco HTML com preços de combustíveis para o tooltip do mapa.
 
-    Prioridade: _pp_df (preco_posto) → ANP por UF → ANP Brasil.
+    Hierarquia ANP:
+      1. Preços do estabelecimento (abastecimentos do cliente)
+      2. Preços do município (ANP — aba MUNICIPIOS)
+      3. Preços do estado (ANP — aba ESTADOS)
+      4. Preços do Brasil (ANP — aba BRASIL)
     Retorna "" se não houver dados.
     """
     try:
-        _pp_df_tt = st.session_state.get("_pp_df")
         linhas = []
         fonte = ""
+        _cache_att  = st.session_state.get("_precos_anp_cache", {})
+        _sheets_att = _cache_att.get("sheets", {})
+        _semana_att = _cache_att.get("semana", "")
 
-        # ── Prioridade 1: preco_posto (_pp_df) ──────────────────────────────
-        if (_pp_df_tt is not None
-                and not _pp_df_tt.empty
-                and cnpj_norm
-                and "cnpj_norm" in _pp_df_tt.columns):
-            _rows = _pp_df_tt[_pp_df_tt["cnpj_norm"] == cnpj_norm]
-            # Ordenar por prioridade: Diesel → Gasolina → Etanol → GNV
-            _rows_sorted = sorted(
-                _rows.iterrows(),
-                key=lambda x: _comb_sort_key(
-                    str(x[1].get("combustivel_label", "") or x[1].get("combustivel_pk", ""))
-                )
-            )
-            for _, _r in _rows_sorted:
-                _lbl  = str(_r.get("combustivel_label", "") or "").strip()
-                _preco = None
-                try:
-                    _preco = float(_r["preco"])
-                except Exception:
-                    pass
-                if _lbl and _preco is not None:
-                    linhas.append(f"<b>{_lbl}:</b> R$ {_preco:.3f}/L")
-            if linhas:
-                _data_tt = str(_rows.iloc[0].get("data_atualizacao", "") or "").strip()
-                _data_tt = _data_tt if _data_tt and _data_tt not in ("nan", "None") else ""
-                fonte = f"PP{(' · ' + _data_tt) if _data_tt else ''}"
-
-        # ── Prioridade 2: ANP por UF (semana atual) ─────────────────────────
-        if not linhas:
-            _cache_att = st.session_state.get("_precos_anp_cache", {})
-            _sheets_att = _cache_att.get("sheets", {})
-            _semana_att = _cache_att.get("semana", "")
-            if _sheets_att and uf:
-                _pks_nomes = [
-                    ("diesels10",        "Diesel S10"),
-                    ("diesel",           "Diesel"),
-                    ("gasolinaaditivada","Gasolina Aditivada"),
-                    ("gasolina",         "Gasolina"),
-                    ("etanol",           "Etanol"),
-                    ("gnv",              "GNV"),
-                ]
-                for _pk, _nome in _pks_nomes:
-                    _v = _anp_preco_uf(_sheets_att, _pk, uf)
-                    if _v is None:
-                        _v = _anp_preco_brasil(_sheets_att, _pk)
-                    if _v is not None:
-                        linhas.append(f"<b>{_nome}:</b> R$ {_v:.3f}/L")
+        # ── Prioridade 1: abastecimentos do cliente para este posto ─────────
+        _abast_df = st.session_state.get("_abastecimentos_cliente_df", None)
+        if (_abast_df is not None and not _abast_df.empty
+                and cnpj_norm and "cnpj_posto" in _abast_df.columns):
+            _cnpj_limpo = str(cnpj_norm).replace(r"\D", "")
+            _rows_abast = _abast_df[
+                _abast_df["cnpj_posto"].astype(str).str.replace(r"\D","",regex=True) == _cnpj_limpo
+            ]
+            if not _rows_abast.empty and "preco_unitario" in _rows_abast.columns:
+                # Último preço por combustível
+                _ult = (_rows_abast.sort_values("data_abastecimento", ascending=False)
+                        .groupby("combustivel")["preco_unitario"].first())
+                for _comb, _preco in _ult.items():
+                    try:
+                        linhas.append(f"<b>{_comb}:</b> R$ {float(_preco):.3f}/L")
+                    except Exception:
+                        pass
                 if linhas:
-                    _geo_src = uf if uf else "BR"
-                    fonte = f"ANP {_geo_src}{(' · ' + _semana_att) if _semana_att else ''}"
+                    fonte = "Abastecimento do cliente"
+
+        # ── Prioridade 2: ANP por município → estado → Brasil ───────────────
+        if not linhas and _sheets_att:
+            _rows_anp = _anp_extrair_precos(_sheets_att, uf=uf, municipio=municipio or None)
+            if _rows_anp:
+                _nivel = _rows_anp[0].get("_nivel", uf or "BR") if _rows_anp else ""
+                _pks_label = {
+                    "diesels10":         "Diesel S10",
+                    "diesel":            "Diesel",
+                    "gasolinaaditivada": "Gasolina Aditivada",
+                    "gasolina":          "Gasolina",
+                    "etanol":            "Etanol",
+                    "gnv":               "GNV",
+                    "glp":               "GLP",
+                }
+                _seen = set()
+                for _r in _rows_anp:
+                    _pk  = _r.get("_pk", "")
+                    _lbl = _pks_label.get(_pk, str(_r.get("Produto", _pk)).strip())
+                    _preco = _r.get("Preço Médio")
+                    if _pk not in _seen and _preco is not None:
+                        _seen.add(_pk)
+                        try:
+                            linhas.append(f"<b>{_lbl}:</b> R$ {float(_preco):.3f}/L")
+                        except Exception:
+                            pass
+                if linhas:
+                    _nivel_label = _rows_anp[0].get("_nivel", uf or "BR") if _rows_anp else (uf or "BR")
+                    fonte = f"ANP {_nivel_label}{(' · ' + _semana_att) if _semana_att else ''} (preço médio)"
 
         if not linhas:
             return ""
@@ -11971,33 +11975,45 @@ def _precos_tooltip_html_bulk(cnpjs: "pd.Series", ufs: "pd.Series") -> dict:
     _cache_att  = st.session_state.get("_precos_anp_cache", {})
     _sheets_att = _cache_att.get("sheets", {})
     _semana_att = _cache_att.get("semana", "")
+    # Cache ANP por UF usando hierarquia municipio -> estado -> Brasil
     anp_por_uf: dict = {}
     if _sheets_att:
-        _pks_nomes = [
-            ("diesels10",         "Diesel S10"),
-            ("diesel",            "Diesel"),
-            ("gasolinaaditivada", "Gasolina Aditivada"),
-            ("gasolina",          "Gasolina"),
-            ("etanol",            "Etanol"),
-            ("gnv",               "GNV"),
-        ]
+        _pks_label = {
+            "diesels10":         "Diesel S10",
+            "diesel":            "Diesel",
+            "gasolinaaditivada": "Gasolina Aditivada",
+            "gasolina":          "Gasolina",
+            "etanol":            "Etanol",
+            "gnv":               "GNV",
+            "glp":               "GLP",
+        }
         for uf_val in ufs.dropna().unique():
             uf_val = str(uf_val).strip().upper()
             if not uf_val:
                 continue
-            linhas = []
-            for _pk, _nome in _pks_nomes:
-                _v = _anp_preco_uf(_sheets_att, _pk, uf_val)
-                if _v is None:
-                    _v = _anp_preco_brasil(_sheets_att, _pk)
-                if _v is not None:
-                    linhas.append(f"<b>{_nome}:</b> R$ {_v:.3f}/L")
-            if linhas:
-                fonte = f"ANP {uf_val}{(' · ' + _semana_att) if _semana_att else ''}"
-                anp_por_uf[uf_val] = _montar_html_precos(linhas, fonte)
+            _rows_uf = _anp_extrair_precos(_sheets_att, uf=uf_val)
+            if _rows_uf:
+                linhas = []
+                _seen = set()
+                for _r in _rows_uf:
+                    _pk   = _r.get("_pk", "")
+                    _lbl  = _pks_label.get(_pk, str(_r.get("Produto", _pk)).strip())
+                    _preco = _r.get("Preço Médio") or _r.get("Preco Medio")
+                    if _pk not in _seen and _preco is not None:
+                        _seen.add(_pk)
+                        try:
+                            linhas.append(f"<b>{_lbl}:</b> R$ {float(_preco):.3f}/L")
+                        except Exception:
+                            pass
+                if linhas:
+                    _nivel = _rows_uf[0].get("Nível", uf_val)
+                    fonte  = f"ANP {_nivel}"
+                    if _semana_att:
+                        fonte += f" · {_semana_att} (media)"
+                    anp_por_uf[uf_val] = _montar_html_precos(linhas, fonte)
 
-    cnpjs_arr = cnpjs.fillna("").astype(str).values
-    ufs_arr   = ufs.fillna("").astype(str).str.strip().str.upper().values
+    cnpjs_arr = cnpjs.fillna('').astype(str).values
+    ufs_arr   = ufs.fillna('').astype(str).str.strip().str.upper().values
     for cnpj_n, uf_val in zip(cnpjs_arr, ufs_arr):
         if cnpj_n in pp_index:
             resultado[cnpj_n] = pp_index[cnpj_n]
