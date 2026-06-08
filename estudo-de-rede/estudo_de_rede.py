@@ -2447,7 +2447,7 @@ def _db_historico_preco(cnpj: str, combustivel: str = None, dias: int = 90) -> l
 # ── Controle de Acesso (Allowlist / Blacklist) ────────────────────
 
 # E-mail do administrador — único com acesso ao painel de gestão
-_ADMIN_EMAIL = "d.peruffo@gmail.com"
+_ADMIN_EMAIL = "contato@fxgestaodefrotasonline.com"
 
 
 # ═══════════════════════════════════════════════════════════════════
