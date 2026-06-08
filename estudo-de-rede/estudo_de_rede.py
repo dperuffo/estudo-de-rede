@@ -8299,18 +8299,30 @@ _DOC_PDF_CANDIDATOS = [
 def _github_baixar_bytes(nome_arquivo: str) -> "tuple[bytes | None, str]":
     """
     Baixa um arquivo da subpasta estudo-de-rede no GitHub.
-    Cache servidor: 1 download por hora por arquivo, independente do número de usuários.
+    Cache servidor: 1 download por hora por arquivo.
+    Retry 3x com timeout progressivo para arquivos grandes.
     Retorna (bytes, erro_str); bytes=None em caso de falha.
     """
-    try:
-        import urllib.parse as _uparse
-        _url = f"{_REPO_BASE_URL}/{_uparse.quote(nome_arquivo)}"
-        _resp = requests.get(_url, timeout=30)
-        if _resp.status_code == 200:
-            return _resp.content, ""
-        return None, f"HTTP {_resp.status_code} — {nome_arquivo}"
-    except Exception as _e:
-        return None, str(_e)
+    import urllib.parse as _uparse
+    _url = f"{_REPO_BASE_URL}/{_uparse.quote(nome_arquivo)}"
+    _timeouts = [30, 60, 120]  # timeout progressivo por tentativa
+    _ultimo_erro = ""
+    for _tentativa, _timeout in enumerate(_timeouts, 1):
+        try:
+            _resp = requests.get(
+                _url,
+                timeout=_timeout,
+                stream=False,
+                headers={"Accept": "application/octet-stream"}
+            )
+            if _resp.status_code == 200:
+                return _resp.content, ""
+            _ultimo_erro = f"HTTP {_resp.status_code}"
+        except Exception as _e:
+            _ultimo_erro = str(_e)
+            if _tentativa < len(_timeouts):
+                import time as _t; _t.sleep(2 * _tentativa)
+    return None, f"Erro ao baixar {nome_arquivo}: {_ultimo_erro}"
 
 
 def _doc_pdf_hash() -> str:
@@ -9347,145 +9359,38 @@ def _startup_sincronizar_github() -> None:
     if st.session_state.get("_github_sync_done"):
         return
     st.session_state["_github_sync_done"] = True
-    _sync_erros: list = []  # erros capturados para exibição no sidebar
+    _sync_erros: list = []  # erros capturados para exibicao no sidebar
 
-    # ── 1. Postos GF (pro_frotas.xlsx) ───────────────────────────────
-    # Retorno: (cnpjs, msg, df_preview, perfil_map, df_coords)
-    try:
-        _cnpjs_pf, _msg_pf, _preview_pf, _perfil_pf, _coords_pf = _auto_carregar_pro_frotas_repo()
-        if _cnpjs_pf:
-            # Atualiza session_state independentemente de salvar no Supabase
-            st.session_state["cnpjs_pro_frotas"]  = _cnpjs_pf
-            st.session_state["_pf_fonte"]          = "github"
-            st.session_state["_pf_carregado_em"]   = "GitHub (automático)"
-            st.session_state["_pf_restaurado_supabase"] = True  # pula restauração redundante
-            # _coords_pf é df_coords com colunas: cnpj, _lat, _lon, razaoSocial, municipio, uf
-            if _coords_pf is not None and not _coords_pf.empty:
-                # Garante coluna "cnpj" para compatibilidade downstream
-                if "cnpj" not in _coords_pf.columns and "cnpj_norm" in _coords_pf.columns:
-                    _coords_pf = _coords_pf.copy()
-                    _coords_pf["cnpj"] = _coords_pf["cnpj_norm"]
-                # Remove linhas sem coordenadas antes de salvar no session_state
-                _coords_pf_valido = _coords_pf.dropna(subset=["_lat", "_lon"])
-                st.session_state["pf_coords_df"] = _coords_pf_valido
-                st.session_state["_pf_n_coords"] = len(_coords_pf_valido)
-                _atualizar_servicos_pf(_coords_pf_valido)
-            else:
-                _sync_erros.append(f"pro_frotas.xlsx: {_msg_pf or 'sem coordenadas'}")
-            if _perfil_pf:
-                st.session_state["perfil_venda_map"]  = _perfil_pf
-                st.session_state["perfis_pf_lista"]   = sorted(set(_perfil_pf.values()))
-            # Salva no Supabase apenas se ainda não foi feito hoje
-            if not _github_sync_ja_feito_hoje("postos_gf_versoes"):
-                _db_salvar_postos_gf(
-                    _coords_pf if _coords_pf is not None else pd.DataFrame(),
-                    _cnpjs_pf, _perfil_pf or {}, "github_auto"
-                )
-        else:
-            _sync_erros.append(f"pro_frotas.xlsx: {_msg_pf or 'download falhou'}")
-    except Exception as _e_pf:
-        _sync_erros.append(f"pro_frotas.xlsx: {type(_e_pf).__name__}: {_e_pf}")
-
-    # ── 2. Postos Cercados (Postos Cercados.xlsx) ─────────────────────
-    try:
-        _cnpjs_c, _msg_c, _ = _auto_carregar_cercados_repo()
-        if _cnpjs_c:
-            st.session_state["cnpjs_cercados"]         = _cnpjs_c
-            st.session_state["_cercados_fonte"]        = "github"
-            st.session_state["_cercados_carregado_em"] = "GitHub (automático)"
-            if not _github_sync_ja_feito_hoje("postos_cercados_versoes"):
-                _db_salvar_postos_cercados(_cnpjs_c, "github_auto")
-        else:
-            _sync_erros.append(f"Postos Cercados.xlsx: {_msg_c or 'download falhou'}")
-    except Exception as _e_c:
-        _sync_erros.append(f"Postos Cercados.xlsx: {type(_e_c).__name__}: {_e_c}")
-
-    # ── 2b. Postos ANP (postos_anp.xlsx) ─────────────────────────────
+    # ── 1. Postos ANP (postos_anp.xlsx) — fonte principal do mapa ──
     try:
         _postos_anp_df, _msg_anp = _auto_carregar_postos_anp_repo()
         if _postos_anp_df is not None and not _postos_anp_df.empty:
-            st.session_state["postos_anp_df"]          = _postos_anp_df
-            st.session_state["_postos_anp_carregado"]  = True
-            st.session_state["_postos_anp_total"]      = len(_postos_anp_df)
-            st.session_state["_postos_anp_fonte"]      = "GitHub (automático)"
+            st.session_state["postos_anp_df"]         = _postos_anp_df
+            st.session_state["_postos_anp_carregado"] = True
+            st.session_state["_postos_anp_total"]     = len(_postos_anp_df)
+            st.session_state["_postos_anp_fonte"]     = "GitHub (automatico)"
         else:
             _sync_erros.append(f"postos_anp.xlsx: {_msg_anp or 'download falhou'}")
     except Exception as _e_anp:
         _sync_erros.append(f"postos_anp.xlsx: {type(_e_anp).__name__}: {_e_anp}")
 
-    # ── 3. Preços por Posto (preco_posto.xlsx) ────────────────────────
-    try:
-        _pp_df_gh, _msg_pp, _ = _auto_carregar_precos_postos_repo()
-        if _pp_df_gh is not None and not _pp_df_gh.empty:
-            st.session_state["_pp_df"]            = _pp_df_gh
-            st.session_state["_pp_nome_arquivo"]  = "preco_posto.xlsx"
-            st.session_state["_pp_carregado_em"]  = "GitHub (automático)"
-            st.session_state["_restaurado_pp_supabase"] = True  # pula restauração redundante
-            if not _github_sync_ja_feito_hoje("precos_posto_versoes"):
-                _db_salvar_precos_posto(_pp_df_gh, "github_auto")
-                # ── Variação de Preços: compara nova carga com anterior ──
-                try:
-                    _cargas_gh = _carregar_cargas_pp_supabase(n=1)
-                    _pp_ant_gh = None
-                    _carga_ant_id_gh = None
-                    if _cargas_gh and _cargas_gh[0].get("dados"):
-                        _pp_ant_gh = pd.DataFrame(_cargas_gh[0]["dados"])
-                        _carga_ant_id_gh = _cargas_gh[0]["id"]
-                    _nova_carga_id_gh = _salvar_carga_pp_supabase(_pp_df_gh, "github_auto")
-                    if _pp_ant_gh is not None and not _pp_ant_gh.empty:
-                        _var_df_gh = _comparar_cargas_precos(_pp_df_gh, _pp_ant_gh, None)
-                        st.session_state["_pp_variacao"]        = _var_df_gh
-                        st.session_state["_pp_variacao_ts"]     = _agora()
-                        st.session_state["_pp_variacao_origem"] = (
-                            f"carga #{_carga_ant_id_gh}" if _carga_ant_id_gh
-                            else "carga anterior (GitHub)"
-                        )
-                        if _nova_carga_id_gh:
-                            _salvar_variacao_pp_supabase(
-                                _var_df_gh, _nova_carga_id_gh, _carga_ant_id_gh)
-                except Exception:
-                    pass
-        else:
-            _sync_erros.append(f"preco_posto.xlsx: {_msg_pp or 'download falhou'}")
-    except Exception as _e_pp:
-        _sync_erros.append(f"preco_posto.xlsx: {type(_e_pp).__name__}: {_e_pp}")
-
-    # ── 4. Acordos (Acordos.xlsx) ─────────────────────────────────────
-    try:
-        _df_ac, _msg_ac = _auto_carregar_acordos_repo()
-        if _df_ac is not None and not _df_ac.empty:
-            if not _github_sync_ja_feito_hoje("acordos_versoes"):
-                _email_gh = _db_email() or ""
-                _db_salvar_acordos(_df_ac, _email_gh, "github_auto")
-            # Sempre recarrega do Supabase para ter os dados processados
-            _ac_fresh = _db_carregar_acordos()
-            if not _ac_fresh.empty:
-                st.session_state["acordos_df"] = _ac_fresh
-        else:
-            _sync_erros.append(f"Acordos.xlsx: {_msg_ac or 'download falhou'}")
-    except Exception as _e_ac:
-        _sync_erros.append(f"Acordos.xlsx: {type(_e_ac).__name__}: {_e_ac}")
-
-    # ── 5. Preços ANP (precos_anp.xlsx) ──────────────────────────────
+    # ── 2. Precos ANP (precos_anp.xlsx) — referencia de mercado ─────
     try:
         _sheets_anp_gh, _semana_anp, _err_anp = _auto_carregar_anp_repo()
         if _sheets_anp_gh:
-            # Atualiza session_state com os dados mais recentes
             _anp_atual = st.session_state.get("_precos_anp_cache", {})
             if not _anp_atual.get("sheets"):
-                # Só sobrescreve se ainda não há ANP carregada na sessão
                 st.session_state["_precos_anp_cache"] = {
                     "sheets": _sheets_anp_gh,
                     "semana": _semana_anp,
                     "fonte":  "github_auto",
                 }
-            # Persiste no Supabase (histórico) — verifica se esta versão já foi salva
             if not _github_sync_ja_feito_hoje("historico_precos_anp"):
                 _anp_salvar_historico(_sheets_anp_gh, _semana_anp, "github_auto")
         else:
             _sync_erros.append(f"precos_anp.xlsx: {_err_anp or 'download falhou'}")
-    except Exception as _e_anp:
-        _sync_erros.append(f"precos_anp.xlsx: {type(_e_anp).__name__}: {_e_anp}")
+    except Exception as _e_panp:
+        _sync_erros.append(f"precos_anp.xlsx: {type(_e_panp).__name__}: {_e_panp}")
 
     # Armazena erros para exibição no sidebar (debug)
     if _sync_erros:
@@ -16688,50 +16593,45 @@ with st.sidebar:
             icon=None,
         )
 
+    # Status ANP
+    _anp_ok    = st.session_state.get("_postos_anp_carregado", False)
+    _anp_total = st.session_state.get("_postos_anp_total", 0)
+    _anp_fonte = st.session_state.get("_postos_anp_fonte", "não carregado")
+    _anp_preco = st.session_state.get("_precos_anp_cache", {})
+    _anp_preco_ok = bool(_anp_preco.get("sheets"))
+    _anp_semana   = _anp_preco.get("semana", "—")
+
     with st.expander(
         "📊 Status dos Dados"
-        + (" ✅" if _pf_ok and _coords_ok and not _sync_erros_sb else " ⚠️"),
+        + (" ✅" if _anp_ok and _anp_preco_ok and not _sync_erros_sb else " ⚠️"),
         expanded=bool(_sync_erros_sb),
     ):
-        # Resumo visual de cada planilha
-        _d_icon = "✅" if _pf_ok else "❌"
-        _c_icon = "✅" if _coords_ok else "❌"
-        _cer_icon = "✅" if _cer_set else "❌"
-        _pp_icon  = "✅" if st.session_state.get("_pp_df") is not None else "❌"
+        _anp_icon  = "✅" if _anp_ok       else "❌"
+        _prec_icon = "✅" if _anp_preco_ok else "❌"
         st.markdown(
-            f"<div style='font-size:12px;line-height:1.8'>"
-            f"{_d_icon} <b>Postos GF (pro_frotas):</b> {_n_cnpjs_sb:,} CNPJs · {_n_coords_sb:,} coords<br>"
-            f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#888'>Fonte: {_pf_ts or 'não carregado'}</span><br>"
-            f"{_cer_icon} <b>Postos Cercados:</b> {len(_cer_set):,} CNPJs<br>"
-            f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#888'>Fonte: {_cer_ts or 'não carregado'}</span><br>"
-            f"{_pp_icon} <b>Preços por Posto:</b> "
-            + (f"{len(st.session_state['_pp_df']):,} registros" if st.session_state.get('_pp_df') is not None else "não carregado")
-            + f"<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#888'>Fonte: {_pp_ts or 'não carregado'}</span>"
+            f"<div style='font-size:12px;line-height:1.9'>"
+            f"{_anp_icon} <b>Postos ANP:</b> {_anp_total:,} postos<br>"
+            f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#888'>Fonte: {_anp_fonte}</span><br>"
+            f"{_prec_icon} <b>Preços ANP:</b> semana {_anp_semana}<br>"
+            f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#888'>Referência de mercado (município/estado)</span>"
             f"</div>",
             unsafe_allow_html=True,
         )
-        # Erros de sincronização com GitHub
         if _sync_erros_sb:
             st.markdown("**Erros na carga automática (GitHub):**")
             for _se in _sync_erros_sb:
                 st.error(f"• {_se}", icon=None)
-        # Botão para forçar nova tentativa de carga
-        if _sync_erros_sb or not (_pf_ok and _coords_ok):
-            if st.button("🔄 Tentar recarregar planilhas", use_container_width=True,
+        if _sync_erros_sb or not _anp_ok:
+            if st.button("🔄 Tentar recarregar dados ANP", use_container_width=True,
                          key="btn_recarregar_github",
                          help="Limpa o cache e tenta baixar novamente do GitHub"):
-                # Limpa flags para forçar nova tentativa
                 for _rk in ["_github_sync_done", "_github_sync_erros",
-                             "pf_coords_df", "cnpjs_pro_frotas",
-                             "_pf_restaurado_supabase", "_cer_restaurado_supabase",
-                             "_restaurado_pp_supabase"]:
+                             "postos_anp_df", "_postos_anp_carregado",
+                             "_precos_anp_cache"]:
                     st.session_state.pop(_rk, None)
-                # Limpa cache @st.cache_data das funções de carregamento
                 try:
-                    _auto_carregar_pro_frotas_repo.clear()
-                    _auto_carregar_cercados_repo.clear()
-                    _auto_carregar_precos_postos_repo.clear()
-                    _auto_carregar_acordos_repo.clear()
+                    _auto_carregar_postos_anp_repo.clear()
+                    _auto_carregar_anp_repo.clear()
                     _github_baixar_bytes.clear()
                 except Exception:
                     pass
