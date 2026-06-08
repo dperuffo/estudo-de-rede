@@ -265,7 +265,7 @@ def banner_tenant_suspenso() -> bool:
             st.error(
                 "⚠️ **Sua assinatura está suspensa.**  \n"
                 "Atualize seus dados de pagamento para continuar acessando a plataforma.  \n"
-                "Dúvidas: d.peruffo@gmail.com",
+                "Dúvidas: contato@fxgestaodefrotasonline.com",
                 icon="🔒"
             )
             st.stop()
