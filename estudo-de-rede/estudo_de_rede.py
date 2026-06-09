@@ -33162,8 +33162,8 @@ elif modo == "📑 Relatórios":
                 f"Nenhum abastecimento para **{_meses_re[_re_mes]}/{_re_ano}**"
                 + (f" · UF {_re_uf}" if _re_uf != "Todas" else "")
                 + ".\n\nIntegre via Pro-Frotas ou carregue planilha."
-        else:
             )
+        else:
             _re_df["preco"] = pd.to_numeric(_re_df["preco"], errors="coerce")
             _re_df["data"]  = pd.to_datetime(_re_df["data"], errors="coerce")
             _re_df = _re_df.dropna(subset=["preco", "data"])
