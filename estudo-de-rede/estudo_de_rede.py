@@ -33684,247 +33684,92 @@ elif modo == "📑 Relatórios":
         )
 
         _intel_perf = _intel_load()
-        _hist_perf  = _intel_perf.get("historico", {})
+        _abast_perf = _carregar_abastecimentos_unificados(dias=365)
+        _anp_cache_perf = st.session_state.get("_precos_anp_cache", {})
+        _sheets_perf    = _anp_cache_perf.get("sheets", {})
+        _semana_perf    = _anp_cache_perf.get("semana", "")
 
-        if not _hist_perf:
-            st.info(
-                "Nenhum histórico de preços disponível. "
-                "Carregue preços via Configurações → Preços PP para ativar este relatório."
-            )
+        if _abast_perf.empty:
+            st.info("Nenhum abastecimento registrado. Integre via Pro-Frotas para ativar este relatorio.")
         else:
-            # ── Seletor de posto ─────────────────────────────────────
-            _postos_hist = []
-            for _cnpj_p, _evts_p in _hist_perf.items():
-                if isinstance(_evts_p, list) and _evts_p:
-                    _nome_p = str(_evts_p[0].get("nome") or _evts_p[0].get("razao_social", ""))[:45]
-                    _uf_p   = str(_evts_p[0].get("uf", ""))
-                    _postos_hist.append({
-                        "cnpj":  _cnpj_p,
-                        "label": f"{_nome_p} ({_uf_p}) — {_cnpj_p}",
-                    })
-            _postos_hist.sort(key=lambda x: x["label"])
+            _cnpj_col_p  = "cnpj_posto" if "cnpj_posto" in _abast_perf.columns else None
+            _nome_col_p  = next((c for c in ["nome_posto","pv_razao_social"] if c in _abast_perf.columns), None)
+            _preco_col_p = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_perf.columns), None)
+            _comb_col_p  = next((c for c in ["produto","combustivel"] if c in _abast_perf.columns), None)
+            _uf_col_p    = next((c for c in ["uf_posto"] if c in _abast_perf.columns), None)
+            _lit_col_p   = next((c for c in ["litros","item_quantidade"] if c in _abast_perf.columns), None)
+            _mp_col_p    = "meio_pagamento" if "meio_pagamento" in _abast_perf.columns else None
 
-            if not _postos_hist:
-                st.info("Nenhum posto com histórico de preços encontrado.")
+            if not _cnpj_col_p:
+                st.info("Dados insuficientes.")
             else:
-                _opts_postos = [p["label"] for p in _postos_hist]
-                _sel_posto_idx = st.selectbox(
-                    "📍 Selecionar Posto",
-                    range(len(_opts_postos)),
-                    format_func=lambda i: _opts_postos[i],
-                    key="perf_posto_sel",
-                )
-                _sel_posto = _postos_hist[_sel_posto_idx]
-                _evts_sel  = _hist_perf.get(_sel_posto["cnpj"], [])
+                # Montar lista de postos
+                _postos_list = []
+                _grp_cols_p  = [_cnpj_col_p] + ([_nome_col_p] if _nome_col_p else []) + ([_uf_col_p] if _uf_col_p else [])
+                _postos_info = _abast_perf.groupby(_grp_cols_p).size().reset_index(name="n")
+                for _, _row_p in _postos_info.iterrows():
+                    _nm = str(_row_p.get(_nome_col_p, "") or "")[:45] if _nome_col_p else ""
+                    _uf = str(_row_p.get(_uf_col_p, "") or "").upper() if _uf_col_p else ""
+                    _cj = str(_row_p[_cnpj_col_p])
+                    _postos_list.append({"cnpj": _cj, "label": f"{_nm} ({_uf}) — {_cj}"})
+                _postos_list.sort(key=lambda x: x["label"])
 
-                if not _evts_sel:
-                    st.warning("Nenhum histórico encontrado para este posto.")
+                _sel_idx_p = st.selectbox("Selecionar Posto",
+                    range(len(_postos_list)),
+                    format_func=lambda i: _postos_list[i]["label"],
+                    key="perf_posto_sel")
+                _sel_cnpj_p = _postos_list[_sel_idx_p]["cnpj"]
+                _df_posto_p = _abast_perf[_abast_perf[_cnpj_col_p].astype(str) == _sel_cnpj_p].copy()
+
+                if _df_posto_p.empty:
+                    st.warning("Sem dados para este posto.")
                 else:
-                    # Constrói DataFrame do histórico do posto
-                    _df_posto_hist = pd.DataFrame([
-                        {
-                            "data":        pd.to_datetime(str(e.get("data") or e.get("data_ref", ""))[:10], errors="coerce"),
-                            "preco":       float(e.get("preco") or 0),
-                            "combustivel": str(e.get("combustivel", "")).upper().strip(),
-                            "municipio":   str(e.get("municipio", "")),
-                            "uf":          str(e.get("uf", "")).upper(),
-                        }
-                        for e in _evts_sel if isinstance(e, dict)
-                    ])
-                    _df_posto_hist = _df_posto_hist.dropna(subset=["data"])
-                    _df_posto_hist = _df_posto_hist[_df_posto_hist["preco"] > 0]
-                    _df_posto_hist = _df_posto_hist.sort_values("data")
+                    # KPIs do posto
+                    _n_ab_p   = len(_df_posto_p)
+                    _lit_p    = float(_df_posto_p[_lit_col_p].sum() or 0) if _lit_col_p else 0
+                    _preco_p  = float(_df_posto_p[_preco_col_p].mean() or 0) if _preco_col_p else 0
+                    _mp_p     = ", ".join(_df_posto_p[_mp_col_p].dropna().unique()) if _mp_col_p else "—"
 
-                    _pp1, _pp2, _pp3 = st.tabs([
-                        "📈 Evolução do Score",
-                        "⚡ Competitividade",
-                        "🎯 Consistência",
-                    ])
+                    _pc1, _pc2, _pc3, _pc4 = st.columns(4)
+                    _pc1.metric("Abastecimentos", _n_ab_p)
+                    _pc2.metric("Volume", f"{_lit_p:,.0f} L" if _lit_p else "—")
+                    _pc3.metric("Preco medio", _br_moeda(_preco_p, 3) if _preco_p else "—")
+                    _pc4.metric("Meio pagamento", _mp_p[:20])
 
-                    # ── Sub-tab — Evolução do Score ─────────────────
-                    with _pp1:
-                        st.markdown(
-                            "**Como o preço deste posto evoluiu ao longo do tempo** "
-                            "e qual seria seu score em cada período."
-                        )
-                        # Calcula score simplificado ao longo do tempo (preço vs média histórica)
-                        _preco_geral_med = float(_df_posto_hist["preco"].mean())
-                        _df_posto_hist["score_preco"] = _df_posto_hist["preco"].apply(
-                            lambda _p: max(0, min(100, 75 - ((_p - _preco_geral_med) / max(_preco_geral_med, 0.01)) * 200))
-                        )
-                        _df_posto_hist["grade"] = _df_posto_hist["score_preco"].apply(
-                            lambda s: "A" if s >= 75 else "B" if s >= 55 else "C" if s >= 35 else "D"
-                        )
+                    # Comparacao com ANP
+                    if _sheets_perf and _uf_col_p and not _df_posto_p.empty:
+                        _uf_posto_p = str(_df_posto_p[_uf_col_p].iloc[0]).upper()
+                        _rows_anp_p = _anp_extrair_precos(_sheets_perf, uf=_uf_posto_p)
+                        if _rows_anp_p and _preco_p > 0:
+                            try:
+                                _anp_p = float(_rows_anp_p[0].get("Preco Medio") or 0)
+                                if _anp_p > 0:
+                                    _diff_p = _preco_p - _anp_p
+                                    st.metric("vs ANP", _br_moeda(_anp_p,3),
+                                        delta=f"{_diff_p:+.3f}/L ({_diff_p/_anp_p*100:+.1f}%)",
+                                        delta_color="inverse")
+                            except Exception:
+                                pass
 
-                        _fig_score = go.Figure()
-                        _fig_score.add_trace(go.Scatter(
-                            x=_df_posto_hist["data"],
-                            y=_df_posto_hist["score_preco"],
-                            mode="lines+markers",
-                            name="Score",
-                            line=dict(color="#1565C0", width=2),
-                            fill="tozeroy",
-                            fillcolor="rgba(21,101,192,0.1)",
-                            hovertemplate="Data: %{x|%d/%m/%Y}<br>Score: %{y:.0f}<extra></extra>",
-                        ))
-                        # Linhas de referência para grades
-                        for _g_val, _g_lbl, _g_col in [(75, "A", "#2E7D32"), (55, "B", "#F9A825"), (35, "C", "#E65100")]:
-                            _fig_score.add_hline(y=_g_val, line_dash="dot",
-                                                  annotation_text=f" Grau {_g_lbl}",
-                                                  line_color=_g_col, annotation_font_size=9)
-                        _fig_score.update_layout(
-                            height=280, margin=dict(l=0, r=0, t=10, b=0),
-                            yaxis=dict(range=[0, 105], title="Score"),
-                            xaxis_title="",
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                        )
-                        st.plotly_chart(_fig_score, use_container_width=True)
-
-                        # Distribuição de grades
-                        _grade_cnt = _df_posto_hist["grade"].value_counts().reset_index()
-                        _grade_cnt.columns = ["Grau", "Registros"]
-                        _grade_cnt["Cor"] = _grade_cnt["Grau"].map(
-                            {"A": "#2E7D32", "B": "#F9A825", "C": "#E65100", "D": "#B71C1C"}
-                        )
-                        _pcm1, _pcm2, _pcm3, _pcm4 = st.columns(4)
-                        for _gc_i, _gc_row in _grade_cnt.iterrows():
-                            _col_g = [_pcm1, _pcm2, _pcm3, _pcm4][min(_gc_i, 3)]
-                            _col_g.metric(
-                                f"Grau {_gc_row['Grau']}",
-                                f"{_gc_row['Registros']} registros",
-                            )
-
-                    # ── Sub-tab — Competitividade ──────────────────
-                    with _pp2:
-                        st.markdown(
-                            "**Preço deste posto vs média do histórico completo** "
-                            "por combustível."
-                        )
-                        _combust_disp = sorted(_df_posto_hist["combustivel"].unique())
-                        _comb_sel_p = st.selectbox(
-                            "Combustível", _combust_disp,
-                            key="perf_comb_sel",
-                        )
-                        _df_comb_sel = _df_posto_hist[_df_posto_hist["combustivel"] == _comb_sel_p]
-
-                        if not _df_comb_sel.empty:
-                            # Média geral do mesmo combustível em todos os postos do histórico
-                            _precos_todos_comb = []
-                            for _ev_all in _hist_perf.values():
-                                if isinstance(_ev_all, list):
-                                    for _ev_it in _ev_all:
-                                        if (isinstance(_ev_it, dict)
-                                                and str(_ev_it.get("combustivel","")).upper().strip() == _comb_sel_p
-                                                and _ev_it.get("preco")):
-                                            _precos_todos_comb.append(float(_ev_it["preco"]))
-                            _media_todos = sum(_precos_todos_comb) / len(_precos_todos_comb) if _precos_todos_comb else None
-
-                            _fig_comp = go.Figure()
-                            _fig_comp.add_trace(go.Scatter(
-                                x=_df_comb_sel["data"],
-                                y=_df_comb_sel["preco"],
+                    # Evolucao de precos
+                    if "data_abastecimento" in _df_posto_p.columns and _preco_col_p:
+                        st.markdown("##### Evolucao de precos")
+                        _df_ev_p = _df_posto_p[["data_abastecimento", _preco_col_p]].copy()
+                        _df_ev_p["data_abastecimento"] = pd.to_datetime(_df_ev_p["data_abastecimento"], errors="coerce")
+                        _df_ev_p = _df_ev_p.dropna().sort_values("data_abastecimento")
+                        if not _df_ev_p.empty:
+                            _fig_ev_p = go.Figure(go.Scatter(
+                                x=_df_ev_p["data_abastecimento"],
+                                y=_df_ev_p[_preco_col_p],
                                 mode="lines+markers",
-                                name="Preço do Posto",
-                                line=dict(color="#1565C0", width=2),
-                                hovertemplate="Data: %{x|%d/%m/%Y}<br>R$ %{y:.3f}<extra></extra>",
+                                line=dict(color="#1565c0", width=2),
                             ))
-                            if _media_todos:
-                                _fig_comp.add_hline(
-                                    y=_media_todos,
-                                    line_dash="dash",
-                                    annotation_text=f" Média rede ({_br_moeda(_media_todos, 3)})",
-                                    line_color="#E65100",
-                                    annotation_font_size=9,
-                                )
-                            _fig_comp.update_layout(
-                                height=280, margin=dict(l=0, r=0, t=10, b=0),
-                                yaxis_title="R$/L",
-                                xaxis_title="",
-                                plot_bgcolor="rgba(0,0,0,0)",
-                                paper_bgcolor="rgba(0,0,0,0)",
-                            )
-                            st.plotly_chart(_fig_comp, use_container_width=True)
-
-                            # Resumo competitividade
-                            _preco_med_posto = float(_df_comb_sel["preco"].mean())
-                            if _media_todos and _media_todos > 0:
-                                _diff_comp = (_preco_med_posto - _media_todos) / _media_todos * 100
-                                _sinal = "🟢 Abaixo" if _diff_comp < 0 else "🔴 Acima"
-                                st.markdown(
-                                    f"**Preço médio do posto:** {_br_moeda(_preco_med_posto, 3)} · "
-                                    f"**Média da rede:** {_br_moeda(_media_todos, 3)} · "
-                                    f"**Posição:** {_sinal} da média em "
-                                    f"**{abs(_diff_comp):.1f}%**"
-                                )
-
-                    # ── Sub-tab — Consistência ─────────────────────
-                    with _pp3:
-                        st.markdown(
-                            "**Quão estável é o preço deste posto** — postos com baixo "
-                            "coeficiente de variação (CV) são mais previsíveis para planejamento."
-                        )
-                        _consist_rows = []
-                        for _cb_cs in sorted(_df_posto_hist["combustivel"].unique()):
-                            _df_cs = _df_posto_hist[_df_posto_hist["combustivel"] == _cb_cs]
-                            if len(_df_cs) < 2:
-                                continue
-                            _med_cs = float(_df_cs["preco"].mean())
-                            _std_cs = float(_df_cs["preco"].std())
-                            _cv_cs  = _std_cs / _med_cs * 100 if _med_cs > 0 else 0
-                            _consist_rows.append({
-                                "Combustível":      _cb_cs,
-                                "Registros":        str(len(_df_cs)),
-                                "Preço mínimo":     _br_moeda(_df_cs["preco"].min(), 3),
-                                "Preço médio":      _br_moeda(_med_cs, 3),
-                                "Preço máximo":     _br_moeda(_df_cs["preco"].max(), 3),
-                                "Desvio padrão":    _br_moeda(_std_cs, 4),
-                                "CV (%)":           f"{_cv_cs:.2f}%".replace(".", ","),
-                                "Consistência":     (
-                                    "🟢 Alta" if _cv_cs < 2 else
-                                    "🟡 Média" if _cv_cs < 5 else
-                                    "🔴 Baixa"
-                                ),
-                            })
-
-                        if _consist_rows:
-                            st.dataframe(
-                                pd.DataFrame(_consist_rows),
-                                use_container_width=True,
-                                hide_index=True,
-                            )
-                            # Boxplot de preços por combustível
-                            _fig_box = go.Figure()
-                            for _cb_bx in sorted(_df_posto_hist["combustivel"].unique()):
-                                _v_bx = _df_posto_hist[
-                                    _df_posto_hist["combustivel"] == _cb_bx
-                                ]["preco"].tolist()
-                                if _v_bx:
-                                    _fig_box.add_trace(go.Box(
-                                        y=_v_bx, name=_cb_bx[:20],
-                                        boxpoints="all", jitter=0.4,
-                                        marker_size=5,
-                                    ))
-                            _fig_box.update_layout(
-                                height=260,
-                                margin=dict(l=0, r=0, t=10, b=0),
+                            _fig_ev_p.update_layout(height=280, margin=dict(l=0,r=0,t=10,b=0),
                                 yaxis_title="R$/L",
                                 plot_bgcolor="rgba(0,0,0,0)",
-                                paper_bgcolor="rgba(0,0,0,0)",
-                                showlegend=False,
-                            )
-                            st.plotly_chart(_fig_box, use_container_width=True)
-                            st.caption(
-                                "🟢 CV < 2% = Alta consistência · "
-                                "🟡 CV 2-5% = Consistência média · "
-                                "🔴 CV > 5% = Preço instável"
-                            )
-                        else:
-                            st.info("Histórico insuficiente para calcular consistência (mínimo 2 registros por combustível).")
+                                paper_bgcolor="rgba(0,0,0,0)")
+                            st.plotly_chart(_fig_ev_p, use_container_width=True)
 
-    # ════════════════════════════════════════════════════════════════
-    #  TAB 4 — SCORE × PERFORMANCE COMERCIAL
-    # ════════════════════════════════════════════════════════════════
     with _rlt4:
 
         st.markdown(
