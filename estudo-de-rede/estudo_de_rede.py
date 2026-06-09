@@ -9469,45 +9469,39 @@ def buscar_posto_por_texto(texto: str, max_results: int = 6) -> list:
         and len(cnpj_digits) / max(len(texto_clean.replace(" ", "")), 1) > 0.65
     )
 
-    estados = st.session_state.get("_estados_precarregados", [])
-    if not estados:
+    # Usar postos ANP como fonte principal
+    _anp_df_txt = st.session_state.get("postos_anp_df", pd.DataFrame())
+    if _anp_df_txt.empty:
         return []
 
     resultados = []
-    for uf in estados:
-        try:
-            df = buscar_postos(uf=uf)   # instantâneo se estiver em cache
-            if df.empty or "razaoSocial" not in df.columns:
-                continue
-
-            if is_cnpj:
-                mask = df["cnpj"].fillna("").apply(
-                    lambda x: cnpj_digits in "".join(c for c in str(x) if c.isdigit())
-                )
-            else:
-                mask = df["razaoSocial"].fillna("").str.upper().str.contains(
-                    texto_clean.upper(), regex=False, na=False
-                )
-
-            for _, row in df[mask].head(3).iterrows():
-                nome   = str(row.get("razaoSocial", "?"))
-                cidade = str(row.get("municipio", ""))
-                uf_r   = str(row.get("uf", uf))
-                cnpj   = _formatar_cnpj(str(row.get("cnpj", "")))
-                label  = f"⛽ {nome} — {cidade}/{uf_r} | CNPJ: {cnpj}"
-                resultados.append({
-                    "label": label,
-                    "lat":   float(row["_lat"]),
-                    "lon":   float(row["_lon"]),
-                    "tipo":  "posto",
-                })
-                if len(resultados) >= max_results:
-                    break
-        except Exception:
-            continue
-        if len(resultados) >= max_results:
-            break
-
+    try:
+        if is_cnpj:
+            mask = _anp_df_txt["cnpj"].fillna("").apply(
+                lambda x: cnpj_digits in "".join(c for c in str(x) if c.isdigit())
+            )
+        else:
+            _col_busca = next((c for c in ["razaoSocial","nome"] if c in _anp_df_txt.columns), None)
+            if not _col_busca:
+                return []
+            mask = _anp_df_txt[_col_busca].fillna("").str.upper().str.contains(
+                texto_clean.upper(), regex=False, na=False
+            )
+        _df_match = _anp_df_txt[mask].dropna(subset=["_lat","_lon"]).head(max_results)
+        for _, row in _df_match.iterrows():
+            nome   = str(row.get("razaoSocial", row.get("nome","?")))
+            cidade = str(row.get("municipio", ""))
+            uf_r   = str(row.get("uf", ""))
+            cnpj   = _formatar_cnpj(str(row.get("cnpj", "")))
+            label  = f"⛽ {nome} — {cidade}/{uf_r} | CNPJ: {cnpj}"
+            resultados.append({
+                "label": label,
+                "lat":   float(row["_lat"]),
+                "lon":   float(row["_lon"]),
+                "tipo":  "posto",
+            })
+    except Exception:
+        pass
     return resultados
 
 
@@ -11057,58 +11051,54 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
     cnpj_fmt_label = (f"CNPJ {_digits[:2]}.{_digits[2:5]}.{_digits[5:8]}"
                       f"/{_digits[8:12]}-{_digits[12:]}" if is_cnpj else "")
 
-    pf_df = st.session_state.get("pf_coords_df", pd.DataFrame())
+    # Fonte principal: postos ANP carregados no startup
+    _anp_df_busca = st.session_state.get("postos_anp_df", pd.DataFrame())
 
     if is_cnpj:
         # ── Busca por CNPJ ──────────────────────────────────────────────
         fonte = cnpj_fmt_label
         df = pd.DataFrame()
-        # Prioridade 1: planilha local Gestão de Frotas (mais precisa, sem API)
-        if not pf_df.empty and "cnpj" in pf_df.columns:
-            _mask_cnpj = pf_df["cnpj"].fillna("").str.replace(r"\D", "", regex=True) == _digits
-            df = pf_df[_mask_cnpj].copy()
+        # Prioridade 1: postos ANP (fonte principal)
+        if not _anp_df_busca.empty and "cnpj" in _anp_df_busca.columns:
+            _mask_cnpj = _anp_df_busca["cnpj"].fillna("").str.replace(r"\D", "", regex=True) == _digits
+            df = _anp_df_busca[_mask_cnpj].copy()
             if not df.empty:
-                fonte += " (planilha Gestão de Frotas)"
-        # Prioridade 2: API ANP (com pós-filtro de CNPJ exato)
+                fonte += " (ANP)"
+        # Prioridade 2: API ANP direta
         if df.empty:
             df = buscar_posto_por_cnpj(_digits)
             if not df.empty:
                 fonte += " (API ANP)"
     else:
         # ── Busca por nome / razão social ────────────────────────────────
-        # Prioridade 1: planilha local Gestão de Frotas (sem chamada à API ANP)
         fonte = f'Razão social "{termo}"' + (f" · UF {uf}" if uf else "")
         df = pd.DataFrame()
-        if not pf_df.empty:
+        # Prioridade 1: postos ANP locais (rápido, sem API)
+        if not _anp_df_busca.empty:
             _t_norm = _anp_norm(termo)
-            _mask = pd.Series(False, index=pf_df.index)
+            _mask = pd.Series(False, index=_anp_df_busca.index)
             for _col in ["razaoSocial", "nome", "nomeFantasia"]:
-                if _col in pf_df.columns:
+                if _col in _anp_df_busca.columns:
                     _mask |= (
-                        pf_df[_col].fillna("")
+                        _anp_df_busca[_col].fillna("")
                         .apply(_anp_norm)
                         .str.contains(_t_norm, regex=False, na=False)
                     )
             if uf:
                 _mask &= (
-                    pf_df["uf"].fillna("").str.upper().str.strip() == uf.upper()
+                    _anp_df_busca["uf"].fillna("").str.upper().str.strip() == uf.upper()
                 )
-            df = pf_df[_mask].copy()
+            df = _anp_df_busca[_mask].copy()
             if not df.empty:
-                fonte += " (planilha Gestão de Frotas)"
-
-        # Prioridade 2: API ANP como fallback — filtra somente postos GF
+                fonte += " (ANP)"
+        # Prioridade 2: API ANP como fallback
         if df.empty:
             _df_api = buscar_postos_por_nome(termo, uf=uf)
             if not _df_api.empty:
-                # ── Pós-filtro UF (defesa em profundidade) ────────────
                 if uf and "uf" in _df_api.columns:
                     _df_api = _df_api[
                         _df_api["uf"].fillna("").str.upper().str.strip() == uf.upper()
                     ].reset_index(drop=True)
-                if cnpjs_pf and not _df_api.empty and "cnpj" in _df_api.columns:
-                    _cnpjs_api = _df_api["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
-                    _df_api = _df_api[_cnpjs_api.isin(cnpjs_pf)].reset_index(drop=True)
                 if not _df_api.empty:
                     df = _df_api
                     fonte += " (API ANP)"
@@ -20346,80 +20336,32 @@ elif modo == "🗺️ Por Rota":
                 st.info(f"🗺️ Estados detectados na rota: **{', '.join(ufs_rota)}**")
 
             # ── Carrega postos GF dos estados da rota (planilha local — sem API ANP) ──
-            _pf_df_m2   = st.session_state.get("pf_coords_df", pd.DataFrame())
+            # ── Carrega postos ANP dos estados da rota ────────────────────
+            _anp_df_m2  = st.session_state.get("postos_anp_df", pd.DataFrame())
             _ufs_set_m2 = {u.upper() for u in ufs_rota}
-            _n_pf_total_m2 = len(_pf_df_m2)
 
-            if not _pf_df_m2.empty:
-                df_todos = _pf_df_m2[
-                    _pf_df_m2["uf"].fillna("").str.upper().str.strip().isin(_ufs_set_m2)
-                ].copy().reset_index(drop=True)
+            if not _anp_df_m2.empty:
+                df_todos = _anp_df_m2[
+                    _anp_df_m2["uf"].fillna("").str.upper().str.strip().isin(_ufs_set_m2)
+                ].dropna(subset=["_lat","_lon"]).copy().reset_index(drop=True)
                 if df_todos.empty:
-                    # pf_coords_df tem dados mas nenhum para os estados da rota
-                    _ufs_disp = sorted(_pf_df_m2["uf"].fillna("").str.upper().str.strip().unique().tolist())
-                    st.warning(
-                        f"⚠️ A planilha Gestão de Frotas tem **{_n(_n_pf_total_m2)}** postos com coordenadas, "
-                        f"mas **nenhum** nos estados **{', '.join(sorted(_ufs_set_m2))}**. "
-                        f"Estados disponíveis na planilha: {', '.join(_ufs_disp) or '—'}. "
-                        "Verifique se a planilha está completa ou recarregue em **Configurações**."
-                    )
+                    st.warning(f"Nenhum posto ANP nos estados {', '.join(sorted(_ufs_set_m2))}.")
+                else:
+                    # Marcar postos transacionados
+                    _abast_rota = _carregar_abastecimentos_unificados(dias=730)
+                    if not _abast_rota.empty and "cnpj_posto" in _abast_rota.columns:
+                        _cnpjs_rota = set(_abast_rota["cnpj_posto"].astype(str).str.replace(r"\D","",regex=True))
+                        df_todos["_transacionado"] = df_todos["cnpj"].astype(str).str.replace(r"\D","",regex=True).isin(_cnpjs_rota)
             else:
                 df_todos = pd.DataFrame()
-                st.warning(
-                    "⚠️ Planilha Gestão de Frotas não carregada ou sem coordenadas. "
-                    "Verifique a seção **Configurações** na barra lateral."
-                )
+                st.warning("⚠️ Postos ANP não carregados. Aguarde o carregamento automático.")
 
-            # Guarda diagnóstico para aviso persistente após re-render
+            # Guarda diagnostico
             st.session_state["_m2_diag"] = {
-                "n_pf_total":  _n_pf_total_m2,
-                "n_df_todos":  len(df_todos),
-                "ufs_rota":    sorted(_ufs_set_m2),
+                "n_pf_total": len(_anp_df_m2),
+                "n_df_todos": len(df_todos) if not df_todos.empty else 0,
+                "ufs_rota":   sorted(_ufs_set_m2),
             }
-
-            if not df_todos.empty:
-                with st.spinner("📏 Calculando distâncias…"):
-                    dists = dist_minima_rota_np(
-                        df_todos["_lat"].values,
-                        df_todos["_lon"].values,
-                        coords_rota,
-                    )
-                    df_todos["_dist_rota"] = dists
-                df_rota = df_todos[df_todos["_dist_rota"] <= raio].copy().sort_values("_dist_rota").reset_index(drop=True)
-                if df_rota.empty:
-                    st.warning(
-                        f"⚠️ Foram encontrados **{_n(len(df_todos))}** postos Gestão de Frotas nos estados, "
-                        f"mas nenhum está dentro de **{raio} m** da rota. "
-                        "Tente aumentar o raio na barra lateral."
-                    )
-            else:
-                df_rota = pd.DataFrame()
-
-            # ── Overlay ANP: adiciona postos do arquivo carregado pelo usuário ──
-            _anp_view_m2 = st.session_state.get("_anp_df_raw")
-            if _anp_view_m2 is not None and not df_rota.empty:
-                _anp_rota = _anp_view_m2[
-                    _anp_view_m2["uf"].fillna("").str.upper().str.strip().isin(_ufs_set_m2)
-                ].copy().dropna(subset=["_lat", "_lon"])
-                if not _anp_rota.empty:
-                    _dists_anp = dist_minima_rota_np(
-                        _anp_rota["_lat"].values, _anp_rota["_lon"].values, coords_rota
-                    )
-                    _anp_rota["_dist_rota"] = _dists_anp
-                    _anp_rota = _anp_rota[_anp_rota["_dist_rota"] <= raio]
-                    if not _anp_rota.empty:
-                        _pf_cnpjs_m2 = set(
-                            df_rota["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
-                        )
-                        _anp_rota = _anp_rota[
-                            ~_anp_rota["cnpj"].fillna("").str.replace(r"\D", "", regex=True)
-                             .isin(_pf_cnpjs_m2)
-                        ]
-                        if not _anp_rota.empty:
-                            df_rota = pd.concat(
-                                [df_rota, _marcar_df_completo(_anp_rota)], ignore_index=True
-                            )
-
             st.session_state.update({
                 "df_rota": df_rota, "coords_rota": coords_rota,
                 "lat_orig": lo["lat"], "lon_orig": lo["lon"], "label_orig": lo["label"],
