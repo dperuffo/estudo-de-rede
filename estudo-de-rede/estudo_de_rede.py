@@ -33668,9 +33668,6 @@ elif modo == "📑 Relatórios":
                         st.info("Sem dados suficientes para comparacao com ANP.")
                 else:
                     st.info("Colunas necessarias nao encontradas nos abastecimentos.")
-                    "Nenhum potencial parceiro identificado ainda. "
-                    "Registre mais preços via upload de Preços PP para enriquecer o histórico."
-                )
 
     # ════════════════════════════════════════════════════════════════
     #  TAB 3 — PERFORMANCE POR POSTO
