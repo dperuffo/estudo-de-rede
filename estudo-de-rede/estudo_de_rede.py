@@ -33771,493 +33771,115 @@ elif modo == "📑 Relatórios":
                             st.plotly_chart(_fig_ev_p, use_container_width=True)
 
     with _rlt4:
-
-        st.markdown(
-            "<div style='background:linear-gradient(90deg,#E8F5E9,#fff);"
-            "border-left:4px solid #2E7D32;border-radius:0 8px 8px 0;"
-            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1B5E20'>"
-            "Matriz quadrante: cruza o <b>score de qualidade</b> de cada posto com sua "
-            "<b>utilização histórica</b> (registros de preço). "
-            "Identifica oportunidades e riscos na rede credenciada.</div>",
-            unsafe_allow_html=True,
-        )
-
-        _intel_sq  = _intel_load()
-        _hist_sq   = _intel_sq.get("historico", {})
-
-        if not _hist_sq:
-            st.info(
-                "Nenhum histórico de preços disponível. "
-                "Carregue a planilha de Preços PP para ativar este relatório.",
-                icon="📋",
-            )
+        st.markdown("#### Score x Performance")
+        st.caption("Cruza postos utilizados com preco medio vs referencia ANP")
+        _abast_sq = _carregar_abastecimentos_unificados(dias=365)
+        _sheets_sq = st.session_state.get("_precos_anp_cache",{}).get("sheets",{})
+        if _abast_sq.empty:
+            st.info("Nenhum abastecimento. Integre via Pro-Frotas.")
         else:
-            # ── Monta DataFrame base ───────────────────────────────────
-            _sq_rows = []
-            _pp_sq   = st.session_state.get("_pp_df")
-            _anp_sq  = st.session_state.get("anp_df")
-
-            # Referência de preço ANP (Diesel S10 nacional como proxy)
-            _anp_ref_sq = None
-            if _anp_sq is not None and not _anp_sq.empty:
-                try:
-                    _anp_d = _anp_sq[_anp_sq.get("PRODUTO", _anp_sq.columns[0])
-                                     .str.contains("S10|DIESEL", case=False, na=False)
-                                     if hasattr(_anp_sq.iloc[:,0], "str") else
-                                     _anp_sq.columns[0]]
-                    if not _anp_d.empty and "PREÇO MÉDIO REVENDA" in _anp_sq.columns:
-                        _anp_ref_sq = float(_anp_sq[
-                            _anp_sq.iloc[:,0].astype(str).str.contains("S10|DIESEL", case=False, na=False)
-                        ]["PREÇO MÉDIO REVENDA"].mean())
-                except Exception:
-                    pass
-
-            for _cnpj_sq, _evts_sq in _hist_sq.items():
-                if not isinstance(_evts_sq, list) or not _evts_sq:
-                    continue
-                _n_reg    = len(_evts_sq)
-                _nome_sq  = str(_evts_sq[0].get("nome") or _evts_sq[0].get("razao_social", "—"))[:40]
-                _mun_sq   = str(_evts_sq[0].get("municipio", "—"))
-                _uf_sq    = str(_evts_sq[0].get("uf", "—")).upper()
-
-                # Preço médio mais recente para o posto
-                _preco_sq = None
-                if _pp_sq is not None and not _pp_sq.empty and "cnpj_norm" in _pp_sq.columns:
-                    _rows_pp = _pp_sq[_pp_sq["cnpj_norm"] == _cnpj_sq]
-                    if not _rows_pp.empty:
-                        _preco_sq = float(_rows_pp["preco"].mean())
-                if _preco_sq is None:
-                    _preco_sq = float(_evts_sq[-1].get("preco") or 0) or None
-
-                # Score simplificado via preço vs ANP
-                _score_sq = 50.0
-                if _preco_sq and _anp_ref_sq and _anp_ref_sq > 0:
-                    _diff_sq  = (_preco_sq - _anp_ref_sq) / _anp_ref_sq
-                    _score_sq = max(0.0, min(100.0, 50.0 - _diff_sq * 500.0))
-                elif _preco_sq:
-                    # Sem referência ANP: usa percentil dentro do conjunto
-                    _score_sq = 50.0
-
-                _sq_rows.append({
-                    "cnpj":       _cnpj_sq,
-                    "Nome":       _nome_sq,
-                    "Município":  _mun_sq,
-                    "UF":         _uf_sq,
-                    "Score":      round(_score_sq, 1),
-                    "Utilização": _n_reg,
-                    "Preço":      _preco_sq,
-                })
-
-            if not _sq_rows:
-                st.info("Dados insuficientes para gerar a matriz.")
+            _cnpj_col_sq = "cnpj_posto" if "cnpj_posto" in _abast_sq.columns else None
+            _preco_col_sq = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_sq.columns), None)
+            _uf_col_sq   = "uf_posto" if "uf_posto" in _abast_sq.columns else None
+            _nome_col_sq = next((c for c in ["nome_posto"] if c in _abast_sq.columns), None)
+            if _cnpj_col_sq and _preco_col_sq:
+                _grp = [_cnpj_col_sq] + ([_nome_col_sq] if _nome_col_sq else []) + ([_uf_col_sq] if _uf_col_sq else [])
+                _sq_agg = _abast_sq.groupby(_grp).agg(
+                    preco_medio=("preco_litro" if "preco_litro" in _abast_sq.columns else _preco_col_sq, "mean"),
+                    n_abast=("data_abastecimento" if "data_abastecimento" in _abast_sq.columns else _cnpj_col_sq, "count")
+                ).reset_index()
+                # Adicionar referencia ANP
+                if _sheets_sq and _uf_col_sq:
+                    def _get_anp_ref_sq(uf_v):
+                        try:
+                            _r = _anp_extrair_precos(_sheets_sq, uf=str(uf_v).upper())
+                            return float(_r[0].get("Preco Medio") or 0) if _r else None
+                        except Exception:
+                            return None
+                    _sq_agg["anp_ref"] = _sq_agg[_uf_col_sq].apply(_get_anp_ref_sq)
+                    _sq_agg["vs_anp_pct"] = ((_sq_agg["preco_medio"] - _sq_agg["anp_ref"]) / _sq_agg["anp_ref"] * 100).round(1)
+                    _sq_agg["situacao"] = _sq_agg["vs_anp_pct"].apply(
+                        lambda v: "Acima ANP" if v > 5 else ("Abaixo ANP" if v < -5 else "Na media")
+                        if pd.notna(v) else "Sem ref."
+                    )
+                _sq_agg = _sq_agg.rename(columns={
+                    _cnpj_col_sq: "CNPJ",
+                    _nome_col_sq: "Posto" if _nome_col_sq else "Posto",
+                    _uf_col_sq: "UF" if _uf_col_sq else "UF",
+                    "preco_medio": "Preco Medio R$/L",
+                    "n_abast": "Abastecimentos",
+                    "anp_ref": "Ref ANP R$/L",
+                    "vs_anp_pct": "vs ANP %",
+                    "situacao": "Situacao",
+                }).sort_values("Abastecimentos", ascending=False)
+                st.dataframe(_sq_agg, use_container_width=True, hide_index=True)
             else:
-                _df_sq = pd.DataFrame(_sq_rows)
-
-                # Pontos de corte: mediana de cada eixo
-                _med_score = float(_df_sq["Score"].median())
-                _med_util  = float(_df_sq["Utilização"].median())
-
-                # Classifica quadrante
-                def _quadrante(row):
-                    s, u = row["Score"], row["Utilização"]
-                    if s >= _med_score and u >= _med_util:
-                        return "🏆 Campeão"
-                    if s >= _med_score and u < _med_util:
-                        return "💡 Oportunidade"
-                    if s < _med_score and u >= _med_util:
-                        return "⚠️ Risco"
-                    return "😴 Ocioso"
-
-                _df_sq["Quadrante"] = _df_sq.apply(_quadrante, axis=1)
-
-                _COR_Q = {
-                    "🏆 Campeão":    "#2E7D32",
-                    "💡 Oportunidade": "#1565C0",
-                    "⚠️ Risco":      "#B71C1C",
-                    "😴 Ocioso":     "#757575",
-                }
-
-                # ── KPIs por quadrante ─────────────────────────────────
-                _kq1, _kq2, _kq3, _kq4 = st.columns(4)
-                for _kq_col, _quad_name, _cor_q in [
-                    (_kq1, "🏆 Campeão",      "#2E7D32"),
-                    (_kq2, "💡 Oportunidade",  "#1565C0"),
-                    (_kq3, "⚠️ Risco",         "#B71C1C"),
-                    (_kq4, "😴 Ocioso",        "#757575"),
-                ]:
-                    _cnt_q = int((_df_sq["Quadrante"] == _quad_name).sum())
-                    _kq_col.markdown(
-                        f"<div style='background:{_cor_q}18;border:1px solid {_cor_q}44;"
-                        f"border-radius:8px;padding:10px 12px;text-align:center'>"
-                        f"<div style='font-size:1.4rem'>{_quad_name.split()[0]}</div>"
-                        f"<div style='font-weight:700;font-size:1.1rem;color:{_cor_q}'>{_cnt_q}</div>"
-                        f"<div style='font-size:11px;color:#555'>{_quad_name[2:]}</div>"
-                        f"</div>",
-                        unsafe_allow_html=True,
-                    )
-
-                st.markdown("")
-
-                # ── Scatter plot ───────────────────────────────────────
-                _fig_sq = go.Figure()
-                for _quad_n, _cor_scatter in _COR_Q.items():
-                    _df_q = _df_sq[_df_sq["Quadrante"] == _quad_n]
-                    if _df_q.empty:
-                        continue
-                    _fig_sq.add_trace(go.Scatter(
-                        x=_df_q["Utilização"],
-                        y=_df_q["Score"],
-                        mode="markers",
-                        name=_quad_n,
-                        marker=dict(
-                            color=_cor_scatter,
-                            size=10,
-                            opacity=0.8,
-                            line=dict(color="white", width=1),
-                        ),
-                        customdata=_df_q[["Nome", "Município", "UF", "Preço"]].values,
-                        hovertemplate=(
-                            "<b>%{customdata[0]}</b><br>"
-                            "%{customdata[1]} / %{customdata[2]}<br>"
-                            "Score: %{y:.1f} | Registros: %{x}<br>"
-                            "Preço: R$ %{customdata[3]:.3f}<extra></extra>"
-                        ),
-                    ))
-
-                # Linhas de quadrante
-                _fig_sq.add_hline(y=_med_score, line_dash="dot",
-                                  line_color="#aaa", line_width=1)
-                _fig_sq.add_vline(x=_med_util,  line_dash="dot",
-                                  line_color="#aaa", line_width=1)
-
-                # Rótulos dos quadrantes
-                _x_max_sq = float(_df_sq["Utilização"].max()) * 1.05
-                for _ql, _qx, _qy in [
-                    ("CAMPEÃO",      _x_max_sq * 0.85, 92),
-                    ("OPORTUNIDADE", _x_max_sq * 0.08, 92),
-                    ("RISCO",        _x_max_sq * 0.85,  8),
-                    ("OCIOSO",       _x_max_sq * 0.08,  8),
-                ]:
-                    _fig_sq.add_annotation(
-                        x=_qx, y=_qy, text=_ql,
-                        showarrow=False,
-                        font=dict(size=9, color="#bbb"),
-                        opacity=0.6,
-                    )
-
-                _fig_sq.update_layout(
-                    height=420,
-                    margin=dict(l=10, r=10, t=10, b=10),
-                    xaxis_title="Utilização (registros históricos)",
-                    yaxis_title="Score de qualidade (0-100)",
-                    yaxis=dict(range=[0, 100]),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    legend=dict(orientation="h", y=-0.12),
-                    hoverlabel=dict(bgcolor="white", font_size=12),
-                )
-                st.plotly_chart(_fig_sq, use_container_width=True)
-
-                # ── Tabela detalhada ───────────────────────────────────
-                with st.expander("📋 Ver todos os postos classificados"):
-                    _df_sq_show = _df_sq[["Quadrante","Nome","Município","UF","Score","Utilização","Preço"]].copy()
-                    _df_sq_show["Preço"] = _df_sq_show["Preço"].apply(
-                        lambda v: _br_moeda(v, 3) if v else "—")
-                    _df_sq_show = _df_sq_show.sort_values(
-                        ["Quadrante","Score"], ascending=[True, False])
-                    st.dataframe(_df_sq_show, use_container_width=True, hide_index=True)
-
-                # ── Ações por quadrante ────────────────────────────────
-                st.markdown("---")
-                _sq_a1, _sq_a2 = st.columns(2)
-                with _sq_a1:
-                    st.markdown(
-                        "<div style='background:#E3F2FD;border-radius:8px;padding:12px 14px'>"
-                        "<b style='color:#1565C0'>💡 Oportunidade — ação recomendada</b><br>"
-                        "<span style='font-size:12px;color:#333'>"
-                        "Postos com score alto mas pouca presença no histórico. "
-                        "São bons fornecedores com baixo volume de uso — "
-                        "indicar rotas que passem por eles para aumentar utilização.</span></div>",
-                        unsafe_allow_html=True,
-                    )
-                with _sq_a2:
-                    st.markdown(
-                        "<div style='background:#FFEBEE;border-radius:8px;padding:12px 14px'>"
-                        "<b style='color:#B71C1C'>⚠️ Risco — ação recomendada</b><br>"
-                        "<span style='font-size:12px;color:#333'>"
-                        "Postos muito usados mas com score baixo (preço acima do ANP ou "
-                        "poucos serviços). Revisar contratos ou redirecionar frota para "
-                        "alternativas com melhor custo-benefício.</span></div>",
-                        unsafe_allow_html=True,
-                    )
-
-    # ════════════════════════════════════════════════════════════════
-    #  TAB 5 — DETECÇÃO DE ANOMALIAS
-    # ════════════════════════════════════════════════════════════════
+                st.info("Dados insuficientes.")
     with _rlt5:
-
-        st.markdown(
-            "<div style='background:linear-gradient(90deg,#FBE9E7,#fff);"
-            "border-left:4px solid #BF360C;border-radius:0 8px 8px 0;"
-            "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#BF360C'>"
-            "Detecta automaticamente <b>preços fora do padrão</b>, "
-            "<b>variações suspeitas</b> entre cargas e <b>postos com comportamento anômalo</b>. "
-            "Usa método IQR (interquartil) e análise de delta entre cargas.</div>",
-            unsafe_allow_html=True,
-        )
-
-        _pp_anom   = st.session_state.get("_pp_df")
-        _var_anom  = st.session_state.get("_pp_variacao")
-        _intel_an  = _intel_load()
-        _hist_an   = _intel_an.get("historico", {})
-
-        _an_t1, _an_t2, _an_t3 = st.tabs([
-            "💲 Preços Fora do Padrão",
-            "📈 Variações Suspeitas",
-            "🏭 Postos Inconsistentes",
-        ])
-
-        # ── SUB-TAB 1: Outliers de preço (IQR) ────────────────────────
-        with _an_t1:
-            if _pp_anom is None or _pp_anom.empty:
-                st.info("Carregue a planilha de Preços PP para ativar esta análise.", icon="📋")
-            else:
-                # Lookup CNPJ → nome do posto (usa pf_coords_df se disponível)
-                _posto_nome_lookup: dict = {}
-                _pf_df_an = st.session_state.get("pf_coords_df")
-                if _pf_df_an is not None and not _pf_df_an.empty:
-                    _cnpj_col_an = "cnpj_norm" if "cnpj_norm" in _pf_df_an.columns else (
-                                   "cnpj"      if "cnpj"      in _pf_df_an.columns else None)
-                    _nome_col_an = "razaoSocial" if "razaoSocial" in _pf_df_an.columns else None
-                    if _cnpj_col_an and _nome_col_an:
-                        _posto_nome_lookup = dict(
-                            zip(_pf_df_an[_cnpj_col_an].astype(str).str.strip(),
-                                _pf_df_an[_nome_col_an].fillna("").astype(str))
-                        )
-
-                _anom_rows = []
-                _combs_an = (
-                    _pp_anom["combustivel_pk"].dropna().unique().tolist()
-                    if "combustivel_pk" in _pp_anom.columns else []
-                )
-                for _cb_an in _combs_an:
-                    _df_cb = _pp_anom[_pp_anom["combustivel_pk"] == _cb_an].copy()
-                    _df_cb["preco"] = pd.to_numeric(_df_cb["preco"], errors="coerce")
-                    _df_cb = _df_cb.dropna(subset=["preco"])
-                    if len(_df_cb) < 5:
-                        continue
-
-                    _q1  = _df_cb["preco"].quantile(0.25)
-                    _q3  = _df_cb["preco"].quantile(0.75)
-                    _iqr = _q3 - _q1
-                    _inf = _q1 - 1.5 * _iqr
-                    _sup = _q3 + 1.5 * _iqr
-                    _med = _df_cb["preco"].median()
-
-                    _outliers = _df_cb[
-                        (_df_cb["preco"] < _inf) | (_df_cb["preco"] > _sup)
-                    ]
-
-                    for _row_an in _outliers.to_dict("records"):
-                        _prc = float(_row_an["preco"])
-                        _delta_pct = (_prc - _med) / _med * 100 if _med > 0 else 0
-                        _anom_rows.append({
-                            "Combustível":   PRODUTO_CURTO.get(_cb_an, _cb_an),
-                            "CNPJ":          str(_row_an.get("cnpj_norm", "—")),
-                            "Posto":         (_posto_nome_lookup.get(str(_row_an.get("cnpj_norm","")).strip()) or str(_row_an.get("cnpj_norm") or "—"))[:40],
-                            "Preço (R$/L)":  _br_moeda(_prc, 3),
-                            "Mediana rede":  _br_moeda(_med, 3),
-                            "Δ Mediana":     f"{_delta_pct:+.1f}%",
-                            "Tipo":          ("🔴 Acima" if _prc > _sup else "🔵 Abaixo"),
-                            "Limite sup.":   _br_moeda(_sup, 3),
-                            "Limite inf.":   _br_moeda(_inf, 3),
-                        })
-
-                if not _anom_rows:
-                    st.success(
-                        "✅ Nenhum preço fora do padrão detectado (método IQR × 1,5). "
-                        "Todos os postos estão dentro da faixa esperada.",
-                        icon="🟢",
-                    )
+        st.markdown("#### Anomalias de Preco")
+        st.caption("Detecta abastecimentos com preco fora do padrao vs ANP")
+        _abast_an = _carregar_abastecimentos_unificados(dias=365)
+        _sheets_an = st.session_state.get("_precos_anp_cache",{}).get("sheets",{})
+        _semana_an = st.session_state.get("_precos_anp_cache",{}).get("semana","")
+        if _abast_an.empty:
+            st.info("Nenhum abastecimento. Integre via Pro-Frotas.")
+        else:
+            _preco_col_an = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_an.columns), None)
+            _comb_col_an  = next((c for c in ["produto","combustivel"] if c in _abast_an.columns), None)
+            _uf_col_an    = "uf_posto" if "uf_posto" in _abast_an.columns else None
+            _cnpj_col_an  = "cnpj_posto" if "cnpj_posto" in _abast_an.columns else None
+            _nome_col_an  = next((c for c in ["nome_posto"] if c in _abast_an.columns), None)
+            _placa_col_an = next((c for c in ["placa","veiculo_placa"] if c in _abast_an.columns), None)
+            if _preco_col_an and _uf_col_an and _sheets_an:
+                _anomalias = []
+                for _uf_an in _abast_an[_uf_col_an].dropna().str.upper().unique():
+                    _abast_uf_an = _abast_an[_abast_an[_uf_col_an].str.upper() == _uf_an]
+                    _rows_anp_an = _anp_extrair_precos(_sheets_an, uf=_uf_an)
+                    _anp_dict_an = {}
+                    for _r in _rows_anp_an:
+                        try:
+                            _v = float(_r.get("Preco Medio") or 0)
+                            if _v > 0:
+                                _anp_dict_an[_anp_norm(str(_r.get("Produto","")))] = _v
+                        except Exception:
+                            pass
+                    for _, _row_an in _abast_uf_an.iterrows():
+                        try:
+                            _preco_r = float(_row_an[_preco_col_an] or 0)
+                            if _preco_r <= 0:
+                                continue
+                            _comb_r = str(_row_an.get(_comb_col_an,"") or "") if _comb_col_an else ""
+                            _comb_n = _anp_norm(_comb_r)
+                            _anp_r  = next((v for k,v in _anp_dict_an.items() if _comb_n[:5] in k or k[:5] in _comb_n), None)
+                            if not _anp_r:
+                                continue
+                            _diff_r = (_preco_r - _anp_r) / _anp_r * 100
+                            if abs(_diff_r) > 10:  # anomalia se > 10% de desvio
+                                _anomalias.append({
+                                    "CNPJ":       str(_row_an.get(_cnpj_col_an,"") or "") if _cnpj_col_an else "",
+                                    "Posto":      str(_row_an.get(_nome_col_an,"") or "")[:35] if _nome_col_an else "",
+                                    "UF":         _uf_an,
+                                    "Combustivel":_comb_r,
+                                    "Preco R$/L":  _br_moeda(_preco_r, 3),
+                                    "Ref ANP":     _br_moeda(_anp_r, 3),
+                                    "Desvio %":   f"{_diff_r:+.1f}%",
+                                    "Placa":      str(_row_an.get(_placa_col_an,"") or "") if _placa_col_an else "",
+                                    "Data":       str(_row_an.get("data_abastecimento",""))[:10],
+                                    "Tipo":       "Acima ANP" if _diff_r > 0 else "Abaixo ANP",
+                                })
+                        except Exception:
+                            pass
+                if _anomalias:
+                    _df_an = pd.DataFrame(_anomalias).sort_values("Desvio %", ascending=False)
+                    _ac1, _ac2 = st.columns(2)
+                    _ac1.metric("Total anomalias", len(_df_an))
+                    _ac2.metric("Acima ANP", sum(1 for a in _anomalias if a["Tipo"]=="Acima ANP"))
+                    st.dataframe(_df_an, use_container_width=True, hide_index=True)
+                    st.caption(f"Anomalias = desvio > 10% vs ANP | Semana ANP: {_semana_an}")
                 else:
-                    _df_anom = pd.DataFrame(_anom_rows)
-                    _n_acima = int((_df_anom["Tipo"] == "🔴 Acima").sum())
-                    _n_abxo  = int((_df_anom["Tipo"] == "🔵 Abaixo").sum())
-
-                    _ac1, _ac2, _ac3 = st.columns(3)
-                    _ac1.metric("Total anomalias", len(_anom_rows))
-                    _ac2.metric("🔴 Preço acima",  _n_acima,
-                                help="Mais de 1,5×IQR acima do Q3")
-                    _ac3.metric("🔵 Preço abaixo", _n_abxo,
-                                help="Mais de 1,5×IQR abaixo do Q1")
-
-                    st.markdown("")
-                    st.dataframe(
-                        _df_anom.sort_values("Tipo", ascending=False),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-                    st.caption(
-                        "Método: IQR × 1,5 por tipo de combustível. "
-                        "Preços abaixo do limite inferior podem indicar erro de digitação. "
-                        "Preços acima do superior indicam sobrepreço na rede."
-                    )
-
-        # ── SUB-TAB 2: Variações suspeitas entre cargas ────────────────
-        with _an_t2:
-            if _var_anom is None or _var_anom.empty:
-                st.info(
-                    "Nenhuma comparação de cargas disponível. "
-                    "Carregue duas versões da planilha de Preços PP para ativar.",
-                    icon="📋",
-                )
+                    st.success("Nenhuma anomalia detectada (todos os precos dentro de 10% da ANP).")
             else:
-                # Variações com Δ% extremo (> 5% em qualquer direção)
-                _LIMIAR_PCT = st.slider(
-                    "Limiar de variação suspeita (%)", 1, 20, 5,
-                    key="anom_limiar_pct",
-                    help="Variações acima deste percentual são sinalizadas como suspeitas",
-                )
-                _col_delta = next(
-                    (c for c in _var_anom.columns if "%" in c or "delta_pct" in c.lower()),
-                    None,
-                )
-                _col_status = next(
-                    (c for c in _var_anom.columns if "Status" in c or "status" in c),
-                    None,
-                )
-                if _col_delta is None:
-                    st.warning("Coluna de variação percentual não encontrada no DataFrame de variações.")
-                else:
-                    _var_anom["_delta_num"] = pd.to_numeric(
-                        _var_anom[_col_delta].astype(str)
-                        .str.replace("%", "").str.replace(",", "."),
-                        errors="coerce",
-                    )
-                    _suspeitas = _var_anom[
-                        _var_anom["_delta_num"].abs() > _LIMIAR_PCT
-                    ].copy()
-
-                    if _suspeitas.empty:
-                        st.success(
-                            f"✅ Nenhuma variação acima de {_LIMIAR_PCT}% detectada.",
-                            icon="🟢",
-                        )
-                    else:
-                        _vs_altas  = _suspeitas[_suspeitas["_delta_num"] >  _LIMIAR_PCT]
-                        _vs_quedas = _suspeitas[_suspeitas["_delta_num"] < -_LIMIAR_PCT]
-
-                        _va1, _va2 = st.columns(2)
-                        _va1.metric("🔺 Altas suspeitas",  len(_vs_altas),
-                                    help=f"Alta > {_LIMIAR_PCT}%")
-                        _va2.metric("🔻 Quedas suspeitas", len(_vs_quedas),
-                                    help=f"Queda > {_LIMIAR_PCT}%")
-
-                        st.markdown("")
-                        _cols_show = [
-                            c for c in _suspeitas.columns
-                            if c != "_delta_num"
-                            and "ant" not in c.lower()
-                        ]
-                        st.dataframe(
-                            _suspeitas.sort_values(
-                                "_delta_num", key=abs, ascending=False
-                            )[_cols_show],
-                            use_container_width=True,
-                            hide_index=True,
-                        )
-                        st.caption(
-                            f"Variações > {_LIMIAR_PCT}% entre a carga atual e a anterior. "
-                            "Altas expressivas podem indicar reajuste unilateral; "
-                            "quedas expressivas podem ser erro de importação."
-                        )
-
-        # ── SUB-TAB 3: Postos com comportamento inconsistente ──────────
-        with _an_t3:
-            if not _hist_an:
-                st.info("Histórico de preços vazio. Carregue a planilha de Preços PP.", icon="📋")
-            else:
-                _inc_rows = []
-                for _cnpj_inc, _evts_inc in _hist_an.items():
-                    if not isinstance(_evts_inc, list) or len(_evts_inc) < 3:
-                        continue
-                    _nome_inc = str(_evts_inc[0].get("nome") or _evts_inc[0].get("razao_social", "—"))[:40]
-                    _uf_inc   = str(_evts_inc[0].get("uf", "—")).upper()
-                    _mun_inc  = str(_evts_inc[0].get("municipio", "—"))
-
-                    # Agrupa por combustível
-                    from collections import defaultdict as _dd
-                    _por_comb = _dd(list)
-                    for _ev_inc in _evts_inc:
-                        _cb_inc = str(_ev_inc.get("combustivel", "")).upper().strip()
-                        _pr_inc = pd.to_numeric(_ev_inc.get("preco"), errors="coerce")
-                        if _cb_inc and pd.notna(_pr_inc) and _pr_inc > 0:
-                            _por_comb[_cb_inc].append(_pr_inc)
-
-                    for _cb_inc, _precos_inc in _por_comb.items():
-                        if len(_precos_inc) < 3:
-                            continue
-                        _med_inc  = float(pd.Series(_precos_inc).mean())
-                        _std_inc  = float(pd.Series(_precos_inc).std())
-                        _cv_inc   = _std_inc / _med_inc * 100 if _med_inc > 0 else 0
-                        _min_inc  = min(_precos_inc)
-                        _max_inc  = max(_precos_inc)
-                        _amp_pct  = (_max_inc - _min_inc) / _med_inc * 100 if _med_inc > 0 else 0
-
-                        # Sinalizações
-                        _flags = []
-                        if _cv_inc > 8:
-                            _flags.append(f"CV={_cv_inc:.1f}% (alta variância)")
-                        if _amp_pct > 15:
-                            _flags.append(f"Amplitude={_amp_pct:.1f}%")
-                        # Preço zerado ou negativo
-                        if _min_inc <= 0:
-                            _flags.append("Preço ≤ 0 detectado")
-                        # Salto brusco entre registros consecutivos
-                        _saltos = [
-                            abs(_precos_inc[i] - _precos_inc[i-1]) / _precos_inc[i-1] * 100
-                            for i in range(1, len(_precos_inc))
-                            if _precos_inc[i-1] > 0
-                        ]
-                        if _saltos and max(_saltos) > 10:
-                            _flags.append(f"Salto brusco: {max(_saltos):.1f}%")
-
-                        if _flags:
-                            _inc_rows.append({
-                                "CNPJ":       _cnpj_inc,
-                                "Posto":      _nome_inc,
-                                "Município":  _mun_inc,
-                                "UF":         _uf_inc,
-                                "Combustível":PRODUTO_CURTO.get(_cb_inc, _cb_inc),
-                                "Registros":  len(_precos_inc),
-                                "Preço médio":_br_moeda(_med_inc, 3),
-                                "CV (%)":     f"{_cv_inc:.1f}%",
-                                "Amplitude":  f"{_amp_pct:.1f}%",
-                                "Alertas":    " · ".join(_flags),
-                            })
-
-                if not _inc_rows:
-                    st.success(
-                        "✅ Nenhum comportamento inconsistente detectado no histórico.",
-                        icon="🟢",
-                    )
-                else:
-                    st.metric("Postos com anomalia", len(_inc_rows))
-                    st.markdown("")
-                    st.dataframe(
-                        pd.DataFrame(_inc_rows).sort_values("CV (%)", ascending=False),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-                    st.caption(
-                        "Critérios: CV > 8% · Amplitude histórica > 15% · "
-                        "Salto brusco entre cargas > 10% · Preço ≤ 0. "
-                        "Postos com múltiplos alertas merecem investigação prioritária."
-                    )
-
-    # ════════════════════════════════════════════════════════════════
-    #  TAB 6 — FROTA FIPE
-    # ════════════════════════════════════════════════════════════════
+                st.info("Dados insuficientes para analise de anomalias.")
     with _rlt6:
         st.markdown(
             "<div style='background:linear-gradient(135deg,#E8F5E9,#fff);"
