@@ -20997,7 +20997,6 @@ elif modo == "🔍 Consulta por Posto":
             _ca.metric("Postos encontrados", n_res)
             _cb.metric("Postos Gestao Frota", _n_mp_m3)
             _cc.metric("Bandeiras", _df_m3["distribuidora"].nunique() if "distribuidora" in _df_m3.columns else 0)
-            _cd.metric("Estado(s)",
             _cd.metric("Estado(s)", _df_m3["uf"].nunique() if "uf" in _df_m3.columns else "—")
 
             # ── Botão Salvar (Modo 3) ─────────────────────────────
