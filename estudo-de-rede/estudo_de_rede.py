@@ -20998,7 +20998,7 @@ elif modo == "🔍 Consulta por Posto":
             _cb.metric("Postos Gestao Frota", _n_mp_m3)
             _cc.metric("Bandeiras", _df_m3["distribuidora"].nunique() if "distribuidora" in _df_m3.columns else 0)
             _cd.metric("Estado(s)",
-            st.caption(f"Fonte: {_fonte_m3}")
+            _cd.metric("Estado(s)", _df_m3["uf"].nunique() if "uf" in _df_m3.columns else "—")
 
             # ── Botão Salvar (Modo 3) ─────────────────────────────
             _nome_sugerido_m3 = f"Busca: {_m3_termo[:40]}"
