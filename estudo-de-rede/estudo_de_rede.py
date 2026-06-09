@@ -16793,10 +16793,9 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf, tab_cer, tab_pp, tab_base, tab_anp, tab_logs, tab_intel, tab_acordos = st.tabs(
-                ["⭐ Gestão de Frotas", "⚠️ Cercados", "💲 Preços PP",
-                 "🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso", "💡 Inteligência",
-                 "🤝 Acordos de Preço"]
+            tab_pf = tab_cer = tab_pp = tab_intel = tab_acordos = None
+            tab_base, tab_anp, tab_logs = st.tabs(
+                ["🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso"]
             )
             tab_variacao = None  # movida para menu principal
 
