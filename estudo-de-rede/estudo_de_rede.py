@@ -31332,13 +31332,7 @@ elif modo == "👥 Análise de Cliente":
                             pd.to_numeric(_ac_vig_sv.get("preco_negociado",
                                 pd.Series(dtype=float)), errors="coerce") > _MAX_PRECO_RAZOAVEL
                         ] if not _ac_vig_sv.empty and "preco_negociado" in _ac_vig_sv.columns else pd.DataFrame()
-                        if not _ac_suspeitos.empty:
-                            st.warning(
-                                f"⚠️ **{len(_ac_suspeitos)} acordo(s)** com Preço Negociado acima de "
-                                f"R$ {_MAX_PRECO_RAZOAVEL:.0f}/L detectado(s) — verifique a planilha de acordos. "
-                                f"Esses acordos serão **ignorados** no cálculo de desvio.",
-                                icon="⚠️"
-                            )
+                        # Acordos suspeitos ignorados silenciosamente
 
                         _ac_lkp3 = {}
                         _ac_lkp2 = {}
@@ -33255,17 +33249,36 @@ elif modo == "📑 Relatórios":
             # Referência de mercado — usa o percentil 75 como "preço fora da rede"
             _saving_rows = []
             for _rw in _re_por_comb.to_dict("records"):
-                _comb_key = _rw["combustivel"]
-                _precos_comb = _re_df[_re_df["combustivel"] == _comb_key]["preco"]
-                _ref_mercado = float(_precos_comb.quantile(0.75))
-                _preco_gf    = float(_rw["preco_medio"])
-                _saving_pct  = (_ref_mercado - _preco_gf) / _ref_mercado * 100 if _ref_mercado > 0 else 0
+                _comb_key  = _rw["combustivel"]
+                _preco_cli = float(_rw["preco_medio"])
+                # Referencia ANP para este combustivel e UF
+                _ref_anp = None
+                if _sheets_re:
+                    _uf_ref = _re_uf if _re_uf != "Todas" else None
+                    _rows_s = _anp_extrair_precos(_sheets_re, uf=_uf_ref)
+                    _comb_n = _anp_norm(_comb_key)
+                    for _rs in _rows_s:
+                        if _anp_norm(str(_rs.get("Produto",""))) in _comb_n or _comb_n in _anp_norm(str(_rs.get("Produto",""))):
+                            try:
+                                _ref_anp = float(_rs.get("Preco Medio") or _rs.get("Preco Medio") or 0)
+                                if _ref_anp > 0:
+                                    break
+                            except Exception:
+                                pass
+                # Fallback: percentil 75 dos precos do cliente
+                if not _ref_anp or _ref_anp <= 0:
+                    _ref_anp = float(_re_df[_re_df["combustivel"] == _comb_key]["preco"].quantile(0.75))
+                    _fonte_ref = "p75 clientes"
+                else:
+                    _fonte_ref = f"ANP {_semana_re}" if _semana_re else "ANP"
+                _saving_pct = (_ref_anp - _preco_cli) / _ref_anp * 100 if _ref_anp > 0 else 0
                 _saving_rows.append({
-                    "Combustível":   _comb_key,
-                    "Preço GF (R$/L)": _br_moeda(_preco_gf, 3),
-                    "Ref. Mercado (p75)": _br_moeda(_ref_mercado, 3),
-                    "Saving Estimado": f"{_saving_pct:+.1f}%".replace(".", ","),
-                    "Postos":        _br_int(int(_rw["n_postos"])),
+                    "Combustivel":        _comb_key,
+                    "Preco Cliente R$/L": _br_moeda(_preco_cli, 3),
+                    "Ref. ANP R$/L":      _br_moeda(_ref_anp, 3),
+                    "Fonte Ref.":         _fonte_ref,
+                    "Diferenca":          f"{_saving_pct:+.1f}%".replace(".", ","),
+                    "Abastecimentos":     _br_int(int(_rw["n_postos"])),
                 })
             if _saving_rows:
                 st.dataframe(
@@ -33304,16 +33317,29 @@ elif modo == "📑 Relatórios":
                     "📝 Detalhe": f"Preços > {_br_moeda(_media_geral + 2 * _desvio, 3)} (média + 2σ)",
                 })
 
-            # Risco 3: UFs sem postos
-            _ufs_com_postos = set(_re_df["uf"].dropna().unique())
-            _ufs_sem = [u for u in UFS if u not in _ufs_com_postos]
-            if _ufs_sem:
-                _riscos_re.append({
-                    "🚨 Tipo": "UFs sem Cobertura GF",
-                    "📊 Qtd":  str(len(_ufs_sem)),
-                    "📝 Detalhe": ", ".join(sorted(_ufs_sem)[:10])
-                                 + (" ..." if len(_ufs_sem) > 10 else ""),
-                })
+            # Risco 3: postos com preco acima da ANP
+            if _sheets_re and not _re_df.empty and "uf" in _re_df.columns:
+                _re_df_risco = _re_df.copy()
+                _re_df_risco["_anp_ref"] = None
+                for _uf_r in _re_df_risco["uf"].dropna().unique():
+                    _rows_r = _anp_extrair_precos(_sheets_re, uf=_uf_r)
+                    if _rows_r:
+                        try:
+                            _anp_v = float(_rows_r[0].get("Preco Medio") or 0)
+                            if _anp_v > 0:
+                                _re_df_risco.loc[_re_df_risco["uf"]==_uf_r, "_anp_ref"] = _anp_v
+                        except Exception:
+                            pass
+                _acima_anp = _re_df_risco[
+                    pd.to_numeric(_re_df_risco["preco"], errors="coerce") >
+                    pd.to_numeric(_re_df_risco["_anp_ref"], errors="coerce") * 1.05
+                ]
+                if not _acima_anp.empty:
+                    _riscos_re.append({
+                        "Tipo": "Preco acima da ANP (+5%)",
+                        "Qtd":  _br_int(_acima_anp["cnpj"].nunique()),
+                        "Detalhe": f"{_acima_anp['cnpj'].nunique()} postos com preco acima da referencia ANP",
+                    })
 
             if _riscos_re:
                 st.dataframe(pd.DataFrame(_riscos_re),
