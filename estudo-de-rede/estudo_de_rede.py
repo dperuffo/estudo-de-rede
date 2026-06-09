@@ -33526,235 +33526,148 @@ elif modo == "📑 Relatórios":
             "<div style='background:linear-gradient(90deg,#E8F5E9,#fff);"
             "border-left:4px solid #2E7D32;border-radius:0 8px 8px 0;"
             "padding:8px 14px;margin-bottom:14px;font-size:12px;color:#1B5E20'>"
-            "Identifica regiões sem cobertura da rede GF, postos estratégicos e "
-            "potenciais parceiros para expansão da rede.</div>",
+            "Identifica regioes sem abastecimentos registrados, postos mais utilizados "
+            "e oportunidades de reducao de custo vs referencia ANP.</div>",
             unsafe_allow_html=True,
         )
 
         _oc_t1, _oc_t2, _oc_t3 = st.tabs([
-            "🗺️ Regiões sem Cobertura",
-            "📌 Postos Estratégicos",
-            "🤝 Potenciais Parceiros",
+            "🗺️ Regioes sem Abastecimento",
+            "📌 Postos Mais Utilizados",
+            "💰 Oportunidades vs ANP",
         ])
 
         # ── Dados base ──────────────────────────────────────────────
-        _pf_coords_oc = st.session_state.get("pf_coords_df", pd.DataFrame())
-        _pp_df_oc     = st.session_state.get("_pp_df")
-        _intel_oc     = _intel_load()
-        _hist_oc      = _intel_oc.get("historico", {})
-        _cnpjs_pf_oc  = st.session_state.get("cnpjs_pro_frotas", set())
+        # Dados base: abastecimentos reais do cliente
+        _abast_oc      = _carregar_abastecimentos_unificados(dias=365)
+        _anp_cache_oc  = st.session_state.get("_precos_anp_cache", {})
+        _sheets_oc     = _anp_cache_oc.get("sheets", {})
+        _semana_oc     = _anp_cache_oc.get("semana", "")
+        _postos_anp_oc = st.session_state.get("postos_anp_df", pd.DataFrame())
 
-        # UFs com postos GF
+        # UFs com abastecimentos registrados
         _ufs_com_gf = set()
-        if not _pf_coords_oc.empty and "uf" in _pf_coords_oc.columns:
-            _ufs_com_gf = set(_pf_coords_oc["uf"].dropna().str.upper().str.strip().unique())
-
-        # ── Sub-tab 1 — Regiões sem Cobertura ─────────────────────
+        _uf_col_oc = next((c for c in ["uf_posto"] if c in _abast_oc.columns), None) if not _abast_oc.empty else None
+        if _uf_col_oc:
+            _ufs_com_gf = set(_abast_oc[_uf_col_oc].dropna().str.upper().str.strip().unique())
         with _oc_t1:
+            st.markdown("#### Regioes sem Abastecimentos Registrados")
             _ufs_sem_gf = sorted([u for u in UFS if u not in _ufs_com_gf])
-            _ufs_poucos = []
-            if not _pf_coords_oc.empty and "uf" in _pf_coords_oc.columns:
-                _cnt_por_uf = _pf_coords_oc.groupby(
-                    _pf_coords_oc["uf"].str.upper().str.strip()
-                ).size()
-                _ufs_poucos = sorted(
-                    _cnt_por_uf[_cnt_por_uf < 3].index.tolist()
-                )
-
+            _ufs_com_poucos = []
+            if _uf_col_oc and not _abast_oc.empty:
+                _cnt_uf_ab = _abast_oc.groupby(_uf_col_oc)["cnpj_posto"].nunique() if "cnpj_posto" in _abast_oc.columns else pd.Series()
+                _ufs_com_poucos = sorted(_cnt_uf_ab[_cnt_uf_ab < 3].index.str.upper().tolist())
             _oc1a, _oc1b = st.columns(2)
             with _oc1a:
-                st.markdown(
-                    f"<div style='background:#fff3e0;border:1px solid #FFB300;"
-                    f"border-radius:8px;padding:10px 14px;text-align:center'>"
-                    f"<div style='font-size:2rem;font-weight:800;color:#E65100'>"
-                    f"{len(_ufs_sem_gf)}</div>"
-                    f"<div style='font-size:12px;color:#BF360C'>"
-                    f"UFs <b>sem nenhum</b> posto GF</div></div>",
-                    unsafe_allow_html=True,
-                )
+                st.metric("UFs sem abastecimentos", len(_ufs_sem_gf))
             with _oc1b:
-                st.markdown(
-                    f"<div style='background:#fce4ec;border:1px solid #EF9A9A;"
-                    f"border-radius:8px;padding:10px 14px;text-align:center'>"
-                    f"<div style='font-size:2rem;font-weight:800;color:#B71C1C'>"
-                    f"{len(_ufs_poucos)}</div>"
-                    f"<div style='font-size:12px;color:#880E4F'>"
-                    f"UFs com <b>menos de 3</b> postos GF</div></div>",
-                    unsafe_allow_html=True,
-                )
-
-            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-
+                st.metric("UFs com menos de 3 postos", len(_ufs_com_poucos))
             if _ufs_sem_gf:
-                st.markdown("##### 🚫 UFs sem cobertura GF")
-                _uf_sem_cols = st.columns(6)
-                for _i_uf, _uf_sg in enumerate(_ufs_sem_gf):
-                    with _uf_sem_cols[_i_uf % 6]:
-                        st.markdown(
-                            f"<div style='background:#FFEEEE;border:1px solid #EF9A9A;"
-                            f"border-radius:6px;padding:4px 8px;text-align:center;"
-                            f"font-size:11px;font-weight:700;color:#B71C1C;"
-                            f"margin-bottom:4px'>{_uf_sg}</div>",
-                            unsafe_allow_html=True,
-                        )
-
-            if _ufs_poucos:
-                st.markdown("##### ⚠️ UFs com cobertura insuficiente (< 3 postos)")
-                _df_uf_poucos = pd.DataFrame([
-                    {
-                        "UF": _uf_p,
-                        "Postos GF": int(_cnt_por_uf.get(_uf_p, 0)),
-                        "Oportunidade": "🔴 Alta" if int(_cnt_por_uf.get(_uf_p, 0)) == 1
-                                        else "🟠 Média",
-                    }
-                    for _uf_p in _ufs_poucos
-                ])
-                st.dataframe(_df_uf_poucos, use_container_width=True, hide_index=True)
-
-            if not _ufs_sem_gf and not _ufs_poucos:
-                st.success("✅ Todos os estados têm cobertura GF adequada (≥ 3 postos).")
-
-            # Mapa de cobertura por UF
-            if not _pf_coords_oc.empty:
-                st.markdown("##### 🗺️ Distribuição de postos GF por UF")
-                if "uf" in _pf_coords_oc.columns:
-                    _map_uf_cnt = _pf_coords_oc.groupby(
-                        _pf_coords_oc["uf"].str.upper().str.strip()
-                    ).size().reset_index(name="postos")
-                    _map_uf_cnt.columns = ["UF", "Postos GF"]
-                    _map_uf_cnt = _map_uf_cnt.sort_values("Postos GF", ascending=False)
-                    _fig_bar_uf = go.Figure(go.Bar(
-                        x=_map_uf_cnt["UF"],
-                        y=_map_uf_cnt["Postos GF"],
-                        marker_color=[
-                            "#B71C1C" if v < 3 else "#FFA000" if v < 6 else "#2E7D32"
-                            for v in _map_uf_cnt["Postos GF"]
-                        ],
-                        text=_map_uf_cnt["Postos GF"],
-                        textposition="outside",
-                    ))
-                    _fig_bar_uf.update_layout(
-                        height=280, margin=dict(l=0, r=0, t=10, b=0),
-                        xaxis_title="", yaxis_title="Postos GF",
-                        plot_bgcolor="rgba(0,0,0,0)",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                    )
-                    st.plotly_chart(_fig_bar_uf, use_container_width=True)
-                    st.caption("🔴 < 3 postos · 🟠 3-5 postos · 🟢 ≥ 6 postos")
-
-        # ── Sub-tab 2 — Postos Estratégicos ───────────────────────
+                st.markdown("##### UFs sem abastecimentos registrados")
+                _cols_uf = st.columns(6)
+                for _i_u, _uf_s in enumerate(_ufs_sem_gf):
+                    with _cols_uf[_i_u % 6]:
+                        st.markdown(f"<div style='background:#FFEEEE;border:1px solid #EF9A9A;border-radius:6px;padding:4px 8px;text-align:center;font-size:11px;font-weight:700;color:#B71C1C;margin-bottom:4px'>{_uf_s}</div>", unsafe_allow_html=True)
+            if not _abast_oc.empty and _uf_col_oc:
+                st.markdown("##### Abastecimentos por UF")
+                _cnt_uf = _abast_oc.groupby(_uf_col_oc).size().reset_index(name="Abastecimentos")
+                _cnt_uf.columns = ["UF", "Abastecimentos"]
+                _cnt_uf = _cnt_uf.sort_values("Abastecimentos", ascending=False)
+                _fig_uf = go.Figure(go.Bar(
+                    x=_cnt_uf["UF"], y=_cnt_uf["Abastecimentos"],
+                    marker_color=["#B71C1C" if v < 3 else "#FFA000" if v < 10 else "#2E7D32" for v in _cnt_uf["Abastecimentos"]],
+                    text=_cnt_uf["Abastecimentos"], textposition="outside",
+                ))
+                _fig_uf.update_layout(height=280, margin=dict(l=0,r=0,t=10,b=0),
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(_fig_uf, use_container_width=True)
+            elif _abast_oc.empty:
+                st.info("Nenhum abastecimento registrado ainda. Integre via Pro-Frotas.")
         with _oc_t2:
-            st.markdown(
-                "Postos da rede ANP (não GF) que aparecem no histórico de preços "
-                "com preço competitivo — candidatos a parceria ou monitoramento prioritário."
-            )
-            if _pp_df_oc is not None and not _pf_coords_oc.empty:
-                # Postos no _pp_df que NÃO são GF
-                _cnpjs_gf_str = {str(c).zfill(14) for c in _cnpjs_pf_oc}
-                _pp_not_gf = _pp_df_oc[
-                    ~_pp_df_oc.get("cnpj_norm", pd.Series(dtype=str)).isin(_cnpjs_gf_str)
-                ] if "cnpj_norm" in _pp_df_oc.columns else pd.DataFrame()
-
-                if not _pp_not_gf.empty:
-                    # Agrupa por posto
-                    _grp_ng = (
-                        _pp_not_gf.groupby(
-                            ["cnpj_norm"] + [
-                                c for c in ["razaoSocial", "municipio", "uf"]
-                                if c in _pp_not_gf.columns
-                            ]
-                        )["preco"].mean().reset_index()
-                    )
-                    # Compara com média da UF dos postos GF
-                    _media_uf_gf = {}
-                    if "uf" in _pf_coords_oc.columns and "preco" in _pp_df_oc.columns:
-                        _gf_preco_uf = _pp_df_oc[
-                            _pp_df_oc.get("cnpj_norm", pd.Series(dtype=str)).isin(_cnpjs_gf_str)
-                        ] if "cnpj_norm" in _pp_df_oc.columns else pd.DataFrame()
-                        if not _gf_preco_uf.empty and "uf" in _gf_preco_uf.columns:
-                            _media_uf_gf = dict(
-                                _gf_preco_uf.groupby("uf")["preco"].mean()
-                            )
-
-                    _est_rows = []
-                    for _r_ng in _grp_ng.to_dict("records"):
-                        _uf_ng   = str(_r_ng.get("uf", "")).upper()
-                        _preco_ng = float(_r_ng["preco"]) if pd.notna(_r_ng["preco"]) else None
-                        _med_gf_uf = _media_uf_gf.get(_uf_ng)
-                        _competit  = "—"
-                        if _preco_ng and _med_gf_uf and _med_gf_uf > 0:
-                            _diff_p = (_preco_ng - _med_gf_uf) / _med_gf_uf * 100
-                            _competit = f"{_diff_p:+.1f}%".replace(".", ",")
-                        _est_rows.append({
-                            "CNPJ":       str(_r_ng.get("cnpj_norm", "")).zfill(14),
-                            "Posto":      str(_r_ng.get("razaoSocial", ""))[:35],
-                            "Município":  str(_r_ng.get("municipio", "")),
-                            "UF":         _uf_ng,
-                            "Preço médio": _br_moeda(_preco_ng, 3) if _preco_ng else "—",
-                            "vs Rede GF": _competit,
-                        })
-
-                    if _est_rows:
-                        _df_est = pd.DataFrame(_est_rows)
-                        st.markdown(
-                            f"**{_br_int(len(_df_est))} postos não-GF** identificados no histórico de preços:"
-                        )
-                        st.dataframe(_df_est, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("Nenhum posto fora da rede GF encontrado nos dados de preço carregados.")
+            st.markdown("#### Postos Mais Utilizados")
+            if _abast_oc.empty:
+                st.info("Nenhum abastecimento registrado. Integre via Pro-Frotas.")
+            else:
+                _cnpj_col  = "cnpj_posto" if "cnpj_posto" in _abast_oc.columns else None
+                _nome_col  = next((c for c in ["nome_posto","pv_razao_social"] if c in _abast_oc.columns), None)
+                _mun_col   = next((c for c in ["cidade_posto","pv_municipio"] if c in _abast_oc.columns), None)
+                _mp_col    = "meio_pagamento" if "meio_pagamento" in _abast_oc.columns else None
+                _preco_col = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_oc.columns), None)
+                _lit_col   = next((c for c in ["litros","item_quantidade"] if c in _abast_oc.columns), None)
+                if _cnpj_col:
+                    _grp_cols = [_cnpj_col]
+                    if _nome_col: _grp_cols.append(_nome_col)
+                    if _mun_col:  _grp_cols.append(_mun_col)
+                    if _uf_col_oc: _grp_cols.append(_uf_col_oc)
+                    _agg = {"data_abastecimento": "count"}
+                    if _lit_col:   _agg[_lit_col]   = "sum"
+                    if _preco_col: _agg[_preco_col] = "mean"
+                    _top_postos = _abast_oc.groupby(_grp_cols).agg(_agg).reset_index()
+                    _top_postos = _top_postos.rename(columns={
+                        "data_abastecimento": "Abastecimentos",
+                        _lit_col:   "Litros Totais" if _lit_col else None,
+                        _preco_col: "Preco Medio R$/L" if _preco_col else None,
+                    })
+                    _top_postos = _top_postos.sort_values("Abastecimentos", ascending=False).head(20)
+                    if _mp_col:
+                        _mp_por_posto = _abast_oc.groupby(_cnpj_col)[_mp_col].agg(lambda x: ", ".join(x.dropna().unique())).reset_index()
+                        _mp_por_posto.columns = [_cnpj_col, "Meios de Pagamento"]
+                        _top_postos = _top_postos.merge(_mp_por_posto, on=_cnpj_col, how="left")
+                    st.dataframe(_top_postos, use_container_width=True, hide_index=True)
+                    st.caption(f"{len(_top_postos)} postos mais utilizados")
                 else:
-                    st.info("Todos os postos com preço carregado já fazem parte da rede GF.")
-            else:
-                st.info(
-                    "Carregue os **Preços PP** e os **postos GF** via Configurações "
-                    "para identificar postos estratégicos."
-                )
-
-        # ── Sub-tab 3 — Potenciais Parceiros ─────────────────────
+                    st.info("Dados insuficientes para montar o ranking.")
         with _oc_t3:
-            st.markdown(
-                "Postos fora da rede GF que aparecem no histórico de preços com "
-                "preços abaixo da média do mercado — candidatos a convite de parceria."
-            )
-            _parc_rows = []
-            for _cnpj_hi, _evts_hi in _hist_oc.items():
-                _cnpj_clean = str(_cnpj_hi).replace(".", "").replace("/", "").replace("-", "").zfill(14)
-                if _cnpj_clean in {str(c).zfill(14) for c in _cnpjs_pf_oc}:
-                    continue  # já é GF
-                _precos_hi = [float(e["preco"]) for e in _evts_hi
-                              if isinstance(e, dict) and e.get("preco")]
-                if len(_precos_hi) < 2:
-                    continue
-                _med_hi = sum(_precos_hi) / len(_precos_hi)
-                _var_hi = (max(_precos_hi) - min(_precos_hi)) / _med_hi * 100 if _med_hi > 0 else 0
-                _uf_hi  = str((_evts_hi[0].get("uf") or "")) if _evts_hi else ""
-                _nome_hi= str((_evts_hi[0].get("nome") or _evts_hi[0].get("razao_social", "")))[:35]
-                _parc_rows.append({
-                    "CNPJ":          _cnpj_clean,
-                    "Posto":         _nome_hi,
-                    "UF":            _uf_hi.upper(),
-                    "Preço médio":   _br_moeda(_med_hi, 3),
-                    "Variação (%)":  f"{_var_hi:.1f}%".replace(".", ","),
-                    "Histórico":     f"{len(_precos_hi)} registros",
-                    "Potencial":     "🟢 Alto" if _var_hi < 3 else "🟡 Médio",
-                })
-
-            if _parc_rows:
-                _df_parc = pd.DataFrame(_parc_rows).sort_values("Preço médio")
-                st.markdown(
-                    f"**{_br_int(len(_df_parc))} potenciais parceiros** identificados no histórico:"
-                )
-                # Filtro rápido
-                _parc_uf_filt = st.multiselect(
-                    "Filtrar por UF", sorted(set(_df_parc["UF"])),
-                    placeholder="Todas as UFs",
-                    key="parc_uf_filt",
-                )
-                if _parc_uf_filt:
-                    _df_parc = _df_parc[_df_parc["UF"].isin(_parc_uf_filt)]
-                st.dataframe(_df_parc, use_container_width=True, hide_index=True)
+            st.markdown("#### Oportunidades de Reducao de Custo vs ANP")
+            if _abast_oc.empty or not _sheets_oc:
+                st.info("Integre abastecimentos e aguarde carregamento de precos ANP.")
             else:
-                st.info(
+                _preco_col_oc = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_oc.columns), None)
+                _comb_col_oc  = next((c for c in ["produto","combustivel"] if c in _abast_oc.columns), None)
+                if _preco_col_oc and _comb_col_oc and _uf_col_oc:
+                    _oport_rows = []
+                    for _uf_o in _abast_oc[_uf_col_oc].dropna().str.upper().unique():
+                        _abast_uf_o = _abast_oc[_abast_oc[_uf_col_oc].str.upper() == _uf_o]
+                        _rows_anp_o = _anp_extrair_precos(_sheets_oc, uf=_uf_o)
+                        _anp_dict_o = {}
+                        for _r in _rows_anp_o:
+                            try:
+                                _v = float(_r.get("Preco Medio") or _r.get("Preco Medio") or 0)
+                                if _v > 0:
+                                    _anp_dict_o[_anp_norm(str(_r.get("Produto","")))] = _v
+                            except Exception:
+                                pass
+                        for _comb_o in _abast_uf_o[_comb_col_oc].dropna().unique():
+                            _preco_cli_o = float(_abast_uf_o[_abast_uf_o[_comb_col_oc]==_comb_o][_preco_col_oc].mean() or 0)
+                            if _preco_cli_o <= 0:
+                                continue
+                            _comb_n_o = _anp_norm(str(_comb_o))
+                            _anp_ref_o = next((v for k,v in _anp_dict_o.items() if _comb_n_o[:6] in k or k[:6] in _comb_n_o), None)
+                            if not _anp_ref_o:
+                                continue
+                            _diff_o = _preco_cli_o - _anp_ref_o
+                            _diff_pct_o = (_diff_o / _anp_ref_o * 100)
+                            _n_ab_o = len(_abast_uf_o[_abast_uf_o[_comb_col_oc]==_comb_o])
+                            _lit_o  = float(_abast_uf_o[_abast_uf_o[_comb_col_oc]==_comb_o].get("litros", pd.Series([0])).sum() or 0)
+                            _oport_rows.append({
+                                "UF":             _uf_o,
+                                "Combustivel":    _comb_o,
+                                "Preco Cliente":  _br_moeda(_preco_cli_o, 3),
+                                "Ref ANP":        _br_moeda(_anp_ref_o, 3),
+                                "Diferenca":      f"{_diff_pct_o:+.1f}%",
+                                "Volume L":       f"{_lit_o:,.0f}",
+                                "Abastecimentos": _n_ab_o,
+                                "Situacao":       "Acima ANP" if _diff_o > 0 else "Abaixo ANP",
+                            })
+                    if _oport_rows:
+                        _df_oport = pd.DataFrame(_oport_rows).sort_values("Diferenca", ascending=False)
+                        st.dataframe(_df_oport, use_container_width=True, hide_index=True)
+                        _acima = sum(1 for r in _oport_rows if r["Situacao"]=="Acima ANP")
+                        st.caption(f"Semana ANP: {_semana_oc} | {_acima} combustiveis acima da referencia ANP")
+                    else:
+                        st.info("Sem dados suficientes para comparacao com ANP.")
+                else:
+                    st.info("Colunas necessarias nao encontradas nos abastecimentos.")
                     "Nenhum potencial parceiro identificado ainda. "
                     "Registre mais preços via upload de Preços PP para enriquecer o histórico."
                 )
