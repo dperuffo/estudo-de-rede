@@ -20987,16 +20987,17 @@ elif modo == "🔍 Consulta por Posto":
 
         else:
             n_res = len(_df_m3)
-            n_pf  = int(_df_m3["_pro_frotas"].sum()) if "_pro_frotas" in _df_m3.columns else 0
-            n_cer = int(_df_m3["_cercado"].sum())    if "_cercado"    in _df_m3.columns else 0
-
-            # ── Métricas resumo ────────────────────────────────────
+            # Postos com meios de pagamento transacionados
+            _abast_m3 = _carregar_abastecimentos_unificados(dias=730)
+            _n_mp_m3 = 0
+            if not _abast_m3.empty and "cnpj_posto" in _abast_m3.columns and "cnpj" in _df_m3.columns:
+                _cnpjs_mp_m3 = set(_abast_m3["cnpj_posto"].astype(str).str.replace(r"\D","",regex=True))
+                _n_mp_m3 = int(_df_m3["cnpj"].astype(str).str.replace(r"\D","",regex=True).isin(_cnpjs_mp_m3).sum())
             _ca, _cb, _cc, _cd = st.columns(4)
-            _ca.metric("⛽ Postos encontrados", n_res)
-            _cb.metric("⭐ Gestão de Frotas",         n_pf)
-            _cc.metric("⚠️ Cercados",           n_cer)
-            _cd.metric("📍 Estado(s)",
-                       _df_m3["uf"].nunique() if "uf" in _df_m3.columns else "—")
+            _ca.metric("Postos encontrados", n_res)
+            _cb.metric("Postos Gestao Frota", _n_mp_m3)
+            _cc.metric("Bandeiras", _df_m3["distribuidora"].nunique() if "distribuidora" in _df_m3.columns else 0)
+            _cd.metric("Estado(s)",
             st.caption(f"Fonte: {_fonte_m3}")
 
             # ── Botão Salvar (Modo 3) ─────────────────────────────
