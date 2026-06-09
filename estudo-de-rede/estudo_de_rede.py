@@ -33110,50 +33110,60 @@ elif modo == "📑 Relatórios":
             _re_comb = st.selectbox("Combustível", _re_comb_opts, key="re_comb")
 
         # ── Carregar dados históricos ──────────────────────────────
-        _intel_re = _intel_load()
-        _hist_re  = _intel_re.get("historico", {})  # {cnpj: [{data, preco, combustivel, nome, municipio, uf}]}
-
-        # Filtrar por período
+        # ── Carregar abastecimentos reais do cliente ──────────
         _re_data_ini = f"{_re_ano}-{_re_mes:02d}-01"
         _re_data_fim = f"{_re_ano}-{_re_mes:02d}-{_calendar_mod.monthrange(_re_ano, _re_mes)[1]:02d}"
+        _abast_re = _carregar_abastecimentos_unificados(dias=365)
+        _re_df = pd.DataFrame()
+        if not _abast_re.empty:
+            if "data_abastecimento" in _abast_re.columns:
+                _abast_re["data_abastecimento"] = pd.to_datetime(_abast_re["data_abastecimento"], errors="coerce")
+                _abast_re = _abast_re[
+                    (_abast_re["data_abastecimento"].dt.strftime("%Y-%m-%d") >= _re_data_ini) &
+                    (_abast_re["data_abastecimento"].dt.strftime("%Y-%m-%d") <= _re_data_fim)
+                ]
+            _uf_col_re = next((c for c in ["uf_posto"] if c in _abast_re.columns), None)
+            if _uf_col_re and _re_uf != "Todas":
+                _abast_re = _abast_re[_abast_re[_uf_col_re].fillna("").str.upper() == _re_uf]
+            _comb_col_re = next((c for c in ["produto","combustivel"] if c in _abast_re.columns), None)
+            if _comb_col_re and _re_comb != "Todos":
+                _abast_re = _abast_re[
+                    _abast_re[_comb_col_re].fillna("").str.upper().str.contains(_re_comb.split()[0], na=False)
+                ]
+            if not _abast_re.empty:
+                _re_rows = []
+                for _, _r in _abast_re.iterrows():
+                    _preco_re = float(_r.get("preco_litro") or 0)
+                    _lit_re   = float(_r.get("litros") or 0)
+                    _tot_re   = float(_r.get("valor_total") or 0)
+                    if _preco_re > 0:
+                        _re_rows.append({
+                            "cnpj":          re.sub(r"\D","",str(_r.get("cnpj_posto","") or "")),
+                            "nome":          str(_r.get("nome_posto","") or "")[:40],
+                            "municipio":     str(_r.get("cidade_posto","") or ""),
+                            "uf":            str(_r.get("uf_posto","") or "").upper(),
+                            "combustivel":   str(_r.get("produto","") or "").upper(),
+                            "preco":         _preco_re,
+                            "litros":        _lit_re,
+                            "valor_total":   _tot_re,
+                            "meio_pagamento":str(_r.get("meio_pagamento","") or "Pro-Frotas"),
+                            "placa":         str(_r.get("placa","") or ""),
+                            "data":          str(_r.get("data_abastecimento",""))[:10],
+                        })
+                _re_df = pd.DataFrame(_re_rows) if _re_rows else pd.DataFrame()
 
-        _re_rows = []
-        for _cnpj_re, _events_re in _hist_re.items():
-            for _ev in (_events_re if isinstance(_events_re, list) else []):
-                _dt_ev = str(_ev.get("data", "") or _ev.get("data_ref", ""))[:10]
-                if not (_re_data_ini <= _dt_ev <= _re_data_fim):
-                    continue
-                _comb_ev = str(_ev.get("combustivel", "")).upper().strip()
-                if _re_comb != "Todos" and _comb_ev != _re_comb.upper().strip():
-                    continue
-                _uf_ev = str(_ev.get("uf", "")).upper().strip()
-                if _re_uf != "Todas" and _uf_ev != _re_uf:
-                    continue
-                _re_rows.append({
-                    "cnpj":       _cnpj_re,
-                    "nome":       str(_ev.get("nome") or _ev.get("razao_social", ""))[:40],
-                    "municipio":  str(_ev.get("municipio", "")),
-                    "uf":         _uf_ev,
-                    "combustivel":_comb_ev,
-                    "preco":      float(_ev.get("preco") or 0),
-                    "data":       _dt_ev,
-                })
-
-        _re_df = pd.DataFrame(_re_rows) if _re_rows else pd.DataFrame()
-
-        # Posto só vê seus próprios dados de preço no relatório
-        if not _re_df.empty and _auth_perfil() == "posto":
-            _re_df = _auth_filtrar_df(_re_df, "cnpj")
+        # Referencia ANP
+        _anp_cache_re = st.session_state.get("_precos_anp_cache", {})
+        _sheets_re    = _anp_cache_re.get("sheets", {})
+        _semana_re    = _anp_cache_re.get("semana", "")
 
         if _re_df.empty:
             st.info(
-                f"Nenhum registro de preço encontrado para "
-                f"**{_meses_re[_re_mes]}/{_re_ano}**"
+                f"Nenhum abastecimento para **{_meses_re[_re_mes]}/{_re_ano}**"
                 + (f" · UF {_re_uf}" if _re_uf != "Todas" else "")
-                + (f" · {_re_comb}" if _re_comb != "Todos" else "")
-                + ".\n\nCarregue preços via Configurações → Preços PP para gerar o relatório."
-            )
+                + ".\n\nIntegre via Pro-Frotas ou carregue planilha."
         else:
+            )
             _re_df["preco"] = pd.to_numeric(_re_df["preco"], errors="coerce")
             _re_df["data"]  = pd.to_datetime(_re_df["data"], errors="coerce")
             _re_df = _re_df.dropna(subset=["preco", "data"])
@@ -33168,13 +33178,36 @@ elif modo == "📑 Relatórios":
             _re_n_ufs     = _re_df["uf"].nunique()
 
             _kc1, _kc2, _kc3, _kc4 = st.columns(4)
-            _kc1.metric("⛽ Postos monitorados", _br_int(_re_n_postos))
-            _kc2.metric("📊 Registros de preço", _br_int(_re_n_reg))
-            _kc3.metric("💰 Preço médio", _br_moeda(_re_preco_med, 3))
-            _kc4.metric("🗺️ UFs cobertas", str(_re_n_ufs))
+            _re_litros_tot = _re_df["litros"].sum() if "litros" in _re_df.columns else 0
+            _re_valor_tot  = _re_df["valor_total"].sum() if "valor_total" in _re_df.columns else 0
+            _re_n_mp       = _re_df["meio_pagamento"].nunique() if "meio_pagamento" in _re_df.columns else 1
+            _kc1.metric("Postos", _br_int(_re_n_postos))
+            _kc2.metric("Abastecimentos", _br_int(_re_n_reg))
+            _kc3.metric("Volume", f"{_re_litros_tot:,.0f} L" if _re_litros_tot else "—")
+            _kc4.metric("Valor total", _br_moeda(_re_valor_tot) if _re_valor_tot else "—")
 
-            # ── Seção 1 — Evolução de Preços ────────────────────────
-            st.markdown("#### 📈 Evolução de Preços")
+            # Comparacao com ANP
+            _kc5, _kc6, _kc7, _kc8 = st.columns(4)
+            _kc5.metric("Meios de pagamento", str(_re_n_mp))
+            _kc6.metric("Preco medio cliente", _br_moeda(_re_preco_med, 3))
+            _anp_ref_re = None
+            if _sheets_re and _re_uf != "Todas":
+                try:
+                    _rows_re = _anp_extrair_precos(_sheets_re, uf=_re_uf)
+                    if _rows_re:
+                        _anp_ref_re = float(_rows_re[0].get("Preco Medio") or _rows_re[0].get("Preco Medio") or 0)
+                except Exception:
+                    pass
+            if _anp_ref_re and _anp_ref_re > 0:
+                _diff_re  = _re_preco_med - _anp_ref_re
+                _diff_pct = (_diff_re / _anp_ref_re * 100)
+                _kc7.metric("Referencia ANP", _br_moeda(_anp_ref_re, 3))
+                _kc8.metric("vs ANP", f"{'+' if _diff_re >= 0 else ''}{_br_moeda(_diff_re, 3)}/L",
+                           delta=f"{_diff_pct:+.1f}%", delta_color="inverse")
+            else:
+                _kc7.metric("Referencia ANP", f"sem ref. {_re_uf}")
+                _kc8.metric("vs ANP", "—")
+            st.caption(f"Semana ANP: {_semana_re}" if _semana_re else "")
             _re_evolucao = (
                 _re_df.groupby(["data", "combustivel"])["preco"]
                 .mean().reset_index()
