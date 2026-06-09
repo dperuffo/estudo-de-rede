@@ -20356,6 +20356,21 @@ elif modo == "🗺️ Por Rota":
                 df_todos = pd.DataFrame()
                 st.warning("⚠️ Postos ANP não carregados. Aguarde o carregamento automático.")
 
+            # Calcular distancias e filtrar por raio
+            if not df_todos.empty:
+                with st.spinner("📏 Calculando distâncias..."):
+                    _dists_m2 = dist_minima_rota_np(
+                        df_todos["_lat"].values,
+                        df_todos["_lon"].values,
+                        coords_rota,
+                    )
+                    df_todos["_dist_rota"] = _dists_m2
+                df_rota = df_todos[df_todos["_dist_rota"] <= raio].copy().sort_values("_dist_rota").reset_index(drop=True)
+                if df_rota.empty:
+                    st.warning(f"⚠️ Nenhum posto ANP dentro de {raio}m da rota. Tente aumentar o raio.")
+            else:
+                df_rota = pd.DataFrame()
+
             # Guarda diagnostico
             st.session_state["_m2_diag"] = {
                 "n_pf_total": len(_anp_df_m2),
