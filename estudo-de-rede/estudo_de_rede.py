@@ -661,9 +661,8 @@ def _auth_carregar_usuario_db(email: str) -> dict | None:
         from cache_redis import rate_limit_check
         _permitido, _restantes = rate_limit_check(f"login:{email}", limite=10, janela=60)
         if not _permitido:
-            import streamlit as st
-            st.error("⚠️ Muitas tentativas de login. Aguarde 1 minuto.")
-            st.stop()
+            # Retorna sentinel em vez de chamar st.error diretamente
+            return {"_rate_limited": True}
     except Exception:
         pass
     # Camada 2: Redis cache de sessão
@@ -4372,10 +4371,15 @@ def _auth_login_page():
                 key="oauth_btn_google",
             )
             if _res_g and "token" in _res_g:
-                st.session_state["_auth_user"] = _auth_user_from_token(
-                    _res_g["token"], "google"
-                )
-                st.rerun()
+                try:
+                    _user_g = _auth_user_from_token(_res_g["token"], "google")
+                    if _user_g.get("email"):
+                        st.session_state["_auth_user"] = _user_g
+                        st.rerun()
+                    else:
+                        st.error("Não foi possível obter o e-mail da conta Google. Tente novamente.")
+                except Exception as _e_oauth:
+                    st.error(f"Erro ao processar autenticação: {_e_oauth}")
 
         # ── Espaço entre botões ──
         if _OAUTH_GOOGLE_OK and _OAUTH_MS_OK:
@@ -4409,10 +4413,15 @@ def _auth_login_page():
                 key="oauth_btn_microsoft",
             )
             if _res_ms and "token" in _res_ms:
-                st.session_state["_auth_user"] = _auth_user_from_token(
-                    _res_ms["token"], "microsoft"
-                )
-                st.rerun()
+                try:
+                    _user_ms = _auth_user_from_token(_res_ms["token"], "microsoft")
+                    if _user_ms.get("email"):
+                        st.session_state["_auth_user"] = _user_ms
+                        st.rerun()
+                    else:
+                        st.error("Não foi possível obter o e-mail da conta Microsoft. Tente novamente.")
+                except Exception as _e_oauth_ms:
+                    st.error(f"Erro ao processar autenticação: {_e_oauth_ms}")
 
         st.markdown(
             "<p class='login-footer'>🔒 Acesso restrito a colaboradores autorizados.<br>"
@@ -4509,6 +4518,12 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             }
         else:
             _pdb = _auth_carregar_usuario_db(_email_perm)
+            # Verificar rate limit
+            if isinstance(_pdb, dict) and _pdb.get("_rate_limited"):
+                st.session_state["_auth_user"] = None
+                st.session_state["_acesso_verificado"] = False
+                st.warning("⚠️ Muitas tentativas de login. Aguarde 1 minuto e tente novamente.")
+                st.stop()
             if not _pdb:
                 # ── Auto-provisionamento para domínios corporativos confiáveis ──
                 _dc_cfg = st.session_state.pop("_dominio_corporativo_config", None)
