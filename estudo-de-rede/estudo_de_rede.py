@@ -18473,29 +18473,38 @@ def _tour_dialog():
                           not getattr(st.session_state.get("_telem_df"), "empty", True))
 
         st.markdown("**📋 Próximos passos recomendados**")
+        # Redefine flags localmente para uso dentro da função
+        _has_abast_l = bool(len(_carregar_abastecimentos_unificados(dias=730)) > 0)
+        _has_anp_l   = bool(st.session_state.get("postos_anp_df") is not None and
+                            not getattr(st.session_state.get("postos_anp_df"), "empty", True))
+        _has_frota_l = bool(st.session_state.get("_frota_df") is not None and
+                            not getattr(st.session_state.get("_frota_df"), "empty", True))
+        _has_telem_l = bool(st.session_state.get("_telem_df") is not None and
+                            not getattr(st.session_state.get("_telem_df"), "empty", True))
+        _has_ai_l    = bool(os.environ.get("ANTHROPIC_API_KEY"))
+
         _chips = []
-        if not _has_abast:
+        if not _has_abast_l:
             _chips.append(("warn", "① Importe abastecimentos em 👥 Análise de Cliente ou integre via API"))
         else:
             _chips.append(("ok",   "✅ Abastecimentos importados"))
-        if not _has_anp:
+        if not _has_anp_l:
             _chips.append(("warn", "② Base ANP carregando automaticamente — aguarde o startup"))
         else:
             _chips.append(("ok",   "✅ Base ANP carregada (~38.000 postos)"))
-        if not _has_frota:
+        if not _has_frota_l:
             _chips.append(("warn", "③ Cadastre os veículos em 🚛 Gestão de Frotas"))
         else:
             _chips.append(("ok",   "✅ Frota cadastrada"))
-        if not _has_telem:
+        if not _has_telem_l:
             _chips.append(("warn", "④ Integre uma fonte de dados via ⚡ API & Integrações"))
         else:
             _chips.append(("ok",   "✅ Integração ativa"))
-        _has_ai = bool(os.environ.get("ANTHROPIC_API_KEY"))
-        if not _has_ai:
+        if not _has_ai_l:
             _chips.append(("warn", "⑤ Ative o 🤖 Assistente IA com a chave Anthropic no Railway"))
         else:
             _chips.append(("ok",   "✅ Assistente IA ativo"))
-        if _has_abast and _has_anp and _has_frota and _has_telem and _has_ai:
+        if _has_abast_l and _has_anp_l and _has_frota_l and _has_telem_l and _has_ai_l:
             _chips.append(("ok",   "🚀 Plataforma totalmente configurada! Explore todos os módulos."))
 
         _chips_html = "".join(
