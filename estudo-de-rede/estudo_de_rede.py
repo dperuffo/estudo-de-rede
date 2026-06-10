@@ -1,3 +1,4 @@
+import os
 # ═══════════════════════════════════════════════════════════════════
 #  FNI Gestão de Frotas – Gestão de Frotas
 #  Versão 6.0  |  Multitenant SaaS  |  Fase 1 implementada
@@ -599,6 +600,7 @@ _PERMISSOES: dict[str, set] = {
     "func_ver_todos_cnpj":  {"admin", "analista"},          # ver dados de outros CNPJs
     "func_gerenciar_users": {"admin"},
     "func_ver_telem_todos": {"admin", "analista"},          # telemetria de todos os clientes
+    "aba_assistente_ia":    {"admin", "gestor_frota"},       # assistente IA (planos Pro/Enterprise)
 }
 
 
@@ -16784,6 +16786,8 @@ with st.sidebar:
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
     # ── ITENS AVULSOS ──────────────────────────────────────────────
+    if _auth_tem_permissao("aba_assistente_ia") or _auth_tem_permissao("aba_relatorios"):
+        _nav_btn("🤖 Assistente IA",         "🤖 Assistente IA",         "assistente_ia")
     if _auth_tem_permissao("aba_api_integracoes"):
         _nav_btn("⚡ API & Integrações",     "⚡ API & Integrações",     "api_integracoes")
     if _auth_tem_permissao("aba_admin"):
@@ -32331,6 +32335,238 @@ elif modo == "🛰️ Telemetria":
                     except Exception:
                         pass
 
+
+elif modo == "🤖 Assistente IA":
+    _doc_tela("🤖 Assistente IA") if "🤖 Assistente IA" in str(_doc_tela.__code__.co_consts) else None
+
+    _perfil_ai   = st.session_state.get("_auth_perfil", "")
+    _empresa_ai  = st.session_state.get("_empresa_ativa") or {}
+    _plano_ai    = _empresa_ai.get("plano", "gratuito").lower()
+    _plano_pro   = _plano_ai in ("pro", "enterprise", "profissional")
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#4a1a80,#7F77DD);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🤖 Assistente IA — FNI Insights</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Faça perguntas em linguagem natural sobre sua frota e receba insights instantâneos.</p>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Plano Básico: FAQ inteligente com upsell ──────────────────
+    if not _plano_pro:
+        st.info(
+            "🌟 **Você está no plano Básico.**\n\n"
+            "No plano **Pro** e **Enterprise**, o Assistente IA responde perguntas sobre "
+            "seus abastecimentos reais, detecta oportunidades de economia e analisa "
+            "a performance da sua frota em tempo real.\n\n"
+            "Veja abaixo algumas perguntas que você poderia fazer:"
+        )
+
+        _FAQ = {
+            "💰 Quanto gastei com combustível este mês?": (
+                "No plano Pro, o assistente acessa seus abastecimentos reais e responde: "
+                "'Seu gasto em junho foi R$ 128.450 com Diesel S-10, distribuído em 847 abastecimentos "
+                "em 3 estados.' Com análise de tendência vs mês anterior."
+            ),
+            "⚠️ Quais postos estão cobrando acima da ANP?": (
+                "O assistente cruza seus abastecimentos com a tabela ANP e aponta exatamente "
+                "quais postos cobram acima da referência — e quanto você está perdendo por mês."
+            ),
+            "🚛 Qual veículo tem o pior consumo?": (
+                "Com acesso ao hodômetro e litros abastecidos, o assistente ranqueia seus veículos "
+                "por eficiência e identifica anomalias que podem indicar manutenção necessária."
+            ),
+            "📍 Quais postos recomendam para minha rota SP → BH?": (
+                "O assistente combina sua rota com os postos ANP, filtra pelos mais baratos "
+                "dentro do raio configurado e considera o histórico da sua frota."
+            ),
+            "📈 Meu gasto aumentou ou diminuiu vs mês passado?": (
+                "Comparativo automático entre períodos, com breakdown por combustível, "
+                "UF e veículo — tudo baseado nos seus dados reais."
+            ),
+        }
+
+        for _q, _a in _FAQ.items():
+            with st.expander(_q):
+                st.caption(_a)
+                st.markdown(
+                    "<div style='margin-top:8px;padding:8px 12px;"
+                    "background:#f0e8ff;border-radius:8px;font-size:12px;color:#4a1a80'>"
+                    "🔒 Disponível nos planos <b>Pro</b> e <b>Enterprise</b></div>",
+                    unsafe_allow_html=True
+                )
+
+        st.markdown("---")
+        if st.button("🚀 Conhecer planos Pro e Enterprise", type="primary",
+                     use_container_width=False, key="btn_upsell_ai"):
+            st.session_state["_mostrar_planos"] = True
+            st.rerun()
+
+    else:
+        # ── Plano Pro/Enterprise: Assistente completo com Claude API ─
+        _api_key_ai = os.environ.get("ANTHROPIC_API_KEY", "")
+
+        if not _api_key_ai:
+            st.warning(
+                "⚠️ **Chave da API Anthropic não configurada.**\n\n"
+                "Para ativar o Assistente IA, adicione a variável `ANTHROPIC_API_KEY` "
+                "nas configurações do Railway."
+            )
+            st.code("railway variables set ANTHROPIC_API_KEY=sk-ant-...", language="bash")
+            st.stop()
+
+        # Inicializa histórico da conversa
+        if "ai_chat_history" not in st.session_state:
+            st.session_state["ai_chat_history"] = []
+
+        # Monta contexto com dados reais da frota
+        def _montar_contexto_frota():
+            try:
+                _ctx = []
+                _ctx.append(f"Empresa: {_empresa_ai.get('nome', 'N/A')} | Plano: {_plano_ai.upper()}")
+
+                _abast = _carregar_abastecimentos_unificados(dias=90)
+                if not _abast.empty:
+                    _preco_col = next((c for c in ["preco_litro"] if c in _abast.columns), None)
+                    _val_col   = next((c for c in ["valor_total"] if c in _abast.columns), None)
+                    _prod_col  = next((c for c in ["produto","combustivel"] if c in _abast.columns), None)
+                    _uf_col    = next((c for c in ["uf_posto"] if c in _abast.columns), None)
+                    _placa_col = next((c for c in ["placa"] if c in _abast.columns), None)
+                    _cnpj_col  = next((c for c in ["cnpj_posto"] if c in _abast.columns), None)
+
+                    _ctx.append(f"Abastecimentos (últimos 90 dias): {len(_abast)} registros")
+                    if _val_col:
+                        _ctx.append(f"Gasto total: R$ {pd.to_numeric(_abast[_val_col], errors='coerce').sum():,.2f}")
+                    if _preco_col:
+                        _ctx.append(f"Preço médio por litro: R$ {pd.to_numeric(_abast[_preco_col], errors='coerce').mean():.3f}")
+                    if _cnpj_col:
+                        _ctx.append(f"Postos visitados: {_abast[_cnpj_col].nunique()}")
+                    if _uf_col:
+                        _ctx.append(f"Estados cobertos: {_abast[_uf_col].nunique()} UFs")
+                    if _placa_col:
+                        _ctx.append(f"Veículos ativos: {_abast[_placa_col].nunique()}")
+                    if _prod_col:
+                        _top_comb = _abast[_prod_col].value_counts().head(3).to_dict()
+                        _ctx.append(f"Combustíveis mais usados: {_top_comb}")
+
+                    # Alertas de preço
+                    if _preco_col and _uf_col:
+                        _ANP_REF = {"SP":6.05,"RJ":6.18,"MG":5.98,"RS":5.92,"PR":5.88,
+                                    "SC":5.85,"BA":6.12,"GO":6.00,"ES":6.10,"MS":6.08}
+                        _ab = _abast[pd.to_numeric(_abast[_preco_col], errors="coerce") > 0].copy()
+                        _ab["preco_n"] = pd.to_numeric(_ab[_preco_col], errors="coerce")
+                        _ab["uf_n"] = _ab[_uf_col].fillna("").str.upper()
+                        _ab["anp"] = _ab["uf_n"].map(_ANP_REF)
+                        _ab["delta"] = (_ab["preco_n"] - _ab["anp"]) / _ab["anp"] * 100
+                        _alertas_n = int((_ab["delta"] > 5).sum())
+                        _ctx.append(f"Abastecimentos acima de 5% da ANP: {_alertas_n}")
+
+                return "\n".join(_ctx)
+            except Exception as _e:
+                return f"Dados da frota: indisponíveis ({_e})"
+
+        # Sugestões de perguntas
+        _sugestoes = [
+            "Qual foi meu maior gasto este mês?",
+            "Onde estou pagando acima da ANP?",
+            "Qual veículo consome mais?",
+            "Como está minha cobertura geográfica?",
+            "Quais postos visito com mais frequência?",
+            "Compare meu gasto de diesel vs gasolina",
+        ]
+
+        # Exibe sugestões se conversa vazia
+        if not st.session_state["ai_chat_history"]:
+            st.markdown("##### 💡 Sugestões para começar")
+            _sg_cols = st.columns(3)
+            for _i, _sg in enumerate(_sugestoes):
+                with _sg_cols[_i % 3]:
+                    if st.button(_sg, key=f"sg_{_i}", use_container_width=True):
+                        st.session_state["ai_chat_history"].append(
+                            {"role": "user", "content": _sg})
+                        st.rerun()
+            st.markdown("---")
+
+        # Exibe histórico da conversa
+        for _msg in st.session_state["ai_chat_history"]:
+            with st.chat_message(_msg["role"],
+                                  avatar="👤" if _msg["role"] == "user" else "🤖"):
+                st.markdown(_msg["content"])
+
+        # Input do usuário
+        _pergunta = st.chat_input("Pergunte sobre sua frota... ex: Qual meu gasto com diesel este mês?")
+
+        if _pergunta:
+            st.session_state["ai_chat_history"].append(
+                {"role": "user", "content": _pergunta})
+
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(_pergunta)
+
+            with st.chat_message("assistant", avatar="🤖"):
+                with st.spinner("Analisando dados da sua frota..."):
+                    try:
+                        import urllib.request as _ur
+                        import json as _json
+
+                        _contexto = _montar_contexto_frota()
+                        _system_prompt = (
+                            "Você é o Assistente IA da FNI Gestão de Frotas, especializado em "
+                            "análise de frotas e combustíveis no Brasil. Responda em português "
+                            "brasileiro de forma clara, objetiva e com insights acionáveis. "
+                            "Use os dados reais da frota fornecidos no contexto. "
+                            "Formate valores monetários no padrão BR (R$ 1.234,56). "
+                            "Quando identificar problemas ou oportunidades, destaque-os claramente. "
+                            "Contexto atual da frota:\n" + _contexto
+                        )
+
+                        _msgs_api = [{"role": "system", "content": _system_prompt}]
+                        for _h in st.session_state["ai_chat_history"][:-1]:
+                            if _h["role"] in ("user", "assistant"):
+                                _msgs_api.append({"role": _h["role"], "content": _h["content"]})
+                        _msgs_api.append({"role": "user", "content": _pergunta})
+
+                        _payload = _json.dumps({
+                            "model": "claude-sonnet-4-20250514",
+                            "max_tokens": 1024,
+                            "system": _system_prompt,
+                            "messages": [m for m in _msgs_api if m["role"] != "system"],
+                        }).encode()
+
+                        _req = _ur.Request(
+                            "https://api.anthropic.com/v1/messages",
+                            data=_payload,
+                            headers={
+                                "Content-Type": "application/json",
+                                "x-api-key": _api_key_ai,
+                                "anthropic-version": "2023-06-01",
+                            },
+                            method="POST",
+                        )
+                        with _ur.urlopen(_req, timeout=30) as _resp:
+                            _data = _json.loads(_resp.read())
+                            _resposta = _data["content"][0]["text"]
+
+                    except Exception as _e_ai:
+                        _resposta = (
+                            f"⚠️ Não consegui processar sua pergunta agora. "
+                            f"Tente novamente em instantes. _(Erro: {str(_e_ai)[:80]})_"
+                        )
+
+                st.markdown(_resposta)
+                st.session_state["ai_chat_history"].append(
+                    {"role": "assistant", "content": _resposta})
+
+        # Botão limpar conversa
+        if st.session_state["ai_chat_history"]:
+            st.markdown("---")
+            _cl1, _cl2 = st.columns([1, 5])
+            with _cl1:
+                if st.button("🗑️ Limpar conversa", key="btn_limpar_ai"):
+                    st.session_state["ai_chat_history"] = []
+                    st.rerun()
 
 elif modo == "⚡ API & Integrações":
     _doc_tela("⚡ API & Integrações")
