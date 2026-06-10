@@ -22103,7 +22103,7 @@ if modo == "📈 Dashboard":
             else:
                 # ── 1. Cruzar preços GF com dados do posto (municipio/uf) ──
                 # _pp_alert colunas: cnpj_norm, combustivel_pk, combustivel_label, preco
-                # _pf_dash   colunas: cnpj, municipio, uf, razaoSocial, distribuidora
+                # _abast_dash colunas: cnpj_posto, cidade_posto, uf_posto, nome_postoribuidora
                 # Usa abastecimentos reais como fonte de localização dos postos
                 _pf_info = (
                     _abast_dash[["cnpj_posto","cidade_posto","uf_posto","nome_posto"]]
@@ -22537,8 +22537,8 @@ if modo == "📈 Dashboard":
                     "df_sub":      _sub,
                 }
 
-            _ma = _cmp_metricas(_ufs_a, _df_valid, _pp_dash)
-            _mb = _cmp_metricas(_ufs_b, _df_valid, _pp_dash)
+            _ma = _cmp_metricas(_ufs_a, _df_valid, None)
+            _mb = _cmp_metricas(_ufs_b, _df_valid, None)
 
             # ── Helper visual ─────────────────────────────────────────────────
             def _badge_cmp(txt, cor_bg, cor_txt="#fff"):
@@ -23335,7 +23335,7 @@ if modo == "📈 Dashboard":
         with _dt8:
 
             # ── Fontes de dados ───────────────────────────────────────
-            _op_pf   = _pf_dash.copy() if not _pf_dash.empty else pd.DataFrame()
+            _op_pf   = pd.DataFrame()  # postos GF removidos — usa abastecimentos reais
             _op_pp   = st.session_state.get("_pp_df")
             _op_anp  = (st.session_state.get("_precos_anp_cache") or {}).get("sheets")
 
