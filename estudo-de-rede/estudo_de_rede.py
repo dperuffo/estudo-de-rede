@@ -32342,7 +32342,8 @@ elif modo == "🤖 Assistente IA":
     _perfil_ai   = st.session_state.get("_auth_perfil", "")
     _empresa_ai  = st.session_state.get("_empresa_ativa") or {}
     _plano_ai    = _empresa_ai.get("plano", "gratuito").lower()
-    _plano_pro   = _plano_ai in ("pro", "enterprise", "profissional")
+    # Admin sempre tem acesso completo — não está vinculado a empresa/plano
+    _plano_pro   = _perfil_ai in ("admin", "analista") or _plano_ai in ("pro", "enterprise", "profissional")
 
     # ── Header com logo FNI animada ──────────────────────────────
     _ai_logo_html = ""
