@@ -35315,35 +35315,24 @@ elif modo == "⚡ API & Integrações":
     )
 
     # ── Tabs principais ────────────────────────────────────────────
-    _api_t1, _api_t2, _api_t3, _api_t4, _api_t5, _api_t6, _api_t7, _api_t8 = st.tabs([
-        "📖 Endpoints",
-        "🔐 Autenticação",
-        "💻 Exemplos de Código",
+    _api_t4, _api_t5, _api_t6, _api_t7, _api_t8 = st.tabs([
         "⚙️ Configuração do Servidor",
         "💳 Meios de Pagamento",
         "🔑 API Keys",
         "🪝 Webhooks",
         "🔌 Integrações",
     ])
+    # Tabs legadas — conteudo movido para Integracoes
+    _api_t1 = _api_t2 = _api_t3 = None
 
     # ════════════════════════════════════════════════════════════════
     #  TAB 1 — ENDPOINTS (Swagger-like)
     # ════════════════════════════════════════════════════════════════
-    with _api_t1:
+    if _api_t1 is not None:
+     with _api_t1:
 
-        # Link para Swagger externo
-        st.markdown(
-            f"<div style='background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;"
-            f"padding:10px 16px;margin-bottom:16px;font-size:12px'>"
-            f"📚 <b>Swagger UI interativo:</b> "
-            f"<a href='{_BASE_URL}/api/docs' target='_blank'>{_BASE_URL}/api/docs</a>"
-            f" &nbsp;·&nbsp; "
-            f"<b>ReDoc:</b> <a href='{_BASE_URL}/api/redoc' target='_blank'>{_BASE_URL}/api/redoc</a>"
-            f" &nbsp;·&nbsp; "
-            f"<b>OpenAPI JSON:</b> <a href='{_BASE_URL}/api/openapi.json' target='_blank'>openapi.json</a>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+        # Swagger nao disponivel ainda — documentacao inline apenas
+        st.info("Documentação interativa Swagger em desenvolvimento. Use os endpoints documentados abaixo.")
 
         def _endpoint_card(method: str, path: str, title: str, desc: str,
                            params: list = None, resp_example: str = "",
@@ -35581,7 +35570,8 @@ elif modo == "⚡ API & Integrações":
     # ════════════════════════════════════════════════════════════════
     #  TAB 2 — AUTENTICAÇÃO
     # ════════════════════════════════════════════════════════════════
-    with _api_t2:
+    if _api_t2 is not None:
+     with _api_t2:
 
         st.markdown("#### 🔐 Bearer Token JWT")
         st.markdown(
@@ -35656,7 +35646,8 @@ elif modo == "⚡ API & Integrações":
     # ════════════════════════════════════════════════════════════════
     #  TAB 3 — EXEMPLOS DE CÓDIGO
     # ════════════════════════════════════════════════════════════════
-    with _api_t3:
+    if _api_t3 is not None:
+     with _api_t3:
 
         _lang_sel = st.selectbox(
             "Linguagem / Sistema",
@@ -36401,6 +36392,154 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
             mostrar_painel_webhooks()
         except Exception as _ew:
             st.error(f'Erro ao carregar Webhooks: {_ew}')
+
+    with _api_t8:
+        st.markdown("#### Integrações e Documentação da API")
+        # Sub-tabs dentro de Integracoes
+        _int_t1, _int_t2, _int_t3 = st.tabs([
+            "📖 Endpoints",
+            "🔐 Autenticação",
+            "💻 Exemplos de Código",
+        ])
+        with _int_t1:
+            # Reusa o conteudo da tab 1 original
+            if _api_t1 is None:
+                st.markdown("#### Endpoints Disponíveis")
+                st.markdown("""
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/postos` | Lista postos ANP por UF |
+| GET | `/api/v1/postos/{cnpj}` | Dados de um posto específico |
+| GET | `/api/v1/precos/{uf}` | Preços ANP por estado |
+| GET | `/api/v1/precos/{uf}/{municipio}` | Preços ANP por município |
+| GET | `/api/v1/abastecimentos` | Lista abastecimentos da frota |
+| POST | `/api/v1/abastecimentos` | Registrar novo abastecimento |
+| GET | `/api/v1/relatorio/executivo` | Relatório executivo em JSON |
+| GET | `/api/v1/frota/veiculos` | Lista veículos da frota |
+| GET | `/api/v1/frota/motoristas` | Lista motoristas |
+                """)
+                st.info("Todos os endpoints requerem autenticação JWT via header `Authorization: Bearer {token}`")
+
+        with _int_t2:
+            if _api_t2 is None:
+                st.markdown("#### Autenticação JWT")
+                st.code("""# 1. Obter token
+POST /api/v1/auth/token
+Content-Type: application/json
+
+{
+  "api_key": "sua_api_key_aqui",
+  "empresa_id": "seu_empresa_id"
+}
+
+# Resposta
+{
+  "access_token": "eyJ...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+
+# 2. Usar o token
+GET /api/v1/postos?uf=SP
+Authorization: Bearer eyJ...
+""", language="bash")
+                st.markdown("""
+**Obtendo sua API Key:**
+1. Acesse a aba **🔑 API Keys** nesta tela
+2. Clique em **Nova API Key**
+3. Copie a chave gerada (exibida apenas uma vez)
+4. Use no header `Authorization: Bearer {chave}`
+                """)
+
+        with _int_t3:
+            if _api_t3 is None:
+                st.markdown("#### Exemplos de Código")
+                _lang = st.selectbox("Linguagem", ["Python", "JavaScript", "cURL", "PHP"], key="api_lang_int")
+                if _lang == "Python":
+                    st.code("""import requests
+
+API_KEY = "sua_api_key"
+BASE_URL = "https://fxgestaodefrotasonline.com/api/v1"
+
+headers = {"Authorization": f"Bearer {API_KEY}"}
+
+# Listar postos em SP
+resp = requests.get(f"{BASE_URL}/postos", params={"uf": "SP"}, headers=headers)
+postos = resp.json()
+
+# Precos ANP para municipio
+resp = requests.get(f"{BASE_URL}/precos/SP/Campinas", headers=headers)
+precos = resp.json()
+
+# Registrar abastecimento
+payload = {
+    "placa": "ABC1D23",
+    "cnpj_posto": "12345678000199",
+    "combustivel": "Diesel S-10",
+    "litros": 150.5,
+    "preco_litro": 6.85,
+    "data": "2026-06-10",
+    "meio_pagamento": "Ticket Log"
+}
+resp = requests.post(f"{BASE_URL}/abastecimentos", json=payload, headers=headers)
+""", language="python")
+                elif _lang == "JavaScript":
+                    st.code("""const API_KEY = "sua_api_key";
+const BASE_URL = "https://fxgestaodefrotasonline.com/api/v1";
+
+const headers = { "Authorization": `Bearer ${API_KEY}` };
+
+// Listar postos em SP
+const resp = await fetch(`${BASE_URL}/postos?uf=SP`, { headers });
+const postos = await resp.json();
+
+// Registrar abastecimento
+const payload = {
+  placa: "ABC1D23",
+  cnpj_posto: "12345678000199",
+  combustivel: "Diesel S-10",
+  litros: 150.5,
+  preco_litro: 6.85,
+  data: "2026-06-10",
+  meio_pagamento: "Ticket Log"
+};
+const r = await fetch(`${BASE_URL}/abastecimentos`, {
+  method: "POST",
+  headers: { ...headers, "Content-Type": "application/json" },
+  body: JSON.stringify(payload)
+});
+""", language="javascript")
+                elif _lang == "cURL":
+                    st.code("""# Listar postos em SP
+curl -H "Authorization: Bearer sua_api_key" \
+  "https://fxgestaodefrotasonline.com/api/v1/postos?uf=SP"
+
+# Precos ANP
+curl -H "Authorization: Bearer sua_api_key" \
+  "https://fxgestaodefrotasonline.com/api/v1/precos/SP/Campinas"
+
+# Registrar abastecimento
+curl -X POST \
+  -H "Authorization: Bearer sua_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{"placa":"ABC1D23","cnpj_posto":"12345678000199","litros":150.5,"preco_litro":6.85}' \
+  "https://fxgestaodefrotasonline.com/api/v1/abastecimentos"
+""", language="bash")
+                elif _lang == "PHP":
+                    st.code("""<?php
+$api_key = "sua_api_key";
+$base_url = "https://fxgestaodefrotasonline.com/api/v1";
+
+$headers = ["Authorization: Bearer $api_key", "Content-Type: application/json"];
+
+// Listar postos em SP
+$ch = curl_init("$base_url/postos?uf=SP");
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$postos = json_decode(curl_exec($ch), true);
+curl_close($ch);
+?>
+""", language="php")
 
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 
