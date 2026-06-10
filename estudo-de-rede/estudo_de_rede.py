@@ -1498,7 +1498,7 @@ def _db_carregar_abastecimentos() -> list:
             return []
 
 
-@st.cache_data(show_spinner=False, ttl=300)  # 5 min
+@st.cache_data(show_spinner=False, ttl=900)  # 15 min
 def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
     """
     Carrega abastecimentos de TODAS as fontes disponíveis e retorna um
@@ -18833,7 +18833,7 @@ if False:
 # ═══════════════════════════════════════════════════════════════════
 
 # Calcula variação de preços a partir dos abastecimentos reais
-if "pp_variacao_abast" not in st.session_state:
+if "pp_variacao_abast" not in st.session_state or st.session_state.get("_var_abast_ts", 0) < (pd.Timestamp.now().timestamp() - 900):
     try:
         _var_abast_df = _carregar_abastecimentos_unificados(dias=90)
         if not _var_abast_df.empty and "preco_litro" in _var_abast_df.columns:
@@ -18879,8 +18879,10 @@ if "pp_variacao_abast" not in st.session_state:
             _var_grp["Status"] = _var_grp["delta_pct"].apply(
                 lambda x: "🔺 Alta" if x > 0 else "🔻 Queda")
             st.session_state["pp_variacao_abast"] = _var_grp
+            st.session_state["_var_abast_ts"] = pd.Timestamp.now().timestamp()
         else:
             st.session_state["pp_variacao_abast"] = pd.DataFrame()
+            st.session_state["_var_abast_ts"] = pd.Timestamp.now().timestamp()
     except Exception:
         st.session_state["pp_variacao_abast"] = pd.DataFrame()
 
@@ -22985,7 +22987,7 @@ if modo == "📈 Dashboard":
             </div>
         """, unsafe_allow_html=True)
 
-        _ev_abast = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(365))
+        _ev_abast = _abast_dash if not _abast_dash.empty else _carregar_abastecimentos_unificados(dias=_get_periodo_dias(365))
 
         if _ev_abast.empty:
             st.info("ℹ️ Nenhum abastecimento registrado para análise temporal.", icon="📈")
@@ -23077,7 +23079,7 @@ if modo == "📈 Dashboard":
             </div>
         """, unsafe_allow_html=True)
 
-        _cx_abast = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
+        _cx_abast = _abast_dash if not _abast_dash.empty else _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
         _cx_anp_cache = st.session_state.get("_precos_anp_cache", {})
 
         if _cx_abast.empty:
@@ -23161,7 +23163,7 @@ if modo == "📈 Dashboard":
         """, unsafe_allow_html=True)
 
         _d12_rotas    = _carregar_rotas_salvas()
-        _d12_abast_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
+        _d12_abast_df = _abast_dash if not _abast_dash.empty else _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
         _d12_abast    = _d12_abast_df.to_dict("records") if not _d12_abast_df.empty else []
 
         _UF_CENTROID = {
@@ -23258,7 +23260,7 @@ if modo == "📈 Dashboard":
             </div>
         """, unsafe_allow_html=True)
 
-        _ts_abast = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(365))
+        _ts_abast = _abast_dash if not _abast_dash.empty else _carregar_abastecimentos_unificados(dias=_get_periodo_dias(365))
 
         if _ts_abast.empty:
             st.info("ℹ️ Nenhum abastecimento para análise de sazonalidade.", icon="📅")
