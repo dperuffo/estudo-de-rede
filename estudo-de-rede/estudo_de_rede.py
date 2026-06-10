@@ -12724,6 +12724,108 @@ def _fmt_int(v) -> str:
         return str(v)
 
 
+def _doc_tela(modo: str):
+    """Exibe documentação contextual recolhida no topo de cada tela."""
+    _DOCS = {
+        "📍 Por UF/Município": {
+            "objetivo": "Consultar postos de combustível cadastrados na ANP por estado e município, com preços de referência e localização no mapa.",
+            "fonte": "Base ANP (~38.000 postos) carregada do GitHub. Preços: tabela semanal ANP por município/estado/Brasil.",
+            "regras": "Hierarquia de preço: 1º transação real da frota → 2º média ANP do município → 3º média ANP do estado → 4º média ANP Brasil. Filtro: preços GLP acima de R$ 50/L são descartados como erro.",
+            "indicadores": "Bandeiras no mapa: cores por distribuidora (Ipiranga=amarelo, Vibra/BR=verde, Shell=vermelho). Postos visitados pela frota destacados em ciano.",
+        },
+        "🗺️ Por Rota": {
+            "objetivo": "Encontrar os melhores postos ao longo de uma rota entre dois pontos, otimizando custo e desvio de percurso.",
+            "fonte": "Postos ANP com coordenadas + preços ANP de referência + abastecimentos reais da frota.",
+            "regras": "Raio de busca configurável (padrão 5km da rota). Postos ordenados por menor preço dentro do raio. Desvio calculado via Haversine.",
+            "indicadores": "Economia estimada = (preço médio da rota - menor preço encontrado) × volume médio de abastecimento.",
+        },
+        "🔍 Consulta por Posto": {
+            "objetivo": "Buscar um posto específico por nome, CNPJ, cidade ou bandeira e ver seus dados cadastrais e histórico de preços.",
+            "fonte": "Base ANP completa (~38.000 postos). Histórico: abastecimentos reais da frota nos últimos 730 dias.",
+            "regras": "Busca por texto parcial no nome ou CNPJ. Contador 'Postos Gestão Frota' = postos com flag _pro_frotas=True na base.",
+            "indicadores": "Bandeiras e combustíveis disponíveis conforme cadastro ANP. Preços mostram média dos últimos abastecimentos reais.",
+        },
+        "🧭 Roteirização": {
+            "objetivo": "Planejar rotas otimizadas para frotas com múltiplas paradas, minimizando custo de combustível e tempo de viagem.",
+            "fonte": "Postos ANP com coordenadas. Preços ANP de referência por UF. Histórico de abastecimentos da frota.",
+            "regras": "Algoritmo nearest-neighbor para otimização. Consumo estimado configurável por veículo (km/L). Custo = distância ÷ consumo × preço/L.",
+            "indicadores": "Saving estimado = diferença entre custo na rota atual vs rota otimizada com melhores postos.",
+        },
+        "📈 Dashboard": {
+            "objetivo": "Visão consolidada dos abastecimentos reais da frota: cobertura geográfica, postos visitados, evolução de preços e comparativo ANP.",
+            "fonte": "Abastecimentos unificados (uploads manuais + API Pró-Frotas), últimos 90 dias. Referência ANP por UF.",
+            "regras": "Penetração = postos visitados pela frota ÷ total postos ANP por UF × 100%. Alertas de preço: abastecimentos >5% acima da referência ANP. Distribuição A/B/C/D = quartis do preço pago.",
+            "indicadores": "Preço médio pago usa mean(). Gasto total usa sum(). Ticket médio = valor_total ÷ nº abastecimentos. Variações <2% não são exibidas no banner.",
+        },
+        "👥 Análise de Cliente": {
+            "objetivo": "Analisar os abastecimentos de um cliente (frota) específico: consumo, gastos, veículos, motoristas e postos mais utilizados.",
+            "fonte": "Tabela frota_abastecimentos (uploads) + profrotas_abastecimentos (API). Filtrado por empresa_id do tenant.",
+            "regras": "Isolamento por tenant: cada empresa vê apenas seus próprios dados. Consumo km/L calculado por hodômetro quando disponível. Anomalias: desvio >2σ da média do veículo.",
+            "indicadores": "Ticket médio = média do valor por abastecimento. Consumo médio = média ponderada por litros. Eficiência = km percorridos ÷ litros totais.",
+        },
+        "💡 Inteligência": {
+            "objetivo": "Análise avançada de padrões, score de postos, histórico de preços e detecção de oportunidades de economia.",
+            "fonte": "Histórico acumulado de abastecimentos + preços ANP + dados cadastrais dos postos.",
+            "regras": "Score de posto: combina estabilidade de preço (σ baixo), quantidade de visitas, aderência ao ANP e avaliações. Maior score = posto mais confiável.",
+            "indicadores": "Volatilidade = desvio padrão do preço nas últimas N transações. Oportunidade = postos com preço abaixo da média ANP do município.",
+        },
+        "🎯 Recomendador IA": {
+            "objetivo": "Sugerir os melhores postos para a frota com base em localização, preço, histórico de uso e confiabilidade.",
+            "fonte": "Postos ANP + histórico de abastecimentos + score de postos + preços ANP de referência.",
+            "regras": "Ranking: preço (40%) + distância da rota (30%) + score/confiabilidade (20%) + histórico da frota (10%). Postos já utilizados recebem bônus de confiança.",
+            "indicadores": "Economia potencial = (preço atual - preço recomendado) × volume médio × frequência estimada.",
+        },
+        "📑 Relatórios": {
+            "objetivo": "Gerar relatórios analíticos personalizados sobre abastecimentos, manutenções e desempenho da frota, exportáveis em PDF/Excel.",
+            "fonte": "Abastecimentos unificados + manutenções cadastradas. Período configurável pelo usuário.",
+            "regras": "Métricas de média (ticket médio, preço médio, consumo médio) usam mean(). Totais usam sum(). Relatório personalizado permite combinar dimensões × métricas livremente.",
+            "indicadores": "Todos os valores monetários em R$ com padrão BR (ponto milhar, vírgula decimal). Percentuais com 1 casa decimal.",
+        },
+        "💹 Variação de Preços": {
+            "objetivo": "Detectar automaticamente variações significativas de preço nos abastecimentos reais da frota nos últimos 90 dias.",
+            "fonte": "Abastecimentos unificados dos últimos 90 dias. Comparação entre os 2 abastecimentos mais recentes por posto + combustível.",
+            "regras": "Variação mínima exibida: ≥2%. Variações >100% são filtradas como dados inconsistentes. Preços zerados ou negativos são ignorados.",
+            "indicadores": "Delta % = (preço atual - preço anterior) ÷ preço anterior × 100. Alta = delta>0, Queda = delta<0.",
+        },
+        "🛰️ Telemetria": {
+            "objetivo": "Monitorar em tempo real a posição, velocidade e status dos veículos da frota integrados via GPS/telemetria.",
+            "fonte": "API de telemetria configurada por tenant. Dados atualizados conforme frequência do dispositivo GPS.",
+            "regras": "Velocidade acima do limite configurado gera alerta. Paradas prolongadas (>N minutos) geram evento. Isolamento por tenant garantido.",
+            "indicadores": "Odômetro acumulado por veículo. Consumo real calculado quando hodômetro disponível.",
+        },
+        "⚡ API & Integrações": {
+            "objetivo": "Gerenciar integrações com sistemas externos (Ticket Log, Rede Frota, Veloe, Pró-Frotas) e configurar webhooks e API keys.",
+            "fonte": "Configurações por tenant armazenadas no Supabase. Logs de sincronização disponíveis.",
+            "regras": "Cada tenant tem suas próprias API keys isoladas. Webhooks disparam em eventos configurados. Rate limit: 100 req/hora por tenant.",
+            "indicadores": "Status da última sincronização. Total de registros importados por fonte.",
+        },
+        "🛡️ Admin": {
+            "objetivo": "Painel de administração para gerenciar usuários, empresas, permissões, domínios corporativos e logs de atividade.",
+            "fonte": "Tabelas usuarios_app, usuarios_empresas, access_control no Supabase.",
+            "regras": "Somente perfil admin tem acesso. Gestores de tenant editam apenas usuários do próprio tenant. Logs registram todas as ações administrativas.",
+            "indicadores": "Usuários ativos = mfa_habilitado + ativo=true. Logs filtrados por tenant quando aplicável.",
+        },
+    }
+
+    _doc = _DOCS.get(modo)
+    if not _doc:
+        return
+
+    with st.expander("❓ Como funciona esta tela", expanded=False):
+        _d1, _d2 = st.columns(2)
+        with _d1:
+            st.markdown(f"**🎯 Objetivo**")
+            st.caption(_doc["objetivo"])
+            st.markdown(f"**📊 Fonte dos dados**")
+            st.caption(_doc["fonte"])
+        with _d2:
+            st.markdown(f"**⚙️ Regras de cálculo**")
+            st.caption(_doc["regras"])
+            if _doc.get("indicadores"):
+                st.markdown(f"**📌 Indicadores**")
+                st.caption(_doc["indicadores"])
+
+
 def _anp_preco_brasil(sheets, pk):
     """Extrai o preço médio nacional (aba BRASIL) para um produto pk.
     Retorna float ou None.
@@ -19004,6 +19106,7 @@ _fuel_sel_m2          = st.session_state.get("_fuel_sel_m2", "— Todos —")
 _preco_faixa_m2       = st.session_state.get("_preco_faixa_m2", None)
 
 if modo == "📍 Por UF/Município":
+    _doc_tela("📍 Por UF/Município")
     _render_filtros_inteligentes(modo)
 
     if uf:
@@ -20370,6 +20473,7 @@ if modo == "📍 Por UF/Município":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🗺️ Por Rota":
+    _doc_tela("🗺️ Por Rota")
     _render_filtros_inteligentes(modo)
 
     _auto_rota = st.session_state.pop("_auto_buscar_rota", False)
@@ -20843,6 +20947,7 @@ elif modo == "🗺️ Por Rota":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🔍 Consulta por Posto":
+    _doc_tela("🔍 Consulta por Posto")
     _render_filtros_inteligentes(modo)
 
     _m3_termo  = st.session_state.get("_m3_termo", "")
@@ -21694,6 +21799,7 @@ _UF_NOME_DASH = {
 }
 
 if modo == "📈 Dashboard":
+    _doc_tela("📈 Dashboard")
     _render_filtros_inteligentes(modo)
 
     # ── Fonte de dados: abastecimentos reais + ANP ───────────────────
@@ -23335,6 +23441,7 @@ if modo == "📈 Dashboard":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "💡 Inteligência":
+    _doc_tela("💡 Inteligência")
     _render_filtros_inteligentes(modo)
 
     st.markdown("""
@@ -23569,6 +23676,7 @@ elif modo == "💡 Inteligência":
             else:
                 st.success("Nenhum alerta detectado. Precos dentro da referencia ANP.")
 elif modo == "🛡️ Admin":
+    _doc_tela("🛡️ Admin")
     if not _auth_tem_permissao("aba_admin"):
         st.error("🚫 Acesso restrito a administradores.")
         st.stop()
@@ -24102,6 +24210,7 @@ elif modo == "🛡️ Admin":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🧭 Roteirização":
+    _doc_tela("🧭 Roteirização")
     _render_filtros_inteligentes(modo)
 
     # ── Dados do veículo (definidos no sidebar) ─────────────────────
@@ -25458,6 +25567,7 @@ elif modo == "📚 Documentação":
 #  MODO — Recomendador IA
 # ═══════════════════════════════════════════════════════════════════
 elif modo == "🎯 Recomendador IA":
+    _doc_tela("🎯 Recomendador IA")
     _render_filtros_inteligentes(modo)
     import numpy as _np_rec
 
@@ -26021,6 +26131,7 @@ elif modo == "🎯 Recomendador IA":
 #  MODO — Variação de Preços
 # ═══════════════════════════════════════════════════════════════════
 elif modo == "💹 Variação de Preços":
+    _doc_tela("💹 Variação de Preços")
     _render_filtros_inteligentes(modo)
 
     _vp_df = st.session_state.get("_pp_variacao")
@@ -26361,6 +26472,7 @@ elif modo == "💹 Variação de Preços":
 #  MODO — Análise de Cliente (Frota)
 # ═══════════════════════════════════════════════════════════════════
 elif modo == "👥 Análise de Cliente":
+    _doc_tela("👥 Análise de Cliente")
     _render_filtros_inteligentes(modo)
     import pandas as _pd
     import numpy as _np
@@ -29282,6 +29394,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "📑 Relatórios":
+    _doc_tela("📑 Relatórios")
     _render_filtros_inteligentes(modo)
 
     import calendar as _calendar_mod
@@ -30855,6 +30968,7 @@ elif modo == "📑 Relatórios":
 # ═══════════════════════════════════════════════════════════════════
 
 elif modo == "🛰️ Telemetria":
+    _doc_tela("🛰️ Telemetria")
     _render_filtros_inteligentes(modo)
 
     # ── Inicializa session state de telemetria ───────────────────────
@@ -32026,6 +32140,7 @@ elif modo == "🛰️ Telemetria":
 
 
 elif modo == "⚡ API & Integrações":
+    _doc_tela("⚡ API & Integrações")
     _render_filtros_inteligentes(modo)
 
     import urllib.parse as _urlparse
