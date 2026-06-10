@@ -18845,19 +18845,25 @@ if "pp_variacao_abast" not in st.session_state:
             _var_abast_df = _var_abast_df.sort_values("data_abastecimento")
 
             # Pega os 2 abastecimentos mais recentes por posto+combustível
+            # Adiciona cidade e uf para exibição
+            _grp_cols = ["cnpj_posto","nome_posto","produto"]
+            _extra_cols = [c for c in ["cidade_posto","uf_posto"] if c in _var_abast_df.columns]
+
+            _var_tail = _var_abast_df.groupby(_grp_cols).tail(2)
             _var_grp = (
-                _var_abast_df
-                .groupby(["cnpj_posto","nome_posto","produto"])
-                .tail(2)
-                .groupby(["cnpj_posto","nome_posto","produto"])
+                _var_tail
+                .groupby(_grp_cols)
                 .agg(
                     preco_ant=("preco_litro", "first"),
                     preco_atu=("preco_litro", "last"),
                     data_atu=("data_abastecimento", "last"),
+                    **{c: (c, "first") for c in _extra_cols}
                 )
                 .reset_index()
             )
             _var_grp = _var_grp[_var_grp["preco_ant"] != _var_grp["preco_atu"]]
+            # Filtra preços zerados ou negativos para evitar divisão inválida
+            _var_grp = _var_grp[(_var_grp["preco_ant"] > 0) & (_var_grp["preco_atu"] > 0)]
             _var_grp["delta_pct"] = (
                 (_var_grp["preco_atu"] - _var_grp["preco_ant"]) /
                 _var_grp["preco_ant"] * 100
@@ -18865,8 +18871,11 @@ if "pp_variacao_abast" not in st.session_state:
             _var_grp["delta_rs"] = (
                 _var_grp["preco_atu"] - _var_grp["preco_ant"]
             ).round(4)
-            # Só mostra variações acima de 2%
-            _var_grp = _var_grp[_var_grp["delta_pct"].abs() >= 2.0]
+            # Só mostra variações entre 2% e 100% (filtra dados inconsistentes)
+            _var_grp = _var_grp[
+                (_var_grp["delta_pct"].abs() >= 2.0) &
+                (_var_grp["delta_pct"].abs() <= 100.0)
+            ]
             _var_grp["Status"] = _var_grp["delta_pct"].apply(
                 lambda x: "🔺 Alta" if x > 0 else "🔻 Queda")
             st.session_state["pp_variacao_abast"] = _var_grp
@@ -18924,10 +18933,17 @@ if _var_df_global is not None and not _var_df_global.empty:
                     unsafe_allow_html=True,
                 )
                 for _r in _top_alta.to_dict("records"):
-                    _nm = (str(_r["nome_posto"])[:28] + "…") if len(str(_r["nome_posto"])) > 28 else str(_r["nome_posto"])
+                    _nm = (str(_r["nome_posto"])[:30] + "…") if len(str(_r["nome_posto"])) > 30 else str(_r["nome_posto"])
+                    _loc = " · ".join(filter(None, [
+                        str(_r.get("cnpj_posto",""))[:18] or None,
+                        str(_r.get("cidade_posto","")) or None,
+                        str(_r.get("uf_posto","")) or None,
+                    ]))
                     st.markdown(
                         f"<small>• <b>{_nm}</b> ({_r['produto']}) "
-                        f"+R$ {_br_num(_r['delta_rs'], 3)}/L ({_r['delta_pct']:+.1f}%)</small>",
+                        f"+R$ {_br_num(_r['delta_rs'], 3)}/L ({_r['delta_pct']:+.1f}%)"
+                        + (f"<br>&nbsp;&nbsp;&nbsp;<span style='color:#aaa'>{_loc}</span>" if _loc else "")
+                        + "</small>",
                         unsafe_allow_html=True,
                     )
         with _bc2:
@@ -18937,10 +18953,17 @@ if _var_df_global is not None and not _var_df_global.empty:
                     unsafe_allow_html=True,
                 )
                 for _r in _top_queda.to_dict("records"):
-                    _nm = (str(_r["nome_posto"])[:28] + "…") if len(str(_r["nome_posto"])) > 28 else str(_r["nome_posto"])
+                    _nm = (str(_r["nome_posto"])[:30] + "…") if len(str(_r["nome_posto"])) > 30 else str(_r["nome_posto"])
+                    _loc = " · ".join(filter(None, [
+                        str(_r.get("cnpj_posto",""))[:18] or None,
+                        str(_r.get("cidade_posto","")) or None,
+                        str(_r.get("uf_posto","")) or None,
+                    ]))
                     st.markdown(
                         f"<small>• <b>{_nm}</b> ({_r['produto']}) "
-                        f"−R$ {_br_num(abs(_r['delta_rs']), 3)}/L ({_r['delta_pct']:+.1f}%)</small>",
+                        f"−R$ {_br_num(abs(_r['delta_rs']), 3)}/L ({_r['delta_pct']:+.1f}%)"
+                        + (f"<br>&nbsp;&nbsp;&nbsp;<span style='color:#aaa'>{_loc}</span>" if _loc else "")
+                        + "</small>",
                         unsafe_allow_html=True,
                     )
 
@@ -21671,59 +21694,71 @@ _UF_NOME_DASH = {
 if modo == "📈 Dashboard":
     _render_filtros_inteligentes(modo)
 
-    _pf_dash  = st.session_state.get("pf_coords_df", pd.DataFrame())
-    _pp_dash  = st.session_state.get("_pp_df")
-    # Guard: não recalcula se os dados não mudaram desde o último render
-    _dash_hash = (len(_pf_dash), id(_pp_dash))
-    if st.session_state.get("_dash_last_hash") == _dash_hash and st.session_state.get("_dash_rendered"):
-        pass  # dados idênticos — permite reruns leves (filtros) sem recalcular tudo
+    # ── Fonte de dados: abastecimentos reais + ANP ───────────────────
+    _dias_ativo  = _get_periodo_dias(90)
+    _abast_dash  = _carregar_abastecimentos_unificados(dias=_dias_ativo)
+    _anp_dash    = st.session_state.get("postos_anp_df", pd.DataFrame())
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
         "background:linear-gradient(135deg,#040d26,#0b2660,#1040a0,#1565C0);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "📈 Dashboard Analítico GF</h2>"
+        "📈 Dashboard Analítico de Abastecimentos</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 14px'>"
-        "KPIs de cobertura geográfica e penetração da rede GF nos estados brasileiros.</p>",
+        "KPIs de cobertura geográfica e análise dos abastecimentos reais da frota.</p>",
         unsafe_allow_html=True,
     )
 
-    # Exibe período ativo dos filtros de abastecimento
-    _dias_ativo = _get_periodo_dias(90)
     st.caption(
-        f"⏱️ Período de análise (abastecimentos): **últimos {_dias_ativo} dias** "
+        f"⏱️ Período de análise: **últimos {_dias_ativo} dias** "
         f"— baseado em `data_abastecimento`. Altere com os chips de filtro acima."
     )
 
-    if _pf_dash.empty:
+    if _abast_dash.empty:
         st.warning(
-            "⚠️ Nenhum dado GF carregado. "
-            "Importe a planilha de postos em **Configurações** para visualizar o dashboard."
+            "⚠️ Nenhum abastecimento registrado no período. "
+            "Importe abastecimentos via **Análise de Cliente** ou integre via API."
         )
     else:
         # ── Pré-processamento ─────────────────────────────────────────────
-        _df = _pf_dash.copy()
-        _df["uf"] = _df["uf"].fillna("").str.strip().str.upper()
-        _df["municipio"] = _df["municipio"].fillna("").str.strip()
-        _df_valid = _df[_df["uf"].isin(_ANP_REF_UF.keys())]
+        _df = _abast_dash.copy()
+        _uf_col   = next((c for c in ["uf_posto","_uf_posto"] if c in _df.columns), None)
+        _mun_col  = next((c for c in ["cidade_posto","municipio_posto"] if c in _df.columns), None)
+        _cnpj_col = next((c for c in ["cnpj_posto","_cnpj_posto"] if c in _df.columns), None)
+        _lat_col  = next((c for c in ["lat_posto","_lat_posto","lat"] if c in _df.columns), None)
+        _lon_col  = next((c for c in ["lon_posto","_lon_posto","lon"] if c in _df.columns), None)
 
-        _total_gf    = len(_df)
-        _valid_coord = int(_df[pd.notna(_df["_lat"]) & pd.notna(_df["_lon"])].shape[0])
+        if _uf_col:
+            _df["uf"] = _df[_uf_col].fillna("").str.strip().str.upper()
+        else:
+            _df["uf"] = ""
+        if _mun_col:
+            _df["municipio"] = _df[_mun_col].fillna("").str.strip()
+        else:
+            _df["municipio"] = ""
+
+        _df_valid    = _df[_df["uf"].isin(_ANP_REF_UF.keys())]
+        _postos_uniq = _df_valid.drop_duplicates(subset=[_cnpj_col]) if _cnpj_col else _df_valid
+        _total_gf    = _postos_uniq[_cnpj_col].nunique() if _cnpj_col else len(_df_valid)
         _total_ufs   = int(_df_valid["uf"].nunique())
         _total_mun   = int(_df_valid["municipio"].replace("", pd.NA).dropna().nunique())
         _cobertura_br= round(_total_ufs / 27 * 100, 1)
+        _total_abast = len(_df_valid)
+        _valid_coord = int(_df_valid[
+            pd.notna(_df_valid[_lat_col]) & pd.notna(_df_valid[_lon_col])
+        ].shape[0]) if (_lat_col and _lon_col) else 0
 
         # ── KPIs — linha 1 ───────────────────────────────────────────────
         _k1, _k2, _k3, _k4, _k5 = st.columns(5)
         for _col, _lbl, _val, _delta in [
-            (_k1, "⛽ Postos GF",          _fmt_int(_total_gf), None),
-            (_k2, "📍 Com Coordenadas",    _fmt_int(_valid_coord),
-             f"{_valid_coord/_total_gf*100:.0f}% do total"),
+            (_k1, "⛽ Postos Visitados",   _fmt_int(_total_gf), None),
+            (_k2, "📋 Abastecimentos",     _fmt_int(_total_abast),
+             f"últimos {_dias_ativo} dias"),
             (_k3, "🗺️ Estados Cobertos",  f"{_total_ufs} / 27",
              f"{_cobertura_br:.0f}% do Brasil"),
             (_k4, "🏙️ Municípios",        _fmt_int(_total_mun), None),
             (_k5, "📊 Média por UF",
-             _fmt_int(_total_gf / _total_ufs) if _total_ufs else "—", None),
+             _fmt_int(_total_abast / _total_ufs) if _total_ufs else "—", None),
         ]:
             _col.metric(_lbl, _val, _delta)
 
@@ -21750,32 +21785,36 @@ if modo == "📈 Dashboard":
         # TAB 1 — Cobertura por Estado
         # ──────────────────────────────────────────────────────────────────
         with _dt1:
+            # Agrupa abastecimentos reais por UF
             _uf_cnt = (
-                _df_valid.groupby("uf").size().reset_index(name="postos_gf")
-                .sort_values("postos_gf", ascending=False)
+                _df_valid.groupby("uf").agg(
+                    abastecimentos=("uf", "size"),
+                    postos=(_cnpj_col, "nunique") if _cnpj_col else ("uf", "size"),
+                    municipios=("municipio", lambda x: x.replace("", pd.NA).dropna().nunique()),
+                ).reset_index().sort_values("abastecimentos", ascending=False)
             )
             _uf_cnt["uf_nome"] = _uf_cnt["uf"].map(_UF_NOME_DASH).fillna(_uf_cnt["uf"])
 
-            # Gráfico de barras horizontal — ranking
+            # Gráfico de barras horizontal — ranking por abastecimentos
             _fig_bar = go.Figure()
             _colors_bar = [
-                "#0D47A1" if v >= _uf_cnt["postos_gf"].quantile(0.75) else
-                "#1976D2" if v >= _uf_cnt["postos_gf"].median() else
+                "#0D47A1" if v >= _uf_cnt["abastecimentos"].quantile(0.75) else
+                "#1976D2" if v >= _uf_cnt["abastecimentos"].median() else
                 "#90CAF9"
-                for v in _uf_cnt["postos_gf"]
+                for v in _uf_cnt["abastecimentos"]
             ]
             _fig_bar.add_trace(go.Bar(
                 y=_uf_cnt["uf_nome"],
-                x=_uf_cnt["postos_gf"],
+                x=_uf_cnt["abastecimentos"],
                 orientation="h",
                 marker_color=_colors_bar,
-                text=_uf_cnt["postos_gf"].astype(str),
+                text=_uf_cnt["abastecimentos"].astype(str),
                 textposition="outside",
-                hovertemplate="<b>%{y}</b><br>Postos GF: %{x}<extra></extra>",
+                hovertemplate="<b>%{y}</b><br>Abastecimentos: %{x}<extra></extra>",
             ))
             _fig_bar.update_layout(
-                title="Ranking de Postos GF por Estado",
-                xaxis_title="Quantidade de Postos GF",
+                title="Ranking de Abastecimentos por Estado",
+                xaxis_title="Quantidade de Abastecimentos",
                 yaxis=dict(autorange="reversed"),
                 height=max(400, len(_uf_cnt) * 22 + 80),
                 margin=dict(l=10, r=60, t=45, b=30),
@@ -21789,14 +21828,12 @@ if modo == "📈 Dashboard":
             # Tabela detalhada
             st.markdown("##### Detalhamento por Estado")
             _uf_det = _uf_cnt.copy()
-            _uf_det["% do Total GF"] = (_uf_det["postos_gf"] / _total_gf * 100).round(1).astype(str) + "%"
-            _uf_det["Municípios GF"] = _uf_det["uf"].apply(
-                lambda u: int(_df_valid[_df_valid["uf"]==u]["municipio"]
-                              .replace("", pd.NA).dropna().nunique())
-            )
+            _uf_det["% do Total"] = (_uf_det["abastecimentos"] / _total_abast * 100).round(1).astype(str) + "%"
             _uf_det = _uf_det.rename(columns={
-                "uf": "UF", "uf_nome": "Estado", "postos_gf": "Postos GF"
-            })[["UF","Estado","Postos GF","% do Total GF","Municípios GF"]]
+                "uf": "UF", "uf_nome": "Estado",
+                "abastecimentos": "Abastecimentos", "postos": "Postos Visitados",
+                "municipios": "Municípios"
+            })[["UF","Estado","Abastecimentos","% do Total","Postos Visitados","Municípios"]]
             st.dataframe(_uf_det.reset_index(drop=True), use_container_width=True, height=350)
 
         # ──────────────────────────────────────────────────────────────────
