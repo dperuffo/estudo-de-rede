@@ -16343,13 +16343,13 @@ with st.sidebar:
     st.markdown("<div class='nav-group-header'>🗺️ Rede de Postos</div>",
                 unsafe_allow_html=True)
 
-    _nav_btn("Consulta por UF / Município", "📍 Por UF/Município", "uf")
-    _nav_btn("Consulta por Rota",           "🗺️ Por Rota",          "rota")
-    _nav_btn("Busca por Posto",             "🔍 Consulta por Posto","busca")
-    _nav_btn("Roteirização",                "🧭 Roteirização",       "roteirizacao")
+    _nav_btn("📍 Consulta por UF / Município", "📍 Por UF/Município", "uf")
+    _nav_btn("🗺️ Consulta por Rota",           "🗺️ Por Rota",          "rota")
+    _nav_btn("🔍 Busca por Posto",             "🔍 Consulta por Posto","busca")
+    _nav_btn("🧭 Roteirização",                "🧭 Roteirização",       "roteirizacao")
 
     _n_rotas_sb = len(_carregar_rotas_salvas())
-    _label_rotas = f"Rotas Salvas{f' ({_n_rotas_sb})' if _n_rotas_sb else ''}"
+    _label_rotas = f"🔖 Rotas Salvas{f' ({_n_rotas_sb})' if _n_rotas_sb else ''}"
     _nav_btn(_label_rotas, "🔖 Rotas Salvas", "rotas_salvas")
 
     # ── Parâmetros de consulta — renderizados conforme o modo ────────
@@ -16663,30 +16663,30 @@ with st.sidebar:
                 unsafe_allow_html=True)
 
     if _auth_tem_permissao("aba_analise_cliente"):
-        _nav_btn("Análise de Cliente",    "👥 Análise de Cliente",    "analise_cliente")
+        _nav_btn("👥 Análise de Cliente",    "👥 Análise de Cliente",    "analise_cliente")
     if _auth_tem_permissao("aba_dashboard"):
-        _nav_btn("Dashboard",             "📈 Dashboard",             "dashboard")
+        _nav_btn("📈 Dashboard",             "📈 Dashboard",             "dashboard")
     if _auth_tem_permissao("aba_variacao_precos"):
-        _var_badge = " 🔔" if (st.session_state.get("_pp_variacao") is not None
-                               and not st.session_state["_pp_variacao"].empty) else ""
-        _nav_btn(f"Variação de Preços{_var_badge}", "💹 Variação de Preços", "variacao_precos")
+        _var_badge = " 🔔" if (st.session_state.get("pp_variacao_abast") is not None
+                               and not st.session_state["pp_variacao_abast"].empty) else ""
+        _nav_btn(f"💹 Variação de Preços{_var_badge}", "💹 Variação de Preços", "variacao_precos")
     if _auth_tem_permissao("aba_inteligencia"):
-        _nav_btn("Inteligência",          "💡 Inteligência",          "inteligencia")
+        _nav_btn("💡 Inteligência",          "💡 Inteligência",          "inteligencia")
     if _auth_tem_permissao("aba_recomendador"):
-        _nav_btn("Recomendador IA",       "🎯 Recomendador IA",       "recomendador")
+        _nav_btn("🎯 Recomendador IA",       "🎯 Recomendador IA",       "recomendador")
     if _auth_tem_permissao("aba_relatorios"):
-        _nav_btn("Relatórios",            "📑 Relatórios",            "relatorios")
+        _nav_btn("📑 Relatórios",            "📑 Relatórios",            "relatorios")
     if _auth_tem_permissao("aba_telemetria"):
-        _nav_btn("Telemetria",            "🛰️ Telemetria",            "telemetria")
+        _nav_btn("🛰️ Telemetria",            "🛰️ Telemetria",            "telemetria")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
     # ── ITENS AVULSOS ──────────────────────────────────────────────
     if _auth_tem_permissao("aba_api_integracoes"):
-        _nav_btn("API & Integrações",     "⚡ API & Integrações",     "api_integracoes")
+        _nav_btn("⚡ API & Integrações",     "⚡ API & Integrações",     "api_integracoes")
     if _auth_tem_permissao("aba_admin"):
-        _nav_btn("Admin",                 "🛡️ Admin",                 "admin")
-    _nav_btn("Documentação",              "📚 Documentação",           "documentacao")
+        _nav_btn("🛡️ Admin",                 "🛡️ Admin",                 "admin")
+    _nav_btn("📚 Documentação",              "📚 Documentação",           "documentacao")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
