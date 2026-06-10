@@ -22104,12 +22104,16 @@ if modo == "📈 Dashboard":
                 # ── 1. Cruzar preços GF com dados do posto (municipio/uf) ──
                 # _pp_alert colunas: cnpj_norm, combustivel_pk, combustivel_label, preco
                 # _pf_dash   colunas: cnpj, municipio, uf, razaoSocial, distribuidora
-                _pf_info = _pf_dash[["cnpj", "municipio", "uf", "razaoSocial"]].copy() \
-                    if "cnpj" in _pf_dash.columns else pd.DataFrame()
+                # Usa abastecimentos reais como fonte de localização dos postos
+                _pf_info = (
+                    _abast_dash[["cnpj_posto","cidade_posto","uf_posto","nome_posto"]]
+                    .drop_duplicates("cnpj_posto")
+                    .rename(columns={"cnpj_posto":"cnpj","cidade_posto":"municipio",
+                                     "uf_posto":"uf","nome_posto":"razaoSocial"})
+                ) if not _abast_dash.empty and "cnpj_posto" in _abast_dash.columns else pd.DataFrame()
 
                 if _pf_info.empty:
-                    st.warning("⚠️ Sem dados de localização dos postos GF (municipio/uf). "
-                               "Reimporte a planilha de postos.")
+                    st.warning("⚠️ Sem dados de abastecimentos para cruzar com alertas de preço.")
                 else:
                     _merged = _pp_alert.merge(
                         _pf_info, left_on="cnpj_norm", right_on="cnpj", how="inner"
