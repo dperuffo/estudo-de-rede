@@ -33840,11 +33840,14 @@ elif modo == "📑 Relatórios":
 
                 # ── KPIs resumo ────────────────────────────────────
                 _kpi_cols = st.columns(min(len(_rp_mets_cur), 4))
+                # IDs de métricas que devem usar média no totalizador
+                _MIDS_MEDIA = {"ticket_med", "preco_med", "consumo", "man_custo_med", "neg_preco_neg", "neg_desc_pct"}
                 for _ki, (_mid2, _mlbl2, _mfmt2) in enumerate(_rp_mets_cur[:4]):
                     if _mlbl2 in _rp_result.columns:
-                        _kv = pd.to_numeric(_rp_result[_mlbl2], errors="coerce").sum()
+                        _serie = pd.to_numeric(_rp_result[_mlbl2], errors="coerce")
+                        _kv = _serie.mean() if _mid2 in _MIDS_MEDIA else _serie.sum()
                         if _mfmt2 == "int":   _kvs = _br_num(_kv, 0)
-                        elif _mfmt2 == "pct": _kvs = f"{_br_num(_kv/len(_rp_result),2)}%"
+                        elif _mfmt2 == "pct": _kvs = f"{_br_num(_kv, 2)}%"
                         elif _mfmt2 in ("money","money3"): _kvs = _br_moeda(_kv)
                         else:                 _kvs = _br_num(_kv, 1)
                         _kpi_cols[_ki].metric(_mlbl2, _kvs)
