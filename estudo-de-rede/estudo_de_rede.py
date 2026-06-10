@@ -23386,1356 +23386,180 @@ if modo == "📈 Dashboard":
     # TAB 11 — 🔀 Cruzamentos Avançados
     # ══════════════════════════════════════════════════════════════════════════
     with _dt11:
-        # ── Header ───────────────────────────────────────────────────────────
-        st.markdown(
-            """
+        st.markdown("""
             <div style="background:linear-gradient(90deg,#040d26,#1040a0);
                         border-radius:10px;padding:18px 24px;margin-bottom:20px;">
               <h3 style="color:#fff;margin:0;font-size:1.25rem;">
                 🔀 Cruzamentos Avançados — Preço × Localização × Concorrência
               </h3>
               <p style="color:#a8c4f0;margin:4px 0 0;font-size:.85rem;">
-                Regiões caras vs baratas · Clusters de oportunidade · GF vs ANP por UF
+                Regiões caras vs baratas · Clusters de oportunidade · Abastecimentos vs ANP por UF
               </p>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        """, unsafe_allow_html=True)
 
-        # ── Carrega fontes de dados ──────────────────────────────────────────
-        _cx_pp_raw    = st.session_state.get("_pp_df")
-        _cx_pf_df     = st.session_state.get("pf_coords_df", pd.DataFrame())
+        _cx_abast = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
         _cx_anp_cache = st.session_state.get("_precos_anp_cache", {})
-        _cx_sheets    = _cx_anp_cache.get("sheets")
 
-        # Enriquece _pp_df com uf/municipio/lat/lon vindos de pf_coords_df
-        _cx_pp_df = _cx_pp_raw
-        if _cx_pp_raw is not None and not _cx_pp_raw.empty \
-                and not _cx_pf_df.empty and "cnpj_norm" in _cx_pf_df.columns:
-            _cx_geo_cols = [c for c in
-                            ["cnpj_norm", "uf", "municipio",
-                             "_lat", "_lon", "lat", "lon", "razaoSocial"]
-                            if c in _cx_pf_df.columns]
-            _cx_geo = _cx_pf_df[_cx_geo_cols].drop_duplicates("cnpj_norm").copy()
-            # normaliza nomes de lat/lon
-            _cx_geo.rename(columns={"_lat": "lat", "_lon": "lon"}, inplace=True)
-            _cx_pp_df = _cx_pp_raw.merge(_cx_geo, on="cnpj_norm", how="left")
-
-        _cx_tem_pp  = _cx_pp_df is not None and not _cx_pp_df.empty
-        _cx_tem_anp = bool(_cx_sheets)
-
-        if not _cx_tem_pp:
-            st.info(
-                "Carregue a planilha de Preço Posto em **Configurações** "
-                "para habilitar os cruzamentos analíticos.",
-                icon="🔀",
-            )
+        if _cx_abast.empty:
+            st.info("ℹ️ Nenhum abastecimento registrado. Importe dados para ver os cruzamentos.")
         else:
-            # ── Seletor de combustível (global para o tab) ───────────────────
-            _cx_fuels = sorted(
-                _cx_pp_df["combustivel_pk"].dropna().unique().tolist()
-            )
-            _cx_fuel_labels = {
-                f: (_cx_pp_df.loc[_cx_pp_df["combustivel_pk"] == f, "combustivel_label"]
-                    .iloc[0] if "combustivel_label" in _cx_pp_df.columns else f)
-                for f in _cx_fuels
-            }
-            _cx_flt_col, _cx_info_col = st.columns([2, 5])
-            with _cx_flt_col:
-                _cx_fuel_sel = st.selectbox(
-                    "⛽ Combustível para análise",
-                    options=_cx_fuels,
-                    format_func=lambda f: _cx_fuel_labels.get(f, f),
-                    key="cx_fuel_sel",
-                )
+            _cx_df = _cx_abast.copy()
+            _cx_uf  = next((c for c in ["uf_posto","_uf_posto"] if c in _cx_df.columns), None)
+            _cx_pr  = next((c for c in ["preco_litro","_preco_litro"] if c in _cx_df.columns), None)
+            _cx_pr2 = next((c for c in ["produto","combustivel"] if c in _cx_df.columns), None)
+            _cx_mun = next((c for c in ["cidade_posto","municipio_posto"] if c in _cx_df.columns), None)
+            _cx_cnj = next((c for c in ["cnpj_posto","_cnpj_posto"] if c in _cx_df.columns), None)
 
-            with _cx_info_col:
-                if not _cx_tem_anp:
-                    st.warning(
-                        "⚠️ Planilha ANP não carregada — análise GF vs Concorrência ficará limitada. "
-                        "Carregue a ANP em **Configurações → Dados ANP** para habilitar o cruzamento completo.",
-                        icon="📋",
-                    )
+            if _cx_uf: _cx_df["uf"] = _cx_df[_cx_uf].fillna("").str.strip().str.upper()
+            if _cx_mun: _cx_df["municipio"] = _cx_df[_cx_mun].fillna("").str.strip()
 
-            # Filtra por combustível selecionado
-            _cx_filt = _cx_pp_df[_cx_pp_df["combustivel_pk"] == _cx_fuel_sel].copy()
-            _cx_filt["preco"] = pd.to_numeric(
-                _cx_filt["preco"] if "preco" in _cx_filt.columns else pd.Series(dtype=float),
-                errors="coerce",
-            )
-            if "uf" not in _cx_filt.columns:
-                _cx_filt["uf"] = None
-            if "municipio" not in _cx_filt.columns:
-                _cx_filt["municipio"] = None
-            if "lat" not in _cx_filt.columns:
-                _cx_filt["lat"] = None
-            if "lon" not in _cx_filt.columns:
-                _cx_filt["lon"] = None
-            _cx_filt = _cx_filt.dropna(subset=["preco"])
-            _cx_filt = _cx_filt[_cx_filt["uf"].notna()]
-
-            # Preço ANP por UF para o combustível selecionado
-            _cx_anp_por_uf: dict = {}
-            _cx_anp_brasil: float | None = None
-            if _cx_tem_anp:
-                _cx_all_ufs = _cx_filt["uf"].dropna().unique().tolist()
-                try:
-                    _cx_anp_raw = _anp_precos_por_fuel_por_uf(_cx_sheets, _cx_all_ufs)
-                    _cx_fuel_anp = _PP_PARA_ANK = _PP_PARA_ANP_PK.get(_cx_fuel_sel, _cx_fuel_sel)
-                    _cx_anp_por_uf = _cx_anp_raw.get(_cx_fuel_anp, {})
-                    if not _cx_anp_por_uf:
-                        _cx_anp_por_uf = _cx_anp_raw.get(_cx_fuel_sel, {})
-                    _cx_anp_brasil_d = _anp_precos_por_fuel_brasil(_cx_sheets)
-                    _cx_anp_brasil = (
-                        _cx_anp_brasil_d.get(_cx_fuel_anp)
-                        or _cx_anp_brasil_d.get(_cx_fuel_sel)
-                    )
-                except Exception:
-                    pass
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            # ── Sub-abas ─────────────────────────────────────────────────────
-            _cx_t1, _cx_t2, _cx_t3, _cx_t4 = st.tabs([
-                "🗺️ Regiões caras vs baratas",
-                "🎯 Clusters de oportunidade",
-                "⚖️ GF vs Concorrência",
-                "🚛 Frota Real",
+            _cx_t1, _cx_t2, _cx_t3 = st.tabs([
+                "🌡️ Regiões Caras vs Baratas",
+                "🎯 Clusters de Oportunidade",
+                "📊 Abastecimentos vs ANP por UF",
             ])
 
-            # ================================================================
-            # SUB-ABA 1 — Regiões caras vs baratas
-            # ================================================================
             with _cx_t1:
-                st.markdown("##### 🗺️ Preço médio GF por UF")
-                st.caption(
-                    "Quanto cada estado está pagando em média no combustível selecionado "
-                    "nos postos credenciados à frota."
-                )
-
-                _cx_reg = (
-                    _cx_filt.groupby("uf")["preco"]
-                    .agg(media="mean", n="count", std="std", minv="min", maxv="max")
-                    .reset_index()
-                    .rename(columns={"media": "preco_medio", "n": "postos", "std": "variacao",
-                                     "minv": "minimo", "maxv": "maximo"})
-                    .sort_values("preco_medio", ascending=False)
-                )
-
-                if _cx_reg.empty:
-                    st.info("Sem dados de preço por UF para este combustível.", icon="🗺️")
-                else:
-                    _med_geral = _cx_reg["preco_medio"].mean()
-                    _p25 = _cx_reg["preco_medio"].quantile(0.25)
-                    _p75 = _cx_reg["preco_medio"].quantile(0.75)
-
-                    # Cor por quartil
-                    def _cor_preco(v):
-                        if v >= _p75:
-                            return "#e53935"   # caro
-                        elif v <= _p25:
-                            return "#43a047"   # barato
-                        else:
-                            return "#f57c00"   # médio
-
-                    _cx_reg["cor"] = _cx_reg["preco_medio"].apply(_cor_preco)
-                    _cx_reg["categoria"] = _cx_reg["preco_medio"].apply(
-                        lambda v: "🔴 Caro" if v >= _p75 else ("🟢 Barato" if v <= _p25 else "🟡 Médio")
-                    )
-
-                    # Gráfico barras
-                    _fig_reg = go.Figure()
-                    _fig_reg.add_trace(go.Bar(
-                        x=_cx_reg["uf"],
-                        y=_cx_reg["preco_medio"],
-                        marker_color=_cx_reg["cor"].tolist(),
-                        text=_cx_reg["preco_medio"].apply(lambda v: f"R$ {_br_num(v, 3)}"),
-                        textposition="outside",
-                        hovertemplate=(
-                            "<b>%{x}</b><br>"
-                            "Preço médio: R$ %{y:.4f}<br>"
-                            "<extra></extra>"
-                        ),
-                        name="Preço médio GF",
-                    ))
-                    # Linha da média geral
-                    _fig_reg.add_hline(
-                        y=_med_geral,
-                        line_dash="dash",
-                        line_color="#1040a0",
-                        annotation_text=f"Média geral R$ {_med_geral:.3f}",
-                        annotation_position="top right",
-                        annotation_font_size=11,
-                    )
-                    # Linha ANP Brasil
-                    if _cx_anp_brasil:
-                        _fig_reg.add_hline(
-                            y=_cx_anp_brasil,
-                            line_dash="dot",
-                            line_color="#7B1FA2",
-                            annotation_text=f"ANP Brasil R$ {_cx_anp_brasil:.3f}",
-                            annotation_position="bottom right",
-                            annotation_font_size=11,
-                        )
-                    _fig_reg.update_layout(
-                        height=420,
-                        margin=dict(l=10, r=10, t=30, b=20),
-                        xaxis_title="UF",
-                        yaxis_title="R$/L",
-                        paper_bgcolor="white",
-                        plot_bgcolor="#f9fbff",
-                        font_size=11,
-                        showlegend=False,
-                    )
+                if _cx_pr and "uf" in _cx_df.columns:
+                    _reg_price = (_cx_df[_cx_df[_cx_pr]>0]
+                        .groupby("uf")[_cx_pr].mean().reset_index()
+                        .rename(columns={"uf":"UF", _cx_pr:"Preço Médio (R$/L)"})
+                        .sort_values("Preço Médio (R$/L)", ascending=False))
+                    _fig_reg = go.Figure(go.Bar(
+                        x=_reg_price["UF"], y=_reg_price["Preço Médio (R$/L)"],
+                        marker_color=["#E74C3C" if v > _reg_price["Preço Médio (R$/L)"].median()
+                                      else "#27AE60" for v in _reg_price["Preço Médio (R$/L)"]],
+                        text=_reg_price["Preço Médio (R$/L)"].apply(lambda v: f"R${v:.3f}"),
+                        textposition="outside"))
+                    _fig_reg.update_layout(height=380, title="Preço Médio por UF",
+                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                     st.plotly_chart(_fig_reg, use_container_width=True)
+                else:
+                    st.info("ℹ️ Sem dados de preço/UF para análise regional.")
 
-                    # Cards de destaque
-                    _dc1, _dc2, _dc3 = st.columns(3)
-                    _uf_mais_caro  = _cx_reg.iloc[0]
-                    _uf_mais_bar   = _cx_reg.iloc[-1]
-                    _spread        = _uf_mais_caro["preco_medio"] - _uf_mais_bar["preco_medio"]
-                    _kpi_s = (
-                        "background:#fff3f3;border:1.5px solid #e53935;"
-                        "border-radius:8px;padding:12px 16px;text-align:center;"
-                    )
-                    _kpi_g = (
-                        "background:#f3fff3;border:1.5px solid #43a047;"
-                        "border-radius:8px;padding:12px 16px;text-align:center;"
-                    )
-                    _kpi_b = (
-                        "background:#f0f4ff;border:1.5px solid #1040a0;"
-                        "border-radius:8px;padding:12px 16px;text-align:center;"
-                    )
-                    with _dc1:
-                        st.markdown(
-                            f'<div style="{_kpi_s}">'
-                            f'<div style="font-size:.8rem;color:#555">🔴 UF mais cara</div>'
-                            f'<div style="font-size:1.4rem;font-weight:700;color:#e53935">'
-                            f'{_uf_mais_caro["uf"]}</div>'
-                            f'<div style="font-size:1rem;font-weight:600">'
-                            f'R$ {_uf_mais_caro["preco_medio"]:.3f}</div>'
-                            f'<div style="font-size:.75rem;color:#888">'
-                            f'{int(_uf_mais_caro["postos"])} postos</div>'
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
-                    with _dc2:
-                        st.markdown(
-                            f'<div style="{_kpi_g}">'
-                            f'<div style="font-size:.8rem;color:#555">🟢 UF mais barata</div>'
-                            f'<div style="font-size:1.4rem;font-weight:700;color:#43a047">'
-                            f'{_uf_mais_bar["uf"]}</div>'
-                            f'<div style="font-size:1rem;font-weight:600">'
-                            f'R$ {_uf_mais_bar["preco_medio"]:.3f}</div>'
-                            f'<div style="font-size:.75rem;color:#888">'
-                            f'{int(_uf_mais_bar["postos"])} postos</div>'
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
-                    with _dc3:
-                        st.markdown(
-                            f'<div style="{_kpi_b}">'
-                            f'<div style="font-size:.8rem;color:#555">↕️ Spread entre extremos</div>'
-                            f'<div style="font-size:1.4rem;font-weight:700;color:#1040a0">'
-                            f'R$ {_spread:.3f}</div>'
-                            f'<div style="font-size:.75rem;color:#888">'
-                            f'= {_spread / _uf_mais_bar["preco_medio"] * 100:.1f}% de diferença</div>'
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-
-                    # Tabela completa
-                    _cx_reg_tbl = _cx_reg[["uf", "categoria", "preco_medio",
-                                           "minimo", "maximo", "variacao", "postos"]].copy()
-                    _cx_reg_tbl.columns = ["UF", "Categoria", "Preço médio", "Mínimo",
-                                           "Máximo", "Desvio padrão", "Postos"]
-                    for _c in ["Preço médio", "Mínimo", "Máximo", "Desvio padrão"]:
-                        _cx_reg_tbl[_c] = _cx_reg_tbl[_c].apply(
-                            lambda v: f"R$ {_br_num(v, 4)}" if pd.notna(v) else "—"
-                        )
-                    st.dataframe(_cx_reg_tbl, use_container_width=True, hide_index=True)
-
-                    # Mapa de calor geográfico (scatter por UF lat/lon estimado)
-                    if "lat" in _cx_filt.columns and "lon" in _cx_filt.columns:
-                        st.markdown("##### 🌎 Dispersão geográfica de preços")
-                        _cx_map_df = _cx_filt.dropna(subset=["lat", "lon", "preco"]).copy()
-                        _cx_map_df["lat"] = pd.to_numeric(_cx_map_df["lat"], errors="coerce")
-                        _cx_map_df["lon"] = pd.to_numeric(_cx_map_df["lon"], errors="coerce")
-                        _cx_map_df = _cx_map_df.dropna(subset=["lat", "lon"])
-                        if not _cx_map_df.empty:
-                            if "razao_social" in _cx_map_df.columns:
-                                _cx_map_df["nome_posto"] = _cx_map_df["razao_social"].fillna("Posto")
-                            elif "nome" in _cx_map_df.columns:
-                                _cx_map_df["nome_posto"] = _cx_map_df["nome"].fillna("Posto")
-                            else:
-                                _cx_map_df["nome_posto"] = "Posto"
-                            _fig_mapa_preco = go.Figure(go.Scattermapbox(
-                                lat=_cx_map_df["lat"],
-                                lon=_cx_map_df["lon"],
-                                mode="markers",
-                                marker=dict(
-                                    size=8,
-                                    color=_cx_map_df["preco"],
-                                    colorscale=[[0, "#43a047"], [0.5, "#f57c00"], [1, "#e53935"]],
-                                    showscale=True,
-                                    colorbar=dict(title="R$/L", thickness=12),
-                                    opacity=0.85,
-                                ),
-                                text=_cx_map_df.apply(
-                                    lambda r: f"{r['nome_posto']}<br>{r['uf']} — R$ {_br_num(r['preco'], 3)}",
-                                    axis=1,
-                                ),
-                                hoverinfo="text",
-                            ))
-                            _fig_mapa_preco.update_layout(
-                                mapbox=dict(style="carto-positron", zoom=3.5,
-                                            center=dict(lat=-15.7, lon=-47.9)),
-                                height=480,
-                                margin=dict(l=0, r=0, t=0, b=0),
-                            )
-                            st.plotly_chart(_fig_mapa_preco, use_container_width=True)
-
-            # ================================================================
-            # SUB-ABA 2 — Clusters de oportunidade
-            # ================================================================
             with _cx_t2:
-                st.markdown("##### 🎯 Clusters de oportunidade por município")
-                st.caption(
-                    "Municípios agrupados por faixa de preço GF. "
-                    "🟢 Oportunidade = preço abaixo da média nacional. "
-                    "🔴 Atenção = preço acima da média nacional."
-                )
-
-                if "municipio" not in _cx_filt.columns:
-                    st.info("Coluna 'municipio' não encontrada nos dados.", icon="🎯")
+                if _cx_pr and _cx_mun and "uf" in _cx_df.columns:
+                    _clust = (_cx_df[_cx_df[_cx_pr]>0]
+                        .groupby(["municipio","uf"])[_cx_pr]
+                        .agg(["mean","count"]).reset_index()
+                        .rename(columns={"mean":"preco_medio","count":"abastecimentos"}))
+                    _med_geral = _clust["preco_medio"].median()
+                    _clust["oportunidade"] = _clust["preco_medio"] < _med_geral
+                    _oport = _clust[_clust["oportunidade"]].sort_values("preco_medio").head(15)
+                    st.markdown("##### 🎯 Top 15 Municípios com Menor Preço Médio")
+                    st.dataframe(_oport.reset_index(drop=True), use_container_width=True)
                 else:
-                    # Agrupa por município
-                    _cx_agg_dict = {
-                        "preco_medio": ("preco", "mean"),
-                        "postos":      ("preco", "count"),
-                    }
-                    if _cx_filt["lat"].notna().any():
-                        _cx_agg_dict["lat"] = ("lat", "mean")
-                        _cx_agg_dict["lon"] = ("lon", "mean")
-                    _cx_mun = (
-                        _cx_filt.groupby(["uf", "municipio"])
-                        .agg(**_cx_agg_dict)
-                        .reset_index()
-                    )
-                    _cx_med_nac = _cx_mun["preco_medio"].mean()
+                    st.info("ℹ️ Sem dados suficientes para clusters.")
 
-                    # Delta vs média nacional
-                    _cx_mun["delta_vs_media"] = (
-                        (_cx_mun["preco_medio"] - _cx_med_nac) / _cx_med_nac * 100
-                    )
-                    _cx_mun["cluster"] = _cx_mun["delta_vs_media"].apply(
-                        lambda v: "🔴 Caro (>+5%)" if v > 5
-                        else ("🟡 Acima da média (+2% a +5%)" if v > 2
-                        else ("🟢 Abaixo da média (-2% a +2%)" if v > -2
-                        else "🟢 Barato (<-2%)"))
-                    )
-
-                    # Contagem de postos por cluster
-                    _cx_cl_cnt = (
-                        _cx_mun.groupby("cluster")["postos"].sum()
-                        .reset_index()
-                        .sort_values("postos", ascending=False)
-                    )
-
-                    _cl_pie_col, _cl_bar_col = st.columns([2, 3])
-
-                    with _cl_pie_col:
-                        _cor_clusters = {
-                            "🔴 Caro (>+5%)":               "#e53935",
-                            "🟡 Acima da média (+2% a +5%)": "#f57c00",
-                            "🟢 Abaixo da média (-2% a +2%)":"#66BB6A",
-                            "🟢 Barato (<-2%)":              "#1B5E20",
-                        }
-                        _fig_cl_pie = go.Figure(go.Pie(
-                            labels=_cx_cl_cnt["cluster"],
-                            values=_cx_cl_cnt["postos"],
-                            hole=0.52,
-                            marker_colors=[
-                                _cor_clusters.get(cl, "#999")
-                                for cl in _cx_cl_cnt["cluster"]
-                            ],
-                            textinfo="label+percent",
-                            textfont_size=11,
-                        ))
-                        _fig_cl_pie.update_layout(
-                            height=300,
-                            margin=dict(l=0, r=0, t=10, b=0),
-                            showlegend=False,
-                            paper_bgcolor="white",
-                        )
-                        st.plotly_chart(_fig_cl_pie, use_container_width=True)
-
-                    with _cl_bar_col:
-                        # Top 15 municípios de oportunidade (mais baratos)
-                        _cx_oport = (
-                            _cx_mun.sort_values("delta_vs_media").head(15).copy()
-                        )
-                        _cx_oport["label_mun"] = (
-                            _cx_oport["municipio"].str[:20]
-                            + " (" + _cx_oport["uf"] + ")"
-                        )
-                        _fig_oport = go.Figure(go.Bar(
-                            x=_cx_oport["delta_vs_media"],
-                            y=_cx_oport["label_mun"],
-                            orientation="h",
-                            marker_color=_cx_oport["delta_vs_media"].apply(
-                                lambda v: "#43a047" if v < 0 else "#f57c00"
-                            ).tolist(),
-                            text=_cx_oport["delta_vs_media"].apply(
-                                lambda v: f"{v:+.1f}%"
-                            ),
-                            textposition="outside",
-                            hovertemplate=(
-                                "<b>%{y}</b><br>"
-                                "Delta vs média: %{x:+.2f}%<extra></extra>"
-                            ),
-                        ))
-                        _fig_oport.update_layout(
-                            height=350,
-                            margin=dict(l=10, r=70, t=10, b=20),
-                            xaxis_title="Δ% vs média nacional",
-                            paper_bgcolor="white",
-                            plot_bgcolor="#f9fbff",
-                            font_size=11,
-                            title="Top 15 municípios mais baratos",
-                            title_font_size=12,
-                        )
-                        st.plotly_chart(_fig_oport, use_container_width=True)
-
-                    # Mapa de clusters
-                    if "lat" in _cx_mun.columns and "lon" in _cx_mun.columns:
-                        _cx_mun_map = _cx_mun.dropna(subset=["lat", "lon"]).copy()
-                        _cx_mun_map["lat"] = pd.to_numeric(_cx_mun_map["lat"], errors="coerce")
-                        _cx_mun_map["lon"] = pd.to_numeric(_cx_mun_map["lon"], errors="coerce")
-                        _cx_mun_map = _cx_mun_map.dropna(subset=["lat", "lon"])
-                        if not _cx_mun_map.empty:
-                            st.markdown("##### 🌎 Mapa de clusters por município")
-                            _fig_cl_map = go.Figure(go.Scattermapbox(
-                                lat=_cx_mun_map["lat"],
-                                lon=_cx_mun_map["lon"],
-                                mode="markers",
-                                marker=dict(
-                                    size=_cx_mun_map["postos"].clip(upper=30) + 5,
-                                    color=_cx_mun_map["delta_vs_media"],
-                                    colorscale=[[0, "#43a047"], [0.4, "#f9f9f9"],
-                                                [0.7, "#f57c00"], [1, "#e53935"]],
-                                    cmin=-10,
-                                    cmax=10,
-                                    showscale=True,
-                                    colorbar=dict(
-                                        title="Δ% vs média",
-                                        thickness=12,
-                                        ticksuffix="%",
-                                    ),
-                                    opacity=0.85,
-                                ),
-                                text=_cx_mun_map.apply(
-                                    lambda r: (
-                                        f"{r['municipio']}/{r['uf']}<br>"
-                                        f"Preço médio: R$ {_br_num(r['preco_medio'], 3)}<br>"
-                                        f"Delta: {r['delta_vs_media']:+.1f}%<br>"
-                                        f"Postos: {int(r['postos'])}"
-                                    ),
-                                    axis=1,
-                                ),
-                                hoverinfo="text",
-                            ))
-                            _fig_cl_map.update_layout(
-                                mapbox=dict(style="carto-positron", zoom=3.5,
-                                            center=dict(lat=-15.7, lon=-47.9)),
-                                height=500,
-                                margin=dict(l=0, r=0, t=0, b=0),
-                            )
-                            st.plotly_chart(_fig_cl_map, use_container_width=True)
-
-                    # Tabela de clusters
-                    st.markdown("##### 📋 Tabela completa de municípios")
-                    _cx_mun_tbl = _cx_mun[[
-                        "municipio", "uf", "cluster", "preco_medio",
-                        "delta_vs_media", "postos",
-                    ]].sort_values("delta_vs_media").copy()
-                    _cx_mun_tbl.columns = [
-                        "Município", "UF", "Cluster", "Preço médio", "Δ% vs média", "Postos"
-                    ]
-                    _cx_mun_tbl["Preço médio"] = _cx_mun_tbl["Preço médio"].apply(
-                        lambda v: f"R$ {_br_num(v, 4)}"
-                    )
-                    _cx_mun_tbl["Δ% vs média"] = _cx_mun_tbl["Δ% vs média"].apply(
-                        lambda v: f"{v:+.2f}%"
-                    )
-                    st.dataframe(_cx_mun_tbl, use_container_width=True, hide_index=True)
-
-            # ================================================================
-            # SUB-ABA 3 — GF vs Concorrência (ANP)
-            # ================================================================
             with _cx_t3:
-                st.markdown("##### ⚖️ Preço médio GF vs referência ANP por UF")
-
-                if not _cx_tem_anp:
-                    st.warning(
-                        "Planilha ANP não carregada. Carregue em "
-                        "**Configurações → Dados ANP** para ver este cruzamento.",
-                        icon="⚠️",
-                    )
+                if _cx_pr and "uf" in _cx_df.columns:
+                    _ANP_REF_CX = {"SP":6.05,"RJ":6.18,"MG":5.98,"RS":5.92,"PR":5.88,
+                                   "SC":5.85,"BA":6.12,"GO":6.00,"MT":6.22,"MS":6.08}
+                    _uf_vs = (_cx_df[_cx_df[_cx_pr]>0]
+                        .groupby("uf")[_cx_pr].mean().reset_index()
+                        .rename(columns={"uf":"UF",_cx_pr:"Preço Real"}))
+                    _uf_vs["ANP Ref"] = _uf_vs["UF"].map(_ANP_REF_CX)
+                    _uf_vs["Delta%"] = ((_uf_vs["Preço Real"]-_uf_vs["ANP Ref"])/_uf_vs["ANP Ref"]*100).round(1)
+                    _uf_vs = _uf_vs.dropna(subset=["ANP Ref"]).sort_values("Delta%",ascending=False)
+                    st.dataframe(_uf_vs.reset_index(drop=True), use_container_width=True)
                 else:
-                    # Monta comparativo GF vs ANP por UF
-                    _cx_comp_rows = []
-                    for _uf_c, _uf_grp in _cx_filt.groupby("uf"):
-                        _gf_med = float(_uf_grp["preco"].mean())
-                        _anp_ref = (
-                            _cx_anp_por_uf.get(_uf_c)
-                            or _cx_anp_brasil
-                        )
-                        _delta_abs  = (_gf_med - _anp_ref) if _anp_ref else None
-                        _delta_pct  = (_delta_abs / _anp_ref * 100) if _anp_ref else None
-                        _cx_comp_rows.append({
-                            "uf":         _uf_c,
-                            "gf_med":     _gf_med,
-                            "anp_ref":    _anp_ref,
-                            "delta_abs":  _delta_abs,
-                            "delta_pct":  _delta_pct,
-                            "nivel_anp":  "UF" if _cx_anp_por_uf.get(_uf_c) else "Brasil",
-                            "postos":     len(_uf_grp),
-                        })
-
-                    _cx_comp_raw = pd.DataFrame(_cx_comp_rows)
-                    if _cx_comp_raw.empty or "delta_pct" not in _cx_comp_raw.columns:
-                        _cx_comp = pd.DataFrame()
-                    else:
-                        _cx_comp = (
-                            _cx_comp_raw
-                            .dropna(subset=["delta_pct"])
-                            .sort_values("delta_pct", ascending=False)
-                        )
-
-                    if _cx_comp.empty:
-                        st.info(
-                            "Sem referência ANP para as UFs carregadas. "
-                            "Verifique se a planilha ANP contém dados para estes estados.",
-                            icon="⚖️",
-                        )
-                    else:
-                        # KPIs de topo
-                        _n_caros   = (_cx_comp["delta_pct"] > 5).sum()
-                        _n_baratos = (_cx_comp["delta_pct"] < -2).sum()
-                        _n_ok      = len(_cx_comp) - _n_caros - _n_baratos
-                        _med_delta = _cx_comp["delta_pct"].mean()
-
-                        _kc1, _kc2, _kc3, _kc4 = st.columns(4)
-                        _ks = "border-radius:8px;padding:12px;text-align:center;"
-                        with _kc1:
-                            st.markdown(
-                                f'<div style="{_ks}background:#fff3f3;border:1.5px solid #e53935">'
-                                f'<div style="font-size:1.6rem;font-weight:700;color:#e53935">{_n_caros}</div>'
-                                f'<div style="font-size:.8rem;color:#555">UFs com GF caro<br>(>+5% vs ANP)</div>'
-                                f"</div>",
-                                unsafe_allow_html=True,
-                            )
-                        with _kc2:
-                            st.markdown(
-                                f'<div style="{_ks}background:#f3fff3;border:1.5px solid #43a047">'
-                                f'<div style="font-size:1.6rem;font-weight:700;color:#43a047">{_n_baratos}</div>'
-                                f'<div style="font-size:.8rem;color:#555">UFs com GF barato<br>(<-2% vs ANP)</div>'
-                                f"</div>",
-                                unsafe_allow_html=True,
-                            )
-                        with _kc3:
-                            st.markdown(
-                                f'<div style="{_ks}background:#fff8e1;border:1.5px solid #f57c00">'
-                                f'<div style="font-size:1.6rem;font-weight:700;color:#f57c00">{_n_ok}</div>'
-                                f'<div style="font-size:.8rem;color:#555">UFs na faixa<br>competitiva</div>'
-                                f"</div>",
-                                unsafe_allow_html=True,
-                            )
-                        with _kc4:
-                            _cor_d = "#e53935" if _med_delta > 2 else ("#43a047" if _med_delta < 0 else "#f57c00")
-                            st.markdown(
-                                f'<div style="{_ks}background:#f0f4ff;border:1.5px solid #1040a0">'
-                                f'<div style="font-size:1.6rem;font-weight:700;color:{_cor_d}">'
-                                f'{_med_delta:+.1f}%</div>'
-                                f'<div style="font-size:.8rem;color:#555">Delta médio<br>GF vs ANP</div>'
-                                f"</div>",
-                                unsafe_allow_html=True,
-                            )
-
-                        st.markdown("<br>", unsafe_allow_html=True)
-
-                        # Gráfico waterfall-style: delta GF vs ANP por UF
-                        _cx_comp["cor_delta"] = _cx_comp["delta_pct"].apply(
-                            lambda v: "#e53935" if v > 5
-                            else ("#f57c00" if v > 0
-                            else "#43a047")
-                        )
-                        _fig_comp = go.Figure()
-                        _fig_comp.add_trace(go.Bar(
-                            x=_cx_comp["uf"],
-                            y=_cx_comp["delta_pct"],
-                            marker_color=_cx_comp["cor_delta"].tolist(),
-                            text=_cx_comp["delta_pct"].apply(lambda v: f"{v:+.1f}%"),
-                            textposition="outside",
-                            name="Delta GF vs ANP",
-                            hovertemplate=(
-                                "<b>%{x}</b><br>"
-                                "Delta: %{y:+.2f}%<br>"
-                                "<extra></extra>"
-                            ),
-                        ))
-                        _fig_comp.add_hline(
-                            y=0,
-                            line_color="#1040a0",
-                            line_width=1.5,
-                            annotation_text="Paridade com ANP",
-                            annotation_position="top left",
-                            annotation_font_size=11,
-                        )
-                        _fig_comp.add_hrect(
-                            y0=-2, y1=5,
-                            fillcolor="#e8f5e9",
-                            opacity=0.15,
-                            annotation_text="Zona competitiva",
-                            annotation_position="top right",
-                            annotation_font_size=10,
-                        )
-                        _fig_comp.update_layout(
-                            height=400,
-                            margin=dict(l=10, r=10, t=30, b=20),
-                            xaxis_title="UF",
-                            yaxis_title="Δ% GF vs ANP",
-                            paper_bgcolor="white",
-                            plot_bgcolor="#f9fbff",
-                            font_size=11,
-                            showlegend=False,
-                        )
-                        st.plotly_chart(_fig_comp, use_container_width=True)
-
-                        # Painel de alerta — UFs onde GF está caro
-                        _cx_alertas = _cx_comp[_cx_comp["delta_pct"] > 5].sort_values(
-                            "delta_pct", ascending=False
-                        )
-                        if not _cx_alertas.empty:
-                            st.markdown("---")
-                            st.markdown("#### ⚠️ Atenção — UFs onde GF está acima da ANP em mais de 5%")
-                            for _, _ar in _cx_alertas.iterrows():
-                                _eco_100 = abs(_ar["delta_abs"] or 0) * 100
-                                st.markdown(
-                                    f'<div style="background:#fff3f3;border-left:4px solid #e53935;'
-                                    f'border-radius:6px;padding:10px 14px;margin-bottom:8px;">'
-                                    f'<b>🔴 {_ar["uf"]}</b> — GF R$ {_ar["gf_med"]:.3f} vs ANP '
-                                    f'R$ {_ar["anp_ref"]:.3f} '
-                                    f'(<b>{_ar["delta_pct"]:+.1f}%</b>) · '
-                                    f'Potencial de economia: <b>R$ {_eco_100:.2f} por 100 litros</b> · '
-                                    f'{int(_ar["postos"])} postos · '
-                                    f'Ref. ANP: {_ar["nivel_anp"]}'
-                                    f"</div>",
-                                    unsafe_allow_html=True,
-                                )
-
-                        # Oportunidades — UFs onde GF está abaixo da ANP
-                        _cx_oprt = _cx_comp[_cx_comp["delta_pct"] < -2].sort_values("delta_pct")
-                        if not _cx_oprt.empty:
-                            st.markdown("---")
-                            st.markdown("#### 💚 Destaque — UFs onde GF está abaixo da ANP (vantagem competitiva)")
-                            for _, _or in _cx_oprt.iterrows():
-                                _sav_100 = abs(_or["delta_abs"] or 0) * 100
-                                st.markdown(
-                                    f'<div style="background:#f3fff3;border-left:4px solid #43a047;'
-                                    f'border-radius:6px;padding:10px 14px;margin-bottom:8px;">'
-                                    f'<b>💚 {_or["uf"]}</b> — GF R$ {_or["gf_med"]:.3f} vs ANP '
-                                    f'R$ {_or["anp_ref"]:.3f} '
-                                    f'(<b>{_or["delta_pct"]:+.1f}%</b>) · '
-                                    f'Saving vs ANP: <b>R$ {_sav_100:.2f} por 100 litros</b> · '
-                                    f'{int(_or["postos"])} postos'
-                                    f"</div>",
-                                    unsafe_allow_html=True,
-                                )
-
-                        # Tabela completa
-                        st.markdown("---")
-                        st.markdown("##### 📋 Tabela GF vs ANP por UF")
-                        _cx_tbl_comp = _cx_comp[[
-                            "uf", "gf_med", "anp_ref", "delta_abs",
-                            "delta_pct", "nivel_anp", "postos",
-                        ]].copy()
-                        _cx_tbl_comp.columns = [
-                            "UF", "GF médio (R$/L)", "ANP ref. (R$/L)",
-                            "Delta (R$/L)", "Delta (%)", "Nível ANP", "Postos GF",
-                        ]
-                        for _cc in ["GF médio (R$/L)", "ANP ref. (R$/L)", "Delta (R$/L)"]:
-                            _cx_tbl_comp[_cc] = _cx_tbl_comp[_cc].apply(
-                                lambda v: f"R$ {_br_num(v, 4)}" if pd.notna(v) else "—"
-                            )
-                        _cx_tbl_comp["Delta (%)"] = _cx_tbl_comp["Delta (%)"].apply(
-                            lambda v: f"{v:+.2f}%" if pd.notna(v) else "—"
-                        )
-                        st.dataframe(_cx_tbl_comp, use_container_width=True, hide_index=True)
-
-            # ================================================================
-            # SUB-ABA 4 — Frota Real
-            # ================================================================
-            with _cx_t4:
-                st.markdown("##### 🚛 Onde a frota realmente abastece")
-                st.caption(
-                    "Mapa de calor dos postos visitados pela frota, ranking dos mais utilizados "
-                    "e preço médio real pago por UF comparado à referência ANP."
-                )
-
-                # Carrega abastecimentos unificados (uploads + API Gestão de Frotas)
-                with st.spinner("Carregando abastecimentos…"):
-                    _cx4_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
-
-                if _cx4_df.empty:
-                    st.info(
-                        "Nenhum abastecimento encontrado. "
-                        "Carregue dados na seção **👥 Análise de Cliente** "
-                        "ou sincronize via **⚡ API & Integrações → Gestão de Frotas**.",
-                        icon="🚛",
-                    )
-                else:
-                    _n_upload = len(_cx4_df[_cx4_df.get("fonte", pd.Series()).str.contains("upload|frota", na=False, case=False)]) if "fonte" in _cx4_df.columns else 0
-                    _n_api    = len(_cx4_df) - _n_upload
-                    _fontes_txt = []
-                    if _n_upload: _fontes_txt.append(f"{_br_num(_n_upload,0)} via upload")
-                    if _n_api:    _fontes_txt.append(f"{_br_num(_n_api,0)} via API Gestão de Frotas")
-                    if _fontes_txt:
-                        st.caption(f"📊 {_br_num(len(_cx4_df),0)} abastecimentos — " + " · ".join(_fontes_txt))
-
-                    # ── KPIs de topo ─────────────────────────────────────────
-                    _cx4_k1, _cx4_k2, _cx4_k3, _cx4_k4 = st.columns(4)
-                    _cx4_css = (
-                        "background:linear-gradient(135deg,#1a237e,#283593);"
-                        "border-radius:10px;padding:14px 18px;text-align:center;color:#fff;"
-                    )
-                    with _cx4_k1:
-                        _cx4_n_ab = len(_cx4_df)
-                        st.markdown(
-                            f'<div style="{_cx4_css}">'
-                            f'<div style="font-size:1.8rem;font-weight:700">{_br_num(_cx4_n_ab, 0)}</div>'
-                            f'<div style="font-size:.8rem;color:#c5cae9">Abastecimentos</div>'
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
-                    with _cx4_k2:
-                        _cx4_n_postos = _cx4_df["cnpj_posto"].nunique() if "cnpj_posto" in _cx4_df.columns else 0
-                        st.markdown(
-                            f'<div style="{_cx4_css}">'
-                            f'<div style="font-size:1.8rem;font-weight:700">{_br_num(_cx4_n_postos, 0)}</div>'
-                            f'<div style="font-size:.8rem;color:#c5cae9">Postos distintos</div>'
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
-                    with _cx4_k3:
-                        _cx4_n_ufs = _cx4_df["uf_posto"].nunique() if "uf_posto" in _cx4_df.columns else 0
-                        st.markdown(
-                            f'<div style="{_cx4_css}">'
-                            f'<div style="font-size:1.8rem;font-weight:700">{_br_num(_cx4_n_ufs, 0)}</div>'
-                            f'<div style="font-size:.8rem;color:#c5cae9">UFs cobertas</div>'
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
-                    with _cx4_k4:
-                        _cx4_preco_med = (
-                            _cx4_df["preco_litro"].mean()
-                            if "preco_litro" in _cx4_df.columns else None
-                        )
-                        _cx4_preco_txt = _br_moeda(_cx4_preco_med, 3) if _cx4_preco_med and pd.notna(_cx4_preco_med) else "—"
-                        st.markdown(
-                            f'<div style="{_cx4_css}">'
-                            f'<div style="font-size:1.8rem;font-weight:700">{_cx4_preco_txt}</div>'
-                            f'<div style="font-size:.8rem;color:#c5cae9">Preço médio pago</div>'
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-
-                    # ── Mapa de calor — postos onde a frota abastece ─────────
-                    if "lat_posto" in _cx4_df.columns and "lon_posto" in _cx4_df.columns:
-                        _cx4_map_df = _cx4_df.dropna(subset=["lat_posto", "lon_posto"]).copy()
-                        _cx4_map_df = _cx4_map_df[
-                            (_cx4_map_df["lat_posto"].abs() > 0.001) &
-                            (_cx4_map_df["lon_posto"].abs() > 0.001)
-                        ]
-                        if not _cx4_map_df.empty:
-                            st.markdown("##### 🌎 Mapa de calor — postos visitados pela frota")
-                            st.caption(
-                                "Tamanho do marcador = frequência de visitas. "
-                                "Cor = preço médio pago (verde = mais barato, vermelho = mais caro)."
-                            )
-                            # Agrega por posto (lat/lon)
-                            _cx4_posto_agg_dict = {
-                                "visitas": ("cnpj_posto" if "cnpj_posto" in _cx4_map_df.columns else "lat_posto", "count"),
-                                "preco_med": ("preco_litro", "mean"),
-                                "lat": ("lat_posto", "first"),
-                                "lon": ("lon_posto", "first"),
-                            }
-                            _cx4_grp_col = "cnpj_posto" if "cnpj_posto" in _cx4_map_df.columns else "nome_posto"
-                            if _cx4_grp_col in _cx4_map_df.columns:
-                                _cx4_posto_pts = (
-                                    _cx4_map_df.groupby(_cx4_grp_col)
-                                    .agg(
-                                        visitas=(_cx4_grp_col, "count"),
-                                        preco_med=("preco_litro", "mean"),
-                                        lat=("lat_posto", "first"),
-                                        lon=("lon_posto", "first"),
-                                        nome=(
-                                            "nome_posto" if "nome_posto" in _cx4_map_df.columns
-                                            else _cx4_grp_col, "first"
-                                        ),
-                                    )
-                                    .reset_index()
-                                    .dropna(subset=["lat", "lon"])
-                                )
-                            else:
-                                _cx4_posto_pts = _cx4_map_df[["lat_posto", "lon_posto", "preco_litro"]].copy()
-                                _cx4_posto_pts.columns = ["lat", "lon", "preco_med"]
-                                _cx4_posto_pts["visitas"] = 1
-                                _cx4_posto_pts["nome"] = "Posto"
-
-                            if not _cx4_posto_pts.empty:
-                                _cx4_posto_pts["preco_med"] = pd.to_numeric(
-                                    _cx4_posto_pts["preco_med"], errors="coerce"
-                                )
-                                _cx4_posto_pts["nome_str"] = _cx4_posto_pts.get(
-                                    "nome", pd.Series(["Posto"] * len(_cx4_posto_pts))
-                                ).fillna("Posto")
-                                _fig_cx4_map = go.Figure(go.Scattermapbox(
-                                    lat=_cx4_posto_pts["lat"],
-                                    lon=_cx4_posto_pts["lon"],
-                                    mode="markers",
-                                    marker=dict(
-                                        size=(_cx4_posto_pts["visitas"].clip(upper=50) / 50 * 20 + 6),
-                                        color=_cx4_posto_pts["preco_med"],
-                                        colorscale=[[0, "#43a047"], [0.5, "#f57c00"], [1, "#e53935"]],
-                                        showscale=True,
-                                        colorbar=dict(title="R$/L pago", thickness=12),
-                                        opacity=0.85,
-                                    ),
-                                    text=_cx4_posto_pts.apply(
-                                        lambda r: (
-                                            f"{r.get('nome_str','Posto')}<br>"
-                                            f"Visitas: {int(r['visitas'])}<br>"
-                                            f"Preço médio pago: R$ {_br_num(r['preco_med'], 3)}"
-                                            if pd.notna(r.get("preco_med")) else
-                                            f"{r.get('nome_str','Posto')}<br>Visitas: {int(r['visitas'])}"
-                                        ),
-                                        axis=1,
-                                    ),
-                                    hoverinfo="text",
-                                ))
-                                _fig_cx4_map.update_layout(
-                                    mapbox=dict(
-                                        style="carto-positron",
-                                        zoom=3.5,
-                                        center=dict(lat=-15.7, lon=-47.9),
-                                    ),
-                                    height=500,
-                                    margin=dict(l=0, r=0, t=0, b=0),
-                                )
-                                st.plotly_chart(_fig_cx4_map, use_container_width=True)
-                    else:
-                        st.info(
-                            "Coordenadas (lat_posto/lon_posto) não disponíveis nos dados "
-                            "— o mapa não pode ser exibido.",
-                            icon="🗺️",
-                        )
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-
-                    # ── Ranking de postos mais utilizados ────────────────────
-                    _cx4_rank_col, _cx4_uf_col = st.columns([3, 2])
-
-                    with _cx4_rank_col:
-                        st.markdown("##### 🏆 Ranking de postos mais utilizados")
-                        _cx4_grp = "nome_posto" if "nome_posto" in _cx4_df.columns else "cnpj_posto"
-                        if _cx4_grp in _cx4_df.columns:
-                            _cx4_rank = (
-                                _cx4_df.groupby(_cx4_grp)
-                                .agg(
-                                    visitas=(_cx4_grp, "count"),
-                                    preco_med=("preco_litro", "mean"),
-                                    litros_total=("litros", "sum"),
-                                )
-                                .reset_index()
-                                .sort_values("visitas", ascending=False)
-                                .head(15)
-                            )
-                            _cx4_rank["nome_curto"] = _cx4_rank[_cx4_grp].apply(
-                                lambda n: (str(n)[:30] + "…") if len(str(n)) > 30 else str(n)
-                            )
-                            _fig_cx4_rank = go.Figure(go.Bar(
-                                x=_cx4_rank["visitas"],
-                                y=_cx4_rank["nome_curto"],
-                                orientation="h",
-                                marker_color="#283593",
-                                text=_cx4_rank["visitas"].astype(str),
-                                textposition="outside",
-                                hovertemplate=(
-                                    "<b>%{y}</b><br>"
-                                    "Visitas: %{x}<extra></extra>"
-                                ),
-                            ))
-                            _fig_cx4_rank.update_layout(
-                                height=420,
-                                margin=dict(l=10, r=40, t=10, b=20),
-                                xaxis_title="Abastecimentos",
-                                paper_bgcolor="white",
-                                plot_bgcolor="#f5f5ff",
-                                font_size=11,
-                            )
-                            st.plotly_chart(_fig_cx4_rank, use_container_width=True)
-                        else:
-                            st.info("Coluna de nome/CNPJ do posto não encontrada nos dados.", icon="🏆")
-
-                    with _cx4_uf_col:
-                        st.markdown("##### 📊 Preço médio pago por UF vs ANP")
-                        if "uf_posto" in _cx4_df.columns and "preco_litro" in _cx4_df.columns:
-                            _cx4_uf_grp = (
-                                _cx4_df.groupby("uf_posto")["preco_litro"]
-                                .agg(preco_real="mean", visitas="count")
-                                .reset_index()
-                                .rename(columns={"uf_posto": "uf"})
-                                .sort_values("preco_real", ascending=False)
-                            )
-                            # Compara com ANP (se disponível)
-                            _cx4_fuel_anp_key = None
-                            if _cx_tem_anp and _cx4_df.get("produto") is not None:
-                                _cx4_produto_top = (
-                                    _cx4_df["produto"].value_counts().index[0]
-                                    if "produto" in _cx4_df.columns and not _cx4_df["produto"].dropna().empty
-                                    else None
-                                )
-                                if _cx4_produto_top:
-                                    _cx4_fuel_anp_key = _PP_PARA_ANP_PK.get(
-                                        str(_cx4_produto_top).upper().strip()
-                                    )
-
-                            _cx4_anp_uf_dict = {}
-                            if _cx_tem_anp and _cx4_fuel_anp_key:
-                                try:
-                                    _cx4_raw_anp = _anp_precos_por_fuel_por_uf(
-                                        _cx_sheets, _cx4_uf_grp["uf"].tolist()
-                                    )
-                                    _cx4_anp_uf_dict = _cx4_raw_anp.get(_cx4_fuel_anp_key, {})
-                                except Exception:
-                                    pass
-
-                            _cx4_uf_grp["anp_ref"] = _cx4_uf_grp["uf"].map(_cx4_anp_uf_dict)
-                            _cx4_uf_grp["delta_pct"] = (
-                                (_cx4_uf_grp["preco_real"] - _cx4_uf_grp["anp_ref"])
-                                / _cx4_uf_grp["anp_ref"] * 100
-                            ).where(_cx4_uf_grp["anp_ref"].notna())
-
-                            _fig_cx4_uf = go.Figure()
-                            _fig_cx4_uf.add_trace(go.Bar(
-                                x=_cx4_uf_grp["uf"],
-                                y=_cx4_uf_grp["preco_real"],
-                                name="Preço pago (frota)",
-                                marker_color="#e65100",
-                                text=_cx4_uf_grp["preco_real"].apply(lambda v: f"R$ {_br_num(v, 3)}"),
-                                textposition="outside",
-                                hovertemplate=(
-                                    "<b>%{x}</b><br>"
-                                    "Preço pago: R$ %{y:.3f}<extra></extra>"
-                                ),
-                            ))
-                            if _cx4_uf_grp["anp_ref"].notna().any():
-                                _fig_cx4_uf.add_trace(go.Scatter(
-                                    x=_cx4_uf_grp["uf"],
-                                    y=_cx4_uf_grp["anp_ref"],
-                                    mode="markers",
-                                    name="Referência ANP",
-                                    marker=dict(color="#7B1FA2", size=10, symbol="diamond"),
-                                    hovertemplate=(
-                                        "<b>%{x}</b><br>"
-                                        "ANP ref: R$ %{y:.3f}<extra></extra>"
-                                    ),
-                                ))
-                            _fig_cx4_uf.update_layout(
-                                height=420,
-                                margin=dict(l=10, r=10, t=20, b=20),
-                                xaxis_title="UF",
-                                yaxis_title="R$/L",
-                                paper_bgcolor="white",
-                                plot_bgcolor="#f5f5ff",
-                                legend=dict(
-                                    orientation="h", yanchor="bottom", y=1.02,
-                                    xanchor="left", x=0, font_size=10,
-                                ),
-                                font_size=11,
-                                barmode="group",
-                            )
-                            st.plotly_chart(_fig_cx4_uf, use_container_width=True)
-                        else:
-                            st.info(
-                                "Colunas uf_posto / preco_litro não encontradas nos dados.",
-                                icon="📊",
-                            )
-
-                    # ── Tabela de preço pago vs ANP por UF ───────────────────
-                    if "uf_posto" in _cx4_df.columns and "preco_litro" in _cx4_df.columns:
-                        st.markdown("---")
-                        st.markdown("##### 📋 Tabela: preço real pago por UF")
-                        _cx4_tbl = _cx4_uf_grp.copy()
-                        _cx4_tbl.columns = [
-                            "UF", "Preço real (R$/L)", "Abastecimentos",
-                            "ANP ref. (R$/L)", "Δ% vs ANP",
-                        ]
-                        _cx4_tbl["Preço real (R$/L)"] = _cx4_tbl["Preço real (R$/L)"].apply(
-                            lambda v: f"R$ {_br_num(v, 3)}" if pd.notna(v) else "—"
-                        )
-                        _cx4_tbl["ANP ref. (R$/L)"] = _cx4_tbl["ANP ref. (R$/L)"].apply(
-                            lambda v: f"R$ {_br_num(v, 3)}" if pd.notna(v) else "—"
-                        )
-                        _cx4_tbl["Δ% vs ANP"] = _cx4_tbl["Δ% vs ANP"].apply(
-                            lambda v: f"{v:+.1f}%" if pd.notna(v) else "—"
-                        )
-                        st.dataframe(_cx4_tbl, use_container_width=True, hide_index=True)
-
-    # TAB 12 — 🗺️ Cobertura × Demanda
-    # ══════════════════════════════════════════════════════════════════════════
+                    st.info("ℹ️ Sem dados para comparação vs ANP.")
     with _dt12:
-        # ── Header ───────────────────────────────────────────────────────────
-        st.markdown(
-            """
+        st.markdown("""
             <div style="background:linear-gradient(90deg,#0a2e1a,#1a7a40);
                         border-radius:10px;padding:18px 24px;margin-bottom:20px;">
               <h3 style="color:#fff;margin:0;font-size:1.25rem;">
                 🗺️ Cobertura × Demanda — Expansão Estratégica da Rede
               </h3>
               <p style="color:#a8f0c4;margin:4px 0 0;font-size:.85rem;">
-                Cruza rotas frequentes com ausência de postos GF · Identifica gaps críticos · Sugere expansão da rede
+                Cruza rotas frequentes com abastecimentos reais · Identifica gaps · Sugere expansão
               </p>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        """, unsafe_allow_html=True)
 
-        # ── Carregar dados ────────────────────────────────────────────────────
-        _d12_rotas = _carregar_rotas_salvas()          # lista de rotas salvas
-        _d12_gf    = st.session_state.get("pf_coords_df", pd.DataFrame()).copy()
-
-        # Abastecimentos unificados (uploads + API Gestão de Frotas)
+        _d12_rotas    = _carregar_rotas_salvas()
         _d12_abast_df = _carregar_abastecimentos_unificados(dias=_get_periodo_dias(180))
-        # Converte para lista de dicts compatível com o loop abaixo
-        _d12_abast = _d12_abast_df.to_dict("records") if not _d12_abast_df.empty else []
+        _d12_abast    = _d12_abast_df.to_dict("records") if not _d12_abast_df.empty else []
 
-        # ── Coordenadas de centróides dos estados (lat/lon aproximados) ───────
         _UF_CENTROID = {
-            "AC": (-9.02,  -70.81), "AL": (-9.57,  -36.78), "AM": (-3.47,  -65.10),
-            "AP": ( 1.41,  -51.77), "BA": (-12.57, -41.70), "CE": (-5.20,  -39.53),
-            "DF": (-15.78, -47.93), "ES": (-19.19, -40.34), "GO": (-15.83, -49.62),
-            "MA": (-5.42,  -45.44), "MG": (-18.51, -44.55), "MS": (-20.51, -54.54),
-            "MT": (-12.64, -55.42), "PA": (-3.79,  -52.48), "PB": (-7.12,  -36.72),
-            "PE": (-8.38,  -37.86), "PI": (-7.72,  -42.73), "PR": (-24.89, -51.55),
-            "RJ": (-22.25, -42.66), "RN": (-5.81,  -36.59), "RO": (-10.83, -63.34),
-            "RR": ( 1.99,  -61.33), "RS": (-30.03, -53.33), "SC": (-27.25, -50.22),
-            "SE": (-10.57, -37.45), "SP": (-22.25, -48.63), "TO": (-10.25, -48.25),
+            "AC":(-9.02,-70.81),"AL":(-9.57,-36.78),"AM":(-3.47,-65.10),
+            "AP":(1.41,-51.77),"BA":(-12.57,-41.70),"CE":(-5.20,-39.53),
+            "DF":(-15.78,-47.93),"ES":(-19.19,-40.34),"GO":(-15.83,-49.62),
+            "MA":(-5.42,-45.44),"MG":(-18.51,-44.55),"MS":(-20.51,-54.54),
+            "MT":(-12.64,-55.42),"PA":(-3.79,-52.48),"PB":(-7.12,-36.72),
+            "PE":(-8.38,-37.86),"PI":(-7.72,-42.73),"PR":(-24.89,-51.55),
+            "RJ":(-22.25,-42.66),"RN":(-5.81,-36.59),"RO":(-10.83,-63.34),
+            "RR":(1.99,-61.33),"RS":(-30.03,-53.33),"SC":(-27.25,-50.22),
+            "SE":(-10.57,-37.45),"SP":(-22.25,-48.63),"TO":(-10.25,-48.25),
         }
 
-        # ── Construir mapa de demanda por UF ─────────────────────────────────
-        # Demanda = nº de rotas que passam por cada UF + abastecimentos nessa UF
-        _d12_demanda: dict[str, float] = {uf: 0.0 for uf in _UF_CENTROID}
+        _d12_demanda = {uf: 0.0 for uf in _UF_CENTROID}
 
-        # Contribuição de rotas salvas
-        if _d12_rotas:
-            for _rota in _d12_rotas:
-                _ufs_rota = []
-                # Tentar extrair UFs dos waypoints / origem / destino
-                for _campo in ("origem_uf", "destino_uf", "uf"):
-                    _uf_v = _rota.get(_campo, "")
-                    if _uf_v and str(_uf_v).upper() in _d12_demanda:
-                        _ufs_rota.append(str(_uf_v).upper())
-                # Waypoints
-                for _wp in _rota.get("waypoints", []):
-                    _wuf = _wp.get("uf", "")
-                    if _wuf and str(_wuf).upper() in _d12_demanda:
-                        _ufs_rota.append(str(_wuf).upper())
-                for _u in set(_ufs_rota):
-                    _d12_demanda[_u] = _d12_demanda.get(_u, 0) + 1.0
+        # Demanda por rotas salvas
+        for _r12 in (_d12_rotas or []):
+            for _s12 in (_r12.get("steps") or []):
+                _u12 = str(_s12.get("uf","")).upper().strip()
+                if _u12 in _d12_demanda:
+                    _d12_demanda[_u12] += 1.0
 
-        # Contribuição de abastecimentos históricos (uploads + Gestão de Frotas API)
-        if _d12_abast:
-            for _ab in _d12_abast:
-                # Aceita colunas de ambas as fontes: uf_posto (unificada) ou uf (legado)
-                _ab_uf = (
-                    str(_ab.get("uf_posto") or _ab.get("uf") or "")
-                ).upper().strip()
-                if _ab_uf in _d12_demanda:
-                    _d12_demanda[_ab_uf] = _d12_demanda.get(_ab_uf, 0) + 0.5
+        # Demanda por abastecimentos reais
+        _uf_col12 = next((c for c in ["uf_posto","_uf_posto"] if c in _d12_abast_df.columns), None) if not _d12_abast_df.empty else None
+        if _uf_col12:
+            for _uf12, _cnt12 in _d12_abast_df[_uf_col12].value_counts().items():
+                _u12 = str(_uf12).upper().strip()
+                if _u12 in _d12_demanda:
+                    _d12_demanda[_u12] += float(_cnt12) * 0.5
 
-        # ── Construir mapa de cobertura GF por UF ────────────────────────────
-        _d12_cobertura: dict[str, int] = {uf: 0 for uf in _UF_CENTROID}
-        if not _d12_gf.empty:
-            _uf_col_gf = next(
-                (c for c in _d12_gf.columns if c.lower() in ("uf", "estado", "sg_uf")),
-                None,
-            )
-            if _uf_col_gf:
-                for _uf_gf, _cnt_gf in _d12_gf[_uf_col_gf].str.upper().value_counts().items():
-                    if _uf_gf in _d12_cobertura:
-                        _d12_cobertura[_uf_gf] = int(_cnt_gf)
+        # Postos visitados por UF
+        _cnpj_col12 = next((c for c in ["cnpj_posto"] if c in _d12_abast_df.columns), None) if not _d12_abast_df.empty else None
+        _postos_por_uf = {}
+        if _uf_col12 and _cnpj_col12 and not _d12_abast_df.empty:
+            _postos_por_uf = (_d12_abast_df.groupby(_uf_col12)[_cnpj_col12]
+                              .nunique().to_dict())
 
-        # ── Calcular gap score ────────────────────────────────────────────────
-        # gap = demanda_normalizada × (1 − cobertura_normalizada)
-        _d12_dem_max   = max(_d12_demanda.values()) or 1.0
-        _d12_cob_max   = max(_d12_cobertura.values()) or 1.0
-
+        # Mapa de demanda vs cobertura
         _d12_rows = []
-        for _uf in sorted(_UF_CENTROID.keys()):
-            _dem  = _d12_demanda.get(_uf, 0.0)
-            _cob  = _d12_cobertura.get(_uf, 0)
-            _dem_n = _dem / _d12_dem_max
-            _cob_n = _cob / _d12_cob_max
-            _gap  = round(_dem_n * (1.0 - _cob_n), 4)
-            _lat, _lon = _UF_CENTROID[_uf]
-            _d12_rows.append({
-                "UF": _uf,
-                "lat": _lat,
-                "lon": _lon,
-                "Demanda (rotas+abast)": round(_dem, 1),
-                "Postos GF": _cob,
-                "Gap Score": _gap,
-            })
+        for _uf12, (_lat12, _lon12) in _UF_CENTROID.items():
+            _dem12  = _d12_demanda.get(_uf12, 0)
+            _cob12  = _postos_por_uf.get(_uf12, 0)
+            _gap12  = max(0, _dem12 - _cob12 * 2)
+            _d12_rows.append({"UF":_uf12,"lat":_lat12,"lon":_lon12,
+                               "demanda":_dem12,"postos_visitados":_cob12,"gap":_gap12})
+        _d12_map_df = pd.DataFrame(_d12_rows).sort_values("gap",ascending=False)
 
-        _d12_df = pd.DataFrame(_d12_rows).sort_values("Gap Score", ascending=False).reset_index(drop=True)
+        _dm1, _dm2 = st.columns(2)
+        _dm1.markdown("##### 🔴 UFs com Maior Gap Demanda × Cobertura")
+        _dm1.dataframe(_d12_map_df[["UF","demanda","postos_visitados","gap"]]
+                       .head(10).reset_index(drop=True), use_container_width=True)
 
-        # Classificação de prioridade
-        def _d12_prioridade(gap):
-            if gap >= 0.60:  return "🔴 Crítico"
-            if gap >= 0.35:  return "🟠 Alto"
-            if gap >= 0.15:  return "🟡 Médio"
-            return "🟢 Baixo"
+        _dm2.markdown("##### ✅ UFs com Melhor Cobertura")
+        _dm2.dataframe(_d12_map_df.sort_values("postos_visitados",ascending=False)
+                       [["UF","postos_visitados","demanda"]].head(10).reset_index(drop=True),
+                       use_container_width=True)
 
-        _d12_df["Prioridade"] = _d12_df["Gap Score"].apply(_d12_prioridade)
-        _d12_df["Ação sugerida"] = _d12_df.apply(
-            lambda r: (
-                "Abrir posto urgente"   if r["Gap Score"] >= 0.60 else
-                "Avaliar nova unidade"  if r["Gap Score"] >= 0.35 else
-                "Monitorar crescimento" if r["Gap Score"] >= 0.15 else
-                "Cobertura adequada"
-            ),
-            axis=1,
-        )
-
-        # ── KPIs ──────────────────────────────────────────────────────────────
-        _d12_n_rotas   = len(_d12_rotas) if _d12_rotas else 0
-        _d12_n_critico = int((_d12_df["Gap Score"] >= 0.35).sum())
-        _d12_top_uf    = _d12_df.iloc[0]["UF"] if not _d12_df.empty else "—"
-        _d12_n_gf_tot  = int(_d12_df["Postos GF"].sum())
-
-        _k1, _k2, _k3, _k4 = st.columns(4)
-        with _k1:
-            st.metric("🛣️ Rotas analisadas", f"{_d12_n_rotas}")
-        with _k2:
-            st.metric("⚠️ UFs com gap alto/crítico", f"{_d12_n_critico}")
-        with _k3:
-            st.metric("🥇 UF prioritária", _d12_top_uf)
-        with _k4:
-            st.metric("⛽ Total postos ANP", f"{_d12_n_gf_tot}")
-
-        st.divider()
-
-        # ── Mapa de bolhas ────────────────────────────────────────────────────
-        st.markdown("#### 🗺️ Mapa de Gaps — Demanda vs Cobertura GF")
-        st.caption("Tamanho da bolha = demanda; Cor = severidade do gap (verde → vermelho)")
-
-        if not _d12_df.empty and _d12_df["Demanda (rotas+abast)"].sum() > 0:
-            import plotly.express as _px12
-            _d12_map_df = _d12_df[_d12_df["Demanda (rotas+abast)"] > 0].copy()
-            _d12_fig_map = _px12.scatter_geo(
-                _d12_map_df,
-                lat="lat",
-                lon="lon",
-                size="Demanda (rotas+abast)",
-                color="Gap Score",
-                color_continuous_scale=["#1a7a40", "#f5c518", "#e03030"],
-                range_color=[0, 1],
-                hover_name="UF",
-                hover_data={
-                    "lat": False,
-                    "lon": False,
-                    "Demanda (rotas+abast)": True,
-                    "Postos GF": True,
-                    "Gap Score": ":.3f",
-                    "Prioridade": True,
-                },
-                size_max=45,
-                scope="south america",
-                title="Cobertura × Demanda por UF",
+        # Mapa visual
+        if not _d12_map_df.empty:
+            _fig_d12 = go.Figure()
+            _fig_d12.add_trace(go.Scattermapbox(
+                lat=_d12_map_df["lat"], lon=_d12_map_df["lon"],
+                mode="markers+text",
+                marker=dict(size=_d12_map_df["gap"].apply(lambda v: max(8,min(40,v/2+8))),
+                            color=_d12_map_df["gap"],
+                            colorscale="RdYlGn_r", showscale=True,
+                            colorbar=dict(title="Gap")),
+                text=_d12_map_df["UF"],
+                textposition="top center",
+                hovertemplate="<b>%{text}</b><br>Demanda: %{customdata[0]:.0f}<br>Postos: %{customdata[1]}<extra></extra>",
+                customdata=_d12_map_df[["demanda","postos_visitados"]].values,
+            ))
+            _fig_d12.update_layout(
+                mapbox_style="carto-positron", mapbox_zoom=3.5,
+                mapbox_center={"lat":-15.0,"lon":-52.0},
+                height=480, margin=dict(l=0,r=0,t=30,b=0),
+                title="Gap Demanda × Cobertura por UF (vermelho = maior necessidade)",
             )
-            _d12_fig_map.update_geos(
-                center={"lat": -15, "lon": -52},
-                projection_scale=3.2,
-                showland=True,
-                landcolor="#1a2035",
-                showocean=True,
-                oceancolor="#0d1525",
-                showcountries=True,
-                countrycolor="#334",
-                showsubunits=True,
-                subunitcolor="#445",
-                bgcolor="rgba(0,0,0,0)",
-            )
-            _d12_fig_map.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font_color="#e0e0e0",
-                coloraxis_colorbar=dict(title="Gap Score", tickfont=dict(color="#e0e0e0")),
-                margin=dict(l=0, r=0, t=40, b=0),
-                height=500,
-            )
-            st.plotly_chart(_d12_fig_map, use_container_width=True)
-        else:
-            st.info(
-                "ℹ️ Sem dados de rotas ou abastecimentos para gerar o mapa de demanda. "
-                "Salve rotas ou registre abastecimentos para ver o mapa.",
-                icon="🗺️",
-            )
-
-        st.divider()
-
-        # ── Gráfico de barras — Top 15 UFs por Gap Score ──────────────────────
-        _col_bar, _col_tbl = st.columns([1, 1], gap="medium")
-
-        with _col_bar:
-            st.markdown("#### 📊 Top 15 UFs — Prioridade de Expansão")
-            _d12_top15 = _d12_df.head(15).copy()
-            if not _d12_top15.empty:
-
-                _bar_cores = [
-                    "#e03030" if g >= 0.60 else
-                    "#f5a623" if g >= 0.35 else
-                    "#f5c518" if g >= 0.15 else
-                    "#1a7a40"
-                    for g in _d12_top15["Gap Score"]
-                ]
-                _d12_fig_bar = go.Figure(
-                    go.Bar(
-                        x=_d12_top15["UF"],
-                        y=_d12_top15["Gap Score"],
-                        marker_color=_bar_cores,
-                        text=[f"{v:.3f}" for v in _d12_top15["Gap Score"]],
-                        textposition="outside",
-                        hovertemplate=(
-                            "<b>%{x}</b><br>"
-                            "Gap Score: %{y:.3f}<br>"
-                            "<extra></extra>"
-                        ),
-                    )
-                )
-                _d12_fig_bar.update_layout(
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    font_color="#e0e0e0",
-                    xaxis=dict(title="UF", tickfont=dict(color="#ccc")),
-                    yaxis=dict(title="Gap Score", range=[0, 1.1], tickfont=dict(color="#ccc")),
-                    margin=dict(l=10, r=10, t=30, b=10),
-                    height=350,
-                )
-                st.plotly_chart(_d12_fig_bar, use_container_width=True)
-                # Legenda de cores
-                st.markdown(
-                    "<small>"
-                    "🔴 Crítico ≥0,60 &nbsp;|&nbsp; "
-                    "🟠 Alto ≥0,35 &nbsp;|&nbsp; "
-                    "🟡 Médio ≥0,15 &nbsp;|&nbsp; "
-                    "🟢 Baixo &lt;0,15"
-                    "</small>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.info("Sem dados suficientes para o gráfico.")
-
-        # ── Tabela detalhada ──────────────────────────────────────────────────
-        with _col_tbl:
-            st.markdown("#### 📋 Detalhamento por UF")
-            _d12_tbl_show = _d12_df[[
-                "UF", "Demanda (rotas+abast)", "Postos GF", "Gap Score",
-                "Prioridade", "Ação sugerida",
-            ]].copy()
-            _d12_tbl_show["Gap Score"] = _d12_tbl_show["Gap Score"].apply(
-                lambda v: f"{_br_num(v, 3)}"
-            )
-            _d12_tbl_show["Demanda (rotas+abast)"] = _d12_tbl_show["Demanda (rotas+abast)"].apply(
-                lambda v: f"{_br_num(v, 1)}"
-            )
-            st.dataframe(
-                _d12_tbl_show,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "UF":                     st.column_config.TextColumn("UF",              width=55),
-                    "Demanda (rotas+abast)":  st.column_config.TextColumn("Demanda",          width=85),
-                    "Postos GF":              st.column_config.NumberColumn("GF",             width=55),
-                    "Gap Score":              st.column_config.TextColumn("Gap",              width=65),
-                    "Prioridade":             st.column_config.TextColumn("Prioridade",       width=110),
-                    "Ação sugerida":          st.column_config.TextColumn("Ação sugerida",    width=180),
-                },
-            )
-
-        st.divider()
-
-        # ── Insights automáticos ──────────────────────────────────────────────
-        st.markdown("#### 💡 Insights Estratégicos")
-        _d12_criticos = _d12_df[_d12_df["Gap Score"] >= 0.60]["UF"].tolist()
-        _d12_altos    = _d12_df[(_d12_df["Gap Score"] >= 0.35) & (_d12_df["Gap Score"] < 0.60)]["UF"].tolist()
-        _d12_sem_gf   = _d12_df[_d12_df["Postos GF"] == 0]["UF"].tolist()
-
-        _d12_insights = []
-
-        if _d12_criticos:
-            _ufs_str = ", ".join(_d12_criticos[:5])
-            _d12_insights.append(
-                f"🔴 **Expansão urgente**: As UFs **{_ufs_str}** apresentam alta demanda e baixíssima cobertura GF — "
-                f"são candidatas prioritárias para abertura imediata de novos postos."
-            )
-
-        if _d12_altos:
-            _ufs_str2 = ", ".join(_d12_altos[:4])
-            _d12_insights.append(
-                f"🟠 **Avaliação estratégica**: **{_ufs_str2}** têm gap relevante — recomenda-se avaliar parceiros "
-                f"ou franquias locais para aumentar a presença GF sem investimento próprio elevado."
-            )
-
-        if _d12_sem_gf:
-            _ufs_str3 = ", ".join(_d12_sem_gf[:6])
-            _d12_insights.append(
-                f"⚠️ **Sem nenhum posto GF**: As UFs **{_ufs_str3}** não possuem cobertura GF cadastrada. "
-                f"Mesmo com demanda baixa, a ausência total impede atendimento mínimo na região."
-            )
-
-        if not _d12_insights:
-            _d12_insights.append(
-                "✅ **Cobertura equilibrada**: Não foram identificados gaps críticos com os dados atuais. "
-                "Salve mais rotas e registre abastecimentos para uma análise mais precisa."
-            )
-
-        for _ins in _d12_insights:
-            st.info(_ins)
-
-        # Nota metodológica
-        with st.expander("ℹ️ Como o Gap Score é calculado"):
-            st.markdown(
-                """
-                **Gap Score** = `demanda_normalizada × (1 − cobertura_normalizada)`
-
-                - **Demanda**: soma de rotas salvas que passam pela UF + 0,5 por abastecimento histórico nessa UF.
-                - **Cobertura**: número de postos GF cadastrados na UF.
-                - Ambos são normalizados pelo valor máximo do conjunto (escala 0–1).
-                - Um Gap Score próximo de **1,0** indica alta demanda combinada com ausência quase total de postos GF → prioridade máxima de expansão.
-                - Um Gap Score próximo de **0,0** indica baixa demanda ou boa cobertura já existente.
-                """
-            )
-
-    # TAB 13 — 📅 Tendência × Sazonalidade
-    # ══════════════════════════════════════════════════════════════════════════
+            st.plotly_chart(_fig_d12, use_container_width=True)
     with _dt13:
         # ── Header ───────────────────────────────────────────────────────────
         st.markdown(
