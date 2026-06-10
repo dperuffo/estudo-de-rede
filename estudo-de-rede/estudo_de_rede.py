@@ -32550,6 +32550,49 @@ elif modo == "🤖 Assistente IA":
             with st.chat_message(_msg["role"], avatar=_av):
                 st.markdown(_msg["content"])
 
+        # Processa pergunta pendente (vinda de chip de sugestão)
+        if st.session_state.pop("_ai_processar_pendente", False):
+            if st.session_state["ai_chat_history"]:
+                _ultima = st.session_state["ai_chat_history"][-1]
+                if _ultima["role"] == "user":
+                    _pergunta = _ultima["content"]
+                    st.session_state["ai_chat_history"].pop()  # remove para re-adicionar após resposta
+                    # Processa abaixo
+                    with st.chat_message("user", avatar="👤"):
+                        st.markdown(_pergunta)
+                    st.session_state["ai_chat_history"].append({"role": "user", "content": _pergunta})
+
+                    _ai_avatar2 = f"data:image/png;base64,{_FNI_B64}" if _FNI_B64 else "🤖"
+                    with st.chat_message("assistant", avatar=_ai_avatar2):
+                        with st.spinner("Analisando dados da sua frota..."):
+                            try:
+                                import urllib.request as _ur2
+                                import json as _json2
+                                _ctx2 = _montar_contexto_frota()
+                                _sys2 = ("Você é o Assistente IA da FNI Gestão de Frotas. "
+                                         "Responda em português brasileiro de forma clara e com insights acionáveis. "
+                                         "Formate valores em R$ padrão BR (1.234,56). "
+                                         "Contexto da frota:\n" + _ctx2)
+                                _msgs2 = []
+                                for _h2 in st.session_state["ai_chat_history"][:-1]:
+                                    if _h2["role"] in ("user","assistant"):
+                                        _msgs2.append({"role":_h2["role"],"content":_h2["content"]})
+                                _msgs2.append({"role":"user","content":_pergunta})
+                                _pl2 = _json2.dumps({"model":"claude-sonnet-4-5","max_tokens":1024,
+                                    "system":_sys2,"messages":_msgs2}).encode()
+                                _rq2 = _ur2.Request("https://api.anthropic.com/v1/messages",
+                                    data=_pl2, method="POST",
+                                    headers={"Content-Type":"application/json",
+                                             "x-api-key":_api_key_ai,
+                                             "anthropic-version":"2023-06-01"})
+                                with _ur2.urlopen(_rq2, timeout=30) as _rp2:
+                                    _resp2 = _json2.loads(_rp2.read())["content"][0]["text"]
+                            except Exception as _e2:
+                                _resp2 = f"⚠️ Erro: {str(_e2)[:120]}"
+                        st.markdown(_resp2)
+                    st.session_state["ai_chat_history"].append({"role":"assistant","content":_resp2})
+                    st.rerun()
+
         # Input do usuário
         _pergunta = st.chat_input("Pergunte sobre sua frota... ex: Qual meu gasto com diesel este mês?")
 
