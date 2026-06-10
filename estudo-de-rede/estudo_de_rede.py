@@ -26765,38 +26765,28 @@ elif modo == "💡 Inteligência":
     </div>
     """, unsafe_allow_html=True)
 
-    _intel_d_pg = _intel_load()
-    _hist_all_pg = _intel_d_pg.get("historico", {})
-    _n_cnpjs_pg  = len(_hist_all_pg)
-    _n_obs_pg    = sum(len(v) for v in _hist_all_pg.values())
-    _datas_pg    = sorted({e["data"] for v in _hist_all_pg.values() for e in v})
-    _semanas_pg  = len(_datas_pg)
-
-    # ── KPIs ──────────────────────────────────────────────────────
+    # KPIs baseados em abastecimentos reais
+    _abast_intel  = _carregar_abastecimentos_unificados(dias=365)
+    _sheets_intel = st.session_state.get("_precos_anp_cache",{}).get("sheets",{})
+    _semana_intel = st.session_state.get("_precos_anp_cache",{}).get("semana","")
+    _n_postos_intel = 0; _n_abast_intel = 0; _n_mp_intel = 0; _last_dt_intel = "—"
+    if not _abast_intel.empty:
+        _cnpj_col_intel = "cnpj_posto" if "cnpj_posto" in _abast_intel.columns else None
+        _mp_col_intel   = "meio_pagamento" if "meio_pagamento" in _abast_intel.columns else None
+        _n_postos_intel = _abast_intel[_cnpj_col_intel].nunique() if _cnpj_col_intel else 0
+        _n_abast_intel  = len(_abast_intel)
+        _n_mp_intel     = _abast_intel[_mp_col_intel].nunique() if _mp_col_intel else 1
+        if "data_abastecimento" in _abast_intel.columns:
+            _last_dt_intel = str(pd.to_datetime(_abast_intel["data_abastecimento"], errors="coerce").max())[:10]
     _ki1, _ki2, _ki3, _ki4 = st.columns(4)
     with _ki1:
-        st.markdown(f"<div class='intel-kpi-card'>"
-                    f"<div class='intel-kpi-num'>{_fmt_int(_n_cnpjs_pg)}</div>"
-                    f"<div class='intel-kpi-lbl'>📍 Postos rastreados</div></div>",
-                    unsafe_allow_html=True)
+        st.markdown(f"<div class='intel-kpi-card'><div class='intel-kpi-num'>{_fmt_int(_n_postos_intel)}</div><div class='intel-kpi-lbl'>Postos utilizados</div></div>", unsafe_allow_html=True)
     with _ki2:
-        st.markdown(f"<div class='intel-kpi-card'>"
-                    f"<div class='intel-kpi-num'>{_fmt_int(_n_obs_pg)}</div>"
-                    f"<div class='intel-kpi-lbl'>📊 Observações</div></div>",
-                    unsafe_allow_html=True)
+        st.markdown(f"<div class='intel-kpi-card'><div class='intel-kpi-num'>{_fmt_int(_n_abast_intel)}</div><div class='intel-kpi-lbl'>Abastecimentos</div></div>", unsafe_allow_html=True)
     with _ki3:
-        st.markdown(f"<div class='intel-kpi-card'>"
-                    f"<div class='intel-kpi-num'>{_semanas_pg}</div>"
-                    f"<div class='intel-kpi-lbl'>📅 Semanas de histórico</div></div>",
-                    unsafe_allow_html=True)
+        st.markdown(f"<div class='intel-kpi-card'><div class='intel-kpi-num'>{_n_mp_intel}</div><div class='intel-kpi-lbl'>Meios de Pagamento</div></div>", unsafe_allow_html=True)
     with _ki4:
-        # Mostra a data do registro de preço mais recente no histórico
-        _last_upd = _datas_pg[-1] if _datas_pg else None
-        _last_upd_fmt = _last_upd if _last_upd else "Nunca"
-        st.markdown(f"<div class='intel-kpi-card'>"
-                    f"<div class='intel-kpi-num' style='font-size:1.1rem'>{_last_upd_fmt}</div>"
-                    f"<div class='intel-kpi-lbl'>🕒 Última atualização</div></div>",
-                    unsafe_allow_html=True)
+        st.markdown(f"<div class='intel-kpi-card'><div class='intel-kpi-num' style='font-size:1.1rem'>{_last_dt_intel}</div><div class='intel-kpi-lbl'>Ultimo abastecimento</div></div>", unsafe_allow_html=True)
 
     st.markdown("<div style='height:1.2rem'></div>", unsafe_allow_html=True)
 
@@ -26809,164 +26799,53 @@ elif modo == "💡 Inteligência":
 
     # ══ ABA 1: Histórico ══════════════════════════════════════════
     with _tab_hist:
-        if _n_obs_pg == 0:
-            st.info(
-                "**Nenhum histórico registrado ainda.**\n\n"
-                "Os preços são acumulados automaticamente toda vez que você carrega "
-                "a planilha de **Preços PP** em Configurações → 💲 Preços PP.\n\n"
-                "Após algumas semanas de uso, o gráfico de evolução de preços "
-                "estará disponível aqui."
-            )
+        st.markdown("#### Historico de Precos por Posto")
+        if _abast_intel.empty:
+            st.info("Nenhum abastecimento registrado. Integre via Pro-Frotas.")
         else:
-            st.markdown("#### Visualizar histórico de um posto")
-            _col_h1, _col_h2 = st.columns([2, 1])
-            with _col_h1:
-                _cnpj_hist_pg = st.text_input(
-                    "CNPJ do posto (somente números)",
-                    key="intel_cnpj_pg",
-                    placeholder="Ex: 12345678000199",
-                    max_chars=18,
-                )
-            with _col_h2:
-                _comb_hist_pg = st.selectbox(
-                    "Filtrar por combustível",
-                    options=["Todos"] + list({
-                        e["combustivel"]
-                        for v in _hist_all_pg.values()
-                        for e in v
-                        if e.get("combustivel")
-                    }),
-                    key="intel_comb_hist_pg",
-                )
-
-            if _cnpj_hist_pg:
-                _cnpj_h_n2 = re.sub(r"\D", "", _cnpj_hist_pg)
-                _hist_posto2 = _hist_all_pg.get(_cnpj_h_n2, [])
-                if not _hist_posto2:
-                    st.warning("Nenhum histórico encontrado para este CNPJ.")
-                else:
-                    _nome_h2 = _hist_posto2[0].get("nome", f"Posto {_cnpj_h_n2}")
-                    _comb_f2 = None if _comb_hist_pg == "Todos" else _comb_hist_pg
-                    _fig_h2  = _hist_chart_posto(_cnpj_h_n2, _nome_h2, combustivel=_comb_f2)
-                    if _fig_h2:
-                        _titulo_h2 = f"📈 Evolução de preços — {_nome_h2}"
-                        if _comb_f2:
-                            _titulo_h2 += f" ({_comb_f2.title()})"
-                        st.markdown(
-                            f"<p style='font-weight:600;font-size:0.95rem;"
-                            f"margin:0 0 4px 0;color:var(--text-color,#1a1a2e)'>"
-                            f"{_titulo_h2}</p>",
-                            unsafe_allow_html=True,
-                        )
-                        st.plotly_chart(_fig_h2, use_container_width=True)
-
-                    _df_h2 = pd.DataFrame(_hist_posto2)
-                    if _comb_f2:
-                        _df_h2 = _df_h2[_df_h2["combustivel"] == _comb_f2]
-                    _df_h2 = _df_h2.sort_values("data", ascending=False)
-                    _df_h2 = _df_h2.rename(columns={
-                        "data":"Data","preco":"Preço R$/L",
-                        "combustivel":"Combustível","municipio":"Município","uf":"UF"})
-                    st.dataframe(_df_h2.head(52), use_container_width=True, height=250)
-
-            # Registrar preços da planilha PP
-            st.markdown("---")
-            st.markdown("##### Registrar preços no histórico")
-
-            # ── Feedback persistente pós-rerun (toast sobrevive ao st.rerun) ──
-            _hist_toast = st.session_state.pop("_hist_toast", None)
-            if _hist_toast:
-                _tp = _hist_toast.get("type", "info")
-                _tm = _hist_toast.get("msg", "")
-                if _tp == "success":
-                    st.success(_tm)
-                elif _tp == "warning":
-                    st.warning(_tm)
-                elif _tp == "error":
-                    st.error(_tm)
-                else:
-                    st.info(_tm)
-
-            # ── Exibe erro persistente do Supabase se houver ──────────
-            _hist_db_erro = st.session_state.get("_hist_db_erro")
-            if _hist_db_erro:
-                st.error(
-                    f"⚠️ **Falha ao gravar no Supabase** — os dados foram salvos "
-                    f"apenas localmente (sessão atual).\n\n"
-                    f"Erro: `{_hist_db_erro}`\n\n"
-                    f"**Ação necessária:** crie a constraint de unicidade na tabela "
-                    f"`historico_precos` executando no SQL Editor do Supabase:\n"
-                    f"```sql\n"
-                    f"-- Execute apenas UMA vez. Se retornar erro dizendo que a\n"
-                    f"-- constraint já existe, ignore — tudo está correto.\n"
-                    f"ALTER TABLE historico_precos\n"
-                    f"  ADD CONSTRAINT historico_precos_unico\n"
-                    f"  UNIQUE (cnpj, combustivel, data_ref);\n"
-                    f"```\n"
-                    f"Depois clique em **↩️ Forçar sincronização** abaixo."
-                )
-
-            _pp_df_pg = st.session_state.get("_pp_df")
-            if _pp_df_pg is not None and not _pp_df_pg.empty:
-                st.caption(f"Planilha PP carregada: {_fmt_int(len(_pp_df_pg))} registros")
-                _rb1, _rb2 = st.columns(2)
-                with _rb1:
-                    if st.button("🔄 Registrar preços atuais da planilha PP",
-                                 key="btn_hist_reg_pg", use_container_width=True):
-                        _n_reg_pg = _hist_record_pp_df(_pp_df_pg)
-                        if st.session_state.get("_hist_db_erro"):
-                            st.session_state["_hist_toast"] = {
-                                "type": "warning",
-                                "msg": (
-                                    f"⚠️ {_n_reg_pg} registro(s) salvos localmente, "
-                                    f"mas a gravação no Supabase falhou. Veja o erro abaixo."
-                                ),
-                            }
-                        else:
-                            st.session_state["_hist_toast"] = {
-                                "type": "success",
-                                "msg": (
-                                    f"✅ {_n_reg_pg} nova(s) observação(ões) registrada(s) "
-                                    f"com sucesso (local + Supabase)."
-                                    if _n_reg_pg > 0
-                                    else "ℹ️ Nenhum registro novo — todos já estavam no histórico."
-                                ),
-                            }
-                        st.rerun()
-                with _rb2:
-                    if st.button("↩️ Forçar sincronização com Supabase",
-                                 key="btn_hist_force_sync", use_container_width=True,
-                                 help="Envia todos os registros da planilha PP ao Supabase, "
-                                      "ignorando o que já está no cache local. "
-                                      "Use se a tabela historico_precos estiver vazia no banco."):
-                        # Limpa o cache local para forçar todos como "novos"
-                        _intel_forced = _intel_load()
-                        _intel_forced["historico"] = {}
-                        _intel_save(_intel_forced)
-                        st.session_state.pop("_intel_loaded", None)
-                        _n_force = _hist_record_pp_df(_pp_df_pg)
-                        if st.session_state.get("_hist_db_erro"):
-                            st.session_state["_hist_toast"] = {
-                                "type": "error",
-                                "msg": (
-                                    f"❌ Supabase ainda falhando após sincronização forçada. "
-                                    f"Verifique o erro acima e confirme se a constraint "
-                                    f"`historico_precos_unico` foi criada no banco."
-                                ),
-                            }
-                        else:
-                            st.session_state["_hist_toast"] = {
-                                "type": "success",
-                                "msg": (
-                                    f"✅ Sincronização forçada concluída: "
-                                    f"{_n_force} registro(s) enviado(s) ao Supabase com sucesso."
-                                ),
-                            }
-                        st.rerun()
-            else:
-                st.info("Carregue a planilha de Preços PP em **Configurações → 💲 Preços PP** para ativar o registro automático de histórico.")
-
-    # ══ ABA 2: Score ══════════════════════════════════════════════
+            _cnpj_col_hi = "cnpj_posto" if "cnpj_posto" in _abast_intel.columns else None
+            _nome_col_hi = next((c for c in ["nome_posto"] if c in _abast_intel.columns), None)
+            _preco_col_hi = next((c for c in ["preco_litro"] if c in _abast_intel.columns), None)
+            _comb_col_hi  = next((c for c in ["produto","combustivel"] if c in _abast_intel.columns), None)
+            if _cnpj_col_hi and _preco_col_hi:
+                _postos_hi = _abast_intel.groupby(_cnpj_col_hi)[_nome_col_hi if _nome_col_hi else _cnpj_col_hi].first().reset_index()
+                _postos_hi.columns = ["cnpj", "nome"]
+                _postos_hi["label"] = _postos_hi["nome"].fillna("").str[:40] + " — " + _postos_hi["cnpj"].astype(str)
+                _sel_hi = st.selectbox("Posto", _postos_hi["label"].tolist(), key="intel_posto_hi")
+                _cnpj_sel_hi = _postos_hi[_postos_hi["label"] == _sel_hi]["cnpj"].iloc[0]
+                _df_hi = _abast_intel[_abast_intel[_cnpj_col_hi].astype(str) == str(_cnpj_sel_hi)].copy()
+                if not _df_hi.empty and "data_abastecimento" in _df_hi.columns:
+                    _df_hi["data_abastecimento"] = pd.to_datetime(_df_hi["data_abastecimento"], errors="coerce")
+                    _df_hi = _df_hi.sort_values("data_abastecimento")
+                    _fig_hi = go.Figure()
+                    if _comb_col_hi:
+                        for _cb_hi, _gdf_hi in _df_hi.groupby(_comb_col_hi):
+                            _fig_hi.add_trace(go.Scatter(
+                                x=_gdf_hi["data_abastecimento"], y=_gdf_hi[_preco_col_hi],
+                                mode="lines+markers", name=str(_cb_hi)[:25], line=dict(width=2)
+                            ))
+                    else:
+                        _fig_hi.add_trace(go.Scatter(
+                            x=_df_hi["data_abastecimento"], y=_df_hi[_preco_col_hi],
+                            mode="lines+markers", line=dict(width=2)
+                        ))
+                    # Linha ANP
+                    _uf_hi = str(_df_hi["uf_posto"].iloc[0]).upper() if "uf_posto" in _df_hi.columns else None
+                    if _uf_hi and _sheets_intel:
+                        _rows_hi = _anp_extrair_precos(_sheets_intel, uf=_uf_hi)
+                        if _rows_hi:
+                            try:
+                                _anp_hi = float(_rows_hi[0].get("Preco Medio") or 0)
+                                if _anp_hi > 0:
+                                    _fig_hi.add_hline(y=_anp_hi, line_dash="dash", line_color="red",
+                                        annotation_text=f"ANP {_uf_hi}: R$ {_anp_hi:.3f}")
+                            except Exception:
+                                pass
+                    _fig_hi.update_layout(height=320, margin=dict(l=0,r=0,t=20,b=0),
+                        yaxis_title="R$/L", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                    st.plotly_chart(_fig_hi, use_container_width=True)
+                    st.dataframe(_df_hi[["data_abastecimento", _preco_col_hi] + ([_comb_col_hi] if _comb_col_hi else [])].tail(20),
+                        use_container_width=True, hide_index=True)
     with _tab_score:
         st.markdown(
             "O **Score** é calculado automaticamente na tabela de dados de cada modo.\n\n"
@@ -27018,554 +26897,59 @@ elif modo == "💡 Inteligência":
 
     # ══ ABA 3: Alertas Inteligentes ═══════════════════════════════
     with _tab_alertas:
-        st.markdown(
-            "<p style='font-size:13px;color:#555;margin-bottom:10px'>"
-            "Central de alertas automatizados sobre preços, competitividade, "
-            "cobertura geográfica e tendências da rede GF.</p>",
-            unsafe_allow_html=True,
-        )
-
-        # Dados compartilhados por todos os sub-alertas
-        _pp_df3      = st.session_state.get("_pp_df")
-        _anp_cache3  = st.session_state.get("_precos_anp_cache", {})
-        _sheets_a3   = _anp_cache3.get("sheets")
-        _pf_df3      = st.session_state.get("pf_coords_df", pd.DataFrame())
-        _pf_cnpjs3   = (set(_pf_df3["cnpj"].dropna().astype(str).str.strip())
-                        if not _pf_df3.empty and "cnpj" in _pf_df3.columns else set())
-
-        # ── Upload inline da ANP (Preços Semanais) ────────────────────
-        # Aparece como card compacto quando ANP não está carregada;
-        # quando carregada, mostra badge + expander para trocar.
-        # NÃO chama st.rerun() — atualiza _sheets_a3 na mesma render.
-        if _sheets_a3 is None:
-            st.markdown(
-                "<div style='"
-                "background:linear-gradient(135deg,#040d26 0%,#0b2660 100%);"
-                "border-radius:12px;padding:14px 18px 12px;margin-bottom:14px;"
-                "border:1px solid rgba(100,181,246,0.25);'>"
-                "<div style='color:rgba(144,202,249,0.9);font-size:11px;"
-                "font-weight:700;letter-spacing:1px;text-transform:uppercase;"
-                "margin-bottom:6px'>📋 Planilha ANP de Preços Semanais</div>"
-                "<div style='color:rgba(255,255,255,0.75);font-size:12px;'>"
-                "Faça o upload da planilha semanal da ANP para ativar as análises de "
-                "<b>competitividade</b>, <b>variação</b> e <b>tendência</b>. "
-                "Baixe em <a href='https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos' "
-                "target='_blank' style='color:#90CAF9'>gov.br/anp</a>."
-                "</div></div>",
-                unsafe_allow_html=True,
-            )
-            _anp_up_intel = st.file_uploader(
-                "📎 Selecione a planilha ANP (resumo_semanal_lpc_*.xlsx)",
-                type=["xlsx", "xls"],
-                key="anp_uploader_intel_alertas",
-                help="Planilha semanal da ANP com preços médios por estado/município",
-                label_visibility="collapsed",
-            )
-            if _anp_up_intel is not None:
-                with st.spinner("🔍 Processando planilha ANP…"):
-                    try:
-                        _sh_intel = _anp_processar_arquivo(
-                            io.BytesIO(_anp_up_intel.read())
-                        )
-                        if not _sh_intel:
-                            st.error(
-                                "❌ Nenhuma aba reconhecida. "
-                                "Verifique se é a planilha correta da ANP."
-                            )
-                        else:
-                            _sem_intel = (
-                                _anp_up_intel.name
-                                .replace(".xlsx", "").replace(".xls", "")
-                            )
-                            _cache_ant_intel = st.session_state.get(
-                                "_precos_anp_cache", {}
-                            )
-                            if (_cache_ant_intel.get("sheets") and
-                                    _cache_ant_intel.get("semana") != _sem_intel):
-                                st.session_state["_precos_anp_cache_anterior"] = (
-                                    _cache_ant_intel
-                                )
-                            st.session_state["_precos_anp_cache"] = {
-                                "sheets": _sh_intel, "semana": _sem_intel
-                            }
-                            # Atualiza variável local sem st.rerun() (evita loop)
-                            _sheets_a3 = _sh_intel
-                            st.success(
-                                f"✅ ANP **{_sem_intel}** carregada — "
-                                "análises atualizadas abaixo."
-                            )
-                    except Exception as _ex_intel:
-                        st.error(f"❌ Erro ao ler arquivo ANP: {_ex_intel}")
+        st.markdown("#### Alertas Inteligentes")
+        _sheets_a3 = st.session_state.get("_precos_anp_cache",{}).get("sheets",{})
+        _semana_a3 = st.session_state.get("_precos_anp_cache",{}).get("semana","")
+        if _abast_intel.empty:
+            st.info("Nenhum abastecimento registrado. Integre via Pro-Frotas.")
         else:
-            # ANP já carregada: badge compacto + opção de trocar
-            _sem_atual3 = _anp_cache3.get("semana", "—")
-            with st.expander(
-                f"✅ ANP carregada: **{_sem_atual3}** · Clique para atualizar",
-                expanded=False,
-            ):
-                st.markdown(
-                    "<div style='font-size:12px;color:#555;margin-bottom:8px'>"
-                    "Para substituir, carregue a planilha mais recente abaixo.</div>",
-                    unsafe_allow_html=True,
-                )
-                _anp_up_intel2 = st.file_uploader(
-                    "📎 Nova planilha ANP",
-                    type=["xlsx", "xls"],
-                    key="anp_uploader_intel_troca",
-                    label_visibility="collapsed",
-                )
-                if _anp_up_intel2 is not None:
-                    with st.spinner("🔍 Processando…"):
-                        try:
-                            _sh_i2 = _anp_processar_arquivo(
-                                io.BytesIO(_anp_up_intel2.read())
-                            )
-                            if _sh_i2:
-                                _sem_i2 = (
-                                    _anp_up_intel2.name
-                                    .replace(".xlsx", "").replace(".xls", "")
-                                )
-                                st.session_state["_precos_anp_cache_anterior"] = (
-                                    _anp_cache3
-                                )
-                                st.session_state["_precos_anp_cache"] = {
-                                    "sheets": _sh_i2, "semana": _sem_i2
-                                }
-                                _sheets_a3 = _sh_i2
-                                st.success(f"✅ ANP atualizada: **{_sem_i2}**")
-                            else:
-                                st.error("❌ Arquivo não reconhecido.")
-                        except Exception as _ex_i2:
-                            st.error(f"❌ {_ex_i2}")
-
-        (
-            _sa_lim, _sa_var, _sa_comp, _sa_geo, _sa_tend,
-        ) = st.tabs([
-            "💸 Limiares de Preço",
-            "📉 Variação Semanal",
-            "🏆 Competitividade",
-            "🗺️ Cobertura Geográfica",
-            "📈 Tendência",
-        ])
-
-        # ── Sub-aba A: Limiares de Preço (funcionalidade original) ──
-        with _sa_lim:
-            st.markdown("##### Configurar Limiares e Gerar Relatório")
-            st.markdown(
-                "Defina o **preço máximo aceitável** para cada combustível. "
-                "Ao gerar o relatório, todos os postos da planilha GF que estiverem "
-                "**acima do limiar** serão listados no arquivo Excel."
-            )
-            _intel_d3    = _intel_load()
-            _limiar_cfg3 = _intel_d3.get("limiar", {})
-            _COMBS_LIM3 = [
-                ("GASOLINA COMUM",    "⛽ Gasolina Comum",     5.80),
-                ("GASOLINA ADITIVADA","⛽ Gasolina Aditivada",  6.20),
-                ("ETANOL HIDRATADO",  "🌿 Etanol Hidratado",    4.00),
-                ("DIESEL S10",        "🚛 Diesel S10",          6.00),
-                ("DIESEL S500",       "🚛 Diesel S500",         5.90),
-            ]
-            _lim_novo3 = {}
-            _lca, _lcb = st.columns(2)
-            for _ci3, (_ck3, _clbl3, _cdef3) in enumerate(_COMBS_LIM3):
-                with (_lca if _ci3 % 2 == 0 else _lcb):
-                    _lim_novo3[_ck3] = st.number_input(
-                        _clbl3,
-                        min_value=0.0, max_value=20.0,
-                        value=float(_limiar_cfg3.get(_ck3, _cdef3)),
-                        step=0.01, format="%.3f",
-                        key=f"intel_lim3_{_ck3}",
-                    )
-            _col_btn_a, _col_btn_b = st.columns([1, 1])
-            with _col_btn_a:
-                if st.button("💾 Salvar limiares", key="btn_intel3_salvar",
-                             use_container_width=True):
-                    _intel_d3["limiar"] = _lim_novo3
-                    _intel_save(_intel_d3)
-                    st.session_state.pop("_intel_loaded", None)
-                    st.success("✅ Limiares salvos.")
-            with _col_btn_b:
-                if st.button("📄 Gerar Relatório Excel",
-                             key="btn_intel3_gerar",
-                             use_container_width=True,
-                             type="primary"):
-                    if _pp_df3 is None or _pp_df3.empty:
-                        st.warning("⚠️ Carregue a planilha de Preços PP em Configurações.")
-                    else:
-                        with st.spinner("Gerando relatório…"):
-                            _bytes3, _fname3, _err3 = _gerar_relatorio_alertas_xlsx(
-                                _pp_df3, _lim_novo3)
-                        if _err3:
-                            st.error(f"❌ Erro: {_err3}")
-                        else:
-                            st.session_state["_intel_rel_bytes"] = _bytes3
-                            st.session_state["_intel_rel_fname"] = _fname3
-                            st.session_state.pop("_intel_loaded", None)
-                            st.rerun()
-            _bytes_dl3 = st.session_state.get("_intel_rel_bytes")
-            _fname_dl3 = st.session_state.get("_intel_rel_fname", "alertas.xlsx")
-            if _bytes_dl3:
-                st.markdown("---")
-                st.download_button(
-                    "⬇️ Baixar relatório gerado",
-                    data=_bytes_dl3,
-                    file_name=_fname_dl3,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key="btn_intel3_download",
-                )
-            if _pp_df3 is None:
-                st.info("ℹ️ Para gerar o relatório, carregue a planilha de **Preços PP** em "
-                        "**Configurações → 💲 Preços PP**.")
-
-        # ── Sub-aba B: Variação Semanal ──────────────────────────────
-        with _sa_var:
-            st.markdown("##### 📉 Alerta de Piora Abrupta de Preço")
-            st.markdown(
-                "Detecta postos que apresentaram **alta significativa** de preço "
-                "entre os dois últimos registros no histórico."
-            )
-            if _n_obs_pg == 0:
-                st.info(
-                    "ℹ️ Sem histórico de preços registrado ainda. "
-                    "Carregue a planilha PP em **Configurações** e clique em "
-                    "**Registrar preços atuais** na aba Histórico de Preços."
-                )
+            _preco_col_a3 = next((c for c in ["preco_litro"] if c in _abast_intel.columns), None)
+            _uf_col_a3    = "uf_posto" if "uf_posto" in _abast_intel.columns else None
+            _comb_col_a3  = next((c for c in ["produto","combustivel"] if c in _abast_intel.columns), None)
+            _alertas = []
+            # Alerta 1: precos acima ANP
+            if _preco_col_a3 and _uf_col_a3 and _sheets_a3:
+                for _uf_a3 in _abast_intel[_uf_col_a3].dropna().str.upper().unique():
+                    _df_uf_a3 = _abast_intel[_abast_intel[_uf_col_a3].str.upper()==_uf_a3]
+                    _rows_a3  = _anp_extrair_precos(_sheets_a3, uf=_uf_a3)
+                    if not _rows_a3:
+                        continue
+                    try:
+                        _anp_a3 = float(_rows_a3[0].get("Preco Medio") or 0)
+                        if _anp_a3 <= 0:
+                            continue
+                        _preco_med_a3 = float(_df_uf_a3[_preco_col_a3].mean() or 0)
+                        if _preco_med_a3 > _anp_a3 * 1.05:
+                            _alertas.append({
+                                "Tipo":    "Preco acima ANP",
+                                "UF":      _uf_a3,
+                                "Detalhe": f"Preco medio R$ {_preco_med_a3:.3f} vs ANP R$ {_anp_a3:.3f} (+{(_preco_med_a3-_anp_a3)/_anp_a3*100:.1f}%)",
+                                "Prioridade": "Alta" if _preco_med_a3 > _anp_a3*1.10 else "Media",
+                            })
+                    except Exception:
+                        pass
+            # Alerta 2: alta variacao de preco
+            if _preco_col_a3 and _comb_col_a3:
+                _cv_df = _abast_intel.groupby([_comb_col_a3])[_preco_col_a3].agg(["std","mean","count"]).reset_index()
+                _cv_df["cv"] = _cv_df["std"] / _cv_df["mean"] * 100
+                _alta_cv = _cv_df[(_cv_df["cv"] > 5) & (_cv_df["count"] >= 3)]
+                for _, _r in _alta_cv.iterrows():
+                    _alertas.append({
+                        "Tipo":    "Alta variacao de preco",
+                        "UF":      "Geral",
+                        "Detalhe": f"{_r[_comb_col_a3]}: CV={_r['cv']:.1f}% — instabilidade detectada",
+                        "Prioridade": "Media",
+                    })
+            if _alertas:
+                _df_alertas = pd.DataFrame(_alertas).sort_values("Prioridade")
+                _n_alta = sum(1 for a in _alertas if a["Prioridade"]=="Alta")
+                _al1, _al2 = st.columns(2)
+                _al1.metric("Total alertas", len(_alertas))
+                _al2.metric("Alta prioridade", _n_alta)
+                st.dataframe(_df_alertas, use_container_width=True, hide_index=True)
+                st.caption(f"Semana ANP: {_semana_a3}")
             else:
-                _var_thresh = st.slider(
-                    "Limiar de variação (%)",
-                    min_value=1, max_value=20, value=3,
-                    key="intel_var_thresh",
-                    help="Postos com alta ≥ este valor aparecem no alerta.",
-                )
-                with st.spinner("Analisando variações semanais…"):
-                    _df_var = _alerta_variacao_semanal(
-                        _hist_all_pg, threshold_pct=_var_thresh / 100
-                    )
-                if _df_var.empty:
-                    st.success(
-                        f"✅ Nenhum posto com variação ≥ {_var_thresh}% entre os últimos dois registros."
-                    )
-                else:
-                    _nv = len(_df_var)
-                    _va1, _va2, _va3 = st.columns(3)
-                    _va1.metric("⚠️ Postos em alerta", _nv)
-                    _va2.metric("📈 Maior variação",
-                                f"+{_df_var['_delta'].max() * 100:.1f}%")
-                    _va3.metric("📊 Variação média",
-                                f"+{_df_var['_delta'].mean() * 100:.1f}%")
-                    st.divider()
-
-                    # Gráfico de barras por UF
-                    _uf_var = (
-                        _df_var.groupby("UF")["_delta"]
-                        .agg(postos="count", pior=lambda x: x.max())
-                        .reset_index()
-                        .sort_values("pior", ascending=False)
-                    )
-                    if len(_uf_var) > 1:
-                        _fig_var = go.Figure(go.Bar(
-                            x=_uf_var["UF"], y=(_uf_var["pior"] * 100).round(1),
-                            marker_color=[
-                                "#C62828" if v > 0.07 else "#EF6C00" if v > 0.04 else "#F9A825"
-                                for v in _uf_var["pior"]
-                            ],
-                            text=[f"+{v:.1f}%" for v in (_uf_var["pior"] * 100)],
-                            textposition="outside",
-                            hovertemplate="UF: %{x}<br>Pior desvio: %{y:.1f}%<extra></extra>",
-                        ))
-                        _fig_var.update_layout(
-                            title="Pior variação de preço por UF",
-                            xaxis_title="UF", yaxis_title="Variação (%)",
-                            height=320, margin=dict(t=40, b=20, l=20, r=20),
-                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        )
-                        st.plotly_chart(_fig_var, use_container_width=True)
-
-                    _df_var_disp = _df_var.drop(columns=["_delta"])
-                    st.dataframe(_df_var_disp, use_container_width=True, hide_index=True)
-
-                    # Export CSV
-                    _csv_var = _df_var_disp.to_csv(index=False).encode("utf-8-sig")
-                    st.download_button(
-                        "📥 Exportar CSV",
-                        data=_csv_var,
-                        file_name=f"alerta_variacao_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        key="btn_export_var",
-                    )
-
-        # ── Sub-aba C: Competitividade ───────────────────────────────
-        with _sa_comp:
-            st.markdown("##### 🏆 Alerta de Perda de Competitividade")
-            st.markdown(
-                "Postos GF com preço **acima da referência ANP por UF**, "
-                "indicando possível perda de competitividade frente ao mercado."
-            )
-            _sem_pp3  = _pp_df3 is None or _pp_df3.empty
-            _sem_anp3 = _sheets_a3 is None
-
-            if _sem_pp3 and _sem_anp3:
-                st.info(
-                    "ℹ️ Carregue a **planilha de Preços PP** (em ⚙️ Configurações) e a "
-                    "**planilha ANP** (acima ↑) para ativar este alerta."
-                )
-            elif _sem_pp3:
-                st.info(
-                    "ℹ️ Carregue a **planilha de Preços PP** em ⚙️ Configurações → 💲 Preços PP."
-                )
-            elif _sem_anp3:
-                st.info(
-                    "ℹ️ Carregue a **planilha ANP de Preços Semanais** "
-                    "usando o widget acima ↑ (sem precisar ir a Configurações)."
-                )
-            else:
-                _comp_thresh = st.slider(
-                    "Desvio mínimo acima do ANP (%)",
-                    min_value=1, max_value=30, value=5,
-                    key="intel_comp_thresh",
-                    help="Postos com preço > ANP + este % são sinalizados.",
-                )
-                with st.spinner("Calculando competitividade vs. ANP…"):
-                    _df_comp = _alerta_competitividade(
-                        _pp_df3, _pf_cnpjs3, _sheets_a3,
-                        threshold_pct=_comp_thresh / 100,
-                    )
-                if _df_comp.empty:
-                    st.success(
-                        f"✅ Nenhum posto GF com preço > ANP + {_comp_thresh}%. "
-                        "Rede competitiva!"
-                    )
-                else:
-                    _nc = len(_df_comp)
-                    _ca1, _ca2, _ca3 = st.columns(3)
-                    _ca1.metric("⚠️ Postos acima do ANP", _nc)
-                    _ca2.metric("📈 Pior desvio",
-                                f"+{_df_comp['_delta'].max() * 100:.1f}%")
-                    _ca3.metric("📊 Desvio médio",
-                                f"+{_df_comp['_delta'].mean() * 100:.1f}%")
-                    st.divider()
-
-                    # Mapa de calor por UF
-                    _uf_comp = (
-                        _df_comp.groupby("UF")["_delta"]
-                        .agg(postos="count", pior=lambda x: x.max())
-                        .reset_index()
-                        .sort_values("pior", ascending=True)
-                    )
-                    if len(_uf_comp) > 0:
-                        _fig_comp = go.Figure(go.Bar(
-                            y=_uf_comp["UF"], x=(_uf_comp["pior"] * 100).round(1),
-                            orientation="h",
-                            marker_color=[
-                                "#C62828" if v > 0.15 else "#EF6C00" if v > 0.08 else "#F9A825"
-                                for v in _uf_comp["pior"]
-                            ],
-                            text=[f"+{v:.1f}%" for v in (_uf_comp["pior"] * 100)],
-                            textposition="outside",
-                            hovertemplate="UF: %{y}<br>Pior desvio: %{x:.1f}%<extra></extra>",
-                        ))
-                        _fig_comp.update_layout(
-                            title="Perda de Competitividade por UF (desvio vs ANP)",
-                            xaxis_title="Desvio (%)", yaxis_title="",
-                            height=max(280, len(_uf_comp) * 26 + 80),
-                            margin=dict(t=40, b=20, l=20, r=60),
-                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        )
-                        st.plotly_chart(_fig_comp, use_container_width=True)
-
-                    _df_comp_disp = _df_comp.drop(columns=["_delta"])
-                    st.dataframe(_df_comp_disp, use_container_width=True, hide_index=True)
-                    _csv_comp = _df_comp_disp.to_csv(index=False).encode("utf-8-sig")
-                    st.download_button(
-                        "📥 Exportar CSV",
-                        data=_csv_comp,
-                        file_name=f"alerta_competitividade_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        key="btn_export_comp",
-                    )
-
-        # ── Sub-aba D: Cobertura Geográfica ─────────────────────────
-        with _sa_geo:
-            st.markdown("##### 🗺️ Alerta de Cobertura Geográfica")
-            st.markdown(
-                "Identifica estados e regiões com **poucos postos GF** ou "
-                "baixa penetração municipal, sinalizando oportunidades de expansão."
-            )
-            if _pf_df3.empty:
-                st.info(
-                    "ℹ️ Carregue a **planilha de Postos GF** em Configurações "
-                    "para ativar este alerta."
-                )
-            else:
-                with st.spinner("Analisando cobertura geográfica…"):
-                    _df_geo = _alerta_cobertura_geografica(_pf_df3)
-
-                if _df_geo.empty:
-                    st.warning("⚠️ Não foi possível calcular cobertura (dados insuficientes).")
-                else:
-                    _n_crit = int((_df_geo["Nível"] == "🔴 Crítica").sum())
-                    _n_parc = int((_df_geo["Nível"] == "🟡 Parcial").sum())
-                    _n_boa  = int((_df_geo["Nível"] == "🟢 Boa").sum())
-                    _ga1, _ga2, _ga3 = st.columns(3)
-                    _ga1.metric("🔴 Cobertura Crítica", _n_crit, help="0–2 postos no estado")
-                    _ga2.metric("🟡 Cobertura Parcial",  _n_parc, help="3–9 postos no estado")
-                    _ga3.metric("🟢 Boa Cobertura",      _n_boa,  help="≥10 postos + ≥20% municípios")
-                    st.divider()
-
-                    # Gráfico: postos por UF
-                    _df_geo_plot = _df_geo.sort_values("Postos GF", ascending=True).tail(27)
-                    _cores_geo = {
-                        "🔴 Crítica": "#C62828",
-                        "🟡 Parcial": "#EF6C00",
-                        "🟢 Boa":     "#2E7D32",
-                    }
-                    _fig_geo = go.Figure(go.Bar(
-                        y=_df_geo_plot["UF"],
-                        x=_df_geo_plot["Postos GF"],
-                        orientation="h",
-                        marker_color=[_cores_geo.get(n, "#888") for n in _df_geo_plot["Nível"]],
-                        text=_df_geo_plot["Postos GF"].astype(str),
-                        textposition="outside",
-                        hovertemplate=(
-                            "UF: %{y}<br>Postos GF: %{x}<br>"
-                            "<extra></extra>"
-                        ),
-                    ))
-                    _fig_geo.update_layout(
-                        title="Postos GF por UF (🔴 Crítica · 🟡 Parcial · 🟢 Boa)",
-                        xaxis_title="Postos GF", yaxis_title="",
-                        height=max(320, len(_df_geo_plot) * 22 + 80),
-                        margin=dict(t=40, b=20, l=30, r=40),
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    )
-                    st.plotly_chart(_fig_geo, use_container_width=True)
-
-                    # Tabela detalhada — destaque críticos no topo
-                    _df_geo_disp = _df_geo.drop(columns=["_n_postos"]).sort_values(
-                        "Postos GF", ascending=True
-                    )
-                    st.dataframe(_df_geo_disp, use_container_width=True, hide_index=True)
-                    _csv_geo = _df_geo_disp.to_csv(index=False).encode("utf-8-sig")
-                    st.download_button(
-                        "📥 Exportar CSV",
-                        data=_csv_geo,
-                        file_name=f"alerta_cobertura_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        key="btn_export_geo",
-                    )
-
-        # ── Sub-aba E: Tendência de Preços ───────────────────────────
-        with _sa_tend:
-            st.markdown("##### 📈 Alerta de Tendência de Preços (Regressão)")
-            st.markdown(
-                "Regressão linear sobre o histórico de cada posto para detectar "
-                "postos com **tendência sustentada de alta** e projetar preços futuros."
-            )
-            if _n_obs_pg == 0:
-                st.info(
-                    "ℹ️ Sem histórico de preços. Carregue a planilha PP e registre "
-                    "pelo menos 3 semanas de dados na aba **Histórico de Preços**."
-                )
-            else:
-                _tcol1, _tcol2 = st.columns(2)
-                with _tcol1:
-                    _tend_min_obs = st.number_input(
-                        "Mínimo de observações por posto",
-                        min_value=2, max_value=12, value=3, step=1,
-                        key="intel_tend_min_obs",
-                        help="Postos com menos registros são ignorados.",
-                    )
-                with _tcol2:
-                    _tend_horizon = st.number_input(
-                        "Horizonte de projeção (semanas)",
-                        min_value=1, max_value=12, value=4, step=1,
-                        key="intel_tend_horizon",
-                        help="Quantas semanas à frente projetar o preço.",
-                    )
-                _tend_r2 = st.slider(
-                    "R² mínimo para incluir no alerta",
-                    min_value=0.20, max_value=0.95, value=0.40, step=0.05,
-                    format="%.2f",
-                    key="intel_tend_r2",
-                    help="Quanto maior o R², mais confiável a tendência linear.",
-                )
-
-                with st.spinner("Calculando regressões de tendência…"):
-                    _df_tend = _alerta_tendencia(
-                        _hist_all_pg,
-                        min_obs=int(_tend_min_obs),
-                        horizon_weeks=int(_tend_horizon),
-                        min_r2=float(_tend_r2),
-                    )
-
-                if _df_tend.empty:
-                    st.success(
-                        "✅ Nenhum posto com tendência de alta estatisticamente "
-                        f"relevante (R² ≥ {_tend_r2:.2f}) no período analisado."
-                    )
-                else:
-                    _nt = len(_df_tend)
-                    _ta1, _ta2, _ta3 = st.columns(3)
-                    _ta1.metric("⚠️ Postos em tendência de alta", _nt)
-                    _ta2.metric(
-                        "📈 Maior inclinação",
-                        f"+{_df_tend['_slope'].max():.4f} R$/L/sem".replace(".", ","),
-                    )
-                    _ta3.metric(
-                        "🎯 R² médio",
-                        f"{_df_tend['R²'].mean():.2f}".replace(".", ","),
-                    )
-                    st.divider()
-
-                    # Gráfico: inclinação por UF
-                    _uf_tend = (
-                        _df_tend.groupby("UF")["_slope"]
-                        .agg(postos="count", pior=lambda x: x.max())
-                        .reset_index()
-                        .sort_values("pior", ascending=False)
-                    )
-                    if len(_uf_tend) > 0:
-                        _fig_tend = go.Figure(go.Bar(
-                            x=_uf_tend["UF"],
-                            y=(_uf_tend["pior"] * 100).round(3),
-                            marker_color="#C62828",
-                            text=[f"+{v:.3f}%" for v in (_uf_tend["pior"] * 100)],
-                            textposition="outside",
-                            hovertemplate=(
-                                "UF: %{x}<br>"
-                                "Maior inclinação: %{y:.3f}%/sem<extra></extra>"
-                            ),
-                        ))
-                        _fig_tend.update_layout(
-                            title="Tendência de Alta por UF (inclinação R$/L/sem × 100)",
-                            xaxis_title="UF", yaxis_title="Inclinação (×100)",
-                            height=320, margin=dict(t=40, b=20, l=20, r=20),
-                            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        )
-                        st.plotly_chart(_fig_tend, use_container_width=True)
-
-                    _df_tend_disp = _df_tend.drop(columns=["_slope"])
-                    st.dataframe(_df_tend_disp, use_container_width=True, hide_index=True)
-                    st.caption(
-                        "**Metodologia:** regressão linear (mínimos quadrados) sobre o histórico de "
-                        "preços semanais de cada posto. O coeficiente angular (slope) indica a variação "
-                        f"média esperada por semana. Projeção para +{int(_tend_horizon)} semanas."
-                    )
-                    _csv_tend = _df_tend_disp.to_csv(index=False).encode("utf-8-sig")
-                    st.download_button(
-                        "📥 Exportar CSV",
-                        data=_csv_tend,
-                        file_name=f"alerta_tendencia_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        key="btn_export_tend",
-                    )
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  MODO ADMIN — Controle de Acesso de Usuários
-# ═══════════════════════════════════════════════════════════════════
-
+                st.success("Nenhum alerta detectado. Precos dentro da referencia ANP.")
 elif modo == "🛡️ Admin":
     if not _auth_tem_permissao("aba_admin"):
         st.error("🚫 Acesso restrito a administradores.")
