@@ -21925,73 +21925,59 @@ if modo == "📈 Dashboard":
         # TAB 3 — Mapa de Densidade
         # ──────────────────────────────────────────────────────────────────
         with _dt3:
-            _df_map = _df[pd.notna(_df["_lat"]) & pd.notna(_df["_lon"])].copy()
-            if _df_map.empty:
-                st.warning("Nenhum posto com coordenadas válidas para exibir no mapa.")
+            _df_map = _df_valid.copy()
+            if _lat_col and _lon_col:
+                _df_map = _df_map[pd.notna(_df_map[_lat_col]) & pd.notna(_df_map[_lon_col])]
+            if _df_map.empty or not _lat_col or not _lon_col:
+                st.warning("Nenhum abastecimento com coordenadas válidas para exibir no mapa.")
             else:
-                # Mapa de scatter com densidade
+                _df_map_posto = _df_map.drop_duplicates(subset=[_cnpj_col]) if _cnpj_col else _df_map
+                _nome_col_m = next((c for c in ["nome_posto","razaoSocial"] if c in _df_map_posto.columns), None)
                 _fig_map_d = go.Figure()
                 _fig_map_d.add_trace(go.Scattermapbox(
-                    lat=_df_map["_lat"].tolist(),
-                    lon=_df_map["_lon"].tolist(),
+                    lat=_df_map_posto[_lat_col].tolist(),
+                    lon=_df_map_posto[_lon_col].tolist(),
                     mode="markers",
-                    marker=dict(
-                        size=6,
-                        color="#1565C0",
-                        opacity=0.65,
-                    ),
-                    text=_df_map.apply(
-                        lambda r: f"{r.get('razaoSocial','Posto GF')}<br>"
+                    marker=dict(size=6, color="#1565C0", opacity=0.65),
+                    text=_df_map_posto.apply(
+                        lambda r: f"{r[_nome_col_m] if _nome_col_m else 'Posto'}<br>"
                                   f"{r.get('municipio','')} / {r.get('uf','')}",
                         axis=1,
                     ).tolist(),
                     hoverinfo="text",
-                    name="Postos GF",
+                    name="Postos Visitados",
                 ))
-                # Centroide do Brasil
-                _clat = float(_df_map["_lat"].mean())
-                _clon = float(_df_map["_lon"].mean())
+                _clat = float(_df_map_posto[_lat_col].mean())
+                _clon = float(_df_map_posto[_lon_col].mean())
                 _fig_map_d.update_layout(
-                    mapbox=dict(
-                        style="carto-positron",
-                        center=dict(lat=_clat, lon=_clon),
-                        zoom=3.8,
-                    ),
+                    mapbox=dict(style="carto-positron", center=dict(lat=_clat, lon=_clon), zoom=3.8),
                     height=520,
                     margin=dict(l=0, r=0, t=30, b=0),
-                    title="Distribuição Geográfica dos Postos GF",
+                    title="Distribuição Geográfica dos Postos Abastecidos pela Frota",
                 )
                 st.plotly_chart(_fig_map_d, use_container_width=True)
-
-                # Top 10 municípios
-                st.markdown("##### Top 10 Municípios com Mais Postos GF")
+                st.markdown("##### Top 10 Municípios com Mais Abastecimentos")
                 _top_mun = (
                     _df_valid.groupby(["municipio","uf"]).size()
-                    .reset_index(name="postos")
-                    .sort_values("postos", ascending=False)
+                    .reset_index(name="abastecimentos")
+                    .sort_values("abastecimentos", ascending=False)
                     .head(10)
                 )
-                _top_mun.columns = ["Município","UF","Postos GF"]
+                _top_mun.columns = ["Município","UF","Abastecimentos"]
                 _fig_top = go.Figure(go.Bar(
                     x=_top_mun["Município"] + " / " + _top_mun["UF"],
-                    y=_top_mun["Postos GF"],
+                    y=_top_mun["Abastecimentos"],
                     marker_color="#1565C0",
-                    text=_top_mun["Postos GF"],
+                    text=_top_mun["Abastecimentos"],
                     textposition="outside",
                 ))
                 _fig_top.update_layout(
-                    xaxis_tickangle=-35,
-                    height=320,
+                    xaxis_tickangle=-35, height=320,
                     margin=dict(l=10, r=10, t=20, b=80),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                 )
                 _fig_top.update_yaxes(showgrid=True, gridcolor="#E3F2FD")
                 st.plotly_chart(_fig_top, use_container_width=True)
-
-        # ──────────────────────────────────────────────────────────────────
-        # TAB 4 — Combustíveis
-        # ──────────────────────────────────────────────────────────────────
         with _dt4:
             # Combustíveis dos abastecimentos reais
             _prod_col = next((c for c in ["produto","combustivel","_produto"] if c in _df_valid.columns), None)
