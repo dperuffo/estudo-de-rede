@@ -22041,392 +22041,53 @@ if modo == "📈 Dashboard":
         # TAB 5 — Alertas de Preço  (comparação por município via ANP)
         # ──────────────────────────────────────────────────────────────────
         with _dt5:
-            # ── Referência ANP por UF (fallback hardcoded — mantido para compatibilidade) ──
-            _ANP_REF_COMB = {
-                "GASOLINA COMUM":    {"SP": 6.29, "RJ": 6.48, "MG": 6.22, "RS": 6.15,
-                                      "PR": 6.08, "SC": 6.05, "BA": 6.35, "GO": 6.18,
-                                      "MT": 6.40, "MS": 6.25, "PA": 6.52, "AM": 6.70,
-                                      "PE": 6.42, "CE": 6.38, "MA": 6.55, "PI": 6.48,
-                                      "AL": 6.43, "SE": 6.40, "RN": 6.37, "PB": 6.41,
-                                      "ES": 6.28, "TO": 6.50, "RO": 6.58, "AC": 6.72,
-                                      "RR": 6.75, "AP": 6.65, "DF": 6.20},
-                "DIESEL S10":        {"SP": 6.05, "RJ": 6.18, "MG": 5.98, "RS": 5.92,
-                                      "PR": 5.88, "SC": 5.85, "BA": 6.12, "GO": 6.00,
-                                      "MT": 6.22, "MS": 6.08, "PA": 6.28, "AM": 6.45,
-                                      "PE": 6.15, "CE": 6.10, "MA": 6.30, "PI": 6.22,
-                                      "AL": 6.18, "SE": 6.15, "RN": 6.12, "PB": 6.16,
-                                      "ES": 6.02, "TO": 6.25, "RO": 6.35, "AC": 6.48,
-                                      "RR": 6.50, "AP": 6.40, "DF": 5.95},
-                "DIESEL COMUM":      {"SP": 5.98, "RJ": 6.10, "MG": 5.90, "RS": 5.85,
-                                      "PR": 5.80, "SC": 5.78, "BA": 6.05, "GO": 5.93,
-                                      "MT": 6.15, "MS": 6.00, "PA": 6.20, "AM": 6.38,
-                                      "PE": 6.08, "CE": 6.02, "MA": 6.22, "PI": 6.15,
-                                      "AL": 6.10, "SE": 6.08, "RN": 6.05, "PB": 6.09,
-                                      "ES": 5.95, "TO": 6.18, "RO": 6.28, "AC": 6.40,
-                                      "RR": 6.42, "AP": 6.32, "DF": 5.88},
-                "ETANOL":            {"SP": 3.80, "RJ": 4.20, "MG": 3.95, "RS": 4.10,
-                                      "PR": 3.88, "SC": 4.05, "BA": 4.28, "GO": 3.72,
-                                      "MT": 3.68, "MS": 3.75, "PA": 4.50, "AM": 4.85,
-                                      "PE": 4.32, "CE": 4.38, "MA": 4.45, "PI": 4.40,
-                                      "AL": 3.90, "SE": 4.25, "RN": 4.30, "PB": 4.35,
-                                      "ES": 4.05, "TO": 4.20, "RO": 4.55, "AC": 4.90,
-                                      "RR": 4.95, "AP": 4.70, "DF": 4.00},
-                "GNV":               {"SP": 4.20, "RJ": 4.35, "MG": 4.15, "RS": 4.10,
-                                      "PR": 4.08, "SC": 4.05, "BA": 4.38, "GO": 4.22,
-                                      "MT": 4.45, "MS": 4.30, "PA": 4.55, "AM": 4.70,
-                                      "PE": 4.40, "CE": 4.35, "MA": 4.55, "PI": 4.48,
-                                      "AL": 4.43, "SE": 4.40, "RN": 4.37, "PB": 4.41,
-                                      "ES": 4.18, "TO": 4.50, "RO": 4.58, "AC": 4.72,
-                                      "RR": 4.75, "AP": 4.65, "DF": 4.10},
-            }
-            _ALERT_THRESH = 0.05  # 5% acima da média ANP
+            st.markdown("<p style='color:#555;font-size:13px;margin:0 0 14px'>"
+                        "Alertas de preço baseados nos abastecimentos reais vs referência ANP por UF.</p>",
+                        unsafe_allow_html=True)
+            _prod_col5  = next((c for c in ["produto","combustivel"] if c in _df_valid.columns), None)
+            _preco_col5 = next((c for c in ["preco_litro","_preco_litro"] if c in _df_valid.columns), None)
+            _ALERT_THRESH5 = 0.05
 
-            # ── Fontes de dados necessárias ────────────────────────────────
-            _pp_alert   = st.session_state.get("_pp_df")
-            _anp_cache  = st.session_state.get("_precos_anp_cache", {})
-            _sheets_alert = _anp_cache.get("sheets")
-
-            _sem_pp   = _pp_alert is None or _pp_alert.empty
-            _sem_anp  = _sheets_alert is None
-
-            if _sem_pp and _sem_anp:
-                st.info(
-                    "ℹ️ Para ativar os alertas de preço, carregue:\n\n"
-                    "- **Planilha de Preços por Posto** (em Configurações → Preços dos Postos GF)\n"
-                    "- **Planilha ANP de Preços Semanais** (em Configurações → Preços ANP)"
-                )
-            elif _sem_pp:
-                st.info(
-                    "ℹ️ Carregue a **Planilha de Preços por Posto** em "
-                    "Configurações → Preços dos Postos GF para ativar os alertas."
-                )
+            if not _prod_col5 or not _preco_col5:
+                st.info("ℹ️ Nenhum dado de abastecimento disponível para análise de alertas.")
             else:
-                # ── 1. Cruzar preços GF com dados do posto (municipio/uf) ──
-                # _pp_alert colunas: cnpj_norm, combustivel_pk, combustivel_label, preco
-                # _abast_dash colunas: cnpj_posto, cidade_posto, uf_posto, nome_postoribuidora
-                # Usa abastecimentos reais como fonte de localização dos postos
-                _pf_info = (
-                    _abast_dash[["cnpj_posto","cidade_posto","uf_posto","nome_posto"]]
-                    .drop_duplicates("cnpj_posto")
-                    .rename(columns={"cnpj_posto":"cnpj","cidade_posto":"municipio",
-                                     "uf_posto":"uf","nome_posto":"razaoSocial"})
-                ) if not _abast_dash.empty and "cnpj_posto" in _abast_dash.columns else pd.DataFrame()
+                _alert_df = _df_valid[_df_valid[_preco_col5] > 0].copy()
+                _alert_df["preco_anp_ref"] = _alert_df.apply(
+                    lambda r: _ANP_REF_UF.get(str(r.get("uf","")).upper(), 0), axis=1)
+                _alert_df["delta_pct"] = (
+                    (_alert_df[_preco_col5] - _alert_df["preco_anp_ref"]) /
+                    _alert_df["preco_anp_ref"].replace(0, float("nan")) * 100
+                ).round(1)
+                _alertas = _alert_df[_alert_df["delta_pct"] > _ALERT_THRESH5 * 100].copy()
+                _ok      = _alert_df[_alert_df["delta_pct"] <= _ALERT_THRESH5 * 100].copy()
 
-                if _pf_info.empty:
-                    st.warning("⚠️ Sem dados de abastecimentos para cruzar com alertas de preço.")
+                _a1, _a2, _a3 = st.columns(3)
+                _a1.metric("⚠️ Abastecimentos Acima ANP", _fmt_int(len(_alertas)),
+                           f"{len(_alertas)/len(_alert_df)*100:.1f}% do total" if len(_alert_df) else "—")
+                _a2.metric("✅ Dentro da Referência", _fmt_int(len(_ok)))
+                _a3.metric("📊 Desvio Médio", f"{_alert_df['delta_pct'].mean():+.1f}%" if len(_alert_df) else "—")
+
+                if not _alertas.empty:
+                    st.markdown("##### Abastecimentos com Preço Acima da Referência ANP (>5%)")
+                    _nome_col5 = next((c for c in ["nome_posto"] if c in _alertas.columns), None)
+                    _show_cols = [c for c in [_cnpj_col, _nome_col5, _prod_col5, _preco_col5,
+                                              "preco_anp_ref","delta_pct","uf"] if c]
+                    _alertas_show = _alertas[_show_cols].copy()
+                    _alertas_show.columns = [
+                        {"cnpj_posto":"CNPJ","nome_posto":"Posto","produto":"Combustível",
+                         "preco_litro":"Preço Pago","preco_anp_ref":"Ref ANP","delta_pct":"Δ%","uf":"UF"
+                         }.get(c,c) for c in _show_cols
+                    ]
+                    st.dataframe(_alertas_show.sort_values("Δ%", ascending=False)
+                                 .reset_index(drop=True), use_container_width=True, height=350)
                 else:
-                    _merged = _pp_alert.merge(
-                        _pf_info, left_on="cnpj_norm", right_on="cnpj", how="inner"
-                    )
-                    _merged["municipio"] = _merged["municipio"].fillna("").str.strip()
-                    _merged["uf"]        = _merged["uf"].fillna("").str.strip().str.upper()
-                    _merged = _merged[_merged["preco"] > 0]
-
-                    if _merged.empty:
-                        st.warning("⚠️ Nenhum posto GF com preço e localização encontrado. "
-                                   "Verifique se os CNPJs da planilha de preços correspondem "
-                                   "aos CNPJs da planilha de postos.")
-                    else:
-                        # ── 2. Construir lookup ANP por (uf_norm, mun_norm, pk) ──
-                        # Nível 1: municipios   → {(uf_n, mun_n, pk): preco}
-                        # Nível 2: estados      → {(uf_n, pk): preco}
-                        # Nível 3: hardcoded    → _ANP_REF_COMB
-                        _anp_by_mun   = {}   # (uf_n, mun_n, pk) → float
-                        _anp_by_state = {}   # (uf_n, pk) → float
-
-                        def _build_anp_lookup(sheets):
-                            """Extrai lookup ANP de municipios e estados."""
-                            def _extract_sheet(df):
-                                c_est  = _anp_col(df, "estado", "estados")
-                                c_mun  = _anp_col(df, "munic")
-                                c_prod = _anp_col(df, "produto")
-                                c_med  = _anp_col(df, "medio revenda", "media revenda", "preco medio")
-                                return c_est, c_mun, c_prod, c_med
-
-                            # Municipios
-                            if "municipios" in sheets:
-                                _df_m = sheets["municipios"]
-                                _ce, _cm, _cp, _cmed = _extract_sheet(_df_m)
-                                if _ce and _cp and _cmed and _cm:
-                                    for _, _r in _df_m.iterrows():
-                                        _uf_n  = _anp_norm(str(_r.get(_ce, "")))
-                                        _mn_n  = _anp_norm(str(_r.get(_cm, "")))
-                                        _pk    = _anp_norm(str(_r.get(_cp, "")))
-                                        try:
-                                            _v = float(str(_r.get(_cmed, "")).replace(",", "."))
-                                            if _v > 0:
-                                                _anp_by_mun[(_uf_n, _mn_n, _pk)] = _v
-                                        except (ValueError, TypeError):
-                                            pass
-
-                            # Estados
-                            if "estados" in sheets:
-                                _df_e = sheets["estados"]
-                                _ce, _, _cp, _cmed = _extract_sheet(_df_e)
-                                if _ce and _cp and _cmed:
-                                    for _, _r in _df_e.iterrows():
-                                        _uf_n = _anp_norm(str(_r.get(_ce, "")))
-                                        _pk   = _anp_norm(str(_r.get(_cp, "")))
-                                        try:
-                                            _v = float(str(_r.get(_cmed, "")).replace(",", "."))
-                                            if _v > 0:
-                                                _anp_by_state[(_uf_n, _pk)] = _v
-                                        except (ValueError, TypeError):
-                                            pass
-
-                        if _sheets_alert:
-                            _build_anp_lookup(_sheets_alert)
-
-                        # ── 3. Mapeamento UF sigla → nome normalizado ANP ──
-                        _UF_NOME_ANP = {k: _anp_norm(v) for k, v in UF_NOME.items()}
-
-                        def _get_anp_by_municipio(row):
-                            """Busca preço ANP: município → estado → hardcoded."""
-                            _pk_raw = str(row.get("combustivel_pk", ""))
-                            _pk_can = _PP_PARA_ANP_PK.get(_pk_raw, _pk_raw)
-                            _uf_sig = str(row.get("uf", "")).upper().strip()
-                            _uf_n   = _UF_NOME_ANP.get(_uf_sig, _anp_norm(_uf_sig))
-                            _mn_n   = _anp_norm(str(row.get("municipio", "")))
-
-                            # Nível 1 — municipio (match exato)
-                            for _pk_try in [_pk_raw, _pk_can]:
-                                _v = _anp_by_mun.get((_uf_n, _mn_n, _pk_try))
-                                if _v: return _v, "Município"
-                            # Nível 1 — municipio (match por substring)
-                            if _mn_n:
-                                for (_u, _m, _p), _v in _anp_by_mun.items():
-                                    if _u == _uf_n and (_mn_n in _m or _m in _mn_n):
-                                        if _pk_raw in _p or _p in _pk_raw or \
-                                           _pk_can in _p or _p in _pk_can:
-                                            return _v, "Município (aprox.)"
-
-                            # Nível 2 — estado
-                            for _pk_try in [_pk_raw, _pk_can]:
-                                _v = _anp_by_state.get((_uf_n, _pk_try))
-                                if _v: return _v, "Estado"
-                            # Nível 2 — estado por substring de produto
-                            for (_u, _p), _v in _anp_by_state.items():
-                                if _u == _uf_n:
-                                    if _pk_raw in _p or _p in _pk_raw or \
-                                       _pk_can in _p or _p in _pk_can:
-                                        return _v, "Estado (aprox.)"
-
-                            # Nível 3 — fallback hardcoded
-                            for _key, _refs in _ANP_REF_COMB.items():
-                                if _anp_norm(_key) in _pk_raw or _pk_raw in _anp_norm(_key) or \
-                                   _anp_norm(_key) in _pk_can or _pk_can in _anp_norm(_key):
-                                    _v = _refs.get(_uf_sig)
-                                    if _v: return _v, "Referência (fixo)"
-                            return None, None
-
-                        # ── 4. Calcular média GF por posto e obter ref ANP ──
-                        # Agrupa por (cnpj_norm, combustivel_pk) → preco médio GF
-                        _grp = (
-                            _merged.groupby(["cnpj_norm", "combustivel_pk", "combustivel_label",
-                                             "municipio", "uf", "razaoSocial"])
-                            ["preco"].mean()
-                            .reset_index()
-                            .rename(columns={"preco": "preco_gf"})
-                        )
-
-                        _refs   = _grp.apply(_get_anp_by_municipio, axis=1, result_type="expand")
-                        _grp["_anp_ref"]   = _refs[0]
-                        _grp["_nivel_anp"] = _refs[1]
-                        _grp = _grp.dropna(subset=["_anp_ref"])
-                        _grp["_diff_pct"] = (_grp["preco_gf"] - _grp["_anp_ref"]) / _grp["_anp_ref"]
-                        _grp["_diff_rs"]  = _grp["preco_gf"] - _grp["_anp_ref"]
-                        _grp["_alerta"]   = _grp["_diff_pct"] > _ALERT_THRESH
-
-                        _alert_df = _grp  # alias para compatibilidade com restante do bloco
-
-                        # Colunas para exibição posterior
-                        _price_col = "preco_gf"
-                        _comb_col  = "combustivel_label"
-
-                        def _get_anp_ref(row):  # mantido para compatibilidade de reutilização
-                            return row.get("_anp_ref")
-
-                        # ── 5. KPIs e visualizações ────────────────────────
-                        _n_total    = len(_alert_df)
-                        _n_alertas  = int(_alert_df["_alerta"].sum())
-                        _n_ok       = _n_total - _n_alertas
-                        _pct_alert  = (_n_alertas / _n_total * 100) if _n_total > 0 else 0
-                        _pior_diff  = _alert_df.loc[_alert_df["_alerta"], "_diff_pct"].max() if _n_alertas > 0 else 0
-                        _media_diff = _alert_df.loc[_alert_df["_alerta"], "_diff_pct"].mean() if _n_alertas > 0 else 0
-                        _nivel_info = (
-                            _alert_df["_nivel_anp"].value_counts().idxmax()
-                            if "_nivel_anp" in _alert_df.columns and not _alert_df["_nivel_anp"].isna().all()
-                            else "Referência (fixo)"
-                        )
-
-                        # KPIs
-                        _ac1, _ac2, _ac3, _ac4 = st.columns(4)
-                        _ac1.metric("⚠️ Postos em Alerta", _fmt_int(_n_alertas),
-                                    delta=f"{_pct_alert:.1f}% da base",
-                                    delta_color="inverse")
-                        _ac2.metric("✅ Dentro da Média", _fmt_int(_n_ok),
-                                    delta=f"{100-_pct_alert:.1f}% da base")
-                        _ac3.metric("📈 Pior Desvio", f"+{_pior_diff*100:.1f}%" if _n_alertas > 0 else "—")
-                        _ac4.metric("📊 Desvio Médio", f"+{_media_diff*100:.1f}%" if _n_alertas > 0 else "—")
-
-                        if not _sem_anp:
-                            st.caption(f"🔍 Referência ANP utilizada principalmente: **{_nivel_info}**")
-                        else:
-                            st.caption("ℹ️ Usando referência fixa (ANP não carregada). "
-                                       "Carregue a planilha ANP em Configurações para comparação por município.")
-
-                        st.markdown("---")
-
-                        if _n_alertas == 0:
-                            st.success("✅ Nenhum posto GF com preço acima de 5% da média ANP. "
-                                       "Todos os preços estão dentro do parâmetro de referência.")
-                        else:
-                            # ── Alertas por UF ────────────────────────────────────
-                            _alerta_uf = (
-                                _alert_df[_alert_df["_alerta"]]
-                                .groupby("uf")
-                                .agg(
-                                    postos_alerta=(_price_col, "count"),
-                                    preco_medio=(_price_col, "mean"),
-                                    pior_desvio=("_diff_pct", "max"),
-                                )
-                                .reset_index()
-                                .sort_values("postos_alerta", ascending=False)
-                            )
-                            _alerta_uf["uf_nome"] = _alerta_uf["uf"].map(_UF_NOME_DASH).fillna(_alerta_uf["uf"])
-
-                            st.markdown("#### ⚠️ Alertas por Estado")
-                            _col_g1, _col_g2 = st.columns([2, 1])
-
-                            with _col_g1:
-                                _fig_alerta = go.Figure()
-                                _color_alert = [
-                                    "#B71C1C" if v > 0.10 else
-                                    "#E53935" if v > 0.07 else
-                                    "#EF9A9A"
-                                    for v in _alerta_uf["pior_desvio"]
-                                ]
-                                _fig_alerta.add_trace(go.Bar(
-                                    y=_alerta_uf["uf_nome"],
-                                    x=_alerta_uf["postos_alerta"],
-                                    orientation="h",
-                                    marker_color=_color_alert,
-                                    text=_alerta_uf["postos_alerta"].astype(str),
-                                    textposition="outside",
-                                    hovertemplate=(
-                                        "<b>%{y}</b><br>"
-                                        "Postos em alerta: %{x}<br>"
-                                        "<extra></extra>"
-                                    ),
-                                ))
-                                _fig_alerta.update_layout(
-                                    title="Postos em Alerta por Estado (preço > ANP + 5%)",
-                                    xaxis_title="Quantidade de Postos",
-                                    yaxis=dict(autorange="reversed"),
-                                    height=max(300, len(_alerta_uf) * 24 + 80),
-                                    margin=dict(l=10, r=60, t=45, b=30),
-                                    plot_bgcolor="rgba(0,0,0,0)",
-                                    paper_bgcolor="rgba(0,0,0,0)",
-                                    font=dict(size=11),
-                                )
-                                _fig_alerta.update_xaxes(showgrid=True, gridcolor="#FFEBEE")
-                                st.plotly_chart(_fig_alerta, use_container_width=True)
-
-                            with _col_g2:
-                                st.markdown("##### Resumo por Estado")
-                                _alerta_uf_disp = _alerta_uf[["uf_nome", "postos_alerta", "pior_desvio"]].copy()
-                                _alerta_uf_disp.columns = ["Estado", "Postos", "Pior Desvio"]
-                                _alerta_uf_disp["Pior Desvio"] = _alerta_uf_disp["Pior Desvio"].apply(
-                                    lambda v: f"+{v*100:.1f}%"
-                                )
-                                st.dataframe(_alerta_uf_disp, use_container_width=True, hide_index=True)
-
-                            # ── Top piores postos ─────────────────────────────────
-                            st.markdown("#### 🏆 Top 20 Postos com Maior Desvio")
-                            _top_piores = (
-                                _alert_df[_alert_df["_alerta"]]
-                                .nlargest(20, "_diff_pct")
-                                .copy()
-                            )
-                            _disp_cols_tp = []
-                            for _c in ["razaoSocial", "municipio", "uf",
-                                       "combustivel_label", _price_col,
-                                       "_anp_ref", "_nivel_anp", "_diff_pct", "_diff_rs"]:
-                                if _c in _top_piores.columns:
-                                    _disp_cols_tp.append(_c)
-                            _top_piores_disp = _top_piores[_disp_cols_tp].copy()
-
-                            _rename_tp = {
-                                "razaoSocial":       "Posto",
-                                "municipio":         "Município",
-                                "uf":                "UF",
-                                "combustivel_label": "Combustível",
-                                _price_col:          "Preço GF (R$/L)",
-                                "_anp_ref":          "Ref. ANP (R$/L)",
-                                "_nivel_anp":        "Base ANP",
-                                "_diff_pct":         "Desvio %",
-                                "_diff_rs":          "Desvio R$/L",
-                            }
-                            _top_piores_disp = _top_piores_disp.rename(columns=_rename_tp)
-
-                            if "Desvio %" in _top_piores_disp.columns:
-                                _top_piores_disp["Desvio %"] = _top_piores_disp["Desvio %"].apply(
-                                    lambda v: f"+{v*100:.1f}%" if pd.notna(v) else "—"
-                                )
-                            if "Desvio R$/L" in _top_piores_disp.columns:
-                                _top_piores_disp["Desvio R$/L"] = _top_piores_disp["Desvio R$/L"].apply(
-                                    lambda v: f"+R$ {_br_num(v, 3)}".replace(".", ",") if pd.notna(v) and v > 0 else "—"
-                                )
-                            for _fc in ["Preço GF (R$/L)", "Ref. ANP (R$/L)"]:
-                                if _fc in _top_piores_disp.columns:
-                                    _top_piores_disp[_fc] = _top_piores_disp[_fc].apply(
-                                        lambda v: _br_moeda(v, 3) if pd.notna(v) else "—"
-                                    )
-
-                            st.dataframe(
-                                _top_piores_disp.reset_index(drop=True),
-                                use_container_width=True,
-                                hide_index=True,
-                            )
-
-                            # ── Exportar lista de alertas ─────────────────────────
-                            st.markdown("---")
-                            _exp_alert_cols = st.columns([3, 1])
-                            with _exp_alert_cols[1]:
-                                _all_alertas = _alert_df[_alert_df["_alerta"]].copy()
-                                _all_alertas["Desvio_pct"] = (_all_alertas["_diff_pct"] * 100).round(2)
-                                _all_alertas["Desvio_RS"]  = _all_alertas["_diff_rs"].round(3)
-                                _all_alertas = _all_alertas.drop(
-                                    columns=["_anp_ref","_diff_pct","_diff_rs","_alerta","_nivel_anp"],
-                                    errors="ignore"
-                                )
-                                _csv_alertas = _all_alertas.to_csv(index=False).encode("utf-8-sig")
-                                st.download_button(
-                                    label="📥 Exportar Alertas (CSV)",
-                                    data=_csv_alertas,
-                                    file_name=f"alertas_preco_gf_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
-                                    mime="text/csv",
-                                    use_container_width=True,
-                                )
-                            with _exp_alert_cols[0]:
-                                st.caption(
-                                    f"⚠️ **{_n_alertas} postos** com preço acima de 5% da referência ANP. "
-                                    f"Exporte a lista completa para análise detalhada."
-                                )
-
-
-        # ══════════════════════════════════════════════════════════════════
-        # TAB 6 — MODO COMPARATIVO
-        # ══════════════════════════════════════════════════════════════════
+                    st.success("✅ Nenhum abastecimento acima da referência ANP no período!")
         with _dt6:
             st.markdown(
                 "<p style='color:#555;font-size:13px;margin:0 0 14px'>"
-                "Compare dois estados ou duas regiões: cobertura, distribuidoras "
-                "e preços médios lado a lado.</p>",
+                "Compare dois estados ou duas regiões: cobertura e abastecimentos lado a lado.</p>",
                 unsafe_allow_html=True,
             )
-
-            # ── Dicionários de suporte ────────────────────────────────────────
             _REGIOES_BR = {
                 "Norte":        ["AM","PA","AC","RO","RR","AP","TO"],
                 "Nordeste":     ["MA","PI","CE","RN","PB","PE","AL","SE","BA"],
@@ -22434,904 +22095,139 @@ if modo == "📈 Dashboard":
                 "Sudeste":      ["SP","RJ","MG","ES"],
                 "Sul":          ["PR","SC","RS"],
             }
-            # Total de municípios por UF (IBGE 2023) — usado para cobertura %
             _TOTAL_MUNS_UF = {
                 "AC":22,"AL":102,"AP":16,"AM":62,"BA":417,"CE":184,"DF":1,
                 "ES":78,"GO":246,"MA":217,"MT":141,"MS":79,"MG":853,"PA":144,
                 "PB":223,"PR":399,"PE":185,"PI":224,"RJ":92,"RN":167,"RS":497,
                 "RO":52,"RR":15,"SC":295,"SP":645,"SE":75,"TO":139,
             }
-
-            # ── Seletor de modo ───────────────────────────────────────────────
-            _cmp_modo = st.radio(
-                "Comparar por:",
-                ["🗺️ Estados", "🌎 Regiões"],
-                horizontal=True,
-                key="dash_cmp_modo",
-            )
-
+            _cmp_modo = st.radio("Comparar por:", ["🗺️ Estados","🌎 Regiões"],
+                                 horizontal=True, key="dash_cmp_modo")
             _ufs_disponiveis = sorted(_df_valid["uf"].unique().tolist())
-
             if _cmp_modo == "🗺️ Estados":
                 _sc1, _sc2 = st.columns(2)
-                with _sc1:
-                    _uf_a = st.selectbox(
-                        "Estado A", _ufs_disponiveis,
-                        index=0,
-                        format_func=lambda u: f"{u} — {_UF_NOME_DASH.get(u, u)}",
-                        key="dash_cmp_uf_a",
-                    )
-                with _sc2:
-                    _default_b_idx = 1 if len(_ufs_disponiveis) > 1 else 0
-                    _uf_b = st.selectbox(
-                        "Estado B", _ufs_disponiveis,
-                        index=_default_b_idx,
-                        format_func=lambda u: f"{u} — {_UF_NOME_DASH.get(u, u)}",
-                        key="dash_cmp_uf_b",
-                    )
-                _label_a  = f"{_uf_a} — {_UF_NOME_DASH.get(_uf_a, _uf_a)}"
-                _label_b  = f"{_uf_b} — {_UF_NOME_DASH.get(_uf_b, _uf_b)}"
-                _ufs_a    = [_uf_a]
-                _ufs_b    = [_uf_b]
+                _uf_a = _sc1.selectbox("Estado A", _ufs_disponiveis, index=0,
+                    format_func=lambda u: f"{u} — {_UF_NOME_DASH.get(u,u)}", key="dash_cmp_uf_a")
+                _uf_b = _sc2.selectbox("Estado B", _ufs_disponiveis,
+                    index=min(1,len(_ufs_disponiveis)-1),
+                    format_func=lambda u: f"{u} — {_UF_NOME_DASH.get(u,u)}", key="dash_cmp_uf_b")
+                _label_a, _label_b = f"{_uf_a} — {_UF_NOME_DASH.get(_uf_a,_uf_a)}", f"{_uf_b} — {_UF_NOME_DASH.get(_uf_b,_uf_b)}"
+                _ufs_a, _ufs_b = [_uf_a], [_uf_b]
             else:
                 _regioes_disp = sorted(_REGIOES_BR.keys())
                 _sc1, _sc2 = st.columns(2)
-                with _sc1:
-                    _reg_a = st.selectbox("Região A", _regioes_disp,
-                                          index=0, key="dash_cmp_reg_a")
-                with _sc2:
-                    _reg_b = st.selectbox("Região B", _regioes_disp,
-                                          index=min(1, len(_regioes_disp)-1),
-                                          key="dash_cmp_reg_b")
-                _label_a = f"🌎 {_reg_a}"
-                _label_b = f"🌎 {_reg_b}"
-                _ufs_a   = _REGIOES_BR[_reg_a]
-                _ufs_b   = _REGIOES_BR[_reg_b]
+                _reg_a = _sc1.selectbox("Região A", _regioes_disp, index=0, key="dash_cmp_reg_a")
+                _reg_b = _sc2.selectbox("Região B", _regioes_disp, index=min(1,len(_regioes_disp)-1), key="dash_cmp_reg_b")
+                _label_a, _label_b = f"🌎 {_reg_a}", f"🌎 {_reg_b}"
+                _ufs_a, _ufs_b = _REGIOES_BR[_reg_a], _REGIOES_BR[_reg_b]
 
-            # ── Função: calcula métricas para um conjunto de UFs ──────────────
             def _cmp_metricas(ufs, df_v, pp):
-                """Retorna dict com KPIs e dados detalhados para um grupo de UFs."""
                 _sub = df_v[df_v["uf"].isin(ufs)].copy()
-                _n_postos   = len(_sub)
+                _n_abast    = len(_sub)
+                _n_postos   = _sub[_cnpj_col].nunique() if _cnpj_col else _n_abast
                 _n_muns     = int(_sub["municipio"].replace("", pd.NA).dropna().nunique())
-                _n_distrib  = int(
-                    _sub["distribuidora"].replace("", pd.NA).dropna().nunique()
-                    if "distribuidora" in _sub.columns else 0
-                )
-                _n_coord    = int(_sub[pd.notna(_sub["_lat"]) & pd.notna(_sub["_lon"])].shape[0])
-                _total_muns_reg = sum(_TOTAL_MUNS_UF.get(u, 0) for u in ufs)
-                _cob_pct    = round(_n_muns / _total_muns_reg * 100, 1) if _total_muns_reg else 0
-                _media_mun  = round(_n_postos / _n_muns, 1) if _n_muns else 0
-
-                # Distribuidoras ranking
-                _distrib_cnt = pd.Series(dtype=int)
-                if "distribuidora" in _sub.columns:
-                    _distrib_cnt = (
-                        _sub["distribuidora"]
-                        .replace("", pd.NA).dropna()
-                        .value_counts()
-                        .head(10)
-                    )
-
-                # Preços médios por combustível (se disponível)
+                _total_muns_reg = sum(_TOTAL_MUNS_UF.get(u,0) for u in ufs)
+                _cob_pct    = round(_n_muns/_total_muns_reg*100,1) if _total_muns_reg else 0
+                _preco_col_c = next((c for c in ["preco_litro"] if c in _sub.columns), None)
+                _prod_col_c  = next((c for c in ["produto","combustivel"] if c in _sub.columns), None)
                 _precos = {}
-                if pp is not None and not pp.empty and "cnpj" in _sub.columns:
-                    _cnpjs = set(_sub["cnpj"].dropna().astype(str)
-                                 .str.replace(r"\D", "", regex=True))
-                    _pp_sub = pp[pp["cnpj_norm"].isin(_cnpjs)]
-                    if not _pp_sub.empty:
-                        _precos = (
-                            _pp_sub.groupby("combustivel_label")["preco"]
-                            .mean().round(3).to_dict()
-                        )
-
-                return {
-                    "n_postos":    _n_postos,
-                    "n_muns":      _n_muns,
-                    "n_distrib":   _n_distrib,
-                    "n_coord":     _n_coord,
-                    "cob_pct":     _cob_pct,
-                    "media_mun":   _media_mun,
-                    "distrib_cnt": _distrib_cnt,
-                    "precos":      _precos,
-                    "df_sub":      _sub,
-                }
+                if _preco_col_c and _prod_col_c:
+                    _precos = (_sub[_sub[_preco_col_c]>0]
+                               .groupby(_prod_col_c)[_preco_col_c].mean().round(3).to_dict())
+                return {"n_abast":_n_abast,"n_postos":_n_postos,"n_muns":_n_muns,
+                        "cob_pct":_cob_pct,"precos":_precos,"df_sub":_sub}
 
             _ma = _cmp_metricas(_ufs_a, _df_valid, None)
             _mb = _cmp_metricas(_ufs_b, _df_valid, None)
 
-            # ── Helper visual ─────────────────────────────────────────────────
             def _badge_cmp(txt, cor_bg, cor_txt="#fff"):
-                return (
-                    f"<span style='background:{cor_bg};color:{cor_txt};"
-                    f"border-radius:5px;padding:1px 8px;font-size:11px;"
-                    f"font-weight:700'>{txt}</span>"
-                )
+                return (f"<span style='background:{cor_bg};color:{cor_txt};"
+                        f"border-radius:6px;padding:2px 10px;font-size:.85rem'>{txt}</span>")
 
-            def _winner_cmp(val_a, val_b, higher_is_better=True):
-                """Retorna tuple (badge_a, badge_b) indicando quem é melhor."""
-                if val_a == val_b or (val_a == 0 and val_b == 0):
-                    return (_badge_cmp("=", "#607D8B"),
-                            _badge_cmp("=", "#607D8B"))
-                if higher_is_better:
-                    _wa = "#2E7D32" if val_a > val_b else "#C62828"
-                    _wb = "#2E7D32" if val_b > val_a else "#C62828"
-                else:
-                    _wa = "#2E7D32" if val_a < val_b else "#C62828"
-                    _wb = "#2E7D32" if val_b < val_a else "#C62828"
-                _sym_a = "▲" if _wa == "#2E7D32" else "▼"
-                _sym_b = "▲" if _wb == "#2E7D32" else "▼"
-                return _badge_cmp(_sym_a, _wa), _badge_cmp(_sym_b, _wb)
-
-            st.markdown("---")
-
-            # ── KPIs lado a lado ──────────────────────────────────────────────
-            st.markdown("#### 📊 Comparativo de Cobertura")
-            _kpi_rows = [
-                ("⛽ Postos GF",      _ma["n_postos"],  _mb["n_postos"],  True),
-                ("🏙️ Municípios GF", _ma["n_muns"],    _mb["n_muns"],    True),
-                ("📈 Cobertura %",    _ma["cob_pct"],   _mb["cob_pct"],   True),
-                ("🏢 Distribuidoras", _ma["n_distrib"], _mb["n_distrib"], True),
-                ("📍 Com Coord.",     _ma["n_coord"],   _mb["n_coord"],   True),
-                ("📊 Média GF/Mun.", _ma["media_mun"], _mb["media_mun"], True),
-            ]
-
-            # Cabeçalho da tabela comparativa
-            _hc0, _hca, _hcw, _hcb = st.columns([2, 2, 1, 2])
-            _hc0.markdown(
-                "<div style='font-size:12px;color:#888;font-weight:600'>Indicador</div>",
-                unsafe_allow_html=True)
-            _hca.markdown(
-                f"<div style='font-size:13px;font-weight:700;color:#0D47A1'>{_label_a}</div>",
-                unsafe_allow_html=True)
-            _hcw.markdown("")
-            _hcb.markdown(
-                f"<div style='font-size:13px;font-weight:700;color:#B71C1C'>{_label_b}</div>",
-                unsafe_allow_html=True)
-            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-
-            def _fmt_num(v):
-                if isinstance(v, float):
-                    return f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                return f"{v:,}".replace(",", ".")
-
-            for _kpi_lbl, _va, _vb, _hib in _kpi_rows:
-                _ba, _bb = _winner_cmp(_va, _vb, higher_is_better=_hib)
-                _c0, _ca, _cw, _cb = st.columns([2, 2, 1, 2])
-                _c0.markdown(
-                    f"<div style='font-size:12px;color:#555;padding:4px 0'>{_kpi_lbl}</div>",
-                    unsafe_allow_html=True)
-                _ca.markdown(
-                    f"<div style='font-size:14px;font-weight:700;color:#0D47A1;padding:2px 0'>"
-                    f"{_fmt_num(_va)}&nbsp;{_ba}</div>",
-                    unsafe_allow_html=True)
-                _cw.markdown(
-                    "<div style='text-align:center;font-size:12px;"
-                    "color:#aaa;padding:4px 0'>vs</div>",
-                    unsafe_allow_html=True)
-                _cb.markdown(
-                    f"<div style='font-size:14px;font-weight:700;color:#B71C1C;padding:2px 0'>"
-                    f"{_fmt_num(_vb)}&nbsp;{_bb}</div>",
-                    unsafe_allow_html=True)
-
-            # ── Distribuidoras ────────────────────────────────────────────────
-            st.markdown("---")
-            st.markdown("#### 🏢 Distribuidoras — Top 10")
-            _gc_a, _gc_b = st.columns(2)
-
-            def _chart_distrib_cmp(title, distrib_cnt, cor_base):
-                if distrib_cnt.empty:
-                    return None
-                _nc  = len(distrib_cnt)
-                _r   = int(cor_base[1:3], 16)
-                _g   = int(cor_base[3:5], 16)
-                _b_v = int(cor_base[5:7], 16)
-                _cors = [
-                    cor_base if i == 0 else
-                    f"rgba({_r},{_g},{_b_v},{max(0.3, 1 - i * 0.08):.2f})"
-                    for i in range(_nc)
-                ]
-                _fig = go.Figure()
-                _fig.add_trace(go.Bar(
-                    y=distrib_cnt.index.tolist(),
-                    x=distrib_cnt.values.tolist(),
-                    orientation="h",
-                    marker_color=_cors,
-                    text=distrib_cnt.values.tolist(),
-                    textposition="outside",
-                    hovertemplate="<b>%{y}</b><br>Postos: %{x}<extra></extra>",
-                ))
-                _fig.update_layout(
-                    title=title,
-                    xaxis_title="Postos GF",
-                    yaxis=dict(autorange="reversed"),
-                    height=max(260, _nc * 30 + 80),
-                    margin=dict(l=10, r=50, t=45, b=20),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    font=dict(size=10),
-                )
-                _fig.update_xaxes(showgrid=True, gridcolor="#ECEFF1")
-                return _fig
-
-            with _gc_a:
-                _fig_da = _chart_distrib_cmp(_label_a, _ma["distrib_cnt"], "#0D47A1")
-                if _fig_da:
-                    st.plotly_chart(_fig_da, use_container_width=True)
-                else:
-                    st.info("Sem dados de distribuidora para este grupo.")
-
-            with _gc_b:
-                _fig_db = _chart_distrib_cmp(_label_b, _mb["distrib_cnt"], "#B71C1C")
-                if _fig_db:
-                    st.plotly_chart(_fig_db, use_container_width=True)
-                else:
-                    st.info("Sem dados de distribuidora para este grupo.")
-
-            # ── Preços médios por combustível ─────────────────────────────────
-            _precos_a = _ma["precos"]
-            _precos_b = _mb["precos"]
-
-            if _precos_a or _precos_b:
-                st.markdown("---")
-                st.markdown("#### 💲 Preços Médios por Combustível (R$/L)")
-                _all_combs = sorted(set(list(_precos_a.keys()) + list(_precos_b.keys())))
-
-                if _all_combs:
-                    _fig_preco = go.Figure()
-                    _fig_preco.add_trace(go.Bar(
-                        name=_label_a,
-                        x=_all_combs,
-                        y=[_precos_a.get(c) for c in _all_combs],
-                        marker_color="#1565C0",
-                        text=[_br_moeda(_precos_a[c], 3)
-                              if c in _precos_a else "" for c in _all_combs],
-                        textposition="outside",
-                        hovertemplate="<b>%{x}</b><br>%{fullData.name}: R$ %{y:.3f}<extra></extra>",
-                    ))
-                    _fig_preco.add_trace(go.Bar(
-                        name=_label_b,
-                        x=_all_combs,
-                        y=[_precos_b.get(c) for c in _all_combs],
-                        marker_color="#C62828",
-                        text=[_br_moeda(_precos_b[c], 3)
-                              if c in _precos_b else "" for c in _all_combs],
-                        textposition="outside",
-                        hovertemplate="<b>%{x}</b><br>%{fullData.name}: R$ %{y:.3f}<extra></extra>",
-                    ))
-                    _fig_preco.update_layout(
-                        barmode="group",
-                        yaxis_title="R$/L",
-                        height=380,
-                        margin=dict(l=10, r=10, t=30, b=60),
-                        plot_bgcolor="rgba(0,0,0,0)",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        legend=dict(orientation="h", y=-0.20, x=0.5, xanchor="center"),
-                        font=dict(size=11),
-                    )
-                    _fig_preco.update_yaxes(showgrid=True, gridcolor="#ECEFF1")
-                    st.plotly_chart(_fig_preco, use_container_width=True)
-
-                    # Tabela delta
-                    st.markdown("##### Δ Diferença de Preços (A − B)")
-                    _delta_rows = []
-                    for _c in _all_combs:
-                        _pa = _precos_a.get(_c)
-                        _pb = _precos_b.get(_c)
-                        if _pa is not None and _pb is not None:
-                            _diff     = _pa - _pb
-                            _diff_pct = (_diff / _pb * 100) if _pb else 0
-                            _delta_rows.append({
-                                "Combustível": _c,
-                                f"Preço A":    _br_moeda(_pa, 3),
-                                f"Preço B":    _br_moeda(_pb, 3),
-                                "Δ R$/L":      f"{'+' if _diff >= 0 else ''}{_diff:.3f}".replace(".", ","),
-                                "Δ %":         f"{'+' if _diff_pct >= 0 else ''}{_diff_pct:.1f}%",
-                                "Mais barato": (
-                                    _label_a[:20] if _pa < _pb else
-                                    (_label_b[:20] if _pb < _pa else "Igual")
-                                ),
-                            })
-                    if _delta_rows:
-                        st.dataframe(pd.DataFrame(_delta_rows),
-                                     use_container_width=True, hide_index=True)
-            else:
-                st.markdown("---")
-                st.info(
-                    "ℹ️ Para comparar preços médios, carregue a planilha de Preços "
-                    "em **Configurações → Preços dos Postos GF**."
-                )
-
-            # ── Mini mapas geográficos ─────────────────────────────────────────
-            st.markdown("---")
-            st.markdown("#### 🗺️ Distribuição Geográfica")
-            _gm_a, _gm_b = st.columns(2)
-
-            def _mini_mapa_cmp(df_sub, titulo, cor_marker):
-                _sc = df_sub[pd.notna(df_sub["_lat"]) & pd.notna(df_sub["_lon"])].copy()
-                if _sc.empty:
-                    return None
-                _sc = _sc.sample(min(len(_sc), 800), random_state=42)
-                _fig_m = go.Figure()
-                _cd = (
-                    _sc[["razaoSocial", "municipio", "uf"]].values
-                    if all(c in _sc.columns for c in ["razaoSocial", "municipio", "uf"])
-                    else None
-                )
-                _fig_m.add_trace(go.Scattergeo(
-                    lat=_sc["_lat"], lon=_sc["_lon"],
-                    mode="markers",
-                    marker=dict(size=5, color=cor_marker, opacity=0.75,
-                                line=dict(color="white", width=0.4)),
-                    hovertemplate=(
-                        "<b>%{customdata[0]}</b><br>"
-                        "%{customdata[1]} — %{customdata[2]}<extra></extra>"
-                    ),
-                    customdata=_cd,
-                ))
-                _lat_c = (_sc["_lat"].max() + _sc["_lat"].min()) / 2
-                _lon_c = (_sc["_lon"].max() + _sc["_lon"].min()) / 2
-                _fig_m.update_layout(
-                    title=dict(text=titulo, font=dict(size=12)),
-                    geo=dict(
-                        scope="south america",
-                        center=dict(lat=_lat_c, lon=_lon_c),
-                        projection_type="mercator",
-                        showland=True, landcolor="#F5F5F5",
-                        showcoastlines=True, coastlinecolor="#BDBDBD",
-                        showframe=False,
-                        lataxis=dict(range=[_sc["_lat"].min() - 2, _sc["_lat"].max() + 2]),
-                        lonaxis=dict(range=[_sc["_lon"].min() - 2, _sc["_lon"].max() + 2]),
-                    ),
-                    height=380,
-                    margin=dict(l=0, r=0, t=40, b=0),
-                    paper_bgcolor="rgba(0,0,0,0)",
-                )
-                return _fig_m
-
-            with _gm_a:
-                _fm_a = _mini_mapa_cmp(_ma["df_sub"], _label_a, "#1565C0")
-                if _fm_a:
-                    st.plotly_chart(_fm_a, use_container_width=True)
-                else:
-                    st.info(f"Sem coordenadas para {_label_a}.")
-
-            with _gm_b:
-                _fm_b = _mini_mapa_cmp(_mb["df_sub"], _label_b, "#C62828")
-                if _fm_b:
-                    st.plotly_chart(_fm_b, use_container_width=True)
-                else:
-                    st.info(f"Sem coordenadas para {_label_b}.")
-
-            # ── Resumo executivo ──────────────────────────────────────────────
-            st.markdown("---")
-            st.markdown("#### 📋 Resumo Executivo")
-            _re_a, _re_b = st.columns(2)
-            for _re_col, _lbl, _m, _cor in [
-                (_re_a, _label_a, _ma, "#0D47A1"),
-                (_re_b, _label_b, _mb, "#B71C1C"),
-            ]:
-                with _re_col:
-                    _preco_item = ""
+            _cc1, _cc2 = st.columns(2)
+            for _cc, _lbl, _m in [(_cc1,_label_a,_ma),(_cc2,_label_b,_mb)]:
+                with _cc:
+                    st.markdown(f"#### {_lbl}")
+                    st.metric("📋 Abastecimentos", _fmt_int(_m["n_abast"]))
+                    st.metric("⛽ Postos Visitados", _fmt_int(_m["n_postos"]))
+                    st.metric("🏙️ Municípios", _fmt_int(_m["n_muns"]),
+                              f"{_m['cob_pct']:.1f}% cobertura")
                     if _m["precos"]:
-                        _best_c = min(_m["precos"], key=_m["precos"].get)
-                        _best_v = _m["precos"][_best_c]
-                        _preco_item = (
-                            f"<li>Combustível mais barato: <b>{_best_c}</b> "
-                            f"@ R$ {_best_v:.3f}".replace(".", ",") + "/L</li>"
-                        )
-                    st.markdown(
-                        f"<div style='border:2px solid {_cor};"
-                        f"border-radius:10px;padding:14px 16px;background:#fafafa'>"
-                        f"<div style='font-size:14px;font-weight:700;color:{_cor};"
-                        f"margin-bottom:8px'>{_lbl}</div>"
-                        f"<ul style='font-size:12px;color:#333;margin:0;padding-left:16px'>"
-                        f"<li><b>{_fmt_int(_m['n_postos'])}</b> postos GF credenciados</li>"
-                        f"<li><b>{_fmt_int(_m['n_muns'])}</b> municípios atendidos "
-                        f"(<b>{_m['cob_pct']:.1f}%</b> de cobertura)</li>"
-                        f"<li><b>{_m['n_distrib']}</b> distribuidoras presentes</li>"
-                        f"<li>Média de <b>{_m['media_mun']:.1f}</b> posto(s)/município</li>"
-                        + _preco_item +
-                        f"</ul></div>",
-                        unsafe_allow_html=True,
-                    )
-
-        # ══════════════════════════════════════════════════════════════════
-        # TAB 7 — DASHBOARD EXECUTIVO (C-Level)
-        # ══════════════════════════════════════════════════════════════════
+                        st.markdown("**Preço Médio por Combustível:**")
+                        for _cb, _pv in _m["precos"].items():
+                            st.markdown(f"• {_cb}: **R$ {_pv:.3f}/L**")
         with _dt7:
-            st.markdown(
-                "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
-                "Visão consolidada para tomada de decisão estratégica: "
-                "custos, savings e oportunidades de expansão da rede GF.</p>",
-                unsafe_allow_html=True,
-            )
+            st.markdown("<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+                        "Visão consolidada para tomada de decisão estratégica: "
+                        "custos reais, savings vs ANP e oportunidades.</p>",
+                        unsafe_allow_html=True)
 
-            # ── Fontes de dados ────────────────────────────────────────────
-            _ex_pp     = st.session_state.get("_pp_df")
-            _ex_anp_c  = st.session_state.get("_precos_anp_cache", {})
-            _ex_sheets = _ex_anp_c.get("sheets")
-            # Carrega histórico via _intel_load() que busca do Supabase
-            # (session_state["_intel_data"] nunca é populado — chave errada)
-            _ex_hist   = _intel_load().get("historico", {})
+            _preco_col7 = next((c for c in ["preco_litro"] if c in _df_valid.columns), None)
+            _prod_col7  = next((c for c in ["produto","combustivel"] if c in _df_valid.columns), None)
+            _vol_col7   = next((c for c in ["litros","volume"] if c in _df_valid.columns), None)
+            _val_col7   = next((c for c in ["valor_total"] if c in _df_valid.columns), None)
 
-            _EX_ANP_FALLBACK = {
-                "GASOLINA COMUM": 6.30, "DIESEL S10": 6.05,
-                "DIESEL COMUM": 5.95,   "ETANOL": 4.10, "GNV": 4.25,
-            }
-            _EX_DIESEL_UF = {
-                "AC": 6.48, "AL": 6.18, "AM": 6.45, "AP": 6.40, "BA": 6.12,
-                "CE": 6.10, "DF": 5.95, "ES": 6.02, "GO": 6.00, "MA": 6.30,
-                "MG": 5.98, "MS": 6.08, "MT": 6.22, "PA": 6.28, "PB": 6.16,
-                "PE": 6.15, "PI": 6.22, "PR": 5.88, "RJ": 6.18, "RN": 6.12,
-                "RO": 6.35, "RR": 6.50, "RS": 5.92, "SC": 5.85, "SE": 6.15,
-                "SP": 6.05, "TO": 6.25,
-            }
+            _EX_ANP_FALLBACK = {"GASOLINA COMUM":6.30,"DIESEL S10":6.05,
+                                "DIESEL COMUM":5.95,"ETANOL":4.10,"GNV":4.25}
 
-            # Preços ANP nacionais (função real ou fallback hardcoded)
-            _ex_anp_nac: dict = {}
-            if _ex_sheets:
-                try:
-                    _ex_anp_nac = _anp_precos_por_fuel_brasil(_ex_sheets)
-                except Exception:
-                    pass
-            if not _ex_anp_nac:
-                _ex_anp_nac = dict(_EX_ANP_FALLBACK)
-
-            def _ex_get_anp_preco(label: str) -> float:
-                """Retorna preço ANP nacional para um combustível dado o label."""
-                lu = label.upper()
-                for k, v in _ex_anp_nac.items():
-                    if str(k).upper() in lu or lu in str(k).upper():
-                        return float(v)
-                for k, v in _EX_ANP_FALLBACK.items():
-                    if k in lu or lu in k:
-                        return float(v)
-                return 0.0
-
-            # ── KPIs Hero ─────────────────────────────────────────────────
-            st.markdown("### 📊 Visão Geral da Rede")
+            # KPIs hero
+            st.markdown("### 📊 Visão Geral dos Abastecimentos")
             _eh1, _eh2, _eh3, _eh4 = st.columns(4)
-            _eh1.metric("⛽ Postos GF", _fmt_int(_total_gf), f"{_total_ufs} estados")
-            _eh2.metric(
-                "🏙️ Municípios", _fmt_int(_total_mun),
-                f"{_cobertura_br:.0f}% dos estados",
-            )
+            _eh1.metric("⛽ Postos Visitados", _fmt_int(_total_gf), f"{_total_ufs} estados")
+            _eh2.metric("📋 Abastecimentos", _fmt_int(_total_abast), f"últimos {_dias_ativo} dias")
 
-            # Diesel GF médio vs ANP
-            _ex_diesel_gf = 0.0
-            if _ex_pp is not None and not _ex_pp.empty:
-                _ex_d_mask = (
-                    _ex_pp["combustivel_pk"].str.upper().str.contains("DIESEL", na=False)
-                )
-                if _ex_d_mask.any():
-                    _ex_diesel_gf = float(_ex_pp.loc[_ex_d_mask, "preco"].mean())
-            _ex_diesel_anp = float(
-                _ex_anp_nac.get("DIESEL S10")
-                or _ex_anp_nac.get("DIESEL COMUM")
-                or _EX_ANP_FALLBACK["DIESEL S10"]
-            )
-            if _ex_diesel_gf > 0:
-                _ex_d_delta = (_ex_diesel_gf - _ex_diesel_anp) / _ex_diesel_anp * 100
-                _eh3.metric(
-                    "🚛 Diesel Médio GF",
-                    _br_moeda(_ex_diesel_gf, 3),
-                    f"{_ex_d_delta:+.1f}% vs ANP",
-                    delta_color="inverse",
-                )
+            _preco_medio7 = float(pd.to_numeric(_df_valid[_preco_col7], errors="coerce").mean()) if _preco_col7 else 0
+            _anp_ref7 = _EX_ANP_FALLBACK.get("DIESEL S10", 6.05)
+            if _preco_medio7 > 0:
+                _delta7 = (_preco_medio7 - _anp_ref7) / _anp_ref7 * 100
+                _eh3.metric("💲 Preço Médio Pago", _br_moeda(_preco_medio7, 3),
+                            f"{_delta7:+.1f}% vs ANP ref.", delta_color="inverse")
             else:
-                _eh3.metric("🚛 Diesel Médio GF", "—", "Sem dados de preço")
+                _eh3.metric("💲 Preço Médio Pago", "—")
 
-            # Saving potencial/ano
-            if _ex_diesel_gf > 0 and _ex_diesel_anp > _ex_diesel_gf:
-                _ex_sav = (_ex_diesel_anp - _ex_diesel_gf) * 100 * 52 * _total_gf
-            else:
-                _ex_sav = 0.15 * 100 * 52 * _total_gf
-            _eh4.metric(
-                "💰 Saving Potencial/Ano",
-                f"R$ {_ex_sav / 1e6:.1f}M".replace(".", ","),
-                "base: 100 L/sem × postos GF",
-            )
+            _val_total7 = float(pd.to_numeric(_df_valid[_val_col7], errors="coerce").sum()) if _val_col7 else 0
+            _eh4.metric("💰 Gasto Total", _br_moeda(_val_total7) if _val_total7 else "—",
+                        f"últimos {_dias_ativo} dias")
 
             st.markdown("---")
 
-            # ══ SEÇÃO 1 — Custo Médio GF vs ANP por Combustível ══════════
-            st.markdown("### ⛽ Custo Médio GF vs ANP por Combustível")
+            # Preço médio por combustível vs ANP
+            if _preco_col7 and _prod_col7:
+                st.markdown("### ⛽ Preço Médio Real vs ANP por Combustível")
+                _ex_comb = (_df_valid[_df_valid[_preco_col7]>0]
+                            .groupby(_prod_col7)[_preco_col7]
+                            .mean().reset_index()
+                            .rename(columns={_prod_col7:"Combustível",_preco_col7:"Preço Real (R$/L)"}))
+                _ex_comb["ANP Ref (R$/L)"] = _ex_comb["Combustível"].apply(
+                    lambda c: next((v for k,v in _EX_ANP_FALLBACK.items()
+                                    if k in c.upper() or c.upper() in k), None))
+                _ex_comb["Delta (%)"] = _ex_comb.apply(
+                    lambda r: (r["Preço Real (R$/L)"]-r["ANP Ref (R$/L)"])/r["ANP Ref (R$/L)"]*100
+                    if r["ANP Ref (R$/L)"] else None, axis=1)
+                _fig_ex = go.Figure()
+                _fig_ex.add_trace(go.Bar(name="Preço Real", x=_ex_comb["Combustível"],
+                    y=_ex_comb["Preço Real (R$/L)"], marker_color="#E65100",
+                    text=_ex_comb["Preço Real (R$/L)"].apply(lambda v: _br_moeda(v,3)),
+                    textposition="outside"))
+                _fig_ex.add_trace(go.Bar(name="ANP Ref", x=_ex_comb["Combustível"],
+                    y=_ex_comb["ANP Ref (R$/L)"], marker_color="#1565C0",
+                    text=_ex_comb["ANP Ref (R$/L)"].apply(
+                        lambda v: _br_moeda(v,3) if v else "—"), textposition="outside"))
+                _fig_ex.update_layout(barmode="group", height=350,
+                    title="Preço Real Pago vs Referência ANP",
+                    yaxis_title="R$/L", plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=10,r=10,t=45,b=60))
+                st.plotly_chart(_fig_ex, use_container_width=True)
 
-            if _ex_pp is None or _ex_pp.empty:
-                st.info(
-                    "📋 Importe a **Planilha de Preços dos Postos GF** em "
-                    "Configurações → Preços dos Postos GF para ver a comparação."
-                )
-            else:
-                _ex_comb_avg = (
-                    _ex_pp.groupby("combustivel_label")["preco"]
-                    .mean().reset_index()
-                    .rename(columns={
-                        "combustivel_label": "Combustível",
-                        "preco": "Preço GF (R$/L)",
-                    })
-                    .sort_values("Preço GF (R$/L)", ascending=False)
-                )
-                _ex_comb_avg["ANP Ref (R$/L)"] = (
-                    _ex_comb_avg["Combustível"]
-                    .apply(_ex_get_anp_preco)
-                    .replace(0.0, None)
-                )
-                _ex_comb_avg["Delta (%)"] = _ex_comb_avg.apply(
-                    lambda r: (
-                        (r["Preço GF (R$/L)"] - r["ANP Ref (R$/L)"])
-                        / r["ANP Ref (R$/L)"] * 100
-                    ) if r["ANP Ref (R$/L)"] else None,
-                    axis=1,
-                )
-
-                _ex_fig_c = go.Figure()
-                _ex_fig_c.add_trace(go.Bar(
-                    name="Preço GF",
-                    x=_ex_comb_avg["Combustível"],
-                    y=_ex_comb_avg["Preço GF (R$/L)"],
-                    marker_color="#E65100",
-                    text=_ex_comb_avg["Preço GF (R$/L)"].apply(
-                        lambda v: _br_moeda(v, 3)),
-                    textposition="outside",
-                ))
-                _ex_anp_vals = _ex_comb_avg["ANP Ref (R$/L)"].tolist()
-                if any(v is not None for v in _ex_anp_vals):
-                    _ex_fig_c.add_trace(go.Bar(
-                        name="Referência ANP",
-                        x=_ex_comb_avg["Combustível"],
-                        y=[v if v else 0 for v in _ex_anp_vals],
-                        marker_color="#1565C0",
-                        opacity=0.7,
-                        text=[
-                            _br_moeda(v, 3) if v else "—"
-                            for v in _ex_anp_vals
-                        ],
-                        textposition="outside",
-                    ))
-                _ex_fig_c.update_layout(
-                    barmode="group",
-                    title="Preço Médio GF vs Referência ANP (R$/L)",
-                    yaxis_title="R$/L",
-                    height=380,
-                    margin=dict(l=10, r=10, t=45, b=60),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    legend=dict(
-                        orientation="h", yanchor="bottom",
-                        y=1.02, xanchor="right", x=1,
-                    ),
-                    xaxis_tickangle=-20,
-                )
-                _ex_fig_c.update_yaxes(showgrid=True, gridcolor="#F3F3F3")
-                st.plotly_chart(_ex_fig_c, use_container_width=True)
-
-                # Cards de delta por combustível
-                _ex_delta_ok = _ex_comb_avg.dropna(subset=["Delta (%)"])
-                if not _ex_delta_ok.empty:
-                    _ex_dcols = st.columns(min(len(_ex_delta_ok), 4))
-                    for _ei, (_, _er) in enumerate(_ex_delta_ok.head(4).iterrows()):
-                        _exdv = _er["Delta (%)"]
-                        _exc  = ("#2E7D32" if _exdv < 0
-                                 else "#F57F17" if _exdv < 3 else "#B71C1C")
-                        _exi  = "✅" if _exdv < 0 else "⚠️" if _exdv < 3 else "🔴"
-                        _ex_dcols[_ei].markdown(
-                            f"<div style='border:1px solid {_exc};border-radius:8px;"
-                            f"padding:12px;text-align:center;background:#fafafa'>"
-                            f"<div style='font-size:12px;color:#555'>"
-                            f"{_er['Combustível']}</div>"
-                            f"<div style='font-size:22px;font-weight:700;color:{_exc}'>"
-                            f"{_exi} {_exdv:+.1f}%</div>"
-                            f"<div style='font-size:11px;color:#777'>"
-                            f"vs ANP nacional</div></div>",
-                            unsafe_allow_html=True,
-                        )
-
-            st.markdown("---")
-
-            # ══ SEÇÃO 2 — Saving Mensal Acumulado ════════════════════════
-            st.markdown("### 💰 Saving Mensal Acumulado")
-            st.caption(
-                "Evolução mensal do preço médio GF. "
-                "Barras 🟢 = abaixo do ANP (saving); 🔴 = acima do ANP (custo extra)."
-            )
-
-            if not _ex_hist:
-                st.info(
-                    "ℹ️ Histórico de preços vazio. Carregue planilhas de preços "
-                    "sequenciais em Configurações para construir a série temporal."
-                )
-            else:
-                _ex_rows_h = []
-                for _ecnpj, _erecords in _ex_hist.items():
-                    for _erec in (_erecords if isinstance(_erecords, list) else []):
-                        _edata  = str(_erec.get("data", "") or "")
-                        _epreco = float(_erec.get("preco", 0) or 0)
-                        _ecomb  = str(_erec.get("combustivel", "") or "").upper().strip()
-                        if _edata and _epreco > 0 and _ecomb:
-                            _ex_rows_h.append({
-                                "data": _edata,
-                                "preco": _epreco,
-                                "combustivel": _ecomb,
-                            })
-
-                if not _ex_rows_h:
-                    st.info("ℹ️ Histórico sem registros válidos de preço.")
-                else:
-                    _ex_hist_df = pd.DataFrame(_ex_rows_h)
-                    try:
-                        _ex_hist_df["mes"] = (
-                            pd.to_datetime(_ex_hist_df["data"], errors="coerce")
-                            .dt.to_period("M").astype(str)
-                        )
-                    except Exception:
-                        _ex_hist_df["mes"] = _ex_hist_df["data"].str[:7]
-                    _ex_hist_df = _ex_hist_df.dropna(subset=["mes"])
-
-                    _ex_combs_h = sorted(_ex_hist_df["combustivel"].unique().tolist())
-                    _ex_sel_sv  = st.selectbox(
-                        "Combustível:", ["Todos"] + _ex_combs_h,
-                        key="dt7_sel_comb_saving",
-                    )
-                    _ex_hdf = _ex_hist_df.copy()
-                    if _ex_sel_sv != "Todos":
-                        _ex_hdf = _ex_hdf[_ex_hdf["combustivel"] == _ex_sel_sv]
-
-                    _ex_mensal = (
-                        _ex_hdf.groupby("mes")["preco"]
-                        .mean().reset_index()
-                        .sort_values("mes")
-                    )
-                    _ex_mensal.columns = ["Mês", "Preço Médio GF"]
-
-                    _ex_anp_ref_sv = (
-                        _ex_get_anp_preco(_ex_sel_sv)
-                        if _ex_sel_sv != "Todos" else 0.0
-                    )
-
-                    _ex_bar_colors_sv = [
-                        "#2E7D32" if (_ex_anp_ref_sv and pv < _ex_anp_ref_sv)
-                        else ("#B71C1C" if _ex_anp_ref_sv else "#1565C0")
-                        for pv in _ex_mensal["Preço Médio GF"]
-                    ]
-                    _ex_fig_sv = go.Figure()
-                    _ex_fig_sv.add_trace(go.Bar(
-                        x=_ex_mensal["Mês"],
-                        y=_ex_mensal["Preço Médio GF"],
-                        marker_color=_ex_bar_colors_sv,
-                        name="Preço Médio GF",
-                        text=_ex_mensal["Preço Médio GF"].apply(
-                            lambda v: _br_moeda(v, 3)),
-                        textposition="outside",
-                    ))
-                    if _ex_anp_ref_sv:
-                        _ex_fig_sv.add_hline(
-                            y=_ex_anp_ref_sv,
-                            line_dash="dash", line_color="#E65100",
-                            annotation_text=(
-                                f"ANP: R$ {_ex_anp_ref_sv:.3f}".replace(".", ",")),
-                            annotation_position="top left",
-                            annotation_font_size=11,
-                        )
-                    _ex_fig_sv.update_layout(
-                        title="Evolução Mensal do Preço Médio GF (R$/L)",
-                        yaxis_title="R$/L",
-                        height=350,
-                        margin=dict(l=10, r=10, t=45, b=40),
-                        plot_bgcolor="rgba(0,0,0,0)",
-                        paper_bgcolor="rgba(0,0,0,0)",
-                    )
-                    _ex_fig_sv.update_yaxes(showgrid=True, gridcolor="#F3F3F3")
-                    st.plotly_chart(_ex_fig_sv, use_container_width=True)
-
-                    if _ex_anp_ref_sv:
-                        _ex_sav_acc = float(
-                            (_ex_anp_ref_sv - _ex_mensal["Preço Médio GF"]).sum()
-                        )
-                        _ex_dir = "abaixo" if _ex_sav_acc > 0 else "acima"
-                        _ex_cor_s = "#2E7D32" if _ex_sav_acc > 0 else "#B71C1C"
-                        st.markdown(
-                            f"<div style='background:#f5f5f5;border-radius:8px;"
-                            f"padding:10px 16px;margin-top:8px'>"
-                            f"Saldo acumulado do período: "
-                            f"<b style='color:{_ex_cor_s}'>"
-                            f"R$ {_br_num(abs(_ex_sav_acc), 3)}/L</b> "
-                            f"(rede GF {_ex_dir} do ANP em média)</div>",
-                            unsafe_allow_html=True,
-                        )
-
-            st.markdown("---")
-
-            # ══ SEÇÃO 3 — Cobertura da Rede por Macrorregião ════════════
-            st.markdown("### 🗺️ Cobertura da Rede por Macrorregião")
-
-            _EX_REGIOES = {
-                "Norte":        ["AC", "AM", "AP", "PA", "RO", "RR", "TO"],
-                "Nordeste":     ["AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"],
-                "Centro-Oeste": ["DF", "GO", "MS", "MT"],
-                "Sudeste":      ["ES", "MG", "RJ", "SP"],
-                "Sul":          ["PR", "RS", "SC"],
-            }
-            _EX_MUN_TOTAL = {
-                "Norte": 449, "Nordeste": 1794, "Centro-Oeste": 467,
-                "Sudeste": 1668, "Sul": 1191,
-            }
-
-            _ex_reg_rows = []
-            for _ereg, _eufs in _EX_REGIOES.items():
-                _ex_sub  = _df_valid[_df_valid["uf"].isin(_eufs)]
-                _ex_ngf  = len(_ex_sub)
-                _ex_nmun = int(
-                    _ex_sub["municipio"].replace("", pd.NA).dropna().nunique()
-                )
-                _ex_nmun_tot = _EX_MUN_TOTAL.get(_ereg, 1)
-                _ex_cob      = round(_ex_nmun / _ex_nmun_tot * 100, 1)
-                _ex_reg_rows.append({
-                    "Região":        _ereg,
-                    "Postos GF":     _ex_ngf,
-                    "Mun. c/ GF":    _ex_nmun,
-                    "Total Mun.":    _ex_nmun_tot,
-                    "Cobertura (%)": _ex_cob,
-                    "Estados c/ GF": int(_ex_sub["uf"].nunique()),
-                    "Total UFs":     len(_eufs),
-                })
-            _ex_reg_df = (
-                pd.DataFrame(_ex_reg_rows)
-                .sort_values("Cobertura (%)", ascending=False)
-                .reset_index(drop=True)
-            )
-
-            _ex_reg_colors = [
-                "#2E7D32" if v >= 30 else ("#F57F17" if v >= 10 else "#B71C1C")
-                for v in _ex_reg_df["Cobertura (%)"]
-            ]
-            _ex_fig_reg = go.Figure()
-            _ex_fig_reg.add_trace(go.Bar(
-                y=_ex_reg_df["Região"],
-                x=_ex_reg_df["Cobertura (%)"],
-                orientation="h",
-                marker_color=_ex_reg_colors,
-                text=_ex_reg_df["Cobertura (%)"].apply(lambda v: f"{v:.1f}%"),
-                textposition="outside",
-                hovertemplate="<b>%{y}</b><br>Cobertura: %{x:.1f}%<extra></extra>",
-            ))
-            _ex_fig_reg.update_layout(
-                title="Cobertura de Municípios com Postos GF por Região (%)",
-                xaxis_title="% dos municípios da região",
-                yaxis=dict(autorange="reversed"),
-                height=280,
-                margin=dict(l=10, r=80, t=45, b=30),
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                font=dict(size=11),
-            )
-            _ex_fig_reg.update_xaxes(
-                showgrid=True, gridcolor="#E3F2FD", range=[0, 110])
-            st.plotly_chart(_ex_fig_reg, use_container_width=True)
-
-            _ex_rcols = st.columns(5)
-            for _ei, _er in _ex_reg_df.iterrows():
-                _ecob = _er["Cobertura (%)"]
-                _ecor = (
-                    "#2E7D32" if _ecob >= 30
-                    else "#F57F17" if _ecob >= 10 else "#B71C1C"
-                )
-                _ex_rcols[_ei].markdown(
-                    f"<div style='border-top:3px solid {_ecor};"
-                    f"padding:10px 4px;text-align:center'>"
-                    f"<div style='font-size:11px;color:#555;font-weight:700'>"
-                    f"{_er['Região']}</div>"
-                    f"<div style='font-size:20px;font-weight:700;color:{_ecor}'>"
-                    f"{_ecob:.1f}%</div>"
-                    f"<div style='font-size:10px;color:#777'>"
-                    f"{_fmt_int(_er['Postos GF'])} postos</div>"
-                    f"<div style='font-size:10px;color:#777'>"
-                    f"{_er['Estados c/ GF']}/{_er['Total UFs']} estados</div>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-
-            st.markdown("---")
-
-            # ══ SEÇÃO 4 — Top Oportunidades de Expansão ═════════════════
-            st.markdown("### 🎯 Top Oportunidades de Expansão")
-            st.caption(
-                "Ranqueamento das UFs com maior potencial de expansão: "
-                "menor penetração GF e maior preço de mercado = maior oportunidade."
-            )
-
-            _ex_gf_uf       = _df_valid.groupby("uf").size().to_dict()
-            _ex_diesel_max  = max(_EX_DIESEL_UF.values())
-            _ex_oport       = []
-            for _euf, _eanp_ref in _ANP_REF_UF.items():
-                _egf_n      = _ex_gf_uf.get(_euf, 0)
-                _epen       = _egf_n / _eanp_ref * 100 if _eanp_ref else 0
-                _ediesel_uf = _EX_DIESEL_UF.get(_euf, 6.0)
-                _escore     = round(
-                    (1 - min(_epen / 100, 1))
-                    * (_ediesel_uf / _ex_diesel_max) * 100, 1,
-                )
-                _ex_oport.append({
-                    "UF":                _euf,
-                    "Estado":            _UF_NOME_DASH.get(_euf, _euf),
-                    "Postos GF":         _egf_n,
-                    "Penetração (%)":    round(_epen, 2),
-                    "Diesel ANP (R$/L)": _ediesel_uf,
-                    "Score":             _escore,
-                })
-
-            _ex_oport_df = (
-                pd.DataFrame(_ex_oport)
-                .sort_values("Score", ascending=False)
-                .reset_index(drop=True)
-            )
-            _ex_oport_df.index += 1
-
-            _ex_top10 = _ex_oport_df.head(10)
-            _ex_opp_colors = [
-                "#B71C1C" if s >= 80 else
-                "#E65100" if s >= 60 else
-                "#F57F17" if s >= 40 else "#1565C0"
-                for s in _ex_top10["Score"]
-            ]
-            _ex_fig_opp = go.Figure()
-            _ex_fig_opp.add_trace(go.Bar(
-                x=_ex_top10["Estado"],
-                y=_ex_top10["Score"],
-                marker_color=_ex_opp_colors,
-                text=_ex_top10["Score"].apply(lambda v: f"{v:.0f}"),
-                textposition="outside",
-                hovertemplate="<b>%{x}</b><br>Score: %{y:.0f}<br><extra></extra>",
-            ))
-            _ex_fig_opp.update_layout(
-                title="Top 10 Estados — Score de Oportunidade de Expansão",
-                yaxis_title="Score (0–100)",
-                height=350,
-                margin=dict(l=10, r=10, t=45, b=80),
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                xaxis_tickangle=-30,
-            )
-            _ex_fig_opp.update_yaxes(
-                showgrid=True, gridcolor="#F3F3F3", range=[0, 110])
-            st.plotly_chart(_ex_fig_opp, use_container_width=True)
-
-            st.markdown("##### Ranking completo")
-            st.dataframe(
-                _ex_oport_df[[
-                    "UF", "Estado", "Postos GF",
-                    "Penetração (%)", "Diesel ANP (R$/L)", "Score",
-                ]],
-                use_container_width=True,
-                height=350,
-                column_config={
-                    "Score": st.column_config.ProgressColumn(
-                        "Score Oportunidade",
-                        min_value=0, max_value=100, format="%.0f",
-                    )
-                },
-            )
-            _ex_csv_dl = (
-                _ex_oport_df.reset_index(drop=True)
-                .to_csv(index=False).encode("utf-8-sig")
-            )
-            st.download_button(
-                label="📥 Exportar oportunidades (CSV)",
-                data=_ex_csv_dl,
-                file_name="oportunidades_expansao_gf.csv",
-                mime="text/csv",
-                key="dt7_dl_oport",
-            )
-            st.caption(
-                "💡 **Metodologia:** Score = (1 – penetração GF) × "
-                "(Diesel ANP UF / máx nacional). "
-                "Quanto maior o score, maior o potencial de credenciamento de novos postos."
-            )
-
-        # ══════════════════════════════════════════════════════════════
-        # TAB 8 — Dashboard Operacional (time de campo)
-        # ══════════════════════════════════════════════════════════════
+            # Top postos por volume
+            if _vol_col7 and _cnpj_col:
+                st.markdown("### 🏆 Top 10 Postos por Volume Abastecido")
+                _nome_col7 = next((c for c in ["nome_posto"] if c in _df_valid.columns), None)
+                _grp7 = [_cnpj_col] + ([_nome_col7] if _nome_col7 else [])
+                _top_postos7 = (_df_valid.groupby(_grp7)
+                    .agg(volume=((_vol_col7),"sum"), abastecimentos=(_cnpj_col,"count"))
+                    .reset_index().sort_values("volume",ascending=False).head(10))
+                st.dataframe(_top_postos7.reset_index(drop=True), use_container_width=True)
         with _dt8:
 
             # ── Fontes de dados ───────────────────────────────────────
