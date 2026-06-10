@@ -32427,8 +32427,7 @@ def _gerar_pdf_conversa(historico: list, empresa_nome: str = "", logo_b64: str =
         if _role == "user":
             _elementos.append(Paragraph("👤 Você perguntou:", _st_label_user))
             _tbl = Table(
-                [[Paragraph(_text.replace("
-", "<br/>"), _st_msg)]],
+                [[Paragraph(_text.replace(chr(10), "<br/>"), _st_msg)]],
                 colWidths=[16.5*cm]
             )
             _tbl.setStyle(TableStyle([
@@ -32447,8 +32446,7 @@ def _gerar_pdf_conversa(historico: list, empresa_nome: str = "", logo_b64: str =
             # Limpa markdown básico para PDF
             _clean = _text.replace("**", "").replace("*", "").replace("###", "").replace("##", "").replace("#", "")
             _tbl = Table(
-                [[Paragraph(_clean.replace("
-", "<br/>"), _st_msg)]],
+                [[Paragraph(_clean.replace(chr(10), "<br/>"), _st_msg)]],
                 colWidths=[16.5*cm]
             )
             _tbl.setStyle(TableStyle([
