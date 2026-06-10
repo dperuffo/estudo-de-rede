@@ -32337,7 +32337,6 @@ elif modo == "🛰️ Telemetria":
 
 
 elif modo == "🤖 Assistente IA":
-    _doc_tela("🤖 Assistente IA") if "🤖 Assistente IA" in str(_doc_tela.__code__.co_consts) else None
 
     _perfil_ai   = st.session_state.get("_auth_perfil", "")
     _empresa_ai  = st.session_state.get("_empresa_ativa") or {}
