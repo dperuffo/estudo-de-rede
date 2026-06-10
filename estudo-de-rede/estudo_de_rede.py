@@ -32346,6 +32346,136 @@ elif modo == "🛰️ Telemetria":
                         pass
 
 
+def _gerar_pdf_conversa(historico: list, empresa_nome: str = "", logo_b64: str = "") -> bytes:
+    """Gera PDF formatado da conversa com o Assistente IA."""
+    import io as _io_pdf
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors as _rlc
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.colors import HexColor
+    from datetime import datetime
+
+    _buf = _io_pdf.BytesIO()
+    _doc = SimpleDocTemplate(
+        _buf, pagesize=A4,
+        leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=2*cm, bottomMargin=2*cm,
+    )
+
+    _styles = getSampleStyleSheet()
+    _cor_primaria  = HexColor("#26215C")
+    _cor_secundaria= HexColor("#534AB7")
+    _cor_user_bg   = HexColor("#EEEDFE")
+    _cor_bot_bg    = HexColor("#F8F7FF")
+    _cor_borda     = HexColor("#AFA9EC")
+    _cor_texto     = HexColor("#2C2C2A")
+    _cor_cinza     = HexColor("#888780")
+
+    _st_titulo = ParagraphStyle("titulo", parent=_styles["Normal"],
+        fontSize=18, fontName="Helvetica-Bold", textColor=_cor_primaria,
+        spaceAfter=4, alignment=TA_CENTER)
+    _st_subtitulo = ParagraphStyle("subtitulo", parent=_styles["Normal"],
+        fontSize=10, fontName="Helvetica", textColor=_cor_cinza,
+        spaceAfter=2, alignment=TA_CENTER)
+    _st_data = ParagraphStyle("data", parent=_styles["Normal"],
+        fontSize=9, fontName="Helvetica", textColor=_cor_cinza,
+        spaceAfter=16, alignment=TA_CENTER)
+    _st_label_user = ParagraphStyle("label_user", parent=_styles["Normal"],
+        fontSize=8, fontName="Helvetica-Bold", textColor=_cor_secundaria,
+        spaceBefore=10, spaceAfter=3)
+    _st_label_bot = ParagraphStyle("label_bot", parent=_styles["Normal"],
+        fontSize=8, fontName="Helvetica-Bold", textColor=_cor_primaria,
+        spaceBefore=10, spaceAfter=3)
+    _st_msg = ParagraphStyle("msg", parent=_styles["Normal"],
+        fontSize=10, fontName="Helvetica", textColor=_cor_texto,
+        leading=15, spaceAfter=6)
+    _st_rodape = ParagraphStyle("rodape", parent=_styles["Normal"],
+        fontSize=8, fontName="Helvetica", textColor=_cor_cinza,
+        alignment=TA_CENTER)
+
+    _elementos = []
+
+    # ── Cabeçalho com logo ────────────────────────────────────────
+    if logo_b64:
+        try:
+            from reportlab.platypus import Image as _RLImg
+            _logo_io = _io_pdf.BytesIO(base64.b64decode(logo_b64))
+            _logo_img = _RLImg(_logo_io, width=4*cm, height=2*cm)
+            _logo_img.hAlign = "CENTER"
+            _elementos.append(_logo_img)
+            _elementos.append(Spacer(1, 0.3*cm))
+        except Exception:
+            pass
+
+    _elementos.append(Paragraph("Assistente IA — FNI Insights", _st_titulo))
+    _elementos.append(Paragraph("Relatório de Conversa", _st_subtitulo))
+    if empresa_nome:
+        _elementos.append(Paragraph(f"Empresa: {empresa_nome}", _st_subtitulo))
+    _elementos.append(Paragraph(
+        f"Gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", _st_data))
+    _elementos.append(HRFlowable(width="100%", thickness=1,
+        color=_cor_borda, spaceAfter=12))
+
+    # ── Mensagens ─────────────────────────────────────────────────
+    for _msg in historico:
+        _role = _msg.get("role", "")
+        _text = _msg.get("content", "")
+
+        if _role == "user":
+            _elementos.append(Paragraph("👤 Você perguntou:", _st_label_user))
+            _tbl = Table(
+                [[Paragraph(_text.replace("
+", "<br/>"), _st_msg)]],
+                colWidths=[16.5*cm]
+            )
+            _tbl.setStyle(TableStyle([
+                ("BACKGROUND", (0,0), (-1,-1), _cor_user_bg),
+                ("ROUNDEDCORNERS", [8]),
+                ("BOX", (0,0), (-1,-1), 0.5, _cor_borda),
+                ("LEFTPADDING", (0,0), (-1,-1), 10),
+                ("RIGHTPADDING", (0,0), (-1,-1), 10),
+                ("TOPPADDING", (0,0), (-1,-1), 8),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+            ]))
+            _elementos.append(_tbl)
+
+        elif _role == "assistant":
+            _elementos.append(Paragraph("🤖 Assistente FNI respondeu:", _st_label_bot))
+            # Limpa markdown básico para PDF
+            _clean = _text.replace("**", "").replace("*", "").replace("###", "").replace("##", "").replace("#", "")
+            _tbl = Table(
+                [[Paragraph(_clean.replace("
+", "<br/>"), _st_msg)]],
+                colWidths=[16.5*cm]
+            )
+            _tbl.setStyle(TableStyle([
+                ("BACKGROUND", (0,0), (-1,-1), _cor_bot_bg),
+                ("ROUNDEDCORNERS", [8]),
+                ("BOX", (0,0), (-1,-1), 0.5, HexColor("#D3D1C7")),
+                ("LEFTPADDING", (0,0), (-1,-1), 10),
+                ("RIGHTPADDING", (0,0), (-1,-1), 10),
+                ("TOPPADDING", (0,0), (-1,-1), 8),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+            ]))
+            _elementos.append(_tbl)
+
+    # ── Rodapé ────────────────────────────────────────────────────
+    _elementos.append(Spacer(1, 0.5*cm))
+    _elementos.append(HRFlowable(width="100%", thickness=0.5, color=_cor_borda))
+    _elementos.append(Spacer(1, 0.2*cm))
+    _n_msgs = len([m for m in historico if m.get("role") == "user"])
+    _elementos.append(Paragraph(
+        f"FNI Gestão de Frotas · fxgestaodefrotasonline.com · "
+        f"{_n_msgs} pergunta(s) nesta conversa",
+        _st_rodape))
+
+    _doc.build(_elementos)
+    return _buf.getvalue()
+
+
 elif modo == "🤖 Assistente IA":
 
     _perfil_ai   = st.session_state.get("_auth_perfil", "")
@@ -32663,11 +32793,33 @@ elif modo == "🤖 Assistente IA":
         # Botão limpar conversa
         if st.session_state["ai_chat_history"]:
             st.markdown("---")
-            _cl1, _cl2 = st.columns([1, 5])
+            _cl1, _cl2, _cl3 = st.columns([1, 1, 4])
             with _cl1:
-                if st.button("🗑️ Limpar conversa", key="btn_limpar_ai"):
+                if st.button("🗑️ Limpar", key="btn_limpar_ai",
+                             help="Limpar conversa", use_container_width=True):
                     st.session_state["ai_chat_history"] = []
                     st.rerun()
+            with _cl2:
+                try:
+                    _pdf_bytes = _gerar_pdf_conversa(
+                        st.session_state["ai_chat_history"],
+                        empresa_nome=_empresa_ai.get("nome", ""),
+                        logo_b64=_FNI_B64 or "",
+                    )
+                    from datetime import datetime as _dt_pdf
+                    _pdf_nome = f"conversa_fni_{_dt_pdf.now().strftime('%Y%m%d_%H%M')}.pdf"
+                    st.download_button(
+                        "📄 Exportar PDF",
+                        data=_pdf_bytes,
+                        file_name=_pdf_nome,
+                        mime="application/pdf",
+                        key="btn_export_pdf_ai",
+                        use_container_width=True,
+                        help="Baixar conversa em PDF para impressão",
+                    )
+                except Exception as _e_pdf:
+                    st.button("📄 PDF indisponível", disabled=True,
+                              use_container_width=True, key="btn_pdf_err")
 
 elif modo == "⚡ API & Integrações":
     _doc_tela("⚡ API & Integrações")
