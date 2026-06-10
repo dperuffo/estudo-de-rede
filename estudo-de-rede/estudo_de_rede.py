@@ -4428,7 +4428,7 @@ def _auth_login_page():
             "Em caso de dúvidas, contate o administrador do sistema.</p>",
             unsafe_allow_html=True,
         )
-        st.markdown("<div class='login-version'>v2.0 · Gestão de Frotas</div>", unsafe_allow_html=True)
+        st.markdown("<div class='login-version'>v2.0 · FNI Gestão de Frotas</div>", unsafe_allow_html=True)
 
 
 # ── Inicializar estado de autenticação ──────────────────────────────
@@ -17085,7 +17085,7 @@ with st.sidebar:
                 st.session_state["_pp_restaurado_supabase"] = False
                 _restaurar_estado_pp_do_supabase()
                 if st.session_state.get("_pp_df") is not None:
-                    st.success("✅ Preços PP restaurados do banco.")
+                    st.success("✅ Preços restaurados do banco.")
                     time.sleep(1)
                     st.rerun()
                 else:
@@ -17651,7 +17651,7 @@ with st.sidebar:
                         st.success(f"✅ {_n_reg} novas observações registradas.")
                         st.rerun()
                 else:
-                    st.caption("Carregue a planilha de Preços PP para ativar o registro de histórico.")
+                    st.caption("Carregue abastecimentos via Pro-Frotas para ativar o registro de histórico.")
 
             # ── Seção 2: Score de Postos ──────────────────────────────────────
             st.markdown("---")
@@ -17747,7 +17747,7 @@ with st.sidebar:
                              use_container_width=True,
                              type="primary"):
                     if _pp_df_rep is None or _pp_df_rep.empty:
-                        st.warning("⚠️ Carregue a planilha de Preços PP antes de gerar o relatório.")
+                        st.warning("⚠️ Carregue abastecimentos via Pro-Frotas antes de gerar o relatório.")
                     else:
                         with st.spinner("Gerando relatório…"):
                             _bytes_rel, _fname_rel, _err_rel = _gerar_relatorio_alertas_xlsx(
@@ -19679,7 +19679,7 @@ if modo == "📍 Por UF/Município":
                 st.markdown("**Distribuição de postos por bandeira**")
                 st.bar_chart(contagem.set_index("Distribuidora"), height=400)
                 if n_pf(df_show) > 0:
-                    st.markdown("**Postos Gestão de Frotas por bandeira**")
+                    st.markdown("**Postos por bandeira**")
                     pf_dist = df_show[df_show["_pro_frotas"]]["distribuidora"].value_counts().reset_index()
                     pf_dist.columns = ["Distribuidora","Gestão de Frotas"]
                     st.bar_chart(pf_dist.set_index("Distribuidora"), height=300)
@@ -26034,7 +26034,7 @@ if modo == "📈 Dashboard":
         with _k3:
             st.metric("🥇 UF prioritária", _d12_top_uf)
         with _k4:
-            st.metric("⛽ Total postos GF", f"{_d12_n_gf_tot}")
+            st.metric("⛽ Total postos ANP", f"{_d12_n_gf_tot}")
 
         st.divider()
 
@@ -31817,7 +31817,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
 
                     with _rg_ra:
                         st.markdown("##### 🏪 Top postos fora da rede mais usados")
-                        st.caption("Candidatos a incorporar à rede GF")
+                        st.caption("Candidatos a monitorar")
                         _rg_gasto_col = "_valor_total" if "_valor_total" in _rg_fora.columns else "_litros"
                         _rg_top_postos = (
                             _rg_fora.groupby(["_cnpj_posto", "_nome_posto", "_uf_posto"])
@@ -31852,7 +31852,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                             )
                             st.plotly_chart(_fig_tp, use_container_width=True)
                         else:
-                            st.success("Todos os abastecimentos foram na rede GF! 🎉")
+                            st.success("Todos os abastecimentos registrados! 🎉")
 
                     with _rg_rb:
                         st.markdown("##### 🧑‍✈️ Motoristas que mais abasteceram fora da rede")
