@@ -29713,9 +29713,15 @@ elif modo == "👥 Análise de Cliente":
     # ── Fonte de dados: upload, banco ou Gestão de Frotas ───────────
     # Verificar se há chaves Gestão de Frotas cadastradas
     _pf_chaves_ac = _profrotas_listar_chaves()
-    _pf_src_opts = ["Abastecimentos Unificados", "Carregar arquivo", "Dados salvos no banco"]
+    _pf_src_opts = ["Abastecimentos Unificados", "Carregar arquivo"]
     if _pf_chaves_ac:
         _pf_src_opts.append("Gestao de Frotas (API)")
+    st.markdown(
+        "<div style='font-size:12px;color:#555;margin-bottom:4px'>"
+        "<b>Abastecimentos Unificados</b> = todos os dados salvos no banco (uploads + API Pro-Frotas). "
+        "<b>Carregar arquivo</b> = importar nova planilha e salvar no banco.</div>",
+        unsafe_allow_html=True,
+    )
     _src_opcao = st.radio("Fonte dos dados:", _pf_src_opts, horizontal=True, key="frota_src_opcao")
 
     _df_abast = None
@@ -29923,72 +29929,6 @@ elif modo == "👥 Análise de Cliente":
 
             except Exception as _ex_up:
                 st.error(f"Erro ao ler arquivo: {_ex_up}")
-    elif _src_opcao == "Dados salvos no banco":  # banco
-        _dfs_banco = []
-
-        # ── Fonte 1: uploads manuais (frota_abastecimentos) ────────
-        _rows_db = _db_carregar_abastecimentos()
-        if _rows_db:
-            _df_upload = _pd.DataFrame(_rows_db).rename(columns={
-                "id_transacao":       "_id_transacao",
-                "data_abastecimento": "_data",
-                "hora_abastecimento": "_hora",
-                "cnpj_frota":         "_cnpj_frota",
-                "razao_frota":        "_razao_frota",
-                "centro_custo":       "_centro_custo",
-                "cnpj_posto":         "_cnpj_posto",
-                "nome_posto":         "_nome_posto",
-                "cidade_posto":       "_cidade_posto",
-                "uf_posto":           "_uf_posto",
-                "placa":              "_placa",
-                "tipo_veiculo":       "_tipo_veiculo",
-                "nome_motorista":     "_motorista",
-                "hod_atual":          "_hod_atual",
-                "hod_anterior":       "_hod_anterior",
-                "km_percorrido":      "_km_perc",
-                "media_km_l":         "_media_km_l",
-                "produto":            "_produto",
-                "litros":             "_litros",
-                "preco_litro":        "_preco_litro",
-                "valor_combustivel":  "_valor_comb",
-                "valor_total":        "_valor_total",
-                "status_transacao":   "_status",
-                "lat_posto":          "_lat_posto",
-                "lon_posto":          "_lon_posto",
-                "nome_arquivo":       "_nome_arquivo",
-            })
-            _df_upload["_data"] = _pd.to_datetime(_df_upload["_data"], errors="coerce").dt.date
-            if "_fonte" not in _df_upload.columns:
-                _df_upload["_fonte"] = "upload"
-            _dfs_banco.append(_df_upload)
-
-        # ── Fonte 2: API Gestão de Frotas (profrotas_abastecimentos) ───────
-        _df_pf_banco = _profrotas_para_df_analise(None, 365)
-        if _df_pf_banco is not None and not _df_pf_banco.empty:
-            _dfs_banco.append(_df_pf_banco)
-
-        if _dfs_banco:
-            _df_abast = _pd.concat(_dfs_banco, ignore_index=True)
-            _n_upload = len(_rows_db) if _rows_db else 0
-            _n_pf     = len(_df_pf_banco) if (_df_pf_banco is not None and not _df_pf_banco.empty) else 0
-            _fontes   = []
-            if _n_upload: _fontes.append(f"**{_br_num(_n_upload, 0)}** via upload")
-            if _n_pf:     _fontes.append(f"**{_br_num(_n_pf, 0)}** via API Gestão de Frotas")
-            st.info(
-                f"☁️ **{_br_num(len(_df_abast), 0)}** registros do banco "
-                f"({' + '.join(_fontes)}) — "
-                f"{_df_abast['_placa'].nunique()} veículos"
-            )
-        else:
-            st.warning(
-                "Nenhum dado salvo no banco ainda. "
-                "Carregue um arquivo **ou** sincronize via **⚡ API & Integrações → Gestão de Frotas**."
-            )
-            _rd_err = st.session_state.get("_profrotas_read_error")
-            if _rd_err:
-                with st.expander("🔍 Detalhe do erro de leitura"):
-                    st.code(_rd_err)
-
     # ── Filtro de segurança: usuário externo vê apenas seus dados ──
     if _df_abast is not None and not _df_abast.empty:
         _perfil_ab = _auth_perfil()
