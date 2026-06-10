@@ -32540,6 +32540,7 @@ elif modo == "🤖 Assistente IA":
                     if st.button(_sg, key=f"sg_{_i}", use_container_width=True):
                         st.session_state["ai_chat_history"].append(
                             {"role": "user", "content": _sg})
+                        st.session_state["_ai_processar_pendente"] = True
                         st.rerun()
             st.markdown("---")
 
