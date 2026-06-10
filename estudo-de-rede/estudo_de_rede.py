@@ -25517,11 +25517,173 @@ elif modo == "📚 Documentação":
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
         "background:linear-gradient(135deg,#1565C0,#42A5F5);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "📚 Documentação</h2>"
+        "📚 Central de Ajuda & Documentação</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
-        "Manual de uso da plataforma Estudo de Rede – Gestão de Frotas.</p>",
+        "Encontre explicações sobre qualquer tela, indicador ou funcionalidade da plataforma.</p>",
         unsafe_allow_html=True,
     )
+
+    # ── Busca ─────────────────────────────────────────────────────
+    _busca_doc = st.text_input("🔍 Buscar por palavra-chave",
+        placeholder="Ex: ticket médio, ANP, dashboard, consumo...",
+        key="doc_busca")
+
+    _CENTRAL_AJUDA = {
+        "📍 Consulta por UF / Município": {
+            "objetivo": "Consultar postos de combustível cadastrados na ANP por estado e município, com preços de referência e localização no mapa.",
+            "fonte": "Base ANP (~38.000 postos) carregada do GitHub. Preços: tabela semanal ANP por município/estado/Brasil.",
+            "regras": "Hierarquia de preço: 1º transação real da frota → 2º média ANP do município → 3º média ANP do estado → 4º média ANP Brasil. Preços GLP acima de R$ 50/L são descartados como erro.",
+            "tags": ["anp", "mapa", "posto", "uf", "estado", "município", "preço", "bandeira"],
+        },
+        "🗺️ Consulta por Rota": {
+            "objetivo": "Encontrar os melhores postos ao longo de uma rota entre dois pontos, otimizando custo e desvio de percurso.",
+            "fonte": "Postos ANP com coordenadas + preços ANP de referência + abastecimentos reais da frota.",
+            "regras": "Raio de busca configurável (padrão 5km). Postos ordenados por menor preço. Desvio calculado via Haversine. Economia estimada = diferença de preço × volume médio.",
+            "tags": ["rota", "distância", "economia", "posto", "haversine", "raio"],
+        },
+        "🔍 Busca por Posto": {
+            "objetivo": "Buscar um posto específico por nome, CNPJ, cidade ou bandeira e ver dados cadastrais e histórico de preços.",
+            "fonte": "Base ANP completa. Histórico: abastecimentos reais dos últimos 730 dias.",
+            "regras": "Busca por texto parcial. 'Postos Gestão Frota' = postos com meio de pagamento de frota cadastrado (Ticket Log, Rede Frota, Veloe, Pró-Frotas).",
+            "tags": ["cnpj", "posto", "busca", "gestão frota", "ticket log", "veloe", "rede frota"],
+        },
+        "🧭 Roteirização": {
+            "objetivo": "Planejar rotas otimizadas para frotas com múltiplas paradas, minimizando custo de combustível e tempo.",
+            "fonte": "Postos ANP + preços ANP por UF + histórico de abastecimentos da frota.",
+            "regras": "Algoritmo nearest-neighbor. Custo = distância ÷ consumo × preço/L. Saving = custo rota atual vs rota otimizada.",
+            "tags": ["rota", "otimização", "paradas", "custo", "consumo", "km/l"],
+        },
+        "📈 Dashboard Analítico": {
+            "objetivo": "Visão consolidada dos abastecimentos reais da frota: cobertura geográfica, postos visitados, evolução de preços e comparativo ANP.",
+            "fonte": "Abastecimentos unificados (uploads + API Pró-Frotas), últimos 90 dias. Referência ANP por UF.",
+            "regras": "Penetração = postos visitados ÷ total ANP por UF × 100%. Alertas: abastecimentos >5% acima da ANP. Distribuição A/B/C/D = quartis do preço pago. Variações <2% não exibidas.",
+            "tags": ["dashboard", "kpi", "penetração", "abastecimento", "anp", "alerta", "cobertura"],
+        },
+        "👥 Análise de Cliente": {
+            "objetivo": "Analisar abastecimentos de um cliente (frota): consumo, gastos, veículos, motoristas e postos mais utilizados.",
+            "fonte": "Tabela frota_abastecimentos (uploads) + profrotas_abastecimentos (API). Filtrado por empresa_id.",
+            "regras": "Isolamento por tenant. Consumo km/L por hodômetro quando disponível. Anomalias: desvio >2σ da média do veículo.",
+            "tags": ["cliente", "frota", "consumo", "km/l", "hodômetro", "anomalia", "veículo", "motorista"],
+        },
+        "💡 Inteligência de Dados": {
+            "objetivo": "Análise avançada de padrões, score de postos, histórico de preços e detecção de oportunidades de economia.",
+            "fonte": "Histórico acumulado de abastecimentos + preços ANP + dados cadastrais dos postos.",
+            "regras": "Score de posto: estabilidade de preço (σ baixo) + quantidade de visitas + aderência ao ANP + avaliações. Volatilidade = desvio padrão do preço.",
+            "tags": ["score", "inteligência", "volatilidade", "oportunidade", "histórico", "desvio padrão"],
+        },
+        "🎯 Recomendador IA": {
+            "objetivo": "Sugerir os melhores postos para a frota com base em localização, preço, histórico e confiabilidade.",
+            "fonte": "Postos ANP + histórico de abastecimentos + score de postos + preços ANP.",
+            "regras": "Ranking: preço (40%) + distância da rota (30%) + score/confiabilidade (20%) + histórico da frota (10%). Postos já utilizados recebem bônus.",
+            "tags": ["recomendação", "ia", "score", "ranking", "posto", "economia", "confiabilidade"],
+        },
+        "📑 Relatórios": {
+            "objetivo": "Gerar relatórios analíticos personalizados sobre abastecimentos, manutenções e desempenho da frota.",
+            "fonte": "Abastecimentos unificados + manutenções. Período configurável.",
+            "regras": "Métricas de média usam mean(). Totais usam sum(). Ticket médio = média do valor por abastecimento. Valores em R$ padrão BR.",
+            "tags": ["relatório", "exportar", "pdf", "excel", "ticket médio", "preço médio", "consumo médio"],
+        },
+        "💹 Variação de Preços": {
+            "objetivo": "Detectar variações significativas de preço nos abastecimentos reais da frota nos últimos 90 dias.",
+            "fonte": "Abastecimentos dos últimos 90 dias. Comparação entre os 2 mais recentes por posto + combustível.",
+            "regras": "Variação mínima exibida: ≥2%. Variações >100% filtradas como inconsistência. Delta % = (preço atual - preço anterior) ÷ preço anterior × 100.",
+            "tags": ["variação", "preço", "alta", "queda", "delta", "abastecimento"],
+        },
+        "🛰️ Telemetria": {
+            "objetivo": "Monitorar posição, velocidade e status dos veículos da frota integrados via GPS/telemetria.",
+            "fonte": "API de telemetria configurada por tenant. Atualização conforme frequência do dispositivo GPS.",
+            "regras": "Velocidade acima do limite gera alerta. Paradas >N minutos geram evento. Isolamento por tenant garantido.",
+            "tags": ["telemetria", "gps", "velocidade", "alerta", "veículo", "rastreamento"],
+        },
+        "⚡ API & Integrações": {
+            "objetivo": "Gerenciar integrações com sistemas externos (Ticket Log, Rede Frota, Veloe, Pró-Frotas) e configurar webhooks.",
+            "fonte": "Configurações por tenant no Supabase. Logs de sincronização disponíveis.",
+            "regras": "API keys isoladas por tenant. Rate limit: 100 req/hora. Webhooks disparam em eventos configurados.",
+            "tags": ["api", "webhook", "integração", "ticket log", "veloe", "pró-frotas", "rede frota"],
+        },
+        "🛡️ Painel Admin": {
+            "objetivo": "Gerenciar usuários, empresas, permissões, domínios e logs de atividade da plataforma.",
+            "fonte": "Tabelas usuarios_app, usuarios_empresas, access_control no Supabase.",
+            "regras": "Somente perfil admin acessa. Gestores editam apenas usuários do próprio tenant. MFA obrigatório para admin.",
+            "tags": ["admin", "usuário", "permissão", "empresa", "tenant", "mfa", "acesso"],
+        },
+    }
+
+    _GLOSSARIO = {
+        "ANP": "Agência Nacional do Petróleo, Gás Natural e Biocombustíveis. Fornece dados semanais de preços de combustíveis em ~38.000 postos do Brasil.",
+        "Tenant": "Empresa cliente cadastrada na plataforma. Cada tenant tem seus dados completamente isolados dos demais.",
+        "Ticket Médio": "Valor médio gasto por abastecimento. Calculado como média aritmética do campo valor_total.",
+        "Preço Médio (R$/L)": "Média aritmética do preço por litro nos abastecimentos do período selecionado.",
+        "Consumo Médio (km/L)": "Média ponderada por litros da eficiência de combustível dos veículos. Requer hodômetro.",
+        "Penetração GF (%)": "Percentual de postos visitados pela frota em relação ao total de postos ANP por UF.",
+        "Score de Posto": "Índice de 0 a 100 que combina: estabilidade de preço, frequência de visitas, aderência ao ANP e avaliações.",
+        "Volatilidade": "Desvio padrão do preço por litro nas últimas N transações de um posto. Menor σ = preço mais estável.",
+        "Distribuição A/B/C/D": "Classificação por quartis do preço pago. A = 25% mais barato, D = 25% mais caro.",
+        "Referência ANP": "Preço médio de venda ao consumidor publicado pela ANP para aquela UF e combustível na semana mais recente.",
+        "Haversine": "Fórmula matemática para calcular a distância em linha reta entre dois pontos geográficos (latitude/longitude).",
+        "Desvio Padrão (σ)": "Medida de dispersão dos valores em relação à média. Usado para detectar anomalias nos abastecimentos.",
+        "Pró-Frotas": "Sistema de gestão de abastecimentos da Ipiranga. Um dos meios de pagamento integrados à plataforma.",
+        "CNPJ": "Cadastro Nacional da Pessoa Jurídica. Identificador único de cada posto na base ANP e nos abastecimentos.",
+        "empresa_id": "Identificador único do tenant no banco de dados. Garante isolamento de dados entre empresas.",
+        "Webhook": "Notificação automática enviada a um endpoint externo quando um evento ocorre na plataforma.",
+        "MFA": "Multi-Factor Authentication. Autenticação de dois fatores via app (Google Authenticator) para maior segurança.",
+    }
+
+    # ── Tabs: Índice / Glossário / Manual PDF ─────────────────────
+    _doc_tab1, _doc_tab2, _doc_tab3 = st.tabs([
+        "📖 Índice de Funcionalidades",
+        "📘 Glossário de Termos",
+        "📄 Manual PDF",
+    ])
+
+    with _doc_tab1:
+        _busca_lower = _busca_doc.lower().strip() if _busca_doc else ""
+        _encontrados = 0
+        for _tela, _info in _CENTRAL_AJUDA.items():
+            # Filtra por busca
+            if _busca_lower:
+                _texto_busca = (_tela + _info["objetivo"] + _info["fonte"] +
+                                _info["regras"] + " ".join(_info["tags"])).lower()
+                if _busca_lower not in _texto_busca:
+                    continue
+            _encontrados += 1
+            with st.expander(_tela, expanded=bool(_busca_lower)):
+                _c1, _c2 = st.columns(2)
+                with _c1:
+                    st.markdown("**🎯 Objetivo**")
+                    st.caption(_info["objetivo"])
+                    st.markdown("**📊 Fonte dos dados**")
+                    st.caption(_info["fonte"])
+                with _c2:
+                    st.markdown("**⚙️ Regras de cálculo**")
+                    st.caption(_info["regras"])
+                    st.markdown("**🏷️ Tags**")
+                    st.caption(" · ".join(_info["tags"]))
+
+        if _busca_lower and _encontrados == 0:
+            st.info(f"Nenhum resultado para **'{_busca_doc}'**. Tente outro termo.")
+        elif not _busca_lower:
+            st.caption(f"📚 {_encontrados} funcionalidades documentadas. Use a busca acima para filtrar.")
+
+    with _doc_tab2:
+        _busca_lower2 = _busca_doc.lower().strip() if _busca_doc else ""
+        st.markdown("#### 📘 Glossário de Termos Técnicos")
+        _gl_encontrados = 0
+        for _termo, _def in sorted(_GLOSSARIO.items()):
+            if _busca_lower2 and _busca_lower2 not in (_termo + _def).lower():
+                continue
+            _gl_encontrados += 1
+            st.markdown(f"**{_termo}**")
+            st.caption(_def)
+            st.markdown("<hr style='margin:6px 0;border-color:var(--color-border-tertiary)'>",
+                       unsafe_allow_html=True)
+        if _busca_lower2 and _gl_encontrados == 0:
+            st.info(f"Nenhum termo encontrado para **'{_busca_doc}'**.")
+        elif not _busca_lower2:
+            st.caption(f"📘 {_gl_encontrados} termos no glossário.")
+
+    with _doc_tab3:
+        st.markdown("#### 📄 Manual de Uso")
 
     if _doc_bytes:
         # Botão de download em destaque
