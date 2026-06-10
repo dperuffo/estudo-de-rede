@@ -32545,12 +32545,6 @@ elif modo == "🤖 Assistente IA":
             st.markdown("---")
 
         # Exibe histórico da conversa
-        _ai_avatar_hist = f"data:image/png;base64,{_FNI_B64}" if _FNI_B64 else "🤖"
-        for _msg in st.session_state["ai_chat_history"]:
-            _av = "👤" if _msg["role"] == "user" else _ai_avatar_hist
-            with st.chat_message(_msg["role"], avatar=_av):
-                st.markdown(_msg["content"])
-
         # Processa pergunta pendente (vinda de chip de sugestão)
         if st.session_state.pop("_ai_processar_pendente", False):
             if st.session_state["ai_chat_history"]:
@@ -32593,6 +32587,12 @@ elif modo == "🤖 Assistente IA":
                         st.markdown(_resp2)
                     st.session_state["ai_chat_history"].append({"role":"assistant","content":_resp2})
                     st.rerun()
+
+        _ai_avatar_hist = f"data:image/png;base64,{_FNI_B64}" if _FNI_B64 else "🤖"
+        for _msg in st.session_state["ai_chat_history"]:
+            _av = "👤" if _msg["role"] == "user" else _ai_avatar_hist
+            with st.chat_message(_msg["role"], avatar=_av):
+                st.markdown(_msg["content"])
 
         # Input do usuário
         _pergunta = st.chat_input("Pergunte sobre sua frota... ex: Qual meu gasto com diesel este mês?")
