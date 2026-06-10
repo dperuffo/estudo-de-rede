@@ -29912,16 +29912,68 @@ elif modo == "💹 Variação de Preços":
         unsafe_allow_html=True,
     )
 
-    if _vp_df is None or _vp_df.empty:
-        st.info(
-            "ℹ️ Nenhuma variação registrada ainda. "
-            "Faça upload de uma nova planilha de preços em **Configurações → Preços PP** — "
-            "o sistema comparará automaticamente com a carga anterior.",
-            icon="🔔",
-        )
-        if st.button("⚙️ Ir para Configurações", key="btn_ir_config_vp"):
+    # Variacao baseada em abastecimentos reais por periodo
+    _abast_vp   = _carregar_abastecimentos_unificados(dias=180)
+    _sheets_vp  = st.session_state.get("_precos_anp_cache",{}).get("sheets",{})
+    _semana_vp  = st.session_state.get("_precos_anp_cache",{}).get("semana","")
+
+    if not _abast_vp.empty and "data_abastecimento" in _abast_vp.columns:
+        _abast_vp["data_abastecimento"] = pd.to_datetime(_abast_vp["data_abastecimento"], errors="coerce")
+        _abast_vp["_mes"] = _abast_vp["data_abastecimento"].dt.to_period("M").astype(str)
+        _preco_col_vp = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_vp.columns), None)
+        _comb_col_vp  = next((c for c in ["produto","combustivel"] if c in _abast_vp.columns), None)
+        _uf_col_vp    = "uf_posto" if "uf_posto" in _abast_vp.columns else None
+
+        if _preco_col_vp and _comb_col_vp:
+            st.markdown("#### Variacao de Preco por Periodo (Abastecimentos Reais)")
+            _grp_vp = ["_mes", _comb_col_vp]
+            if _uf_col_vp:
+                _uf_vp_sel = st.selectbox("UF", ["Todas"] + sorted(_abast_vp[_uf_col_vp].dropna().unique().tolist()), key="vp_uf")
+                if _uf_vp_sel != "Todas":
+                    _abast_vp = _abast_vp[_abast_vp[_uf_col_vp].str.upper() == _uf_vp_sel.upper()]
+
+            _vp_evolucao = _abast_vp.groupby(_grp_vp)[_preco_col_vp].mean().reset_index()
+            _vp_evolucao.columns = ["Mes", "Combustivel", "Preco Medio R$/L"]
+            _vp_evolucao = _vp_evolucao.sort_values("Mes")
+
+            if not _vp_evolucao.empty:
+                _fig_vp = go.Figure()
+                for _cb_vp, _gdf_vp in _vp_evolucao.groupby("Combustivel"):
+                    _fig_vp.add_trace(go.Scatter(
+                        x=_gdf_vp["Mes"], y=_gdf_vp["Preco Medio R$/L"],
+                        mode="lines+markers", name=str(_cb_vp)[:30],
+                        line=dict(width=2),
+                    ))
+                # Linha de referencia ANP
+                if _sheets_vp and _uf_col_vp and _uf_vp_sel != "Todas":
+                    _rows_anp_vp = _anp_extrair_precos(_sheets_vp, uf=_uf_vp_sel)
+                    if _rows_anp_vp:
+                        try:
+                            _anp_vp = float(_rows_anp_vp[0].get("Preco Medio") or 0)
+                            if _anp_vp > 0:
+                                _fig_vp.add_hline(y=_anp_vp, line_dash="dash",
+                                    line_color="#E53935",
+                                    annotation_text=f"ANP {_semana_vp}: R$ {_anp_vp:.3f}/L")
+                        except Exception:
+                            pass
+                _fig_vp.update_layout(height=350, margin=dict(l=0,r=0,t=20,b=0),
+                    yaxis_title="R$/L", xaxis_title="Mes",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(_fig_vp, use_container_width=True)
+                st.caption(f"Linha vermelha = referencia ANP semana {_semana_vp}")
+
+                # Tabela de variacao mes a mes
+                st.markdown("#### Variacao Mes a Mes")
+                _vp_pivot = _vp_evolucao.pivot(index="Combustivel", columns="Mes", values="Preco Medio R$/L")
+                _vp_pivot = _vp_pivot.round(3)
+                st.dataframe(_vp_pivot, use_container_width=True)
+        else:
+            st.info("Dados insuficientes para calcular variacao.")
+    elif _vp_df is None or _vp_df.empty:
+        st.info("Nenhum abastecimento registrado. Integre via Pro-Frotas para ativar este modo.")
+        if st.button("Ir para Configuracoes", key="btn_ir_config_vp"):
             st.session_state["_abrir_config_exp"] = True
-            st.session_state["modo_selecionado"] = "📍 Por UF"
             st.rerun()
     else:
         if _vp_ts:
