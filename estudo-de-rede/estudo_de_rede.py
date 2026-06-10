@@ -23575,12 +23575,13 @@ elif modo == "🛡️ Admin":
 
     st.markdown("## 🔐 Painel de Administração")
 
-    _adm_tab_users, _adm_tab_emp, _adm_tab_acesso, _adm_tab_dom, _adm_tab_logs = st.tabs([
+    _adm_tab_users, _adm_tab_emp, _adm_tab_acesso, _adm_tab_dom, _adm_tab_logs, _adm_tab_matriz = st.tabs([
         "👥 Perfis & Permissões",
         "🏢 Empresas & Usuários",
         "🔑 Controle de Acesso",
         "🌐 Domínios Corporativos",
         "📋 Logs de Atividade",
+        "🛡️ Matriz de Permissões",
     ])
 
     # ══════════════════════════════════════════════════════════════
@@ -23743,6 +23744,132 @@ elif modo == "🛡️ Admin":
                                 st.warning("Digite um e-mail válido.")
 
     # ══════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════
+    #  ABA 5 — MATRIZ DE PERMISSÕES
+    # ══════════════════════════════════════════════════════════════
+    with _adm_tab_matriz:
+        _perfil_logado = st.session_state.get("_auth_perfil", "")
+        _empresa_logada = st.session_state.get("_auth_empresa_id")
+
+        st.markdown("### 🛡️ Matriz de Permissões")
+        st.caption(
+            "**Admin:** edita permissões de qualquer perfil. "
+            "**Gestor de Frota / Revenda:** edita apenas usuários do seu tenant."
+        )
+
+        # Perfis que podem editar a matriz
+        _pode_editar_matriz = _perfil_logado in ("admin", "gestor_frota", "posto")
+
+        # Carrega usuários do tenant ou todos (admin)
+        _todos_users_m = _admin_listar_usuarios() or []
+        if _perfil_logado != "admin":
+            _todos_users_m = [u for u in _todos_users_m
+                              if u.get("empresa_id") == _empresa_logada]
+
+        # Definição das funcionalidades e seus perfis padrão
+        _FUNC_LABELS = {
+            # (slug, label_display, categoria, perfis_internos_apenas)
+            "aba_dashboard":       ("📈 Dashboard",            "Abas",           False),
+            "aba_roteirizacao":    ("🗺️ Roteirização",         "Abas",           False),
+            "aba_analise_cliente": ("📊 Análise de Cliente",   "Abas",           False),
+            "aba_inteligencia":    ("🧠 Inteligência",         "Abas",           True),
+            "aba_variacao_precos": ("💹 Variação de Preços",   "Abas",           True),
+            "aba_recomendador":    ("⭐ Recomendador",          "Abas",           False),
+            "aba_frotas":          ("🚛 Frotas",               "Abas",           False),
+            "aba_telemetria":      ("📡 Telemetria",           "Abas",           False),
+            "aba_relatorios":      ("📋 Relatórios",           "Abas",           False),
+            "aba_api_integracoes": ("🔌 API / Integrações",    "Abas",           True),
+            "aba_admin":           ("🛡️ Admin",                "Abas",           True),
+            "aba_configuracoes":   ("⚙️ Configurações",        "Abas",           True),
+            "aba_documentacao":    ("📚 Documentação",         "Abas",           False),
+            "func_exportar":       ("📤 Exportar dados",       "Funções",        False),
+            "func_upload_planilha":("📁 Upload planilha",      "Funções",        True),
+            "func_ver_todos_cnpj": ("👁️ Ver todos os CNPJs",   "Funções",        True),
+            "func_gerenciar_users":("👥 Gerenciar usuários",   "Funções",        True),
+            "func_ver_telem_todos":("📡 Telemetria de todos",  "Funções",        True),
+        }
+
+        _PERFIS_EXTERNOS = ["gestor_frota", "posto"]
+        _PERFIS_INTERNOS = ["admin", "analista"]
+        _PERFIS_TODOS_M  = ["admin", "analista", "gestor_frota", "posto"]
+
+        # Carrega permissões salvas do session_state (ou usa padrão)
+        if "perm_matrix_edit" not in st.session_state:
+            st.session_state["perm_matrix_edit"] = {
+                slug: set(perfs) for slug, perfs in _PERMISSOES.items()
+            }
+        _perm_edit = st.session_state["perm_matrix_edit"]
+
+        # Filtro de categoria
+        _cat_sel = st.radio("Filtrar:", ["Todas", "Abas", "Funções"],
+                            horizontal=True, key="perm_cat_sel")
+
+        # Tabela editável
+        _cols_header = st.columns([3, 1, 1, 1, 1, 1])
+        _cols_header[0].markdown("**Funcionalidade**")
+        for _i, _p in enumerate(_PERFIS_TODOS_M):
+            _cols_header[_i+1].markdown(f"**{_p.replace('_',' ').title()}**")
+
+        st.markdown("<hr style='margin:4px 0 8px'>", unsafe_allow_html=True)
+
+        _changed = False
+        for _slug, (_label, _cat, _interno_only) in _FUNC_LABELS.items():
+            if _cat_sel != "Todas" and _cat != _cat_sel:
+                continue
+
+            _row = st.columns([3, 1, 1, 1, 1, 1])
+            _row[0].markdown(f"{_label}")
+
+            for _i, _perfil in enumerate(_PERFIS_TODOS_M):
+                _cur_val = _perfil in _perm_edit.get(_slug, set())
+
+                # Regras de quem pode editar o quê
+                _editavel = False
+                if _perfil_logado == "admin":
+                    _editavel = True  # admin edita tudo
+                elif _perfil_logado in ("gestor_frota", "posto"):
+                    # Gestores só editam perfis externos e não-internos
+                    _editavel = (not _interno_only) and (_perfil in _PERFIS_EXTERNOS)
+
+                if _editavel:
+                    _novo = _row[_i+1].checkbox(
+                        "", value=_cur_val,
+                        key=f"perm_{_slug}_{_perfil}",
+                        label_visibility="collapsed"
+                    )
+                    if _novo != _cur_val:
+                        if _novo:
+                            _perm_edit.setdefault(_slug, set()).add(_perfil)
+                        else:
+                            _perm_edit.get(_slug, set()).discard(_perfil)
+                        _changed = True
+                else:
+                    # Não editável — mostra ícone
+                    _row[_i+1].markdown(
+                        "✅" if _cur_val else "—",
+                        unsafe_allow_html=True
+                    )
+
+        st.markdown("<hr style='margin:8px 0'>", unsafe_allow_html=True)
+
+        _btn_col1, _btn_col2 = st.columns([1, 4])
+        with _btn_col1:
+            if st.button("💾 Salvar permissões", type="primary",
+                         use_container_width=True, key="btn_salvar_perm"):
+                # Aplica as permissões editadas ao dicionário global
+                for _slug, _perfs in _perm_edit.items():
+                    _PERMISSOES[_slug] = set(_perfs)
+                st.session_state["perm_matrix_edit"] = _perm_edit
+                st.toast("✅ Permissões atualizadas!", icon="🛡️")
+                st.rerun()
+        with _btn_col2:
+            if st.button("↩️ Restaurar padrões", key="btn_reset_perm"):
+                st.session_state.pop("perm_matrix_edit", None)
+                st.toast("Permissões restauradas para o padrão.", icon="↩️")
+                st.rerun()
+
+        st.caption("⚠️ As permissões são aplicadas na sessão atual. Para persistência permanente, salve também no banco de dados.")
+
     #  ABA 2 — CONTROLE DE ACESSO (conteúdo original)
     # ══════════════════════════════════════════════════════════════
     with _adm_tab_acesso:
