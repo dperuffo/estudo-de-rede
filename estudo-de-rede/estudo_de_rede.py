@@ -35315,15 +35315,14 @@ elif modo == "⚡ API & Integrações":
     )
 
     # ── Tabs principais ────────────────────────────────────────────
-    _api_t4, _api_t5, _api_t6, _api_t7, _api_t8 = st.tabs([
-        "⚙️ Configuração do Servidor",
+    _api_t5, _api_t6, _api_t7, _api_t8 = st.tabs([
         "💳 Meios de Pagamento",
         "🔑 API Keys",
         "🪝 Webhooks",
         "🔌 Integrações",
     ])
-    # Tabs legadas — conteudo movido para Integracoes
-    _api_t1 = _api_t2 = _api_t3 = None
+    # Tabs movidas para Integracoes
+    _api_t1 = _api_t2 = _api_t3 = _api_t4 = None
 
     # ════════════════════════════════════════════════════════════════
     #  TAB 1 — ENDPOINTS (Swagger-like)
@@ -35332,7 +35331,7 @@ elif modo == "⚡ API & Integrações":
      with _api_t1:
 
         # Swagger nao disponivel ainda — documentacao inline apenas
-        st.info("Documentação interativa Swagger em desenvolvimento. Use os endpoints documentados abaixo.")
+        st.info("API REST disponível para integrações externas. Use os endpoints documentados abaixo.")
 
         def _endpoint_card(method: str, path: str, title: str, desc: str,
                            params: list = None, resp_example: str = "",
@@ -35626,7 +35625,7 @@ elif modo == "⚡ API & Integrações":
         }
         st.dataframe(pd.DataFrame(_env_data), hide_index=True, use_container_width=True)
 
-        st.markdown("##### 🛡️ Configurar secrets no fly.io")
+        st.markdown("##### Configurar secrets no Railway")
         st.code(
             """fly secrets set \\
   JWT_SECRET="$(openssl rand -hex 32)" \\
@@ -35639,7 +35638,7 @@ elif modo == "⚡ API & Integrações":
         )
 
         st.info(
-            "💡 Os secrets ficam criptografados no fly.io e são injetados como variáveis "
+            "Os secrets ficam criptografados no Railway e sao injetados como variaveis "
             "de ambiente no container — nunca aparecem em logs ou no código."
         )
 
@@ -35962,15 +35961,16 @@ foreach ($precos as $p) {{
     # ════════════════════════════════════════════════════════════════
     #  TAB 4 — CONFIGURAÇÃO DO SERVIDOR
     # ════════════════════════════════════════════════════════════════
-    with _api_t4:
+    if _api_t4 is not None:
+     with _api_t4:
 
         st.markdown("#### 🏗️ Arquitetura do servidor")
         st.markdown(
             "<div style='background:#F3F4F6;border-radius:8px;padding:14px;font-family:monospace;font-size:12px;line-height:1.8'>"
-            "Internet → <b>fly.io</b> (HTTPS :443)<br>"
+            "Internet - <b>Cloudflare</b> (CDN + WAF + SSL)<br>"
             "&nbsp;&nbsp;&nbsp;↓<br>"
-            "<b>Nginx</b> :80 (proxy reverso)<br>"
-            "&nbsp;&nbsp;├─ <code>/api/*</code> &nbsp;→&nbsp; <b>FastAPI</b> :8000<br>"
+            "<b>Railway</b> (PaaS - deploy automatico via GitHub)<br>"
+            "&nbsp;&nbsp;└─ <code>/*</code> &nbsp;→&nbsp; <b>Streamlit</b> :8501<br>"
             "&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
             "Swagger: <code>/api/docs</code><br>"
             "&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
@@ -35982,7 +35982,7 @@ foreach ($precos as $p) {{
             unsafe_allow_html=True,
         )
 
-        st.markdown("#### 🚀 Deploy no fly.io")
+        st.markdown("#### Deploy no Railway")
         st.markdown("**Passo 1 — Configurar secrets**")
         st.code(
             """fly secrets set \\
@@ -36396,10 +36396,11 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
     with _api_t8:
         st.markdown("#### Integrações e Documentação da API")
         # Sub-tabs dentro de Integracoes
-        _int_t1, _int_t2, _int_t3 = st.tabs([
+        _int_t1, _int_t2, _int_t3, _int_t4 = st.tabs([
             "📖 Endpoints",
             "🔐 Autenticação",
             "💻 Exemplos de Código",
+            "⚙️ Configuração do Servidor",
         ])
         with _int_t1:
             # Reusa o conteudo da tab 1 original
@@ -36541,6 +36542,95 @@ curl_close($ch);
 ?>
 """, language="php")
 
+        with _int_t4:
+            st.markdown("#### 🏗️ Arquitetura do servidor")
+            st.markdown(
+                "<div style='background:#F3F4F6;border-radius:8px;padding:14px;font-family:monospace;font-size:12px;line-height:1.8'>"
+                "Internet - <b>Cloudflare</b> (CDN + WAF + SSL)<br>"
+                "&nbsp;&nbsp;&nbsp;↓<br>"
+                "<b>Railway</b> (PaaS - deploy via GitHub)<br>"
+                "&nbsp;&nbsp;└─ <code>/*</code> → <b>Streamlit</b> :8501<br>"
+                "&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+                "Swagger: <code>/api/docs</code><br>"
+                "&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+                "OpenAPI: <code>/api/openapi.json</code><br>"
+                "&nbsp;&nbsp;└─ <code>/*</code> &nbsp;&nbsp;&nbsp;&nbsp;→&nbsp; <b>Streamlit</b> :8501<br>"
+                "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+                "WebSocket: <code>/_stcore/stream</code>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+            st.markdown("#### Deploy no Railway")
+            st.markdown("**Passo 1 — Configurar secrets**")
+            st.code(
+                """fly secrets set \\
+      JWT_SECRET="$(openssl rand -hex 32)" \\
+      API_USER="admin" \\
+      API_PASS="$(openssl rand -base64 24)" \\
+      SUPABASE_URL="https://SEU-PROJETO.supabase.co" \\
+      SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    """,
+                language="bash",
+            )
+            st.markdown("**Passo 2 — Deploy**")
+            st.code(
+                """git add -A && git commit -m "feat: API server"
+    git push origin master
+    fly deploy
+    """,
+                language="bash",
+            )
+            st.markdown("**Passo 3 — Verificar**")
+            st.code(
+                f"""# Health check
+    curl https://estudo-de-rede-profrotas.fly.dev/api/v1/health
+
+    # Swagger UI
+    open https://estudo-de-rede-profrotas.fly.dev/api/docs
+    """,
+                language="bash",
+            )
+
+            st.markdown("---")
+            st.markdown("#### 🧪 Teste local")
+            st.code(
+                """# Inicia apenas o servidor API localmente
+    pip install fastapi uvicorn python-jose passlib
+
+    export JWT_SECRET="dev-secret"
+    export API_USER="admin"
+    export API_PASS="teste123"
+    export SUPABASE_URL="https://..."
+    export SUPABASE_KEY="eyJ..."
+
+    uvicorn api_server:app --reload --port 8000
+
+    # Acesse: http://localhost:8000/api/docs
+    """,
+                language="bash",
+            )
+
+            st.markdown("#### 📡 Tabela SQL para Webhooks (opcional)")
+            st.code(
+                """-- Execute no Supabase SQL Editor para persistir registros de webhook
+    CREATE TABLE IF NOT EXISTS webhook_registrations (
+        id         bigserial PRIMARY KEY,
+        url        text NOT NULL,
+        eventos    jsonb DEFAULT '["preco_atualizado"]'::jsonb,
+        descricao  text,
+        usuario    text,
+        ativo      boolean DEFAULT true,
+        criado_em  timestamptz DEFAULT now()
+    );
+    """,
+                language="sql",
+            )
+
+
+        # ════════════════════════════════════════════════════════════════
+        #  TAB 5 — Gestão de Frotas — Integração de Abastecimentos
+        # ════════════════════════════════════════════════════════════════
 # ── Restauração pós-rerun: recalcula rota do Modo 1 se solicitado ──────────
 
 if (
