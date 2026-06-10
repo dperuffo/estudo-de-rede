@@ -21840,11 +21840,12 @@ if modo == "📈 Dashboard":
         # TAB 2 — Penetração vs ANP
         # ──────────────────────────────────────────────────────────────────
         with _dt2:
+            # Penetração = postos visitados pela frota / total postos ANP por UF
             _uf_pen = _uf_cnt.copy()
             _uf_pen["anp_total"] = _uf_pen["uf"].map(_ANP_REF_UF).fillna(0)
             _uf_pen["penetracao_pct"] = (
-                _uf_pen["postos_gf"] / _uf_pen["anp_total"] * 100
-            ).round(2)
+                _uf_pen["postos"] / _uf_pen["anp_total"] * 100
+            ).where(_uf_pen["anp_total"] > 0).fillna(0).round(2)
             _uf_pen = _uf_pen.sort_values("penetracao_pct", ascending=False)
 
             # Gráfico de penetração
@@ -21898,8 +21899,11 @@ if modo == "📈 Dashboard":
             _lc3.markdown("<span style='color:#B71C1C;font-weight:700'>🔴 Baixa penetração</span> — fundo 33%", unsafe_allow_html=True)
 
             st.markdown("##### Tabela de Penetração por Estado")
-            _tbl_pen = _uf_pen[["uf","uf_nome","postos_gf","anp_total","penetracao_pct"]].copy()
-            _tbl_pen.columns = ["UF","Estado","Postos GF","Total ANP (ref.)","Penetração (%)"]
+            _tbl_pen_cols = [c for c in ["uf","uf_nome","postos","abastecimentos","anp_total","penetracao_pct"] if c in _uf_pen.columns]
+            _tbl_pen = _uf_pen[_tbl_pen_cols].copy()
+            _col_rename = {"uf":"UF","uf_nome":"Estado","postos":"Postos Visitados",
+                           "abastecimentos":"Abastecimentos","anp_total":"Total ANP (ref.)","penetracao_pct":"Penetração (%)"}
+            _tbl_pen.columns = [_col_rename.get(c,c) for c in _tbl_pen_cols]
             _tbl_pen["Total ANP (ref.)"] = _tbl_pen["Total ANP (ref.)"].astype(int)
             st.dataframe(
                 _tbl_pen.reset_index(drop=True),
@@ -21907,7 +21911,7 @@ if modo == "📈 Dashboard":
                 column_config={
                     "Penetração (%)": st.column_config.ProgressColumn(
                         "Penetração (%)", min_value=0,
-                        max_value=float(_tbl_pen["Penetração (%)"].max()),
+                        max_value=float(_tbl_pen["Penetração (%)"].max()) if "Penetração (%)" in _tbl_pen.columns and len(_tbl_pen) > 0 else 100.0,
                         format="%.2f%%",
                     )
                 }
@@ -21989,27 +21993,32 @@ if modo == "📈 Dashboard":
         # TAB 4 — Combustíveis
         # ──────────────────────────────────────────────────────────────────
         with _dt4:
-            if _pp_dash is None or _pp_dash.empty:
-                st.info("📋 Importe a planilha de preços em **Configurações** para ver os dados de combustíveis.")
+            # Combustíveis dos abastecimentos reais
+            _prod_col = next((c for c in ["produto","combustivel","_produto"] if c in _df_valid.columns), None)
+            _preco_col_d = next((c for c in ["preco_litro","_preco_litro"] if c in _df_valid.columns), None)
+            _vol_col_d   = next((c for c in ["litros","_litros","volume"] if c in _df_valid.columns), None)
+
+            if not _prod_col or not _preco_col_d:
+                st.info("📋 Nenhum dado de combustível encontrado nos abastecimentos.")
             else:
-                # Combustíveis disponíveis e preços
                 _comb_df = (
-                    _pp_dash.groupby("combustivel_label")["preco"]
+                    _df_valid[_df_valid[_preco_col_d] > 0]
+                    .groupby(_prod_col)[_preco_col_d]
                     .agg(["count","mean","min","max"])
                     .reset_index()
                 )
-                _comb_df.columns = ["Combustível","Qtd Registros","Preço Médio (R$/L)","Mín (R$/L)","Máx (R$/L)"]
-                _comb_df = _comb_df.sort_values("Qtd Registros", ascending=False)
+                _comb_df.columns = ["Combustível","Abastecimentos","Preço Médio (R$/L)","Mín (R$/L)","Máx (R$/L)"]
+                _comb_df = _comb_df.sort_values("Abastecimentos", ascending=False)
 
-                # KPIs de combustíveis
+                # KPIs
                 _cf1, _cf2, _cf3 = st.columns(3)
-                _cf1.metric("⛽ Combustíveis cadastrados", str(len(_comb_df)))
-                _cf2.metric("📋 Total de registros de preço", _fmt_int(len(_pp_dash)))
-                if "cnpj_norm" in _pp_dash.columns:
-                    _cf3.metric("🏪 Postos com preço cadastrado",
-                                _fmt_int(_pp_dash["cnpj_norm"].nunique()))
+                _cf1.metric("⛽ Combustíveis", str(len(_comb_df)))
+                _cf2.metric("📋 Abastecimentos", _fmt_int(_total_abast))
+                if _vol_col_d:
+                    _vol_total = pd.to_numeric(_df_valid[_vol_col_d], errors="coerce").sum()
+                    _cf3.metric("🛢 Volume Total (L)", f"{_vol_total:,.0f}".replace(",","."))
 
-                # Gráfico de preços médios
+                # Gráfico de preços médios por combustível
                 _fig_comb = go.Figure()
                 _fig_comb.add_trace(go.Bar(
                     x=_comb_df["Combustível"],
@@ -22017,32 +22026,30 @@ if modo == "📈 Dashboard":
                     marker_color="#E65100",
                     text=_comb_df["Preço Médio (R$/L)"].apply(lambda v: _br_moeda(v, 3)),
                     textposition="outside",
-                    name="Preço Médio",
+                    name="Preço Médio Real",
                     error_y=dict(
                         type="data",
                         array=(_comb_df["Máx (R$/L)"] - _comb_df["Preço Médio (R$/L)"]).tolist(),
                         arrayminus=(_comb_df["Preço Médio (R$/L)"] - _comb_df["Mín (R$/L)"]).tolist(),
-                        visible=True,
-                        color="#B0BEC5",
+                        visible=True, color="#B0BEC5",
                     ),
                 ))
                 _fig_comb.update_layout(
-                    title="Preço Médio por Combustível (R$/L) — base GF",
-                    yaxis_title="R$/L",
-                    height=350,
+                    title="Preço Médio Real por Combustível (R$/L) — abastecimentos da frota",
+                    yaxis_title="R$/L", height=350,
                     margin=dict(l=10, r=10, t=45, b=60),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                     xaxis_tickangle=-20,
                 )
                 _fig_comb.update_yaxes(showgrid=True, gridcolor="#FBE9E7")
                 st.plotly_chart(_fig_comb, use_container_width=True)
 
-                # Tabela de combustíveis
+                # Tabela detalhada
                 st.markdown("##### Detalhamento por Combustível")
+                _comb_disp = _comb_df.copy()
                 for col in ["Preço Médio (R$/L)","Mín (R$/L)","Máx (R$/L)"]:
-                    _comb_df[col] = _comb_df[col].apply(lambda v: _br_moeda(v, 3))
-                st.dataframe(_comb_df.reset_index(drop=True), use_container_width=True)
+                    _comb_disp[col] = _comb_disp[col].apply(lambda v: _br_moeda(v, 3))
+                st.dataframe(_comb_disp.reset_index(drop=True), use_container_width=True)
 
         # ──────────────────────────────────────────────────────────────────
         # TAB 5 — Alertas de Preço  (comparação por município via ANP)
