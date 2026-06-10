@@ -22375,14 +22375,18 @@ if modo == "📈 Dashboard":
                         _q = _abc_df[_preco_col8].quantile([0.25,0.5,0.75])
                         _abc_df["classe"] = _abc_df[_preco_col8].apply(
                             lambda v: "A" if v<=_q[0.25] else "B" if v<=_q[0.5] else "C" if v<=_q[0.75] else "D")
-                        _abc_cnt = _abc_df["classe"].value_counts().reset_index()
+                        _abc_cnt = (_abc_df["classe"].value_counts()
+                            .reindex(["A","B","C","D"], fill_value=0)
+                            .reset_index())
                         _abc_cnt.columns = ["Classe","Abastecimentos"]
                         _fig_abc = go.Figure(go.Bar(
                             x=_abc_cnt["Classe"], y=_abc_cnt["Abastecimentos"],
                             marker_color=["#27AE60","#F1C40F","#E67E22","#E74C3C"],
-                            text=_abc_cnt["Abastecimentos"], textposition="outside"))
-                        _fig_abc.update_layout(height=300,
-                            title="A=Menor preço · D=Maior preço",
+                            text=_abc_cnt["Abastecimentos"].apply(_fmt_int),
+                            textposition="outside"))
+                        _fig_abc.update_layout(height=320,
+                            title="Distribuição por Faixa de Preço — A=Menor · D=Maior",
+                            yaxis=dict(range=[0, _abc_cnt["Abastecimentos"].max()*1.2]),
                             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                         st.plotly_chart(_fig_abc, use_container_width=True)
                         st.caption("A = 25% mais barato · B = 25-50% · C = 50-75% · D = 25% mais caro")
