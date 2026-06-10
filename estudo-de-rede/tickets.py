@@ -87,7 +87,7 @@ def _listar_tickets(so_minha_empresa: bool = True) -> list:
     if not db:
         return []
     try:
-        q = db.table("tickets").select("*").order("criado_em", desc=True)
+        q = db.table("tickets").select("*, numero").order("numero", desc=True)
         if so_minha_empresa:
             eid = _empresa_id()
             if eid:
@@ -202,7 +202,10 @@ def mostrar_painel_tickets():
 
                     if tid:
                         _notificar_admin(tipo, titulo.strip(), descricao.strip(), _email(), prioridade)
-                        st.success(f"✅ Ticket registrado com sucesso! ID: `{tid[:8]}...`")
+                        # Buscar numero gerado
+                        _t_criado = _db().table("tickets").select("numero").eq("id", tid).execute()
+                        _num_criado = _t_criado.data[0]["numero"] if _t_criado.data else "—"
+                        st.success(f"✅ Ticket **#{_num_criado}** registrado com sucesso!")
                         st.info("📧 O administrador foi notificado e retornará em breve.")
                     else:
                         st.error("Erro ao registrar ticket. Tente novamente.")
@@ -218,13 +221,15 @@ def mostrar_painel_tickets():
                 prio_lbl   = PRIORIDADE_LABEL.get(t.get("prioridade","media"), "")
                 data       = t["criado_em"][:10] if t.get("criado_em") else ""
 
-                with st.expander(f"{tipo_emoji} {t['titulo']} — {status_lbl} · {data}"):
+                _num = t.get("numero") or "—"
+                with st.expander(f"#{_num} {tipo_emoji} {t['titulo']} — {status_lbl} · {data}"):
                     col1, col2 = st.columns(2)
                     with col1:
                         st.caption(f"**Tipo:** {t['tipo'].capitalize()}")
                         st.caption(f"**Prioridade:** {prio_lbl}")
                     with col2:
                         st.caption(f"**Status:** {status_lbl}")
+                        st.caption(f"**Ticket:** #{t.get('numero','—')}")
                         st.caption(f"**ID:** `{t['id'][:8]}...`")
 
                     st.markdown("**Descrição:**")
@@ -290,7 +295,8 @@ def mostrar_painel_admin_tickets():
         prio_lbl   = PRIORIDADE_LABEL.get(t.get("prioridade","media"),"")
         data       = t["criado_em"][:10] if t.get("criado_em") else ""
 
-        with st.expander(f"{tipo_emoji} {t['titulo']} — {status_lbl} · {t['user_email']} · {data}"):
+        _num_adm = t.get("numero") or "—"
+        with st.expander(f"#{_num_adm} {tipo_emoji} {t['titulo']} — {status_lbl} · {t['user_email']} · {data}"):
             col1, col2 = st.columns(2)
             with col1:
                 st.caption(f"**Empresa ID:** {t.get('empresa_id','—')}")
@@ -299,6 +305,7 @@ def mostrar_painel_admin_tickets():
             with col2:
                 st.caption(f"**Tipo:** {t['tipo'].capitalize()}")
                 st.caption(f"**Status:** {status_lbl}")
+                st.caption(f"**Ticket:** #{t.get('numero','—')}")
                 st.caption(f"**ID:** `{t['id'][:8]}...`")
 
             st.markdown("**Descrição:**")
