@@ -29713,20 +29713,33 @@ elif modo == "👥 Análise de Cliente":
     # ── Fonte de dados: upload, banco ou Gestão de Frotas ───────────
     # Verificar se há chaves Gestão de Frotas cadastradas
     _pf_chaves_ac = _profrotas_listar_chaves()
-    _pf_src_opts  = ["📂 Carregar arquivo", "☁️ Dados salvos no banco"]
+    _pf_src_opts = ["Abastecimentos Unificados", "Carregar arquivo", "Dados salvos no banco"]
     if _pf_chaves_ac:
-        _pf_src_opts.append("🔌 Gestão de Frotas (API)")
+        _pf_src_opts.append("Gestao de Frotas (API)")
+    _src_opcao = st.radio("Fonte dos dados:", _pf_src_opts, horizontal=True, key="frota_src_opcao")
 
-    _src_opcao = st.radio(
-        "Fonte dos dados:",
-        _pf_src_opts,
-        horizontal=True,
-        key="frota_src_opcao",
-    )
-
-    _df_abast = None  # dataframe normalizado final
-
-    if _src_opcao == "🔌 Gestão de Frotas (API)":
+    _df_abast = None
+    if _src_opcao == "Abastecimentos Unificados":
+        _dias_unif = st.selectbox("Periodo", [30,60,90,180,365], index=3,
+            format_func=lambda x: f"{x} dias", key="ac_unif_dias")
+        _df_unif = _carregar_abastecimentos_unificados(dias=_dias_unif)
+        if not _df_unif.empty:
+            _map_unif = {
+                "data_abastecimento":"_data", "placa":"_placa", "motorista":"_motorista",
+                "produto":"_produto", "litros":"_litros", "preco_litro":"_preco_litro",
+                "valor_total":"_valor_total", "cnpj_posto":"_cnpj_posto",
+                "nome_posto":"_nome_posto", "cidade_posto":"_cidade_posto",
+                "uf_posto":"_uf_posto", "lat_posto":"_lat_posto", "lon_posto":"_lon_posto",
+                "cnpj_frota":"_cnpj_frota", "razao_frota":"_razao_frota",
+                "hodometro":"_hod_atual", "fonte":"_fonte",
+            }
+            _df_abast = _df_unif.rename(columns={k:v for k,v in _map_unif.items() if k in _df_unif.columns})
+            if "_data" in _df_abast.columns:
+                _df_abast["_data"] = pd.to_datetime(_df_abast["_data"], errors="coerce").dt.date
+            st.success(f"**{len(_df_abast)}** abastecimentos carregados ({_dias_unif} dias)")
+        else:
+            st.info("Nenhum abastecimento. Integre via Pro-Frotas.")
+    elif _src_opcao == "Gestao de Frotas (API)":
         _pf_opts_ac = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c["cnpj_frota"]
                        for c in _pf_chaves_ac}
         _pf_opts_ac = {"Todos os clientes": None, **_pf_opts_ac}
@@ -29748,7 +29761,7 @@ elif modo == "👥 Análise de Cliente":
         else:
             st.warning("Nenhum dado encontrado. Sincronize na aba **⚡ API & Integrações → Gestão de Frotas**.")
 
-    elif _src_opcao == "📂 Carregar arquivo":
+    elif _src_opcao == "Carregar arquivo":
         _arq = st.file_uploader(
             "Selecione a planilha de abastecimentos (.xlsx / .csv)",
             type=["xlsx", "xls", "csv"],
@@ -29813,7 +29826,7 @@ elif modo == "👥 Análise de Cliente":
             except Exception as _ex_up:
                 st.error(f"❌ Erro ao ler arquivo: {_ex_up}")
 
-    elif _src_opcao == "☁️ Dados salvos no banco":  # banco
+    elif _src_opcao == "Dados salvos no banco":  # banco
         _dfs_banco = []
 
         # ── Fonte 1: uploads manuais (frota_abastecimentos) ────────
