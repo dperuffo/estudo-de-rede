@@ -18829,17 +18829,60 @@ if False:
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  BANNER GLOBAL — Variação de Preços entre Cargas
+#  BANNER GLOBAL — Variação de Preços nos Abastecimentos Reais
 # ═══════════════════════════════════════════════════════════════════
 
-_var_df_global = st.session_state.get("_pp_variacao")
+# Calcula variação de preços a partir dos abastecimentos reais
+if "pp_variacao_abast" not in st.session_state:
+    try:
+        _var_abast_df = _carregar_abastecimentos_unificados(dias=90)
+        if not _var_abast_df.empty and "preco_litro" in _var_abast_df.columns:
+            import numpy as _np_var
+            _var_abast_df["data_abastecimento"] = pd.to_datetime(
+                _var_abast_df["data_abastecimento"], errors="coerce")
+            _var_abast_df = _var_abast_df.dropna(
+                subset=["preco_litro","data_abastecimento","cnpj_posto","produto"])
+            _var_abast_df = _var_abast_df.sort_values("data_abastecimento")
+
+            # Pega os 2 abastecimentos mais recentes por posto+combustível
+            _var_grp = (
+                _var_abast_df
+                .groupby(["cnpj_posto","nome_posto","produto"])
+                .tail(2)
+                .groupby(["cnpj_posto","nome_posto","produto"])
+                .agg(
+                    preco_ant=("preco_litro", "first"),
+                    preco_atu=("preco_litro", "last"),
+                    data_atu=("data_abastecimento", "last"),
+                )
+                .reset_index()
+            )
+            _var_grp = _var_grp[_var_grp["preco_ant"] != _var_grp["preco_atu"]]
+            _var_grp["delta_pct"] = (
+                (_var_grp["preco_atu"] - _var_grp["preco_ant"]) /
+                _var_grp["preco_ant"] * 100
+            ).round(2)
+            _var_grp["delta_rs"] = (
+                _var_grp["preco_atu"] - _var_grp["preco_ant"]
+            ).round(4)
+            # Só mostra variações acima de 2%
+            _var_grp = _var_grp[_var_grp["delta_pct"].abs() >= 2.0]
+            _var_grp["Status"] = _var_grp["delta_pct"].apply(
+                lambda x: "🔺 Alta" if x > 0 else "🔻 Queda")
+            st.session_state["pp_variacao_abast"] = _var_grp
+        else:
+            st.session_state["pp_variacao_abast"] = pd.DataFrame()
+    except Exception:
+        st.session_state["pp_variacao_abast"] = pd.DataFrame()
+
+_var_df_global = st.session_state.get("pp_variacao_abast", pd.DataFrame())
 if _var_df_global is not None and not _var_df_global.empty:
     _var_ts = st.session_state.get("_pp_variacao_ts", "")
     _n_alta   = int((_var_df_global["Status"] == "🔺 Alta").sum())
     _n_queda  = int((_var_df_global["Status"] == "🔻 Queda").sum())
-    _n_novo   = int((_var_df_global["Status"] == "🆕 Novo").sum())
-    _n_rem    = int((_var_df_global["Status"] == "🗑️ Removido").sum())
-    _n_total  = _n_alta + _n_queda + _n_novo + _n_rem
+    _n_novo   = 0
+    _n_rem    = 0
+    _n_total  = _n_alta + _n_queda
 
     # Cor do banner: vermelho se há altas, verde se só quedas, cinza se neutro
     _banner_cor = (
@@ -18855,10 +18898,10 @@ if _var_df_global is not None and not _var_df_global.empty:
         f'padding:12px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">'
         f'<div style="font-size:1.5rem">{_banner_icone}</div>'
         f'<div style="flex:1;min-width:200px">'
-        f'<b style="color:#fff;font-size:.95rem">Variação de Preços Detectada — nova carga vs anterior</b><br>'
+        f'<b style="color:#fff;font-size:.95rem">Variação de Preços nos Abastecimentos — últimos 90 dias</b><br>'
         f'<span style="color:#ccc;font-size:.82rem">'
         f'{_n_alta} alta(s) &nbsp;·&nbsp; {_n_queda} queda(s) &nbsp;·&nbsp; '
-        f'{_n_novo} novo(s) &nbsp;·&nbsp; {_n_rem} removido(s){_ts_part}'
+        f'variações ≥ 2% detectadas nos abastecimentos reais'
         f'</span></div>'
         f'<span style="color:#aaa;font-size:.78rem">'
         f'Veja detalhes em <b>💹 Variação de Preços</b> no menu lateral'
@@ -18868,9 +18911,9 @@ if _var_df_global is not None and not _var_df_global.empty:
 
     # Linha de destaque: maiores altas e maiores quedas
     _top_alta  = (_var_df_global[_var_df_global["Status"] == "🔺 Alta"]
-                  .nlargest(3, "Δ R$"))
+                  .nlargest(3, "delta_pct"))
     _top_queda = (_var_df_global[_var_df_global["Status"] == "🔻 Queda"]
-                  .nsmallest(3, "Δ R$"))
+                  .nsmallest(3, "delta_pct"))
 
     if not _top_alta.empty or not _top_queda.empty:
         _bc1, _bc2 = st.columns(2)
@@ -18881,10 +18924,10 @@ if _var_df_global is not None and not _var_df_global.empty:
                     unsafe_allow_html=True,
                 )
                 for _r in _top_alta.to_dict("records"):
-                    _nm = (_r["Nome"][:28] + "…") if len(_r["Nome"]) > 28 else _r["Nome"]
+                    _nm = (str(_r["nome_posto"])[:28] + "…") if len(str(_r["nome_posto"])) > 28 else str(_r["nome_posto"])
                     st.markdown(
-                        f"<small>• <b>{_nm}</b> ({_r['Combustível']}) "
-                        f"+R$ {_br_num(_r['Δ R$'], 3)}</small>",
+                        f"<small>• <b>{_nm}</b> ({_r['produto']}) "
+                        f"+R$ {_br_num(_r['delta_rs'], 3)}/L ({_r['delta_pct']:+.1f}%)</small>",
                         unsafe_allow_html=True,
                     )
         with _bc2:
@@ -18894,17 +18937,16 @@ if _var_df_global is not None and not _var_df_global.empty:
                     unsafe_allow_html=True,
                 )
                 for _r in _top_queda.to_dict("records"):
-                    _nm = (_r["Nome"][:28] + "…") if len(_r["Nome"]) > 28 else _r["Nome"]
+                    _nm = (str(_r["nome_posto"])[:28] + "…") if len(str(_r["nome_posto"])) > 28 else str(_r["nome_posto"])
                     st.markdown(
-                        f"<small>• <b>{_nm}</b> ({_r['Combustível']}) "
-                        f"−R$ {_br_num(abs(_r['Δ R$']), 3)}</small>",
+                        f"<small>• <b>{_nm}</b> ({_r['produto']}) "
+                        f"−R$ {_br_num(abs(_r['delta_rs']), 3)}/L ({_r['delta_pct']:+.1f}%)</small>",
                         unsafe_allow_html=True,
                     )
 
     if st.button("✕ Dispensar notificação", key="btn_dispensar_variacao",
                  help="Remove o banner desta sessão"):
-        st.session_state.pop("_pp_variacao", None)
-        st.session_state.pop("_pp_variacao_ts", None)
+        st.session_state.pop("pp_variacao_abast", None)
         st.rerun()
 
     st.markdown("---")
