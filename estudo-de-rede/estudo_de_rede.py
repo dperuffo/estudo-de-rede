@@ -22167,8 +22167,13 @@ if modo == "📈 Dashboard":
             _vol_col7   = next((c for c in ["litros","volume"] if c in _df_valid.columns), None)
             _val_col7   = next((c for c in ["valor_total"] if c in _df_valid.columns), None)
 
-            _EX_ANP_FALLBACK = {"GASOLINA COMUM":6.30,"DIESEL S10":6.05,
-                                "DIESEL COMUM":5.95,"ETANOL":4.10,"GNV":4.25}
+            _EX_ANP_FALLBACK = {
+                "GASOLINA COMUM":6.30,"GASOLINA ADITIVADA":6.45,
+                "DIESEL S10":6.05,"DIESEL S-10":6.05,"DIESEL S-10 ADITIVADO":6.15,
+                "DIESEL S-10 COMUM":6.05,"DIESEL COMUM":5.95,
+                "ETANOL":4.10,"ETANOL ADITIVADO":4.20,"ETANOL COMUM":4.10,
+                "GNV":4.25,"ARLA 32":3.20,"ARLA 32 - GRANEL":3.20,
+            }
 
             # KPIs hero
             st.markdown("### 📊 Visão Geral dos Abastecimentos")
@@ -22200,7 +22205,7 @@ if modo == "📈 Dashboard":
                             .rename(columns={_prod_col7:"Combustível",_preco_col7:"Preço Real (R$/L)"}))
                 _ex_comb["ANP Ref (R$/L)"] = _ex_comb["Combustível"].apply(
                     lambda c: next((v for k,v in _EX_ANP_FALLBACK.items()
-                                    if k in c.upper() or c.upper() in k), None))
+                                    if k in c.upper().strip() or c.upper().strip() in k), None))
                 _ex_comb["Delta (%)"] = _ex_comb.apply(
                     lambda r: (r["Preço Real (R$/L)"]-r["ANP Ref (R$/L)"])/r["ANP Ref (R$/L)"]*100
                     if r["ANP Ref (R$/L)"] else None, axis=1)
@@ -22210,9 +22215,10 @@ if modo == "📈 Dashboard":
                     text=_ex_comb["Preço Real (R$/L)"].apply(lambda v: _br_moeda(v,3)),
                     textposition="outside"))
                 _fig_ex.add_trace(go.Bar(name="ANP Ref", x=_ex_comb["Combustível"],
-                    y=_ex_comb["ANP Ref (R$/L)"], marker_color="#1565C0",
+                    y=_ex_comb["ANP Ref (R$/L)"].fillna(0), marker_color="#1565C0",
                     text=_ex_comb["ANP Ref (R$/L)"].apply(
-                        lambda v: _br_moeda(v,3) if v else "—"), textposition="outside"))
+                        lambda v: _br_moeda(v,3) if pd.notna(v) and v else "—"),
+                    textposition="outside"))
                 _fig_ex.update_layout(barmode="group", height=350,
                     title="Preço Real Pago vs Referência ANP",
                     yaxis_title="R$/L", plot_bgcolor="rgba(0,0,0,0)",
@@ -22335,8 +22341,17 @@ if modo == "📈 Dashboard":
                             if _nome_col8b:
                                 _nomes = _op_df.drop_duplicates(_cnpj_col)[[_cnpj_col,_nome_col8b]]
                                 _inconsist = _inconsist.merge(_nomes, on=_cnpj_col, how="left")
-                            st.dataframe(_inconsist.sort_values("delta_anp_pct",ascending=False)
-                                         .reset_index(drop=True), use_container_width=True)
+                            _inc_disp = _inconsist.copy()
+                        _inc_rename = {_cnpj_col:"CNPJ","uf":"UF","preco_medio":"Preço Médio",
+                                       "desvio":"Desvio","qtd":"Qtd","anp_ref":"ANP Ref",
+                                       "delta_anp_pct":"Δ% vs ANP","nome_posto":"Posto"}
+                        _inc_disp = _inc_disp.rename(columns={k:v for k,v in _inc_rename.items() if k in _inc_disp.columns})
+                        if "Preço Médio" in _inc_disp.columns:
+                            _inc_disp["Preço Médio"] = _inc_disp["Preço Médio"].apply(lambda v: _br_moeda(v,3))
+                        if "ANP Ref" in _inc_disp.columns:
+                            _inc_disp["ANP Ref"] = _inc_disp["ANP Ref"].apply(lambda v: _br_moeda(v,3))
+                        st.dataframe(_inc_disp.sort_values("Δ% vs ANP",ascending=False)
+                                     .reset_index(drop=True), use_container_width=True)
 
                 with _op_t3:
                     st.markdown("##### Score por Macrorregião")
@@ -23031,7 +23046,8 @@ if modo == "📈 Dashboard":
                                     line=dict(color=_ev_cores[_i%len(_ev_cores)], width=2)))
                             _fig_ev.update_layout(height=400, title="Evolução de Preço por UF",
                                 yaxis_title="R$/L", plot_bgcolor="rgba(0,0,0,0)",
-                                paper_bgcolor="rgba(0,0,0,0)")
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                xaxis=dict(tickformat="%d/%m/%Y", tickangle=-30))
                             st.plotly_chart(_fig_ev, use_container_width=True)
 
                     st.markdown("### 📊 Volatilidade por Posto")
@@ -23106,8 +23122,11 @@ if modo == "📈 Dashboard":
                     _med_geral = _clust["preco_medio"].median()
                     _clust["oportunidade"] = _clust["preco_medio"] < _med_geral
                     _oport = _clust[_clust["oportunidade"]].sort_values("preco_medio").head(15)
+                    _oport_disp = _oport.copy()
+                    _oport_disp.columns = ["Município","UF","Preço Médio (R$/L)","Abastecimentos","Oportunidade"]
+                    _oport_disp["Preço Médio (R$/L)"] = _oport_disp["Preço Médio (R$/L)"].apply(lambda v: _br_moeda(v,3))
                     st.markdown("##### 🎯 Top 15 Municípios com Menor Preço Médio")
-                    st.dataframe(_oport.reset_index(drop=True), use_container_width=True)
+                    st.dataframe(_oport_disp.drop(columns=["Oportunidade"]).reset_index(drop=True), use_container_width=True)
                 else:
                     st.info("ℹ️ Sem dados suficientes para clusters.")
 
@@ -23188,14 +23207,17 @@ if modo == "📈 Dashboard":
         _d12_map_df = pd.DataFrame(_d12_rows).sort_values("gap",ascending=False)
 
         _dm1, _dm2 = st.columns(2)
+        _d12_map_df["demanda"] = _d12_map_df["demanda"].round(0).astype(int)
+        _d12_map_df["gap"]     = _d12_map_df["gap"].round(0).astype(int)
+        _d12_disp1 = _d12_map_df[["UF","demanda","postos_visitados","gap"]].head(10).copy()
+        _d12_disp1.columns = ["UF","Demanda","Postos Visitados","Gap"]
         _dm1.markdown("##### 🔴 UFs com Maior Gap Demanda × Cobertura")
-        _dm1.dataframe(_d12_map_df[["UF","demanda","postos_visitados","gap"]]
-                       .head(10).reset_index(drop=True), use_container_width=True)
+        _dm1.dataframe(_d12_disp1.reset_index(drop=True), use_container_width=True)
 
+        _d12_disp2 = _d12_map_df.sort_values("postos_visitados",ascending=False)[["UF","postos_visitados","demanda"]].head(10).copy()
+        _d12_disp2.columns = ["UF","Postos Visitados","Demanda"]
         _dm2.markdown("##### ✅ UFs com Melhor Cobertura")
-        _dm2.dataframe(_d12_map_df.sort_values("postos_visitados",ascending=False)
-                       [["UF","postos_visitados","demanda"]].head(10).reset_index(drop=True),
-                       use_container_width=True)
+        _dm2.dataframe(_d12_disp2.reset_index(drop=True), use_container_width=True)
 
         # Mapa visual
         if not _d12_map_df.empty:
@@ -23299,7 +23321,8 @@ if modo == "📈 Dashboard":
                         x=_ts_evol["Período"], y=_ts_evol["Preço Médio"],
                         mode="lines+markers", line=dict(color="#4a1a80",width=2)))
                     _fig_evol.update_layout(height=300, title="Evolução Mensal de Preço",
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                        xaxis=dict(tickformat="%b/%Y", tickangle=-30))
                     st.plotly_chart(_fig_evol, use_container_width=True)
 # ═══════════════════════════════════════════════════════════════════
 #  MODO — Inteligência de Dados
