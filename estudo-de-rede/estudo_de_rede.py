@@ -7032,7 +7032,7 @@ def _fipe_secao_ui(
             })
         _df_vis = pd.DataFrame(_linhas)
         _df_vis["Valor FIPE (R$)"] = _df_vis["Valor FIPE"].apply(
-            lambda v: f"R$ {v:,.0f}".replace(",", ".") if pd.notna(v) and v else "—"
+            lambda v: _br_moeda(v, 0) if pd.notna(v) and v else "—"
         )
         st.dataframe(
             _df_vis[["Status","Placa","Marca","Modelo","Ano","Cor",
@@ -7050,10 +7050,10 @@ def _fipe_secao_ui(
         if not _vals.empty:
             st.markdown("#### 💰 Valor de Mercado da Frota (FIPE)")
             _k1, _k2, _k3, _k4 = st.columns(4)
-            _k1.metric("Total estimado",    f"R$ {_vals.sum():,.0f}".replace(",", "."))
-            _k2.metric("Média por veículo", f"R$ {_vals.mean():,.0f}".replace(",", "."))
-            _k3.metric("Maior valor",       f"R$ {_vals.max():,.0f}".replace(",", "."))
-            _k4.metric("Menor valor",       f"R$ {_vals.min():,.0f}".replace(",", "."))
+            _k1.metric("Total estimado",    _br_moeda(_vals.sum(), 0))
+            _k2.metric("Média por veículo", _br_moeda(_vals.mean(), 0))
+            _k3.metric("Maior valor",       _br_moeda(_vals.max(), 0))
+            _k4.metric("Menor valor",       _br_moeda(_vals.min(), 0))
 
         # Gráficos
         _df_c = _df_vis[_df_vis["Marca"] != "—"].copy()
@@ -7150,7 +7150,7 @@ def _fipe_secao_ui(
                     if _ok_db:
                         _ok_count += 1
                         _val_str  = (
-                            f"R$ {_dados['valor_fipe']:,.0f}".replace(",", ".")
+                            _br_moeda(_dados["valor_fipe"], 0)
                             if _dados.get("valor_fipe") else "sem valor FIPE"
                         )
                         _log_lines.append(
@@ -7317,7 +7317,7 @@ def _fipe_secao_ui(
                     _new_cache3[_pn3] = _dados3
                     st.session_state[f"{key_prefix}_cache_fipe"] = _new_cache3
                     _val_msg = (
-                        f" — R$ {_f_valor:,.0f}".replace(",", ".")
+                        f" — {_br_moeda(_f_valor, 0)}"
                         if _f_valor > 0 else ""
                     )
                     st.success(
@@ -22568,7 +22568,7 @@ if modo == "📈 Dashboard":
                 )
             with _kc4:
                 _custo_txt = (
-                    f"R$ {_rt_custo_med:,.0f}" if _rt_custo_med else "—"
+                    _br_moeda(_rt_custo_med, 0) if _rt_custo_med else "—"
                 )
                 st.markdown(
                     f'<div style="{_kpi_css}">'
@@ -24221,7 +24221,7 @@ elif modo == "🧭 Roteirização":
 
         # ── Métricas ──────────────────────────────────────────────
         _mc1, _mc2, _mc3, _mc4 = st.columns(4)
-        _mc1.metric("📏 Distância",     f"{_rd:,.0f} km".replace(",", "."))
+        _mc1.metric("📏 Distância",     f"{_br_int(_rd)} km")
         _mc2.metric("⏱️ Tempo est.",    f"{int(_rm//60)}h {int(_rm%60):02d}min")
         _mc3.metric("🛢 Consumo",       f"{_rd/_raut:.0f} L" if _raut else "—")
         _mc4.metric("📍 Pontos rota",   str(len(_rp) + 2))
@@ -24680,7 +24680,7 @@ elif modo == "🧭 Roteirização":
                     )
                     _kc4.metric(
                         "⛽ Preço médio pago",
-                        f"R$ {_custo_sugest/_litros_sugest:.3f}/L".replace(".",",") if _litros_sugest > 0 else "—",
+                        f"{_br_moeda(_custo_sugest/_litros_sugest, 3)}/L" if _litros_sugest > 0 else "—",
                         help="Preço médio ponderado pelos volumes abastecidos",
                     )
 
@@ -26677,13 +26677,13 @@ elif modo == "👥 Análise de Cliente":
                 _km_total      = _df["_km_perc"].sum(min_count=1) or 0
 
                 _mc1, _mc2, _mc3 = st.columns(3)
-                _mc1.metric("🧾 Transações", f"{_n_abast:,}".replace(",", "."))
+                _mc1.metric("🧾 Transações", _fmt_int(_n_abast))
                 _mc2.metric("🚗 Veículos", _n_veic)
                 _mc3.metric("⛽ Litros abastecidos", f"{_total_litros:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 _mc4, _mc5, _mc6 = st.columns(3)
                 _mc4.metric("💰 Gasto total (R$)", f"R$ {_total_gasto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 _mc5.metric("📊 Preço médio (R$/L)", f"R$ {_preco_medio:,.3f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                _km_disp = f"{_km_total:,.0f} km".replace(",", ".") if _km_total > 0 else "—"
+                _km_disp = f"{_br_int(_km_total)} km" if _km_total > 0 else "—"
                 _mc6.metric("🛣️ Km total registrado", _km_disp)
 
                 st.divider()
@@ -26977,7 +26977,7 @@ elif modo == "👥 Análise de Cliente":
                             "Severidade": "🔴 Alta",
                             "Placa": _placa_r, "Data": str(_data_r), "ID": _id_r,
                             "Regra": "Hodômetro regressivo",
-                            "Detalhe": f"Km percorrido = {_km_r:,.0f}".replace(",", "."),
+                            "Detalhe": f"Km percorrido = {_br_int(_km_r)}",
                             "Valor (R$)": _valor_r,
                         })
 
@@ -27066,7 +27066,7 @@ elif modo == "👥 Análise de Cliente":
                             f"padding:14px;border-radius:6px;margin-bottom:12px'>"
                             f"<b>🔴 Maior custo/km</b><br>"
                             f"<span style='font-size:22px;font-weight:700'>{_pior_veic}</span><br>"
-                            f"R$ {_ck_veic[_pior_veic]:.4f}/km".replace(".", ",") +
+                            f"{_br_moeda(_ck_veic[_pior_veic], 4)}/km" +
                             f"</div>", unsafe_allow_html=True,
                         )
                     with _i2:
@@ -27075,7 +27075,7 @@ elif modo == "👥 Análise de Cliente":
                             f"padding:14px;border-radius:6px;margin-bottom:12px'>"
                             f"<b>🟢 Menor custo/km</b><br>"
                             f"<span style='font-size:22px;font-weight:700'>{_melhor_veic}</span><br>"
-                            f"R$ {_ck_veic[_melhor_veic]:.4f}/km".replace(".", ",") +
+                            f"{_br_moeda(_ck_veic[_melhor_veic], 4)}/km" +
                             f"</div>", unsafe_allow_html=True,
                         )
 
@@ -27092,7 +27092,7 @@ elif modo == "👥 Análise de Cliente":
                             f"padding:14px;border-radius:6px;margin-bottom:12px'>"
                             f"<b>💸 Posto mais caro usado</b><br>"
                             f"<span style='font-size:15px;font-weight:600'>{_posto_caro[:35]}</span><br>"
-                            f"R$ {_p_preco[_posto_caro]:.3f}/L".replace(".", ",") +
+                            f"{_br_moeda(_p_preco[_posto_caro], 3)}/L" +
                             f"</div>", unsafe_allow_html=True,
                         )
                     with _i4:
@@ -27101,7 +27101,7 @@ elif modo == "👥 Análise de Cliente":
                             f"padding:14px;border-radius:6px;margin-bottom:12px'>"
                             f"<b>💰 Posto mais barato usado</b><br>"
                             f"<span style='font-size:15px;font-weight:600'>{_posto_barato[:35]}</span><br>"
-                            f"R$ {_p_preco[_posto_barato]:.3f}/L".replace(".", ",") +
+                            f"{_br_moeda(_p_preco[_posto_barato], 3)}/L" +
                             f"</div>", unsafe_allow_html=True,
                         )
 
@@ -27536,11 +27536,11 @@ elif modo == "👥 Análise de Cliente":
                     _c1, _c2, _c3, _c4 = st.columns(4)
                     _c1.metric(
                         "Preço médio pago",
-                        f"R$ {_preco_med_pago:.3f}/L".replace(".", ","),
+                        f"{_br_moeda(_preco_med_pago, 3)}/L",
                     )
                     _c2.metric(
                         "Preço médio ANP",
-                        f"R$ {_preco_med_anp:.3f}/L".replace(".", ","),
+                        f"{_br_moeda(_preco_med_anp, 3)}/L",
                     )
                     _c3.metric(
                         "Diferença por litro",
@@ -27829,7 +27829,7 @@ elif modo == "👥 Análise de Cliente":
                     _pct_sv = (
                         _saving_total / _gasto_gf_atual * 100
                     ) if _gasto_gf_atual > 0 else 0
-                    _litros_sv_fmt = f"{_litros_gf:,.0f}".replace(",", ".")
+                    _litros_sv_fmt = _br_int(_litros_gf)
                     _sv_tot_fmt = _sv_frs(abs(_saving_total))
                     _sv_ano_fmt = _sv_frs(abs(_saving_anual))
                     _pct_fmt    = f"{_br_num(abs(_pct_sv), 1)}"
@@ -29085,7 +29085,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                                 _mh_custo_tot = _pd.to_numeric(_mh_df.get("custo_total", _pd.Series()), errors="coerce").sum()
                                 _mh_c1.metric("🔧 Registros", len(_mh_hist))
                                 _mh_c2.metric("🚗 Veículos", _mh_df["placa"].nunique())
-                                _mh_c3.metric("💰 Custo Total", f"R$ {_mh_custo_tot:,.2f}")
+                                _mh_c3.metric("💰 Custo Total", _br_moeda(_mh_custo_tot, 2))
 
                                 # Tabela
                                 _mh_show = []
@@ -29102,7 +29102,7 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
                                         "Km": f"{int(_mh['hodometro']):,}" if _mh.get("hodometro") else "—",
                                         "Itens": _itens_str or "—",
                                         "Oficina": _mh.get("oficina","") or "—",
-                                        "Custo": f"R$ {float(_mh['custo_total']):,.2f}" if _mh.get("custo_total") else "—",
+                                        "Custo": _br_moeda(float(_mh["custo_total"]), 2) if _mh.get("custo_total") else "—",
                                         "Registrado por": _mh.get("criado_por","") or "—",
                                     })
                                 _mh_df_show = _pd.DataFrame(_mh_show)
@@ -31192,8 +31192,8 @@ elif modo == "🛰️ Telemetria":
             _kv1, _kv2, _kv3, _kv4 = st.columns(4)
             _kv1.metric("💰 Total gasto", f"R$ {_df_ab['valor_total'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             _kv2.metric("🔢 Abastecimentos", f"{len(_df_ab)}")
-            _kv3.metric("⛽ Total litros", f"{_df_ab['litros'].sum():,.1f} L".replace(",", "."))
-            _kv4.metric("💲 Preço médio", f"R$ {_df_ab['preco_litro'].mean():.3f}/L".replace(".", ","))
+            _kv3.metric("⛽ Total litros", f"{_br_num(_df_ab['litros'].sum(), 1)} L")
+            _kv4.metric("💲 Preço médio", f"{_br_num(_df_ab['preco_litro'].mean(), 3)}/L")
 
             st.markdown("---")
 
