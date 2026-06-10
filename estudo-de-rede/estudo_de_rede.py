@@ -32344,25 +32344,69 @@ elif modo == "🤖 Assistente IA":
     _plano_ai    = _empresa_ai.get("plano", "gratuito").lower()
     _plano_pro   = _plano_ai in ("pro", "enterprise", "profissional")
 
+    # ── Header com logo FNI animada ──────────────────────────────
+    _ai_logo_html = ""
+    if _FNI_B64:
+        _ai_logo_html = (
+            f"<img src='data:image/png;base64,{_FNI_B64}' "
+            f"style='height:48px;object-fit:contain;"
+            f"animation:fni-pulse 2.5s ease-in-out infinite;' alt='FNI'/>"
+        )
+    else:
+        _ai_logo_html = "<span style='font-size:2rem'>🤖</span>"
+
     st.markdown(
-        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "<style>"
+        "@keyframes fni-pulse {"
+        "  0%,100%{opacity:1;transform:scale(1)}"
+        "  50%{opacity:0.85;transform:scale(1.04)}"
+        "}"
+        "@keyframes fni-glow {"
+        "  0%,100%{box-shadow:0 0 0 0 rgba(127,119,221,0)}"
+        "  50%{box-shadow:0 0 18px 4px rgba(127,119,221,0.18)}"
+        "}"
+        ".fni-ai-header{display:flex;align-items:center;gap:14px;padding:14px 18px;"
+        "border:0.5px solid #AFA9EC;border-radius:14px;margin-bottom:16px;"
+        "animation:fni-glow 2.5s ease-in-out infinite;"
+        "background:linear-gradient(135deg,#EEEDFE 0%,#fff 100%)}"
+        ".fni-ai-title{font-size:1.2rem;font-weight:700;"
         "background:linear-gradient(135deg,#4a1a80,#7F77DD);"
-        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "🤖 Assistente IA — FNI Insights</h2>"
-        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
-        "Faça perguntas em linguagem natural sobre sua frota e receba insights instantâneos.</p>",
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent;"
+        "margin:0 0 2px}"
+        ".fni-ai-sub{font-size:12px;color:#888;margin:0}"
+        "</style>"
+        f"<div class='fni-ai-header'>"
+        f"  <div style='flex-shrink:0'>{_ai_logo_html}</div>"
+        f"  <div>"
+        f"    <p class='fni-ai-title'>Assistente IA — FNI Insights</p>"
+        f"    <p class='fni-ai-sub'>Pergunte sobre sua frota em linguagem natural</p>"
+        f"  </div>"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
     # ── Plano Básico: FAQ inteligente com upsell ──────────────────
     if not _plano_pro:
-        st.info(
-            "🌟 **Você está no plano Básico.**\n\n"
-            "No plano **Pro** e **Enterprise**, o Assistente IA responde perguntas sobre "
-            "seus abastecimentos reais, detecta oportunidades de economia e analisa "
-            "a performance da sua frota em tempo real.\n\n"
-            "Veja abaixo algumas perguntas que você poderia fazer:"
+        _logo_upsell = (
+            f"<img src='data:image/png;base64,{_FNI_B64}' "
+            f"style='height:36px;object-fit:contain;margin-right:10px;vertical-align:middle' alt='FNI'/>"
+            if _FNI_B64 else "🤖"
         )
+        st.markdown(
+            f"<div style='display:flex;align-items:flex-start;gap:12px;padding:14px 16px;"
+            f"background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:12px;margin-bottom:16px'>"
+            f"  <div style='flex-shrink:0;margin-top:2px'>{_logo_upsell}</div>"
+            f"  <div>"
+            f"    <p style='margin:0 0 4px;font-weight:700;color:#3C3489;font-size:14px'>"
+            f"      Assistente IA disponível nos planos Pro e Enterprise</p>"
+            f"    <p style='margin:0;color:#534AB7;font-size:12px'>"
+            f"      Com o plano Pro, o assistente acessa seus abastecimentos reais, detecta "
+            f"      oportunidades de economia e analisa a performance da sua frota em tempo real.</p>"
+            f"  </div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+        st.caption("Veja abaixo algumas perguntas que você poderia fazer com o plano Pro:")
 
         _FAQ = {
             "💰 Quanto gastei com combustível este mês?": (
@@ -32490,9 +32534,10 @@ elif modo == "🤖 Assistente IA":
             st.markdown("---")
 
         # Exibe histórico da conversa
+        _ai_avatar_hist = f"data:image/png;base64,{_FNI_B64}" if _FNI_B64 else "🤖"
         for _msg in st.session_state["ai_chat_history"]:
-            with st.chat_message(_msg["role"],
-                                  avatar="👤" if _msg["role"] == "user" else "🤖"):
+            _av = "👤" if _msg["role"] == "user" else _ai_avatar_hist
+            with st.chat_message(_msg["role"], avatar=_av):
                 st.markdown(_msg["content"])
 
         # Input do usuário
@@ -32505,7 +32550,8 @@ elif modo == "🤖 Assistente IA":
             with st.chat_message("user", avatar="👤"):
                 st.markdown(_pergunta)
 
-            with st.chat_message("assistant", avatar="🤖"):
+            _ai_avatar = f"data:image/png;base64,{_FNI_B64}" if _FNI_B64 else "🤖"
+            with st.chat_message("assistant", avatar=_ai_avatar):
                 with st.spinner("Analisando dados da sua frota..."):
                     try:
                         import urllib.request as _ur
