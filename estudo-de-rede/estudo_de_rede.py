@@ -32569,7 +32569,8 @@ elif modo == "🤖 Assistente IA":
                             "Contexto atual da frota:\n" + _contexto
                         )
 
-                        _msgs_api = [{"role": "system", "content": _system_prompt}]
+                        # Monta histórico sem system (vai separado)
+                        _msgs_api = []
                         for _h in st.session_state["ai_chat_history"][:-1]:
                             if _h["role"] in ("user", "assistant"):
                                 _msgs_api.append({"role": _h["role"], "content": _h["content"]})
@@ -32579,7 +32580,7 @@ elif modo == "🤖 Assistente IA":
                             "model": "claude-sonnet-4-20250514",
                             "max_tokens": 1024,
                             "system": _system_prompt,
-                            "messages": [m for m in _msgs_api if m["role"] != "system"],
+                            "messages": _msgs_api,
                         }).encode()
 
                         _req = _ur.Request(
