@@ -32586,7 +32586,7 @@ elif modo == "🤖 Assistente IA":
                         _msgs_api.append({"role": "user", "content": _pergunta})
 
                         _payload = _json.dumps({
-                            "model": "claude-sonnet-4-20250514",
+                            "model": "claude-sonnet-4-5",
                             "max_tokens": 1024,
                             "system": _system_prompt,
                             "messages": _msgs_api,
