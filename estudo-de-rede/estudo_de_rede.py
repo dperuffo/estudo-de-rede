@@ -32490,7 +32490,7 @@ elif modo == "🤖 Assistente IA":
     if _FNI_B64:
         _ai_logo_html = (
             f"<img src='data:image/png;base64,{_FNI_B64}' "
-            f"style='height:48px;object-fit:contain;"
+            f"style='height:120px;object-fit:contain;"
             f"animation:fni-pulse 2.5s ease-in-out infinite;' alt='FNI'/>"
         )
     else:
@@ -32506,21 +32506,24 @@ elif modo == "🤖 Assistente IA":
         "  0%,100%{box-shadow:0 0 0 0 rgba(127,119,221,0)}"
         "  50%{box-shadow:0 0 18px 4px rgba(127,119,221,0.18)}"
         "}"
-        ".fni-ai-header{display:flex;align-items:center;gap:14px;padding:14px 18px;"
-        "border:0.5px solid #AFA9EC;border-radius:14px;margin-bottom:16px;"
-        "animation:fni-glow 2.5s ease-in-out infinite;"
-        "background:linear-gradient(135deg,#EEEDFE 0%,#fff 100%)}"
-        ".fni-ai-title{font-size:1.2rem;font-weight:700;"
+        ".fni-ai-header{display:flex;flex-direction:column;align-items:center;"
+        "gap:10px;padding:30px 24px 22px;text-align:center;"
+        "border:0.5px solid #AFA9EC;border-radius:20px;margin-bottom:20px;"
+        "animation:fni-glow 3s ease-in-out infinite;"
+        "background:linear-gradient(160deg,#F5F3FF 0%,#EEEDFE 40%,#fff 100%)}"
+        ".fni-ai-title{font-size:1.6rem;font-weight:800;"
         "background:linear-gradient(135deg,#4a1a80,#7F77DD);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent;"
         "margin:0 0 2px}"
         ".fni-ai-sub{font-size:12px;color:#888;margin:0}"
         "</style>"
         f"<div class='fni-ai-header'>"
-        f"  <div style='flex-shrink:0'>{_ai_logo_html}</div>"
         f"  <div>"
-        f"    <p class='fni-ai-title'>Assistente IA — FNI Insights</p>"
-        f"    <p class='fni-ai-sub'>Pergunte sobre sua frota em linguagem natural</p>"
+        f"  <p class='fni-ai-title'>Assistente IA — FNI Insights</p>"
+        f"  <p class='fni-ai-sub'>Inteligência artificial especializada em gestão de frotas</p>"
+        f"  <span style='display:inline-block;margin-top:6px;padding:3px 14px;"
+        f"background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:20px;"
+        f"font-size:11px;color:#534AB7;font-weight:600'>✦ Powered by Claude AI</span>"
         f"  </div>"
         f"</div>",
         unsafe_allow_html=True,
