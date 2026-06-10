@@ -21001,12 +21001,12 @@ elif modo == "🔍 Consulta por Posto":
 
         else:
             n_res = len(_df_m3)
-            # Postos com meios de pagamento transacionados
-            _abast_m3 = _carregar_abastecimentos_unificados(dias=730)
+            # Postos credenciados com meio de pagamento de frota
             _n_mp_m3 = 0
-            if not _abast_m3.empty and "cnpj_posto" in _abast_m3.columns and "cnpj" in _df_m3.columns:
-                _cnpjs_mp_m3 = set(_abast_m3["cnpj_posto"].astype(str).str.replace(r"\D","",regex=True))
-                _n_mp_m3 = int(_df_m3["cnpj"].astype(str).str.replace(r"\D","",regex=True).isin(_cnpjs_mp_m3).sum())
+            if "_pro_frotas" in _df_m3.columns:
+                _n_mp_m3 = int(_df_m3["_pro_frotas"].fillna(False).sum())
+            elif "meio_pagamento" in _df_m3.columns:
+                _n_mp_m3 = int(_df_m3["meio_pagamento"].notna().sum())
             _ca, _cb, _cc, _cd = st.columns(4)
             _ca.metric("Postos encontrados", n_res)
             _cb.metric("Postos Gestao Frota", _n_mp_m3)
