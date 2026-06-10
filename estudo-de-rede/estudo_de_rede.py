@@ -17475,11 +17475,16 @@ with st.sidebar:
                 _n_usuarios   = _emails_auth.nunique()
 
                 _lk1, _lk2, _lk3, _lk4, _lk5 = st.columns(5)
-                _lk1.metric("📋 Total de Eventos",  _fmt_int(_n_eventos))
-                _lk2.metric("👤 Sessões Únicas",     _fmt_int(_n_sessoes))
-                _lk3.metric("🔐 Usuários Google",    _fmt_int(_n_usuarios))
-                _lk4.metric("🌐 IPs Únicos",         _fmt_int(_n_ips))
-                _lk5.metric("📅 Eventos Hoje",       _fmt_int(_n_hoje))
+                _lk1.metric("📋 Total de Eventos",  _fmt_int(_n_eventos),
+                    help="Total de eventos registrados no log de auditoria no período filtrado.")
+                _lk2.metric("👤 Sessões Únicas",     _fmt_int(_n_sessoes),
+                    help="Número de sessões distintas identificadas por token de sessão.")
+                _lk3.metric("🔐 Usuários Google",    _fmt_int(_n_usuarios),
+                    help="Usuários autenticados via Google OAuth no período.")
+                _lk4.metric("🌐 IPs Únicos",         _fmt_int(_n_ips),
+                    help="Número de endereços IP distintos que acessaram a plataforma.")
+                _lk5.metric("📅 Eventos Hoje",       _fmt_int(_n_hoje),
+                    help="Eventos registrados no dia atual (meia-noite até agora).")
 
                 st.markdown("---")
 
@@ -19281,10 +19286,14 @@ if modo == "📍 Por UF/Município":
             _n_postos_mp = _abast_mp[_abast_mp[_uf_col_mp].fillna("").str.upper() == uf.upper()]["cnpj_posto"].nunique() if "cnpj_posto" in _abast_mp.columns else 0
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric(_mapa_label,                    _n(_n_total_show))
-        c2.metric("💳 Postos c/ Meios Pagamento", _n(_n_postos_mp))
-        c3.metric("🏷️ Bandeiras",                _n(df_show["distribuidora"].nunique()) if not df_show.empty else "0")
-        c4.metric("📍 Estado",                    uf)
+        c1.metric(_mapa_label, _n(_n_total_show),
+            help="Total de postos ANP encontrados para o estado/município selecionado.")
+        c2.metric("💳 Postos c/ Meios Pagamento", _n(_n_postos_mp),
+            help="Postos com abastecimento registrado pela frota nos últimos 730 dias (Ticket Log, Rede Frota, Veloe, Pró-Frotas).")
+        c3.metric("🏷️ Bandeiras", _n(df_show["distribuidora"].nunique()) if not df_show.empty else "0",
+            help="Número de distribuidoras/bandeiras distintas nos postos exibidos.")
+        c4.metric("📍 Estado", uf,
+            help="Estado (UF) selecionado para consulta.")
 
         # ── Botão Salvar (Modo 1) ─────────────────────────────────────
         _col_sv1, _col_sv2 = st.columns([3, 1])
@@ -20648,11 +20657,16 @@ elif modo == "🗺️ Por Rota":
         df_show_r = _aplicar_rank_barato(df_show_r, _top5_m2)
 
         c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("🛣️ Distância",      f"{_n(dist_km)} km")
-        c2.metric("⏱️ Tempo estimado", f"{int(dur_min//60)}h {int(dur_min%60)}min")
-        c3.metric("📍 Paradas",        str(len(_paradas_vis)) if _paradas_vis else "—")
-        c4.metric("⛽ Postos na rota", _n(len(df_show_r)))
-        c5.metric("⭐ Gestão de Frotas",     _n(n_pf(df_show_r)))
+        c1.metric("🛣️ Distância",      f"{_n(dist_km)} km",
+            help="Distância total da rota calculada via API de direções.")
+        c2.metric("⏱️ Tempo estimado", f"{int(dur_min//60)}h {int(dur_min%60)}min",
+            help="Tempo estimado de viagem sem paradas, baseado na velocidade média da via.")
+        c3.metric("📍 Paradas",        str(len(_paradas_vis)) if _paradas_vis else "—",
+            help="Número de paradas intermediárias definidas na rota.")
+        c4.metric("⛽ Postos na rota", _n(len(df_show_r)),
+            help=f"Postos ANP encontrados no raio configurado ao longo da rota.")
+        c5.metric("⭐ Gestão de Frotas",     _n(n_pf(df_show_r)),
+            help="Postos com credenciamento de frota (Pró-Frotas, Ticket Log, etc.) dentro do raio da rota.")
 
         # Resumo visual da rota com todas as paradas
         _all_labels = [label_orig] + [wp["label"] for wp in _paradas_vis] + [label_dest]
@@ -21180,10 +21194,14 @@ elif modo == "🔍 Consulta por Posto":
             elif "meio_pagamento" in _df_m3.columns:
                 _n_mp_m3 = int(_df_m3["meio_pagamento"].notna().sum())
             _ca, _cb, _cc, _cd = st.columns(4)
-            _ca.metric("Postos encontrados", n_res)
-            _cb.metric("Postos Gestao Frota", _n_mp_m3)
-            _cc.metric("Bandeiras", _df_m3["distribuidora"].nunique() if "distribuidora" in _df_m3.columns else 0)
-            _cd.metric("Estado(s)", _df_m3["uf"].nunique() if "uf" in _df_m3.columns else "—")
+            _ca.metric("Postos encontrados", n_res,
+                help="Total de postos na base ANP que correspondem ao termo buscado.")
+            _cb.metric("Postos Gestão Frota", _n_mp_m3,
+                help="Postos credenciados com meio de pagamento de frota (Ticket Log, Rede Frota, Veloe, Pró-Frotas).")
+            _cc.metric("Bandeiras", _df_m3["distribuidora"].nunique() if "distribuidora" in _df_m3.columns else 0,
+                help="Número de distribuidoras/bandeiras distintas nos resultados.")
+            _cd.metric("Estado(s)", _df_m3["uf"].nunique() if "uf" in _df_m3.columns else "—",
+                help="Número de estados (UFs) distintos nos resultados.")
 
             # ── Botão Salvar (Modo 3) ─────────────────────────────
             _nome_sugerido_m3 = f"Busca: {_m3_termo[:40]}"
@@ -21868,7 +21886,14 @@ if modo == "📈 Dashboard":
             (_k5, "📊 Média por UF",
              _fmt_int(_total_abast / _total_ufs) if _total_ufs else "—", None),
         ]:
-            _col.metric(_lbl, _val, _delta)
+            _helps = {
+                "⛽ Postos Visitados":  "Total de postos únicos (por CNPJ) onde a frota abasteceu no período.",
+                "📋 Abastecimentos":    "Total de registros de abastecimento no período selecionado (uploads + API).",
+                "🗺️ Estados Cobertos":  "Número de UFs com pelo menos 1 abastecimento registrado, sobre 27 estados brasileiros.",
+                "🏙️ Municípios":        "Número de municípios distintos com abastecimento no período.",
+                "📊 Média por UF":      "Total de abastecimentos dividido pelo número de estados cobertos.",
+            }
+            _col.metric(_lbl, _val, _delta, help=_helps.get(_lbl))
 
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
@@ -22106,8 +22131,10 @@ if modo == "📈 Dashboard":
 
                 # KPIs
                 _cf1, _cf2, _cf3 = st.columns(3)
-                _cf1.metric("⛽ Combustíveis", str(len(_comb_df)))
-                _cf2.metric("📋 Abastecimentos", _fmt_int(_total_abast))
+                _cf1.metric("⛽ Combustíveis", str(len(_comb_df)),
+                    help="Número de tipos de combustível distintos nos abastecimentos do período.")
+                _cf2.metric("📋 Abastecimentos", _fmt_int(_total_abast),
+                    help="Total de abastecimentos no período com preço registrado.")
                 if _vol_col_d:
                     _vol_total = pd.to_numeric(_df_valid[_vol_col_d], errors="coerce").sum()
                     _cf3.metric("🛢 Volume Total (L)", f"{_vol_total:,.0f}".replace(",","."))
@@ -22171,9 +22198,12 @@ if modo == "📈 Dashboard":
 
                 _a1, _a2, _a3 = st.columns(3)
                 _a1.metric("⚠️ Abastecimentos Acima ANP", _fmt_int(len(_alertas)),
-                           f"{len(_alertas)/len(_alert_df)*100:.1f}% do total" if len(_alert_df) else "—")
-                _a2.metric("✅ Dentro da Referência", _fmt_int(len(_ok)))
-                _a3.metric("📊 Desvio Médio", f"{_alert_df['delta_pct'].mean():+.1f}%" if len(_alert_df) else "—")
+                           f"{len(_alertas)/len(_alert_df)*100:.1f}% do total" if len(_alert_df) else "—",
+                           help="Abastecimentos com preço pago mais de 5% acima da referência ANP para aquela UF.")
+                _a2.metric("✅ Dentro da Referência", _fmt_int(len(_ok)),
+                           help="Abastecimentos com preço pago dentro ou abaixo da referência ANP (+5% de tolerância).")
+                _a3.metric("📊 Desvio Médio", f"{_alert_df['delta_pct'].mean():+.1f}%" if len(_alert_df) else "—",
+                           help="Média dos desvios percentuais de todos os abastecimentos vs referência ANP. Positivo = acima da ANP.")
 
                 if not _alertas.empty:
                     st.markdown("##### Abastecimentos com Preço Acima da Referência ANP (>5%)")
@@ -26945,7 +26975,8 @@ elif modo == "👥 Análise de Cliente":
                 _km_total      = _df["_km_perc"].sum(min_count=1) or 0
 
                 _mc1, _mc2, _mc3 = st.columns(3)
-                _mc1.metric("🧾 Transações", _fmt_int(_n_abast))
+                _mc1.metric("🧾 Transações", _fmt_int(_n_abast),
+                    help="Total de abastecimentos registrados no período selecionado (uploads manuais + API).")
                 _mc2.metric("🚗 Veículos", _n_veic)
                 _mc3.metric("⛽ Litros abastecidos", f"{_total_litros:,.1f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 _mc4, _mc5, _mc6 = st.columns(3)
