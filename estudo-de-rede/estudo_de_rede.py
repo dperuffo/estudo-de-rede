@@ -33410,7 +33410,6 @@ elif modo == "📑 Relatórios":
         _RP_FONTES = {
             "abastecimentos": "⛽ Abastecimentos",
             "manutencao":     "🔧 Manutenção",
-            "negociacoes":    "🤝 Negociações",
         }
         _RP_DIMS = {
             "abastecimentos": {
@@ -33423,11 +33422,6 @@ elif modo == "📑 Relatórios":
                 "Tempo":   [("periodo_mes","Período (por mês)"),("periodo_dia","Período (por dia)")],
                 "Frota":   [("placa","Veículo (Placa)")],
                 "Serviço": [("oficina","Oficina")],
-            },
-            "negociacoes": {
-                "Produto": [("combustivel","Combustível")],
-                "Posto":   [("cnpj_posto","Posto / Fornecedor"),("uf_posto","Estado (UF)")],
-                "Gestão":  [("status","Status")],
             },
         }
         _RP_METS = {
@@ -33443,11 +33437,6 @@ elif modo == "📑 Relatórios":
                 ("man_custo",    "Custo Total (R$)",     "money"),
                 ("man_qtd",      "Nº de Registros",      "int"),
                 ("man_custo_med","Custo Médio (R$)",      "money"),
-            ],
-            "negociacoes": [
-                ("neg_qtd",       "Nº de Acordos",          "int"),
-                ("neg_preco_neg", "Preço Negociado (R$/L)", "money3"),
-                ("neg_desc_pct",  "% Desconto Médio",        "pct"),
             ],
         }
         _RP_VIZ = [
@@ -33712,13 +33701,6 @@ elif modo == "📑 Relatórios":
                         _man_rp = _manut_listar()
                         _df_rp = pd.DataFrame(_man_rp) if _man_rp else pd.DataFrame()
                         _date_col = "data_manutencao" if "data_manutencao" in _df_rp.columns else None
-
-                    elif _rp_fonte == "negociacoes":
-                        _ac_rp = st.session_state.get("_ac_df")
-                        if _ac_rp is None or (hasattr(_ac_rp,"empty") and _ac_rp.empty):
-                            _ac_rp = _db_carregar_acordos()
-                        _df_rp = _ac_rp.copy() if not (hasattr(_ac_rp,"empty") and _ac_rp.empty) else pd.DataFrame()
-                        _date_col = "dt_vigencia" if "dt_vigencia" in _df_rp.columns else None
 
                     else:
                         _df_rp = pd.DataFrame()
