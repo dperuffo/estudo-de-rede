@@ -29762,6 +29762,43 @@ elif modo == "👥 Análise de Cliente":
             st.warning("Nenhum dado encontrado. Sincronize na aba **⚡ API & Integrações → Gestão de Frotas**.")
 
     elif _src_opcao == "Carregar arquivo":
+        # ── Download do template ──────────────────────────────────
+        st.markdown(
+            "<div style='background:linear-gradient(90deg,#E3F2FD,#fff);"
+            "border-left:4px solid #1565C0;border-radius:0 8px 8px 0;"
+            "padding:10px 14px;margin-bottom:12px;font-size:12px;color:#0D47A1'>"
+            "<b>📥 Passo 1:</b> Baixe o template, preencha com seus dados de abastecimento "
+            "e faça o upload abaixo. Todos os meios de pagamento são suportados "
+            "(Ticket Log, Rede Frota, Veloe, Pro-Frotas, etc).</div>",
+            unsafe_allow_html=True,
+        )
+        _tmpl_col1, _tmpl_col2 = st.columns([2, 1])
+        with _tmpl_col1:
+            _tmpl_path = os.path.join(_DIR, "template_abastecimentos_fni.xlsx")
+            if os.path.exists(_tmpl_path):
+                with open(_tmpl_path, "rb") as _tmpl_f:
+                    _tmpl_bytes = _tmpl_f.read()
+                st.download_button(
+                    label="📥 Baixar Template de Abastecimentos (.xlsx)",
+                    data=_tmpl_bytes,
+                    file_name="template_abastecimentos_fni.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_download_template_abast",
+                )
+            else:
+                st.info("Template não encontrado no servidor.")
+        with _tmpl_col2:
+            st.markdown(
+                "<div style='background:#E8F5E9;border-radius:8px;padding:8px 12px;"
+                "font-size:11px;color:#1B5E20'>"
+                "✅ 100 linhas pré-formatadas<br>"
+                "✅ Campos obrigatórios marcados<br>"
+                "✅ Exemplos de preenchimento<br>"
+                "✅ Aba de instruções incluída</div>",
+                unsafe_allow_html=True,
+            )
+        st.markdown("**📤 Passo 2:** Faça o upload da planilha preenchida:")
         _arq = st.file_uploader(
             "Selecione a planilha de abastecimentos (.xlsx / .csv)",
             type=["xlsx", "xls", "csv"],
@@ -29821,11 +29858,71 @@ elif modo == "👥 Análise de Cliente":
                 _df["_id_transacao"]= _pd.to_numeric(_df["_id_transacao"], errors="coerce")
 
                 _df_abast = _df.copy()
-                st.success(f"✅ **{len(_df_abast)}** registros carregados — {_df_abast['_placa'].nunique()} veículos")
+
+                # Detectar meio de pagamento pelo nome do arquivo
+                _meio_pag_upload = "Upload Manual"
+                if _arq:
+                    _nome_arq_up = _arq.name.lower()
+                    for _mp_kw, _mp_nome in [("ticket","Ticket Log"),("rede","Rede Frota"),("veloe","Veloe"),("profrotas","Pro-Frotas"),("abastece","Abastece Ai")]:
+                        if _mp_kw in _nome_arq_up:
+                            _meio_pag_upload = _mp_nome
+                            break
+                _mp_manual = st.text_input("Meio de Pagamento", value=_meio_pag_upload,
+                    placeholder="Ex: Ticket Log, Rede Frota, Veloe...", key="upload_meio_pagamento")
+
+                # Botao salvar com deduplicacao
+                if st.button("Salvar abastecimentos no banco", key="btn_salvar_abast_upload",
+                             use_container_width=True, type="primary"):
+                    with st.spinner("Salvando e verificando duplicidades..."):
+                        try:
+                            _db_up = _db_client()
+                            _empresa_id_up = (st.session_state.get("_empresa_ativa") or {}).get("id")
+                            _existing_keys = set()
+                            if _db_up:
+                                _ex_res = _db_up.table("profrotas_abastecimentos").select("sync_key").execute()
+                                _existing_keys = {r["sync_key"] for r in (_ex_res.data or []) if r.get("sync_key")}
+                            _rows_insert = []
+                            _n_dup = 0
+                            import hashlib as _hl_up
+                            for _, _row_up in _df_abast.iterrows():
+                                _key_str = f"{_row_up.get('_cnpj_posto','')}{_row_up.get('_placa','')}{_row_up.get('_data','')}{_row_up.get('_produto','')}{_row_up.get('_litros','')}"
+                                _sync_key = _hl_up.md5(_key_str.encode()).hexdigest()
+                                if _sync_key in _existing_keys:
+                                    _n_dup += 1
+                                    continue
+                                _existing_keys.add(_sync_key)
+                                _rows_insert.append({
+                                    "cnpj_frota":         str(_row_up.get("_cnpj_frota","") or ""),
+                                    "data_abastecimento": str(_row_up.get("_data","") or ""),
+                                    "motorista_nome":     str(_row_up.get("_motorista","") or ""),
+                                    "veiculo_placa":      str(_row_up.get("_placa","") or ""),
+                                    "pv_cnpj":            str(_row_up.get("_cnpj_posto","") or ""),
+                                    "pv_razao_social":    str(_row_up.get("_nome_posto","") or ""),
+                                    "pv_municipio":       str(_row_up.get("_cidade_posto","") or ""),
+                                    "pv_uf":              str(_row_up.get("_uf_posto","") or ""),
+                                    "item_nome":          str(_row_up.get("_produto","") or ""),
+                                    "item_quantidade":    _row_up.get("_litros"),
+                                    "item_valor_unitario":_row_up.get("_preco_litro"),
+                                    "item_valor_total":   _row_up.get("_valor_total"),
+                                    "hodometro":          _row_up.get("_hod_atual"),
+                                    "frota_razao_social": str(_row_up.get("_razao_frota","") or ""),
+                                    "sync_key":           _sync_key,
+                                    "empresa_id":         _empresa_id_up,
+                                    "importado_em":       datetime.now().isoformat(),
+                                })
+                            if _rows_insert and _db_up:
+                                for _i_lote in range(0, len(_rows_insert), 500):
+                                    _db_up.table("profrotas_abastecimentos").insert(_rows_insert[_i_lote:_i_lote+500]).execute()
+                            st.success(f"{len(_rows_insert)} registros salvos · {_n_dup} duplicatas ignoradas · Meio: {_mp_manual}")
+                            st.session_state.pop("_abastecimentos_cliente_df", None)
+                            st.session_state.pop("_rp_dados_cache", None)
+                        except Exception as _e_save:
+                            st.error(f"Erro ao salvar: {_e_save}")
+
+                st.success(f"{len(_df_abast)} registros carregados — {_df_abast['_placa'].nunique() if '_placa' in _df_abast.columns else 0} veiculos")
 
             except Exception as _ex_up:
-                st.error(f"❌ Erro ao ler arquivo: {_ex_up}")
-
+                st.error(f"Erro ao ler arquivo: {_ex_up}")
     elif _src_opcao == "Dados salvos no banco":  # banco
         _dfs_banco = []
 
