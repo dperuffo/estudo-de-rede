@@ -18474,27 +18474,28 @@ def _tour_dialog():
 
         st.markdown("**📋 Próximos passos recomendados**")
         _chips = []
-        if not _has_gf:
-            _chips.append(("warn", "① Carregue a planilha de Postos GF em ⚙️ Configurações"))
+        if not _has_abast:
+            _chips.append(("warn", "① Importe abastecimentos em 👥 Análise de Cliente ou integre via API"))
         else:
-            _chips.append(("ok",   "✅ Postos GF carregados"))
-        if not _has_pp:
-            _chips.append(("warn", "② Carregue Preços por Posto (Configurações → 💲 Preços PP)"))
-        else:
-            _chips.append(("ok",   "✅ Preços PP carregados"))
+            _chips.append(("ok",   "✅ Abastecimentos importados"))
         if not _has_anp:
-            _chips.append(("warn", "③ Planilha ANP — o sistema busca automaticamente ou faça upload"))
+            _chips.append(("warn", "② Base ANP carregando automaticamente — aguarde o startup"))
         else:
-            _chips.append(("ok",   "✅ ANP carregada"))
+            _chips.append(("ok",   "✅ Base ANP carregada (~38.000 postos)"))
         if not _has_frota:
-            _chips.append(("warn", "④ Cadastre a frota em 🚗 Gestão de Frotas para dados FIPE"))
+            _chips.append(("warn", "③ Cadastre os veículos em 🚛 Gestão de Frotas"))
         else:
             _chips.append(("ok",   "✅ Frota cadastrada"))
         if not _has_telem:
-            _chips.append(("warn", "⑤ Importe abastecimentos reais em 📡 Telemetria"))
+            _chips.append(("warn", "④ Integre uma fonte de dados via ⚡ API & Integrações"))
         else:
-            _chips.append(("ok",   "✅ Telemetria importada"))
-        if _has_gf and _has_pp and _has_anp and _has_frota and _has_telem:
+            _chips.append(("ok",   "✅ Integração ativa"))
+        _has_ai = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        if not _has_ai:
+            _chips.append(("warn", "⑤ Ative o 🤖 Assistente IA com a chave Anthropic no Railway"))
+        else:
+            _chips.append(("ok",   "✅ Assistente IA ativo"))
+        if _has_abast and _has_anp and _has_frota and _has_telem and _has_ai:
             _chips.append(("ok",   "🚀 Plataforma totalmente configurada! Explore todos os módulos."))
 
         _chips_html = "".join(
