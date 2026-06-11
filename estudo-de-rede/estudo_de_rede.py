@@ -16927,14 +16927,14 @@ with st.sidebar:
         _nav_btn("📑 Relatórios",            "📑 Relatórios",            "relatorios")
     if _auth_tem_permissao("aba_telemetria"):
         _nav_btn("🛰️ Telemetria",            "🛰️ Telemetria",            "telemetria")
+    if _auth_tem_permissao("aba_rotograma"):
+        _nav_btn("🗺️ Rotograma",             "🗺️ Rotograma",             "rotograma")
+    if _auth_tem_permissao("aba_assistente_ia") or _auth_tem_permissao("aba_relatorios"):
+        _nav_btn("🤖 Assistente IA",         "🤖 Assistente IA",         "assistente_ia")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
     # ── ITENS AVULSOS ──────────────────────────────────────────────
-    if _auth_tem_permissao("aba_assistente_ia") or _auth_tem_permissao("aba_relatorios"):
-        _nav_btn("🤖 Assistente IA",         "🤖 Assistente IA",         "assistente_ia")
-    if _auth_tem_permissao("aba_rotograma"):
-        _nav_btn("🗺️ Rotograma",             "🗺️ Rotograma",             "rotograma")
     if _auth_tem_permissao("aba_api_integracoes"):
         _nav_btn("⚡ API & Integrações",     "⚡ API & Integrações",     "api_integracoes")
     if _auth_tem_permissao("aba_admin"):
@@ -33083,7 +33083,7 @@ elif modo == "🗺️ Rotograma":
                 _els_rg.append(Paragraph("FNI Gestão de Frotas — fxgestaodefrotasonline.com", _s_sm))
                 _els_rg.append(Spacer(1, 0.3*_cm_rg))
                 # Dados da viagem
-                _border = {"GRID":(0,0),(-1,-1),0.5,_HexRG("#CCCCCC")}
+                # _border inline no TableStyle abaixo
                 _tbl_dados = Table([
                     ["Origem", _rg.get("origem","—"), "Destino", _rg.get("destino","—")],
                     ["Veículo", _rg.get("veiculo","—"), "Placa", _rg.get("placa","—")],
