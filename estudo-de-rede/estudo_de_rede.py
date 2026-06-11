@@ -19880,10 +19880,29 @@ if modo == "📍 Por UF/Município":
                                     _ult["_col_pivot"] = _ult["meio_pagamento"] + " · " + _ult[_comb_col_u].fillna("")
                                 else:
                                     _ult["_col_pivot"] = _ult["meio_pagamento"]
-                                _dist_col_u  = next((c for c in ["distribuidora","bandeira"] if c in _abast_uf_u.columns), None)
-                                _info_cols_u = [_nome_col_u] + ([_mun_col_u] if _mun_col_u else []) + ([_dist_col_u] if _dist_col_u else [])
+                                # Busca distribuidora do postos_anp_df (não existe nos abastecimentos)
+                                _postos_anp_u = st.session_state.get("postos_anp_df", pd.DataFrame())
+                                _dist_col_u = None
+                                _info_cols_u = [_nome_col_u] + ([_mun_col_u] if _mun_col_u else [])
                                 _info = _abast_uf_u.groupby("cnpj_posto")[_info_cols_u].first().reset_index()
+
+                                # Enriquece com distribuidora da base ANP
+                                if not _postos_anp_u.empty:
+                                    _anp_dist_cols = [c for c in ["cnpj","distribuidora","bandeira"] if c in _postos_anp_u.columns]
+                                    if "cnpj" in _anp_dist_cols and ("distribuidora" in _anp_dist_cols or "bandeira" in _anp_dist_cols):
+                                        _dist_col_anp = "distribuidora" if "distribuidora" in _postos_anp_u.columns else "bandeira"
+                                        _anp_dist = _postos_anp_u[["cnpj", _dist_col_anp]].copy()
+                                        _anp_dist["cnpj"] = _anp_dist["cnpj"].astype(str).str.replace(r"\D","",regex=True)
+                                        _info["cnpj_posto_n"] = _info["cnpj_posto"].astype(str).str.replace(r"\D","",regex=True)
+                                        _info = _info.merge(_anp_dist.rename(columns={"cnpj":"cnpj_posto_n"}),
+                                                            on="cnpj_posto_n", how="left").drop(columns=["cnpj_posto_n"])
+                                        _dist_col_u = _dist_col_anp
+
                                 _ult = _ult.merge(_info, on="cnpj_posto", how="left")
+
+                                # Filtra preços negativos ou inválidos
+                                _ult = _ult[pd.to_numeric(_ult[_preco_col_u], errors="coerce").fillna(0) > 0]
+
                                 _idx = list(dict.fromkeys([c for c in ["cnpj_posto", _nome_col_u] + ([_mun_col_u] if _mun_col_u else []) + ([_dist_col_u] if _dist_col_u else []) if c in _ult.columns]))
                                 _pivot = _ult.pivot_table(index=_idx, columns="_col_pivot", values=_preco_col_u, aggfunc="first").reset_index()
                                 _pivot.columns.name = None
