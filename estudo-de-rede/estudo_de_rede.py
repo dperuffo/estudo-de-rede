@@ -30143,14 +30143,14 @@ elif modo == "📑 Relatórios":
                         # Savings
                         if _saving_rows:
                             _story_re.append(Paragraph("Savings Estimados", _sH2e))
-                            _sv_hdr = ["Combustível", "Preço GF (R$/L)", "Ref. Mercado", "Saving"]
+                            _sv_hdr = ["Combustível", "Preço Cliente (R$/L)", "Ref. ANP (R$/L)", "Diferença"]
                             _sv_rows_pdf = [_sv_hdr]
                             for _sr in _saving_rows:
                                 _sv_rows_pdf.append([
-                                    str(_sr["Combustível"])[:30],
-                                    str(_sr["Preço GF (R$/L)"]),
-                                    str(_sr["Ref. Mercado (p75)"]),
-                                    str(_sr["Saving Estimado"]),
+                                    str(_sr.get("Combustivel") or _sr.get("Combustível",""))[:30],
+                                    str(_sr.get("Preco Cliente R$/L") or _sr.get("Preço GF (R$/L)","")),
+                                    str(_sr.get("Ref. ANP R$/L") or _sr.get("Ref. Mercado (p75)","")),
+                                    str(_sr.get("Diferenca") or _sr.get("Saving Estimado","")),
                                 ])
                             _sv_tbl = Table(_sv_rows_pdf, colWidths=[5.5*cm, 4*cm, 4*cm, 3*cm])
                             _sv_tbl.setStyle(TableStyle([
