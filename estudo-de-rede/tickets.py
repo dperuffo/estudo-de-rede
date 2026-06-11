@@ -282,6 +282,23 @@ def mostrar_painel_admin_tickets():
     if not tickets:
         st.info("Nenhum ticket registrado.")
         return
+    _abertos  = [t for t in tickets if t["status"] == "aberto"]
+    _analise  = [t for t in tickets if t["status"] == "em_analise"]
+    _resolv   = [t for t in tickets if t["status"] == "resolvido"]
+    _fechados = [t for t in tickets if t["status"] == "fechado"]
+    _incid    = [t for t in tickets if t["tipo"] == "incidente"]
+    _criticos = [t for t in tickets if t.get("prioridade") == "critica"]
+    _ki1,_ki2,_ki3,_ki4,_ki5,_ki6,_ki7 = st.columns(7)
+    _ki1.metric("📋 Total",      len(tickets))
+    _ki2.metric("🟡 Abertos",    len(_abertos),  help="Aguardando análise")
+    _ki3.metric("🔵 Em Análise", len(_analise),  help="Em andamento")
+    _ki4.metric("🟢 Resolvidos", len(_resolv),   help="Já resolvidos")
+    _ki5.metric("⚫ Fechados",   len(_fechados), help="Encerrados")
+    _ki6.metric("🚨 Incidentes", len(_incid),    help="Total de incidentes")
+    _ki7.metric("🔴 Críticos",   len(_criticos),
+        delta=f"{len(_criticos)} urgente(s)" if _criticos else None,
+        delta_color="inverse", help="Prioridade crítica")
+    st.markdown("---")
 
     # Filtros
     col1, col2, col3 = st.columns(3)
