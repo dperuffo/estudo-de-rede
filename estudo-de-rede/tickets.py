@@ -135,6 +135,19 @@ def mostrar_painel_tickets():
     st.markdown("## 🎫 Suporte & Melhorias")
     st.caption("Registre incidentes ou solicite melhorias para a plataforma")
 
+    try:
+        _meus = _listar_tickets(so_minha_empresa=True)
+        if _meus:
+            _tk1,_tk2,_tk3,_tk4,_tk5 = st.columns(5)
+            _tk1.metric("📋 Meus tickets", len(_meus))
+            _tk2.metric("🟡 Abertos",      len([t for t in _meus if t["status"]=="aberto"]),     help="Aguardando análise")
+            _tk3.metric("🔵 Em Análise",   len([t for t in _meus if t["status"]=="em_analise"]), help="Em andamento")
+            _tk4.metric("🟢 Resolvidos",   len([t for t in _meus if t["status"]=="resolvido"]),  help="Já resolvidos")
+            _tk5.metric("🚨 Incidentes",   len([t for t in _meus if t["tipo"]=="incidente"]),    help="Total de incidentes")
+            st.markdown("---")
+    except Exception:
+        pass
+
     aba1, aba2 = st.tabs(["➕ Novo ticket", "📋 Meus tickets"])
 
     with aba1:
