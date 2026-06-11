@@ -601,6 +601,7 @@ _PERMISSOES: dict[str, set] = {
     "func_gerenciar_users": {"admin"},
     "func_ver_telem_todos": {"admin", "analista"},          # telemetria de todos os clientes
     "aba_assistente_ia":    {"admin", "gestor_frota"},       # assistente IA (planos Pro/Enterprise)
+    "aba_rotograma":        {"admin", "gestor_frota"},       # rotograma de segurança de rota
 }
 
 
@@ -16932,6 +16933,8 @@ with st.sidebar:
     # ── ITENS AVULSOS ──────────────────────────────────────────────
     if _auth_tem_permissao("aba_assistente_ia") or _auth_tem_permissao("aba_relatorios"):
         _nav_btn("🤖 Assistente IA",         "🤖 Assistente IA",         "assistente_ia")
+    if _auth_tem_permissao("aba_rotograma"):
+        _nav_btn("🗺️ Rotograma",             "🗺️ Rotograma",             "rotograma")
     if _auth_tem_permissao("aba_api_integracoes"):
         _nav_btn("⚡ API & Integrações",     "⚡ API & Integrações",     "api_integracoes")
     if _auth_tem_permissao("aba_admin"):
@@ -32880,6 +32883,353 @@ elif modo == "🤖 Assistente IA":
                     )
                 except Exception as _e_pdf:
                     st.error(f"Erro PDF: {str(_e_pdf)[:150]}")
+
+elif modo == "🗺️ Rotograma":
+    _doc_tela("🗺️ Rotograma")
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#0b3d6b,#1565C0,#1976D2);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🗺️ Rotograma de Segurança de Rota</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Mapeamento detalhado de riscos, pontos de parada e contatos de emergência para sua rota.</p>",
+        unsafe_allow_html=True,
+    )
+
+    _rt_tab1, _rt_tab2, _rt_tab3, _rt_tab4 = st.tabs([
+        "➕ Criar Rotograma",
+        "⚠️ Mapa de Riscos",
+        "🅿️ Pontos de Parada",
+        "🔖 Rotogramas Salvos",
+    ])
+
+    # ── Tipos de ocorrência ───────────────────────────────────────
+    _RISCO_TIPOS = {
+        "⚠️ Área de Perigo":     {"cor": "#E74C3C", "desc": "Curvas perigosas, subidas fortes, trechos com alto índice de acidentes"},
+        "🔴 Zona de Crime":      {"cor": "#C0392B", "desc": "Histórico de roubo de carga, assaltos ou crimes na região"},
+        "🛑 Lombada / Radar":    {"cor": "#E67E22", "desc": "Redutores de velocidade, radares fixos ou móveis"},
+        "🌊 Trecho Alagável":    {"cor": "#2980B9", "desc": "Risco de alagamento em períodos de chuva intensa"},
+        "📡 Sem Sinal":          {"cor": "#7F8C8D", "desc": "Trecho sem cobertura celular ou comunicação precária"},
+        "🏗️ Obra / Desvio":      {"cor": "#F39C12", "desc": "Obras na pista, desvios obrigatórios ou faixa reduzida"},
+        "🌫️ Neblina Frequente":  {"cor": "#95A5A6", "desc": "Trecho com incidência frequente de neblina ou baixa visibilidade"},
+        "⛰️ Descida Íngreme":    {"cor": "#8E44AD", "desc": "Descidas com necessidade de freio motor ou marcha reduzida"},
+    }
+
+    _PARADA_TIPOS = {
+        "🛏️ Pernoite":           "Local seguro para pernoite do motorista",
+        "🍽️ Alimentação":        "Restaurante ou ponto de refeição recomendado",
+        "⛽ Abastecimento":      "Posto de combustível confiável",
+        "🔧 Manutenção":         "Borracharia, mecânica ou posto de apoio",
+        "🚔 Posto Policial/PRF": "Policia Rodoviária Federal ou posto policial",
+        "🏥 Saúde/SAMU":         "Hospital, UPA ou ponto de apoio médico",
+        "💧 Descanso":           "Área de descanso ou posto de conveniência",
+    }
+
+    _CONTATOS_EMERGENCIA = {
+        "PRF (Polícia Rodoviária Federal)": "191",
+        "SAMU": "192",
+        "Bombeiros": "193",
+        "Polícia Civil": "197",
+        "Polícia Militar": "190",
+        "CET / ARTESP (SP)": "0800-055-5510",
+        "ANTT": "166",
+    }
+
+    # Inicializa session_state do rotograma
+    if "rotograma_atual" not in st.session_state:
+        st.session_state["rotograma_atual"] = {
+            "origem": "", "destino": "", "veiculo": "",
+            "motorista": "", "placa": "", "data_viagem": "",
+            "carga": "", "riscos": [], "paradas": [], "observacoes": ""
+        }
+    _rg = st.session_state["rotograma_atual"]
+
+    # ── TAB 1 — CRIAR ROTOGRAMA ──────────────────────────────────
+    with _rt_tab1:
+        st.markdown("#### 📋 Dados da Viagem")
+        _r1c1, _r1c2 = st.columns(2)
+        with _r1c1:
+            _rg["origem"]       = st.text_input("🟢 Origem *", value=_rg["origem"],
+                placeholder="Ex: São Paulo, SP", key="rg_origem")
+            _rg["veiculo"]      = st.text_input("🚛 Tipo de Veículo",
+                value=_rg["veiculo"], placeholder="Ex: Carreta LS", key="rg_veiculo")
+            _rg["placa"]        = st.text_input("🔖 Placa",
+                value=_rg["placa"], placeholder="Ex: ABC-1234", key="rg_placa")
+        with _r1c2:
+            _rg["destino"]      = st.text_input("🔴 Destino *", value=_rg["destino"],
+                placeholder="Ex: Curitiba, PR", key="rg_destino")
+            _rg["motorista"]    = st.text_input("👤 Motorista",
+                value=_rg["motorista"], placeholder="Nome completo", key="rg_motorista")
+            _rg["data_viagem"]  = st.text_input("📅 Data da Viagem",
+                value=_rg["data_viagem"], placeholder="DD/MM/AAAA", key="rg_data")
+
+        _rg["carga"] = st.text_area("📦 Descrição da Carga",
+            value=_rg["carga"], height=80,
+            placeholder="Ex: Carga geral, 28 toneladas, não perecível",
+            key="rg_carga")
+
+        st.markdown("---")
+        st.markdown("#### ⚠️ Adicionar Ponto de Risco")
+        _rk1, _rk2, _rk3 = st.columns([2,2,1])
+        with _rk1:
+            _risco_tipo = st.selectbox("Tipo de Risco", list(_RISCO_TIPOS.keys()), key="rg_risco_tipo")
+        with _rk2:
+            _risco_local = st.text_input("Localização", placeholder="Ex: BR-116 km 342, Registro/SP", key="rg_risco_local")
+        with _rk3:
+            _risco_vel = st.number_input("Vel. Máx (km/h)", min_value=0, max_value=120, value=60, step=10, key="rg_risco_vel")
+        _risco_obs = st.text_input("Observação", placeholder="Detalhes adicionais sobre o risco", key="rg_risco_obs")
+        if st.button("➕ Adicionar Risco", key="btn_add_risco"):
+            if _risco_local:
+                _rg["riscos"].append({
+                    "tipo": _risco_tipo, "local": _risco_local,
+                    "velocidade": _risco_vel, "obs": _risco_obs
+                })
+                st.toast(f"Risco adicionado: {_risco_tipo}", icon="⚠️")
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("#### 🅿️ Adicionar Ponto de Parada")
+        _pp1, _pp2 = st.columns(2)
+        with _pp1:
+            _parada_tipo = st.selectbox("Tipo de Parada", list(_PARADA_TIPOS.keys()), key="rg_parada_tipo")
+            _parada_local = st.text_input("Localização da Parada", placeholder="Ex: Posto Ipiranga, BR-116 km 280", key="rg_parada_local")
+        with _pp2:
+            _parada_nome = st.text_input("Nome do Local", placeholder="Ex: Restaurante do Zé", key="rg_parada_nome")
+            _parada_tel = st.text_input("Telefone", placeholder="(11) 99999-9999", key="rg_parada_tel")
+        _parada_obs = st.text_input("Observação da Parada", placeholder="Horário de funcionamento, referências", key="rg_parada_obs")
+        if st.button("➕ Adicionar Parada", key="btn_add_parada"):
+            if _parada_local:
+                _rg["paradas"].append({
+                    "tipo": _parada_tipo, "local": _parada_local,
+                    "nome": _parada_nome, "tel": _parada_tel, "obs": _parada_obs
+                })
+                st.toast(f"Parada adicionada: {_parada_tipo}", icon="🅿️")
+                st.rerun()
+
+        _rg["observacoes"] = st.text_area("📝 Observações Gerais da Rota",
+            value=_rg["observacoes"], height=80, key="rg_obs_gerais",
+            placeholder="Condições da pista, restrições de horário, documentação necessária...")
+
+        # Checklist de segurança
+        st.markdown("---")
+        st.markdown("#### ✅ Checklist Pré-Viagem")
+        _checklist_items = [
+            "Documentos do veículo e motorista em dia (CNH, CRLV, licença de operação)",
+            "Tacógrafo calibrado e funcionando",
+            "Pneus verificados (pressão e profundidade da borracha)",
+            "Freios, luzes e sistema elétrico verificados",
+            "Extintor de incêndio dentro da validade",
+            "Kit de ferramentas e triângulo de sinalização",
+            "Carga devidamente acondicionada e amarrada",
+            "Rota estudada e pontos de risco conhecidos",
+            "Contatos de emergência anotados",
+            "Motorista descansado (mínimo 8h de repouso)",
+        ]
+        _checks = {}
+        _chk_col1, _chk_col2 = st.columns(2)
+        for _idx, _item in enumerate(_checklist_items):
+            _col = _chk_col1 if _idx % 2 == 0 else _chk_col2
+            _checks[_item] = _col.checkbox(_item, key=f"chk_{_idx}")
+
+        st.markdown("---")
+
+        # Botões de ação
+        _btn_col1, _btn_col2, _btn_col3 = st.columns(3)
+        with _btn_col1:
+            if st.button("💾 Salvar Rotograma", type="primary", use_container_width=True, key="btn_salvar_rg"):
+                _rotogramas_salvos = st.session_state.get("rotogramas_salvos", [])
+                _rotogramas_salvos.append({**_rg, "id": len(_rotogramas_salvos)+1,
+                    "criado_em": str(pd.Timestamp.now())[:16]})
+                st.session_state["rotogramas_salvos"] = _rotogramas_salvos
+                st.toast("Rotograma salvo com sucesso!", icon="💾")
+        with _btn_col2:
+            if st.button("🗑️ Limpar", use_container_width=True, key="btn_limpar_rg"):
+                st.session_state["rotograma_atual"] = {
+                    "origem":"","destino":"","veiculo":"","motorista":"",
+                    "placa":"","data_viagem":"","carga":"","riscos":[],
+                    "paradas":[],"observacoes":""
+                }
+                st.rerun()
+        with _btn_col3:
+            # Exporta PDF do rotograma
+            try:
+                import io as _io_rg
+                from datetime import datetime as _dt_rg
+                from reportlab.lib.pagesizes import A4
+                from reportlab.lib.units import cm as _cm_rg
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.enums import TA_CENTER, TA_LEFT
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+                from reportlab.lib.colors import HexColor as _HexRG
+
+                _buf_rg = _io_rg.BytesIO()
+                _doc_rg = SimpleDocTemplate(_buf_rg, pagesize=A4,
+                    leftMargin=2*_cm_rg, rightMargin=2*_cm_rg,
+                    topMargin=2*_cm_rg, bottomMargin=2*_cm_rg)
+                _ss_rg = getSampleStyleSheet()
+                _s_tit = ParagraphStyle("t", parent=_ss_rg["Normal"],
+                    fontSize=16, fontName="Helvetica-Bold",
+                    textColor=_HexRG("#1B3A6B"), spaceAfter=4, alignment=TA_CENTER)
+                _s_h2 = ParagraphStyle("h2", parent=_ss_rg["Normal"],
+                    fontSize=12, fontName="Helvetica-Bold",
+                    textColor=_HexRG("#0B7A75"), spaceBefore=12, spaceAfter=4)
+                _s_p = ParagraphStyle("p", parent=_ss_rg["Normal"],
+                    fontSize=10, spaceAfter=4)
+                _s_sm = ParagraphStyle("sm", parent=_ss_rg["Normal"],
+                    fontSize=9, textColor=_HexRG("#555555"), spaceAfter=2)
+                _els_rg = []
+                _els_rg.append(Paragraph("ROTOGRAMA DE SEGURANÇA DE ROTA", _s_tit))
+                _els_rg.append(Paragraph("FNI Gestão de Frotas — fxgestaodefrotasonline.com", _s_sm))
+                _els_rg.append(Spacer(1, 0.3*_cm_rg))
+                # Dados da viagem
+                _border = {"GRID":(0,0),(-1,-1),0.5,_HexRG("#CCCCCC")}
+                _tbl_dados = Table([
+                    ["Origem", _rg.get("origem","—"), "Destino", _rg.get("destino","—")],
+                    ["Veículo", _rg.get("veiculo","—"), "Placa", _rg.get("placa","—")],
+                    ["Motorista", _rg.get("motorista","—"), "Data", _rg.get("data_viagem","—")],
+                    ["Carga", _rg.get("carga","—"), "", ""],
+                ], colWidths=[3*_cm_rg, 5.5*_cm_rg, 3*_cm_rg, 5.5*_cm_rg])
+                _tbl_dados.setStyle(TableStyle([
+                    ("BACKGROUND",(0,0),(0,-1),_HexRG("#E8F0FA")),
+                    ("BACKGROUND",(2,0),(2,-1),_HexRG("#E8F0FA")),
+                    ("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),
+                    ("FONTNAME",(2,0),(2,-1),"Helvetica-Bold"),
+                    ("FONTSIZE",(0,0),(-1,-1),9),
+                    ("GRID",(0,0),(-1,-1),0.5,_HexRG("#CCCCCC")),
+                    ("LEFTPADDING",(0,0),(-1,-1),6),
+                    ("RIGHTPADDING",(0,0),(-1,-1),6),
+                    ("TOPPADDING",(0,0),(-1,-1),4),
+                    ("BOTTOMPADDING",(0,0),(-1,-1),4),
+                ]))
+                _els_rg.append(_tbl_dados)
+                # Riscos
+                if _rg.get("riscos"):
+                    _els_rg.append(Paragraph("⚠️ Pontos de Risco", _s_h2))
+                    for _ri in _rg["riscos"]:
+                        _els_rg.append(Paragraph(
+                            f"<b>{_ri['tipo']}</b> — {_ri['local']} | Vel. máx: {_ri['velocidade']} km/h",
+                            _s_p))
+                        if _ri.get("obs"):
+                            _els_rg.append(Paragraph(_ri["obs"], _s_sm))
+                # Paradas
+                if _rg.get("paradas"):
+                    _els_rg.append(Paragraph("🅿️ Pontos de Parada", _s_h2))
+                    for _pi in _rg["paradas"]:
+                        _els_rg.append(Paragraph(
+                            f"<b>{_pi['tipo']}</b> — {_pi.get('nome','')} | {_pi['local']}",
+                            _s_p))
+                        if _pi.get("tel"):
+                            _els_rg.append(Paragraph(f"Tel: {_pi['tel']}", _s_sm))
+                # Contatos de emergência
+                _els_rg.append(Paragraph("📞 Contatos de Emergência", _s_h2))
+                for _nm, _tel in _CONTATOS_EMERGENCIA.items():
+                    _els_rg.append(Paragraph(f"<b>{_nm}:</b> {_tel}", _s_p))
+                # Checklist
+                _checks_ok = [k for k,v in _checks.items() if v]
+                if _checks_ok:
+                    _els_rg.append(Paragraph("✅ Checklist Concluído", _s_h2))
+                    for _ci in _checks_ok:
+                        _els_rg.append(Paragraph(f"✓ {_ci}", _s_sm))
+                # Observações
+                if _rg.get("observacoes"):
+                    _els_rg.append(Paragraph("📝 Observações", _s_h2))
+                    _els_rg.append(Paragraph(_rg["observacoes"], _s_p))
+                _els_rg.append(Spacer(1, 0.5*_cm_rg))
+                _els_rg.append(Paragraph(
+                    f"Gerado em {_dt_rg.now().strftime('%d/%m/%Y às %H:%M')} — FNI Gestão de Frotas",
+                    _s_sm))
+                _doc_rg.build(_els_rg)
+                _pdf_rg = _buf_rg.getvalue()
+                _nome_rg = f"rotograma_{_rg.get('origem','origem').split(',')[0].lower().replace(' ','_')}_{_dt_rg.now().strftime('%Y%m%d')}.pdf"
+                st.download_button("📄 Exportar PDF", data=_pdf_rg,
+                    file_name=_nome_rg, mime="application/pdf",
+                    use_container_width=True, key="btn_pdf_rg")
+            except Exception as _e_rg:
+                st.button("📄 PDF", disabled=True, use_container_width=True, key="btn_pdf_rg_err")
+
+    # ── TAB 2 — MAPA DE RISCOS ───────────────────────────────────
+    with _rt_tab2:
+        st.markdown("#### ⚠️ Pontos de Risco Cadastrados")
+        if not _rg.get("riscos"):
+            st.info("Nenhum ponto de risco cadastrado. Adicione na aba **Criar Rotograma**.")
+        else:
+            for _ri in _rg["riscos"]:
+                _ri_cor = _RISCO_TIPOS.get(_ri["tipo"], {}).get("cor", "#888")
+                st.markdown(
+                    f"<div style='border-left:4px solid {_ri_cor};padding:8px 12px;"
+                    f"background:{_ri_cor}18;border-radius:0 8px 8px 0;margin-bottom:8px'>"
+                    f"<b>{_ri['tipo']}</b> &nbsp;·&nbsp; {_ri['local']}<br>"
+                    f"<small style='color:#666'>Vel. máx: {_ri['velocidade']} km/h"
+                    f"{' &nbsp;·&nbsp; ' + _ri['obs'] if _ri.get('obs') else ''}</small></div>",
+                    unsafe_allow_html=True
+                )
+            if st.button("🗑️ Limpar todos os riscos", key="btn_clear_riscos"):
+                _rg["riscos"] = []
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("#### 📚 Referência de Tipos de Risco")
+        for _tipo, _info in _RISCO_TIPOS.items():
+            st.markdown(
+                f"<div style='display:flex;align-items:flex-start;gap:10px;margin-bottom:6px'>"
+                f"<span style='font-size:18px'>{_tipo.split()[0]}</span>"
+                f"<div><b>{_tipo}</b><br><small style='color:#666'>{_info['desc']}</small></div></div>",
+                unsafe_allow_html=True
+            )
+
+    # ── TAB 3 — PONTOS DE PARADA ─────────────────────────────────
+    with _rt_tab3:
+        st.markdown("#### 🅿️ Pontos de Parada Cadastrados")
+        if not _rg.get("paradas"):
+            st.info("Nenhum ponto de parada cadastrado. Adicione na aba **Criar Rotograma**.")
+        else:
+            for _pi in _rg["paradas"]:
+                st.markdown(
+                    f"<div style='border:0.5px solid #ddd;padding:10px 14px;"
+                    f"border-radius:8px;margin-bottom:8px'>"
+                    f"<b>{_pi['tipo']}</b>"
+                    f"{' — ' + _pi['nome'] if _pi.get('nome') else ''}<br>"
+                    f"<small style='color:#666'>📍 {_pi['local']}"
+                    f"{' &nbsp;·&nbsp; 📞 ' + _pi['tel'] if _pi.get('tel') else ''}"
+                    f"{' &nbsp;·&nbsp; ' + _pi['obs'] if _pi.get('obs') else ''}</small></div>",
+                    unsafe_allow_html=True
+                )
+            if st.button("🗑️ Limpar todas as paradas", key="btn_clear_paradas"):
+                _rg["paradas"] = []
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("#### 📞 Contatos de Emergência Nacionais")
+        _ec1, _ec2 = st.columns(2)
+        for _idx, (_nm, _tel) in enumerate(_CONTATOS_EMERGENCIA.items()):
+            _c = _ec1 if _idx % 2 == 0 else _ec2
+            _c.markdown(
+                f"<div style='background:#F8F9FA;padding:8px 12px;border-radius:8px;margin-bottom:6px'>"
+                f"<b>{_nm}</b><br><span style='font-size:18px;font-weight:bold;color:#1565C0'>{_tel}</span></div>",
+                unsafe_allow_html=True
+            )
+
+    # ── TAB 4 — ROTOGRAMAS SALVOS ────────────────────────────────
+    with _rt_tab4:
+        _salvos = st.session_state.get("rotogramas_salvos", [])
+        if not _salvos:
+            st.info("Nenhum rotograma salvo ainda. Crie e salve na aba **Criar Rotograma**.")
+        else:
+            st.markdown(f"**{len(_salvos)} rotograma(s) salvo(s)**")
+            for _sv in reversed(_salvos):
+                with st.expander(
+                    f"#{_sv['id']} {_sv.get('origem','?')} → {_sv.get('destino','?')} "
+                    f"| {_sv.get('motorista','—')} | {_sv.get('data_viagem','—')}"):
+                    _sv1, _sv2 = st.columns(2)
+                    _sv1.caption(f"Veículo: {_sv.get('veiculo','—')} | Placa: {_sv.get('placa','—')}")
+                    _sv1.caption(f"Carga: {_sv.get('carga','—')}")
+                    _sv2.caption(f"Riscos: {len(_sv.get('riscos',[]))} ponto(s)")
+                    _sv2.caption(f"Paradas: {len(_sv.get('paradas',[]))} ponto(s)")
+                    if st.button(f"📋 Carregar este rotograma", key=f"load_rg_{_sv['id']}"):
+                        st.session_state["rotograma_atual"] = {**_sv}
+                        st.toast("Rotograma carregado!", icon="📋")
+                        st.rerun()
 
 elif modo == "⚡ API & Integrações":
     _doc_tela("⚡ API & Integrações")
