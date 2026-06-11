@@ -19880,15 +19880,20 @@ if modo == "📍 Por UF/Município":
                                     _ult["_col_pivot"] = _ult["meio_pagamento"] + " · " + _ult[_comb_col_u].fillna("")
                                 else:
                                     _ult["_col_pivot"] = _ult["meio_pagamento"]
-                                _info = _abast_uf_u.groupby("cnpj_posto")[[_nome_col_u] + ([_mun_col_u] if _mun_col_u else [])].first().reset_index()
+                                _dist_col_u  = next((c for c in ["distribuidora","bandeira"] if c in _abast_uf_u.columns), None)
+                                _info_cols_u = [_nome_col_u] + ([_mun_col_u] if _mun_col_u else []) + ([_dist_col_u] if _dist_col_u else [])
+                                _info = _abast_uf_u.groupby("cnpj_posto")[_info_cols_u].first().reset_index()
                                 _ult = _ult.merge(_info, on="cnpj_posto", how="left")
-                                _idx = list(dict.fromkeys([c for c in ["cnpj_posto", _nome_col_u] + ([_mun_col_u] if _mun_col_u else []) if c in _ult.columns]))
+                                _idx = list(dict.fromkeys([c for c in ["cnpj_posto", _nome_col_u] + ([_mun_col_u] if _mun_col_u else []) + ([_dist_col_u] if _dist_col_u else []) if c in _ult.columns]))
                                 _pivot = _ult.pivot_table(index=_idx, columns="_col_pivot", values=_preco_col_u, aggfunc="first").reset_index()
                                 _pivot.columns.name = None
                                 _mp_cols_p = [c for c in _pivot.columns if c not in _idx]
                                 for _mc in _mp_cols_p:
                                     _pivot[_mc] = _pivot[_mc].apply(lambda v: f"R$ {float(v):.3f}/L" if pd.notna(v) else "—")
-                                _pivot = _pivot.rename(columns={"cnpj_posto":"CNPJ", _nome_col_u:"Estabelecimento", _mun_col_u:"Município"} if _mun_col_u else {"cnpj_posto":"CNPJ", _nome_col_u:"Estabelecimento"})
+                                _rename_mp = {"cnpj_posto":"CNPJ", _nome_col_u:"Estabelecimento"}
+                                if _mun_col_u: _rename_mp[_mun_col_u] = "Município"
+                                if _dist_col_u: _rename_mp[_dist_col_u] = "Distribuidora"
+                                _pivot = _pivot.rename(columns=_rename_mp)
                                 st.dataframe(_pivot, use_container_width=True, height=350)
                                 st.caption(f"{len(_pivot)} posto(s) · {len(_mp_cols_p)} coluna(s)")
                             else:
