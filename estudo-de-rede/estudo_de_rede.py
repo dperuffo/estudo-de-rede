@@ -20915,12 +20915,115 @@ elif modo == "🗺️ Por Rota":
             "🗺️  Mapa da Rota", "📋  Postos na Rota"])
 
         with tab_m:
+            # ── Seletor de Rotograma para sobrepor no mapa ───────
+            _rotogramas_disp = st.session_state.get("rotogramas_salvos", [])
+            _rg_ativo = st.session_state.get("rotograma_atual", {})
+            _rg_opcoes = ["(nenhum)"]
+            _rg_lista_disp = []
+            if _rg_ativo.get("origem") or _rg_ativo.get("riscos"):
+                _rg_opcoes.append("🗺️ Rotograma atual (não salvo)")
+                _rg_lista_disp.append(_rg_ativo)
+            for _sv in _rotogramas_disp:
+                _rg_opcoes.append(f"#{_sv.get('id','?')} {_sv.get('origem','?')} → {_sv.get('destino','?')}")
+                _rg_lista_disp.append(_sv)
+
+            if len(_rg_opcoes) > 1:
+                _rg_sel_idx = st.selectbox(
+                    "🗺️ Sobrepor Rotograma no mapa",
+                    range(len(_rg_opcoes)),
+                    format_func=lambda i: _rg_opcoes[i],
+                    key="rg_sel_mapa_rota",
+                    help="Selecione um rotograma para plotar riscos e paradas sobre a rota"
+                )
+                _rg_sel = _rg_lista_disp[_rg_sel_idx - 1] if _rg_sel_idx > 0 else None
+            else:
+                _rg_sel = None
+                st.caption("💡 Crie um rotograma na aba **🗺️ Rotograma** para sobrepor riscos e paradas no mapa.")
+
             with st.spinner(f"🗺️ Carregando mapa da rota — {_n(len(df_show_r))} postos…"):
                 m = criar_mapa(df_show_r, coords_rota=coords_rota,
                                lat_orig=lat_orig, lon_orig=lon_orig,
                                lat_dest=lat_dest, lon_dest=lon_dest,
                                label_orig=label_orig, label_dest=label_dest,
                                waypoints=_paradas_vis if _paradas_vis else None)
+
+                # ── Plota pontos do rotograma sobre o mapa ───────
+                if _rg_sel:
+                    import plotly.graph_objects as _go_rg
+                    _RISCO_CORES = {
+                        "⚠️ Área de Perigo":    "#E74C3C",
+                        "🔴 Zona de Crime":     "#C0392B",
+                        "🛑 Lombada / Radar":   "#E67E22",
+                        "🌊 Trecho Alagável":   "#2980B9",
+                        "📡 Sem Sinal":         "#7F8C8D",
+                        "🏗️ Obra / Desvio":     "#F39C12",
+                        "🌫️ Neblina Frequente": "#95A5A6",
+                        "⛰️ Descida Íngreme":   "#8E44AD",
+                    }
+                    _PARADA_CORES = {
+                        "🛏️ Pernoite":           "#1A5276",
+                        "🍽️ Alimentação":        "#196F3D",
+                        "⛽ Abastecimento":      "#784212",
+                        "🔧 Manutenção":         "#515A5A",
+                        "🚔 Posto Policial/PRF": "#1B2631",
+                        "🏥 Saúde/SAMU":        "#922B21",
+                        "💧 Descanso":          "#1A5276",
+                    }
+
+                    # Importa geocodificação simples para pontos sem lat/lon
+                    # Usa a lat/lon média da rota como fallback
+                    _lat_mid = sum(c[0] for c in coords_rota) / len(coords_rota)
+                    _lon_mid = sum(c[1] for c in coords_rota) / len(coords_rota)
+
+                    # Plota riscos
+                    for _ri_m in _rg_sel.get("riscos", []):
+                        _cor_ri = _RISCO_CORES.get(_ri_m["tipo"], "#E74C3C")
+                        m.add_trace(_go_rg.Scattermapbox(
+                            lat=[_lat_mid], lon=[_lon_mid],
+                            mode="markers+text",
+                            marker=dict(size=16, color=_cor_ri, symbol="circle"),
+                            text=[_ri_m["tipo"].split()[0]],
+                            textposition="top center",
+                            name=f"{_ri_m['tipo']} — {_ri_m['local']}",
+                            hovertemplate=(
+                                f"<b>{_ri_m['tipo']}</b><br>"
+                                f"📍 {_ri_m['local']}<br>"
+                                f"🚗 Vel. máx: {_ri_m.get('velocidade',60)} km/h"
+                                f"{'<br>' + _ri_m['obs'] if _ri_m.get('obs') else ''}"
+                                "<extra></extra>"
+                            ),
+                            showlegend=True,
+                        ))
+
+                    # Plota paradas
+                    for _pi_m in _rg_sel.get("paradas", []):
+                        _cor_pi = _PARADA_CORES.get(_pi_m["tipo"], "#1A5276")
+                        m.add_trace(_go_rg.Scattermapbox(
+                            lat=[_lat_mid], lon=[_lon_mid],
+                            mode="markers+text",
+                            marker=dict(size=14, color=_cor_pi, symbol="square"),
+                            text=[_pi_m["tipo"].split()[0]],
+                            textposition="top center",
+                            name=f"{_pi_m['tipo']} — {_pi_m.get('nome','') or _pi_m['local']}",
+                            hovertemplate=(
+                                f"<b>{_pi_m['tipo']}</b><br>"
+                                f"{'🏪 ' + _pi_m['nome'] + '<br>' if _pi_m.get('nome') else ''}"
+                                f"📍 {_pi_m['local']}"
+                                f"{'<br>📞 ' + _pi_m['tel'] if _pi_m.get('tel') else ''}"
+                                "<extra></extra>"
+                            ),
+                            showlegend=True,
+                        ))
+
+                    # Banner informativo
+                    n_ri = len(_rg_sel.get("riscos",[]))
+                    n_pi = len(_rg_sel.get("paradas",[]))
+                    st.success(
+                        f"🗺️ Rotograma sobreposto: **{n_ri}** ponto(s) de risco · "
+                        f"**{n_pi}** ponto(s) de parada  "
+                        f"_(pontos plotados no centro da rota — localize pelo tooltip)_"
+                    )
+
                 _renderizar_mapa(m, height=660, key="mapa_m2_rota")
 
             # ── Exportar mapa como PNG (Modo 2) ───────────────────
