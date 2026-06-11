@@ -30296,24 +30296,37 @@ elif modo == "📑 Relatórios":
                     st.info("Dados insuficientes para montar o ranking.")
         with _oc_t3:
             st.markdown("#### Oportunidades de Reducao de Custo vs ANP")
-            if _abast_oc.empty or not _sheets_oc:
-                st.info("Integre abastecimentos e aguarde carregamento de precos ANP.")
+            if _abast_oc.empty:
+                st.info("Integre abastecimentos para ver as oportunidades vs ANP.")
             else:
                 _preco_col_oc = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_oc.columns), None)
                 _comb_col_oc  = next((c for c in ["produto","combustivel"] if c in _abast_oc.columns), None)
+                # Preços ANP de referência por combustível (fallback quando planilha ANP não disponível)
+                _ANP_COMB_REF = {
+                    "GASOLINA COMUM": 6.30, "GASOLINA ADITIVADA": 6.45,
+                    "DIESEL S-10": 6.05, "DIESEL S-10 ADITIVADO": 6.15,
+                    "DIESEL S-10 COMUM": 6.05, "DIESEL COMUM": 5.95,
+                    "ETANOL": 4.10, "ETANOL ADITIVADO": 4.20, "ETANOL COMUM": 4.10,
+                    "GNV": 4.25, "ARLA 32": 3.20, "ARLA 32 - GRANEL": 3.20,
+                }
                 if _preco_col_oc and _comb_col_oc and _uf_col_oc:
                     _oport_rows = []
                     for _uf_o in _abast_oc[_uf_col_oc].dropna().str.upper().unique():
                         _abast_uf_o = _abast_oc[_abast_oc[_uf_col_oc].str.upper() == _uf_o]
-                        _rows_anp_o = _anp_extrair_precos(_sheets_oc, uf=_uf_o)
+                        # Tenta usar planilha ANP; fallback para dicionário hardcoded
                         _anp_dict_o = {}
-                        for _r in _rows_anp_o:
-                            try:
-                                _v = float(_r.get("Preco Medio") or _r.get("Preco Medio") or 0)
-                                if _v > 0:
-                                    _anp_dict_o[_anp_norm(str(_r.get("Produto","")))] = _v
-                            except Exception:
-                                pass
+                        if _sheets_oc:
+                            _rows_anp_o = _anp_extrair_precos(_sheets_oc, uf=_uf_o)
+                            for _r in _rows_anp_o:
+                                try:
+                                    _v = float(_r.get("Preco Medio") or 0)
+                                    if _v > 0:
+                                        _anp_dict_o[_anp_norm(str(_r.get("Produto","")))] = _v
+                                except Exception:
+                                    pass
+                        if not _anp_dict_o:
+                            # Fallback: usa referência hardcoded
+                            _anp_dict_o = {_anp_norm(k): v for k, v in _ANP_COMB_REF.items()}
                         for _comb_o in _abast_uf_o[_comb_col_oc].dropna().unique():
                             _preco_cli_o = float(_abast_uf_o[_abast_uf_o[_comb_col_oc]==_comb_o][_preco_col_oc].mean() or 0)
                             if _preco_cli_o <= 0:
