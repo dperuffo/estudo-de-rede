@@ -675,11 +675,6 @@ def _auth_carregar_usuario_db(email: str) -> dict | None:
             return _cached_u
     except Exception:
         pass
-    """
-    Busca o perfil do usuário na tabela usuarios_app pelo e-mail.
-    Retorna dict com {perfil, cnpj_vinculado, empresa_nome, ativo} ou None.
-    Silencioso se a tabela ainda não foi criada no Supabase.
-    """
     _db = _db_client()
     if _db is None:
         return None
