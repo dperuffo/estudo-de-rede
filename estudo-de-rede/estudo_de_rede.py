@@ -25770,10 +25770,9 @@ elif modo == "📚 Documentação":
     }
 
     # ── Tabs: Índice / Glossário / Manual PDF ─────────────────────
-    _doc_tab1, _doc_tab2, _doc_tab3 = st.tabs([
+    _doc_tab1, _doc_tab2 = st.tabs([
         "📖 Índice de Funcionalidades",
         "📘 Glossário de Termos",
-        "📄 Manual PDF",
     ])
 
     with _doc_tab1:
@@ -25822,8 +25821,7 @@ elif modo == "📚 Documentação":
         elif not _busca_lower2:
             st.caption(f"📘 {_gl_encontrados} termos no glossário.")
 
-    with _doc_tab3:
-        st.markdown("#### 📄 Manual de Uso")
+
 
     if _doc_bytes:
         # Botão de download em destaque
