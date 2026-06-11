@@ -1562,7 +1562,8 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
     _unified = pd.concat(dfs, ignore_index=True)
 
     # Normaliza tipos
-    for _c in ["litros", "preco_litro", "valor_total", "lat_posto", "lon_posto"]:
+    for _c in ["litros", "preco_litro", "valor_total", "lat_posto", "lon_posto",
+               "hodometro", "horimetro"]:
         if _c in _unified.columns:
             _unified[_c] = pd.to_numeric(_unified[_c], errors="coerce")
 
@@ -2129,6 +2130,23 @@ def _processar_acordos_df(df_raw: "pd.DataFrame") -> "pd.DataFrame":
         "Data Vigencia":         "dt_vigencia",
         "Data Vigência":         "dt_vigencia",
         "Vigencia":              "dt_vigencia",
+        # hodometro
+        "hodometro":             "hodometro",
+        "Hodometro":             "hodometro",
+        "Hodômetro":             "hodometro",
+        "HODOMETRO":             "hodometro",
+        "Odometro":              "hodometro",
+        "Odômetro":              "hodometro",
+        "KM Atual":              "hodometro",
+        "km_atual":              "hodometro",
+        "KM_ATUAL":              "hodometro",
+        # horimetro
+        "horimetro":             "horimetro",
+        "Horimetro":             "horimetro",
+        "Horímetro":             "horimetro",
+        "HORIMETRO":             "horimetro",
+        "Horas Motor":           "horimetro",
+        "horas_motor":           "horimetro",
     }
     df = df_raw.rename(columns={k: v for k, v in _col_map.items() if k in df_raw.columns}).copy()
 
@@ -31875,7 +31893,17 @@ elif modo == "🛰️ Telemetria":
                 except Exception:
                     pass
             else:
-                st.info("Não há dados de hodômetro suficientes para calcular o consumo real. Certifique-se de que o hodômetro foi mapeado na importação.")
+                _abast_hod_info = st.info(
+                "ℹ️ Nenhum hodômetro encontrado nos abastecimentos. "
+                "Para calcular consumo real (km/L), inclua a coluna **Hodômetro** "
+                "na planilha de upload ou integre via API Pró-Frotas."
+            )
+            st.markdown("""
+            **Como adicionar hodômetro:**
+            - **Upload manual:** baixe o template atualizado (inclui coluna Hodômetro) e preencha
+            - **API Pró-Frotas:** o hodômetro é importado automaticamente quando disponível
+            - **Horímetro:** para veículos que medem por horas (tratores, geradores), use a coluna Horímetro
+            """)
 
     # ════════════════════════════════════════════
     #  TAB 5 — Alertas e Detecção de Desvios
