@@ -25770,6 +25770,12 @@ elif modo == "📚 Documentação":
             "regras": "Somente perfil admin acessa. Gestores editam apenas usuários do próprio tenant.",
             "tags": ["admin", "usuário", "permissão", "empresa", "tenant", "mfa"],
         },
+        "🗺️ Rotograma": {
+            "objetivo": "Mapeamento detalhado de riscos, pontos de parada e contatos de emergência para rotas da frota. Previne acidentes e roubos de carga.",
+            "fonte": "Dados inseridos pelo gestor + base ANP para sugestão de postos + contatos nacionais (PRF 191, SAMU 192, Bombeiros 193).",
+            "regras": "8 tipos de risco: área de perigo, zona de crime, lombada/radar, trecho alagável, sem sinal, obra, neblina, descida íngreme. 7 tipos de parada. Checklist de 10 itens pré-viagem obrigatório.",
+            "indicadores": "Total de pontos de risco e paradas por rotograma. Velocidade máxima por trecho. PDF exportável para o motorista carregar na viagem.",
+        },
     }
 
     _GLOSSARIO = {
@@ -25785,6 +25791,9 @@ elif modo == "📚 Documentação":
         "Referência ANP": "Preço médio publicado pela ANP para aquela UF e combustível na semana mais recente.",
         "CNPJ": "Identificador único de cada posto na base ANP e nos abastecimentos.",
         "MFA": "Autenticação de dois fatores via app (Google Authenticator).",
+        "Rotograma": "Documento detalhado de rota usado na logística. Mapeia riscos do trajeto, pontos de parada seguros, limites de velocidade e contatos de emergência. Guia de segurança para motoristas.",
+        "Ponto de Risco": "Local no trajeto com potencial de perigo: curvas perigosas, zonas de crime, trechos alagáveis, obras, neblina ou descidas íngremes.",
+        "Checklist Pré-Viagem": "Lista de verificações obrigatórias antes de partir: documentos, tacógrafo, pneus, freios, extintor, kit de ferramentas, amarração da carga, rota estudada, contatos e descanso do motorista.",
         "Webhook": "Notificação automática enviada a endpoint externo quando evento ocorre.",
     }
 
