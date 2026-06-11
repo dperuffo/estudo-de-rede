@@ -32518,13 +32518,13 @@ elif modo == "🤖 Assistente IA":
         ".fni-ai-sub{font-size:12px;color:#888;margin:0}"
         "</style>"
         f"<div class='fni-ai-header'>"
-        f"  <div>"
+        f"  <div style='margin-bottom:8px'>{_ai_logo_html}</div>"
         f"  <p class='fni-ai-title'>Assistente IA — FNI Insights</p>"
         f"  <p class='fni-ai-sub'>Inteligência artificial especializada em gestão de frotas</p>"
-        f"  <span style='display:inline-block;margin-top:6px;padding:3px 14px;"
+        f"  <span style='display:inline-block;margin-top:8px;padding:4px 16px;"
         f"background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:20px;"
-        f"font-size:11px;color:#534AB7;font-weight:600'>✦ Powered by Claude AI</span>"
-        f"  </div>"
+        f"font-size:11px;color:#534AB7;font-weight:600;letter-spacing:0.5px'>"
+        f"✦ Powered by Claude AI</span>"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -32805,25 +32805,119 @@ elif modo == "🤖 Assistente IA":
                     st.rerun()
             with _cl2:
                 try:
-                    _pdf_bytes = _gerar_pdf_conversa(
-                        st.session_state["ai_chat_history"],
-                        empresa_nome=_empresa_ai.get("nome", ""),
-                        logo_b64=_FNI_B64 or "",
-                    )
+                    import io as _io_pdf2
                     from datetime import datetime as _dt_pdf
-                    _pdf_nome = f"conversa_fni_{_dt_pdf.now().strftime('%Y%m%d_%H%M')}.pdf"
+                    from reportlab.lib.pagesizes import A4
+                    from reportlab.lib import colors as _rlc_ai
+                    from reportlab.lib.units import cm as _cm_ai
+                    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+                    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+                    from reportlab.lib.colors import HexColor as _HexColor
+
+                    _hist_pdf = st.session_state["ai_chat_history"]
+                    _buf_ai = _io_pdf2.BytesIO()
+                    _doc_ai = SimpleDocTemplate(_buf_ai, pagesize=A4,
+                        leftMargin=2*_cm_ai, rightMargin=2*_cm_ai,
+                        topMargin=2*_cm_ai, bottomMargin=2*_cm_ai)
+
+                    _stls_ai = getSampleStyleSheet()
+                    _s_tit = ParagraphStyle("tit", parent=_stls_ai["Normal"],
+                        fontSize=18, fontName="Helvetica-Bold",
+                        textColor=_HexColor("#26215C"), spaceAfter=4, alignment=TA_CENTER)
+                    _s_sub = ParagraphStyle("sub", parent=_stls_ai["Normal"],
+                        fontSize=10, textColor=_HexColor("#888780"),
+                        spaceAfter=16, alignment=TA_CENTER)
+                    _s_lu  = ParagraphStyle("lu", parent=_stls_ai["Normal"],
+                        fontSize=8, fontName="Helvetica-Bold",
+                        textColor=_HexColor("#534AB7"), spaceBefore=10, spaceAfter=3)
+                    _s_lb  = ParagraphStyle("lb", parent=_stls_ai["Normal"],
+                        fontSize=8, fontName="Helvetica-Bold",
+                        textColor=_HexColor("#26215C"), spaceBefore=10, spaceAfter=3)
+                    _s_msg = ParagraphStyle("msg", parent=_stls_ai["Normal"],
+                        fontSize=10, leading=15, spaceAfter=4)
+                    _s_rod = ParagraphStyle("rod", parent=_stls_ai["Normal"],
+                        fontSize=8, textColor=_HexColor("#888780"), alignment=TA_CENTER)
+
+                    _els_ai = []
+
+                    # Logo
+                    if _FNI_B64:
+                        try:
+                            from reportlab.platypus import Image as _RLImg2
+                            _logo_io2 = _io_pdf2.BytesIO(base64.b64decode(_FNI_B64))
+                            _logo_img2 = _RLImg2(_logo_io2, width=4*_cm_ai, height=2*_cm_ai)
+                            _logo_img2.hAlign = "CENTER"
+                            _els_ai.append(_logo_img2)
+                            _els_ai.append(Spacer(1, 0.3*_cm_ai))
+                        except Exception:
+                            pass
+
+                    _els_ai.append(Paragraph("Assistente IA — FNI Insights", _s_tit))
+                    _emp_nome_pdf = _empresa_ai.get("nome","") if _empresa_ai else ""
+                    _els_ai.append(Paragraph(
+                        f"{'Empresa: ' + _emp_nome_pdf + ' · ' if _emp_nome_pdf else ''}"
+                        f"Gerado em {_dt_pdf.now().strftime('%d/%m/%Y às %H:%M')}",
+                        _s_sub))
+                    _els_ai.append(Table([[""]], colWidths=[16.5*_cm_ai],
+                        style=[("LINEBELOW",(0,0),(-1,-1),1,_HexColor("#AFA9EC")),
+                               ("BOTTOMPADDING",(0,0),(-1,-1),12)]))
+
+                    for _m_pdf in _hist_pdf:
+                        _role_pdf = _m_pdf.get("role","")
+                        _text_pdf = _m_pdf.get("content","").replace(chr(10),"<br/>")
+                        _text_pdf = _text_pdf.replace("**","").replace("*","")
+                        if _role_pdf == "user":
+                            _els_ai.append(Paragraph("👤 Você perguntou:", _s_lu))
+                            _t = Table([[Paragraph(_text_pdf, _s_msg)]],
+                                colWidths=[16.5*_cm_ai])
+                            _t.setStyle(TableStyle([
+                                ("BACKGROUND",(0,0),(-1,-1),_HexColor("#EEEDFE")),
+                                ("BOX",(0,0),(-1,-1),0.5,_HexColor("#AFA9EC")),
+                                ("LEFTPADDING",(0,0),(-1,-1),10),
+                                ("RIGHTPADDING",(0,0),(-1,-1),10),
+                                ("TOPPADDING",(0,0),(-1,-1),8),
+                                ("BOTTOMPADDING",(0,0),(-1,-1),8),
+                            ]))
+                            _els_ai.append(_t)
+                        elif _role_pdf == "assistant":
+                            _els_ai.append(Paragraph("🤖 Assistente FNI respondeu:", _s_lb))
+                            _t = Table([[Paragraph(_text_pdf, _s_msg)]],
+                                colWidths=[16.5*_cm_ai])
+                            _t.setStyle(TableStyle([
+                                ("BACKGROUND",(0,0),(-1,-1),_HexColor("#F8F7FF")),
+                                ("BOX",(0,0),(-1,-1),0.5,_HexColor("#D3D1C7")),
+                                ("LEFTPADDING",(0,0),(-1,-1),10),
+                                ("RIGHTPADDING",(0,0),(-1,-1),10),
+                                ("TOPPADDING",(0,0),(-1,-1),8),
+                                ("BOTTOMPADDING",(0,0),(-1,-1),8),
+                            ]))
+                            _els_ai.append(_t)
+
+                    _els_ai.append(Spacer(1, 0.5*_cm_ai))
+                    _els_ai.append(Table([[""]], colWidths=[16.5*_cm_ai],
+                        style=[("LINEBELOW",(0,0),(-1,-1),0.5,_HexColor("#AFA9EC")),
+                               ("BOTTOMPADDING",(0,0),(-1,-1),4)]))
+                    _n_q = len([m for m in _hist_pdf if m.get("role")=="user"])
+                    _els_ai.append(Paragraph(
+                        f"FNI Gestão de Frotas · fxgestaodefrotasonline.com · {_n_q} pergunta(s)",
+                        _s_rod))
+
+                    _doc_ai.build(_els_ai)
+                    _pdf_bytes_ai = _buf_ai.getvalue()
+                    _pdf_nome_ai = f"conversa_fni_{_dt_pdf.now().strftime('%Y%m%d_%H%M')}.pdf"
+
                     st.download_button(
                         "📄 Exportar PDF",
-                        data=_pdf_bytes,
-                        file_name=_pdf_nome,
+                        data=_pdf_bytes_ai,
+                        file_name=_pdf_nome_ai,
                         mime="application/pdf",
                         key="btn_export_pdf_ai",
                         use_container_width=True,
                         help="Baixar conversa em PDF para impressão",
                     )
                 except Exception as _e_pdf:
-                    st.button("📄 PDF indisponível", disabled=True,
-                              use_container_width=True, key="btn_pdf_err")
+                    st.error(f"Erro PDF: {str(_e_pdf)[:150]}")
 
 elif modo == "⚡ API & Integrações":
     _doc_tela("⚡ API & Integrações")
