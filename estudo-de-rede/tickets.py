@@ -167,34 +167,6 @@ def mostrar_painel_tickets():
             descricao = st.text_area(
                 "Descrição detalhada *",
                 placeholder="Descreva com detalhes o problema ou a melhoria desejada...",
-
-    try:
-        _meus = _listar_tickets(so_minha_empresa=True)
-        if _meus:
-            _tk1,_tk2,_tk3,_tk4,_tk5 = st.columns(5)
-            _tk1.metric("📋 Meus tickets", len(_meus))
-            _tk2.metric("🟡 Abertos",      len([t for t in _meus if t["status"]=="aberto"]),     help="Aguardando análise")
-            _tk3.metric("🔵 Em Análise",   len([t for t in _meus if t["status"]=="em_analise"]), help="Em andamento")
-            _tk4.metric("🟢 Resolvidos",   len([t for t in _meus if t["status"]=="resolvido"]),  help="Já resolvidos")
-            _tk5.metric("🚨 Incidentes",   len([t for t in _meus if t["tipo"]=="incidente"]),    help="Total de incidentes")
-            st.markdown("---")
-    except Exception:
-        pass
-
-
-    try:
-        _meus = _listar_tickets(so_minha_empresa=True)
-        if _meus:
-            _tk1,_tk2,_tk3,_tk4,_tk5 = st.columns(5)
-            _tk1.metric("📋 Meus tickets", len(_meus))
-            _tk2.metric("🟡 Abertos",      len([t for t in _meus if t["status"]=="aberto"]),     help="Aguardando análise")
-            _tk3.metric("🔵 Em Análise",   len([t for t in _meus if t["status"]=="em_analise"]), help="Em andamento")
-            _tk4.metric("🟢 Resolvidos",   len([t for t in _meus if t["status"]=="resolvido"]),  help="Já resolvidos")
-            _tk5.metric("🚨 Incidentes",   len([t for t in _meus if t["tipo"]=="incidente"]),    help="Total de incidentes")
-            st.markdown("---")
-    except Exception:
-        pass
-
                 height=150,
                 max_chars=2000
             )
@@ -310,44 +282,6 @@ def mostrar_painel_admin_tickets():
     if not tickets:
         st.info("Nenhum ticket registrado.")
         return
-
-
-    _abertos  = [t for t in tickets if t["status"] == "aberto"]
-    _analise  = [t for t in tickets if t["status"] == "em_analise"]
-    _resolv   = [t for t in tickets if t["status"] == "resolvido"]
-    _fechados = [t for t in tickets if t["status"] == "fechado"]
-    _incid    = [t for t in tickets if t["tipo"] == "incidente"]
-    _criticos = [t for t in tickets if t.get("prioridade") == "critica"]
-    _ki1,_ki2,_ki3,_ki4,_ki5,_ki6,_ki7 = st.columns(7)
-    _ki1.metric("📋 Total",      len(tickets))
-    _ki2.metric("🟡 Abertos",    len(_abertos),  help="Aguardando análise")
-    _ki3.metric("🔵 Em Análise", len(_analise),  help="Em andamento")
-    _ki4.metric("🟢 Resolvidos", len(_resolv),   help="Já resolvidos")
-    _ki5.metric("⚫ Fechados",   len(_fechados), help="Encerrados")
-    _ki6.metric("🚨 Incidentes", len(_incid),    help="Total de incidentes")
-    _ki7.metric("🔴 Críticos",   len(_criticos),
-        delta=f"{len(_criticos)} urgente(s)" if _criticos else None,
-        delta_color="inverse", help="Prioridade crítica")
-    st.markdown("---")
-
-
-    _abertos  = [t for t in tickets if t["status"] == "aberto"]
-    _analise  = [t for t in tickets if t["status"] == "em_analise"]
-    _resolv   = [t for t in tickets if t["status"] == "resolvido"]
-    _fechados = [t for t in tickets if t["status"] == "fechado"]
-    _incid    = [t for t in tickets if t["tipo"] == "incidente"]
-    _criticos = [t for t in tickets if t.get("prioridade") == "critica"]
-    _ki1,_ki2,_ki3,_ki4,_ki5,_ki6,_ki7 = st.columns(7)
-    _ki1.metric("📋 Total",      len(tickets))
-    _ki2.metric("🟡 Abertos",    len(_abertos),  help="Aguardando análise")
-    _ki3.metric("🔵 Em Análise", len(_analise),  help="Em andamento")
-    _ki4.metric("🟢 Resolvidos", len(_resolv),   help="Já resolvidos")
-    _ki5.metric("⚫ Fechados",   len(_fechados), help="Encerrados")
-    _ki6.metric("🚨 Incidentes", len(_incid),    help="Total de incidentes")
-    _ki7.metric("🔴 Críticos",   len(_criticos),
-        delta=f"{len(_criticos)} urgente(s)" if _criticos else None,
-        delta_color="inverse", help="Prioridade crítica")
-    st.markdown("---")
 
     # Filtros
     col1, col2, col3 = st.columns(3)
