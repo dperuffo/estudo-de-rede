@@ -25758,6 +25758,12 @@ elif modo == "📚 Documentação":
             "regras": "Disponível nos planos Pro e Enterprise. Admin e analista têm acesso completo. Memória da conversa por sessão.",
             "tags": ["assistente", "ia", "chatbot", "claude", "perguntas", "insights"],
         },
+        "🗺️ Rotograma de Segurança": {
+            "objetivo": "Mapeamento detalhado de riscos, pontos de parada obrigatórios e contatos de emergência para rotas da frota. Previne acidentes, roubos de carga e imprevistos na estrada.",
+            "fonte": "Dados inseridos pelo gestor + base ANP para postos + contatos nacionais fixos (PRF 191, SAMU 192, Bombeiros 193, PM 190).",
+            "regras": "8 tipos de risco: área de perigo, zona de crime, lombada/radar, trecho alagável, sem sinal, obra, neblina, descida íngreme. 7 tipos de parada: pernoite, alimentação, abastecimento, manutenção, policial/PRF, saúde/SAMU, descanso. Checklist de 10 itens pré-viagem.",
+            "tags": ["rotograma", "risco", "parada", "segurança", "rota", "motorista", "pdf", "emergência", "checklist"],
+        },
         "🛡️ Painel Admin": {
             "objetivo": "Gerenciar usuários, empresas, permissões, domínios e logs de atividade.",
             "fonte": "Tabelas usuarios_app, usuarios_empresas no Supabase.",
