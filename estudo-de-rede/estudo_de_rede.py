@@ -31100,7 +31100,23 @@ elif modo == "📑 Relatórios":
                 # Tabela de dados sempre abaixo do gráfico
                 if _rp_viz_cur != "table":
                     with st.expander("📋 Ver tabela de dados"):
-                        st.dataframe(_rp_result, use_container_width=True, hide_index=True)
+                        # Formata colunas numéricas no padrão BR
+                        _disp_exp = _rp_result.copy()
+                        for _mid_e, _mlbl_e, _mfmt_e in _rp_mets_cur:
+                            if _mlbl_e in _disp_exp.columns:
+                                if _mfmt_e == "int":
+                                    _disp_exp[_mlbl_e] = pd.to_numeric(_disp_exp[_mlbl_e], errors="coerce").apply(
+                                        lambda v: _br_num(v, 0) if pd.notna(v) else "—")
+                                elif _mfmt_e in ("money", "money3"):
+                                    _disp_exp[_mlbl_e] = pd.to_numeric(_disp_exp[_mlbl_e], errors="coerce").apply(
+                                        lambda v: _br_moeda(v, 3) if pd.notna(v) else "—")
+                                elif _mfmt_e == "pct":
+                                    _disp_exp[_mlbl_e] = pd.to_numeric(_disp_exp[_mlbl_e], errors="coerce").apply(
+                                        lambda v: f"{_br_num(v, 2)}%" if pd.notna(v) else "—")
+                                else:
+                                    _disp_exp[_mlbl_e] = pd.to_numeric(_disp_exp[_mlbl_e], errors="coerce").apply(
+                                        lambda v: _br_num(v, 2) if pd.notna(v) else "—")
+                        st.dataframe(_disp_exp, use_container_width=True, hide_index=True)
 
                 # ── Exportar ─────────────────────────────────────
                 st.divider()
