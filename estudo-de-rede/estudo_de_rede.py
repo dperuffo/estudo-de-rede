@@ -33223,8 +33223,7 @@ elif modo == "🗺️ Rotograma":
         _btn_col1, _btn_col2, _btn_col3 = st.columns(3)
         with _btn_col1:
             if st.button("💾 Salvar Rotograma", type="primary", use_container_width=True, key="btn_salvar_rg"):
-                _emp_id_rg = (_empresa_ai.get("id") if _empresa_ai else
-                              (st.session_state.get("_empresa_ativa") or {}).get("id",""))
+                _emp_id_rg = (st.session_state.get("_empresa_ativa") or {}).get("id","")
                 _email_rg  = st.session_state.get("_auth_email","")
                 _saved = _rg_salvar(_rg, _emp_id_rg, _email_rg)
                 if _saved:
