@@ -17106,13 +17106,18 @@ with st.sidebar:
     if _auth_tem_permissao("aba_admin"):
         _nav_btn("🛡️ Admin",                 "🛡️ Admin",                 "admin")
     _nav_btn("📚 Documentação",              "📚 Documentação",           "documentacao")
+    _nav_btn("☀️ Comece seu dia",            "☀️ Comece seu dia",          "comece_seu_dia")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
+    if st.button("🎯 Tutorial / Onboarding", use_container_width=True,
+                 key="btn_reabrir_tour",
+                 help="Reabrir o tutorial de boas-vindas"):
+        st.session_state["_tour_ativo"] = True
+        st.rerun()
     if st.button("🔄 Atualizar Página", use_container_width=True,
                  key="btn_reload_pagina",
                  help="Recarrega a aplicação"):
-        st.rerun()
 
 
         st.rerun()
