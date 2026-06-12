@@ -15435,11 +15435,15 @@ if not st.session_state.get("_base_auto_ok"):
 
 # Inicializa na primeira execução da sessão
 if "_tour_ativo" not in st.session_state:
-    st.session_state["_tour_ativo"] = _tour_primeira_visita()
+    # Respeita preferência do usuário de não mostrar automaticamente
+    _nao_mostrar_pref = st.session_state.get("_tour_nao_mostrar", False)
+    st.session_state["_tour_ativo"] = (not _nao_mostrar_pref) and _tour_primeira_visita()
 
 # Botão oculto que JS vai clicar ao concluir/pular o tour
 if st.button("​", key="btn_tour_done_hidden"):   # zero-width space
-    _marcar_tour_concluido()
+    _nao_mostrar_chk = st.session_state.get("_tour_nao_mostrar", True)
+    if _nao_mostrar_chk:
+        _marcar_tour_concluido()
     st.session_state["_tour_ativo"] = False
     st.rerun()
 
