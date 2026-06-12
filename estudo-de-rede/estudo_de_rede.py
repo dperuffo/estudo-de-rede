@@ -17070,6 +17070,8 @@ with st.sidebar:
         _nav_btn("🛰️ Telemetria",            "🛰️ Telemetria",            "telemetria")
     if _auth_tem_permissao("aba_rotograma"):
         _nav_btn("🗺️ Rotograma",             "🗺️ Rotograma",             "rotograma")
+    if _auth_tem_permissao("aba_acordos"):
+        _nav_btn("🤝 Acordos de Preço",   "🤝 Acordos de Preço",      "acordos_preco")
     if _auth_tem_permissao("aba_assistente_ia") or _auth_tem_permissao("aba_relatorios"):
         _nav_btn("🤖 Assistente IA",         "🤖 Assistente IA",         "assistente_ia")
 
