@@ -12987,6 +12987,7 @@ def _doc_tela(modo: str):
 
 def _rg_salvar(rg: dict, empresa_id: str, user_email: str) -> dict | None:
     """Salva ou atualiza um rotograma no Supabase."""
+    import json as _json_rg
     try:
         _db = _db_client()
         _payload = {
@@ -13000,8 +13001,8 @@ def _rg_salvar(rg: dict, empresa_id: str, user_email: str) -> dict | None:
             "data_viagem":   rg.get("data_viagem",""),
             "carga":         rg.get("carga",""),
             "observacoes":   rg.get("observacoes",""),
-            "riscos":        json.dumps(rg.get("riscos",[])),
-            "paradas":       json.dumps(rg.get("paradas",[])),
+            "riscos":        _json_rg.dumps(rg.get("riscos",[])),
+            "paradas":       _json_rg.dumps(rg.get("paradas",[])),
             "atualizado_em": "now()",
         }
         _rg_id = rg.get("db_id")
@@ -13023,6 +13024,7 @@ def _rg_salvar(rg: dict, empresa_id: str, user_email: str) -> dict | None:
 
 def _rg_listar(empresa_id: str) -> list:
     """Lista rotogramas da empresa ordenados por data."""
+    import json as _json_rg
     try:
         _db = _db_client()
         _res = (_db.table("rotogramas")
@@ -13035,10 +13037,10 @@ def _rg_listar(empresa_id: str) -> list:
         for _r in _rows:
             # Desserializa JSONB
             if isinstance(_r.get("riscos"), str):
-                try: _r["riscos"] = json.loads(_r["riscos"])
+                try: _r["riscos"] = _json_rg.loads(_r["riscos"])
                 except: _r["riscos"] = []
             if isinstance(_r.get("paradas"), str):
-                try: _r["paradas"] = json.loads(_r["paradas"])
+                try: _r["paradas"] = _json_rg.loads(_r["paradas"])
                 except: _r["paradas"] = []
         return _rows
     except Exception as _e:
