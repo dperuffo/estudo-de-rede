@@ -12973,6 +12973,78 @@ def _doc_tela(modo: str):
                 st.caption(_doc["indicadores"])
 
 
+# ── CRUD Rotogramas (Supabase) ──────────────────────────────────────────────
+
+def _rg_salvar(rg: dict, empresa_id: str, user_email: str) -> dict | None:
+    """Salva ou atualiza um rotograma no Supabase."""
+    try:
+        _db = _db_client()
+        _payload = {
+            "empresa_id":    empresa_id,
+            "user_email":    user_email,
+            "origem":        rg.get("origem",""),
+            "destino":       rg.get("destino",""),
+            "veiculo":       rg.get("veiculo",""),
+            "motorista":     rg.get("motorista",""),
+            "placa":         rg.get("placa",""),
+            "data_viagem":   rg.get("data_viagem",""),
+            "carga":         rg.get("carga",""),
+            "observacoes":   rg.get("observacoes",""),
+            "riscos":        json.dumps(rg.get("riscos",[])),
+            "paradas":       json.dumps(rg.get("paradas",[])),
+            "atualizado_em": "now()",
+        }
+        _rg_id = rg.get("db_id")
+        if _rg_id:
+            _res = (_db.table("rotogramas")
+                    .update(_payload)
+                    .eq("id", _rg_id)
+                    .execute())
+        else:
+            _res = (_db.table("rotogramas")
+                    .insert(_payload)
+                    .execute())
+        if _res.data:
+            return _res.data[0]
+    except Exception as _e:
+        st.error(f"Erro ao salvar rotograma: {_e}")
+    return None
+
+
+def _rg_listar(empresa_id: str) -> list:
+    """Lista rotogramas da empresa ordenados por data."""
+    try:
+        _db = _db_client()
+        _res = (_db.table("rotogramas")
+                .select("*")
+                .eq("empresa_id", empresa_id)
+                .order("criado_em", desc=True)
+                .limit(100)
+                .execute())
+        _rows = _res.data or []
+        for _r in _rows:
+            # Desserializa JSONB
+            if isinstance(_r.get("riscos"), str):
+                try: _r["riscos"] = json.loads(_r["riscos"])
+                except: _r["riscos"] = []
+            if isinstance(_r.get("paradas"), str):
+                try: _r["paradas"] = json.loads(_r["paradas"])
+                except: _r["paradas"] = []
+        return _rows
+    except Exception as _e:
+        return []
+
+
+def _rg_deletar(rg_id: str) -> bool:
+    """Remove um rotograma pelo ID."""
+    try:
+        _db = _db_client()
+        _db.table("rotogramas").delete().eq("id", rg_id).execute()
+        return True
+    except Exception:
+        return False
+
+
 def _anp_preco_brasil(sheets, pk):
     """Extrai o preço médio nacional (aba BRASIL) para um produto pk.
     Retorna float ou None.
@@ -33141,11 +33213,20 @@ elif modo == "🗺️ Rotograma":
         _btn_col1, _btn_col2, _btn_col3 = st.columns(3)
         with _btn_col1:
             if st.button("💾 Salvar Rotograma", type="primary", use_container_width=True, key="btn_salvar_rg"):
-                _rotogramas_salvos = st.session_state.get("rotogramas_salvos", [])
-                _rotogramas_salvos.append({**_rg, "id": len(_rotogramas_salvos)+1,
-                    "criado_em": str(pd.Timestamp.now())[:16]})
-                st.session_state["rotogramas_salvos"] = _rotogramas_salvos
-                st.toast("Rotograma salvo com sucesso!", icon="💾")
+                _emp_id_rg = (_empresa_ai.get("id") if _empresa_ai else
+                              (st.session_state.get("_empresa_ativa") or {}).get("id",""))
+                _email_rg  = st.session_state.get("_auth_email","")
+                _saved = _rg_salvar(_rg, _emp_id_rg, _email_rg)
+                if _saved:
+                    _rg["db_id"] = _saved.get("id")
+                    _rg["numero"] = _saved.get("numero")
+                    st.session_state["rotograma_atual"] = _rg
+                    # Atualiza cache local
+                    _rotogramas_salvos = _rg_listar(_emp_id_rg)
+                    st.session_state["rotogramas_salvos"] = _rotogramas_salvos
+                    st.toast("Rotograma salvo no banco de dados!", icon="💾")
+                else:
+                    st.error("Erro ao salvar. Verifique a conexão com o banco.")
         with _btn_col2:
             if st.button("🗑️ Limpar", use_container_width=True, key="btn_limpar_rg"):
                 st.session_state["rotograma_atual"] = {
