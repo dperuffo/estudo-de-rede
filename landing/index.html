@@ -135,209 +135,6 @@ footer{padding:36px 6%;border-top:1px solid rgba(255,255,255,0.05);display:flex;
 </div>
 
 
-<!-- ═══════════════════════════════════════════════
-     SEÇÃO: PREVIEW DA PLATAFORMA
-═══════════════════════════════════════════════ -->
-<section class="section demo-section" id="demo">
-  <div class="container">
-    <div class="section-label">Plataforma em ação</div>
-    <h2 class="section-title">Veja como funciona na prática</h2>
-    <p class="section-sub">Explore as principais funcionalidades da FNI Gestão de Frotas</p>
-
-    <!-- Tabs de funcionalidades -->
-    <div class="demo-tabs">
-      <button class="demo-tab active" onclick="showDemo(0)">📈 Dashboard</button>
-      <button class="demo-tab" onclick="showDemo(1)">🗺️ Consulta por Rota</button>
-      <button class="demo-tab" onclick="showDemo(2)">🤖 Assistente IA</button>
-      <button class="demo-tab" onclick="showDemo(3)">🗺️ Rotograma</button>
-    </div>
-
-    <!-- Painéis de preview -->
-    <div class="demo-frame">
-
-      <!-- PAINEL 0: Dashboard -->
-      <div class="demo-panel active" id="demo-0">
-        <div class="mock-browser">
-          <div class="mock-bar">
-            <span class="mock-dot red"></span>
-            <span class="mock-dot yellow"></span>
-            <span class="mock-dot green"></span>
-            <span class="mock-url">fxgestaodefrotasonline.com · Dashboard Analítico</span>
-          </div>
-          <div class="mock-content dash">
-            <div class="mock-sidebar">
-              <div class="mock-logo-sm">FNI</div>
-              <div class="mock-nav-item active-nav">📈 Dashboard</div>
-              <div class="mock-nav-item">🗺️ Consulta por Rota</div>
-              <div class="mock-nav-item">👥 Análise de Cliente</div>
-              <div class="mock-nav-item">📑 Relatórios</div>
-              <div class="mock-nav-item">🤖 Assistente IA</div>
-            </div>
-            <div class="mock-main">
-              <div class="mock-header-bar">
-                <span class="mock-title-text">📈 Dashboard Analítico de Abastecimentos</span>
-              </div>
-              <div class="mock-kpis">
-                <div class="mock-kpi"><div class="mock-kpi-val cyan">2.960</div><div class="mock-kpi-lbl">Postos ANP</div></div>
-                <div class="mock-kpi"><div class="mock-kpi-val green">1.284</div><div class="mock-kpi-lbl">Abastecimentos</div></div>
-                <div class="mock-kpi"><div class="mock-kpi-val yellow">R$ 6,42</div><div class="mock-kpi-lbl">Preço Médio/L</div></div>
-                <div class="mock-kpi"><div class="mock-kpi-val blue">18</div><div class="mock-kpi-lbl">Estados cobertos</div></div>
-              </div>
-              <div class="mock-charts">
-                <div class="mock-chart bar-chart">
-                  <div class="mock-chart-title">Penetração por UF</div>
-                  <div class="bar-wrap">
-                    <div class="bar-row"><span>SP</span><div class="bar-fill" style="width:85%;background:#00e5ff"></div><span>85%</span></div>
-                    <div class="bar-row"><span>MG</span><div class="bar-fill" style="width:72%;background:#00e5ff88"></div><span>72%</span></div>
-                    <div class="bar-row"><span>RS</span><div class="bar-fill" style="width:61%;background:#00e5ff66"></div><span>61%</span></div>
-                    <div class="bar-row"><span>PR</span><div class="bar-fill" style="width:54%;background:#00e5ff44"></div><span>54%</span></div>
-                  </div>
-                </div>
-                <div class="mock-chart line-chart">
-                  <div class="mock-chart-title">Evolução de Preço — Diesel S-10</div>
-                  <svg viewBox="0 0 200 80" class="line-svg">
-                    <polyline points="0,60 40,55 80,58 120,45 160,40 200,35" fill="none" stroke="#00e5ff" stroke-width="2"/>
-                    <polyline points="0,60 40,55 80,58 120,45 160,40 200,35" fill="url(#grad)" stroke="none"/>
-                    <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00e5ff44"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="demo-caption">
-          <strong>Dashboard Analítico</strong> — Visão consolidada de abastecimentos reais, cobertura geográfica e comparativo ANP em tempo real.
-        </div>
-      </div>
-
-      <!-- PAINEL 1: Consulta por Rota -->
-      <div class="demo-panel" id="demo-1">
-        <div class="mock-browser">
-          <div class="mock-bar">
-            <span class="mock-dot red"></span>
-            <span class="mock-dot yellow"></span>
-            <span class="mock-dot green"></span>
-            <span class="mock-url">fxgestaodefrotasonline.com · Consulta por Rota</span>
-          </div>
-          <div class="mock-content rota">
-            <div class="mock-map-bg">
-              <svg viewBox="0 0 500 280" class="map-svg">
-                <!-- Rota simulada -->
-                <path d="M80,220 C120,200 160,180 200,160 C240,140 280,120 320,100 C360,80 400,70 440,60" fill="none" stroke="#00e5ff" stroke-width="3" stroke-dasharray="8,4"/>
-                <!-- Postos na rota -->
-                <circle cx="140" cy="188" r="8" fill="#00e5ff" opacity="0.9"/>
-                <circle cx="230" cy="148" r="8" fill="#00e5ff" opacity="0.9"/>
-                <circle cx="330" cy="96" r="8" fill="#ffd600" opacity="0.9"/>
-                <circle cx="410" cy="66" r="6" fill="#00e5ff" opacity="0.7"/>
-                <!-- Origem/Destino -->
-                <circle cx="80" cy="220" r="10" fill="#4caf50"/>
-                <circle cx="440" cy="60" r="10" fill="#f44336"/>
-                <!-- Grid pontilhado -->
-                <line x1="0" y1="70" x2="500" y2="70" stroke="#ffffff08" stroke-width="1"/>
-                <line x1="0" y1="140" x2="500" y2="140" stroke="#ffffff08" stroke-width="1"/>
-                <line x1="0" y1="210" x2="500" y2="210" stroke="#ffffff08" stroke-width="1"/>
-                <line x1="125" y1="0" x2="125" y2="280" stroke="#ffffff08" stroke-width="1"/>
-                <line x1="250" y1="0" x2="250" y2="280" stroke="#ffffff08" stroke-width="1"/>
-                <line x1="375" y1="0" x2="375" y2="280" stroke="#ffffff08" stroke-width="1"/>
-              </svg>
-              <div class="map-labels">
-                <div class="map-badge origin">🟢 São Paulo, SP</div>
-                <div class="map-badge dest">🔴 Curitiba, PR</div>
-                <div class="map-info">⛽ 12 postos ANP · 🛣️ 408 km · ⏱️ 4h 20min</div>
-              </div>
-            </div>
-            <div class="mock-posto-list">
-              <div class="mock-posto-title">Top postos na rota</div>
-              <div class="mock-posto"><span class="posto-rank gold">1º</span><span class="posto-nome">Posto Dallas</span><span class="posto-preco cyan">R$ 5,66/L</span></div>
-              <div class="mock-posto"><span class="posto-rank silver">2º</span><span class="posto-nome">Auto Posto Kadoshi</span><span class="posto-preco cyan">R$ 5,90/L</span></div>
-              <div class="mock-posto"><span class="posto-rank bronze">3º</span><span class="posto-nome">Posto Muquém</span><span class="posto-preco">R$ 5,98/L</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="demo-caption">
-          <strong>Consulta por Rota</strong> — Encontre os postos mais baratos ao longo da sua rota com base nos ~38.000 postos ANP cadastrados.
-        </div>
-      </div>
-
-      <!-- PAINEL 2: Assistente IA -->
-      <div class="demo-panel" id="demo-2">
-        <div class="mock-browser">
-          <div class="mock-bar">
-            <span class="mock-dot red"></span>
-            <span class="mock-dot yellow"></span>
-            <span class="mock-dot green"></span>
-            <span class="mock-url">fxgestaodefrotasonline.com · Assistente IA</span>
-          </div>
-          <div class="mock-content ia">
-            <div class="ia-header">
-              <div class="ia-logo-circle">FNI</div>
-              <div>
-                <div class="ia-title">Assistente IA — FNI Insights</div>
-                <div class="ia-sub">✦ Powered by Claude AI</div>
-              </div>
-            </div>
-            <div class="ia-chat">
-              <div class="ia-msg user">Qual foi meu maior gasto com combustível este mês?</div>
-              <div class="ia-msg bot">
-                <span class="ia-badge">insight</span>
-                Seu maior gasto em junho foi com <strong>Diesel S-10</strong>, totalizando <strong>R$ 128.450</strong> em 847 abastecimentos em 3 estados.<br><br>
-                ⚠️ 42 abastecimentos acima da referência ANP (+8% em média).
-              </div>
-              <div class="ia-msg user">Onde estou perdendo mais dinheiro?</div>
-              <div class="ia-msg bot typing">
-                <span class="ia-badge alert">alerta</span>
-                Detectei <strong>3 oportunidades</strong> de economia de <strong>R$ 12.400/mês</strong>...
-                <span class="ia-cursor">▋</span>
-              </div>
-            </div>
-            <div class="ia-chips">
-              <div class="ia-chip">Quais veículos consomem mais?</div>
-              <div class="ia-chip">Compare com mês passado</div>
-            </div>
-          </div>
-        </div>
-        <div class="demo-caption">
-          <strong>Assistente IA</strong> — Pergunte sobre sua frota em linguagem natural e receba insights acionáveis powered by Claude AI.
-        </div>
-      </div>
-
-      <!-- PAINEL 3: Rotograma -->
-      <div class="demo-panel" id="demo-3">
-        <div class="mock-browser">
-          <div class="mock-bar">
-            <span class="mock-dot red"></span>
-            <span class="mock-dot yellow"></span>
-            <span class="mock-dot green"></span>
-            <span class="mock-url">fxgestaodefrotasonline.com · Rotograma de Segurança</span>
-          </div>
-          <div class="mock-content rg">
-            <div class="rg-header">🗺️ Rotograma — SP → BH</div>
-            <div class="rg-body">
-              <div class="rg-col">
-                <div class="rg-section-title">⚠️ Pontos de Risco (4)</div>
-                <div class="rg-item danger"><span class="rg-icon">⚠️</span><div><div class="rg-loc">BR-381 km 120 — Itatiaia/MG</div><div class="rg-detail">Curva perigosa · Vel. máx 60 km/h</div></div></div>
-                <div class="rg-item crime"><span class="rg-icon">🔴</span><div><div class="rg-loc">BR-040 km 85 — Betim/MG</div><div class="rg-detail">Zona de risco · Câmera ativa</div></div></div>
-                <div class="rg-item warn"><span class="rg-icon">🛑</span><div><div class="rg-loc">SP-330 km 340 — Campinas/SP</div><div class="rg-detail">Radar fixo · Vel. máx 80 km/h</div></div></div>
-              </div>
-              <div class="rg-col">
-                <div class="rg-section-title">🅿️ Paradas (3)</div>
-                <div class="rg-item stop"><span class="rg-icon">⛽</span><div><div class="rg-loc">Posto Ipiranga — km 210</div><div class="rg-detail">Abastecimento · R$ 6,05/L</div></div></div>
-                <div class="rg-item stop"><span class="rg-icon">🍽️</span><div><div class="rg-loc">Restaurante Rotatória — km 310</div><div class="rg-detail">Alimentação · Aberto 24h</div></div></div>
-                <div class="rg-item stop"><span class="rg-icon">🛏️</span><div><div class="rg-loc">Hotel Rodoviário BH — km 490</div><div class="rg-detail">Pernoite · (31) 3333-4444</div></div></div>
-                <div class="rg-emergency">📞 PRF: 191 · SAMU: 192 · Bombeiros: 193</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="demo-caption">
-          <strong>Rotograma de Segurança</strong> — Mapeie riscos, pontos de parada e contatos de emergência para cada rota da sua frota.
-        </div>
-      </div>
-
-    </div><!-- /demo-frame -->
-  </div><!-- /container -->
-</section>
-
 <style>
 /* ── Demo Section ── */
 .demo-section { padding: 80px 0; }
@@ -478,6 +275,199 @@ let _demoTimer = setInterval(() => {
 document.querySelectorAll('.demo-tab').forEach(t => {
   t.addEventListener('click', () => clearInterval(_demoTimer));
 });
+</script>
+
+
+<section class="section demo-section" id="demo" style="padding:80px 0">
+<div class="container">
+<div style="text-align:center;margin-bottom:40px">
+  <div style="color:#00e5ff;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">Plataforma em ação</div>
+  <h2 style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:800;color:#fff;margin-bottom:12px">Veja como funciona na prática</h2>
+  <p style="color:#a0aec0;font-size:15px">Explore as principais funcionalidades da FNI Gestão de Frotas</p>
+</div>
+
+<div class="demo-tabs2" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:28px">
+  <button class="dtab2 dtab-on" onclick="sd(0)">📈 Dashboard</button>
+  <button class="dtab2" onclick="sd(1)">🗺️ Consulta por Rota</button>
+  <button class="dtab2" onclick="sd(2)">🤖 Assistente IA</button>
+  <button class="dtab2" onclick="sd(3)">🗺️ Rotograma</button>
+</div>
+
+<div style="border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+
+  <!-- Barra do browser -->
+  <div style="background:#1a1f2e;padding:10px 16px;display:flex;align-items:center;gap:6px;border-bottom:1px solid rgba(255,255,255,0.08)">
+    <span style="width:10px;height:10px;border-radius:50%;background:#ff5f57;display:inline-block"></span>
+    <span style="width:10px;height:10px;border-radius:50%;background:#febc2e;display:inline-block"></span>
+    <span style="width:10px;height:10px;border-radius:50%;background:#28c840;display:inline-block"></span>
+    <span id="demo-url2" style="margin-left:12px;font-size:11px;color:#4a5568;font-family:monospace">fxgestaodefrotasonline.com · Dashboard Analítico</span>
+  </div>
+
+  <!-- Painéis -->
+  <div id="dp0" class="dp2" style="background:#0d1117;display:flex;min-height:340px">
+    <div style="width:155px;background:#111827;padding:14px 10px;flex-shrink:0;border-right:1px solid rgba(255,255,255,0.06)">
+      <div style="color:#00e5ff;font-weight:900;font-size:15px;margin-bottom:18px;padding:0 4px">FNI</div>
+      <div style="padding:7px 8px;border-radius:6px;background:rgba(0,229,255,0.1);color:#00e5ff;font-size:11px;font-weight:600;margin-bottom:4px">📈 Dashboard</div>
+      <div style="padding:7px 8px;font-size:11px;color:#4a5568;margin-bottom:4px">🗺️ Por Rota</div>
+      <div style="padding:7px 8px;font-size:11px;color:#4a5568;margin-bottom:4px">👥 Análise</div>
+      <div style="padding:7px 8px;font-size:11px;color:#4a5568;margin-bottom:4px">📑 Relatórios</div>
+      <div style="padding:7px 8px;font-size:11px;color:#4a5568;margin-bottom:4px">🤖 IA</div>
+      <div style="padding:7px 8px;font-size:11px;color:#4a5568">🗺️ Rotograma</div>
+    </div>
+    <div style="flex:1;padding:16px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 8px;text-align:center"><div style="font-size:17px;font-weight:800;color:#00e5ff;margin-bottom:3px">2.960</div><div style="font-size:9px;color:#4a5568">Postos ANP</div></div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 8px;text-align:center"><div style="font-size:17px;font-weight:800;color:#48bb78;margin-bottom:3px">1.284</div><div style="font-size:9px;color:#4a5568">Abastecimentos</div></div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 8px;text-align:center"><div style="font-size:17px;font-weight:800;color:#ffd600;margin-bottom:3px">R$6,42</div><div style="font-size:9px;color:#4a5568">Preço médio/L</div></div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 8px;text-align:center"><div style="font-size:17px;font-weight:800;color:#9f7aea;margin-bottom:3px">18 UFs</div><div style="font-size:9px;color:#4a5568">Cobertura</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px">
+          <div style="font-size:10px;color:#718096;margin-bottom:8px;font-weight:600">Penetração por UF</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#718096"><span style="width:20px">SP</span><div style="height:8px;border-radius:4px;background:#00e5ff;width:85%"></div><span>85%</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#718096"><span style="width:20px">MG</span><div style="height:8px;border-radius:4px;background:#00e5ffcc;width:72%"></div><span>72%</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#718096"><span style="width:20px">RS</span><div style="height:8px;border-radius:4px;background:#00e5ff99;width:61%"></div><span>61%</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#718096"><span style="width:20px">PR</span><div style="height:8px;border-radius:4px;background:#00e5ff66;width:54%"></div><span>54%</span></div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px">
+          <div style="font-size:10px;color:#718096;margin-bottom:6px;font-weight:600">Evolução — Diesel S-10</div>
+          <svg viewBox="0 0 180 70" style="width:100%;height:60px">
+            <defs><linearGradient id="lg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00e5ff" stop-opacity=".25"/><stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,55 L30,50 L60,53 L90,42 L120,36 L150,31 L180,26" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M0,55 L30,50 L60,53 L90,42 L120,36 L150,31 L180,26 L180,70 L0,70Z" fill="url(#lg2)"/>
+            <text x="148" y="24" font-size="9" fill="#00e5ff" font-weight="600">R$6,05</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dp1" class="dp2" style="display:none;background:#0d1117">
+    <div style="background:#111827;padding:10px 14px;display:grid;grid-template-columns:1fr 1fr 80px;gap:8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <div style="background:#0d1117;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 10px;font-size:12px;color:#e2e8f0">🟢 São Paulo, SP</div>
+      <div style="background:#0d1117;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:6px 10px;font-size:12px;color:#e2e8f0">🔴 Curitiba, PR</div>
+      <div style="background:#00e5ff;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;color:#0d1117;text-align:center">Buscar</div>
+    </div>
+    <div style="position:relative;height:220px;overflow:hidden;background:#1a2744">
+      <svg viewBox="0 0 600 220" style="width:100%;height:100%" preserveAspectRatio="xMidYMid slice">
+        <rect width="600" height="220" fill="#1a2744"/>
+        <line x1="0" y1="55" x2="600" y2="55" stroke="#ffffff05" stroke-width="1"/><line x1="0" y1="110" x2="600" y2="110" stroke="#ffffff05" stroke-width="1"/><line x1="0" y1="165" x2="600" y2="165" stroke="#ffffff05" stroke-width="1"/>
+        <line x1="150" y1="0" x2="150" y2="220" stroke="#ffffff05" stroke-width="1"/><line x1="300" y1="0" x2="300" y2="220" stroke="#ffffff05" stroke-width="1"/><line x1="450" y1="0" x2="450" y2="220" stroke="#ffffff05" stroke-width="1"/>
+        <path d="M80,180 C130,160 200,140 270,115 C340,90 410,70 480,52 C510,44 530,40 555,36" fill="none" stroke="#00e5ff" stroke-width="8" opacity="0.12" stroke-linecap="round"/>
+        <path d="M80,180 C130,160 200,140 270,115 C340,90 410,70 480,52 C510,44 530,40 555,36" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="900" stroke-dashoffset="900">
+          <animate attributeName="stroke-dashoffset" from="900" to="0" dur="1.8s" fill="freeze"/>
+        </path>
+        <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur=".3s" begin="0.8s" fill="freeze"/>
+          <circle cx="175" cy="152" r="7" fill="#00e5ff"/>
+          <circle cx="175" cy="152" r="14" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.4"><animate attributeName="r" from="7" to="22" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.4" to="0" dur="2s" repeatCount="indefinite"/></circle>
+          <rect x="182" y="140" width="62" height="14" rx="7" fill="rgba(0,0,0,0.85)"/>
+          <text x="213" y="151" text-anchor="middle" font-size="9" fill="#00e5ff" font-weight="700">R$5,66/L ⭐</text>
+        </g>
+        <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur=".3s" begin="1.1s" fill="freeze"/>
+          <circle cx="285" cy="112" r="7" fill="#00e5ff"/>
+          <circle cx="285" cy="112" r="14" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.4"><animate attributeName="r" from="7" to="22" dur="2s" begin="0.4s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.4" to="0" dur="2s" begin="0.4s" repeatCount="indefinite"/></circle>
+          <rect x="292" y="100" width="56" height="14" rx="7" fill="rgba(0,0,0,0.85)"/>
+          <text x="320" y="111" text-anchor="middle" font-size="9" fill="#00e5ff">R$5,90/L</text>
+        </g>
+        <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur=".3s" begin="1.4s" fill="freeze"/>
+          <circle cx="400" cy="70" r="7" fill="#ffd600"/>
+          <rect x="407" y="58" width="56" height="14" rx="7" fill="rgba(0,0,0,0.85)"/>
+          <text x="435" y="69" text-anchor="middle" font-size="9" fill="#ffd600">R$6,32/L</text>
+        </g>
+        <circle cx="80" cy="180" r="9" fill="#48bb78"/><text x="80" y="184" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">O</text>
+        <circle cx="555" cy="36" r="9" fill="#e74c3c"/><text x="555" y="40" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">D</text>
+      </svg>
+      <div style="position:absolute;bottom:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-end;gap:8px;pointer-events:none">
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:5px 12px;font-size:11px;color:#fff">🟢 São Paulo, SP</div>
+          <div style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:5px 12px;font-size:11px;color:#fff">🔴 Curitiba, PR</div>
+        </div>
+        <div style="background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.4);border-radius:20px;padding:5px 12px;font-size:11px;color:#00e5ff">⛽ 12 postos · 🛣️ 408 km · ⏱️ 4h 20min</div>
+      </div>
+    </div>
+    <div style="padding:10px 14px;background:#111827">
+      <div style="font-size:11px;color:#718096;font-weight:600;margin-bottom:8px">Melhores postos na rota — Diesel S-10</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:12px"><span style="color:#ffd600;font-weight:700;width:22px">1º</span><span style="flex:1;color:#e2e8f0">Posto Dallas — Registro/SP</span><span style="color:#4a5568;font-size:10px;width:40px">2,1 km</span><span style="color:#00e5ff;font-weight:700">R$5,66/L</span><span style="background:rgba(72,187,120,0.15);color:#48bb78;padding:2px 7px;border-radius:10px;font-size:10px;margin-left:6px">-12% ANP</span></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:12px"><span style="color:#a0aec0;font-weight:700;width:22px">2º</span><span style="flex:1;color:#e2e8f0">Auto Posto Kadoshi — Ponta Grossa/PR</span><span style="color:#4a5568;font-size:10px;width:40px">3,4 km</span><span style="color:#00e5ff;font-weight:700">R$5,90/L</span><span style="background:rgba(72,187,120,0.15);color:#48bb78;padding:2px 7px;border-radius:10px;font-size:10px;margin-left:6px">-8% ANP</span></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12px"><span style="color:#bf8c5a;font-weight:700;width:22px">3º</span><span style="flex:1;color:#e2e8f0">Posto Muquém — Curitiba/PR</span><span style="color:#4a5568;font-size:10px;width:40px">1,8 km</span><span style="color:#00e5ff;font-weight:700">R$5,98/L</span><span style="background:rgba(72,187,120,0.15);color:#48bb78;padding:2px 7px;border-radius:10px;font-size:10px;margin-left:6px">-7% ANP</span></div>
+    </div>
+  </div>
+
+  <div id="dp2" class="dp2" style="display:none;background:#0d1117;padding:16px;min-height:340px;display:none;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:linear-gradient(135deg,#1a1040,#0d1a3a);border:1px solid rgba(127,119,221,0.3);border-radius:12px">
+      <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#534AB7,#7F77DD);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px;color:#fff;flex-shrink:0">FNI</div>
+      <div><div style="font-size:13px;font-weight:700;color:#e2e8f0">Assistente IA — FNI Insights</div><div style="font-size:10px;color:#7F77DD">✦ Powered by Claude AI</div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="padding:9px 12px;background:rgba(127,119,221,0.15);color:#c4b5fd;border-radius:10px 10px 2px 10px;font-size:12px;align-self:flex-end;max-width:88%;line-height:1.55">Qual foi meu maior gasto com combustível este mês?</div>
+      <div style="padding:9px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#e2e8f0;border-radius:10px 10px 10px 2px;font-size:12px;max-width:88%;line-height:1.6"><span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:#1a4731;color:#48bb78;margin-right:4px">insight</span><br>Seu maior gasto em junho foi com <strong style="color:#00e5ff">Diesel S-10</strong>, totalizando <strong style="color:#00e5ff">R$ 128.450</strong> em 847 abastecimentos em 3 estados.<br><br>⚠️ 42 abastecimentos acima da ANP — oportunidade de <strong style="color:#48bb78">R$ 9.200/mês</strong> em economia.</div>
+      <div style="padding:9px 12px;background:rgba(127,119,221,0.15);color:#c4b5fd;border-radius:10px 10px 2px 10px;font-size:12px;align-self:flex-end;max-width:88%;line-height:1.55">Onde estou perdendo mais dinheiro?</div>
+      <div style="padding:9px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#e2e8f0;border-radius:10px 10px 10px 2px;font-size:12px;max-width:88%;line-height:1.6"><span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:#4a1a1a;color:#fc8181;margin-right:4px">alerta</span><br>3 oportunidades detectadas:<br><br>1. <strong>ES e GO</strong> pagam 9% acima da ANP → ~R$12K/mês de economia<br>2. <strong>Veículo PLB-3421</strong> com consumo 22% abaixo da média → manutenção<br>3. <strong>47 abastecimentos</strong> fora do horário com preço 4% maior <span style="animation:blink2 1s infinite;color:#00e5ff">▋</span></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="padding:5px 12px;border-radius:16px;border:1px solid rgba(127,119,221,0.3);font-size:11px;color:#a0aec0;cursor:pointer">Quais veículos consomem mais?</div>
+      <div style="padding:5px 12px;border-radius:16px;border:1px solid rgba(127,119,221,0.3);font-size:11px;color:#a0aec0;cursor:pointer">Compare com mês passado</div>
+    </div>
+  </div>
+
+  <div id="dp3" class="dp2" style="display:none;background:#0d1117;padding:16px;min-height:340px">
+    <div style="font-size:14px;font-weight:700;color:#00e5ff;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08)">🗺️ Rotograma — SP → BH <span style="font-size:11px;color:#4a5568;font-weight:400;margin-left:8px">João Silva · ABC-1234 · 12/06/2026</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#718096;letter-spacing:.5px;margin-bottom:8px">⚠️ PONTOS DE RISCO (3)</div>
+        <div style="display:flex;gap:8px;padding:8px 10px;border-radius:8px;border-left:3px solid #e24b4a;background:rgba(231,76,60,0.08);margin-bottom:6px"><div><div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:2px">BR-381 km 120 — Itatiaia/MG</div><div style="font-size:10px;color:#4a5568">Área de perigo · Vel. máx 60 km/h</div></div></div>
+        <div style="display:flex;gap:8px;padding:8px 10px;border-radius:8px;border-left:3px solid #993556;background:rgba(153,53,86,0.08);margin-bottom:6px"><div><div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:2px">BR-040 km 85 — Betim/MG</div><div style="font-size:10px;color:#4a5568">Zona de crime · Câmera ativa</div></div></div>
+        <div style="display:flex;gap:8px;padding:8px 10px;border-radius:8px;border-left:3px solid #ef9f27;background:rgba(239,159,39,0.08)"><div><div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:2px">SP-330 km 340 — Campinas/SP</div><div style="font-size:10px;color:#4a5568">Lombada/Radar · Vel. máx 80 km/h</div></div></div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#718096;letter-spacing:.5px;margin-bottom:8px">🅿️ PONTOS DE PARADA (3)</div>
+        <div style="display:flex;gap:8px;padding:8px 10px;border-radius:8px;border-left:3px solid rgba(0,229,255,0.5);background:rgba(0,229,255,0.05);margin-bottom:6px"><div><div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:2px">⛽ Posto Ipiranga — km 210</div><div style="font-size:10px;color:#4a5568">Abastecimento · R$6,05/L · 24h</div></div></div>
+        <div style="display:flex;gap:8px;padding:8px 10px;border-radius:8px;border-left:3px solid rgba(0,229,255,0.5);background:rgba(0,229,255,0.05);margin-bottom:6px"><div><div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:2px">🍽️ Restaurante Rotatória — km 310</div><div style="font-size:10px;color:#4a5568">Alimentação · Aberto 24h</div></div></div>
+        <div style="display:flex;gap:8px;padding:8px 10px;border-radius:8px;border-left:3px solid rgba(0,229,255,0.5);background:rgba(0,229,255,0.05)"><div><div style="font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:2px">🛏️ Hotel Rodoviário BH — km 490</div><div style="font-size:10px;color:#4a5568">Pernoite · (31) 3333-4444</div></div></div>
+      </div>
+      <div style="grid-column:1/-1;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:8px 12px;font-size:11px;color:#00e5ff;font-weight:600;text-align:center">📞 PRF 191 · SAMU 192 · Bombeiros 193 · PM 190 · ANTT 166</div>
+    </div>
+  </div>
+
+</div><!-- /browser -->
+
+<div id="demo-caption2" style="text-align:center;color:#718096;font-size:14px;margin-top:16px;padding:0 20px;line-height:1.6"><strong style="color:#e2e8f0">Dashboard Analítico</strong> — Visão consolidada de abastecimentos reais, cobertura por UF e comparativo com referência ANP.</div>
+</div>
+</section>
+
+<style>
+.dtab2{padding:9px 18px;border-radius:24px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#718096;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.dtab2:hover{border-color:#00e5ff;color:#00e5ff}
+.dtab2.dtab-on{background:rgba(0,229,255,0.12);border-color:#00e5ff;color:#00e5ff}
+.dp2{animation:fadeUp2 .3s ease}
+@keyframes fadeUp2{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink2{0%,49%{opacity:1}50%,100%{opacity:0}}
+</style>
+
+<script>
+var _urls=['fxgestaodefrotasonline.com · Dashboard Analítico','fxgestaodefrotasonline.com · Consulta por Rota','fxgestaodefrotasonline.com · Assistente IA','fxgestaodefrotasonline.com · Rotograma de Segurança'];
+var _captions=[
+  '<strong style="color:#e2e8f0">Dashboard Analítico</strong> — Visão consolidada de abastecimentos reais, cobertura por UF e comparativo ANP em tempo real.',
+  '<strong style="color:#e2e8f0">Consulta por Rota</strong> — Mapa interativo com os melhores postos ANP ao longo da rota, com animação da rota e economia calculada automaticamente.',
+  '<strong style="color:#e2e8f0">Assistente IA</strong> — Converse em linguagem natural com IA especializada em frotas. Powered by Claude AI, com dados reais da sua empresa.',
+  '<strong style="color:#e2e8f0">Rotograma de Segurança</strong> — Mapeie riscos, paradas e contatos de emergência. Exporte em PDF para o motorista carregar na viagem.'
+];
+var _cur2=0,_timer2;
+function sd(i){
+  clearInterval(_timer2);
+  _cur2=i;
+  ['dp0','dp1','dp2','dp3'].forEach(function(id,j){
+    var el=document.getElementById(id);
+    if(el){el.style.display=(j===i?(id==='dp2'?'flex':'block'):'none');}
+  });
+  document.querySelectorAll('.dtab2').forEach(function(t,j){t.classList.toggle('dtab-on',j===i);});
+  document.getElementById('demo-url2').textContent=_urls[i];
+  document.getElementById('demo-caption2').innerHTML=_captions[i];
+  _timer2=setInterval(function(){sd((_cur2+1)%4);},6000);
+}
+sd(0);
 </script>
 
 <section class="section" id="func">
