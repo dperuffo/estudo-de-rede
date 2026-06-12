@@ -12871,6 +12871,16 @@ def _gerar_pdf_conversa(historico: list, empresa_nome: str = "", logo_b64: str =
 
 
 
+def _layout_br(fig, **kwargs):
+    """Aplica padrão BR (separador milhar=. decimal=,) a figuras Plotly + kwargs extras."""
+    fig.update_layout(
+        separators=",.",          # BR: vírgula decimal, ponto milhar
+        font=dict(family="Arial, sans-serif"),
+        **kwargs
+    )
+    return fig
+
+
 def _doc_tela(modo: str):
     """Exibe documentação contextual recolhida no topo de cada tela."""
     _DOCS = {
@@ -22305,7 +22315,7 @@ if modo == "📈 Dashboard":
                 textposition="outside",
                 hovertemplate="<b>%{y}</b><br>Abastecimentos: %{x}<extra></extra>",
             ))
-            _fig_bar.update_layout(
+            _fig_bar.update_layout(separators=",.", 
                 title="Ranking de Abastecimentos por Estado",
                 xaxis_title="Quantidade de Abastecimentos",
                 yaxis=dict(autorange="reversed"),
@@ -22359,11 +22369,11 @@ if modo == "📈 Dashboard":
                 textposition="outside",
                 hovertemplate=(
                     "<b>%{y}</b><br>"
-                    "Penetração GF: %{x:.2f}%<br>"
+                    "Penetração GF: %{x:,.2f}%<br>"
                     "<extra></extra>"
                 ),
             ))
-            _fig_pen.update_layout(
+            _fig_pen.update_layout(separators=",.", 
                 title="Penetração GF (% dos postos ANP por estado)",
                 xaxis_title="Penetração GF (%)",
                 yaxis=dict(autorange="reversed"),
@@ -22442,7 +22452,7 @@ if modo == "📈 Dashboard":
                 ))
                 _clat = float(_df_map_posto[_lat_col].mean())
                 _clon = float(_df_map_posto[_lon_col].mean())
-                _fig_map_d.update_layout(
+                _fig_map_d.update_layout(separators=",.", 
                     mapbox=dict(style="carto-positron", center=dict(lat=_clat, lon=_clon), zoom=3.8),
                     height=520,
                     margin=dict(l=0, r=0, t=30, b=0),
@@ -22464,7 +22474,7 @@ if modo == "📈 Dashboard":
                     text=_top_mun["Abastecimentos"],
                     textposition="outside",
                 ))
-                _fig_top.update_layout(
+                _fig_top.update_layout(separators=",.", 
                     xaxis_tickangle=-35, height=320,
                     margin=dict(l=10, r=10, t=20, b=80),
                     plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
@@ -22515,7 +22525,7 @@ if modo == "📈 Dashboard":
                         visible=True, color="#B0BEC5",
                     ),
                 ))
-                _fig_comb.update_layout(
+                _fig_comb.update_layout(separators=",.", 
                     title="Preço Médio Real por Combustível (R$/L) — abastecimentos da frota",
                     yaxis_title="R$/L", height=350,
                     margin=dict(l=10, r=10, t=45, b=60),
@@ -22717,7 +22727,7 @@ if modo == "📈 Dashboard":
                     text=_ex_comb["ANP Ref (R$/L)"].apply(
                         lambda v: _br_moeda(v,3) if pd.notna(v) and v else "—"),
                     textposition="outside"))
-                _fig_ex.update_layout(barmode="group", height=350,
+                _fig_ex.update_layout(separators=",.", barmode="group", height=350,
                     title="Preço Real Pago vs Referência ANP",
                     yaxis_title="R$/L", plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=10,r=10,t=45,b=60))
@@ -22805,7 +22815,7 @@ if modo == "📈 Dashboard":
                             _op_map_df["_hover"] = (
                                 (_op_map_df[_nome_col8].fillna("Posto") if _nome_col8 else "Posto") +
                                 "<br>" + _op_map_df["municipio"].fillna("") + " · " + _op_map_df["uf"].fillna("") +
-                                "<br>R$ " + _op_map_df[_preco_col8].apply(lambda v: f"{v:.3f}"))
+                                "<br>R$ " + _op_map_df[_preco_col8].apply(lambda v: _br_num(v, 3)))
                             _fig_op = go.Figure()
                             for _cor_g, _cor_l in [("#27AE60","Baixo"),("#F39C12","Médio"),("#E74C3C","Alto")]:
                                 _sub8 = _op_map_df[_op_map_df["_cor"]==_cor_g]
@@ -22814,7 +22824,7 @@ if modo == "📈 Dashboard":
                                     lat=_sub8[_lat_col], lon=_sub8[_lon_col],
                                     mode="markers", marker=dict(size=10,color=_cor_g,opacity=0.85),
                                     text=_sub8["_hover"], hovertemplate="%{text}<extra></extra>", name=_cor_l))
-                            _fig_op.update_layout(
+                            _fig_op.update_layout(separators=",.", 
                                 mapbox_style="carto-positron", mapbox_zoom=3.8,
                                 mapbox_center={"lat":float(_op_map_df[_lat_col].mean()),
                                                "lon":float(_op_map_df[_lon_col].mean())},
@@ -22882,7 +22892,7 @@ if modo == "📈 Dashboard":
                             marker_color=["#27AE60","#F1C40F","#E67E22","#E74C3C"],
                             text=_abc_cnt["Abastecimentos"].apply(_fmt_int),
                             textposition="outside"))
-                        _fig_abc.update_layout(height=320,
+                        _fig_abc.update_layout(separators=",.", height=320,
                             title="Distribuição por Faixa de Preço — A=Menor · D=Maior",
                             yaxis=dict(range=[0, _abc_cnt["Abastecimentos"].max()*1.2]),
                             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
@@ -23115,7 +23125,7 @@ if modo == "📈 Dashboard":
                     text=_rt_km15["dist_km"].apply(lambda v: f"{_br_int(v)} km"),
                     textposition="outside",
                 ))
-                _fig_km.update_layout(
+                _fig_km.update_layout(separators=",.", 
                     height=380,
                     margin=dict(l=10, r=60, t=10, b=20),
                     xaxis_title="km",
@@ -23149,7 +23159,7 @@ if modo == "📈 Dashboard":
                         text=_rt_dev["desvio_pct"].apply(lambda v: f"+{v:.0f}%" if v >= 0 else f"{v:.0f}%"),
                         textposition="outside",
                     ))
-                    _fig_dev.update_layout(
+                    _fig_dev.update_layout(separators=",.", 
                         height=380,
                         margin=dict(l=10, r=60, t=10, b=20),
                         xaxis_title="% acima da linha reta",
@@ -23184,7 +23194,7 @@ if modo == "📈 Dashboard":
                         text=_rt_custo["custo_est"].apply(lambda v: f"R$ {_br_num(v, 0)}"),
                         textposition="outside",
                     ))
-                    _fig_custo.update_layout(
+                    _fig_custo.update_layout(separators=",.", 
                         height=380,
                         margin=dict(l=10, r=80, t=10, b=20),
                         xaxis_title="R$",
@@ -23226,7 +23236,7 @@ if modo == "📈 Dashboard":
                         text=_postos_cnt["qtd"].astype(str),
                         textposition="outside",
                     ))
-                    _fig_postos.update_layout(
+                    _fig_postos.update_layout(separators=",.", 
                         height=380,
                         margin=dict(l=10, r=40, t=10, b=20),
                         xaxis_title="Aparições em rotas",
@@ -23375,7 +23385,7 @@ if modo == "📈 Dashboard":
                                 text=_rv_top15["km_med"].apply(lambda v: f"{_br_int(v)} km"),
                                 textposition="outside",
                             ))
-                            _fig_rv_km.update_layout(
+                            _fig_rv_km.update_layout(separators=",.", 
                                 height=380,
                                 margin=dict(l=10, r=70, t=10, b=20),
                                 xaxis_title="KM médio por abast.",
@@ -23408,7 +23418,7 @@ if modo == "📈 Dashboard":
                                 text=_rv_top15_kml["media_km_l"].apply(lambda v: f"{v:.1f} km/L"),
                                 textposition="outside",
                             ))
-                            _fig_rv_kml.update_layout(
+                            _fig_rv_kml.update_layout(separators=",.", 
                                 height=380,
                                 margin=dict(l=10, r=90, t=10, b=20),
                                 xaxis_title="km/L",
@@ -23546,7 +23556,7 @@ if modo == "📈 Dashboard":
                                     x=_sub_ev["periodo"], y=_sub_ev["preco_medio"],
                                     mode="lines+markers", name=_uf_ev,
                                     line=dict(color=_ev_cores[_i%len(_ev_cores)], width=2)))
-                            _fig_ev.update_layout(height=400, title="Evolução de Preço por UF",
+                            _fig_ev.update_layout(separators=",.", height=400, title="Evolução de Preço por UF",
                                 yaxis_title="R$/L", plot_bgcolor="rgba(0,0,0,0)",
                                 paper_bgcolor="rgba(0,0,0,0)",
                                 xaxis=dict(tickformat="%d/%m/%Y", tickangle=-30))
@@ -23609,7 +23619,7 @@ if modo == "📈 Dashboard":
                                       else "#27AE60" for v in _reg_price["Preço Médio (R$/L)"]],
                         text=_reg_price["Preço Médio (R$/L)"].apply(lambda v: f"R${v:.3f}"),
                         textposition="outside"))
-                    _fig_reg.update_layout(height=380, title="Preço Médio por UF",
+                    _fig_reg.update_layout(separators=",.", height=380, title="Preço Médio por UF",
                         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                     st.plotly_chart(_fig_reg, use_container_width=True)
                 else:
@@ -23736,7 +23746,7 @@ if modo == "📈 Dashboard":
                 hovertemplate="<b>%{text}</b><br>Demanda: %{customdata[0]:.0f}<br>Postos: %{customdata[1]}<extra></extra>",
                 customdata=_d12_map_df[["demanda","postos_visitados"]].values,
             ))
-            _fig_d12.update_layout(
+            _fig_d12.update_layout(separators=",.", 
                 mapbox_style="carto-positron", mapbox_zoom=3.5,
                 mapbox_center={"lat":-15.0,"lon":-52.0},
                 height=480, margin=dict(l=0,r=0,t=30,b=0),
@@ -23812,7 +23822,7 @@ if modo == "📈 Dashboard":
                         marker_color="#4a1a80",
                         text=_ts_saz["Preço Médio (R$/L)"].apply(lambda v: f"R${v:.3f}"),
                         textposition="outside"))
-                    _fig_saz.update_layout(height=320, title="Preço Médio por Mês",
+                    _fig_saz.update_layout(separators=",.", height=320, title="Preço Médio por Mês",
                         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                     st.plotly_chart(_fig_saz, use_container_width=True)
 
@@ -23822,7 +23832,7 @@ if modo == "📈 Dashboard":
                     _fig_evol = go.Figure(go.Scatter(
                         x=_ts_evol["Período"], y=_ts_evol["Preço Médio"],
                         mode="lines+markers", line=dict(color="#4a1a80",width=2)))
-                    _fig_evol.update_layout(height=300, title="Evolução Mensal de Preço",
+                    _fig_evol.update_layout(separators=",.", height=300, title="Evolução Mensal de Preço",
                         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                         xaxis=dict(tickformat="%b/%Y", tickangle=-30))
                     st.plotly_chart(_fig_evol, use_container_width=True)
