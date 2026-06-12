@@ -12990,8 +12990,10 @@ def _rg_salvar(rg: dict, empresa_id: str, user_email: str) -> dict | None:
     import json as _json_rg
     try:
         _db = _db_client()
+        # empresa_id pode ser None para admin (sem empresa vinculada)
+        _emp_id_val = empresa_id if empresa_id else None
         _payload = {
-            "empresa_id":    empresa_id,
+            "empresa_id":    _emp_id_val,
             "user_email":    user_email,
             "origem":        rg.get("origem",""),
             "destino":       rg.get("destino",""),
@@ -13027,12 +13029,11 @@ def _rg_listar(empresa_id: str) -> list:
     import json as _json_rg
     try:
         _db = _db_client()
-        _res = (_db.table("rotogramas")
-                .select("*")
-                .eq("empresa_id", empresa_id)
-                .order("criado_em", desc=True)
-                .limit(100)
-                .execute())
+        _q = _db.table("rotogramas").select("*").order("criado_em", desc=True).limit(100)
+        # Admin sem empresa vê todos; com empresa filtra pelo tenant
+        if empresa_id:
+            _q = _q.eq("empresa_id", empresa_id)
+        _res = _q.execute()
         _rows = _res.data or []
         for _r in _rows:
             # Desserializa JSONB
