@@ -33396,24 +33396,50 @@ elif modo == "🗺️ Rotograma":
 
     # ── TAB 4 — ROTOGRAMAS SALVOS ────────────────────────────────
     with _rt_tab4:
+        _emp_id_rg5 = (st.session_state.get("_empresa_ativa") or {}).get("id","")
+        _col_rg5a, _col_rg5b = st.columns([4,1])
+        with _col_rg5b:
+            if st.button("🔄 Atualizar", key="btn_refresh_rg", use_container_width=True):
+                st.session_state["rotogramas_salvos"] = _rg_listar(_emp_id_rg5)
+                st.rerun()
+        if "rotogramas_salvos" not in st.session_state or not st.session_state["rotogramas_salvos"]:
+            st.session_state["rotogramas_salvos"] = _rg_listar(_emp_id_rg5)
         _salvos = st.session_state.get("rotogramas_salvos", [])
+        with _col_rg5a:
+            st.markdown(f"**{len(_salvos)} rotograma(s) no histórico**")
         if not _salvos:
             st.info("Nenhum rotograma salvo ainda. Crie e salve na aba **Criar Rotograma**.")
         else:
-            st.markdown(f"**{len(_salvos)} rotograma(s) salvo(s)**")
-            for _sv in reversed(_salvos):
+            for _sv in _salvos:
+                _sv_num = _sv.get("numero") or str(_sv.get("id","?"))[:8]
+                _sv_data = str(_sv.get("criado_em",""))[:10]
                 with st.expander(
-                    f"#{_sv['id']} {_sv.get('origem','?')} → {_sv.get('destino','?')} "
-                    f"| {_sv.get('motorista','—')} | {_sv.get('data_viagem','—')}"):
+                    f"#{_sv_num} · {_sv.get('origem','?')} → {_sv.get('destino','?')} "
+                    f"· {_sv.get('motorista','—')} · {_sv_data}"):
                     _sv1, _sv2 = st.columns(2)
-                    _sv1.caption(f"Veículo: {_sv.get('veiculo','—')} | Placa: {_sv.get('placa','—')}")
-                    _sv1.caption(f"Carga: {_sv.get('carga','—')}")
-                    _sv2.caption(f"Riscos: {len(_sv.get('riscos',[]))} ponto(s)")
-                    _sv2.caption(f"Paradas: {len(_sv.get('paradas',[]))} ponto(s)")
-                    if st.button(f"📋 Carregar este rotograma", key=f"load_rg_{_sv['id']}"):
-                        st.session_state["rotograma_atual"] = {**_sv}
-                        st.toast("Rotograma carregado!", icon="📋")
-                        st.rerun()
+                    _sv1.caption(f"🚛 Veículo: {_sv.get('veiculo','—')} | Placa: {_sv.get('placa','—')}")
+                    _sv1.caption(f"📦 Carga: {_sv.get('carga','—')}")
+                    _sv1.caption(f"📅 Viagem: {_sv.get('data_viagem','—')}")
+                    _sv2.caption(f"⚠️ Riscos: {len(_sv.get('riscos',[]))} ponto(s)")
+                    _sv2.caption(f"🅿️ Paradas: {len(_sv.get('paradas',[]))} ponto(s)")
+                    _sv2.caption(f"👤 Criado por: {_sv.get('user_email','—')}")
+                    _bc1, _bc2 = st.columns(2)
+                    with _bc1:
+                        if st.button("📋 Carregar e Visualizar",
+                                     key=f"load_rg_{_sv.get('id',_sv_num)}",
+                                     type="primary", use_container_width=True):
+                            st.session_state["rotograma_atual"] = {**_sv, "db_id": _sv.get("id")}
+                            st.session_state["_rg_ir_para_visualizar"] = True
+                            st.toast("Rotograma carregado!", icon="📋")
+                            st.rerun()
+                    with _bc2:
+                        if st.button("🗑️ Excluir",
+                                     key=f"del_rg_{_sv.get('id',_sv_num)}",
+                                     use_container_width=True):
+                            if _rg_deletar(_sv.get("id","")):
+                                st.session_state["rotogramas_salvos"] = _rg_listar(_emp_id_rg5)
+                                st.toast("Rotograma excluído!", icon="🗑️")
+                                st.rerun()
 
 elif modo == "⚡ API & Integrações":
     _doc_tela("⚡ API & Integrações")
