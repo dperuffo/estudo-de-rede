@@ -26010,6 +26010,18 @@ elif modo == "📚 Documentação":
             "regras": "Somente perfil admin acessa. Gestores editam apenas usuários do próprio tenant.",
             "tags": ["admin", "usuário", "permissão", "empresa", "tenant", "mfa"],
         },
+        "🗺️ Rotograma de Segurança": {
+            "objetivo": "Mapeamento detalhado de riscos, pontos de parada e contatos de emergência para rotas da frota. Previne acidentes e roubos de carga.",
+            "fonte": "Dados inseridos pelo gestor + base ANP para postos + contatos nacionais fixos (PRF 191, SAMU 192, Bombeiros 193).",
+            "regras": "8 tipos de risco. 7 tipos de parada. Checklist de 10 itens pré-viagem. Exportação em PDF para o motorista.",
+            "tags": ["rotograma", "risco", "parada", "segurança", "rota", "motorista", "pdf", "emergência"],
+        },
+        "🤝 Acordos de Preço": {
+            "objetivo": "Cadastre preços negociados com postos para comparação automática com os abastecimentos reais da frota.",
+            "fonte": "Dados inseridos manualmente ou importados via planilha Excel. Armazenados por tenant no Supabase.",
+            "regras": "Cada acordo: posto (CNPJ), combustível, preço R$/L e vigência (início/fim). Desvio = preço pago - preço acordado.",
+            "tags": ["acordo", "preço negociado", "posto", "combustível", "vigência", "desvio", "comparação"],
+        },
     }
 
     _GLOSSARIO = {
