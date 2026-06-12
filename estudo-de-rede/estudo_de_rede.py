@@ -602,6 +602,7 @@ _PERMISSOES: dict[str, set] = {
     "func_ver_telem_todos": {"admin", "analista"},          # telemetria de todos os clientes
     "aba_assistente_ia":    {"admin", "gestor_frota"},       # assistente IA (planos Pro/Enterprise)
     "aba_rotograma":        {"admin", "gestor_frota"},       # rotograma de segurança de rota
+    "aba_acordos":          {"admin", "gestor_frota"},       # acordos de preço por posto
 }
 
 
@@ -12984,6 +12985,61 @@ def _doc_tela(modo: str):
 
 
 # ── CRUD Rotogramas (Supabase) ──────────────────────────────────────────────
+
+# ── CRUD Acordos de Preço ───────────────────────────────────────────────────
+
+def _ac_salvar_acordo(acordo: dict, empresa_id: str, user_email: str) -> bool:
+    """Salva ou atualiza um acordo de preço no Supabase."""
+    try:
+        _db = _db_client()
+        _payload = {
+            "cnpj_posto":           acordo.get("cnpj_posto","").strip(),
+            "nome_posto":           acordo.get("nome_posto","").strip(),
+            "cnpj_frota":           acordo.get("cnpj_frota","").strip(),
+            "combustivel":          acordo.get("combustivel","").strip(),
+            "preco_negociado":      float(acordo.get("preco_negociado", 0)),
+            "dt_vigencia_inicio":   acordo.get("dt_vigencia_inicio",""),
+            "dt_vigencia_fim":      acordo.get("dt_vigencia_fim",""),
+            "ativo":                True,
+            "empresa_id":           empresa_id if empresa_id else None,
+        }
+        _ac_id = acordo.get("id")
+        if _ac_id:
+            _db.table("acordos_precos").update(_payload).eq("id", _ac_id).execute()
+        else:
+            _db.table("acordos_precos").insert(_payload).execute()
+        return True
+    except Exception as _e:
+        st.error(f"Erro ao salvar acordo: {_e}")
+        return False
+
+
+def _ac_listar_acordos(empresa_id: str) -> list:
+    """Lista acordos da empresa."""
+    try:
+        _db = _db_client()
+        _q = (_db.table("acordos_precos")
+              .select("*")
+              .eq("ativo", True)
+              .order("carregado_em", desc=True)
+              .limit(200))
+        if empresa_id:
+            _q = _q.eq("empresa_id", empresa_id)
+        _res = _q.execute()
+        return _res.data or []
+    except Exception:
+        return []
+
+
+def _ac_desativar_acordo(ac_id: int) -> bool:
+    """Desativa (soft delete) um acordo."""
+    try:
+        _db = _db_client()
+        _db.table("acordos_precos").update({"ativo": False}).eq("id", ac_id).execute()
+        return True
+    except Exception:
+        return False
+
 
 def _rg_salvar(rg: dict, empresa_id: str, user_email: str) -> dict | None:
     """Salva ou atualiza um rotograma no Supabase."""
@@ -33071,6 +33127,266 @@ elif modo == "🤖 Assistente IA":
                     )
                 except Exception as _e_pdf:
                     st.error(f"Erro PDF: {str(_e_pdf)[:150]}")
+
+elif modo == "🤝 Acordos de Preço":
+    _doc_tela("🤝 Acordos de Preço")
+    _perfil_ac  = st.session_state.get("_auth_perfil","")
+    _empresa_ac = st.session_state.get("_empresa_ativa") or {}
+    _emp_id_ac  = _empresa_ac.get("id","") or ""
+    _cnpj_ac    = _empresa_ac.get("cnpj","") or ""
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#1565C0,#0b7a75);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🤝 Acordos de Preço por Posto</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Cadastre preços negociados com postos para comparação com os abastecimentos reais.</p>",
+        unsafe_allow_html=True,
+    )
+
+    _ac_tab1, _ac_tab2, _ac_tab3 = st.tabs([
+        "➕ Novo Acordo",
+        "📋 Acordos Vigentes",
+        "📁 Importar Planilha",
+    ])
+
+    # ── TAB 1 — NOVO ACORDO ──────────────────────────────────────
+    with _ac_tab1:
+        st.markdown("#### ➕ Cadastrar Novo Acordo")
+        with st.form("form_novo_acordo", clear_on_submit=True):
+            _ac_f1, _ac_f2 = st.columns(2)
+            with _ac_f1:
+                _ac_cnpj_posto = st.text_input("CNPJ do Posto *",
+                    placeholder="00.000.000/0001-00",
+                    help="CNPJ do posto conforme cadastro ANP")
+                _ac_nome_posto = st.text_input("Nome do Posto",
+                    placeholder="Ex: Auto Posto Dallas Ltda")
+                _ac_combustivel = st.selectbox("Combustível *", [
+                    "DIESEL S-10 COMUM", "DIESEL S-10 ADITIVADO",
+                    "DIESEL COMUM", "GASOLINA COMUM", "GASOLINA ADITIVADA",
+                    "ETANOL COMUM", "ETANOL ADITIVADO",
+                    "GNV", "ARLA 32 - GRANEL",
+                ])
+            with _ac_f2:
+                _ac_preco = st.number_input("Preço Acordado (R$/L) *",
+                    min_value=0.001, max_value=20.0, value=6.00,
+                    step=0.001, format="%.3f",
+                    help="Preço negociado com o posto para este combustível")
+                _ac_dt_ini = st.date_input("Vigência — Início *",
+                    help="Data de início da validade do acordo")
+                _ac_dt_fim = st.date_input("Vigência — Fim",
+                    help="Data de término. Deixe em branco para acordo sem prazo definido")
+
+            _ac_obs = st.text_input("Observação",
+                placeholder="Ex: Desconto para abastecimento acima de 500L")
+
+            _ac_submit = st.form_submit_button(
+                "💾 Salvar Acordo", type="primary", use_container_width=True)
+
+        if _ac_submit:
+            if not _ac_cnpj_posto or not _ac_combustivel or not _ac_preco:
+                st.error("Preencha os campos obrigatórios: CNPJ, Combustível e Preço.")
+            else:
+                _ac_novo = {
+                    "cnpj_posto":         _ac_cnpj_posto,
+                    "nome_posto":         _ac_nome_posto,
+                    "cnpj_frota":         _cnpj_ac,
+                    "combustivel":        _ac_combustivel,
+                    "preco_negociado":    _ac_preco,
+                    "dt_vigencia_inicio": str(_ac_dt_ini),
+                    "dt_vigencia_fim":    str(_ac_dt_fim),
+                }
+                if _ac_salvar_acordo(_ac_novo, _emp_id_ac, st.session_state.get("_auth_email","")):
+                    st.session_state.pop("_acordos_cache", None)
+                    st.toast("✅ Acordo salvo com sucesso!", icon="🤝")
+                    st.rerun()
+
+    # ── TAB 2 — ACORDOS VIGENTES ─────────────────────────────────
+    with _ac_tab2:
+        st.markdown("#### 📋 Acordos Vigentes")
+
+        _col_ref, _col_btn = st.columns([4,1])
+        with _col_btn:
+            if st.button("🔄 Atualizar", key="btn_refresh_ac", use_container_width=True):
+                st.session_state.pop("_acordos_cache", None)
+                st.rerun()
+
+        if "_acordos_cache" not in st.session_state:
+            st.session_state["_acordos_cache"] = _ac_listar_acordos(_emp_id_ac)
+
+        _acordos = st.session_state.get("_acordos_cache", [])
+
+        with _col_ref:
+            st.markdown(f"**{len(_acordos)} acordo(s) cadastrado(s)**")
+
+        if not _acordos:
+            st.info("Nenhum acordo cadastrado. Use a aba **➕ Novo Acordo** para cadastrar.")
+        else:
+            # KPIs
+            _ak1, _ak2, _ak3 = st.columns(3)
+            _postos_uniq = len(set(a.get("cnpj_posto","") for a in _acordos))
+            _combs_uniq  = len(set(a.get("combustivel","") for a in _acordos))
+            _ak1.metric("🏪 Postos com acordo", _postos_uniq)
+            _ak2.metric("⛽ Combustíveis", _combs_uniq)
+            _ak3.metric("📋 Total de acordos", len(_acordos))
+            st.markdown("---")
+
+            # Filtros
+            _fc1, _fc2 = st.columns(2)
+            with _fc1:
+                _combs_disp = sorted(set(a.get("combustivel","") for a in _acordos))
+                _comb_filt = st.selectbox("Filtrar combustível",
+                    ["Todos"] + _combs_disp, key="ac_filt_comb")
+            with _fc2:
+                _posto_filt = st.text_input("Buscar posto (CNPJ ou nome)",
+                    key="ac_filt_posto", placeholder="Digite para filtrar...")
+
+            _acordos_filt = _acordos
+            if _comb_filt != "Todos":
+                _acordos_filt = [a for a in _acordos_filt if a.get("combustivel") == _comb_filt]
+            if _posto_filt:
+                _pf = _posto_filt.lower()
+                _acordos_filt = [a for a in _acordos_filt
+                                  if _pf in str(a.get("cnpj_posto","")).lower()
+                                  or _pf in str(a.get("nome_posto","")).lower()]
+
+            for _ac in _acordos_filt:
+                _ac_id    = _ac.get("id","")
+                _ac_ini   = str(_ac.get("dt_vigencia_inicio",""))[:10]
+                _ac_fim   = str(_ac.get("dt_vigencia_fim",""))[:10]
+                _ac_preco_v = _br_moeda(float(_ac.get("preco_negociado",0)), 3)
+                with st.expander(
+                    f"🤝 {_ac.get('nome_posto') or _ac.get('cnpj_posto','?')} · "
+                    f"{_ac.get('combustivel','?')} · {_ac_preco_v}/L · "
+                    f"Vigência: {_ac_ini} até {_ac_fim or 'indeterminado'}"):
+                    _ed1, _ed2 = st.columns(2)
+                    _ed1.caption(f"**CNPJ:** {_ac.get('cnpj_posto','—')}")
+                    _ed1.caption(f"**Combustível:** {_ac.get('combustivel','—')}")
+                    _ed1.caption(f"**Preço acordado:** {_ac_preco_v}/L")
+                    _ed2.caption(f"**Vigência início:** {_ac_ini}")
+                    _ed2.caption(f"**Vigência fim:** {_ac_fim or 'Sem prazo'}")
+                    _ed2.caption(f"**CNPJ Frota:** {_ac.get('cnpj_frota','—')}")
+                    if st.button(f"🗑️ Desativar acordo",
+                                 key=f"del_ac_{_ac_id}",
+                                 help="Remove este acordo da comparação"):
+                        if _ac_desativar_acordo(_ac_id):
+                            st.session_state.pop("_acordos_cache", None)
+                            st.toast("Acordo desativado.", icon="🗑️")
+                            st.rerun()
+
+    # ── TAB 3 — IMPORTAR PLANILHA ────────────────────────────────
+    with _ac_tab3:
+        st.markdown("#### 📁 Importar Acordos por Planilha")
+        st.info(
+            "Faça o download do template abaixo, preencha os acordos e faça o upload. "
+            "Os acordos importados serão adicionados aos já cadastrados."
+        )
+
+        # Template para download
+        try:
+            import io as _io_ac
+            import openpyxl as _opxl_ac
+            _wb_ac = _opxl_ac.Workbook()
+            _ws_ac = _wb_ac.active
+            _ws_ac.title = "Acordos"
+            _headers_ac = [
+                "CNPJ Posto *", "Nome Posto", "Combustível *",
+                "Preço Acordado R$/L *", "Vigência Início (AAAA-MM-DD) *",
+                "Vigência Fim (AAAA-MM-DD)"
+            ]
+            _ws_ac.append(_headers_ac)
+            _ws_ac.append([
+                "12.345.678/0001-90", "Auto Posto Exemplo", "DIESEL S-10 COMUM",
+                "5.990", "2025-01-01", "2025-12-31"
+            ])
+            _buf_ac = _io_ac.BytesIO()
+            _wb_ac.save(_buf_ac)
+            st.download_button(
+                "📥 Baixar Template de Acordos",
+                data=_buf_ac.getvalue(),
+                file_name="template_acordos_fni.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="btn_tmpl_acordos"
+            )
+        except Exception:
+            st.caption("Template disponível após instalação do openpyxl.")
+
+        st.markdown("---")
+        _ac_upload = st.file_uploader(
+            "Selecione a planilha de acordos (.xlsx)",
+            type=["xlsx"],
+            key="upload_acordos_planilha"
+        )
+
+        if _ac_upload:
+            try:
+                import openpyxl as _opxl_up
+                import io as _io_up
+                _wb_up = _opxl_up.load_workbook(_io_up.BytesIO(_ac_upload.read()))
+                _ws_up = _wb_up.active
+                _rows_up = list(_ws_up.iter_rows(values_only=True))
+                if len(_rows_up) < 2:
+                    st.error("Planilha vazia ou sem dados.")
+                else:
+                    _header_up = [str(h).strip() if h else "" for h in _rows_up[0]]
+                    _dados_up  = _rows_up[1:]
+                    # Mapeamento flexível de colunas
+                    def _col_idx(keywords):
+                        for k in keywords:
+                            for i, h in enumerate(_header_up):
+                                if k.lower() in h.lower():
+                                    return i
+                        return None
+                    _ci_cnpj  = _col_idx(["cnpj posto", "cnpj_posto", "cnpj"])
+                    _ci_nome  = _col_idx(["nome posto", "nome_posto", "nome"])
+                    _ci_comb  = _col_idx(["combustível", "combustivel"])
+                    _ci_preco = _col_idx(["preço", "preco", "valor"])
+                    _ci_ini   = _col_idx(["início", "inicio", "vigencia inicio", "dt_vigencia_inicio"])
+                    _ci_fim   = _col_idx(["fim", "vigencia fim", "dt_vigencia_fim"])
+
+                    if _ci_cnpj is None or _ci_comb is None or _ci_preco is None:
+                        st.error("Colunas obrigatórias não encontradas: CNPJ Posto, Combustível, Preço.")
+                    else:
+                        _preview = []
+                        for _row in _dados_up:
+                            if not _row or not _row[_ci_cnpj]:
+                                continue
+                            _preview.append({
+                                "CNPJ Posto":    str(_row[_ci_cnpj] or "").strip(),
+                                "Nome Posto":    str(_row[_ci_nome] or "") if _ci_nome else "",
+                                "Combustível":   str(_row[_ci_comb] or "").strip().upper(),
+                                "Preço (R$/L)":  _br_moeda(float(str(_row[_ci_preco] or 0).replace(",",".")), 3),
+                                "Vigência Início": str(_row[_ci_ini] or "")[:10] if _ci_ini else "",
+                                "Vigência Fim":    str(_row[_ci_fim] or "")[:10] if _ci_fim else "",
+                            })
+
+                        st.success(f"✅ {len(_preview)} acordos encontrados na planilha.")
+                        st.dataframe(pd.DataFrame(_preview), use_container_width=True, hide_index=True)
+
+                        if st.button("💾 Importar todos os acordos", type="primary",
+                                     key="btn_import_acordos"):
+                            _ok = 0
+                            _email_imp = st.session_state.get("_auth_email","")
+                            for _row in _dados_up:
+                                if not _row or not _row[_ci_cnpj]:
+                                    continue
+                                _ac_imp = {
+                                    "cnpj_posto":         str(_row[_ci_cnpj] or "").strip(),
+                                    "nome_posto":         str(_row[_ci_nome] or "") if _ci_nome else "",
+                                    "combustivel":        str(_row[_ci_comb] or "").strip().upper(),
+                                    "preco_negociado":    float(str(_row[_ci_preco] or 0).replace(",",".")),
+                                    "dt_vigencia_inicio": str(_row[_ci_ini] or "")[:10] if _ci_ini else "",
+                                    "dt_vigencia_fim":    str(_row[_ci_fim] or "")[:10] if _ci_fim else "",
+                                    "cnpj_frota":         _cnpj_ac,
+                                }
+                                if _ac_salvar_acordo(_ac_imp, _emp_id_ac, _email_imp):
+                                    _ok += 1
+                            st.session_state.pop("_acordos_cache", None)
+                            st.toast(f"✅ {_ok} acordos importados!", icon="📁")
+                            st.rerun()
+            except Exception as _e_up:
+                st.error(f"Erro ao processar planilha: {_e_up}")
 
 elif modo == "🗺️ Rotograma":
     _doc_tela("🗺️ Rotograma")
