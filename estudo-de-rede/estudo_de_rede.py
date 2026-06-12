@@ -603,6 +603,7 @@ _PERMISSOES: dict[str, set] = {
     "aba_assistente_ia":    {"admin", "gestor_frota"},       # assistente IA (planos Pro/Enterprise)
     "aba_rotograma":        {"admin", "gestor_frota"},       # rotograma de segurança de rota
     "aba_acordos":          {"admin", "gestor_frota"},       # acordos de preço por posto
+    "aba_comece_seu_dia":   {"admin", "analista", "gestor_frota"},  # painel diário do gestor
 }
 
 
@@ -15302,15 +15303,33 @@ _TOUR_FILE  = os.path.join(_DIR, "tour_done.flag")
 
 
 def _tour_primeira_visita() -> bool:
-    """Retorna True se o usuário nunca completou o tour (arquivo de flag ausente)."""
-    return not os.path.exists(_TOUR_FILE)
+    """Retorna True se o usuário nunca completou o tour."""
+    # Verifica flag local primeiro (compatibilidade)
+    if os.path.exists(_TOUR_FILE):
+        return False
+    # Verifica preferência salva no Supabase
+    try:
+        _email_tv = st.session_state.get("_auth_email","")
+        if not _email_tv:
+            return not os.path.exists(_TOUR_FILE)
+        _db = _db_client()
+        _res = _db.table("usuarios_app").select("tour_concluido").eq("email", _email_tv).single().execute()
+        return not bool((_res.data or {}).get("tour_concluido", False))
+    except Exception:
+        return not os.path.exists(_TOUR_FILE)
 
 
 def _marcar_tour_concluido():
-    """Grava o arquivo de flag para não mostrar o tour automaticamente novamente."""
+    """Marca o tour como concluído no Supabase e localmente."""
     try:
         with open(_TOUR_FILE, "w", encoding="utf-8") as _f:
             _f.write(_agora())
+    except Exception:
+        pass
+    try:
+        _email_mc = st.session_state.get("_auth_email","")
+        if _email_mc:
+            _db_client().table("usuarios_app").update({"tour_concluido": True}).eq("email", _email_mc).execute()
     except Exception:
         pass
 
@@ -26016,6 +26035,12 @@ elif modo == "📚 Documentação":
             "regras": "8 tipos de risco. 7 tipos de parada. Checklist de 10 itens pré-viagem. Exportação em PDF para o motorista.",
             "tags": ["rotograma", "risco", "parada", "segurança", "rota", "motorista", "pdf", "emergência"],
         },
+        "☀️ Comece seu dia": {
+            "objetivo": "Painel operacional diário do gestor com resumo de abastecimentos, manutenções, acordos de preço e rotogramas. Permite análise rápida por período para tomada de decisão.",
+            "fonte": "Abastecimentos unificados + tabela manutencoes + acordos_precos + rotogramas do Supabase. Período configurável pelo gestor.",
+            "regras": "Alertas ANP: abastecimentos >5% acima da referência por UF. Manutenções urgentes: status=urgente ou vencida. Acordos: vencidos ou que vencem em 30 dias.",
+            "indicadores": "KPIs de combustível (volume, gasto, preço médio, ticket). Top 5 veículos por consumo km/L. Top 5 postos por transações. Status de manutenções e acordos.",
+        },
         "🤝 Acordos de Preço": {
             "objetivo": "Cadastre preços negociados com postos para comparação automática com os abastecimentos reais da frota.",
             "fonte": "Dados inseridos manualmente ou importados via planilha Excel. Armazenados por tenant no Supabase.",
@@ -33141,6 +33166,331 @@ elif modo == "🤖 Assistente IA":
                     )
                 except Exception as _e_pdf:
                     st.error(f"Erro PDF: {str(_e_pdf)[:150]}")
+
+elif modo == "☀️ Comece seu dia":
+    _doc_tela("☀️ Comece seu dia")
+    _perfil_cd  = st.session_state.get("_auth_perfil","")
+    _empresa_cd = st.session_state.get("_empresa_ativa") or {}
+    _emp_id_cd  = _empresa_cd.get("id","") or ""
+
+    # ── Saudação dinâmica ─────────────────────────────────────────
+    from datetime import datetime as _dt_cd
+    _hora_cd = _dt_cd.now().hour
+    _saudacao = "Bom dia" if _hora_cd < 12 else "Boa tarde" if _hora_cd < 18 else "Boa noite"
+    _nome_cd  = st.session_state.get("_auth_nome") or st.session_state.get("_auth_email","Gestor").split("@")[0].title()
+    _dias_pt  = ["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"]
+    _meses_pt = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"]
+    _hoje_cd  = _dt_cd.now()
+    _data_str = f"{_dias_pt[_hoje_cd.weekday()]}, {_hoje_cd.day} de {_meses_pt[_hoje_cd.month-1]} de {_hoje_cd.year}"
+
+    st.markdown(
+        f"<div style='margin-bottom:4px;font-size:1.4rem;font-weight:600;color:var(--color-text-primary)'>"
+        f"{_saudacao}, {_nome_cd}!</div>"
+        f"<p style='color:#666;font-size:13px;margin:0 0 16px'>"
+        f"{_data_str} — resumo operacional da sua frota</p>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Seletor de período ────────────────────────────────────────
+    _periodos_cd = {
+        "Hoje":          1,  "Ontem":        1,  "Últimos 7 dias":  7,
+        "Últimos 15 dias":15,"Últimos 30 dias":30,"Mês anterior":   30,
+        "Ano atual":     365,
+    }
+    _periodo_cd = st.selectbox("Período de análise", list(_periodos_cd.keys()),
+                                index=2, key="cd_periodo",
+                                label_visibility="collapsed")
+    _dias_cd = _periodos_cd[_periodo_cd]
+
+    # ── Carrega dados reais ───────────────────────────────────────
+    _abast_cd = _carregar_abastecimentos_unificados(dias=_dias_cd)
+
+    # ── SEÇÃO 1: COMBUSTÍVEL ──────────────────────────────────────
+    st.markdown("<div style='font-size:11px;font-weight:500;color:var(--color-text-secondary);"
+                "letter-spacing:.5px;text-transform:uppercase;padding:4px 0 8px;"
+                "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
+                "⛽ Combustível & Abastecimentos</div>", unsafe_allow_html=True)
+
+    if not _abast_cd.empty:
+        _val_col_cd   = next((c for c in ["valor_total"] if c in _abast_cd.columns), None)
+        _lit_col_cd   = next((c for c in ["litros","volume_litros"] if c in _abast_cd.columns), None)
+        _pre_col_cd   = next((c for c in ["preco_litro"] if c in _abast_cd.columns), None)
+        _pla_col_cd   = next((c for c in ["placa"] if c in _abast_cd.columns), None)
+        _cnpj_col_cd  = next((c for c in ["cnpj_posto"] if c in _abast_cd.columns), None)
+        _nome_col_cd  = next((c for c in ["nome_posto","razao_social_posto"] if c in _abast_cd.columns), None)
+        _prod_col_cd  = next((c for c in ["produto","combustivel"] if c in _abast_cd.columns), None)
+        _uf_col_cd    = next((c for c in ["uf_posto"] if c in _abast_cd.columns), None)
+        _hod_col_cd   = next((c for c in ["hodometro"] if c in _abast_cd.columns), None)
+
+        _n_abast_cd   = len(_abast_cd)
+        _gasto_cd     = pd.to_numeric(_abast_cd[_val_col_cd], errors="coerce").sum() if _val_col_cd else 0
+        _vol_cd       = pd.to_numeric(_abast_cd[_lit_col_cd], errors="coerce").sum() if _lit_col_cd else 0
+        _preco_med_cd = pd.to_numeric(_abast_cd[_pre_col_cd], errors="coerce").mean() if _pre_col_cd else 0
+        _ticket_cd    = _gasto_cd / _n_abast_cd if _n_abast_cd > 0 else 0
+        _veic_cd      = _abast_cd[_pla_col_cd].nunique() if _pla_col_cd else 0
+
+        _ck1,_ck2,_ck3,_ck4,_ck5,_ck6 = st.columns(6)
+        _ck1.metric("📋 Abastecimentos", _fmt_int(_n_abast_cd),
+            help="Total de abastecimentos no período")
+        _ck2.metric("💧 Volume (L)", _br_num(_vol_cd, 0),
+            help="Litros totais abastecidos no período")
+        _ck3.metric("💰 Gasto total", _br_moeda(_gasto_cd),
+            help="Valor total pago em combustível")
+        _ck4.metric("📊 Preço médio/L", _br_moeda(_preco_med_cd, 3),
+            help="Média aritmética do preço por litro")
+        _ck5.metric("🧾 Ticket médio", _br_moeda(_ticket_cd),
+            help="Valor médio por abastecimento")
+        _ck6.metric("🚛 Veículos", _fmt_int(_veic_cd),
+            help="Veículos com abastecimento no período")
+
+        # Top 5 veículos consumo + Top 5 postos
+        _cd_col1, _cd_col2 = st.columns(2)
+
+        with _cd_col1:
+            st.markdown("##### 🚛 Top 5 — melhor consumo (km/L)")
+            if _hod_col_cd and _pla_col_cd and _lit_col_cd:
+                _abast_hod = _abast_cd.dropna(subset=[_hod_col_cd, _pla_col_cd, _lit_col_cd]).copy()
+                _abast_hod["_hod_n"] = pd.to_numeric(_abast_hod[_hod_col_cd], errors="coerce")
+                _abast_hod["_lit_n"] = pd.to_numeric(_abast_hod[_lit_col_cd], errors="coerce")
+                _abast_hod = _abast_hod[(_abast_hod["_hod_n"] > 0) & (_abast_hod["_lit_n"] > 0)]
+                if not _abast_hod.empty:
+                    _consumo_df = (_abast_hod.groupby(_pla_col_cd)
+                                   .agg(_hod=("_hod_n","sum"), _lit=("_lit_n","sum"))
+                                   .reset_index())
+                    _consumo_df["kml"] = _consumo_df["_hod"] / _consumo_df["_lit"]
+                    _consumo_df = _consumo_df[_consumo_df["kml"] > 0].nlargest(5,"kml")
+                    for _, _rv in _consumo_df.iterrows():
+                        _pct = min(float(_rv["kml"]) / 6.0 * 100, 100)
+                        st.markdown(
+                            f"<div style='display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px'>"
+                            f"<span style='width:80px;color:var(--color-text-secondary);flex-shrink:0'>{_rv[_pla_col_cd]}</span>"
+                            f"<div style='flex:1;height:8px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden'>"
+                            f"<div style='width:{_pct:.0f}%;height:100%;background:#378ADD;border-radius:4px'></div></div>"
+                            f"<span style='width:55px;text-align:right;font-weight:500'>{_br_num(float(_rv['kml']),1)} km/L</span></div>",
+                            unsafe_allow_html=True)
+                else:
+                    st.caption("Hodômetro insuficiente para calcular consumo.")
+            else:
+                st.caption("Importe abastecimentos com coluna Hodômetro para ver consumo.")
+
+        with _cd_col2:
+            st.markdown("##### 📍 Top 5 postos — mais transações")
+            if _cnpj_col_cd:
+                _top_postos_cd = _abast_cd.groupby(_cnpj_col_cd).agg(
+                    _n=(_cnpj_col_cd,"count"),
+                    _nome=(_nome_col_cd,"first") if _nome_col_cd else (_cnpj_col_cd,"first"),
+                    _preco=(_pre_col_cd,"mean") if _pre_col_cd else (_cnpj_col_cd,"count"),
+                ).reset_index().nlargest(5,"_n")
+                medals = ["🥇","🥈","🥉","4","5"]
+                for _mi, (_, _rp) in enumerate(zip(medals, _top_postos_cd.itertuples())):
+                    _nm = str(getattr(_rp,"_nome",""))[:22] or str(getattr(_rp,_cnpj_col_cd,""))[:14]
+                    _pr = f"R$ {_br_num(float(getattr(_rp,'_preco',0)),3)}/L" if _pre_col_cd else ""
+                    st.markdown(
+                        f"<div style='display:flex;align-items:center;gap:8px;padding:6px 0;"
+                        f"border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px'>"
+                        f"<span style='width:18px;flex-shrink:0'>{medals[_mi]}</span>"
+                        f"<span style='flex:1;color:var(--color-text-primary)'>{_nm}</span>"
+                        f"<div style='text-align:right'><div style='font-weight:500'>{_fmt_int(getattr(_rp,'_n',0))} abast.</div>"
+                        f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_pr}</div></div></div>",
+                        unsafe_allow_html=True)
+
+        # Preço médio por combustível
+        if _prod_col_cd and _pre_col_cd:
+            st.markdown("##### ⛽ Preço médio por combustível")
+            _preco_comb = (_abast_cd.groupby(_prod_col_cd)[_pre_col_cd]
+                           .apply(lambda x: pd.to_numeric(x,errors="coerce").mean())
+                           .reset_index()
+                           .rename(columns={_pre_col_cd:"preco_med"})
+                           .sort_values("preco_med",ascending=False)
+                           .head(6))
+            _pc1, _pc2 = st.columns(2)
+            for _pi, (_, _rpc) in enumerate(zip(range(6), _preco_comb.itertuples())):
+                _col = _pc1 if _pi % 2 == 0 else _pc2
+                _col.metric(str(getattr(_rpc, _prod_col_cd,""))[:30],
+                             f"R$ {_br_num(float(getattr(_rpc,'preco_med',0)),3)}/L")
+    else:
+        st.info("Nenhum abastecimento encontrado para o período selecionado. Importe dados na aba Análise de Cliente.")
+
+    st.markdown("---")
+
+    # ── SEÇÃO 2: MANUTENÇÃO ───────────────────────────────────────
+    st.markdown("<div style='font-size:11px;font-weight:500;color:var(--color-text-secondary);"
+                "letter-spacing:.5px;text-transform:uppercase;padding:4px 0 8px;"
+                "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
+                "🔧 Manutenção de Veículos</div>", unsafe_allow_html=True)
+
+    try:
+        _db_man = _db_client()
+        _man_res = (_db_man.table("manutencoes")
+                    .select("*")
+                    .order("data_prevista", desc=False)
+                    .limit(50)
+                    .execute())
+        _man_rows = _man_res.data or []
+        if _emp_id_cd:
+            _man_rows = [m for m in _man_rows if m.get("empresa_id") == _emp_id_cd]
+    except Exception:
+        _man_rows = []
+
+    from datetime import date as _date_man, timedelta as _td_man
+    _hoje_man = _date_man.today()
+
+    _man_urgentes  = [m for m in _man_rows if m.get("status") in ("urgente","vencida")]
+    _man_proximas  = [m for m in _man_rows if m.get("status") == "prevista"]
+    _man_concluidas= [m for m in _man_rows if m.get("status") == "concluida"]
+    _custo_man     = sum(float(m.get("custo") or 0) for m in _man_rows if m.get("status") == "concluida")
+
+    _mk1,_mk2,_mk3,_mk4 = st.columns(4)
+    _mk1.metric("🔧 Total registradas", len(_man_rows))
+    _mk2.metric("🔴 Urgentes/Vencidas", len(_man_urgentes),
+        delta=f"{len(_man_urgentes)} atenção" if _man_urgentes else None,
+        delta_color="inverse")
+    _mk3.metric("📅 Previstas", len(_man_proximas))
+    _mk4.metric("💰 Custo concluídas", _br_moeda(_custo_man),
+        help="Soma dos custos de manutenções concluídas no período")
+
+    if _man_urgentes:
+        st.warning(f"⚠️ {len(_man_urgentes)} manutenção(ões) urgente(s) ou vencida(s) — acesse a aba Telemetria para detalhes.")
+    elif not _man_rows:
+        st.caption("Nenhuma manutenção registrada. Cadastre na aba Telemetria.")
+
+    st.markdown("---")
+
+    # ── SEÇÃO 3: ACORDOS DE PREÇO ─────────────────────────────────
+    st.markdown("<div style='font-size:11px;font-weight:500;color:var(--color-text-secondary);"
+                "letter-spacing:.5px;text-transform:uppercase;padding:4px 0 8px;"
+                "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
+                "🤝 Acordos de Preço</div>", unsafe_allow_html=True)
+
+    _acordos_cd = _ac_listar_acordos(_emp_id_cd)
+
+    from datetime import date as _date_ac2
+    _hoje_ac2 = _date_ac2.today()
+
+    def _ac_st2(ac):
+        _fim = str(ac.get("dt_vigencia_fim",""))[:10]
+        if not _fim: return "vigente"
+        try:
+            _d = _date_ac2.fromisoformat(_fim)
+            if _d < _hoje_ac2: return "vencido"
+            if (_d - _hoje_ac2).days <= 30: return "a_vencer"
+        except Exception: pass
+        return "vigente"
+
+    _ac_vig  = [a for a in _acordos_cd if _ac_st2(a) == "vigente"]
+    _ac_venc = [a for a in _acordos_cd if _ac_st2(a) == "vencido"]
+    _ac_prox = [a for a in _acordos_cd if _ac_st2(a) == "a_vencer"]
+
+    _ak1,_ak2,_ak3,_ak4 = st.columns(4)
+    _ak1.metric("📋 Acordos ativos", len(_acordos_cd))
+    _ak2.metric("✅ Vigentes", len(_ac_vig))
+    _ak3.metric("⚠️ A vencer 30d", len(_ac_prox),
+        delta=f"{len(_ac_prox)} urgente(s)" if _ac_prox else None,
+        delta_color="inverse")
+    _ak4.metric("🔴 Vencidos", len(_ac_venc),
+        delta=f"{len(_ac_venc)} expirado(s)" if _ac_venc else None,
+        delta_color="inverse")
+
+    if _ac_venc or _ac_prox:
+        _msg_ac = []
+        if _ac_venc: _msg_ac.append(f"{len(_ac_venc)} acordo(s) vencido(s)")
+        if _ac_prox: _msg_ac.append(f"{len(_ac_prox)} acordo(s) vence(m) em até 30 dias")
+        st.warning(f"⚠️ {' e '.join(_msg_ac)} — acesse **🤝 Acordos de Preço** para renovar.")
+    elif not _acordos_cd:
+        st.caption("Nenhum acordo cadastrado. Acesse a aba Acordos de Preço para cadastrar.")
+
+    st.markdown("---")
+
+    # ── SEÇÃO 4: ROTOGRAMAS ───────────────────────────────────────
+    st.markdown("<div style='font-size:11px;font-weight:500;color:var(--color-text-secondary);"
+                "letter-spacing:.5px;text-transform:uppercase;padding:4px 0 8px;"
+                "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
+                "🗺️ Rotogramas de Segurança</div>", unsafe_allow_html=True)
+
+    _rgs_cd = _rg_listar(_emp_id_cd)
+    _n_rgs   = len(_rgs_cd)
+    _n_riscos_cd = sum(len(r.get("riscos") or []) for r in _rgs_cd)
+    _n_paradas_cd= sum(len(r.get("paradas") or []) for r in _rgs_cd)
+
+    _rk1,_rk2,_rk3,_rk4 = st.columns(4)
+    _rk1.metric("🗺️ Rotogramas salvos", _n_rgs)
+    _rk2.metric("⚠️ Pontos de risco", _n_riscos_cd)
+    _rk3.metric("🅿️ Pontos de parada", _n_paradas_cd)
+    _rk4.metric("📄 Com PDF gerado", min(_n_rgs, _n_rgs))
+
+    if _rgs_cd:
+        st.markdown("**Rotas cobertas:**")
+        _rg_cols = st.columns(min(3, _n_rgs))
+        for _ri, _rg_item in enumerate(_rgs_cd[:3]):
+            with _rg_cols[_ri]:
+                st.markdown(
+                    f"<div style='background:var(--color-background-secondary);border-radius:var(--border-radius-md);"
+                    f"padding:10px 12px;font-size:12px'>"
+                    f"<div style='font-weight:500;color:var(--color-text-primary);margin-bottom:4px'>"
+                    f"{_rg_item.get('origem','?')} → {_rg_item.get('destino','?')}</div>"
+                    f"<div style='color:var(--color-text-secondary)'>"
+                    f"⚠️ {len(_rg_item.get('riscos') or [])} riscos · "
+                    f"🅿️ {len(_rg_item.get('paradas') or [])} paradas</div></div>",
+                    unsafe_allow_html=True)
+    else:
+        st.caption("Nenhum rotograma salvo. Acesse a aba Rotograma para criar.")
+
+    st.markdown("---")
+
+    # ── SEÇÃO 5: ALERTAS GERAIS ───────────────────────────────────
+    st.markdown("<div style='font-size:11px;font-weight:500;color:var(--color-text-secondary);"
+                "letter-spacing:.5px;text-transform:uppercase;padding:4px 0 8px;"
+                "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
+                "🔔 Alertas do dia</div>", unsafe_allow_html=True)
+
+    _alertas_list = []
+
+    # Alertas de abastecimento acima ANP
+    if not _abast_cd.empty and _pre_col_cd and _uf_col_cd:
+        _ANP_REF_CD = {"SP":6.05,"RJ":6.18,"MG":5.98,"RS":5.92,"PR":5.88,"SC":5.85,
+                        "BA":6.12,"GO":6.00,"ES":6.10,"MS":6.08,"MT":6.15,"PA":6.20}
+        _ab2 = _abast_cd.copy()
+        _ab2["_pre"] = pd.to_numeric(_ab2[_pre_col_cd], errors="coerce")
+        _ab2["_uf"]  = _ab2[_uf_col_cd].fillna("").str.upper().str.strip()
+        _ab2["_anp"] = _ab2["_uf"].map(_ANP_REF_CD)
+        _ab2["_delta"] = (_ab2["_pre"] - _ab2["_anp"]) / _ab2["_anp"] * 100
+        _n_acima = int((_ab2["_delta"] > 5).sum())
+        if _n_acima > 0:
+            _custo_extra = float((_ab2.loc[_ab2["_delta"]>5,"_pre"] - _ab2.loc[_ab2["_delta"]>5,"_anp"]).sum() * _ab2.loc[_ab2["_delta"]>5,_lit_col_cd if _lit_col_cd else "_pre"].apply(pd.to_numeric,errors="coerce").sum() / max(_n_acima,1))
+            _alertas_list.append(("danger", "ti-alert-triangle",
+                f"{_n_acima} abastecimentos acima da ANP (+5%)",
+                f"Desvio médio elevado no período — revise os postos utilizados"))
+
+    # Alertas de manutenção
+    if _man_urgentes:
+        _alertas_list.append(("warning", "ti-tool",
+            f"{len(_man_urgentes)} manutenção(ões) urgente(s) ou vencida(s)",
+            "Acesse Telemetria → Manutenções para detalhar"))
+
+    # Alertas de acordos
+    if _ac_venc:
+        _alertas_list.append(("danger", "ti-file-dollar",
+            f"{len(_ac_venc)} acordo(s) de preço vencido(s)",
+            "Renove em Acordos de Preço para manter os benefícios negociados"))
+    if _ac_prox:
+        _alertas_list.append(("warning", "ti-clock-exclamation",
+            f"{len(_ac_prox)} acordo(s) vencem em até 30 dias",
+            "Antecipe a renovação para não perder os preços negociados"))
+
+    if not _alertas_list:
+        st.success("✅ Nenhum alerta crítico no momento. Tudo sob controle!")
+    else:
+        _bg_map = {"danger":"var(--color-background-danger)","warning":"var(--color-background-warning)"}
+        _co_map = {"danger":"var(--color-text-danger)","warning":"var(--color-text-warning)"}
+        for _al_tipo, _al_ico, _al_title, _al_sub in _alertas_list:
+            st.markdown(
+                f"<div style='display:flex;align-items:flex-start;gap:10px;padding:10px 12px;"
+                f"background:var(--color-background-secondary);border-radius:var(--border-radius-md);"
+                f"border-left:3px solid {_co_map[_al_tipo]};margin-bottom:8px'>"
+                f"<i class='ti {_al_ico}' style='font-size:16px;color:{_co_map[_al_tipo]};flex-shrink:0;margin-top:1px' aria-hidden='true'></i>"
+                f"<div><div style='font-size:13px;font-weight:500;color:var(--color-text-primary)'>{_al_title}</div>"
+                f"<div style='font-size:11px;color:var(--color-text-secondary)'>{_al_sub}</div></div></div>",
+                unsafe_allow_html=True)
 
 elif modo == "🤝 Acordos de Preço":
     _doc_tela("🤝 Acordos de Preço")
