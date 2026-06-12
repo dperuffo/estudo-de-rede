@@ -33218,8 +33218,22 @@ elif modo == "🤝 Acordos de Preço":
 
     # ── TAB 2 — ACORDOS VIGENTES ─────────────────────────────────
     with _ac_tab2:
-        st.markdown("#### 📋 Acordos Vigentes")
 
+        # Doc contextual
+        with st.expander("❓ Como funciona esta aba", expanded=False):
+            _dc1, _dc2 = st.columns(2)
+            with _dc1:
+                st.markdown("**🎯 Objetivo**")
+                st.caption("Visualize, filtre e gerencie todos os acordos de preço cadastrados. Use os indicadores para monitorar a cobertura de acordos por combustível e posto.")
+                st.markdown("**📊 Fonte dos dados**")
+                st.caption("Acordos cadastrados manualmente ou importados via planilha. Armazenados na tabela acordos_precos do Supabase, filtrados pelo tenant.")
+            with _dc2:
+                st.markdown("**⚙️ Regras**")
+                st.caption("Apenas acordos com ativo=True aparecem aqui. Ao desativar, o acordo é marcado como inativo (soft delete) e não aparece na comparação de preços.")
+                st.markdown("**📌 Indicadores**")
+                st.caption("Vencidos = fim da vigência anterior a hoje. A vencer = fim da vigência nos próximos 30 dias. Vigentes = dentro do prazo ou sem prazo definido.")
+
+        # Carrega acordos
         _col_ref, _col_btn = st.columns([4,1])
         with _col_btn:
             if st.button("🔄 Atualizar", key="btn_refresh_ac", use_container_width=True):
@@ -33237,24 +33251,58 @@ elif modo == "🤝 Acordos de Preço":
         if not _acordos:
             st.info("Nenhum acordo cadastrado. Use a aba **➕ Novo Acordo** para cadastrar.")
         else:
-            # KPIs
-            _ak1, _ak2, _ak3 = st.columns(3)
+            # ── Indicadores de status ─────────────────────────────
+            from datetime import date as _date_ac
+            _hoje_ac = _date_ac.today()
+
+            def _ac_status(ac):
+                _fim = str(ac.get("dt_vigencia_fim",""))[:10]
+                _ini = str(ac.get("dt_vigencia_inicio",""))[:10]
+                try:
+                    if _fim and _date_ac.fromisoformat(_fim) < _hoje_ac:
+                        return "vencido"
+                    if _fim and (_date_ac.fromisoformat(_fim) - _hoje_ac).days <= 30:
+                        return "a_vencer"
+                    return "vigente"
+                except Exception:
+                    return "vigente"
+
+            _n_vigentes  = sum(1 for a in _acordos if _ac_status(a) == "vigente")
+            _n_a_vencer  = sum(1 for a in _acordos if _ac_status(a) == "a_vencer")
+            _n_vencidos  = sum(1 for a in _acordos if _ac_status(a) == "vencido")
             _postos_uniq = len(set(a.get("cnpj_posto","") for a in _acordos))
             _combs_uniq  = len(set(a.get("combustivel","") for a in _acordos))
-            _ak1.metric("🏪 Postos com acordo", _postos_uniq)
-            _ak2.metric("⛽ Combustíveis", _combs_uniq)
-            _ak3.metric("📋 Total de acordos", len(_acordos))
+
+            _ki1,_ki2,_ki3,_ki4,_ki5 = st.columns(5)
+            _ki1.metric("📋 Total",          len(_acordos))
+            _ki2.metric("✅ Vigentes",        _n_vigentes,
+                help="Acordos dentro do prazo ou sem prazo definido")
+            _ki3.metric("⚠️ A vencer (30d)",  _n_a_vencer,
+                delta=f"{_n_a_vencer} urgente(s)" if _n_a_vencer else None,
+                delta_color="inverse",
+                help="Acordos que vencem nos próximos 30 dias")
+            _ki4.metric("🔴 Vencidos",        _n_vencidos,
+                delta=f"{_n_vencidos} expirado(s)" if _n_vencidos else None,
+                delta_color="inverse",
+                help="Acordos com vigência encerrada")
+            _ki5.metric("🏪 Postos",          _postos_uniq,
+                help="Postos distintos com pelo menos 1 acordo")
+
             st.markdown("---")
 
             # Filtros
-            _fc1, _fc2 = st.columns(2)
+            _fc1, _fc2, _fc3 = st.columns(3)
             with _fc1:
                 _combs_disp = sorted(set(a.get("combustivel","") for a in _acordos))
                 _comb_filt = st.selectbox("Filtrar combustível",
                     ["Todos"] + _combs_disp, key="ac_filt_comb")
             with _fc2:
-                _posto_filt = st.text_input("Buscar posto (CNPJ ou nome)",
-                    key="ac_filt_posto", placeholder="Digite para filtrar...")
+                _posto_filt = st.text_input("Buscar posto",
+                    key="ac_filt_posto", placeholder="CNPJ ou nome...")
+            with _fc3:
+                _status_filt = st.selectbox("Status",
+                    ["Todos", "✅ Vigentes", "⚠️ A vencer", "🔴 Vencidos"],
+                    key="ac_filt_status")
 
             _acordos_filt = _acordos
             if _comb_filt != "Todos":
@@ -33262,32 +33310,67 @@ elif modo == "🤝 Acordos de Preço":
             if _posto_filt:
                 _pf = _posto_filt.lower()
                 _acordos_filt = [a for a in _acordos_filt
-                                  if _pf in str(a.get("cnpj_posto","")).lower()
-                                  or _pf in str(a.get("nome_posto","")).lower()]
+                    if _pf in str(a.get("cnpj_posto","")).lower()
+                    or _pf in str(a.get("nome_posto","")).lower()]
+            if _status_filt != "Todos":
+                _st_map = {"✅ Vigentes":"vigente","⚠️ A vencer":"a_vencer","🔴 Vencidos":"vencido"}
+                _st_key = _st_map.get(_status_filt,"vigente")
+                _acordos_filt = [a for a in _acordos_filt if _ac_status(a) == _st_key]
+
+            st.caption(f"{len(_acordos_filt)} acordo(s) exibido(s)")
 
             for _ac in _acordos_filt:
-                _ac_id    = _ac.get("id","")
-                _ac_ini   = str(_ac.get("dt_vigencia_inicio",""))[:10]
-                _ac_fim   = str(_ac.get("dt_vigencia_fim",""))[:10]
-                _ac_preco_v = _br_moeda(float(_ac.get("preco_negociado",0)), 3)
+                _ac_id     = _ac.get("id")
+                _ac_ini    = str(_ac.get("dt_vigencia_inicio",""))[:10]
+                _ac_fim    = str(_ac.get("dt_vigencia_fim",""))[:10]
+                _ac_preco_v = _br_moeda(float(_ac.get("preco_negociado") or 0), 3)
+                _ac_st     = _ac_status(_ac)
+                _ac_st_icon = {"vigente":"✅","a_vencer":"⚠️","vencido":"🔴"}.get(_ac_st,"✅")
+
                 with st.expander(
-                    f"🤝 {_ac.get('nome_posto') or _ac.get('cnpj_posto','?')} · "
+                    f"{_ac_st_icon} {_ac.get('nome_posto') or _ac.get('cnpj_posto','?')} · "
                     f"{_ac.get('combustivel','?')} · {_ac_preco_v}/L · "
-                    f"Vigência: {_ac_ini} até {_ac_fim or 'indeterminado'}"):
-                    _ed1, _ed2 = st.columns(2)
-                    _ed1.caption(f"**CNPJ:** {_ac.get('cnpj_posto','—')}")
-                    _ed1.caption(f"**Combustível:** {_ac.get('combustivel','—')}")
-                    _ed1.caption(f"**Preço acordado:** {_ac_preco_v}/L")
-                    _ed2.caption(f"**Vigência início:** {_ac_ini}")
-                    _ed2.caption(f"**Vigência fim:** {_ac_fim or 'Sem prazo'}")
-                    _ed2.caption(f"**CNPJ Frota:** {_ac.get('cnpj_frota','—')}")
-                    if st.button(f"🗑️ Desativar acordo",
-                                 key=f"del_ac_{_ac_id}",
-                                 help="Remove este acordo da comparação"):
-                        if _ac_desativar_acordo(_ac_id):
-                            st.session_state.pop("_acordos_cache", None)
-                            st.toast("Acordo desativado.", icon="🗑️")
-                            st.rerun()
+                    f"até {_ac_fim or 'indeterminado'}"):
+                    _ed1, _ed2, _ed3 = st.columns([2,2,1])
+                    with _ed1:
+                        st.caption(f"**CNPJ:** {_ac.get('cnpj_posto','—')}")
+                        st.caption(f"**Nome:** {_ac.get('nome_posto','—')}")
+                        st.caption(f"**Combustível:** {_ac.get('combustivel','—')}")
+                    with _ed2:
+                        st.caption(f"**Preço acordado:** {_ac_preco_v}/L")
+                        st.caption(f"**Vigência início:** {_ac_ini or '—'}")
+                        st.caption(f"**Vigência fim:** {_ac_fim or 'Sem prazo'}")
+                        st.caption(f"**Status:** {_ac_st_icon} {_ac_st.replace('_',' ').title()}")
+                    with _ed3:
+                        _chave_confirm = f"_confirm_del_ac_{_ac_id}"
+                        if not st.session_state.get(_chave_confirm):
+                            if st.button("🗑️ Desativar",
+                                         key=f"del_ac_{_ac_id}",
+                                         use_container_width=True,
+                                         help="Clique para confirmar desativação"):
+                                st.session_state[_chave_confirm] = True
+                                st.rerun()
+                        else:
+                            st.warning("Confirmar?")
+                            _cb1, _cb2 = st.columns(2)
+                            with _cb1:
+                                if st.button("✅ Sim",
+                                             key=f"confirm_del_ac_{_ac_id}",
+                                             use_container_width=True,
+                                             type="primary"):
+                                    if _ac_id and _ac_desativar_acordo(int(_ac_id)):
+                                        st.session_state.pop(_chave_confirm, None)
+                                        st.session_state.pop("_acordos_cache", None)
+                                        st.toast("Acordo desativado.", icon="🗑️")
+                                        st.rerun()
+                                    else:
+                                        st.error("Erro ao desativar.")
+                            with _cb2:
+                                if st.button("❌ Não",
+                                             key=f"cancel_del_ac_{_ac_id}",
+                                             use_container_width=True):
+                                    st.session_state.pop(_chave_confirm, None)
+                                    st.rerun()
 
     # ── TAB 3 — IMPORTAR PLANILHA ────────────────────────────────
     with _ac_tab3:
