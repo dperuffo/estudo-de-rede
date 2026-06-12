@@ -134,6 +134,352 @@ footer{padding:36px 6%;border-top:1px solid rgba(255,255,255,0.05);display:flex;
   </div>
 </div>
 
+
+<!-- ═══════════════════════════════════════════════
+     SEÇÃO: PREVIEW DA PLATAFORMA
+═══════════════════════════════════════════════ -->
+<section class="section demo-section" id="demo">
+  <div class="container">
+    <div class="section-label">Plataforma em ação</div>
+    <h2 class="section-title">Veja como funciona na prática</h2>
+    <p class="section-sub">Explore as principais funcionalidades da FNI Gestão de Frotas</p>
+
+    <!-- Tabs de funcionalidades -->
+    <div class="demo-tabs">
+      <button class="demo-tab active" onclick="showDemo(0)">📈 Dashboard</button>
+      <button class="demo-tab" onclick="showDemo(1)">🗺️ Consulta por Rota</button>
+      <button class="demo-tab" onclick="showDemo(2)">🤖 Assistente IA</button>
+      <button class="demo-tab" onclick="showDemo(3)">🗺️ Rotograma</button>
+    </div>
+
+    <!-- Painéis de preview -->
+    <div class="demo-frame">
+
+      <!-- PAINEL 0: Dashboard -->
+      <div class="demo-panel active" id="demo-0">
+        <div class="mock-browser">
+          <div class="mock-bar">
+            <span class="mock-dot red"></span>
+            <span class="mock-dot yellow"></span>
+            <span class="mock-dot green"></span>
+            <span class="mock-url">fxgestaodefrotasonline.com · Dashboard Analítico</span>
+          </div>
+          <div class="mock-content dash">
+            <div class="mock-sidebar">
+              <div class="mock-logo-sm">FNI</div>
+              <div class="mock-nav-item active-nav">📈 Dashboard</div>
+              <div class="mock-nav-item">🗺️ Consulta por Rota</div>
+              <div class="mock-nav-item">👥 Análise de Cliente</div>
+              <div class="mock-nav-item">📑 Relatórios</div>
+              <div class="mock-nav-item">🤖 Assistente IA</div>
+            </div>
+            <div class="mock-main">
+              <div class="mock-header-bar">
+                <span class="mock-title-text">📈 Dashboard Analítico de Abastecimentos</span>
+              </div>
+              <div class="mock-kpis">
+                <div class="mock-kpi"><div class="mock-kpi-val cyan">2.960</div><div class="mock-kpi-lbl">Postos ANP</div></div>
+                <div class="mock-kpi"><div class="mock-kpi-val green">1.284</div><div class="mock-kpi-lbl">Abastecimentos</div></div>
+                <div class="mock-kpi"><div class="mock-kpi-val yellow">R$ 6,42</div><div class="mock-kpi-lbl">Preço Médio/L</div></div>
+                <div class="mock-kpi"><div class="mock-kpi-val blue">18</div><div class="mock-kpi-lbl">Estados cobertos</div></div>
+              </div>
+              <div class="mock-charts">
+                <div class="mock-chart bar-chart">
+                  <div class="mock-chart-title">Penetração por UF</div>
+                  <div class="bar-wrap">
+                    <div class="bar-row"><span>SP</span><div class="bar-fill" style="width:85%;background:#00e5ff"></div><span>85%</span></div>
+                    <div class="bar-row"><span>MG</span><div class="bar-fill" style="width:72%;background:#00e5ff88"></div><span>72%</span></div>
+                    <div class="bar-row"><span>RS</span><div class="bar-fill" style="width:61%;background:#00e5ff66"></div><span>61%</span></div>
+                    <div class="bar-row"><span>PR</span><div class="bar-fill" style="width:54%;background:#00e5ff44"></div><span>54%</span></div>
+                  </div>
+                </div>
+                <div class="mock-chart line-chart">
+                  <div class="mock-chart-title">Evolução de Preço — Diesel S-10</div>
+                  <svg viewBox="0 0 200 80" class="line-svg">
+                    <polyline points="0,60 40,55 80,58 120,45 160,40 200,35" fill="none" stroke="#00e5ff" stroke-width="2"/>
+                    <polyline points="0,60 40,55 80,58 120,45 160,40 200,35" fill="url(#grad)" stroke="none"/>
+                    <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00e5ff44"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="demo-caption">
+          <strong>Dashboard Analítico</strong> — Visão consolidada de abastecimentos reais, cobertura geográfica e comparativo ANP em tempo real.
+        </div>
+      </div>
+
+      <!-- PAINEL 1: Consulta por Rota -->
+      <div class="demo-panel" id="demo-1">
+        <div class="mock-browser">
+          <div class="mock-bar">
+            <span class="mock-dot red"></span>
+            <span class="mock-dot yellow"></span>
+            <span class="mock-dot green"></span>
+            <span class="mock-url">fxgestaodefrotasonline.com · Consulta por Rota</span>
+          </div>
+          <div class="mock-content rota">
+            <div class="mock-map-bg">
+              <svg viewBox="0 0 500 280" class="map-svg">
+                <!-- Rota simulada -->
+                <path d="M80,220 C120,200 160,180 200,160 C240,140 280,120 320,100 C360,80 400,70 440,60" fill="none" stroke="#00e5ff" stroke-width="3" stroke-dasharray="8,4"/>
+                <!-- Postos na rota -->
+                <circle cx="140" cy="188" r="8" fill="#00e5ff" opacity="0.9"/>
+                <circle cx="230" cy="148" r="8" fill="#00e5ff" opacity="0.9"/>
+                <circle cx="330" cy="96" r="8" fill="#ffd600" opacity="0.9"/>
+                <circle cx="410" cy="66" r="6" fill="#00e5ff" opacity="0.7"/>
+                <!-- Origem/Destino -->
+                <circle cx="80" cy="220" r="10" fill="#4caf50"/>
+                <circle cx="440" cy="60" r="10" fill="#f44336"/>
+                <!-- Grid pontilhado -->
+                <line x1="0" y1="70" x2="500" y2="70" stroke="#ffffff08" stroke-width="1"/>
+                <line x1="0" y1="140" x2="500" y2="140" stroke="#ffffff08" stroke-width="1"/>
+                <line x1="0" y1="210" x2="500" y2="210" stroke="#ffffff08" stroke-width="1"/>
+                <line x1="125" y1="0" x2="125" y2="280" stroke="#ffffff08" stroke-width="1"/>
+                <line x1="250" y1="0" x2="250" y2="280" stroke="#ffffff08" stroke-width="1"/>
+                <line x1="375" y1="0" x2="375" y2="280" stroke="#ffffff08" stroke-width="1"/>
+              </svg>
+              <div class="map-labels">
+                <div class="map-badge origin">🟢 São Paulo, SP</div>
+                <div class="map-badge dest">🔴 Curitiba, PR</div>
+                <div class="map-info">⛽ 12 postos ANP · 🛣️ 408 km · ⏱️ 4h 20min</div>
+              </div>
+            </div>
+            <div class="mock-posto-list">
+              <div class="mock-posto-title">Top postos na rota</div>
+              <div class="mock-posto"><span class="posto-rank gold">1º</span><span class="posto-nome">Posto Dallas</span><span class="posto-preco cyan">R$ 5,66/L</span></div>
+              <div class="mock-posto"><span class="posto-rank silver">2º</span><span class="posto-nome">Auto Posto Kadoshi</span><span class="posto-preco cyan">R$ 5,90/L</span></div>
+              <div class="mock-posto"><span class="posto-rank bronze">3º</span><span class="posto-nome">Posto Muquém</span><span class="posto-preco">R$ 5,98/L</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="demo-caption">
+          <strong>Consulta por Rota</strong> — Encontre os postos mais baratos ao longo da sua rota com base nos ~38.000 postos ANP cadastrados.
+        </div>
+      </div>
+
+      <!-- PAINEL 2: Assistente IA -->
+      <div class="demo-panel" id="demo-2">
+        <div class="mock-browser">
+          <div class="mock-bar">
+            <span class="mock-dot red"></span>
+            <span class="mock-dot yellow"></span>
+            <span class="mock-dot green"></span>
+            <span class="mock-url">fxgestaodefrotasonline.com · Assistente IA</span>
+          </div>
+          <div class="mock-content ia">
+            <div class="ia-header">
+              <div class="ia-logo-circle">FNI</div>
+              <div>
+                <div class="ia-title">Assistente IA — FNI Insights</div>
+                <div class="ia-sub">✦ Powered by Claude AI</div>
+              </div>
+            </div>
+            <div class="ia-chat">
+              <div class="ia-msg user">Qual foi meu maior gasto com combustível este mês?</div>
+              <div class="ia-msg bot">
+                <span class="ia-badge">insight</span>
+                Seu maior gasto em junho foi com <strong>Diesel S-10</strong>, totalizando <strong>R$ 128.450</strong> em 847 abastecimentos em 3 estados.<br><br>
+                ⚠️ 42 abastecimentos acima da referência ANP (+8% em média).
+              </div>
+              <div class="ia-msg user">Onde estou perdendo mais dinheiro?</div>
+              <div class="ia-msg bot typing">
+                <span class="ia-badge alert">alerta</span>
+                Detectei <strong>3 oportunidades</strong> de economia de <strong>R$ 12.400/mês</strong>...
+                <span class="ia-cursor">▋</span>
+              </div>
+            </div>
+            <div class="ia-chips">
+              <div class="ia-chip">Quais veículos consomem mais?</div>
+              <div class="ia-chip">Compare com mês passado</div>
+            </div>
+          </div>
+        </div>
+        <div class="demo-caption">
+          <strong>Assistente IA</strong> — Pergunte sobre sua frota em linguagem natural e receba insights acionáveis powered by Claude AI.
+        </div>
+      </div>
+
+      <!-- PAINEL 3: Rotograma -->
+      <div class="demo-panel" id="demo-3">
+        <div class="mock-browser">
+          <div class="mock-bar">
+            <span class="mock-dot red"></span>
+            <span class="mock-dot yellow"></span>
+            <span class="mock-dot green"></span>
+            <span class="mock-url">fxgestaodefrotasonline.com · Rotograma de Segurança</span>
+          </div>
+          <div class="mock-content rg">
+            <div class="rg-header">🗺️ Rotograma — SP → BH</div>
+            <div class="rg-body">
+              <div class="rg-col">
+                <div class="rg-section-title">⚠️ Pontos de Risco (4)</div>
+                <div class="rg-item danger"><span class="rg-icon">⚠️</span><div><div class="rg-loc">BR-381 km 120 — Itatiaia/MG</div><div class="rg-detail">Curva perigosa · Vel. máx 60 km/h</div></div></div>
+                <div class="rg-item crime"><span class="rg-icon">🔴</span><div><div class="rg-loc">BR-040 km 85 — Betim/MG</div><div class="rg-detail">Zona de risco · Câmera ativa</div></div></div>
+                <div class="rg-item warn"><span class="rg-icon">🛑</span><div><div class="rg-loc">SP-330 km 340 — Campinas/SP</div><div class="rg-detail">Radar fixo · Vel. máx 80 km/h</div></div></div>
+              </div>
+              <div class="rg-col">
+                <div class="rg-section-title">🅿️ Paradas (3)</div>
+                <div class="rg-item stop"><span class="rg-icon">⛽</span><div><div class="rg-loc">Posto Ipiranga — km 210</div><div class="rg-detail">Abastecimento · R$ 6,05/L</div></div></div>
+                <div class="rg-item stop"><span class="rg-icon">🍽️</span><div><div class="rg-loc">Restaurante Rotatória — km 310</div><div class="rg-detail">Alimentação · Aberto 24h</div></div></div>
+                <div class="rg-item stop"><span class="rg-icon">🛏️</span><div><div class="rg-loc">Hotel Rodoviário BH — km 490</div><div class="rg-detail">Pernoite · (31) 3333-4444</div></div></div>
+                <div class="rg-emergency">📞 PRF: 191 · SAMU: 192 · Bombeiros: 193</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="demo-caption">
+          <strong>Rotograma de Segurança</strong> — Mapeie riscos, pontos de parada e contatos de emergência para cada rota da sua frota.
+        </div>
+      </div>
+
+    </div><!-- /demo-frame -->
+  </div><!-- /container -->
+</section>
+
+<style>
+/* ── Demo Section ── */
+.demo-section { padding: 80px 0; }
+.section-label { color: #00e5ff; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+.section-title { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; color: #fff; margin-bottom: 12px; }
+.section-sub { color: #a0aec0; font-size: 15px; margin-bottom: 40px; }
+
+/* Tabs */
+.demo-tabs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 32px; }
+.demo-tab { padding: 10px 20px; border-radius: 24px; border: 1px solid rgba(0,229,255,0.25); background: rgba(0,229,255,0.05); color: #a0aec0; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.demo-tab:hover { border-color: #00e5ff; color: #00e5ff; }
+.demo-tab.active { background: rgba(0,229,255,0.15); border-color: #00e5ff; color: #00e5ff; }
+
+/* Frame */
+.demo-frame { position: relative; }
+.demo-panel { display: none; animation: fadeIn .3s ease; }
+.demo-panel.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Mock Browser */
+.mock-browser { border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.5); margin-bottom: 16px; }
+.mock-bar { background: #1a1f2e; padding: 10px 16px; display: flex; align-items: center; gap: 6px; }
+.mock-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mock-dot.red { background: #ff5f57; }
+.mock-dot.yellow { background: #febc2e; }
+.mock-dot.green { background: #28c840; }
+.mock-url { margin-left: 12px; font-size: 11px; color: #4a5568; font-family: monospace; }
+.mock-content { background: #0d1117; min-height: 340px; }
+
+/* Dashboard */
+.mock-content.dash { display: flex; }
+.mock-sidebar { width: 160px; background: #111827; padding: 16px 10px; flex-shrink: 0; }
+.mock-logo-sm { color: #00e5ff; font-weight: 900; font-size: 16px; margin-bottom: 20px; padding: 0 4px; }
+.mock-nav-item { padding: 7px 8px; border-radius: 6px; font-size: 11px; color: #4a5568; margin-bottom: 4px; cursor: default; }
+.mock-nav-item.active-nav { background: rgba(0,229,255,0.1); color: #00e5ff; }
+.mock-main { flex: 1; padding: 16px; }
+.mock-header-bar { margin-bottom: 16px; }
+.mock-title-text { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+.mock-kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px; }
+.mock-kpi { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 10px 8px; text-align: center; }
+.mock-kpi-val { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.mock-kpi-val.cyan { color: #00e5ff; }
+.mock-kpi-val.green { color: #48bb78; }
+.mock-kpi-val.yellow { color: #ffd600; }
+.mock-kpi-val.blue { color: #63b3ed; }
+.mock-kpi-lbl { font-size: 9px; color: #4a5568; }
+.mock-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mock-chart { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px; }
+.mock-chart-title { font-size: 10px; color: #718096; margin-bottom: 8px; }
+.bar-wrap { display: flex; flex-direction: column; gap: 6px; }
+.bar-row { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #718096; }
+.bar-fill { height: 8px; border-radius: 4px; transition: width .3s; }
+.line-svg { width: 100%; height: 60px; }
+
+/* Rota */
+.mock-content.rota { position: relative; display: flex; flex-direction: column; }
+.mock-map-bg { position: relative; background: linear-gradient(135deg, #0a1628 0%, #0d1f3c 100%); height: 240px; overflow: hidden; }
+.map-svg { width: 100%; height: 100%; }
+.map-labels { position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px; }
+.map-badge { background: rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 10px; font-size: 11px; color: #e2e8f0; backdrop-filter: blur(4px); }
+.map-info { background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.3); border-radius: 20px; padding: 4px 10px; font-size: 11px; color: #00e5ff; }
+.mock-posto-list { padding: 12px 16px; background: #111827; }
+.mock-posto-title { font-size: 11px; color: #718096; margin-bottom: 8px; font-weight: 600; }
+.mock-posto { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; }
+.posto-rank { font-weight: 800; font-size: 11px; width: 24px; }
+.posto-rank.gold { color: #ffd600; }
+.posto-rank.silver { color: #a0aec0; }
+.posto-rank.bronze { color: #ed8936; }
+.posto-nome { flex: 1; color: #e2e8f0; }
+.posto-preco { font-weight: 700; color: #718096; }
+.posto-preco.cyan { color: #00e5ff; }
+
+/* IA */
+.mock-content.ia { padding: 16px; }
+.ia-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 12px 16px; background: linear-gradient(135deg, #1a1040, #0d1a3a); border: 1px solid rgba(127,119,221,0.3); border-radius: 12px; }
+.ia-logo-circle { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #534AB7, #7F77DD); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; color: #fff; flex-shrink: 0; }
+.ia-title { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+.ia-sub { font-size: 10px; color: #7F77DD; }
+.ia-chat { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.ia-msg { padding: 8px 12px; border-radius: 10px; font-size: 12px; max-width: 85%; line-height: 1.5; }
+.ia-msg.user { background: rgba(127,119,221,0.15); color: #c4b5fd; align-self: flex-end; border-radius: 10px 10px 2px 10px; }
+.ia-msg.bot { background: rgba(255,255,255,0.05); color: #e2e8f0; align-self: flex-start; border-radius: 10px 10px 10px 2px; }
+.ia-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; background: #1a4731; color: #48bb78; margin-right: 6px; }
+.ia-badge.alert { background: #4a1a1a; color: #fc8181; }
+.ia-cursor { animation: blink 1s infinite; color: #00e5ff; }
+@keyframes blink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
+.ia-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.ia-chip { padding: 5px 12px; border-radius: 16px; border: 1px solid rgba(127,119,221,0.3); font-size: 11px; color: #a0aec0; cursor: pointer; }
+
+/* Rotograma */
+.mock-content.rg { padding: 16px; }
+.rg-header { font-size: 14px; font-weight: 700; color: #00e5ff; margin-bottom: 14px; }
+.rg-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rg-section-title { font-size: 11px; font-weight: 700; color: #718096; margin-bottom: 8px; }
+.rg-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; font-size: 11px; }
+.rg-item.danger { background: rgba(231,76,60,0.1); border-left: 3px solid #E74C3C; }
+.rg-item.crime { background: rgba(192,57,43,0.1); border-left: 3px solid #C0392B; }
+.rg-item.warn { background: rgba(230,126,34,0.1); border-left: 3px solid #E67E22; }
+.rg-item.stop { background: rgba(0,229,255,0.05); border-left: 3px solid #00e5ff44; }
+.rg-icon { font-size: 14px; flex-shrink: 0; }
+.rg-loc { color: #e2e8f0; font-weight: 600; margin-bottom: 2px; }
+.rg-detail { color: #718096; }
+.rg-emergency { margin-top: 12px; padding: 8px 10px; background: rgba(0,229,255,0.08); border-radius: 8px; font-size: 11px; color: #00e5ff; font-weight: 600; }
+
+/* Caption */
+.demo-caption { text-align: center; color: #718096; font-size: 14px; padding: 0 20px; }
+.demo-caption strong { color: #e2e8f0; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .mock-content.dash { flex-direction: column; }
+  .mock-sidebar { width: 100%; display: flex; gap: 8px; overflow-x: auto; padding: 8px; }
+  .mock-kpis { grid-template-columns: repeat(2,1fr); }
+  .mock-charts { grid-template-columns: 1fr; }
+  .rg-body { grid-template-columns: 1fr; }
+  .demo-tab { font-size: 11px; padding: 8px 12px; }
+}
+</style>
+
+<script>
+function showDemo(idx) {
+  document.querySelectorAll('.demo-panel').forEach((p,i) => {
+    p.classList.toggle('active', i === idx);
+  });
+  document.querySelectorAll('.demo-tab').forEach((t,i) => {
+    t.classList.toggle('active', i === idx);
+  });
+}
+
+// Auto-rotação a cada 5 segundos
+let _demoIdx = 0;
+let _demoTimer = setInterval(() => {
+  _demoIdx = (_demoIdx + 1) % 4;
+  showDemo(_demoIdx);
+}, 5000);
+
+// Para auto-rotação ao clicar
+document.querySelectorAll('.demo-tab').forEach(t => {
+  t.addEventListener('click', () => clearInterval(_demoTimer));
+});
+</script>
+
 <section class="section" id="func">
   <div class="sec-lbl">Funcionalidades</div>
   <div class="sec-title">Tudo que sua frota precisa,<br>em um só lugar</div>
