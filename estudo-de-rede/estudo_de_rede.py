@@ -32841,18 +32841,54 @@ elif modo == "☀️ Comece seu dia":
     )
 
     # ── Seletor de período ────────────────────────────────────────
+    from datetime import datetime as _dt_cd2, timedelta as _td_cd2, timezone as _tz_cd2
+    _brasilia_cd = _tz_cd2(_td_cd2(hours=-3))
+    _hoje_cd2 = _dt_cd2.now(_brasilia_cd).date()
+
     _periodos_cd = {
-        "Hoje":          1,  "Ontem":        1,  "Últimos 7 dias":  7,
-        "Últimos 15 dias":15,"Últimos 30 dias":30,"Mês anterior":   30,
-        "Ano atual":     365,
+        "Hoje":            1,
+        "Ontem":           2,
+        "Últimos 7 dias":  7,
+        "Últimos 15 dias": 15,
+        "Últimos 30 dias": 30,
+        "Mês anterior":    60,
+        "Ano atual":       365,
     }
     _periodo_cd = st.selectbox("Período de análise", list(_periodos_cd.keys()),
                                 index=2, key="cd_periodo",
                                 label_visibility="collapsed")
     _dias_cd = _periodos_cd[_periodo_cd]
 
-    # ── Carrega dados reais ───────────────────────────────────────
+    # Datas de início e fim do período
+    if _periodo_cd == "Hoje":
+        _dt_ini_cd = str(_hoje_cd2)
+        _dt_fim_cd = str(_hoje_cd2)
+    elif _periodo_cd == "Ontem":
+        _dt_ini_cd = str(_hoje_cd2 - _td_cd2(days=1))
+        _dt_fim_cd = str(_hoje_cd2 - _td_cd2(days=1))
+    elif _periodo_cd == "Mês anterior":
+        _primeiro_mes = _hoje_cd2.replace(day=1)
+        _dt_fim_cd = str(_primeiro_mes - _td_cd2(days=1))
+        _dt_ini_cd = str((_primeiro_mes - _td_cd2(days=1)).replace(day=1))
+    elif _periodo_cd == "Ano atual":
+        _dt_ini_cd = str(_hoje_cd2.replace(month=1, day=1))
+        _dt_fim_cd = str(_hoje_cd2)
+    else:
+        _dt_ini_cd = str(_hoje_cd2 - _td_cd2(days=_dias_cd))
+        _dt_fim_cd = str(_hoje_cd2)
+
+    # ── Carrega dados reais filtrados por período ─────────────────
     _abast_cd = _carregar_abastecimentos_unificados(dias=_dias_cd)
+    # Filtra por data se houver coluna de data
+    if not _abast_cd.empty:
+        _dt_col_cd = next((c for c in ["data_abastecimento","data","data_transacao"]
+                           if c in _abast_cd.columns), None)
+        if _dt_col_cd:
+            _abast_cd[_dt_col_cd] = pd.to_datetime(_abast_cd[_dt_col_cd], errors="coerce")
+            _abast_cd = _abast_cd[
+                (_abast_cd[_dt_col_cd].dt.date >= pd.Timestamp(_dt_ini_cd).date()) &
+                (_abast_cd[_dt_col_cd].dt.date <= pd.Timestamp(_dt_fim_cd).date())
+            ]
 
     # ── SEÇÃO 1: COMBUSTÍVEL ──────────────────────────────────────
     st.markdown("<div style='font-size:11px;font-weight:500;color:var(--color-text-secondary);"
@@ -32903,6 +32939,8 @@ elif modo == "☀️ Comece seu dia":
                 _q_kml = (_db_cd2.table("profrotas_abastecimentos")
                           .select("veiculo_placa,hodometro,item_quantidade,item_tipo")
                           .gt("hodometro", 0)
+                          .gte("data_abastecimento", _dt_ini_cd)
+                          .lte("data_abastecimento", _dt_fim_cd + "T23:59:59")
                           .limit(10000))
                 if _emp_cd_cnpj3:
                     _q_kml = _q_kml.eq("cnpj_frota", _emp_cd_cnpj3)
@@ -32967,13 +33005,16 @@ elif modo == "☀️ Comece seu dia":
                     "Mês anterior": 30, "Ano atual": 365,
                 }
                 _n_dias_comb = _dias_map_comb.get(_periodo_cd, 7)
-                _dt_ini_comb = str(_hoje_comb - _td_comb(days=_n_dias_comb))
+                # Usa as datas já calculadas no cabeçalho do dashboard
+                _dt_ini_comb = _dt_ini_cd if "_dt_ini_cd" in dir() else str(_hoje_comb - _td_comb(days=_n_dias_comb))
+                _dt_fim_comb = _dt_fim_cd if "_dt_fim_cd" in dir() else str(_hoje_comb)
                 _db_comb = _db_client()
                 _emp_cnpj_comb = (_empresa_cd.get("cnpj") or "").strip()
                 _q_comb = (_db_comb.table("profrotas_abastecimentos")
                     .select("item_nome,item_quantidade,item_valor_total,item_valor_unitario,item_tipo")
                     .eq("item_tipo", 1)
                     .gte("data_abastecimento", _dt_ini_comb)
+                    .lte("data_abastecimento", _dt_fim_comb + "T23:59:59")
                     .limit(10000))
                 if _emp_cnpj_comb:
                     _q_comb = _q_comb.eq("cnpj_frota", _emp_cnpj_comb)
