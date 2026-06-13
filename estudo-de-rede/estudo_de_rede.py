@@ -32962,7 +32962,8 @@ elif modo == "☀️ Comece seu dia":
                 _db_cd = _db_client()
                 _emp_cd_cnpj = (_empresa_cd.get("cnpj") or "").strip()
                 _q_top = (_db_cd.table("profrotas_abastecimentos")
-                          .select("pv_cnpj,pv_razao_social,pv_municipio,pv_uf,item_quantidade,item_valor_unitario")
+                          .select("pv_cnpj,pv_razao_social,pv_municipio,pv_uf,item_quantidade,item_valor_unitario,item_valor_total,item_tipo")
+                          .eq("item_tipo", 1)
                           .limit(5000))
                 if _emp_cd_cnpj:
                     _q_top = _q_top.eq("cnpj_frota", _emp_cd_cnpj)
