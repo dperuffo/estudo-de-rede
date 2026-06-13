@@ -33298,22 +33298,53 @@ elif modo == "☀️ Comece seu dia":
         with _cd_col2:
             st.markdown("##### 📍 Top 5 postos — mais transações")
             if _cnpj_col_cd:
-                _top_postos_cd = _abast_cd.groupby(_cnpj_col_cd).agg(
-                    _n=(_cnpj_col_cd,"count"),
-                    _nome=(_nome_col_cd,"first") if _nome_col_cd else (_cnpj_col_cd,"first"),
-                    _preco=(_pre_col_cd,"mean") if _pre_col_cd else (_cnpj_col_cd,"count"),
-                ).reset_index().nlargest(5,"_n")
+                # Agrupa por CNPJ com contagem e preço médio
+                _tp_grp = _abast_cd.copy()
+                _tp_grp["_cnpj_clean"] = _tp_grp[_cnpj_col_cd].astype(str).str.strip()
+                _tp_grp["_lit_n"]  = pd.to_numeric(_tp_grp[_lit_col_cd], errors="coerce") if _lit_col_cd else 0
+                _tp_grp["_pre_n"]  = pd.to_numeric(_tp_grp[_pre_col_cd], errors="coerce") if _pre_col_cd else 0
+                _tp_agg = (_tp_grp.groupby("_cnpj_clean")
+                           .agg(_n=("_cnpj_clean","count"),
+                                _preco=("_pre_n","mean"),
+                                _litros=("_lit_n","sum"))
+                           .reset_index()
+                           .nlargest(5,"_n"))
+
+                # Join com base ANP para trazer nome, município e UF
+                try:
+                    _anp_ref = pd.read_excel("/app/postos_anp.xlsx",
+                        usecols=["CNPJ","Razão Social","Município","UF"],
+                        dtype=str)
+                    _anp_ref["CNPJ"] = _anp_ref["CNPJ"].str.strip()
+                    _tp_agg = _tp_agg.merge(_anp_ref, left_on="_cnpj_clean",
+                                             right_on="CNPJ", how="left")
+                except Exception:
+                    _tp_agg["Razão Social"] = ""
+                    _tp_agg["Município"]    = ""
+                    _tp_agg["UF"]          = ""
+
                 medals = ["🥇","🥈","🥉","4","5"]
-                for _mi, (_, _rp) in enumerate(zip(medals, _top_postos_cd.itertuples())):
-                    _nm = str(getattr(_rp,"_nome",""))[:22] or str(getattr(_rp,_cnpj_col_cd,""))[:14]
-                    _pr = f"R$ {_br_num(float(getattr(_rp,'_preco',0)),3)}/L" if _pre_col_cd else ""
+                for _mi, _rp in enumerate(_tp_agg.itertuples()):
+                    _cnpj_v = str(getattr(_rp,"_cnpj_clean",""))
+                    _rs     = str(getattr(_rp,"Razão Social","") or "").strip()
+                    _mun    = str(getattr(_rp,"Município","") or "").strip()
+                    _uf_v   = str(getattr(_rp,"UF","") or "").strip()
+                    _nm     = _rs[:28] if _rs else _cnpj_v[:18]
+                    _loc    = f"{_mun}/{_uf_v}" if _mun and _uf_v else _cnpj_v
+                    _pr     = _br_moeda(float(getattr(_rp,"_preco",0) or 0), 3)
+                    _n_v    = int(getattr(_rp,"_n",0) or 0)
                     st.markdown(
-                        f"<div style='display:flex;align-items:center;gap:8px;padding:6px 0;"
+                        f"<div style='display:flex;align-items:flex-start;gap:8px;padding:7px 0;"
                         f"border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px'>"
-                        f"<span style='width:18px;flex-shrink:0'>{medals[_mi]}</span>"
-                        f"<span style='flex:1;color:var(--color-text-primary)'>{_nm}</span>"
-                        f"<div style='text-align:right'><div style='font-weight:500'>{_fmt_int(getattr(_rp,'_n',0))} abast.</div>"
-                        f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_pr}</div></div></div>",
+                        f"<span style='width:20px;flex-shrink:0;padding-top:2px'>{medals[_mi]}</span>"
+                        f"<div style='flex:1;min-width:0'>"
+                        f"<div style='font-weight:500;color:var(--color-text-primary);white-space:nowrap;"
+                        f"overflow:hidden;text-overflow:ellipsis'>{_nm}</div>"
+                        f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_loc}</div></div>"
+                        f"<div style='text-align:right;flex-shrink:0'>"
+                        f"<div style='font-weight:500'>{_n_v:,} abast.</div>"
+                        f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_pr}/L</div>"
+                        f"</div></div>",
                         unsafe_allow_html=True)
 
         # Preço médio por combustível
