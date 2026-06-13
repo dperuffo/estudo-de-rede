@@ -32918,61 +32918,58 @@ elif modo == "☀️ Comece seu dia":
                 "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
                 "🔧 Manutenção de Veículos</div>", unsafe_allow_html=True)
 
+    # Usa dados de abastecimento para calcular score preditivo (mesmo método da aba Manutenção)
     try:
-        _cnpj_man = (st.session_state.get("_empresa_ativa") or {}).get("cnpj","") or ""
-        _man_rows = _manut_listar(cnpj_frota=_cnpj_man if _cnpj_man else None, limit=500)
+        import math as _math_cd
+        _abast_cd_man = _carregar_abastecimentos_unificados(dias=730)
+        _pla_col_man  = next((c for c in ["placa"] if c in _abast_cd_man.columns), None) if not _abast_cd_man.empty else None
+        _hod_col_man  = next((c for c in ["hodometro"] if c in _abast_cd_man.columns), None) if not _abast_cd_man.empty else None
+
+        _km_man = {}
+        if not _abast_cd_man.empty and _pla_col_man and _hod_col_man:
+            _abast_cd_man["_hod_mn"] = pd.to_numeric(_abast_cd_man[_hod_col_man], errors="coerce")
+            _km_man = _abast_cd_man.groupby(_pla_col_man)["_hod_mn"].max().to_dict()
+
+        # Score simplificado: óleo (10.000 km) como proxy de saúde geral
+        _n_crit_cd = 0; _n_alert_cd = 0; _n_ok_cd = 0
+        for _plc_cd, _km_cd in _km_man.items():
+            try:
+                _k = float(_km_cd)
+                if _math_cd.isnan(_k) or _k <= 0: continue
+                _fase = _k % 10000
+                _pct  = _fase / 10000
+                if _pct >= 0.85:   _n_crit_cd  += 1
+                elif _pct >= 0.65: _n_alert_cd += 1
+                else:               _n_ok_cd    += 1
+            except Exception:
+                continue
+
+        _n_total_man = _n_crit_cd + _n_alert_cd + _n_ok_cd
     except Exception:
-        _man_rows = []
-
-    from datetime import date as _date_man
-    _hoje_man = _date_man.today()
-
-    # Classifica por hodômetro e data
-    _man_urgentes  = []
-    _man_alertas   = []
-    _man_em_dia    = []
-    for _mr in _man_rows:
-        _itens = _mr.get("itens_realizados") or []
-        _hod_r = float(_mr.get("hodometro") or 0)
-        # Considera urgente se data > 120 dias ou sem registro recente
-        try:
-            from datetime import datetime as _dtm
-            _dt_m = _dtm.fromisoformat(str(_mr.get("data_manutencao",""))[:10])
-            _dias_m = (_hoje_man - _dt_m.date()).days
-        except Exception:
-            _dias_m = 999
-        if _dias_m > 120:
-            _man_urgentes.append(_mr)
-        elif _dias_m > 75:
-            _man_alertas.append(_mr)
-        else:
-            _man_em_dia.append(_mr)
-
-    _custo_man = sum(float(m.get("custo_total") or 0) for m in _man_rows)
+        _n_crit_cd = _n_alert_cd = _n_ok_cd = _n_total_man = 0
 
     _mk1,_mk2,_mk3,_mk4 = st.columns(4)
-    _mk1.metric("🔧 Total registros", len(_man_rows),
-        help="Total de manutenções registradas na aba Manutenção de Frota")
-    _mk2.metric("🔴 Críticos", len(_man_urgentes),
-        delta=f"{len(_man_urgentes)} urgente(s)" if _man_urgentes else None,
+    _mk1.metric("🚛 Veículos monitorados", _fmt_int(_n_total_man),
+        help="Veículos com hodômetro registrado nos abastecimentos")
+    _mk2.metric("🔴 Críticos", _fmt_int(_n_crit_cd),
+        delta=f"{_n_crit_cd} urgente(s)" if _n_crit_cd else None,
         delta_color="inverse",
-        help="Veículos com última manutenção há mais de 120 dias")
-    _mk3.metric("⚠️ Alerta", len(_man_alertas),
-        delta=f"{len(_man_alertas)} atenção" if _man_alertas else None,
+        help="Score < 40 — manutenção imediata (base: intervalo de óleo)")
+    _mk3.metric("⚠️ Alerta", _fmt_int(_n_alert_cd),
+        delta=f"{_n_alert_cd} atenção" if _n_alert_cd else None,
         delta_color="inverse",
-        help="Veículos com manutenção entre 75 e 120 dias")
-    _mk4.metric("💰 Custo total", _br_moeda(_custo_man),
-        help="Soma dos custos registrados no período")
+        help="Score 40-69 — programar manutenção")
+    _mk4.metric("✅ Em dia", _fmt_int(_n_ok_cd),
+        help="Score ≥ 70 — sem pendências imediatas")
 
-    if _man_urgentes or _man_alertas:
-        _total_pend = len(_man_urgentes) + len(_man_alertas)
+    if _n_crit_cd > 0 or _n_alert_cd > 0:
         st.warning(
-            f"⚠️ {_total_pend} veículo(s) com manutenção pendente "
-            f"({len(_man_urgentes)} crítico(s), {len(_man_alertas)} em alerta) — "
-            f"acesse **🔧 Manutenção de Frota** para detalhes."
+            f"⚠️ {_n_crit_cd + _n_alert_cd} veículo(s) com manutenção pendente "
+            f"({_n_crit_cd} crítico(s), {_n_alert_cd} em alerta) — "
+            f"acesse **🔧 Manutenção de Frota** para detalhes e registros."
         )
-    elif not _man_rows:
-        st.caption("Nenhuma manutenção registrada. Acesse **🔧 Manutenção de Frota** para cadastrar.")
+    elif _n_total_man == 0:
+        st.caption("Importe abastecimentos com hodômetro para monitorar manutenções.")
 
     st.markdown("---")
 
@@ -33288,11 +33285,20 @@ elif modo == "🔧 Manutenção de Frota":
     st.markdown("---")
 
     # ── Tabs ─────────────────────────────────────────────────────
+    _mf_goto = st.session_state.pop("_mf_goto_tab", 0)
     _mf_tab1, _mf_tab2, _mf_tab3 = st.tabs([
         "🚨 Pendências & Alertas",
         "📝 Registrar Manutenção",
         "📋 Histórico",
     ])
+    # JS para mudar para a aba correta após rerun
+    if _mf_goto == 1:
+        st.markdown(
+            "<script>setTimeout(function(){"
+            "var tabs=window.parent.document.querySelectorAll('[data-baseweb=tab]');"
+            "if(tabs&&tabs[1])tabs[1].click();"
+            "},300);</script>",
+            unsafe_allow_html=True)
 
     # ── TAB 1 — LISTA PREDITIVA ───────────────────────────────────
     with _mf_tab1:
@@ -33371,6 +33377,7 @@ elif modo == "🔧 Manutenção de Frota":
                     if st.button("📝 Registrar", key=f"btn_reg_{_rv['placa']}",
                                  use_container_width=True, type="primary"):
                         st.session_state["_mf_placa_pre"] = _rv["placa"]
+                        st.session_state["_mf_goto_tab"] = 1
                         st.rerun()
 
         if len(_lista_mf) > 30:
