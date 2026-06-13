@@ -27577,7 +27577,6 @@ elif modo == "👥 Análise de Cliente":
                 "💰 Contratos & Savings",
                 "🏁 Rede GF vs Fora da Rede",
                 "🚘 FIPE",
-                "🔧 Manutenção Preditiva",
             ])
 
             # ════════════════════════════════════════════════════
