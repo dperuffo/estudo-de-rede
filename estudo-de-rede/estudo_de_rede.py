@@ -32927,7 +32927,10 @@ elif modo == "☀️ Comece seu dia":
             if _cnpj_col_cd:
                 # Agrupa por CNPJ com contagem e preço médio
                 _tp_grp = _abast_cd.copy()
-                _tp_grp["_cnpj_clean"] = _tp_grp[_cnpj_col_cd].astype(str).str.strip()
+                _tp_grp["_cnpj_clean"] = (_tp_grp[_cnpj_col_cd]
+                    .astype(str).str.strip()
+                    .replace({"nan":"","None":"","NaN":""}))
+                _tp_grp = _tp_grp[_tp_grp["_cnpj_clean"] != ""]
                 _tp_grp["_lit_n"]  = pd.to_numeric(_tp_grp[_lit_col_cd], errors="coerce") if _lit_col_cd else 0
                 _tp_grp["_pre_n"]  = pd.to_numeric(_tp_grp[_pre_col_cd], errors="coerce") if _pre_col_cd else 0
                 _tp_agg = (_tp_grp.groupby("_cnpj_clean")
@@ -32942,9 +32945,12 @@ elif modo == "☀️ Comece seu dia":
                     _anp_ref = pd.read_excel("/app/postos_anp.xlsx",
                         usecols=["CNPJ","Razão Social","Município","UF"],
                         dtype=str)
-                    _anp_ref["CNPJ"] = _anp_ref["CNPJ"].str.strip()
-                    _tp_agg = _tp_agg.merge(_anp_ref, left_on="_cnpj_clean",
-                                             right_on="CNPJ", how="left")
+                    # Normaliza CNPJ: remove pontos, traços e barras
+                    def _norm_cnpj(s):
+                        return str(s).strip().replace(".","").replace("/","").replace("-","").replace(" ","")
+                    _anp_ref["_cnpj_norm"] = _anp_ref["CNPJ"].apply(_norm_cnpj)
+                    _tp_agg["_cnpj_norm"]  = _tp_agg["_cnpj_clean"].apply(_norm_cnpj)
+                    _tp_agg = _tp_agg.merge(_anp_ref, on="_cnpj_norm", how="left")
                 except Exception:
                     _tp_agg["Razão Social"] = ""
                     _tp_agg["Município"]    = ""
@@ -32956,7 +32962,7 @@ elif modo == "☀️ Comece seu dia":
                     _rs     = str(getattr(_rp,"Razão Social","") or "").strip()
                     _mun    = str(getattr(_rp,"Município","") or "").strip()
                     _uf_v   = str(getattr(_rp,"UF","") or "").strip()
-                    _nm     = _rs[:28] if _rs else _cnpj_v[:18]
+                    _nm     = _rs[:28] if _rs and _rs != "nan" else _cnpj_v[:18]
                     _loc    = f"{_mun}/{_uf_v}" if _mun and _uf_v else _cnpj_v
                     _pr     = _br_moeda(float(getattr(_rp,"_preco",0) or 0), 3)
                     _n_v    = int(getattr(_rp,"_n",0) or 0)
@@ -33160,10 +33166,10 @@ elif modo == "☀️ Comece seu dia":
                 f"Desvio médio elevado no período — revise os postos utilizados"))
 
     # Alertas de manutenção
-    if _man_urgentes:
+    if _n_crit_cd > 0:
         _alertas_list.append(("warning", "ti-tool",
-            f"{len(_man_urgentes)} manutenção(ões) urgente(s) ou vencida(s)",
-            "Acesse Telemetria → Manutenções para detalhar"))
+            f"{_n_crit_cd} veículo(s) com manutenção crítica",
+            "Acesse 🔧 Manutenção de Frota para registrar e atualizar"))
 
     # Alertas de acordos
     if _ac_venc:
