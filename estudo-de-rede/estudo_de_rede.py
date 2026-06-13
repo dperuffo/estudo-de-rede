@@ -11860,7 +11860,6 @@ def _manut_salvar(cnpj_frota: str, placa: str, data: str,
         return False, str(e)
 
 
-@st.cache_data(show_spinner=False, ttl=300)  # 5 min
 def _manut_listar(cnpj_frota: str | None = None,
                   placa: str | None = None,
                   limit: int = 500) -> list:
@@ -33149,15 +33148,28 @@ elif modo == "🔧 Manutenção de Frota":
                 return _default
         except Exception:
             return _default
-        # Calcula fase
+        # Calcula fase — prioriza registro real do banco
         try:
-            fase = km_atual % intv
-            if historico:
-                _ult = _manut_ultima_por_tipo(placa, _PRED_CFG_MF[key]["label"], historico)
-                if _ult and _ult.get("hodometro"):
-                    _hod_ult = float(_ult["hodometro"])
-                    if not _math_mf.isnan(_hod_ult) and km_atual >= _hod_ult:
-                        fase = km_atual - _hod_ult
+            fase = km_atual % intv  # fallback modular
+            if historico and placa:
+                # Busca último registro real para este componente
+                _label_comp = _PRED_CFG_MF[key]["label"]
+                _ult = None
+                _hod_max = -1
+                for _hr in historico:
+                    if str(_hr.get("placa","")).upper() != placa.upper():
+                        continue
+                    _itens_hr = _hr.get("itens_realizados") or []
+                    if isinstance(_itens_hr, str):
+                        try: import json as _jhr; _itens_hr = _jhr.loads(_itens_hr)
+                        except: _itens_hr = [_itens_hr]
+                    if any(_label_comp.lower() in str(it).lower() for it in _itens_hr):
+                        _hod_hr = float(_hr.get("hodometro") or 0)
+                        if not _math_mf.isnan(_hod_hr) and _hod_hr > _hod_max:
+                            _hod_max = _hod_hr
+                            _ult = _hr
+                if _ult and _hod_max > 0 and km_atual >= _hod_max:
+                    fase = km_atual - _hod_max
             fase = float(fase)
             if _math_mf.isnan(fase) or fase < 0:
                 fase = 0.0
@@ -33195,15 +33207,9 @@ elif modo == "🔧 Manutenção de Frota":
                 "criticos": criticos, "custo": custo_est}
 
     # ── Carrega dados ─────────────────────────────────────────────
-    if st.session_state.get("_mf_refresh"):
-        st.session_state.pop("_mf_cache_hist", None)
-        st.session_state.pop("_mf_cache_abast", None)
-        st.session_state.pop("_mf_refresh", None)
-
-    if "manut_cache" not in st.session_state:
-        st.session_state["manut_cache"] = _manut_listar(
-            cnpj_frota=_cnpj_mf if _cnpj_mf else None, limit=2000)
-    _hist_mf = st.session_state.get("manut_cache", [])
+    # Sempre recarrega o histórico (sem cache) para refletir novos registros
+    _hist_mf = _manut_listar(cnpj_frota=_cnpj_mf if _cnpj_mf else None, limit=2000)
+    st.session_state["manut_cache"] = _hist_mf
 
     # Carrega abastecimentos para extrair km e consumo
     _abast_mf = _carregar_abastecimentos_unificados(dias=730)
@@ -33425,8 +33431,13 @@ elif modo == "🔧 Manutenção de Frota":
                     criado_por=st.session_state.get("_auth_email",""),
                 )
                 if _ok_mf:
-                    st.session_state.pop("manut_cache", None)
-                    st.toast(f"✅ Manutenção salva para {_mf_placa}!", icon="🔧")
+                    # Limpa todos os caches relacionados a manutenção
+                    for _k in ["manut_cache","_mf_cache_hist","_mf_cache_abast",
+                               "_mf_resultados","_mf_refresh"]:
+                        st.session_state.pop(_k, None)
+                    # Limpa também cache de abastecimentos para recalcular scores
+                    st.cache_data.clear()
+                    st.toast(f"✅ Manutenção salva para {_mf_placa}! Recalculando scores...", icon="🔧")
                     st.rerun()
                 else:
                     st.error(f"Erro: {_msg_mf}")
@@ -33437,6 +33448,7 @@ elif modo == "🔧 Manutenção de Frota":
         with _mfh2:
             if st.button("🔄 Atualizar", key="btn_mf_refresh", use_container_width=True):
                 st.session_state.pop("manut_cache", None)
+                st.cache_data.clear()
                 st.rerun()
         with _mfh1:
             st.markdown(f"**{len(_hist_mf)} registro(s)**")
