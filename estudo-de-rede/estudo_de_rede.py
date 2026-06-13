@@ -16558,7 +16558,12 @@ with st.sidebar:
 </style>""", unsafe_allow_html=True)
 
     if "modo_selecionado" not in st.session_state:
-        st.session_state["modo_selecionado"] = "📍 Por UF/Município"
+        # Gestor, analista e admin iniciam no painel "Comece seu dia"
+        _perfil_init = st.session_state.get("_auth_perfil", "")
+        if _perfil_init in ("admin", "analista", "gestor_frota"):
+            st.session_state["modo_selecionado"] = "☀️ Comece seu dia"
+        else:
+            st.session_state["modo_selecionado"] = "📍 Por UF/Município"
     _modo_atual = st.session_state["modo_selecionado"]
 
     # ── Seletor / badge de empresa ─────────────────────────────────
@@ -33186,7 +33191,9 @@ elif modo == "☀️ Comece seu dia":
     from datetime import datetime as _dt_cd
     _hora_cd = _dt_cd.now().hour
     _saudacao = "Bom dia" if _hora_cd < 12 else "Boa tarde" if _hora_cd < 18 else "Boa noite"
-    _nome_cd  = st.session_state.get("_auth_nome") or st.session_state.get("_auth_email","Gestor").split("@")[0].title()
+    # Extrai primeiro nome do usuário
+    _nome_completo_cd = st.session_state.get("_auth_nome") or st.session_state.get("_auth_email","Gestor").split("@")[0]
+    _nome_cd = _nome_completo_cd.strip().split()[0].title() if _nome_completo_cd.strip() else "Gestor"
     _dias_pt  = ["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"]
     _meses_pt = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"]
     _hoje_cd  = _dt_cd.now()
