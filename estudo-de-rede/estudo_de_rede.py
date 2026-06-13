@@ -32924,61 +32924,61 @@ elif modo == "☀️ Comece seu dia":
 
         with _cd_col2:
             st.markdown("##### 📍 Top 5 postos — mais transações")
-            if _cnpj_col_cd:
-                # Agrupa por CNPJ com contagem e preço médio
-                _tp_grp = _abast_cd.copy()
-                _tp_grp["_cnpj_clean"] = (_tp_grp[_cnpj_col_cd]
-                    .astype(str).str.strip()
-                    .replace({"nan":"","None":"","NaN":""}))
-                _tp_grp = _tp_grp[_tp_grp["_cnpj_clean"] != ""]
-                _tp_grp["_lit_n"]  = pd.to_numeric(_tp_grp[_lit_col_cd], errors="coerce") if _lit_col_cd else 0
-                _tp_grp["_pre_n"]  = pd.to_numeric(_tp_grp[_pre_col_cd], errors="coerce") if _pre_col_cd else 0
-                _tp_agg = (_tp_grp.groupby("_cnpj_clean")
-                           .agg(_n=("_cnpj_clean","count"),
-                                _preco=("_pre_n","mean"),
-                                _litros=("_lit_n","sum"))
-                           .reset_index()
-                           .nlargest(5,"_n"))
+            try:
+                # Consulta direto na tabela profrotas_abastecimentos
+                _db_cd = _db_client()
+                _emp_cd_cnpj = (_empresa_cd.get("cnpj") or "").strip()
+                _q_top = (_db_cd.table("profrotas_abastecimentos")
+                          .select("pv_cnpj,pv_razao_social,pv_municipio,pv_uf,item_quantidade,item_valor_unitario")
+                          .limit(5000))
+                if _emp_cd_cnpj:
+                    _q_top = _q_top.eq("cnpj_frota", _emp_cd_cnpj)
+                _res_top = _q_top.execute()
+                _df_top  = pd.DataFrame(_res_top.data or [])
 
-                # Join com base ANP para trazer nome, município e UF
-                try:
-                    _anp_ref = pd.read_excel("/app/postos_anp.xlsx",
-                        usecols=["CNPJ","Razão Social","Município","UF"],
-                        dtype=str)
-                    # Normaliza CNPJ: remove pontos, traços e barras
-                    def _norm_cnpj(s):
-                        return str(s).strip().replace(".","").replace("/","").replace("-","").replace(" ","")
-                    _anp_ref["_cnpj_norm"] = _anp_ref["CNPJ"].apply(_norm_cnpj)
-                    _tp_agg["_cnpj_norm"]  = _tp_agg["_cnpj_clean"].apply(_norm_cnpj)
-                    _tp_agg = _tp_agg.merge(_anp_ref, on="_cnpj_norm", how="left")
-                except Exception:
-                    _tp_agg["Razão Social"] = ""
-                    _tp_agg["Município"]    = ""
-                    _tp_agg["UF"]          = ""
+                if not _df_top.empty and "pv_cnpj" in _df_top.columns:
+                    _df_top["_cnpj"] = _df_top["pv_cnpj"].astype(str).str.strip()
+                    _df_top["_qtd"]  = pd.to_numeric(_df_top["item_quantidade"], errors="coerce").fillna(0)
+                    _df_top["_vun"]  = pd.to_numeric(_df_top["item_valor_unitario"], errors="coerce").fillna(0)
+                    _df_top = _df_top[_df_top["_cnpj"].str.len() > 3]
 
-                medals = ["🥇","🥈","🥉","4","5"]
-                for _mi, _rp in enumerate(_tp_agg.itertuples()):
-                    _cnpj_v = str(getattr(_rp,"_cnpj_clean",""))
-                    _rs     = str(getattr(_rp,"Razão Social","") or "").strip()
-                    _mun    = str(getattr(_rp,"Município","") or "").strip()
-                    _uf_v   = str(getattr(_rp,"UF","") or "").strip()
-                    _nm     = _rs[:28] if _rs and _rs != "nan" else _cnpj_v[:18]
-                    _loc    = f"{_mun}/{_uf_v}" if _mun and _uf_v else _cnpj_v
-                    _pr     = _br_moeda(float(getattr(_rp,"_preco",0) or 0), 3)
-                    _n_v    = int(getattr(_rp,"_n",0) or 0)
-                    st.markdown(
-                        f"<div style='display:flex;align-items:flex-start;gap:8px;padding:7px 0;"
-                        f"border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px'>"
-                        f"<span style='width:20px;flex-shrink:0;padding-top:2px'>{medals[_mi]}</span>"
-                        f"<div style='flex:1;min-width:0'>"
-                        f"<div style='font-weight:500;color:var(--color-text-primary);white-space:nowrap;"
-                        f"overflow:hidden;text-overflow:ellipsis'>{_nm}</div>"
-                        f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_loc}</div></div>"
-                        f"<div style='text-align:right;flex-shrink:0'>"
-                        f"<div style='font-weight:500'>{_n_v:,} abast.</div>"
-                        f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_pr}/L</div>"
-                        f"</div></div>",
-                        unsafe_allow_html=True)
+                    _top_grp = (_df_top.groupby("_cnpj")
+                        .agg(
+                            _n       = ("_cnpj","count"),
+                            _rs      = ("pv_razao_social","first"),
+                            _mun     = ("pv_municipio","first"),
+                            _uf      = ("pv_uf","first"),
+                            _preco   = ("_vun","mean"),
+                        )
+                        .reset_index()
+                        .nlargest(5,"_n"))
+
+                    medals = ["🥇","🥈","🥉","4","5"]
+                    for _mi, _rp in enumerate(_top_grp.itertuples()):
+                        _rs   = str(getattr(_rp,"_rs","") or "").strip()
+                        _mun  = str(getattr(_rp,"_mun","") or "").strip()
+                        _uf   = str(getattr(_rp,"_uf","") or "").strip()
+                        _nm   = _rs[:28] if _rs and _rs not in ("nan","None") else str(getattr(_rp,"_cnpj",""))[:18]
+                        _loc  = f"{_mun}/{_uf}" if _mun and _uf else "—"
+                        _pr   = _br_moeda(float(getattr(_rp,"_preco",0) or 0), 3)
+                        _n_v  = int(getattr(_rp,"_n",0) or 0)
+                        st.markdown(
+                            f"<div style='display:flex;align-items:flex-start;gap:8px;padding:7px 0;"
+                            f"border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px'>"
+                            f"<span style='width:20px;flex-shrink:0;padding-top:2px'>{medals[_mi]}</span>"
+                            f"<div style='flex:1;min-width:0'>"
+                            f"<div style='font-weight:500;color:var(--color-text-primary);white-space:nowrap;"
+                            f"overflow:hidden;text-overflow:ellipsis'>{_nm}</div>"
+                            f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_loc}</div></div>"
+                            f"<div style='text-align:right;flex-shrink:0'>"
+                            f"<div style='font-weight:500'>{_n_v:,} abast.</div>"
+                            f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_pr}/L</div>"
+                            f"</div></div>",
+                            unsafe_allow_html=True)
+                else:
+                    st.caption("Sem dados de postos para o período.")
+            except Exception as _e_top:
+                st.caption(f"Erro ao carregar postos: {str(_e_top)[:80]}")
 
         # Preço médio por combustível
         if _prod_col_cd and _pre_col_cd:
