@@ -33152,11 +33152,17 @@ elif modo == "🔧 Manutenção de Frota":
             if _ult and _ult.get("hodometro") and km_atual >= float(_ult["hodometro"]):
                 fase = km_atual - float(_ult["hodometro"])
         # Ajuste por degradação de consumo
-        pct = fase / intv
+        try:
+            pct = float(fase) / float(intv) if intv else 0.0
+        except Exception:
+            pct = 0.0
+        if not (0.0 <= pct <= 10.0):  # sanity check
+            pct = 0.0
         if key in ("oleo","filtros") and deg > 0.08:
             pct = min(1.0, pct + deg * 0.4)
+        pct     = min(pct, 1.5)  # cap em 150%
         score   = max(0, round(100 - pct * 110))
-        km_next = max(0, round(intv - fase))
+        km_next = max(0, round(float(intv) - float(fase)))
         urg = "critico" if pct >= 0.85 else "alerta" if pct >= 0.65 else "ok"
         return {"score": score, "pct": round(pct * 100), "km_next": km_next, "urg": urg}
 
