@@ -32897,30 +32897,63 @@ elif modo == "☀️ Comece seu dia":
 
         with _cd_col1:
             st.markdown("##### 🚛 Top 5 — melhor consumo (km/L)")
-            if _hod_col_cd and _pla_col_cd and _lit_col_cd:
-                _abast_hod = _abast_cd.dropna(subset=[_hod_col_cd, _pla_col_cd, _lit_col_cd]).copy()
-                _abast_hod["_hod_n"] = pd.to_numeric(_abast_hod[_hod_col_cd], errors="coerce")
-                _abast_hod["_lit_n"] = pd.to_numeric(_abast_hod[_lit_col_cd], errors="coerce")
-                _abast_hod = _abast_hod[(_abast_hod["_hod_n"] > 0) & (_abast_hod["_lit_n"] > 0)]
-                if not _abast_hod.empty:
-                    _consumo_df = (_abast_hod.groupby(_pla_col_cd)
-                                   .agg(_hod=("_hod_n","sum"), _lit=("_lit_n","sum"))
-                                   .reset_index())
-                    _consumo_df["kml"] = _consumo_df["_hod"] / _consumo_df["_lit"]
-                    _consumo_df = _consumo_df[_consumo_df["kml"] > 0].nlargest(5,"kml")
-                    for _, _rv in _consumo_df.iterrows():
-                        _pct = min(float(_rv["kml"]) / 6.0 * 100, 100)
-                        st.markdown(
-                            f"<div style='display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px'>"
-                            f"<span style='width:80px;color:var(--color-text-secondary);flex-shrink:0'>{_rv[_pla_col_cd]}</span>"
-                            f"<div style='flex:1;height:8px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden'>"
-                            f"<div style='width:{_pct:.0f}%;height:100%;background:#378ADD;border-radius:4px'></div></div>"
-                            f"<span style='width:55px;text-align:right;font-weight:500'>{_br_num(float(_rv['kml']),1)} km/L</span></div>",
-                            unsafe_allow_html=True)
+            try:
+                _db_cd2 = _db_client()
+                _emp_cd_cnpj3 = (_empresa_cd.get("cnpj") or "").strip()
+                _q_kml = (_db_cd2.table("profrotas_abastecimentos")
+                          .select("veiculo_placa,hodometro,item_quantidade,item_tipo")
+                          .gt("hodometro", 0)
+                          .limit(10000))
+                if _emp_cd_cnpj3:
+                    _q_kml = _q_kml.eq("cnpj_frota", _emp_cd_cnpj3)
+                _df_kml = pd.DataFrame((_q_kml.execute()).data or [])
+
+                if not _df_kml.empty:
+                    # Filtra só abastecimentos (item_tipo == 1)
+                    if "item_tipo" in _df_kml.columns:
+                        _df_kml = _df_kml[pd.to_numeric(_df_kml["item_tipo"], errors="coerce") == 1]
+                    _df_kml["_hod"] = pd.to_numeric(_df_kml["hodometro"],      errors="coerce")
+                    _df_kml["_qtd"] = pd.to_numeric(_df_kml["item_quantidade"], errors="coerce")
+                    _df_kml = _df_kml[(_df_kml["_hod"] > 0) & (_df_kml["_qtd"] > 0)]
+
+                    # Consumo real: (hod_max - hod_min) / total_litros por veículo
+                    _kml_grp = (_df_kml.groupby("veiculo_placa")
+                        .agg(_hod_max=("_hod","max"),
+                             _hod_min=("_hod","min"),
+                             _lit=("_qtd","sum"),
+                             _n=("_hod","count"))
+                        .reset_index())
+                    _kml_grp = _kml_grp[_kml_grp["_n"] >= 3]
+                    _kml_grp["_km"]  = _kml_grp["_hod_max"] - _kml_grp["_hod_min"]
+                    _kml_grp = _kml_grp[_kml_grp["_km"] > 100]
+                    _kml_grp["kml"]  = _kml_grp["_km"] / _kml_grp["_lit"]
+                    # Sanidade: 1 a 20 km/L
+                    _kml_grp = _kml_grp[(_kml_grp["kml"] >= 1.0) & (_kml_grp["kml"] <= 20.0)]
+                    _top_kml = _kml_grp.nlargest(5, "kml")
+
+                    if not _top_kml.empty:
+                        _kml_max = float(_top_kml["kml"].max())
+                        for _, _rv in _top_kml.iterrows():
+                            _kml_v = float(_rv["kml"])
+                            _pct   = min(_kml_v / max(_kml_max, 1) * 100, 100)
+                            st.markdown(
+                                f"<div style='display:flex;align-items:center;gap:8px;"
+                                f"font-size:12px;margin-bottom:6px'>"
+                                f"<span style='width:80px;color:var(--color-text-secondary);"
+                                f"flex-shrink:0'>{_rv['veiculo_placa']}</span>"
+                                f"<div style='flex:1;height:8px;background:var(--color-background-secondary);"
+                                f"border-radius:4px;overflow:hidden'>"
+                                f"<div style='width:{_pct:.0f}%;height:100%;background:#378ADD;"
+                                f"border-radius:4px'></div></div>"
+                                f"<span style='width:60px;text-align:right;font-weight:500'>"
+                                f"{_br_num(_kml_v,1)} km/L</span></div>",
+                                unsafe_allow_html=True)
+                    else:
+                        st.caption("Dados insuficientes para calcular consumo (mín. 3 abast./veículo).")
                 else:
-                    st.caption("Hodômetro insuficiente para calcular consumo.")
-            else:
-                st.caption("Importe abastecimentos com coluna Hodômetro para ver consumo.")
+                    st.caption("Sem dados de abastecimento disponíveis.")
+            except Exception as _e_kml:
+                st.caption(f"Erro: {str(_e_kml)[:80]}")
 
         with _cd_col2:
             st.markdown("##### 📍 Top 5 postos — mais transações")
