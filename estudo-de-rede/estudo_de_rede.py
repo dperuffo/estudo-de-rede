@@ -32972,21 +32972,22 @@ elif modo == "☀️ Comece seu dia":
 
                 if not _df_top.empty and "pv_cnpj" in _df_top.columns:
                     _df_top["_cnpj"] = _df_top["pv_cnpj"].astype(str).str.strip()
-                    _df_top["_qtd"]  = pd.to_numeric(_df_top["item_quantidade"], errors="coerce").fillna(0)
-                    _df_top["_vun"]  = pd.to_numeric(_df_top["item_valor_unitario"], errors="coerce").fillna(0)
+                    _df_top["_qtd"]  = pd.to_numeric(_df_top["item_quantidade"], errors="coerce")
+                    _df_top["_vun"]  = pd.to_numeric(_df_top["item_valor_unitario"], errors="coerce")
+                    _df_top["_vtot"] = pd.to_numeric(_df_top["item_valor_total"], errors="coerce")
+                    _mask_pu = _df_top["_vun"].isna() | (_df_top["_vun"] <= 0)
+                    _df_top.loc[_mask_pu,"_vun"] = (
+                        _df_top.loc[_mask_pu,"_vtot"] / _df_top.loc[_mask_pu,"_qtd"].replace(0,float("nan")))
                     _df_top = _df_top[_df_top["_cnpj"].str.len() > 3]
-
-                    _top_grp = (_df_top.groupby("_cnpj")
+                    _top_grp = (_df_top.groupby("_cnpj", as_index=False)
                         .agg(
-                            _n       = ("_cnpj","count"),
-                            _rs      = ("pv_razao_social","first"),
-                            _mun     = ("pv_municipio","first"),
-                            _uf      = ("pv_uf","first"),
-                            _preco   = ("_vun","mean"),
+                            _n    =("_cnpj","count"),
+                            _rs   =("pv_razao_social","first"),
+                            _mun  =("pv_municipio","first"),
+                            _uf   =("pv_uf","first"),
+                            _preco=("_vun","mean"),
                         )
-                        .reset_index()
                         .nlargest(5,"_n"))
-
                     medals = ["🥇","🥈","🥉","4","5"]
                     for _mi, _rp in enumerate(_top_grp.itertuples()):
                         _rs   = str(getattr(_rp,"_rs","") or "").strip()
