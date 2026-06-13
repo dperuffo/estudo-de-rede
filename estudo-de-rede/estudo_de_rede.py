@@ -27568,7 +27568,7 @@ elif modo == "👥 Análise de Cliente":
             st.warning("Nenhum registro no período selecionado.")
         else:
             # ── abas principais ───────────────────────────────────
-            _ta, _tb, _tc, _td, _te, _tf, _tg, _th, _ti = st.tabs([
+            _ta, _tb, _tc, _td, _te, _tf, _tg, _th = st.tabs([
                 "📊 Resumo",
                 "🚗 Veículos",
                 "📈 Consumo & Custo/km",
