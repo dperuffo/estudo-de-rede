@@ -33142,29 +33142,43 @@ elif modo == "🔧 Manutenção de Frota":
     def _mf_score_comp(km_atual: float, key: str, is_pesado: bool,
                         deg: float = 0.0, historico: list = None, placa: str = "") -> dict:
         """Score 0-100 de um componente. Usa registro real se disponível."""
+        import math as _math_mf
         intv = _PRED_CFG_MF[key]["pesado"] if is_pesado else _PRED_CFG_MF[key]["leve"]
-        if not km_atual:
-            return {"score": 65, "pct": 0.0, "km_next": intv, "urg": "ok"}
-        # Tenta usar hodômetro real do histórico
-        fase = km_atual % intv
-        if historico:
-            _ult = _manut_ultima_por_tipo(placa, _PRED_CFG_MF[key]["label"], historico)
-            if _ult and _ult.get("hodometro") and km_atual >= float(_ult["hodometro"]):
-                fase = km_atual - float(_ult["hodometro"])
-        # Ajuste por degradação de consumo
+        _default = {"score": 65, "pct": 0, "km_next": intv, "urg": "ok"}
+        # Sanitiza km_atual
         try:
-            pct = float(fase) / float(intv) if intv else 0.0
+            km_atual = float(km_atual)
+            if _math_mf.isnan(km_atual) or km_atual <= 0:
+                return _default
         except Exception:
-            pct = 0.0
-        if not (0.0 <= pct <= 10.0):  # sanity check
-            pct = 0.0
-        if key in ("oleo","filtros") and deg > 0.08:
-            pct = min(1.0, pct + deg * 0.4)
-        pct     = min(pct, 1.5)  # cap em 150%
-        score   = max(0, round(100 - pct * 110))
-        km_next = max(0, round(float(intv) - float(fase)))
-        urg = "critico" if pct >= 0.85 else "alerta" if pct >= 0.65 else "ok"
-        return {"score": score, "pct": round(pct * 100), "km_next": km_next, "urg": urg}
+            return _default
+        # Calcula fase
+        try:
+            fase = km_atual % intv
+            if historico:
+                _ult = _manut_ultima_por_tipo(placa, _PRED_CFG_MF[key]["label"], historico)
+                if _ult and _ult.get("hodometro"):
+                    _hod_ult = float(_ult["hodometro"])
+                    if not _math_mf.isnan(_hod_ult) and km_atual >= _hod_ult:
+                        fase = km_atual - _hod_ult
+            fase = float(fase)
+            if _math_mf.isnan(fase) or fase < 0:
+                fase = 0.0
+        except Exception:
+            fase = 0.0
+        # Score
+        try:
+            pct = fase / intv if intv > 0 else 0.0
+            if _math_mf.isnan(pct): pct = 0.0
+            pct = max(0.0, min(pct, 1.5))
+            if key in ("oleo","filtros") and deg > 0.08:
+                pct = min(1.5, pct + float(deg) * 0.4)
+            score   = max(0, min(100, round(100 - pct * 110)))
+            km_next = max(0, int(intv - fase))
+            urg = "critico" if pct >= 0.85 else "alerta" if pct >= 0.65 else "ok"
+            return {"score": score, "pct": round(pct * 100), "km_next": km_next, "urg": urg}
+        except Exception:
+            return _default
 
     def _mf_analisar(placa: str, km_atual: float, tipo_v: str,
                       deg: float, historico: list) -> dict:
@@ -33225,9 +33239,18 @@ elif modo == "🔧 Manutenção de Frota":
 
     # Analisa todos os veículos
     _resultados_mf = []
+    import math as _math_mf2
     for _plc in _placas_mf:
-        _km  = float(_km_por_placa.get(_plc) or 0)
-        _deg = float(_deg_por_placa.get(_plc) or 0)
+        try:
+            _km = float(_km_por_placa.get(_plc) or 0)
+            if _math_mf2.isnan(_km): _km = 0.0
+        except Exception:
+            _km = 0.0
+        try:
+            _deg = float(_deg_por_placa.get(_plc) or 0)
+            if _math_mf2.isnan(_deg): _deg = 0.0
+        except Exception:
+            _deg = 0.0
         _r   = _mf_analisar(_plc, _km, "pesado", _deg, _hist_mf)
         _r["placa"] = _plc
         _r["km"]    = _km
