@@ -19449,6 +19449,86 @@ _filtro_24h_m2        = st.session_state.get("_filtro_24h_m2", False)
 _fuel_sel_m2          = st.session_state.get("_fuel_sel_m2", "— Todos —")
 _preco_faixa_m2       = st.session_state.get("_preco_faixa_m2", None)
 
+# ── Função central de indicadores de manutenção ─────────────────────────────
+@st.cache_data(show_spinner=False, ttl=60)
+def _mf_indicadores(cnpj_frota: str, km_por_placa: dict) -> dict:
+    """
+    Calcula indicadores de manutenção unificados.
+    Retorna dict com n_total, n_critico, n_alerta, n_ok, score_medio, custo_est.
+    Usa registro real do banco para calcular fase desde última manutenção.
+    """
+    import math as _mf_math
+    _PRED_CFG_IND = {
+        "oleo":    {"leve":10000,"pesado":15000,"custo":450},
+        "pneus":   {"leve":40000,"pesado":60000,"custo":3200},
+        "freios":  {"leve":40000,"pesado":60000,"custo":1800},
+        "filtros": {"leve":15000,"pesado":20000,"custo":380},
+    }
+    _KWS_IND = {
+        "oleo":   ["óleo","oleo","oil","lubrif"],
+        "pneus":  ["pneu","rodíz","rodiz","tire"],
+        "freios": ["freio","pastilha","disco","brake"],
+        "filtros":["filtro","filter"],
+    }
+    # Carrega histórico sem cache
+    _hist = _manut_listar(cnpj_frota=cnpj_frota if cnpj_frota else None, limit=2000)
+    # Monta mapa placa → {comp: hod_ult}
+    _hod_ult_map = {}
+    for _hr in _hist:
+        _pl = str(_hr.get("placa","")).upper().strip()
+        _hod = _hr.get("hodometro")
+        if not _hod: continue
+        try: _hod = float(_hod)
+        except: continue
+        if _mf_math.isnan(_hod) or _hod <= 0: continue
+        _itens_str = " ".join(str(it) for it in (_hr.get("itens_realizados") or [])).lower()
+        for _comp, _kws in _KWS_IND.items():
+            if any(kw in _itens_str for kw in _kws):
+                if _hod > _hod_ult_map.get(_pl, {}).get(_comp, 0):
+                    if _pl not in _hod_ult_map: _hod_ult_map[_pl] = {}
+                    _hod_ult_map[_pl][_comp] = _hod
+
+    n_crit = n_alert = n_ok = 0
+    score_sum = 0
+    custo_est = 0
+    n_total = len(km_por_placa)
+
+    for _plc, _km in km_por_placa.items():
+        try:
+            _km = float(_km)
+            if _mf_math.isnan(_km) or _km <= 0: continue
+        except: continue
+        _plc_up = str(_plc).upper().strip()
+        _scores = []
+        _vencidos = []
+        for _comp, _cfg in _PRED_CFG_IND.items():
+            intv = _cfg["leve"]
+            _hod_ult = (_hod_ult_map.get(_plc_up) or {}).get(_comp, 0)
+            fase = (_km - _hod_ult) if _hod_ult > 0 and _km >= _hod_ult else (_km % intv)
+            try:
+                pct = min(fase / intv, 1.5)
+            except: pct = 0
+            sc = max(0, min(100, round(100 - pct * 110)))
+            _scores.append(sc)
+            if pct >= 0.85: _vencidos.append(_comp)
+        sg = round(sum(_scores) / len(_scores)) if _scores else 0
+        score_sum += sg
+        if sg < 40:
+            n_crit += 1
+            custo_est += sum(_PRED_CFG_IND[c]["custo"] for c in _vencidos)
+        elif sg < 70: n_alert += 1
+        else: n_ok += 1
+
+    return {
+        "n_total":    n_total,
+        "n_critico":  n_crit,
+        "n_alerta":   n_alert,
+        "n_ok":       n_ok,
+        "score_medio":round(score_sum / n_total) if n_total else 0,
+        "custo_est":  custo_est,
+    }
+
+
 if modo == "📍 Por UF/Município":
     _doc_tela("📍 Por UF/Município")
     _render_filtros_inteligentes(modo)
@@ -32284,6 +32364,7 @@ elif modo == "🛰️ Telemetria":
                         pass
 
 
+
 elif modo == "🤖 Assistente IA":
 
     _perfil_ai   = st.session_state.get("_auth_perfil", "")
@@ -32726,6 +32807,7 @@ elif modo == "🤖 Assistente IA":
                 except Exception as _e_pdf:
                     st.error(f"Erro PDF: {str(_e_pdf)[:150]}")
 
+
 elif modo == "☀️ Comece seu dia":
     _doc_tela("☀️ Comece seu dia")
     _perfil_cd  = st.session_state.get("_auth_perfil","")
@@ -33108,6 +33190,7 @@ elif modo == "☀️ Comece seu dia":
                 f"<div style='font-size:11px;color:var(--color-text-secondary)'>{_al_sub}</div></div></div>",
                 unsafe_allow_html=True)
 
+
 elif modo == "🔧 Manutenção de Frota":
     _doc_tela("🔧 Manutenção de Frota")
     _empresa_mf = st.session_state.get("_empresa_ativa") or {}
@@ -33259,26 +33342,50 @@ elif modo == "🔧 Manutenção de Frota":
         _r["km"]    = _km
         _resultados_mf.append(_r)
 
-    _n_total_mf  = len(_resultados_mf)
-    _n_crit_mf   = sum(1 for r in _resultados_mf if r["status"] == "critico")
-    _n_alert_mf  = sum(1 for r in _resultados_mf if r["status"] == "alerta")
-    _n_ok_mf     = sum(1 for r in _resultados_mf if r["status"] == "ok")
-    _score_med_mf= round(sum(r["sg"] for r in _resultados_mf) / max(_n_total_mf,1))
-    _custo_tot_mf= sum(r["custo"] for r in _resultados_mf if r["status"] == "critico")
+    # ── KPIs via função central (mesma lógica do Comece seu dia) ────
+    _ind_mf = _mf_indicadores(_cnpj_mf, _km_por_placa)
+    _n_total_mf   = _ind_mf["n_total"]
+    _n_crit_mf    = _ind_mf["n_critico"]
+    _n_alert_mf   = _ind_mf["n_alerta"]
+    _n_ok_mf      = _ind_mf["n_ok"]
+    _score_med_mf = _ind_mf["score_medio"]
+    _custo_tot_mf = _ind_mf["custo_est"]
 
-    # ── KPIs ─────────────────────────────────────────────────────
+    # Atualiza resultados com status da função central
+    for _rv in _resultados_mf:
+        _plc_rv = _rv["placa"]
+        _km_rv  = float(_km_por_placa.get(_plc_rv) or 0)
+        # Recalcula status usando mesma lógica central
+        _rv_scores = []
+        for _comp in ["oleo","pneus","freios","filtros"]:
+            _intv = 10000 if _comp == "oleo" else 40000 if _comp in ("pneus","freios") else 15000
+            _hod_u = 0
+            for _hr in _hist_mf:
+                if str(_hr.get("placa","")).upper().strip() != _plc_rv.upper().strip(): continue
+                _kws_c = {"oleo":["óleo","oleo","lubrif"],"pneus":["pneu","rodíz"],"freios":["freio","pastilha"],"filtros":["filtro"]}.get(_comp,[])
+                _its = " ".join(str(it) for it in (_hr.get("itens_realizados") or [])).lower()
+                if any(k in _its for k in _kws_c):
+                    _h = float(_hr.get("hodometro") or 0)
+                    if _h > _hod_u: _hod_u = _h
+            _fase_rv = (_km_rv - _hod_u) if _hod_u > 0 and _km_rv >= _hod_u else (_km_rv % _intv)
+            _pct_rv  = min(_fase_rv / _intv, 1.5) if _intv > 0 else 0
+            _rv_scores.append(max(0, min(100, round(100 - _pct_rv * 110))))
+        _sg_rv = round(sum(_rv_scores) / len(_rv_scores)) if _rv_scores else _rv["sg"]
+        _rv["sg"]     = _sg_rv
+        _rv["status"] = "ok" if _sg_rv >= 70 else "alerta" if _sg_rv >= 40 else "critico"
+
     _mfk1,_mfk2,_mfk3,_mfk4,_mfk5,_mfk6 = st.columns(6)
-    _mfk1.metric("🚛 Total frota",    _fmt_int(_n_total_mf), help="Veículos com abastecimento registrado")
-    _mfk2.metric("🔴 Críticos",       _fmt_int(_n_crit_mf),
+    _mfk1.metric("🚛 Total frota",   _fmt_int(_n_total_mf), help="Veículos com hodômetro registrado")
+    _mfk2.metric("🔴 Críticos",      _fmt_int(_n_crit_mf),
         delta=f"{_n_crit_mf} urgente(s)" if _n_crit_mf else None, delta_color="inverse",
         help="Score < 40 — manutenção imediata")
-    _mfk3.metric("⚠️ Alerta",         _fmt_int(_n_alert_mf),
+    _mfk3.metric("⚠️ Alerta",        _fmt_int(_n_alert_mf),
         delta=f"{_n_alert_mf} atenção" if _n_alert_mf else None, delta_color="inverse",
         help="Score 40-69 — programar manutenção")
-    _mfk4.metric("✅ Em dia",          _fmt_int(_n_ok_mf), help="Score ≥ 70")
-    _mfk5.metric("📊 Score médio",     f"{_score_med_mf}/100", help="Média dos scores preditivos da frota")
-    _mfk6.metric("💰 Custo estimado",  _br_moeda(_custo_tot_mf),
-        help="Estimativa de custo para manutenções críticas")
+    _mfk4.metric("✅ Em dia",         _fmt_int(_n_ok_mf), help="Score ≥ 70")
+    _mfk5.metric("📊 Score médio",    f"{_score_med_mf}/100", help="Média dos scores da frota")
+    _mfk6.metric("💰 Custo estimado", _br_moeda(_custo_tot_mf),
+        help="Estimativa para manutenções críticas")
 
     if _n_crit_mf > 0:
         _placas_crit = [r["placa"] for r in _resultados_mf if r["status"] == "critico"][:5]
@@ -33472,6 +33579,11 @@ elif modo == "🔧 Manutenção de Frota":
                     for _k in ["manut_cache","_mf_cache_hist","_mf_cache_abast",
                                "_mf_resultados","_mf_refresh","mf_placa_input"]:
                         st.session_state.pop(_k, None)
+                    # Limpa cache incluindo _mf_indicadores
+                    try:
+                        _mf_indicadores.clear()
+                    except Exception:
+                        pass
                     st.cache_data.clear()
                     st.toast(f"✅ Manutenção salva para {_mf_placa}! Recalculando scores...", icon="🔧")
                     st.rerun()
