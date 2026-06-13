@@ -33188,12 +33188,18 @@ elif modo == "☀️ Comece seu dia":
     _emp_id_cd  = _empresa_cd.get("id","") or ""
 
     # ── Saudação dinâmica ─────────────────────────────────────────
-    from datetime import datetime as _dt_cd
-    _hora_cd = _dt_cd.now().hour
-    _saudacao = "Bom dia" if _hora_cd < 12 else "Boa tarde" if _hora_cd < 18 else "Boa noite"
+    from datetime import datetime as _dt_cd, timezone as _tz_cd, timedelta as _tdelta_cd
+    _brasilia = _tz_cd(_tdelta_cd(hours=-3))
+    _agora_br = _dt_cd.now(_brasilia)
+    _hora_cd  = _agora_br.hour
+    _saudacao = "Bom dia" if 5 <= _hora_cd < 12 else "Boa tarde" if 12 <= _hora_cd < 18 else "Boa noite"
     # Extrai primeiro nome do usuário
-    _nome_completo_cd = st.session_state.get("_auth_nome") or st.session_state.get("_auth_email","Gestor").split("@")[0]
-    _nome_cd = _nome_completo_cd.strip().split()[0].title() if _nome_completo_cd.strip() else "Gestor"
+    _auth_user_cd = st.session_state.get("_auth_user") or {}
+    _nome_raw_cd  = (_auth_user_cd.get("name") or
+                     st.session_state.get("_auth_email","") or "Gestor")
+    _nome_cd = _nome_raw_cd.strip().split()[0].title() if _nome_raw_cd.strip() else "Gestor"
+    if "@" in _nome_cd:
+        _nome_cd = _nome_cd.split("@")[0].title()
     _dias_pt  = ["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"]
     _meses_pt = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"]
     _hoje_cd  = _dt_cd.now()
