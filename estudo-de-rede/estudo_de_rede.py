@@ -33400,12 +33400,48 @@ elif modo == "🔧 Manutenção de Frota":
             "Extintor — recarga", "Outro",
         ]
         _pre_placa_mf = st.session_state.pop("_mf_placa_pre", "")
+
+        # Campo de placa FORA do form para buscar hodômetro dinamicamente
+        _mf_placa = st.text_input("🚗 Placa *",
+            value=_pre_placa_mf,
+            placeholder="ABC-1234",
+            key="mf_placa_input",
+            help="Digite a placa para carregar o hodômetro automaticamente")
+
+        # Busca hodômetro atual do veículo nos abastecimentos
+        _hod_auto = 0
+        _hod_caption = ""
+        if _mf_placa and len(_mf_placa) >= 7:
+            _plc_up = _mf_placa.upper().strip()
+            # Tenta do DataFrame de abastecimentos já carregado
+            if not _abast_mf.empty and _pla_col_mf and _hod_col_mf:
+                _df_plc = _abast_mf[_abast_mf[_pla_col_mf].astype(str).str.upper().str.strip() == _plc_up]
+                if not _df_plc.empty:
+                    _hod_vals = pd.to_numeric(_df_plc[_hod_col_mf], errors="coerce").dropna()
+                    if not _hod_vals.empty:
+                        _hod_auto = int(_hod_vals.max())
+                        _hod_caption = f"✅ Hodômetro atual: **{_hod_auto:,} km** (último abastecimento)"
+            # Se não achou, tenta do histórico de manutenção
+            if _hod_auto == 0:
+                _regs_plc = [r for r in _hist_mf if str(r.get("placa","")).upper().strip() == _plc_up and r.get("hodometro")]
+                if _regs_plc:
+                    _hod_auto = int(max(float(r["hodometro"]) for r in _regs_plc))
+                    _hod_caption = f"⚙️ Hodômetro: **{_hod_auto:,} km** (último registro de manutenção)"
+            if _hod_caption:
+                st.caption(_hod_caption)
+            elif _mf_placa:
+                st.caption("⚠️ Hodômetro não encontrado — preencha manualmente")
+
         with st.form("form_manut_mf", clear_on_submit=True):
             _mff1, _mff2 = st.columns(2)
             with _mff1:
-                _mf_placa  = st.text_input("🚗 Placa *", value=_pre_placa_mf, placeholder="ABC-1234")
+                st.text_input("🚗 Placa", value=_mf_placa, disabled=True,
+                    help="Placa selecionada acima")
                 _mf_data   = st.date_input("📅 Data *")
-                _mf_hod    = st.number_input("📏 Hodômetro (km)", min_value=0, step=100)
+                _mf_hod    = st.number_input("📏 Hodômetro (km)",
+                    min_value=0, step=100,
+                    value=_hod_auto,
+                    help="Preenchido automaticamente — ajuste se necessário")
             with _mff2:
                 _mf_itens  = st.multiselect("🔧 Tipo(s) *", _TIPOS_MF)
                 _mf_custo  = st.number_input("💰 Custo (R$)", min_value=0.0, step=50.0, format="%.2f")
@@ -33420,22 +33456,22 @@ elif modo == "🔧 Manutenção de Frota":
             _mf_sub = st.form_submit_button("💾 Salvar", type="primary", use_container_width=True)
 
         if _mf_sub:
+            _mf_placa = st.session_state.get("mf_placa_input", _mf_placa) or _mf_placa
             if not _mf_placa or not _mf_itens:
                 st.error("Preencha Placa e Tipo de manutenção.")
             else:
+                _placa_submit = st.session_state.get("mf_placa_input", _mf_placa) or _mf_placa
                 _ok_mf, _msg_mf = _manut_salvar(
-                    cnpj_frota=_cnpj_mf, placa=_mf_placa,
+                    cnpj_frota=_cnpj_mf, placa=_placa_submit,
                     data=str(_mf_data), hodometro=int(_mf_hod) if _mf_hod else None,
                     tecnico=_mf_tec, oficina=_mf_ofic, custo=float(_mf_custo),
                     itens=_mf_itens, obs=_mf_obs,
                     criado_por=st.session_state.get("_auth_email",""),
                 )
                 if _ok_mf:
-                    # Limpa todos os caches relacionados a manutenção
                     for _k in ["manut_cache","_mf_cache_hist","_mf_cache_abast",
-                               "_mf_resultados","_mf_refresh"]:
+                               "_mf_resultados","_mf_refresh","mf_placa_input"]:
                         st.session_state.pop(_k, None)
-                    # Limpa também cache de abastecimentos para recalcular scores
                     st.cache_data.clear()
                     st.toast(f"✅ Manutenção salva para {_mf_placa}! Recalculando scores...", icon="🔧")
                     st.rerun()
