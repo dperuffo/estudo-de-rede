@@ -33114,9 +33114,8 @@ elif modo == "☀️ Comece seu dia":
 
 elif modo == "🔧 Manutenção de Frota":
     _doc_tela("🔧 Manutenção de Frota")
-    _empresa_mf  = st.session_state.get("_empresa_ativa") or {}
-    _cnpj_mf     = _empresa_mf.get("cnpj","") or ""
-    _emp_id_mf   = _empresa_mf.get("id","") or ""
+    _empresa_mf = st.session_state.get("_empresa_ativa") or {}
+    _cnpj_mf    = _empresa_mf.get("cnpj","") or ""
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
@@ -33124,44 +33123,138 @@ elif modo == "🔧 Manutenção de Frota":
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
         "🔧 Manutenção de Veículos</h2>"
         "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
-        "Controle de manutenções realizadas, alertas e histórico da frota.</p>",
+        "Score preditivo por hodômetro real · 8 componentes monitorados · ordenação por criticidade</p>",
         unsafe_allow_html=True,
     )
 
-    # ── Carrega histórico ────────────────────────────────────────
+    # ── Configuração de intervalos (leve / pesado) ────────────────
+    _PRED_CFG_MF = {
+        "oleo":          {"leve": 10000, "pesado": 15000, "label": "Troca de Óleo",       "custo": 450},
+        "pneus":         {"leve": 40000, "pesado": 60000, "label": "Pneus",                "custo": 3200},
+        "freios":        {"leve": 40000, "pesado": 60000, "label": "Freios",               "custo": 1800},
+        "filtros":       {"leve": 15000, "pesado": 20000, "label": "Filtros",              "custo": 380},
+        "arrefecimento": {"leve": 40000, "pesado": 60000, "label": "Arrefecimento",        "custo": 950},
+        "suspensao":     {"leve": 50000, "pesado": 70000, "label": "Suspensão",            "custo": 2400},
+        "eletrico":      {"leve": 60000, "pesado": 80000, "label": "Sistema Elétrico",     "custo": 1200},
+        "revisao":       {"leve": 30000, "pesado": 40000, "label": "Revisão Geral",        "custo": 680},
+    }
+
+    def _mf_score_comp(km_atual: float, key: str, is_pesado: bool,
+                        deg: float = 0.0, historico: list = None, placa: str = "") -> dict:
+        """Score 0-100 de um componente. Usa registro real se disponível."""
+        intv = _PRED_CFG_MF[key]["pesado"] if is_pesado else _PRED_CFG_MF[key]["leve"]
+        if not km_atual:
+            return {"score": 65, "pct": 0.0, "km_next": intv, "urg": "ok"}
+        # Tenta usar hodômetro real do histórico
+        fase = km_atual % intv
+        if historico:
+            _ult = _manut_ultima_por_tipo(placa, _PRED_CFG_MF[key]["label"], historico)
+            if _ult and _ult.get("hodometro") and km_atual >= float(_ult["hodometro"]):
+                fase = km_atual - float(_ult["hodometro"])
+        # Ajuste por degradação de consumo
+        pct = fase / intv
+        if key in ("oleo","filtros") and deg > 0.08:
+            pct = min(1.0, pct + deg * 0.4)
+        score   = max(0, round(100 - pct * 110))
+        km_next = max(0, round(intv - fase))
+        urg = "critico" if pct >= 0.85 else "alerta" if pct >= 0.65 else "ok"
+        return {"score": score, "pct": round(pct * 100), "km_next": km_next, "urg": urg}
+
+    def _mf_analisar(placa: str, km_atual: float, tipo_v: str,
+                      deg: float, historico: list) -> dict:
+        """Retorna score geral + detalhes por componente."""
+        is_p = tipo_v.lower() == "pesado"
+        comps = {}
+        st_total = 0.0
+        for key in _PRED_CFG_MF:
+            c = _mf_score_comp(km_atual, key, is_p, deg, historico, placa)
+            comps[key] = c
+            st_total += c["score"]
+        sg = round(st_total / len(_PRED_CFG_MF))
+        status = "ok" if sg >= 70 else "alerta" if sg >= 40 else "critico"
+        criticos = [k for k,v in comps.items() if v["urg"] == "critico"]
+        custo_est = sum(_PRED_CFG_MF[k]["custo"] for k in criticos)
+        return {"sg": sg, "status": status, "comps": comps,
+                "criticos": criticos, "custo": custo_est}
+
+    # ── Carrega dados ─────────────────────────────────────────────
+    if st.session_state.get("_mf_refresh"):
+        st.session_state.pop("_mf_cache_hist", None)
+        st.session_state.pop("_mf_cache_abast", None)
+        st.session_state.pop("_mf_refresh", None)
+
     if "manut_cache" not in st.session_state:
         st.session_state["manut_cache"] = _manut_listar(
-            cnpj_frota=_cnpj_mf if _cnpj_mf else None, limit=1000)
-    _historico_mf = st.session_state.get("manut_cache", [])
+            cnpj_frota=_cnpj_mf if _cnpj_mf else None, limit=2000)
+    _hist_mf = st.session_state.get("manut_cache", [])
 
-    from datetime import date as _dt_mf_date, datetime as _dt_mf
-    _hoje_mf = _dt_mf_date.today()
+    # Carrega abastecimentos para extrair km e consumo
+    _abast_mf = _carregar_abastecimentos_unificados(dias=730)
 
-    def _mf_status(reg):
-        try:
-            _d = _dt_mf.fromisoformat(str(reg.get("data_manutencao",""))[:10]).date()
-            _dias = (_hoje_mf - _d).days
-            if _dias > 120: return "critico"
-            if _dias > 75:  return "alerta"
-        except Exception: pass
-        return "em_dia"
+    _pla_col_mf = next((c for c in ["placa"] if c in _abast_mf.columns), None) if not _abast_mf.empty else None
+    _hod_col_mf = next((c for c in ["hodometro"] if c in _abast_mf.columns), None) if not _abast_mf.empty else None
+    _lit_col_mf = next((c for c in ["litros","volume_litros"] if c in _abast_mf.columns), None) if not _abast_mf.empty else None
 
-    _mf_criticos = [r for r in _historico_mf if _mf_status(r) == "critico"]
-    _mf_alertas  = [r for r in _historico_mf if _mf_status(r) == "alerta"]
-    _mf_em_dia   = [r for r in _historico_mf if _mf_status(r) == "em_dia"]
-    _mf_custo    = sum(float(r.get("custo_total") or 0) for r in _historico_mf)
+    # Monta dicionário placa → km_atual + consumo
+    _km_por_placa  = {}
+    _deg_por_placa = {}
+    if not _abast_mf.empty and _pla_col_mf and _hod_col_mf:
+        _abast_mf["_hod_n"] = pd.to_numeric(_abast_mf[_hod_col_mf], errors="coerce")
+        _km_por_placa = _abast_mf.groupby(_pla_col_mf)["_hod_n"].max().to_dict()
+        if _lit_col_mf:
+            _abast_mf["_lit_n"] = pd.to_numeric(_abast_mf[_lit_col_mf], errors="coerce")
+            for _plc, _grp in _abast_mf.groupby(_pla_col_mf):
+                _hods = _grp["_hod_n"].dropna().sort_values()
+                _lits = _grp["_lit_n"].dropna()
+                if len(_hods) >= 4 and _lits.sum() > 0:
+                    _km_total = float(_hods.iloc[-1] - _hods.iloc[0])
+                    _lit_total = float(_lits.sum())
+                    _kml = _km_total / _lit_total if _lit_total > 0 else 0
+                    _base = 3.5  # base km/L diesel pesado
+                    _deg_por_placa[_plc] = max(0.0, (_base - _kml) / _base) if _kml > 0 else 0.0
+
+    _placas_mf = sorted(set(list(_km_por_placa.keys()) +
+                            [r.get("placa","") for r in _hist_mf if r.get("placa")]))
+    _placas_mf = [p for p in _placas_mf if p]
+
+    # Analisa todos os veículos
+    _resultados_mf = []
+    for _plc in _placas_mf:
+        _km  = float(_km_por_placa.get(_plc) or 0)
+        _deg = float(_deg_por_placa.get(_plc) or 0)
+        _r   = _mf_analisar(_plc, _km, "pesado", _deg, _hist_mf)
+        _r["placa"] = _plc
+        _r["km"]    = _km
+        _resultados_mf.append(_r)
+
+    _n_total_mf  = len(_resultados_mf)
+    _n_crit_mf   = sum(1 for r in _resultados_mf if r["status"] == "critico")
+    _n_alert_mf  = sum(1 for r in _resultados_mf if r["status"] == "alerta")
+    _n_ok_mf     = sum(1 for r in _resultados_mf if r["status"] == "ok")
+    _score_med_mf= round(sum(r["sg"] for r in _resultados_mf) / max(_n_total_mf,1))
+    _custo_tot_mf= sum(r["custo"] for r in _resultados_mf if r["status"] == "critico")
 
     # ── KPIs ─────────────────────────────────────────────────────
-    _mf_k1,_mf_k2,_mf_k3,_mf_k4,_mf_k5 = st.columns(5)
-    _mf_k1.metric("📋 Total registros",   len(_historico_mf))
-    _mf_k2.metric("🔴 Críticos",          len(_mf_criticos),
-        delta=f"{len(_mf_criticos)} urgente(s)" if _mf_criticos else None,
-        delta_color="inverse")
-    _mf_k3.metric("⚠️ Alerta",            len(_mf_alertas),
-        delta=f"{len(_mf_alertas)} atenção" if _mf_alertas else None,
-        delta_color="inverse")
-    _mf_k4.metric("✅ Em dia",             len(_mf_em_dia))
-    _mf_k5.metric("💰 Custo total",        _br_moeda(_mf_custo))
+    _mfk1,_mfk2,_mfk3,_mfk4,_mfk5,_mfk6 = st.columns(6)
+    _mfk1.metric("🚛 Total frota",    _fmt_int(_n_total_mf), help="Veículos com abastecimento registrado")
+    _mfk2.metric("🔴 Críticos",       _fmt_int(_n_crit_mf),
+        delta=f"{_n_crit_mf} urgente(s)" if _n_crit_mf else None, delta_color="inverse",
+        help="Score < 40 — manutenção imediata")
+    _mfk3.metric("⚠️ Alerta",         _fmt_int(_n_alert_mf),
+        delta=f"{_n_alert_mf} atenção" if _n_alert_mf else None, delta_color="inverse",
+        help="Score 40-69 — programar manutenção")
+    _mfk4.metric("✅ Em dia",          _fmt_int(_n_ok_mf), help="Score ≥ 70")
+    _mfk5.metric("📊 Score médio",     f"{_score_med_mf}/100", help="Média dos scores preditivos da frota")
+    _mfk6.metric("💰 Custo estimado",  _br_moeda(_custo_tot_mf),
+        help="Estimativa de custo para manutenções críticas")
+
+    if _n_crit_mf > 0:
+        _placas_crit = [r["placa"] for r in _resultados_mf if r["status"] == "critico"][:5]
+        st.error(
+            f"🔴 **{_n_crit_mf} veículo(s) em estado CRÍTICO:** "
+            f"{', '.join(_placas_crit)}{'...' if _n_crit_mf > 5 else ''} — "
+            f"Agendar manutenção com urgência."
+        )
 
     st.markdown("---")
 
@@ -33169,196 +33262,164 @@ elif modo == "🔧 Manutenção de Frota":
     _mf_tab1, _mf_tab2, _mf_tab3 = st.tabs([
         "🚨 Pendências & Alertas",
         "📝 Registrar Manutenção",
-        "📋 Histórico Completo",
+        "📋 Histórico",
     ])
 
-    # ── TAB 1 — PENDÊNCIAS ────────────────────────────────────────
+    # ── TAB 1 — LISTA PREDITIVA ───────────────────────────────────
     with _mf_tab1:
-        _mf_filt = st.radio("Filtrar por status", ["Todos","🔴 Críticos","⚠️ Alerta","✅ Em dia"],
-            horizontal=True, key="mf_filt_status", label_visibility="collapsed")
+        _mf_c1, _mf_c2, _mf_c3 = st.columns([2,1,1])
+        with _mf_c1:
+            _busca_mf = st.text_input("🔍 Buscar placa",
+                placeholder="Digite a placa...", key="mf_busca", label_visibility="collapsed")
+        with _mf_c2:
+            _filt_mf = st.selectbox("Status", ["Todos","🔴 Críticos","⚠️ Alerta","✅ Em dia"],
+                key="mf_filt", label_visibility="collapsed")
+        with _mf_c3:
+            _ord_mf = st.selectbox("Ordenar", ["Pior score","Placa A-Z","Maior km"],
+                key="mf_ord", label_visibility="collapsed")
 
-        _busca_mf = st.text_input("🔍 Buscar por placa ou tipo",
-            placeholder="Ex: ABC-1234 ou Troca de óleo", key="mf_busca")
-
-        _lista_mf = _historico_mf
-        if "Críticos" in _mf_filt:
-            _lista_mf = _mf_criticos
-        elif "Alerta" in _mf_filt:
-            _lista_mf = _mf_alertas
-        elif "Em dia" in _mf_filt:
-            _lista_mf = _mf_em_dia
-
+        # Filtra e ordena
+        _lista_mf = _resultados_mf[:]
+        if "Críticos" in _filt_mf:   _lista_mf = [r for r in _lista_mf if r["status"] == "critico"]
+        elif "Alerta" in _filt_mf:   _lista_mf = [r for r in _lista_mf if r["status"] == "alerta"]
+        elif "Em dia" in _filt_mf:   _lista_mf = [r for r in _lista_mf if r["status"] == "ok"]
         if _busca_mf:
-            _bq = _busca_mf.lower()
-            _lista_mf = [r for r in _lista_mf if
-                _bq in str(r.get("placa","")).lower() or
-                _bq in str(r.get("itens_realizados","")).lower()]
+            _bq = _busca_mf.upper().strip()
+            _lista_mf = [r for r in _lista_mf if _bq in r["placa"]]
+        if "Pior" in _ord_mf:        _lista_mf.sort(key=lambda r: r["sg"])
+        elif "Placa" in _ord_mf:     _lista_mf.sort(key=lambda r: r["placa"])
+        else:                         _lista_mf.sort(key=lambda r: -r["km"])
 
-        # Ordena: críticos primeiro
-        _lista_mf = sorted(_lista_mf,
-            key=lambda r: 0 if _mf_status(r)=="critico" else 1 if _mf_status(r)=="alerta" else 2)
+        st.caption(f"{len(_lista_mf)} veículo(s) · mostrando até 30")
 
-        st.caption(f"{len(_lista_mf)} registro(s) exibido(s)")
-
-        _st_cores = {
-            "critico": ("🔴","#FCEBEB","#A32D2D","Urgente"),
-            "alerta":  ("⚠️","#FAEEDA","#633806","Alerta"),
-            "em_dia":  ("✅","#EAF3DE","#27500A","Em dia"),
+        _ST_COR = {
+            "critico": ("#FCEBEB","#A32D2D","🔴 Crítico"),
+            "alerta":  ("#FAEEDA","#633806","⚠️ Alerta"),
+            "ok":      ("#EAF3DE","#27500A","✅ Em dia"),
         }
 
-        for _reg in _lista_mf[:50]:
-            _st   = _mf_status(_reg)
-            _ico, _bg, _co, _label = _st_cores[_st]
-            _placa  = _reg.get("placa","—")
-            _itens  = _reg.get("itens_realizados") or []
-            _itens_str = ", ".join(_itens[:3]) if isinstance(_itens, list) else str(_itens)
-            _dt_str = str(_reg.get("data_manutencao",""))[:10]
-            _hod    = _fmt_int(int(_reg.get("hodometro") or 0))
-            _custo_r= _br_moeda(float(_reg.get("custo_total") or 0))
-            _oficina= _reg.get("oficina","—") or "—"
-            try:
-                _d = _dt_mf.fromisoformat(_dt_str).date()
-                _dias_str = f"{(_hoje_mf - _d).days}d atrás"
-            except Exception:
-                _dias_str = "—"
+        for _rv in _lista_mf[:30]:
+            _bg_v, _co_v, _lbl_v = _ST_COR[_rv["status"]]
+            _criticos_str = ", ".join(
+                _PRED_CFG_MF[k]["label"] for k in _rv["criticos"][:3]
+            ) or "Nenhum componente vencido"
+            _exp_title = (
+                f"**{_rv['placa']}** &nbsp;·&nbsp; "
+                f"Score: **{_rv['sg']}/100** &nbsp;·&nbsp; "
+                f"{_fmt_int(int(_rv['km']))} km &nbsp;·&nbsp; "
+                f"{_lbl_v}"
+            )
+            with st.expander(_exp_title, expanded=(_rv["status"] == "critico" and len(_lista_mf) <= 10)):
+                # Componentes
+                _cc1, _cc2 = st.columns(2)
+                for _ci, (_key, _cv) in enumerate(_rv["comps"].items()):
+                    _col_c = _cc1 if _ci % 2 == 0 else _cc2
+                    _c_bg  = "#FCEBEB" if _cv["urg"]=="critico" else "#FAEEDA" if _cv["urg"]=="alerta" else "var(--color-background-secondary)"
+                    _c_co  = "#A32D2D" if _cv["urg"]=="critico" else "#633806" if _cv["urg"]=="alerta" else "var(--color-text-secondary)"
+                    _prox  = f"{_fmt_int(_cv['km_next'])} km" if _cv["urg"]=="ok" else (
+                              f"{_fmt_int(_cv['km_next'])} km restantes" if _cv["urg"]=="alerta" else "Vencido")
+                    _col_c.markdown(
+                        f"<div style='background:{_c_bg};border-radius:6px;padding:7px 10px;margin-bottom:6px'>"
+                        f"<div style='display:flex;justify-content:space-between;margin-bottom:3px'>"
+                        f"<span style='font-size:11px;font-weight:500;color:{_c_co}'>{_PRED_CFG_MF[_key]['label']}</span>"
+                        f"<span style='font-size:11px;font-weight:500;color:{_c_co}'>{_cv['score']}/100</span></div>"
+                        f"<div style='width:100%;height:4px;background:rgba(0,0,0,0.1);border-radius:2px;overflow:hidden'>"
+                        f"<div style='width:{_cv['score']}%;height:100%;background:{_c_co};border-radius:2px'></div></div>"
+                        f"<div style='font-size:10px;color:{_c_co};margin-top:3px'>{_prox}</div></div>",
+                        unsafe_allow_html=True)
 
-            with st.expander(
-                f"{_ico} **{_placa}** · {_itens_str[:40]} · {_dias_str}",
-                expanded=(_st == "critico")):
-                _ec1, _ec2, _ec3 = st.columns(3)
-                _ec1.markdown(f"**Placa:** {_placa}")
-                _ec1.markdown(f"**Data:** {_dt_str}")
-                _ec1.markdown(f"**Hodômetro:** {_hod} km")
-                _ec2.markdown(f"**Tipo:** {_itens_str}")
-                _ec2.markdown(f"**Oficina:** {_oficina}")
-                _ec2.markdown(f"**Custo:** {_custo_r}")
-                _ec3.markdown(
-                    f"<span style='background:{_bg};color:{_co};"
-                    f"padding:3px 10px;border-radius:12px;font-size:12px;"
-                    f"font-weight:500'>{_label}</span>",
-                    unsafe_allow_html=True)
-                if _reg.get("obs_gerais"):
-                    st.caption(f"Obs: {_reg['obs_gerais']}")
-                _btn_nova = st.button(
-                    f"➕ Registrar nova manutenção para {_placa}",
-                    key=f"btn_nova_mf_{_reg.get('id',_placa)}",
-                    help="Abre o formulário de registro para este veículo")
-                if _btn_nova:
-                    st.session_state["_mf_placa_pre"] = _placa
-                    st.session_state["_mf_tab_ativa"] = 1
-                    st.rerun()
+                # Custo e botão
+                _rc1, _rc2 = st.columns([3,1])
+                with _rc1:
+                    if _rv["criticos"]:
+                        st.markdown(
+                            f"<div style='background:{_bg_v};border-radius:6px;padding:6px 10px;"
+                            f"font-size:11px;color:{_co_v}'>"
+                            f"💰 Custo estimado: <b>R$ {_rv['custo']:,.0f}</b> &nbsp;·&nbsp; "
+                            f"Componentes: {', '.join(_PRED_CFG_MF[k]['label'] for k in _rv['criticos'])}</div>",
+                            unsafe_allow_html=True)
+                with _rc2:
+                    if st.button("📝 Registrar", key=f"btn_reg_{_rv['placa']}",
+                                 use_container_width=True, type="primary"):
+                        st.session_state["_mf_placa_pre"] = _rv["placa"]
+                        st.rerun()
 
-        if len(_lista_mf) > 50:
-            st.caption(f"Exibindo 50 de {len(_lista_mf)} registros. Refine a busca para ver mais.")
+        if len(_lista_mf) > 30:
+            st.caption(f"⚠️ Exibindo 30 de {len(_lista_mf)} veículos. Refine a busca para ver mais.")
 
     # ── TAB 2 — REGISTRAR ─────────────────────────────────────────
     with _mf_tab2:
         st.markdown("#### 📝 Registrar Manutenção Realizada")
-
         _TIPOS_MF = [
-            "Troca de óleo", "Troca de filtros", "Freios — pastilhas/discos",
-            "Pneus — troca/calibragem", "Alinhamento e balanceamento",
-            "Revisão geral", "Sistema elétrico", "Ar condicionado",
-            "Suspensão", "Embreagem", "Injeção eletrônica",
-            "Tacógrafo — calibração", "Extintor — recarga", "Outro",
+            "Troca de Óleo", "Pneus — rodízio/troca", "Freios — pastilhas/discos",
+            "Filtros — ar/combustível/óleo", "Arrefecimento", "Suspensão",
+            "Sistema Elétrico", "Revisão Geral", "Alinhamento e Balanceamento",
+            "Embreagem", "Injeção Eletrônica", "Tacógrafo — calibração",
+            "Extintor — recarga", "Outro",
         ]
+        _pre_placa_mf = st.session_state.pop("_mf_placa_pre", "")
+        with st.form("form_manut_mf", clear_on_submit=True):
+            _mff1, _mff2 = st.columns(2)
+            with _mff1:
+                _mf_placa  = st.text_input("🚗 Placa *", value=_pre_placa_mf, placeholder="ABC-1234")
+                _mf_data   = st.date_input("📅 Data *")
+                _mf_hod    = st.number_input("📏 Hodômetro (km)", min_value=0, step=100)
+            with _mff2:
+                _mf_itens  = st.multiselect("🔧 Tipo(s) *", _TIPOS_MF)
+                _mf_custo  = st.number_input("💰 Custo (R$)", min_value=0.0, step=50.0, format="%.2f")
+                _mf_prox   = st.number_input("📍 Próxima (km)", min_value=0, step=1000)
+            _mff3, _mff4 = st.columns(2)
+            with _mff3:
+                _mf_tec   = st.text_input("👤 Técnico", placeholder="Nome do mecânico")
+            with _mff4:
+                _mf_ofic  = st.text_input("🏪 Oficina", placeholder="Nome da oficina")
+            _mf_obs = st.text_area("📝 Observações", height=70,
+                placeholder="Peças trocadas, nº de série, observações...")
+            _mf_sub = st.form_submit_button("💾 Salvar", type="primary", use_container_width=True)
 
-        _pre_placa = st.session_state.pop("_mf_placa_pre", "")
-
-        with st.form("form_manut_frota", clear_on_submit=True):
-            _mf_f1, _mf_f2 = st.columns(2)
-            with _mf_f1:
-                _mf_placa  = st.text_input("🚗 Placa *",
-                    value=_pre_placa,
-                    placeholder="ABC-1234")
-                _mf_data   = st.date_input("📅 Data da manutenção *",
-                    value=_hoje_mf)
-                _mf_hod    = st.number_input("📏 Hodômetro (km)",
-                    min_value=0, step=100,
-                    help="Km no momento da manutenção")
-            with _mf_f2:
-                _mf_itens  = st.multiselect("🔧 Tipo(s) de manutenção *",
-                    _TIPOS_MF,
-                    help="Selecione todos os serviços realizados")
-                _mf_custo  = st.number_input("💰 Custo total (R$)",
-                    min_value=0.0, step=50.0, format="%.2f")
-                _mf_prox_km= st.number_input("📍 Próxima manutenção (km)",
-                    min_value=0, step=1000,
-                    help="Hodômetro previsto para próxima revisão")
-
-            _mf_f3, _mf_f4 = st.columns(2)
-            with _mf_f3:
-                _mf_tecnico = st.text_input("👤 Técnico responsável",
-                    placeholder="Nome do mecânico")
-            with _mf_f4:
-                _mf_oficina = st.text_input("🏪 Oficina",
-                    placeholder="Nome da oficina")
-
-            _mf_obs = st.text_area("📝 Observações",
-                placeholder="Peças trocadas, nº de série, observações gerais...",
-                height=80)
-
-            _mf_submit = st.form_submit_button(
-                "💾 Registrar Manutenção", type="primary", use_container_width=True)
-
-        if _mf_submit:
+        if _mf_sub:
             if not _mf_placa or not _mf_itens:
-                st.error("Preencha pelo menos a Placa e o Tipo de manutenção.")
+                st.error("Preencha Placa e Tipo de manutenção.")
             else:
                 _ok_mf, _msg_mf = _manut_salvar(
-                    cnpj_frota=_cnpj_mf,
-                    placa=_mf_placa,
-                    data=str(_mf_data),
-                    hodometro=int(_mf_hod) if _mf_hod else None,
-                    tecnico=_mf_tecnico,
-                    oficina=_mf_oficina,
-                    custo=float(_mf_custo),
-                    itens=_mf_itens,
-                    obs=_mf_obs,
+                    cnpj_frota=_cnpj_mf, placa=_mf_placa,
+                    data=str(_mf_data), hodometro=int(_mf_hod) if _mf_hod else None,
+                    tecnico=_mf_tec, oficina=_mf_ofic, custo=float(_mf_custo),
+                    itens=_mf_itens, obs=_mf_obs,
                     criado_por=st.session_state.get("_auth_email",""),
                 )
                 if _ok_mf:
                     st.session_state.pop("manut_cache", None)
-                    st.toast(f"✅ Manutenção registrada para {_mf_placa}!", icon="🔧")
+                    st.toast(f"✅ Manutenção salva para {_mf_placa}!", icon="🔧")
                     st.rerun()
                 else:
-                    st.error(f"Erro ao registrar: {_msg_mf}")
+                    st.error(f"Erro: {_msg_mf}")
 
-    # ── TAB 3 — HISTÓRICO COMPLETO ────────────────────────────────
+    # ── TAB 3 — HISTÓRICO ─────────────────────────────────────────
     with _mf_tab3:
-        _mf_col_ref, _mf_col_btn = st.columns([4,1])
-        with _mf_col_btn:
-            if st.button("🔄 Atualizar", key="btn_refresh_mf", use_container_width=True):
+        _mfh1, _mfh2 = st.columns([4,1])
+        with _mfh2:
+            if st.button("🔄 Atualizar", key="btn_mf_refresh", use_container_width=True):
                 st.session_state.pop("manut_cache", None)
                 st.rerun()
-        with _mf_col_ref:
-            st.markdown(f"**{len(_historico_mf)} registro(s) no histórico**")
-
-        if not _historico_mf:
-            st.info("Nenhuma manutenção registrada. Use a aba **📝 Registrar** para cadastrar.")
+        with _mfh1:
+            st.markdown(f"**{len(_hist_mf)} registro(s)**")
+        if not _hist_mf:
+            st.info("Nenhuma manutenção registrada ainda.")
         else:
-            # Monta DataFrame para exibição
-            _mf_rows = []
-            for _r in _historico_mf:
-                _itens_h = _r.get("itens_realizados") or []
-                _mf_rows.append({
-                    "Status":       {"critico":"🔴 Urgente","alerta":"⚠️ Alerta","em_dia":"✅ Em dia"}.get(_mf_status(_r),"—"),
-                    "Placa":        _r.get("placa","—"),
-                    "Data":         str(_r.get("data_manutencao",""))[:10],
-                    "Tipo":         ", ".join(_itens_h[:2]) if isinstance(_itens_h,list) else str(_itens_h)[:40],
-                    "Hodômetro":    _fmt_int(int(_r.get("hodometro") or 0)) + " km",
-                    "Custo":        _br_moeda(float(_r.get("custo_total") or 0)),
-                    "Oficina":      _r.get("oficina","—") or "—",
-                    "Técnico":      _r.get("tecnico","—") or "—",
+            _mfh_rows = []
+            for _rh in _hist_mf:
+                _itens_h = _rh.get("itens_realizados") or []
+                _mfh_rows.append({
+                    "Placa":    _rh.get("placa","—"),
+                    "Data":     str(_rh.get("data_manutencao",""))[:10],
+                    "Tipo":     ", ".join(_itens_h[:2]) if isinstance(_itens_h,list) else str(_itens_h)[:40],
+                    "Hodôm.":  _fmt_int(int(_rh.get("hodometro") or 0))+" km",
+                    "Custo":   _br_moeda(float(_rh.get("custo_total") or 0)),
+                    "Oficina": _rh.get("oficina","—") or "—",
+                    "Técnico": _rh.get("tecnico","—") or "—",
                 })
-            _mf_df = pd.DataFrame(_mf_rows)
-            st.dataframe(_mf_df, use_container_width=True, hide_index=True,
-                column_config={
-                    "Status": st.column_config.TextColumn("Status", width=90),
-                    "Placa":  st.column_config.TextColumn("Placa",  width=90),
-                    "Data":   st.column_config.TextColumn("Data",   width=90),
-                    "Custo":  st.column_config.TextColumn("Custo",  width=100),
-                })
+            st.dataframe(pd.DataFrame(_mfh_rows), use_container_width=True, hide_index=True)
 
 elif modo == "🤝 Acordos de Preço":
     _doc_tela("🤝 Acordos de Preço")
