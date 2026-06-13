@@ -33367,9 +33367,14 @@ elif modo == "🔧 Manutenção de Frota":
                 if any(k in _its for k in _kws_c):
                     _h = float(_hr.get("hodometro") or 0)
                     if _h > _hod_u: _hod_u = _h
-            _fase_rv = (_km_rv - _hod_u) if _hod_u > 0 and _km_rv >= _hod_u else (_km_rv % _intv)
-            _pct_rv  = min(_fase_rv / _intv, 1.5) if _intv > 0 else 0
-            _rv_scores.append(max(0, min(100, round(100 - _pct_rv * 110))))
+            try:
+                _fase_rv = float((_km_rv - _hod_u) if _hod_u > 0 and _km_rv >= _hod_u else (_km_rv % _intv))
+                import math as _mfm; _fase_rv = 0.0 if _mfm.isnan(_fase_rv) else max(0.0, _fase_rv)
+                _pct_rv  = min(_fase_rv / _intv, 1.5) if _intv > 0 else 0.0
+                _pct_rv  = 0.0 if _mfm.isnan(_pct_rv) else _pct_rv
+                _rv_scores.append(max(0, min(100, round(100 - _pct_rv * 110))))
+            except Exception:
+                _rv_scores.append(65)
         _sg_rv = round(sum(_rv_scores) / len(_rv_scores)) if _rv_scores else _rv["sg"]
         _rv["sg"]     = _sg_rv
         _rv["status"] = "ok" if _sg_rv >= 70 else "alerta" if _sg_rv >= 40 else "critico"
