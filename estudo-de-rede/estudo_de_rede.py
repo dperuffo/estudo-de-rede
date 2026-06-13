@@ -604,6 +604,7 @@ _PERMISSOES: dict[str, set] = {
     "aba_rotograma":        {"admin", "gestor_frota"},       # rotograma de segurança de rota
     "aba_acordos":          {"admin", "gestor_frota"},       # acordos de preço por posto
     "aba_comece_seu_dia":   {"admin", "analista", "gestor_frota"},  # painel diário do gestor
+    "aba_manutencao":       {"admin", "analista", "gestor_frota"},  # manutenção de frota
 }
 
 
@@ -17100,6 +17101,8 @@ with st.sidebar:
         _nav_btn("🗺️ Rotograma",             "🗺️ Rotograma",             "rotograma")
     if _auth_tem_permissao("aba_acordos"):
         _nav_btn("🤝 Acordos de Preço",   "🤝 Acordos de Preço",      "acordos_preco")
+    if _auth_tem_permissao("aba_manutencao"):
+        _nav_btn("🔧 Manutenção",          "🔧 Manutenção de Frota",   "manutencao_frota")
     if _auth_tem_permissao("aba_assistente_ia") or _auth_tem_permissao("aba_relatorios"):
         _nav_btn("🤖 Assistente IA",         "🤖 Assistente IA",         "assistente_ia")
 
@@ -26055,6 +26058,12 @@ elif modo == "📚 Documentação":
             "regras": "Alertas ANP: abastecimentos >5% acima da referência por UF. Manutenções urgentes: status=urgente ou vencida. Acordos: vencidos ou que vencem em 30 dias.",
             "indicadores": "KPIs de combustível (volume, gasto, preço médio, ticket). Top 5 veículos por consumo km/L. Top 5 postos por transações. Status de manutenções e acordos.",
         },
+        "🔧 Manutenção de Frota": {
+            "objetivo": "Controle de manutenções realizadas na frota com alertas de veículos críticos (>120 dias) e em alerta (75-120 dias). Otimizado para frotas com centenas de veículos.",
+            "fonte": "Tabela manutencoes_realizadas do Supabase, filtrada por CNPJ da frota.",
+            "regras": "Crítico: última manutenção há mais de 120 dias. Alerta: entre 75 e 120 dias. Em dia: menos de 75 dias. Lista ordenada sempre com críticos no topo.",
+            "indicadores": "Total de registros, críticos, em alerta, em dia e custo total. Filtro por status e busca por placa ou tipo.",
+        },
         "🤝 Acordos de Preço": {
             "objetivo": "Cadastre preços negociados com postos para comparação automática com os abastecimentos reais da frota.",
             "fonte": "Dados inseridos manualmente ou importados via planilha Excel. Armazenados por tenant no Supabase.",
@@ -33373,39 +33382,60 @@ elif modo == "☀️ Comece seu dia":
                 "🔧 Manutenção de Veículos</div>", unsafe_allow_html=True)
 
     try:
-        _db_man = _db_client()
-        _man_res = (_db_man.table("manutencoes")
-                    .select("*")
-                    .order("data_prevista", desc=False)
-                    .limit(50)
-                    .execute())
-        _man_rows = _man_res.data or []
-        if _emp_id_cd:
-            _man_rows = [m for m in _man_rows if m.get("empresa_id") == _emp_id_cd]
+        _cnpj_man = (st.session_state.get("_empresa_ativa") or {}).get("cnpj","") or ""
+        _man_rows = _manut_listar(cnpj_frota=_cnpj_man if _cnpj_man else None, limit=500)
     except Exception:
         _man_rows = []
 
-    from datetime import date as _date_man, timedelta as _td_man
+    from datetime import date as _date_man
     _hoje_man = _date_man.today()
 
-    _man_urgentes  = [m for m in _man_rows if m.get("status") in ("urgente","vencida")]
-    _man_proximas  = [m for m in _man_rows if m.get("status") == "prevista"]
-    _man_concluidas= [m for m in _man_rows if m.get("status") == "concluida"]
-    _custo_man     = sum(float(m.get("custo") or 0) for m in _man_rows if m.get("status") == "concluida")
+    # Classifica por hodômetro e data
+    _man_urgentes  = []
+    _man_alertas   = []
+    _man_em_dia    = []
+    for _mr in _man_rows:
+        _itens = _mr.get("itens_realizados") or []
+        _hod_r = float(_mr.get("hodometro") or 0)
+        # Considera urgente se data > 120 dias ou sem registro recente
+        try:
+            from datetime import datetime as _dtm
+            _dt_m = _dtm.fromisoformat(str(_mr.get("data_manutencao",""))[:10])
+            _dias_m = (_hoje_man - _dt_m.date()).days
+        except Exception:
+            _dias_m = 999
+        if _dias_m > 120:
+            _man_urgentes.append(_mr)
+        elif _dias_m > 75:
+            _man_alertas.append(_mr)
+        else:
+            _man_em_dia.append(_mr)
+
+    _custo_man = sum(float(m.get("custo_total") or 0) for m in _man_rows)
 
     _mk1,_mk2,_mk3,_mk4 = st.columns(4)
-    _mk1.metric("🔧 Total registradas", len(_man_rows))
-    _mk2.metric("🔴 Urgentes/Vencidas", len(_man_urgentes),
-        delta=f"{len(_man_urgentes)} atenção" if _man_urgentes else None,
-        delta_color="inverse")
-    _mk3.metric("📅 Previstas", len(_man_proximas))
-    _mk4.metric("💰 Custo concluídas", _br_moeda(_custo_man),
-        help="Soma dos custos de manutenções concluídas no período")
+    _mk1.metric("🔧 Total registros", len(_man_rows),
+        help="Total de manutenções registradas na aba Manutenção de Frota")
+    _mk2.metric("🔴 Críticos", len(_man_urgentes),
+        delta=f"{len(_man_urgentes)} urgente(s)" if _man_urgentes else None,
+        delta_color="inverse",
+        help="Veículos com última manutenção há mais de 120 dias")
+    _mk3.metric("⚠️ Alerta", len(_man_alertas),
+        delta=f"{len(_man_alertas)} atenção" if _man_alertas else None,
+        delta_color="inverse",
+        help="Veículos com manutenção entre 75 e 120 dias")
+    _mk4.metric("💰 Custo total", _br_moeda(_custo_man),
+        help="Soma dos custos registrados no período")
 
-    if _man_urgentes:
-        st.warning(f"⚠️ {len(_man_urgentes)} manutenção(ões) urgente(s) ou vencida(s) — acesse a aba Telemetria para detalhes.")
+    if _man_urgentes or _man_alertas:
+        _total_pend = len(_man_urgentes) + len(_man_alertas)
+        st.warning(
+            f"⚠️ {_total_pend} veículo(s) com manutenção pendente "
+            f"({len(_man_urgentes)} crítico(s), {len(_man_alertas)} em alerta) — "
+            f"acesse **🔧 Manutenção de Frota** para detalhes."
+        )
     elif not _man_rows:
-        st.caption("Nenhuma manutenção registrada. Cadastre na aba Telemetria.")
+        st.caption("Nenhuma manutenção registrada. Acesse **🔧 Manutenção de Frota** para cadastrar.")
 
     st.markdown("---")
 
@@ -33544,6 +33574,254 @@ elif modo == "☀️ Comece seu dia":
                 f"<div><div style='font-size:13px;font-weight:500;color:var(--color-text-primary)'>{_al_title}</div>"
                 f"<div style='font-size:11px;color:var(--color-text-secondary)'>{_al_sub}</div></div></div>",
                 unsafe_allow_html=True)
+
+elif modo == "🔧 Manutenção de Frota":
+    _doc_tela("🔧 Manutenção de Frota")
+    _empresa_mf  = st.session_state.get("_empresa_ativa") or {}
+    _cnpj_mf     = _empresa_mf.get("cnpj","") or ""
+    _emp_id_mf   = _empresa_mf.get("id","") or ""
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#0b3d6b,#185FA5);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🔧 Manutenção de Veículos</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Controle de manutenções realizadas, alertas e histórico da frota.</p>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Carrega histórico ────────────────────────────────────────
+    if "manut_cache" not in st.session_state:
+        st.session_state["manut_cache"] = _manut_listar(
+            cnpj_frota=_cnpj_mf if _cnpj_mf else None, limit=1000)
+    _historico_mf = st.session_state.get("manut_cache", [])
+
+    from datetime import date as _dt_mf_date, datetime as _dt_mf
+    _hoje_mf = _dt_mf_date.today()
+
+    def _mf_status(reg):
+        try:
+            _d = _dt_mf.fromisoformat(str(reg.get("data_manutencao",""))[:10]).date()
+            _dias = (_hoje_mf - _d).days
+            if _dias > 120: return "critico"
+            if _dias > 75:  return "alerta"
+        except Exception: pass
+        return "em_dia"
+
+    _mf_criticos = [r for r in _historico_mf if _mf_status(r) == "critico"]
+    _mf_alertas  = [r for r in _historico_mf if _mf_status(r) == "alerta"]
+    _mf_em_dia   = [r for r in _historico_mf if _mf_status(r) == "em_dia"]
+    _mf_custo    = sum(float(r.get("custo_total") or 0) for r in _historico_mf)
+
+    # ── KPIs ─────────────────────────────────────────────────────
+    _mf_k1,_mf_k2,_mf_k3,_mf_k4,_mf_k5 = st.columns(5)
+    _mf_k1.metric("📋 Total registros",   len(_historico_mf))
+    _mf_k2.metric("🔴 Críticos",          len(_mf_criticos),
+        delta=f"{len(_mf_criticos)} urgente(s)" if _mf_criticos else None,
+        delta_color="inverse")
+    _mf_k3.metric("⚠️ Alerta",            len(_mf_alertas),
+        delta=f"{len(_mf_alertas)} atenção" if _mf_alertas else None,
+        delta_color="inverse")
+    _mf_k4.metric("✅ Em dia",             len(_mf_em_dia))
+    _mf_k5.metric("💰 Custo total",        _br_moeda(_mf_custo))
+
+    st.markdown("---")
+
+    # ── Tabs ─────────────────────────────────────────────────────
+    _mf_tab1, _mf_tab2, _mf_tab3 = st.tabs([
+        "🚨 Pendências & Alertas",
+        "📝 Registrar Manutenção",
+        "📋 Histórico Completo",
+    ])
+
+    # ── TAB 1 — PENDÊNCIAS ────────────────────────────────────────
+    with _mf_tab1:
+        _mf_filt = st.radio("Filtrar por status", ["Todos","🔴 Críticos","⚠️ Alerta","✅ Em dia"],
+            horizontal=True, key="mf_filt_status", label_visibility="collapsed")
+
+        _busca_mf = st.text_input("🔍 Buscar por placa ou tipo",
+            placeholder="Ex: ABC-1234 ou Troca de óleo", key="mf_busca")
+
+        _lista_mf = _historico_mf
+        if "Críticos" in _mf_filt:
+            _lista_mf = _mf_criticos
+        elif "Alerta" in _mf_filt:
+            _lista_mf = _mf_alertas
+        elif "Em dia" in _mf_filt:
+            _lista_mf = _mf_em_dia
+
+        if _busca_mf:
+            _bq = _busca_mf.lower()
+            _lista_mf = [r for r in _lista_mf if
+                _bq in str(r.get("placa","")).lower() or
+                _bq in str(r.get("itens_realizados","")).lower()]
+
+        # Ordena: críticos primeiro
+        _lista_mf = sorted(_lista_mf,
+            key=lambda r: 0 if _mf_status(r)=="critico" else 1 if _mf_status(r)=="alerta" else 2)
+
+        st.caption(f"{len(_lista_mf)} registro(s) exibido(s)")
+
+        _st_cores = {
+            "critico": ("🔴","#FCEBEB","#A32D2D","Urgente"),
+            "alerta":  ("⚠️","#FAEEDA","#633806","Alerta"),
+            "em_dia":  ("✅","#EAF3DE","#27500A","Em dia"),
+        }
+
+        for _reg in _lista_mf[:50]:
+            _st   = _mf_status(_reg)
+            _ico, _bg, _co, _label = _st_cores[_st]
+            _placa  = _reg.get("placa","—")
+            _itens  = _reg.get("itens_realizados") or []
+            _itens_str = ", ".join(_itens[:3]) if isinstance(_itens, list) else str(_itens)
+            _dt_str = str(_reg.get("data_manutencao",""))[:10]
+            _hod    = _fmt_int(int(_reg.get("hodometro") or 0))
+            _custo_r= _br_moeda(float(_reg.get("custo_total") or 0))
+            _oficina= _reg.get("oficina","—") or "—"
+            try:
+                _d = _dt_mf.fromisoformat(_dt_str).date()
+                _dias_str = f"{(_hoje_mf - _d).days}d atrás"
+            except Exception:
+                _dias_str = "—"
+
+            with st.expander(
+                f"{_ico} **{_placa}** · {_itens_str[:40]} · {_dias_str}",
+                expanded=(_st == "critico")):
+                _ec1, _ec2, _ec3 = st.columns(3)
+                _ec1.markdown(f"**Placa:** {_placa}")
+                _ec1.markdown(f"**Data:** {_dt_str}")
+                _ec1.markdown(f"**Hodômetro:** {_hod} km")
+                _ec2.markdown(f"**Tipo:** {_itens_str}")
+                _ec2.markdown(f"**Oficina:** {_oficina}")
+                _ec2.markdown(f"**Custo:** {_custo_r}")
+                _ec3.markdown(
+                    f"<span style='background:{_bg};color:{_co};"
+                    f"padding:3px 10px;border-radius:12px;font-size:12px;"
+                    f"font-weight:500'>{_label}</span>",
+                    unsafe_allow_html=True)
+                if _reg.get("obs_gerais"):
+                    st.caption(f"Obs: {_reg['obs_gerais']}")
+                _btn_nova = st.button(
+                    f"➕ Registrar nova manutenção para {_placa}",
+                    key=f"btn_nova_mf_{_reg.get('id',_placa)}",
+                    help="Abre o formulário de registro para este veículo")
+                if _btn_nova:
+                    st.session_state["_mf_placa_pre"] = _placa
+                    st.session_state["_mf_tab_ativa"] = 1
+                    st.rerun()
+
+        if len(_lista_mf) > 50:
+            st.caption(f"Exibindo 50 de {len(_lista_mf)} registros. Refine a busca para ver mais.")
+
+    # ── TAB 2 — REGISTRAR ─────────────────────────────────────────
+    with _mf_tab2:
+        st.markdown("#### 📝 Registrar Manutenção Realizada")
+
+        _TIPOS_MF = [
+            "Troca de óleo", "Troca de filtros", "Freios — pastilhas/discos",
+            "Pneus — troca/calibragem", "Alinhamento e balanceamento",
+            "Revisão geral", "Sistema elétrico", "Ar condicionado",
+            "Suspensão", "Embreagem", "Injeção eletrônica",
+            "Tacógrafo — calibração", "Extintor — recarga", "Outro",
+        ]
+
+        _pre_placa = st.session_state.pop("_mf_placa_pre", "")
+
+        with st.form("form_manut_frota", clear_on_submit=True):
+            _mf_f1, _mf_f2 = st.columns(2)
+            with _mf_f1:
+                _mf_placa  = st.text_input("🚗 Placa *",
+                    value=_pre_placa,
+                    placeholder="ABC-1234")
+                _mf_data   = st.date_input("📅 Data da manutenção *",
+                    value=_hoje_mf)
+                _mf_hod    = st.number_input("📏 Hodômetro (km)",
+                    min_value=0, step=100,
+                    help="Km no momento da manutenção")
+            with _mf_f2:
+                _mf_itens  = st.multiselect("🔧 Tipo(s) de manutenção *",
+                    _TIPOS_MF,
+                    help="Selecione todos os serviços realizados")
+                _mf_custo  = st.number_input("💰 Custo total (R$)",
+                    min_value=0.0, step=50.0, format="%.2f")
+                _mf_prox_km= st.number_input("📍 Próxima manutenção (km)",
+                    min_value=0, step=1000,
+                    help="Hodômetro previsto para próxima revisão")
+
+            _mf_f3, _mf_f4 = st.columns(2)
+            with _mf_f3:
+                _mf_tecnico = st.text_input("👤 Técnico responsável",
+                    placeholder="Nome do mecânico")
+            with _mf_f4:
+                _mf_oficina = st.text_input("🏪 Oficina",
+                    placeholder="Nome da oficina")
+
+            _mf_obs = st.text_area("📝 Observações",
+                placeholder="Peças trocadas, nº de série, observações gerais...",
+                height=80)
+
+            _mf_submit = st.form_submit_button(
+                "💾 Registrar Manutenção", type="primary", use_container_width=True)
+
+        if _mf_submit:
+            if not _mf_placa or not _mf_itens:
+                st.error("Preencha pelo menos a Placa e o Tipo de manutenção.")
+            else:
+                _ok_mf, _msg_mf = _manut_salvar(
+                    cnpj_frota=_cnpj_mf,
+                    placa=_mf_placa,
+                    data=str(_mf_data),
+                    hodometro=int(_mf_hod) if _mf_hod else None,
+                    tecnico=_mf_tecnico,
+                    oficina=_mf_oficina,
+                    custo=float(_mf_custo),
+                    itens=_mf_itens,
+                    obs=_mf_obs,
+                    criado_por=st.session_state.get("_auth_email",""),
+                )
+                if _ok_mf:
+                    st.session_state.pop("manut_cache", None)
+                    st.toast(f"✅ Manutenção registrada para {_mf_placa}!", icon="🔧")
+                    st.rerun()
+                else:
+                    st.error(f"Erro ao registrar: {_msg_mf}")
+
+    # ── TAB 3 — HISTÓRICO COMPLETO ────────────────────────────────
+    with _mf_tab3:
+        _mf_col_ref, _mf_col_btn = st.columns([4,1])
+        with _mf_col_btn:
+            if st.button("🔄 Atualizar", key="btn_refresh_mf", use_container_width=True):
+                st.session_state.pop("manut_cache", None)
+                st.rerun()
+        with _mf_col_ref:
+            st.markdown(f"**{len(_historico_mf)} registro(s) no histórico**")
+
+        if not _historico_mf:
+            st.info("Nenhuma manutenção registrada. Use a aba **📝 Registrar** para cadastrar.")
+        else:
+            # Monta DataFrame para exibição
+            _mf_rows = []
+            for _r in _historico_mf:
+                _itens_h = _r.get("itens_realizados") or []
+                _mf_rows.append({
+                    "Status":       {"critico":"🔴 Urgente","alerta":"⚠️ Alerta","em_dia":"✅ Em dia"}.get(_mf_status(_r),"—"),
+                    "Placa":        _r.get("placa","—"),
+                    "Data":         str(_r.get("data_manutencao",""))[:10],
+                    "Tipo":         ", ".join(_itens_h[:2]) if isinstance(_itens_h,list) else str(_itens_h)[:40],
+                    "Hodômetro":    _fmt_int(int(_r.get("hodometro") or 0)) + " km",
+                    "Custo":        _br_moeda(float(_r.get("custo_total") or 0)),
+                    "Oficina":      _r.get("oficina","—") or "—",
+                    "Técnico":      _r.get("tecnico","—") or "—",
+                })
+            _mf_df = pd.DataFrame(_mf_rows)
+            st.dataframe(_mf_df, use_container_width=True, hide_index=True,
+                column_config={
+                    "Status": st.column_config.TextColumn("Status", width=90),
+                    "Placa":  st.column_config.TextColumn("Placa",  width=90),
+                    "Data":   st.column_config.TextColumn("Data",   width=90),
+                    "Custo":  st.column_config.TextColumn("Custo",  width=100),
+                })
 
 elif modo == "🤝 Acordos de Preço":
     _doc_tela("🤝 Acordos de Preço")
