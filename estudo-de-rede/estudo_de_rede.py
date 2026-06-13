@@ -27610,17 +27610,33 @@ elif modo == "👥 Análise de Cliente":
                     _prod_grp = _df.groupby("_produto")["_litros"].sum().reset_index()
                     _prod_grp.columns = ["Combustível", "Litros"]
                     if len(_prod_grp) > 0:
+                        _CORES_MIX = ["#1565C0","#2E7D32","#F57F17","#6A1B9A",
+                                         "#C62828","#00838F","#4527A0","#558B2F"]
                         _fig_mix = go.Figure(go.Pie(
                             labels=_prod_grp["Combustível"],
                             values=_prod_grp["Litros"],
-                            hole=0.45,
-                            textinfo="label+percent",
-                            marker_colors=["#1565C0", "#2E7D32", "#F57F17", "#6A1B9A"][:len(_prod_grp)],
+                            hole=0.5,
+                            textinfo="percent",
+                            textposition="inside",
+                            insidetextorientation="radial",
+                            hovertemplate="<b>%{label}</b><br>%{value:,.1f} L<br>%{percent}<extra></extra>",
+                            marker=dict(
+                                colors=_CORES_MIX[:len(_prod_grp)],
+                                line=dict(color="#ffffff", width=2)
+                            ),
                         ))
                         _fig_mix.update_layout(
-                            title="⛽ Mix de Combustível (litros)",
-                            height=300, margin=dict(l=10, r=10, t=40, b=10),
-                            showlegend=False,
+                            title=dict(text="⛽ Mix de Combustível (litros)", font=dict(size=13)),
+                            height=320,
+                            margin=dict(l=0, r=0, t=40, b=0),
+                            showlegend=True,
+                            legend=dict(
+                                orientation="v",
+                                yanchor="middle", y=0.5,
+                                xanchor="left", x=1.02,
+                                font=dict(size=11),
+                            ),
+                            separators=",.",
                         )
                         st.plotly_chart(_fig_mix, use_container_width=True)
 
