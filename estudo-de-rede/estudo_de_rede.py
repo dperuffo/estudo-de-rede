@@ -3529,78 +3529,48 @@ st.markdown("""
     padding: 0;
 }
 
-/* ══ MENU MOBILE FIXO (fallback para quando sidebar está oculto) ══ */
-#gf-mobile-fab {
-    display: none;
-    position: fixed;
-    bottom: 80px;
-    right: 16px;
-    width: 52px;
-    height: 52px;
-    background: #0b3d6b;
-    border-radius: 50%;
-    z-index: 9900;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(11,61,107,0.35);
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    border: none;
-    color: white;
-}
-#gf-mobile-menu {
-    display: none;
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: #fff;
-    border-radius: 20px 20px 0 0;
-    z-index: 9901;
-    max-height: 85vh;
-    overflow-y: auto;
-    padding-bottom: env(safe-area-inset-bottom, 16px);
-    transform: translateY(100%);
-    transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
-}
-#gf-mobile-menu.open { transform: translateY(0); }
-#gf-mobile-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.52);
-    z-index: 9899;
-}
-#gf-mobile-overlay.open { display: block; }
-.gf-mm-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-bottom: 0.5px solid #f5f5f7;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    text-decoration: none;
-    color: inherit;
-}
-.gf-mm-item:active { background: #f0f4ff; }
-.gf-mm-ico {
-    width: 38px; height: 38px;
-    border-radius: 10px;
-    background: #E6F1FB;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 19px; flex-shrink: 0;
-}
-.gf-mm-lbl { font-size: 13px; font-weight: 500; color: #1a2540; }
-.gf-mm-sub { font-size: 11px; color: #888; margin-top: 1px; }
-.gf-mm-grp {
-    font-size: 10px; font-weight: 600; color: #aaa;
-    letter-spacing: .5px; text-transform: uppercase;
-    padding: 12px 16px 6px;
-}
+/* ══ MENU MOBILE — abre sidebar nativo do Streamlit ══ */
 @media (max-width: 768px) {
-    #gf-mobile-fab { display: flex !important; }
-    [data-testid="stSidebar"] { display: none !important; }
+    /* Mostra o botão hambúrguer nativo do Streamlit no mobile */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: flex !important;
+        position: fixed !important;
+        top: 12px !important;
+        left: 12px !important;
+        z-index: 9999 !important;
+        background: #0b3d6b !important;
+        border-radius: 10px !important;
+        padding: 6px !important;
+        box-shadow: 0 2px 12px rgba(11,61,107,0.3) !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] button {
+        color: white !important;
+        background: transparent !important;
+        border: none !important;
+        font-size: 20px !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] svg {
+        fill: white !important;
+        stroke: white !important;
+    }
+    /* Sidebar no mobile ocupa tela inteira */
+    [data-testid="stSidebar"] {
+        width: 100vw !important;
+        min-width: 100vw !important;
+    }
+    [data-testid="stSidebar"] > div:first-child {
+        width: 100vw !important;
+        padding: 1rem !important;
+    }
+    /* Botões do sidebar maiores para toque */
+    [data-testid="stSidebar"] button {
+        min-height: 44px !important;
+        font-size: 15px !important;
+    }
+    /* Padding top para conteúdo não ficar atrás do botão hambúrguer */
+    .main .block-container {
+        padding-top: 56px !important;
+    }
 }
 .gf-nav-item {
     flex: 1;
@@ -3973,66 +3943,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-st.markdown("""
-<button id="gf-mobile-fab" onclick="gfMenuOpen()" aria-label="Abrir menu">☰</button>
-<div id="gf-mobile-overlay" onclick="gfMenuClose()"></div>
-<div id="gf-mobile-menu" role="dialog" aria-label="Menu de navegação">
-  <div style="width:40px;height:4px;background:#dde3ee;border-radius:2px;margin:12px auto 14px"></div>
-  <div style="font-size:15px;font-weight:600;color:#0b3d6b;padding:0 16px 12px;border-bottom:1px solid #eef0f4">Menu de navegação</div>
-
-  <div class="gf-mm-grp">Gestão de frota</div>
-  <div class="gf-mm-item" onclick="gfNav('btn_comece_seu_dia')"><div class="gf-mm-ico">☀️</div><div><div class="gf-mm-lbl">Comece seu dia</div><div class="gf-mm-sub">Resumo operacional</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_manutencao_frota')"><div class="gf-mm-ico">🔧</div><div><div class="gf-mm-lbl">Manutenção de veículos</div><div class="gf-mm-sub">Score preditivo por veículo</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_rotograma')"><div class="gf-mm-ico">🗺️</div><div><div class="gf-mm-lbl">Rotogramas</div><div class="gf-mm-sub">Segurança em rotas</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_acordos_preco')"><div class="gf-mm-ico">🤝</div><div><div class="gf-mm-lbl">Acordos de preço</div><div class="gf-mm-sub">Gestão de contratos</div></div></div>
-
-  <div class="gf-mm-grp">Financeiro</div>
-  <div class="gf-mm-item" onclick="gfNav('btn_painel_financeiro')"><div class="gf-mm-ico">💰</div><div><div class="gf-mm-lbl">Painel financeiro</div><div class="gf-mm-sub">Custos por centro de custo</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_centros_custo')"><div class="gf-mm-ico">🏢</div><div><div class="gf-mm-lbl">Centros de custo</div><div class="gf-mm-sub">Alocar veículos</div></div></div>
-
-  <div class="gf-mm-grp">Consultas & Análise</div>
-  <div class="gf-mm-item" onclick="gfNav('btn_modo_estado')"><div class="gf-mm-ico">📍</div><div><div class="gf-mm-lbl">Por UF / Município</div><div class="gf-mm-sub">Preços ANP</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_modo_rota')"><div class="gf-mm-ico">🗺️</div><div><div class="gf-mm-lbl">Por rota</div><div class="gf-mm-sub">Consulta de rotas</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_dashboard')"><div class="gf-mm-ico">📈</div><div><div class="gf-mm-lbl">Dashboard</div><div class="gf-mm-sub">Visão geral da frota</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_analise_cliente')"><div class="gf-mm-ico">👥</div><div><div class="gf-mm-lbl">Análise de cliente</div><div class="gf-mm-sub">Relatórios completos</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_assistente_ia')"><div class="gf-mm-ico">🤖</div><div><div class="gf-mm-lbl">Assistente IA</div><div class="gf-mm-sub">Perguntas sobre a frota</div></div></div>
-
-  <div class="gf-mm-grp">Configurações</div>
-  <div class="gf-mm-item" onclick="gfNav('btn_telemetria')"><div class="gf-mm-ico">🛰️</div><div><div class="gf-mm-lbl">Telemetria</div><div class="gf-mm-sub">Rastreamento</div></div></div>
-  <div class="gf-mm-item" onclick="gfNav('btn_documentacao')"><div class="gf-mm-ico">📚</div><div><div class="gf-mm-lbl">Documentação</div><div class="gf-mm-sub">Guias e tutoriais</div></div></div>
-
-  <div style="height:32px"></div>
-</div>
-
-<script>
-function gfMenuOpen() {
-    var m = document.getElementById('gf-mobile-menu');
-    var o = document.getElementById('gf-mobile-overlay');
-    if(m){ m.style.display='block'; setTimeout(function(){ m.classList.add('open'); },10); }
-    if(o){ o.classList.add('open'); }
-}
-function gfMenuClose() {
-    var m = document.getElementById('gf-mobile-menu');
-    var o = document.getElementById('gf-mobile-overlay');
-    if(m){ m.classList.remove('open'); setTimeout(function(){ m.style.display='none'; },320); }
-    if(o){ o.classList.remove('open'); }
-}
-function gfNav(key) {
-    gfMenuClose();
-    setTimeout(function(){
-        var b = document.querySelector('.st-key-'+key+' button');
-        if(b){ b.click(); return; }
-        var frames = document.querySelectorAll('iframe');
-        for(var i=0;i<frames.length;i++){
-            try{
-                var fb = frames[i].contentDocument.querySelector('.st-key-'+key+' button');
-                if(fb){ fb.click(); return; }
-            }catch(e){}
-        }
-    }, 350);
-}
-</script>
-""", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════
