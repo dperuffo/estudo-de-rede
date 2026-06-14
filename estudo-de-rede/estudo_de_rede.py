@@ -32912,7 +32912,9 @@ elif modo == "💰 Painel Financeiro":
         _df_fin.loc[_mask_fin,"_vun"] = _df_fin.loc[_mask_fin,"_vtot"] / _df_fin.loc[_mask_fin,"_qtd"].replace(0,float("nan"))
         _df_fin["_cc"] = _df_fin["frota_razao_social"].fillna("Sem centro").astype(str).str.strip()
         _df_fin["_cc"] = _df_fin["_cc"].where(_df_fin["_cc"] != "", "Sem centro")
-        _total_comb_fin  = float(_df_fin["_vtot"].fillna(0).sum())
+        _df_fin["_valor_calc"] = _df_fin["_vtot"].fillna(
+            _df_fin["_qtd"] * _df_fin["_vun"])
+        _total_comb_fin  = float(_df_fin["_valor_calc"].fillna(0).sum())
         _total_litros_fin= float(_df_fin["_qtd"].sum())
         _n_abast_fin     = len(_df_fin)
         _n_veic_fin      = _df_fin["veiculo_placa"].nunique()
@@ -33000,8 +33002,11 @@ elif modo == "💰 Painel Financeiro":
 
         # ── Detalhamento da seleção ───────────────────────────────
         st.markdown(f"##### ⛽ Combustíveis — {_cc_sel}")
-        _comb_grp = (_df_cc.groupby("item_nome")
-            .agg(_litros=("_qtd","sum"), _valor=("_vtot","sum"), _preco=("_vun","mean"), _n=("_qtd","count"))
+        _df_cc_comb = _df_cc.copy()
+        _df_cc_comb["_valor_calc"] = _df_cc_comb["_vtot"].fillna(
+            _df_cc_comb["_qtd"] * _df_cc_comb["_vun"])
+        _comb_grp = (_df_cc_comb.groupby("item_nome")
+            .agg(_litros=("_qtd","sum"), _valor=("_valor_calc","sum"), _preco=("_vun","mean"), _n=("_qtd","count"))
             .reset_index().sort_values("_valor", ascending=False))
 
         _total_comb_cc = float(_comb_grp["_valor"].sum())
@@ -33023,9 +33028,12 @@ elif modo == "💰 Painel Financeiro":
                     unsafe_allow_html=True)
 
         with _fc2:
-            # Top 5 postos por custo
-            _postos_cc = (_df_cc.groupby(["pv_cnpj","pv_razao_social","pv_municipio","pv_uf"])
-                .agg(_n=("_qtd","count"), _valor=("_vtot","sum"), _litros=("_qtd","sum"))
+            # Top 5 postos por custo — usa vtot quando disponível, senão calcula qtd × vun
+            _df_cc_postos = _df_cc.copy()
+            _df_cc_postos["_valor_calc"] = _df_cc_postos["_vtot"].fillna(
+                _df_cc_postos["_qtd"] * _df_cc_postos["_vun"])
+            _postos_cc = (_df_cc_postos.groupby(["pv_cnpj","pv_razao_social","pv_municipio","pv_uf"])
+                .agg(_n=("_qtd","count"), _valor=("_valor_calc","sum"), _litros=("_qtd","sum"))
                 .reset_index().nlargest(5,"_valor"))
             st.markdown("**Top 5 postos por valor gasto**")
             for _mi2, (_, _rp2) in enumerate(zip(["🥇","🥈","🥉","4","5"], _postos_cc.itertuples())):
