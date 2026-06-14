@@ -33036,7 +33036,7 @@ elif modo == "💰 Painel Financeiro":
                 st.markdown(
                     f"<div style='display:flex;align-items:flex-start;gap:8px;padding:6px 0;"
                     f"border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px'>"
-                    f"<span style='width:20px;flex-shrink:0'>{'🥇🥈🥉 4  5'.split()[_mi2]}</span>"
+                    f"<span style='width:20px;flex-shrink:0'>{['🥇','🥈','🥉','4','5'][_mi2]}</span>"
                     f"<div style='flex:1'><div style='font-weight:500'>{_nm2}</div>"
                     f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_mun2}/{_uf2}</div></div>"
                     f"<div style='text-align:right'><div style='font-weight:500'>{_br_moeda(float(getattr(_rp2,'_valor',0)))}</div>"
