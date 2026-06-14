@@ -32969,24 +32969,28 @@ elif modo == "💰 Painel Financeiro":
         # Exibe tabela
         st.markdown("##### 📊 Resumo por centro de custo")
         _CORES_CC = ["#185FA5","#0F6E56","#854F0B","#534AB7","#A32D2D","#5F5E5A"]
-        for _ci, _rc in enumerate(_cc_grp.itertuples()):
+        for _ci, (_idx, _rc) in enumerate(_cc_grp.iterrows()):
             _cor_cc = _CORES_CC[_ci % len(_CORES_CC)]
-            _pct_cc = float(_rc._comb) / max(_total_comb_fin,1) * 100
-            _custo_vei_cc = float(_rc._comb) / max(float(_rc._veic),1)
+            _val_cc   = float(_rc.get("_comb",  0) or 0)
+            _n_cc     = int(_rc.get("_n",      0) or 0)
+            _veic_cc  = int(_rc.get("_veic",   0) or 0)
+            _litros_cc= float(_rc.get("_litros",0) or 0)
+            _nome_cc  = str(_rc.get("_cc","")  or "")
+            _pct_cc   = _val_cc / max(_total_comb_fin,1) * 100
             st.markdown(
                 f"<div style='display:flex;align-items:center;gap:10px;padding:8px 12px;"
                 f"background:var(--color-background-secondary);border-radius:var(--border-radius-md);"
                 f"margin-bottom:6px;font-size:12px'>"
                 f"<span style='width:10px;height:10px;border-radius:50%;background:{_cor_cc};flex-shrink:0'></span>"
-                f"<span style='flex:1;font-weight:500;color:var(--color-text-primary)'>{getattr(_rc,'_cc','')}</span>"
-                f"<span style='color:var(--color-text-secondary);min-width:60px;text-align:right'>{_fmt_int(int(_rc._n))} abast.</span>"
-                f"<span style='color:var(--color-text-secondary);min-width:60px;text-align:right'>{_fmt_int(int(_rc._veic))} veíc.</span>"
-                f"<span style='color:var(--color-text-secondary);min-width:80px;text-align:right'>{_br_num(float(_rc._litros),0)} L</span>"
+                f"<span style='flex:1;font-weight:500;color:var(--color-text-primary)'>{_nome_cc}</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:60px;text-align:right'>{_fmt_int(_n_cc)} abast.</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:60px;text-align:right'>{_fmt_int(_veic_cc)} veíc.</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:80px;text-align:right'>{_br_num(_litros_cc,0)} L</span>"
                 f"<div style='width:80px;height:6px;background:var(--color-background-primary);"
                 f"border-radius:3px;overflow:hidden;flex-shrink:0'>"
                 f"<div style='width:{min(_pct_cc,100):.0f}%;height:100%;background:{_cor_cc};border-radius:3px'></div></div>"
                 f"<span style='font-weight:500;color:var(--color-text-primary);min-width:100px;text-align:right'>"
-                f"{_br_moeda(float(_rc._comb))}</span>"
+                f"{_br_moeda(_val_cc)}</span>"
                 f"<span style='color:var(--color-text-secondary);min-width:90px;text-align:right;font-size:11px'>"
                 f"{_pct_cc:.1f}% do total</span>"
                 f"</div>",
