@@ -29576,21 +29576,6 @@ f"<div style='margin-top:12px;font-size:.8rem;background:rgba(255,255,255,.2);bo
             # ══════════════════════════════════════════════════════════
             #  TAB — 🔧 MANUTENÇÃO PREDITIVA
             # ══════════════════════════════════════════════════════════
-            with _ti:
-                import math as _mp_math, datetime as _mp_dt
-
-                # ── Configuração de intervalos por componente ─────────
-                _PRED_CONFIG = {
-                    "oleo":          {"leve": 8000,  "pesado": 15000, "label": "Troca de Óleo",             "icon": "🛢️",  "peso": 1.8},
-                    "pneus":         {"leve": 12000, "pesado": 25000, "label": "Rodízio / Troca de Pneus",  "icon": "🛞",  "peso": 1.5},
-                    "filtros":       {"leve": 15000, "pesado": 20000, "label": "Filtros (Ar/Combustível)",   "icon": "🔧",  "peso": 1.2},
-                    "lubrificacao":  {"leve": 20000, "pesado": 20000, "label": "Lubrificação Geral",         "icon": "⚙️",  "peso": 1.0},
-                    "alinhamento":   {"leve": 20000, "pesado": 12000, "label": "Alinhamento de Eixos",       "icon": "🎯",  "peso": 1.3},
-                    "arrefecimento": {"leve": 40000, "pesado": 40000, "label": "Sistema de Arrefecimento",   "icon": "🌡️",  "peso": 1.4},
-                    "ruidos":        {"leve": 8000,  "pesado": 8000,  "label": "Monitoramento de Ruídos",    "icon": "🔊",  "peso": 1.1},
-                    "revisao":       {"leve": 30000, "pesado": 30000, "label": "Revisão Geral",              "icon": "📋",  "peso": 1.0},
-                }
-
 #  MODO — Relatórios e Exportações Evoluídas
 # ═══════════════════════════════════════════════════════════════════
 
