@@ -19581,6 +19581,85 @@ if _var_df_global is not None and not _var_df_global.empty:
 
 modo = st.session_state.get("modo_selecionado", "📍 Por UF/Município")
 
+# ── Menu mobile — selectbox visível só em telas pequenas ──────────
+st.markdown("""
+<style>
+#gf-mobile-select-wrap {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 9990;
+    background: #0b3d6b;
+    padding: 8px 12px;
+    margin: -1rem -1rem 1rem -1rem;
+}
+#gf-mobile-select-wrap select {
+    width: 100%;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: none;
+    background: #fff;
+    color: #0b3d6b;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230b3d6b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+@media (max-width: 768px) {
+    #gf-mobile-select-wrap { display: block !important; }
+}
+</style>
+<div id="gf-mobile-select-wrap">
+  <select id="gf-mobile-select" onchange="gfMobileNav(this.value)" aria-label="Selecionar página">
+    <optgroup label="Gestão de frota">
+      <option value="btn_comece_seu_dia">☀️ Comece seu dia</option>
+      <option value="btn_manutencao_frota">🔧 Manutenção de veículos</option>
+      <option value="btn_rotograma">🗺️ Rotogramas</option>
+      <option value="btn_acordos_preco">🤝 Acordos de preço</option>
+    </optgroup>
+    <optgroup label="Financeiro">
+      <option value="btn_painel_financeiro">💰 Painel financeiro</option>
+      <option value="btn_centros_custo">🏢 Centros de custo</option>
+    </optgroup>
+    <optgroup label="Consultas">
+      <option value="btn_modo_estado">📍 Por UF / Município</option>
+      <option value="btn_modo_rota">🗺️ Por rota</option>
+      <option value="btn_modo_consulta">🔍 Busca por posto</option>
+      <option value="btn_dashboard">📈 Dashboard</option>
+      <option value="btn_analise_cliente">👥 Análise de cliente</option>
+      <option value="btn_assistente_ia">🤖 Assistente IA</option>
+    </optgroup>
+    <optgroup label="Configurações">
+      <option value="btn_telemetria">🛰️ Telemetria</option>
+      <option value="btn_documentacao">📚 Documentação</option>
+    </optgroup>
+  </select>
+</div>
+<script>
+function gfMobileNav(key) {
+    if (!key) return;
+    var tries = 0;
+    function attempt() {
+        var b = document.querySelector('.st-key-' + key + ' button');
+        if (b) { b.click(); return; }
+        var frames = document.querySelectorAll('iframe');
+        for (var i = 0; i < frames.length; i++) {
+            try {
+                var fb = frames[i].contentDocument.querySelector('.st-key-' + key + ' button');
+                if (fb) { fb.click(); return; }
+            } catch(e) {}
+        }
+        if (++tries < 5) setTimeout(attempt, 300);
+    }
+    attempt();
+}
+</script>
+""", unsafe_allow_html=True)
+
 # ── Variáveis de parâmetros da sidebar (fallback seguro) ──────────────
 # Estas variáveis são normalmente definidas pelos widgets da sidebar.
 # Os valores abaixo são lidos do session_state (persistido entre reruns)
