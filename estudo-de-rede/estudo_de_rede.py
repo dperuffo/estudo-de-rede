@@ -605,6 +605,7 @@ _PERMISSOES: dict[str, set] = {
     "aba_acordos":          {"admin", "gestor_frota"},       # acordos de preço por posto
     "aba_comece_seu_dia":   {"admin", "analista", "gestor_frota"},  # painel diário do gestor
     "aba_financeiro":       {"admin", "analista", "gestor_frota"},  # painel financeiro
+    "aba_centros_custo":    {"admin", "gestor_frota"},               # cadastro de centros de custo
     "aba_manutencao":       {"admin", "analista", "gestor_frota"},  # manutenção de frota
 }
 
@@ -17117,6 +17118,8 @@ with st.sidebar:
     _nav_btn("☀️ Comece seu dia",            "☀️ Comece seu dia",          "comece_seu_dia")
     if _auth_tem_permissao("aba_financeiro"):
         _nav_btn("💰 Painel Financeiro",       "💰 Painel Financeiro",        "painel_financeiro")
+    if _auth_tem_permissao("aba_centros_custo"):
+        _nav_btn("🏢 Centros de Custo",        "🏢 Centros de Custo",         "centros_custo")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
@@ -19451,6 +19454,115 @@ _filtro_servicos_m2   = st.session_state.get("_filtro_servicos_m2", [])
 _filtro_24h_m2        = st.session_state.get("_filtro_24h_m2", False)
 _fuel_sel_m2          = st.session_state.get("_fuel_sel_m2", "— Todos —")
 _preco_faixa_m2       = st.session_state.get("_preco_faixa_m2", None)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  CRUD — Centros de Custo
+# ═══════════════════════════════════════════════════════════════════
+
+def _cc_listar(cnpj_frota: str | None = None, empresa_id: str | None = None) -> list:
+    """Lista centros de custo ativos."""
+    try:
+        _db = _db_client()
+        q = _db.table("centros_custo").select("*").eq("ativo", True).order("nome")
+        if cnpj_frota:
+            q = q.eq("cnpj_frota", cnpj_frota)
+        elif empresa_id:
+            q = q.eq("empresa_id", empresa_id)
+        return q.execute().data or []
+    except Exception:
+        return []
+
+
+def _cc_salvar(nome: str, codigo: str, descricao: str, responsavel: str,
+               cnpj_frota: str, empresa_id: str, criado_por: str,
+               cc_id: str | None = None) -> tuple[bool, str]:
+    """Cria ou atualiza um centro de custo."""
+    try:
+        _db = _db_client()
+        payload = {
+            "nome": nome.strip(),
+            "codigo": codigo.strip() if codigo else None,
+            "descricao": descricao.strip() if descricao else None,
+            "responsavel": responsavel.strip() if responsavel else None,
+            "cnpj_frota": cnpj_frota or None,
+            "empresa_id": empresa_id or None,
+            "criado_por": criado_por,
+            "ativo": True,
+        }
+        if cc_id:
+            _db.table("centros_custo").update(payload).eq("id", cc_id).execute()
+            return True, f"Centro '{nome}' atualizado com sucesso."
+        else:
+            _db.table("centros_custo").insert(payload).execute()
+            return True, f"Centro '{nome}' criado com sucesso."
+    except Exception as e:
+        return False, f"Erro: {e}"
+
+
+def _cc_desativar(cc_id: str) -> tuple[bool, str]:
+    """Desativa (soft delete) um centro de custo."""
+    try:
+        _db_client().table("centros_custo").update({"ativo": False}).eq("id", cc_id).execute()
+        return True, "Centro de custo desativado."
+    except Exception as e:
+        return False, f"Erro: {e}"
+
+
+def _cc_veiculos_listar(cc_id: str) -> list:
+    """Lista veículos alocados em um centro de custo."""
+    try:
+        return (_db_client().table("centros_custo_veiculos")
+                .select("*").eq("centro_custo_id", cc_id)
+                .eq("ativo", True).order("placa").execute().data or [])
+    except Exception:
+        return []
+
+
+def _cc_veiculo_alocar(cc_id: str, placa: str, cnpj_frota: str,
+                        empresa_id: str, criado_por: str) -> tuple[bool, str]:
+    """Aloca um veículo a um centro de custo."""
+    try:
+        _db = _db_client()
+        # Desativa alocação anterior da mesma placa
+        (_db.table("centros_custo_veiculos")
+            .update({"ativo": False})
+            .eq("placa", placa.upper().strip())
+            .eq("ativo", True)
+            .execute())
+        # Cria nova alocação
+        _db.table("centros_custo_veiculos").insert({
+            "centro_custo_id": cc_id,
+            "placa": placa.upper().strip(),
+            "cnpj_frota": cnpj_frota or None,
+            "empresa_id": empresa_id or None,
+            "criado_por": criado_por,
+            "ativo": True,
+        }).execute()
+        return True, f"Veículo {placa.upper()} alocado com sucesso."
+    except Exception as e:
+        return False, f"Erro: {e}"
+
+
+def _cc_veiculo_remover(alocacao_id: str) -> tuple[bool, str]:
+    """Remove alocação de veículo."""
+    try:
+        _db_client().table("centros_custo_veiculos").update({"ativo": False}).eq("id", alocacao_id).execute()
+        return True, "Veículo removido do centro de custo."
+    except Exception as e:
+        return False, f"Erro: {e}"
+
+
+def _cc_mapa_placa() -> dict:
+    """Retorna dicionário {placa: nome_centro_custo} para uso nos relatórios."""
+    try:
+        _rows = (_db_client().table("centros_custo_veiculos")
+                 .select("placa,centro_custo_id,centros_custo(nome)")
+                 .eq("ativo", True).execute().data or [])
+        return {r["placa"]: (r.get("centros_custo") or {}).get("nome","Sem centro")
+                for r in _rows if r.get("placa")}
+    except Exception:
+        return {}
 
 # ── Função central de indicadores de manutenção ─────────────────────────────
 @st.cache_data(show_spinner=False, ttl=60)
@@ -26140,6 +26252,12 @@ elif modo == "📚 Documentação":
             "regras": "Alertas ANP: abastecimentos >5% acima da referência por UF. Manutenções urgentes: status=urgente ou vencida. Acordos: vencidos ou que vencem em 30 dias.",
             "indicadores": "KPIs de combustível (volume, gasto, preço médio, ticket). Top 5 veículos por consumo km/L. Top 5 postos por transações. Status de manutenções e acordos.",
         },
+        "🏢 Centros de Custo": {
+            "objetivo": "CRUD de centros de custo com alocação de veículos. Permite segmentar custos operacionais por unidade, filial ou grupo de veículos.",
+            "fonte": "Tabelas centros_custo e centros_custo_veiculos no Supabase.",
+            "regras": "Um veículo só pode estar em um centro de custo ativo por vez. Alocações anteriores são desativadas automaticamente.",
+            "indicadores": "Número de veículos por centro, lista de placas alocadas, histórico de alocações.",
+        },
         "💰 Painel Financeiro": {
             "objetivo": "Visão financeira consolidada da operação de frota com segmentação por centro de custo. Mostra custos de combustível, manutenção e indicadores de eficiência por período selecionado.",
             "fonte": "profrotas_abastecimentos (combustíveis) + manutencoes_realizadas (manutenção). Centro de custo = frota_razao_social.",
@@ -32823,6 +32941,235 @@ elif modo == "🤖 Assistente IA":
                     st.error(f"Erro PDF: {str(_e_pdf)[:150]}")
 
 
+elif modo == "🏢 Centros de Custo":
+    _doc_tela("🏢 Centros de Custo")
+    _empresa_cc  = st.session_state.get("_empresa_ativa") or {}
+    _cnpj_cc     = _empresa_cc.get("cnpj","") or ""
+    _emp_id_cc   = _empresa_cc.get("id","") or ""
+    _email_cc    = st.session_state.get("_auth_email","")
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#0b3d6b,#185FA5);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "🏢 Centros de Custo</h2>"
+        "<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        "Cadastre centros de custo e aloque veículos para segmentação financeira.</p>",
+        unsafe_allow_html=True,
+    )
+
+    _cc_tab1, _cc_tab2, _cc_tab3 = st.tabs([
+        "📋 Centros cadastrados",
+        "➕ Novo centro",
+        "🚛 Alocar veículos",
+    ])
+
+    # ── TAB 1 — LISTA ────────────────────────────────────────────
+    with _cc_tab1:
+        _lista_cc = _cc_listar(cnpj_frota=_cnpj_cc, empresa_id=_emp_id_cc)
+        _cc_col1, _cc_col2 = st.columns([3,1])
+        with _cc_col1:
+            st.markdown(f"**{len(_lista_cc)} centro(s) cadastrado(s)**")
+        with _cc_col2:
+            if st.button("🔄 Atualizar", key="btn_cc_refresh", use_container_width=True):
+                st.rerun()
+
+        if not _lista_cc:
+            st.info("Nenhum centro de custo cadastrado. Use a aba **➕ Novo centro** para criar.")
+        else:
+            for _cc_item in _lista_cc:
+                _cc_id_item   = _cc_item.get("id","")
+                _cc_nome_item = _cc_item.get("nome","")
+                _cc_cod_item  = _cc_item.get("codigo","") or ""
+                _cc_resp_item = _cc_item.get("responsavel","") or "—"
+                _cc_desc_item = _cc_item.get("descricao","") or ""
+
+                # Conta veículos alocados
+                _veics_cc = _cc_veiculos_listar(_cc_id_item)
+                _n_veics_cc = len(_veics_cc)
+
+                with st.expander(
+                    f"🏢 **{_cc_nome_item}**"
+                    + (f" [{_cc_cod_item}]" if _cc_cod_item else "")
+                    + f" · {_n_veics_cc} veículo(s)",
+                    expanded=False):
+
+                    _ec1, _ec2 = st.columns(2)
+                    with _ec1:
+                        st.markdown(f"**Código:** {_cc_cod_item or '—'}")
+                        st.markdown(f"**Responsável:** {_cc_resp_item}")
+                        st.markdown(f"**Descrição:** {_cc_desc_item or '—'}")
+                    with _ec2:
+                        st.markdown(f"**Veículos alocados:** {_n_veics_cc}")
+                        if _veics_cc:
+                            _placas_list = ", ".join(v["placa"] for v in _veics_cc[:10])
+                            if _n_veics_cc > 10:
+                                _placas_list += f" +{_n_veics_cc-10} mais"
+                            st.markdown(f"**Placas:** {_placas_list}")
+
+                    _btn_c1, _btn_c2 = st.columns(2)
+                    with _btn_c1:
+                        if st.button("✏️ Editar", key=f"btn_cc_edit_{_cc_id_item}",
+                                     use_container_width=True):
+                            st.session_state["_cc_edit_id"]   = _cc_id_item
+                            st.session_state["_cc_edit_nome"] = _cc_nome_item
+                            st.session_state["_cc_edit_cod"]  = _cc_cod_item
+                            st.session_state["_cc_edit_resp"] = _cc_resp_item
+                            st.session_state["_cc_edit_desc"] = _cc_desc_item
+                            st.rerun()
+                    with _btn_c2:
+                        if st.button("🗑️ Desativar", key=f"btn_cc_del_{_cc_id_item}",
+                                     use_container_width=True, type="secondary"):
+                            _ok_del, _msg_del = _cc_desativar(_cc_id_item)
+                            if _ok_del:
+                                st.toast(_msg_del, icon="✅")
+                                st.rerun()
+                            else:
+                                st.error(_msg_del)
+
+    # ── TAB 2 — CRIAR / EDITAR ────────────────────────────────────
+    with _cc_tab2:
+        _edit_id   = st.session_state.pop("_cc_edit_id", None)
+        _edit_nome = st.session_state.pop("_cc_edit_nome", "")
+        _edit_cod  = st.session_state.pop("_cc_edit_cod", "")
+        _edit_resp = st.session_state.pop("_cc_edit_resp", "")
+        _edit_desc = st.session_state.pop("_cc_edit_desc", "")
+
+        st.markdown("#### " + ("✏️ Editar centro de custo" if _edit_id else "➕ Novo centro de custo"))
+
+        with st.form("form_cc_novo", clear_on_submit=True):
+            _cc_f1, _cc_f2 = st.columns(2)
+            with _cc_f1:
+                _cc_nome  = st.text_input("🏢 Nome do centro *",
+                    value=_edit_nome, placeholder="Ex: Filial São Paulo")
+                _cc_cod   = st.text_input("🔖 Código",
+                    value=_edit_cod, placeholder="Ex: CC-001",
+                    help="Código interno de referência")
+            with _cc_f2:
+                _cc_resp  = st.text_input("👤 Responsável",
+                    value=_edit_resp, placeholder="Nome do gestor")
+                _cc_desc  = st.text_area("📝 Descrição",
+                    value=_edit_desc, placeholder="Descrição ou observações",
+                    height=70)
+            _cc_sub = st.form_submit_button(
+                "💾 " + ("Atualizar" if _edit_id else "Criar centro de custo"),
+                type="primary", use_container_width=True)
+
+        if _cc_sub:
+            if not _cc_nome:
+                st.error("Preencha o nome do centro de custo.")
+            else:
+                _ok_cc, _msg_cc = _cc_salvar(
+                    nome=_cc_nome, codigo=_cc_cod, descricao=_cc_desc,
+                    responsavel=_cc_resp, cnpj_frota=_cnpj_cc,
+                    empresa_id=_emp_id_cc, criado_por=_email_cc,
+                    cc_id=_edit_id)
+                if _ok_cc:
+                    st.toast(_msg_cc, icon="✅")
+                    st.rerun()
+                else:
+                    st.error(_msg_cc)
+
+    # ── TAB 3 — ALOCAR VEÍCULOS ───────────────────────────────────
+    with _cc_tab3:
+        st.markdown("#### 🚛 Alocar veículos aos centros de custo")
+
+        _lista_cc2 = _cc_listar(cnpj_frota=_cnpj_cc, empresa_id=_emp_id_cc)
+        if not _lista_cc2:
+            st.warning("Cadastre pelo menos um centro de custo antes de alocar veículos.")
+        else:
+            _cc_opcoes = {c["nome"]: c["id"] for c in _lista_cc2}
+
+            _at1, _at2 = st.columns(2)
+            with _at1:
+                st.markdown("##### Alocação individual")
+                with st.form("form_cc_alocar", clear_on_submit=True):
+                    _cc_sel_nome = st.selectbox("🏢 Centro de custo *", list(_cc_opcoes.keys()),
+                        key="cc_sel_alocar")
+                    _cc_placa_in = st.text_input("🚛 Placa do veículo *",
+                        placeholder="ABC-1234")
+                    _cc_alocar_sub = st.form_submit_button(
+                        "➕ Alocar veículo", type="primary", use_container_width=True)
+
+                if _cc_alocar_sub:
+                    if not _cc_placa_in:
+                        st.error("Informe a placa.")
+                    else:
+                        _cc_id_sel = _cc_opcoes.get(_cc_sel_nome,"")
+                        _ok_al, _msg_al = _cc_veiculo_alocar(
+                            cc_id=_cc_id_sel, placa=_cc_placa_in,
+                            cnpj_frota=_cnpj_cc, empresa_id=_emp_id_cc,
+                            criado_por=_email_cc)
+                        if _ok_al:
+                            st.toast(_msg_al, icon="✅")
+                            st.rerun()
+                        else:
+                            st.error(_msg_al)
+
+            with _at2:
+                st.markdown("##### Importar lista de veículos (CSV/Excel)")
+                st.caption("Formato: coluna `placa` obrigatória")
+                _cc_upload_sel = st.selectbox("🏢 Centro de custo destino",
+                    list(_cc_opcoes.keys()), key="cc_upload_sel")
+                _cc_file = st.file_uploader("Arquivo de placas",
+                    type=["csv","xlsx"], key="cc_file_up")
+                if _cc_file and st.button("📤 Importar", key="btn_cc_import",
+                                          type="primary", use_container_width=True):
+                    try:
+                        if _cc_file.name.endswith(".csv"):
+                            _df_up = pd.read_csv(_cc_file, dtype=str)
+                        else:
+                            _df_up = pd.read_excel(_cc_file, dtype=str)
+                        _col_placa = next((c for c in _df_up.columns
+                                           if "placa" in c.lower()), None)
+                        if not _col_placa:
+                            st.error("Coluna 'placa' não encontrada no arquivo.")
+                        else:
+                            _cc_id_up = _cc_opcoes.get(_cc_upload_sel,"")
+                            _ok_up = _err_up = 0
+                            for _pl_up in _df_up[_col_placa].dropna().unique():
+                                _ok_v, _ = _cc_veiculo_alocar(
+                                    cc_id=_cc_id_up, placa=str(_pl_up),
+                                    cnpj_frota=_cnpj_cc, empresa_id=_emp_id_cc,
+                                    criado_por=_email_cc)
+                                if _ok_v: _ok_up += 1
+                                else: _err_up += 1
+                            st.success(f"✅ {_ok_up} veículo(s) alocado(s)"
+                                       + (f" · {_err_up} erro(s)" if _err_up else ""))
+                            st.rerun()
+                    except Exception as _e_up:
+                        st.error(f"Erro ao importar: {_e_up}")
+
+            st.markdown("---")
+            st.markdown("##### 📋 Veículos alocados por centro")
+            for _cc_item2 in _lista_cc2:
+                _veics2 = _cc_veiculos_listar(_cc_item2["id"])
+                if not _veics2:
+                    continue
+                with st.expander(f"🏢 {_cc_item2['nome']} — {len(_veics2)} veículo(s)"):
+                    _vdf = pd.DataFrame([{
+                        "Placa":      v["placa"],
+                        "Desde":      str(v.get("data_inicio",""))[:10],
+                        "Alocado por":v.get("criado_por","—"),
+                        "ID":         v["id"],
+                    } for v in _veics2])
+                    st.dataframe(_vdf.drop(columns=["ID"]),
+                                 use_container_width=True, hide_index=True)
+                    _rem_id = st.selectbox("Remover veículo",
+                        ["—"] + [f"{v['placa']} ({v['id'][:8]})" for v in _veics2],
+                        key=f"rem_{_cc_item2['id']}")
+                    if _rem_id != "—" and st.button("🗑️ Remover alocação",
+                        key=f"btn_rem_{_cc_item2['id']}", type="secondary"):
+                        _id_rem = _rem_id.split("(")[1].rstrip(")")
+                        _v_real = next((v for v in _veics2 if v["id"].startswith(_id_rem)), None)
+                        if _v_real:
+                            _ok_rm, _msg_rm = _cc_veiculo_remover(_v_real["id"])
+                            if _ok_rm:
+                                st.toast(_msg_rm, icon="✅")
+                                st.rerun()
+                            else:
+                                st.error(_msg_rm)
+
 elif modo == "💰 Painel Financeiro":
     _doc_tela("💰 Painel Financeiro")
     _empresa_fin  = st.session_state.get("_empresa_ativa") or {}
@@ -32910,8 +33257,13 @@ elif modo == "💰 Painel Financeiro":
         _df_fin["_vtot"] = pd.to_numeric(_df_fin["item_valor_total"],    errors="coerce")
         _mask_fin = _df_fin["_vun"].isna() | (_df_fin["_vun"] <= 0)
         _df_fin.loc[_mask_fin,"_vun"] = _df_fin.loc[_mask_fin,"_vtot"] / _df_fin.loc[_mask_fin,"_qtd"].replace(0,float("nan"))
-        _df_fin["_cc"] = _df_fin["frota_razao_social"].fillna("Sem centro").astype(str).str.strip()
-        _df_fin["_cc"] = _df_fin["_cc"].where(_df_fin["_cc"] != "", "Sem centro")
+        # Usa mapa de centros de custo cadastrados, senão usa frota_razao_social
+        _mapa_cc_fin = _cc_mapa_placa()
+        if _mapa_cc_fin:
+            _df_fin["_cc"] = _df_fin["veiculo_placa"].map(_mapa_cc_fin).fillna("Sem centro alocado")
+        else:
+            _df_fin["_cc"] = _df_fin["frota_razao_social"].fillna("Sem centro").astype(str).str.strip()
+            _df_fin["_cc"] = _df_fin["_cc"].where(_df_fin["_cc"] != "", "Sem centro")
         _df_fin["_valor_calc"] = _df_fin["_vtot"].fillna(
             _df_fin["_qtd"] * _df_fin["_vun"])
         _total_comb_fin  = float(_df_fin["_valor_calc"].fillna(0).sum())
