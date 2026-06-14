@@ -3529,76 +3529,24 @@ st.markdown("""
     padding: 0;
 }
 
-/* ══ MENU MOBILE ══ */
+/* ══ MENU MOBILE — sidebar nativo touch-friendly ══ */
 @media (max-width: 768px) {
-    /* Sidebar tela cheia com scroll */
-    section[data-testid="stSidebar"] {
-        position: fixed !important;
-        top: 0 !important; left: 0 !important;
-        width: 100vw !important;
-        height: 100dvh !important;
-        z-index: 9999 !important;
-        overflow-y: auto !important;
-    }
+    /* Sidebar largura total no mobile */
     section[data-testid="stSidebar"] > div:first-child {
-        width: 100vw !important;
-        min-width: 100vw !important;
-        min-height: 100dvh !important;
-        padding: 3.5rem 1rem 6rem !important;
+        width: 85vw !important;
+        max-width: 360px !important;
+        padding: 1rem 1rem 5rem !important;
     }
-    /* Botão fechar (X) do sidebar — grande e visível */
-    [data-testid="stSidebarCollapseButton"] {
-        display: flex !important;
-        position: fixed !important;
-        top: 10px !important;
-        right: 12px !important;
-        z-index: 99999 !important;
-        background: #0b3d6b !important;
-        border-radius: 10px !important;
-        width: 44px !important; height: 44px !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border: none !important;
-        box-shadow: 0 2px 12px rgba(11,61,107,0.4) !important;
-    }
-    [data-testid="stSidebarCollapseButton"] svg {
-        fill: white !important; stroke: white !important;
-        width: 22px !important; height: 22px !important;
-    }
-    /* Botão abrir sidebar (hambúrguer) */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: flex !important;
-        position: fixed !important;
-        top: 10px !important; left: 12px !important;
-        z-index: 99999 !important;
-        background: #0b3d6b !important;
-        border-radius: 10px !important;
-        width: 44px !important; height: 44px !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border: none !important;
-        box-shadow: 0 2px 12px rgba(11,61,107,0.4) !important;
-    }
-    [data-testid="stSidebarCollapsedControl"] svg {
-        fill: white !important; stroke: white !important;
-        width: 22px !important; height: 22px !important;
-    }
-    /* Botões do menu touch-friendly */
+    /* Botões touch-friendly */
     section[data-testid="stSidebar"] button {
         min-height: 48px !important;
         font-size: 15px !important;
-        width: 100% !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 6px !important;
     }
-    /* Padding topo conteúdo */
+    /* Padding conteúdo */
     .main .block-container,
     [data-testid="stMain"] .block-container {
-        padding-top: 60px !important;
         padding-bottom: 74px !important;
-    }
-    /* Conteúdo principal não some quando sidebar abre */
-    section[data-testid="stMain"] {
-        margin-left: 0 !important;
     }
 }
 .gf-nav-item {
