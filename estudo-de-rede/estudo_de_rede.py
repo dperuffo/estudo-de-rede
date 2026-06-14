@@ -3675,32 +3675,31 @@ st.markdown("""
 
     /* ── Drawer mobile ── */
     /* ── Drawer — usa window.parent para escapar do iframe do Streamlit ── */
-    function _getRoot() {
-        try { return window.parent.document; } catch(e) { return document; }
+    /* ── Drawer via CSS injection no mesmo document ── */
+    function _injetarDrawerCSS() {
+        if (document.getElementById('gf-drawer-style')) return;
+        var s = document.createElement('style');
+        s.id = 'gf-drawer-style';
+        s.textContent = [
+            '#gf-drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9800;opacity:0;pointer-events:none;transition:opacity .3s}',
+            '#gf-drawer-bg.open{opacity:1;pointer-events:auto}',
+            '#gf-drawer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;z-index:9801;max-height:82vh;overflow-y:auto;transform:translateY(100%);transition:transform .32s cubic-bezier(.32,.72,0,1);padding-bottom:env(safe-area-inset-bottom,16px)}',
+            '#gf-drawer.open{transform:translateY(0)}',
+            '.gf-drawer-item:active{background:#f0f4ff}',
+        ].join('');
+        document.head.appendChild(s);
     }
 
     function _criarDrawer() {
-        var root = _getRoot();
-        if (root.getElementById('gf-drawer-bg')) return;
+        _injetarDrawerCSS();
+        if (document.getElementById('gf-drawer-bg')) return;
 
-        var bg = root.createElement('div');
+        var bg = document.createElement('div');
         bg.id = 'gf-drawer-bg';
-        bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:99800;display:none;-webkit-tap-highlight-color:transparent';
-        bg.addEventListener('click', function(){ _fecharDrawer(); });
+        bg.addEventListener('click', _fecharDrawer);
 
-        var dr = root.createElement('div');
+        var dr = document.createElement('div');
         dr.id = 'gf-drawer';
-        dr.style.cssText = [
-            'position:fixed;bottom:0;left:0;right:0',
-            'background:#fff',
-            'border-radius:20px 20px 0 0',
-            'z-index:99801',
-            'display:none',
-            'max-height:82vh',
-            'overflow-y:auto',
-            'padding-bottom:env(safe-area-inset-bottom,16px)',
-            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
-        ].join(';');
 
         var html = '<div style="width:40px;height:4px;background:#dde3ee;border-radius:2px;margin:12px auto 14px"></div>';
         html += '<div style="font-size:15px;font-weight:600;color:#0b3d6b;padding:0 16px 12px;border-bottom:1px solid #eef0f4">Todas as funcionalidades</div>';
@@ -3709,9 +3708,9 @@ st.markdown("""
             html += '<div style="padding:10px 16px 0">';
             html += '<div style="font-size:10px;font-weight:600;color:#aaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">' + g.titulo + '</div>';
             g.itens.forEach(function(item) {
-                html += '<div data-navkey="' + item.k + '" class="gf-drawer-item" style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #f5f5f7;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none">';
+                html += '<div data-navkey="' + item.k + '" class="gf-drawer-item" style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #f5f5f7;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;border-radius:8px;padding-left:4px;padding-right:4px">';
                 html += '<div style="width:38px;height:38px;border-radius:10px;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">' + item.e + '</div>';
-                html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#1a2540;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + item.l + '</div>';
+                html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#1a2540">' + item.l + '</div>';
                 html += '<div style="font-size:11px;color:#888;margin-top:1px">' + item.s + '</div></div>';
                 html += '<svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5L1 11" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 html += '</div>';
@@ -3721,79 +3720,60 @@ st.markdown("""
         html += '<div style="height:28px"></div>';
         dr.innerHTML = html;
 
-        /* Eventos nos itens do drawer */
         dr.addEventListener('click', function(e) {
-            var item = e.target.closest('.gf-drawer-item');
-            if (!item) return;
-            var key = item.getAttribute('data-navkey');
-            if (key) { _drawerNav(key); }
+            var el = e.target;
+            while (el && el !== dr) {
+                if (el.dataset && el.dataset.navkey) {
+                    _drawerNav(el.dataset.navkey);
+                    return;
+                }
+                el = el.parentElement;
+            }
         });
 
-        root.body.appendChild(bg);
-        root.body.appendChild(dr);
+        document.body.appendChild(bg);
+        document.body.appendChild(dr);
     }
 
     function _abrirDrawer() {
         _criarDrawer();
-        var root = _getRoot();
-        var bg = root.getElementById('gf-drawer-bg');
-        var dr = root.getElementById('gf-drawer');
-        if (!bg || !dr) return;
-        bg.style.display = 'block';
-        dr.style.display = 'block';
-        dr.style.transform = 'translateY(100%)';
-        dr.style.transition = 'transform 0.32s cubic-bezier(0.32,0.72,0,1)';
-        requestAnimationFrame(function(){
-            requestAnimationFrame(function(){
-                dr.style.transform = 'translateY(0)';
-            });
-        });
+        var bg = document.getElementById('gf-drawer-bg');
+        var dr = document.getElementById('gf-drawer');
+        if (bg) bg.classList.add('open');
+        if (dr) dr.classList.add('open');
     }
 
     function _fecharDrawer() {
-        var root = _getRoot();
-        var bg = root.getElementById('gf-drawer-bg');
-        var dr = root.getElementById('gf-drawer');
-        if (!dr) return;
-        dr.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)';
-        dr.style.transform = 'translateY(100%)';
-        setTimeout(function(){
-            if (bg) bg.style.display = 'none';
-            if (dr) dr.style.display = 'none';
-        }, 290);
+        var bg = document.getElementById('gf-drawer-bg');
+        var dr = document.getElementById('gf-drawer');
+        if (bg) bg.classList.remove('open');
+        if (dr) dr.classList.remove('open');
     }
 
     function _drawerNav(key) {
         _fecharDrawer();
-        setTimeout(function(){ clickSidebarBtn(key); }, 320);
+        setTimeout(function(){ clickSidebarBtn(key); }, 350);
     }
 
-    /* ── Clicar no botão sidebar — busca em parent e document ── */
+    /* ── Clicar no botão sidebar ── */
     function clickSidebarBtn(key) {
-        var docs = [];
-        try { docs.push(window.parent.document); } catch(e){}
-        docs.push(document);
-        for (var di = 0; di < docs.length; di++) {
-            var c = docs[di].querySelector('.st-key-' + key);
-            if (!c) {
-                /* Tenta via querySelectorAll nos iframes do parent */
+        /* Tenta no document local primeiro */
+        var c = document.querySelector('.st-key-' + key);
+        /* Se não achou, tenta nos iframes do mesmo document */
+        if (!c) {
+            var frames = document.querySelectorAll('iframe');
+            for (var i = 0; i < frames.length; i++) {
                 try {
-                    var frames = docs[di].querySelectorAll('iframe');
-                    for (var fi = 0; fi < frames.length; fi++) {
-                        try {
-                            c = frames[fi].contentDocument.querySelector('.st-key-' + key);
-                            if (c) break;
-                        } catch(fe){}
-                    }
-                } catch(e){}
+                    c = frames[i].contentDocument.querySelector('.st-key-' + key);
+                    if (c) break;
+                } catch(e) {}
             }
-            if (c) {
-                var b = c.querySelector('button');
-                if (b) {
-                    b.click();
-                    if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(8);
-                    return;
-                }
+        }
+        if (c) {
+            var b = c.querySelector('button');
+            if (b) {
+                b.click();
+                if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(8);
             }
         }
     }
