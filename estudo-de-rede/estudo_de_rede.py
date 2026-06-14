@@ -3674,82 +3674,126 @@ st.markdown("""
     function isMobile() { return window.innerWidth <= 768; }
 
     /* ── Drawer mobile ── */
+    /* ── Drawer — usa window.parent para escapar do iframe do Streamlit ── */
+    function _getRoot() {
+        try { return window.parent.document; } catch(e) { return document; }
+    }
+
     function _criarDrawer() {
-        if (document.getElementById('gf-drawer-bg')) return;
-        var bg = document.createElement('div');
+        var root = _getRoot();
+        if (root.getElementById('gf-drawer-bg')) return;
+
+        var bg = root.createElement('div');
         bg.id = 'gf-drawer-bg';
-        bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.48);z-index:9800;display:none;-webkit-tap-highlight-color:transparent';
-        bg.onclick = function(){ _fecharDrawer(); };
+        bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:99800;display:none;-webkit-tap-highlight-color:transparent';
+        bg.addEventListener('click', function(){ _fecharDrawer(); });
 
-        var dr = document.createElement('div');
+        var dr = root.createElement('div');
         dr.id = 'gf-drawer';
-        dr.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;z-index:9801;display:none;max-height:80vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)';
+        dr.style.cssText = [
+            'position:fixed;bottom:0;left:0;right:0',
+            'background:#fff',
+            'border-radius:20px 20px 0 0',
+            'z-index:99801',
+            'display:none',
+            'max-height:82vh',
+            'overflow-y:auto',
+            'padding-bottom:env(safe-area-inset-bottom,16px)',
+            'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+        ].join(';');
 
-        var html = '<div style="width:36px;height:4px;background:#dde3ee;border-radius:2px;margin:12px auto 14px"></div>';
-        html += '<div style="font-size:14px;font-weight:500;color:#1a2540;padding:0 16px 12px;border-bottom:0.5px solid #eee">Todas as funcionalidades</div>';
+        var html = '<div style="width:40px;height:4px;background:#dde3ee;border-radius:2px;margin:12px auto 14px"></div>';
+        html += '<div style="font-size:15px;font-weight:600;color:#0b3d6b;padding:0 16px 12px;border-bottom:1px solid #eef0f4">Todas as funcionalidades</div>';
 
         DRAWER_GRUPOS.forEach(function(g) {
-            html += '<div style="padding:12px 16px 0">';
-            html += '<div style="font-size:10px;font-weight:500;color:#aaa;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px">' + g.titulo + '</div>';
+            html += '<div style="padding:10px 16px 0">';
+            html += '<div style="font-size:10px;font-weight:600;color:#aaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">' + g.titulo + '</div>';
             g.itens.forEach(function(item) {
-                html += '<div onclick="_drawerNav(''+item.k+'')" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid #f5f5f5;cursor:pointer;-webkit-tap-highlight-color:transparent">';
-                html += '<div style="width:36px;height:36px;border-radius:9px;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">' + item.e + '</div>';
-                html += '<div style="flex:1"><div style="font-size:13px;font-weight:500;color:#1a2540">' + item.l + '</div><div style="font-size:11px;color:#888">' + item.s + '</div></div>';
-                html += '<svg width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/></svg>';
+                html += '<div data-navkey="' + item.k + '" class="gf-drawer-item" style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #f5f5f7;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none">';
+                html += '<div style="width:38px;height:38px;border-radius:10px;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">' + item.e + '</div>';
+                html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#1a2540;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + item.l + '</div>';
+                html += '<div style="font-size:11px;color:#888;margin-top:1px">' + item.s + '</div></div>';
+                html += '<svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5L1 11" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 html += '</div>';
             });
             html += '</div>';
         });
-        html += '<div style="height:24px"></div>';
+        html += '<div style="height:28px"></div>';
         dr.innerHTML = html;
 
-        document.body.appendChild(bg);
-        document.body.appendChild(dr);
+        /* Eventos nos itens do drawer */
+        dr.addEventListener('click', function(e) {
+            var item = e.target.closest('.gf-drawer-item');
+            if (!item) return;
+            var key = item.getAttribute('data-navkey');
+            if (key) { _drawerNav(key); }
+        });
+
+        root.body.appendChild(bg);
+        root.body.appendChild(dr);
     }
 
     function _abrirDrawer() {
         _criarDrawer();
-        var bg = document.getElementById('gf-drawer-bg');
-        var dr = document.getElementById('gf-drawer');
-        if (bg) bg.style.display = 'block';
-        if (dr) {
-            dr.style.display = 'block';
-            dr.style.transform = 'translateY(100%)';
-            dr.style.transition = 'transform 0.3s ease';
+        var root = _getRoot();
+        var bg = root.getElementById('gf-drawer-bg');
+        var dr = root.getElementById('gf-drawer');
+        if (!bg || !dr) return;
+        bg.style.display = 'block';
+        dr.style.display = 'block';
+        dr.style.transform = 'translateY(100%)';
+        dr.style.transition = 'transform 0.32s cubic-bezier(0.32,0.72,0,1)';
+        requestAnimationFrame(function(){
             requestAnimationFrame(function(){
-                requestAnimationFrame(function(){
-                    dr.style.transform = 'translateY(0)';
-                });
+                dr.style.transform = 'translateY(0)';
             });
-        }
+        });
     }
 
     function _fecharDrawer() {
-        var bg = document.getElementById('gf-drawer-bg');
-        var dr = document.getElementById('gf-drawer');
-        if (dr) {
-            dr.style.transform = 'translateY(100%)';
-            setTimeout(function(){
-                if (bg) bg.style.display = 'none';
-                if (dr) dr.style.display = 'none';
-            }, 280);
-        }
+        var root = _getRoot();
+        var bg = root.getElementById('gf-drawer-bg');
+        var dr = root.getElementById('gf-drawer');
+        if (!dr) return;
+        dr.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0,1)';
+        dr.style.transform = 'translateY(100%)';
+        setTimeout(function(){
+            if (bg) bg.style.display = 'none';
+            if (dr) dr.style.display = 'none';
+        }, 290);
     }
 
     function _drawerNav(key) {
         _fecharDrawer();
-        setTimeout(function(){ clickSidebarBtn(key); }, 300);
+        setTimeout(function(){ clickSidebarBtn(key); }, 320);
     }
 
-    /* ── Clicar no botão sidebar correspondente ── */
+    /* ── Clicar no botão sidebar — busca em parent e document ── */
     function clickSidebarBtn(key) {
-        var c = document.querySelector('.st-key-' + key);
-        if (!c) return;
-        var b = c.querySelector('button');
-        if (b) {
-            b.click();
-            if (window.navigator && window.navigator.vibrate) {
-                window.navigator.vibrate(8);
+        var docs = [];
+        try { docs.push(window.parent.document); } catch(e){}
+        docs.push(document);
+        for (var di = 0; di < docs.length; di++) {
+            var c = docs[di].querySelector('.st-key-' + key);
+            if (!c) {
+                /* Tenta via querySelectorAll nos iframes do parent */
+                try {
+                    var frames = docs[di].querySelectorAll('iframe');
+                    for (var fi = 0; fi < frames.length; fi++) {
+                        try {
+                            c = frames[fi].contentDocument.querySelector('.st-key-' + key);
+                            if (c) break;
+                        } catch(fe){}
+                    }
+                } catch(e){}
+            }
+            if (c) {
+                var b = c.querySelector('button');
+                if (b) {
+                    b.click();
+                    if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(8);
+                    return;
+                }
             }
         }
     }
