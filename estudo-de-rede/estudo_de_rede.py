@@ -604,6 +604,7 @@ _PERMISSOES: dict[str, set] = {
     "aba_rotograma":        {"admin", "gestor_frota"},       # rotograma de segurança de rota
     "aba_acordos":          {"admin", "gestor_frota"},       # acordos de preço por posto
     "aba_comece_seu_dia":   {"admin", "analista", "gestor_frota"},  # painel diário do gestor
+    "aba_financeiro":       {"admin", "analista", "gestor_frota"},  # painel financeiro
     "aba_manutencao":       {"admin", "analista", "gestor_frota"},  # manutenção de frota
 }
 
@@ -17114,6 +17115,8 @@ with st.sidebar:
         _nav_btn("🛡️ Admin",                 "🛡️ Admin",                 "admin")
     _nav_btn("📚 Documentação",              "📚 Documentação",           "documentacao")
     _nav_btn("☀️ Comece seu dia",            "☀️ Comece seu dia",          "comece_seu_dia")
+    if _auth_tem_permissao("aba_financeiro"):
+        _nav_btn("💰 Painel Financeiro",       "💰 Painel Financeiro",        "painel_financeiro")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
@@ -26137,6 +26140,11 @@ elif modo == "📚 Documentação":
             "regras": "Alertas ANP: abastecimentos >5% acima da referência por UF. Manutenções urgentes: status=urgente ou vencida. Acordos: vencidos ou que vencem em 30 dias.",
             "indicadores": "KPIs de combustível (volume, gasto, preço médio, ticket). Top 5 veículos por consumo km/L. Top 5 postos por transações. Status de manutenções e acordos.",
         },
+        "💰 Painel Financeiro": {
+            "objetivo": "Visão financeira consolidada da operação de frota com segmentação por centro de custo. Mostra custos de combustível, manutenção e indicadores de eficiência por período selecionado.",
+            "fonte": "profrotas_abastecimentos (combustíveis) + manutencoes_realizadas (manutenção). Centro de custo = frota_razao_social.",
+            "indicadores": "Custo total, combustíveis, manutenção, volume em litros, veículos ativos, preço médio/L. Detalhamento por combustível, top 5 postos e registros de manutenção.",
+        },
         "🔧 Manutenção de Frota": {
             "objetivo": "Controle de manutenções realizadas na frota com alertas de veículos críticos (>120 dias) e em alerta (75-120 dias). Otimizado para frotas com centenas de veículos.",
             "fonte": "Tabela manutencoes_realizadas do Supabase, filtrada por CNPJ da frota.",
@@ -32814,6 +32822,246 @@ elif modo == "🤖 Assistente IA":
                 except Exception as _e_pdf:
                     st.error(f"Erro PDF: {str(_e_pdf)[:150]}")
 
+
+elif modo == "💰 Painel Financeiro":
+    _doc_tela("💰 Painel Financeiro")
+    _empresa_fin  = st.session_state.get("_empresa_ativa") or {}
+    _cnpj_fin     = _empresa_fin.get("cnpj","") or ""
+    _nome_fin     = _empresa_fin.get("razao_social","") or "Frota"
+
+    st.markdown(
+        "<h2 style='margin:0 0 4px;font-size:1.35rem;"
+        "background:linear-gradient(135deg,#0b3d6b,#185FA5);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
+        "💰 Painel Financeiro — Operação de Frota</h2>"
+        f"<p style='color:#555;font-size:13px;margin:0 0 16px'>"
+        f"{_nome_fin} · CNPJ: {_cnpj_fin}</p>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Seletor de período ────────────────────────────────────────
+    from datetime import datetime as _dt_fin, timedelta as _td_fin, timezone as _tz_fin, date as _date_fin
+    _brasilia_fin = _tz_fin(_td_fin(hours=-3))
+    _hoje_fin = _dt_fin.now(_brasilia_fin).date()
+    _primeiro_mes_fin = _hoje_fin.replace(day=1)
+    _primeiro_ano_fin = _hoje_fin.replace(month=1, day=1)
+
+    _periodos_fin = {
+        "Janeiro":       (f"{_hoje_fin.year}-01-01", f"{_hoje_fin.year}-01-31"),
+        "Fevereiro":     (f"{_hoje_fin.year}-02-01", f"{_hoje_fin.year}-02-28"),
+        "Março":         (f"{_hoje_fin.year}-03-01", f"{_hoje_fin.year}-03-31"),
+        "Abril":         (f"{_hoje_fin.year}-04-01", f"{_hoje_fin.year}-04-30"),
+        "Maio":          (f"{_hoje_fin.year}-05-01", f"{_hoje_fin.year}-05-31"),
+        "Junho":         (f"{_hoje_fin.year}-06-01", f"{_hoje_fin.year}-06-30"),
+        "Julho":         (f"{_hoje_fin.year}-07-01", f"{_hoje_fin.year}-07-31"),
+        "Agosto":        (f"{_hoje_fin.year}-08-01", f"{_hoje_fin.year}-08-31"),
+        "Setembro":      (f"{_hoje_fin.year}-09-01", f"{_hoje_fin.year}-09-30"),
+        "Outubro":       (f"{_hoje_fin.year}-10-01", f"{_hoje_fin.year}-10-31"),
+        "Novembro":      (f"{_hoje_fin.year}-11-01", f"{_hoje_fin.year}-11-30"),
+        "Dezembro":      (f"{_hoje_fin.year}-12-01", f"{_hoje_fin.year}-12-31"),
+        f"YTD {_hoje_fin.year}": (str(_primeiro_ano_fin), str(_hoje_fin)),
+        "Últimos 30 dias": (str(_hoje_fin - _td_fin(days=30)), str(_hoje_fin)),
+        "Últimos 90 dias": (str(_hoje_fin - _td_fin(days=90)), str(_hoje_fin)),
+    }
+    _mes_atual_fin = _hoje_fin.strftime("%B").capitalize()
+    _meses_pt_fin = {"January":"Janeiro","February":"Fevereiro","March":"Março","April":"Abril",
+                     "May":"Maio","June":"Junho","July":"Julho","August":"Agosto",
+                     "September":"Setembro","October":"Outubro","November":"Novembro","December":"Dezembro"}
+    _mes_atual_fin = _meses_pt_fin.get(_hoje_fin.strftime("%B"), "Junho")
+
+    _fin_c1, _fin_c2 = st.columns([2,1])
+    with _fin_c1:
+        _periodo_fin = st.selectbox("Período", list(_periodos_fin.keys()),
+            index=list(_periodos_fin.keys()).index(_mes_atual_fin) if _mes_atual_fin in _periodos_fin else 5,
+            key="fin_periodo", label_visibility="collapsed")
+    _dt_ini_fin, _dt_fim_fin = _periodos_fin[_periodo_fin]
+
+    # ── Carrega dados de abastecimentos ──────────────────────────
+    try:
+        _db_fin = _db_client()
+        _q_fin = (_db_fin.table("profrotas_abastecimentos")
+            .select("pv_cnpj,pv_razao_social,pv_municipio,pv_uf,item_nome,item_quantidade,"
+                    "item_valor_unitario,item_valor_total,item_tipo,data_abastecimento,"
+                    "veiculo_placa,frota_razao_social")
+            .eq("item_tipo", 1)
+            .gte("data_abastecimento", _dt_ini_fin)
+            .lte("data_abastecimento", _dt_fim_fin + "T23:59:59")
+            .limit(20000))
+        if _cnpj_fin:
+            _q_fin = _q_fin.eq("cnpj_frota", _cnpj_fin)
+        _df_fin = pd.DataFrame((_q_fin.execute()).data or [])
+    except Exception as _e_fin:
+        _df_fin = pd.DataFrame()
+        st.warning(f"Erro ao carregar dados: {_e_fin}")
+
+    # ── Carrega dados de manutenção ───────────────────────────────
+    try:
+        _manut_fin = _manut_listar(cnpj_frota=_cnpj_fin if _cnpj_fin else None, limit=2000)
+        _manut_fin = [m for m in _manut_fin
+                      if str(m.get("data_manutencao",""))[:10] >= _dt_ini_fin
+                      and str(m.get("data_manutencao",""))[:10] <= _dt_fim_fin]
+    except Exception:
+        _manut_fin = []
+
+    # Processa dados financeiros
+    if not _df_fin.empty:
+        _df_fin["_qtd"]  = pd.to_numeric(_df_fin["item_quantidade"],    errors="coerce").fillna(0)
+        _df_fin["_vun"]  = pd.to_numeric(_df_fin["item_valor_unitario"], errors="coerce")
+        _df_fin["_vtot"] = pd.to_numeric(_df_fin["item_valor_total"],    errors="coerce")
+        _mask_fin = _df_fin["_vun"].isna() | (_df_fin["_vun"] <= 0)
+        _df_fin.loc[_mask_fin,"_vun"] = _df_fin.loc[_mask_fin,"_vtot"] / _df_fin.loc[_mask_fin,"_qtd"].replace(0,float("nan"))
+        _df_fin["_cc"] = _df_fin["frota_razao_social"].fillna("Sem centro").astype(str).str.strip()
+        _df_fin["_cc"] = _df_fin["_cc"].where(_df_fin["_cc"] != "", "Sem centro")
+        _total_comb_fin  = float(_df_fin["_vtot"].fillna(0).sum())
+        _total_litros_fin= float(_df_fin["_qtd"].sum())
+        _n_abast_fin     = len(_df_fin)
+        _n_veic_fin      = _df_fin["veiculo_placa"].nunique()
+        _preco_med_fin   = float(_df_fin["_vun"].dropna().mean()) if not _df_fin["_vun"].dropna().empty else 0
+    else:
+        _total_comb_fin = _total_litros_fin = _n_abast_fin = _n_veic_fin = _preco_med_fin = 0
+
+    _total_manut_fin = sum(float(m.get("custo_total") or 0) for m in _manut_fin)
+    _total_geral_fin = _total_comb_fin + _total_manut_fin
+
+    # ── KPIs ─────────────────────────────────────────────────────
+    st.markdown("<div style='font-size:11px;font-weight:500;color:var(--color-text-secondary);"
+                "letter-spacing:.5px;text-transform:uppercase;padding:4px 0 8px;"
+                "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
+                "💰 Resumo financeiro do período</div>", unsafe_allow_html=True)
+
+    _fk1,_fk2,_fk3,_fk4,_fk5,_fk6 = st.columns(6)
+    _fk1.metric("💰 Custo total",      _br_moeda(_total_geral_fin),  help="Combustível + manutenção")
+    _fk2.metric("⛽ Combustíveis",     _br_moeda(_total_comb_fin),   help="Total gasto em abastecimentos")
+    _fk3.metric("🔧 Manutenção",       _br_moeda(_total_manut_fin),  help="Total registrado em manutenções")
+    _fk4.metric("💧 Volume abast.",    _br_num(_total_litros_fin,0)+" L", help="Litros totais abastecidos")
+    _fk5.metric("🚛 Veículos ativos",  _fmt_int(_n_veic_fin),         help="Veículos com abastecimento no período")
+    _fk6.metric("📊 Preço médio/L",    _br_moeda(_preco_med_fin, 3),  help="Preço médio pago por litro")
+
+    st.markdown("---")
+
+    # ── Segmentação por Centro de Custo ──────────────────────────
+    st.markdown("<div style='font-size:11px;font-weight:500;color:var(--color-text-secondary);"
+                "letter-spacing:.5px;text-transform:uppercase;padding:4px 0 8px;"
+                "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
+                "🏢 Segmentação por Centro de Custo</div>", unsafe_allow_html=True)
+
+    if not _df_fin.empty:
+        # Mapa de centros de custo disponíveis
+        _ccs_disponiveis = ["Todos os centros"] + sorted(_df_fin["_cc"].unique().tolist())
+        _cc_sel = st.selectbox("Filtrar por centro de custo", _ccs_disponiveis,
+            key="fin_cc_sel", label_visibility="collapsed")
+
+        # Aplica filtro
+        _df_cc = _df_fin if _cc_sel == "Todos os centros" else _df_fin[_df_fin["_cc"] == _cc_sel]
+
+        # Tabela resumo por centro de custo
+        _cc_grp = (_df_fin.groupby("_cc")
+            .agg(
+                _n      =("_cc","count"),
+                _comb   =("_vtot","sum"),
+                _litros =("_qtd","sum"),
+                _preco  =("_vun","mean"),
+                _veic   =("veiculo_placa","nunique"),
+            )
+            .reset_index()
+            .sort_values("_comb", ascending=False))
+
+        # Exibe tabela
+        st.markdown("##### 📊 Resumo por centro de custo")
+        _CORES_CC = ["#185FA5","#0F6E56","#854F0B","#534AB7","#A32D2D","#5F5E5A"]
+        for _ci, _rc in enumerate(_cc_grp.itertuples()):
+            _cor_cc = _CORES_CC[_ci % len(_CORES_CC)]
+            _pct_cc = float(_rc._comb) / max(_total_comb_fin,1) * 100
+            _custo_vei_cc = float(_rc._comb) / max(float(_rc._veic),1)
+            st.markdown(
+                f"<div style='display:flex;align-items:center;gap:10px;padding:8px 12px;"
+                f"background:var(--color-background-secondary);border-radius:var(--border-radius-md);"
+                f"margin-bottom:6px;font-size:12px'>"
+                f"<span style='width:10px;height:10px;border-radius:50%;background:{_cor_cc};flex-shrink:0'></span>"
+                f"<span style='flex:1;font-weight:500;color:var(--color-text-primary)'>{getattr(_rc,'_cc','')}</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:60px;text-align:right'>{_fmt_int(int(_rc._n))} abast.</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:60px;text-align:right'>{_fmt_int(int(_rc._veic))} veíc.</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:80px;text-align:right'>{_br_num(float(_rc._litros),0)} L</span>"
+                f"<div style='width:80px;height:6px;background:var(--color-background-primary);"
+                f"border-radius:3px;overflow:hidden;flex-shrink:0'>"
+                f"<div style='width:{min(_pct_cc,100):.0f}%;height:100%;background:{_cor_cc};border-radius:3px'></div></div>"
+                f"<span style='font-weight:500;color:var(--color-text-primary);min-width:100px;text-align:right'>"
+                f"{_br_moeda(float(_rc._comb))}</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:90px;text-align:right;font-size:11px'>"
+                f"{_pct_cc:.1f}% do total</span>"
+                f"</div>",
+                unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # ── Detalhamento da seleção ───────────────────────────────
+        st.markdown(f"##### ⛽ Combustíveis — {_cc_sel}")
+        _comb_grp = (_df_cc.groupby("item_nome")
+            .agg(_litros=("_qtd","sum"), _valor=("_vtot","sum"), _preco=("_vun","mean"), _n=("_qtd","count"))
+            .reset_index().sort_values("_valor", ascending=False))
+
+        _total_comb_cc = float(_comb_grp["_valor"].sum())
+        _fc1, _fc2 = st.columns(2)
+        with _fc1:
+            for _, _rc2 in _comb_grp.iterrows():
+                _pct2 = float(_rc2["_valor"]) / max(_total_comb_cc,1) * 100
+                _pr2  = float(_rc2["_preco"]) if pd.notna(_rc2["_preco"]) else 0
+                st.markdown(
+                    f"<div style='margin-bottom:8px'>"
+                    f"<div style='display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px'>"
+                    f"<span style='color:var(--color-text-primary);font-weight:500'>{str(_rc2['item_nome'])[:32]}</span>"
+                    f"<span style='color:var(--color-text-secondary)'>{_br_num(float(_rc2['_litros']),0)} L"
+                    f"{' · '+_br_moeda(_pr2,3)+'/L' if _pr2>0 else ''}</span></div>"
+                    f"<div style='height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden'>"
+                    f"<div style='width:{_pct2:.0f}%;height:100%;background:#185FA5;border-radius:3px'></div></div>"
+                    f"<div style='text-align:right;font-size:11px;color:var(--color-text-secondary);margin-top:2px'>"
+                    f"{_br_moeda(float(_rc2['_valor']))} ({_pct2:.1f}%)</div></div>",
+                    unsafe_allow_html=True)
+
+        with _fc2:
+            # Top 5 postos por custo
+            _postos_cc = (_df_cc.groupby(["pv_cnpj","pv_razao_social","pv_municipio","pv_uf"])
+                .agg(_n=("_qtd","count"), _valor=("_vtot","sum"), _litros=("_qtd","sum"))
+                .reset_index().nlargest(5,"_valor"))
+            st.markdown("**Top 5 postos por valor gasto**")
+            for _mi2, (_, _rp2) in enumerate(zip(["🥇","🥈","🥉","4","5"], _postos_cc.itertuples())):
+                _rs2  = str(getattr(_rp2,"pv_razao_social","") or "").strip()[:24]
+                _mun2 = str(getattr(_rp2,"pv_municipio","") or "").strip()
+                _uf2  = str(getattr(_rp2,"pv_uf","") or "").strip()
+                _nm2  = _rs2 if _rs2 and _rs2 not in ("nan","None") else str(getattr(_rp2,"pv_cnpj",""))[:18]
+                st.markdown(
+                    f"<div style='display:flex;align-items:flex-start;gap:8px;padding:6px 0;"
+                    f"border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px'>"
+                    f"<span style='width:20px;flex-shrink:0'>{'🥇🥈🥉 4  5'.split()[_mi2]}</span>"
+                    f"<div style='flex:1'><div style='font-weight:500'>{_nm2}</div>"
+                    f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_mun2}/{_uf2}</div></div>"
+                    f"<div style='text-align:right'><div style='font-weight:500'>{_br_moeda(float(getattr(_rp2,'_valor',0)))}</div>"
+                    f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_fmt_int(int(getattr(_rp2,'_n',0)))} abast.</div></div>"
+                    f"</div>",
+                    unsafe_allow_html=True)
+
+        # ── Manutenção ────────────────────────────────────────────
+        if _manut_fin:
+            st.markdown("---")
+            st.markdown("##### 🔧 Manutenção do período")
+            _mk1,_mk2,_mk3 = st.columns(3)
+            _mk1.metric("💰 Custo total", _br_moeda(_total_manut_fin))
+            _mk2.metric("📋 Registros",   _fmt_int(len(_manut_fin)))
+            _mk3.metric("📊 Custo médio", _br_moeda(_total_manut_fin / max(len(_manut_fin),1)))
+
+            _mf_rows = []
+            for _rm in _manut_fin[:10]:
+                _itens_rm = _rm.get("itens_realizados") or []
+                _mf_rows.append({
+                    "Placa":    _rm.get("placa","—"),
+                    "Data":     str(_rm.get("data_manutencao",""))[:10],
+                    "Serviço":  ", ".join(_itens_rm[:2]) if isinstance(_itens_rm,list) else str(_itens_rm)[:40],
+                    "Oficina":  _rm.get("oficina","—") or "—",
+                    "Custo":    _br_moeda(float(_rm.get("custo_total") or 0)),
+                })
+            st.dataframe(pd.DataFrame(_mf_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info("Nenhum dado de abastecimento encontrado para o período selecionado.")
 
 elif modo == "☀️ Comece seu dia":
     _doc_tela("☀️ Comece seu dia")
