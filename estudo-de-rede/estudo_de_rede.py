@@ -19557,12 +19557,97 @@ def _cc_mapa_placa() -> dict:
     """Retorna dicionário {placa: nome_centro_custo} para uso nos relatórios."""
     try:
         _rows = (_db_client().table("centros_custo_veiculos")
-                 .select("placa,centro_custo_id,centros_custo(nome)")
+                 .select("placa,centro_custo_id,centros_custo(nome,codigo)")
                  .eq("ativo", True).execute().data or [])
         return {r["placa"]: (r.get("centros_custo") or {}).get("nome","Sem centro")
                 for r in _rows if r.get("placa")}
     except Exception:
         return {}
+
+
+def _cc_enriquecer_df(df: "pd.DataFrame", col_placa: str = "veiculo_placa") -> "pd.DataFrame":
+    """
+    Adiciona coluna '_centro_custo_real' ao DataFrame baseado na placa.
+    Usa a tabela centros_custo_veiculos como fonte autoritativa.
+    """
+    if df.empty or col_placa not in df.columns:
+        return df
+    try:
+        _mapa = _cc_mapa_placa()
+        if _mapa:
+            df["_centro_custo_real"] = df[col_placa].map(_mapa).fillna("Sem centro alocado")
+        else:
+            df["_centro_custo_real"] = "Sem centro alocado"
+    except Exception:
+        df["_centro_custo_real"] = "Sem centro alocado"
+    return df
+
+
+def _cc_resumo_financeiro(cnpj_frota: str, dt_ini: str, dt_fim: str) -> dict:
+    """
+    Consolida custos de abastecimento + manutenção por centro de custo.
+    Retorna dict {nome_cc: {comb, manut, litros, n_abast, n_manut, veiculos}}
+    """
+    import math as _mf
+    _mapa = _cc_mapa_placa()
+    resultado = {}
+
+    # Abastecimentos
+    try:
+        _db = _db_client()
+        q = (_db.table("profrotas_abastecimentos")
+             .select("veiculo_placa,item_quantidade,item_valor_total,item_valor_unitario,item_tipo")
+             .eq("item_tipo", 1)
+             .gte("data_abastecimento", dt_ini)
+             .lte("data_abastecimento", dt_fim + "T23:59:59")
+             .limit(20000))
+        if cnpj_frota:
+            q = q.eq("cnpj_frota", cnpj_frota)
+        _rows = q.execute().data or []
+        for _r in _rows:
+            _placa = str(_r.get("veiculo_placa","") or "").strip()
+            _cc    = _mapa.get(_placa, "Sem centro alocado")
+            _qtd   = float(_r.get("item_quantidade") or 0)
+            _vtot  = _r.get("item_valor_total")
+            _vun   = _r.get("item_valor_unitario")
+            _valor = float(_vtot) if _vtot else (float(_vun or 0) * _qtd)
+            if _math_isnan(_valor): _valor = 0
+            if _cc not in resultado:
+                resultado[_cc] = {"comb":0,"manut":0,"litros":0,"n_abast":0,"n_manut":0,"veiculos":set()}
+            resultado[_cc]["comb"]    += _valor
+            resultado[_cc]["litros"]  += _qtd
+            resultado[_cc]["n_abast"] += 1
+            resultado[_cc]["veiculos"].add(_placa)
+    except Exception:
+        pass
+
+    # Manutenções
+    try:
+        _man_rows = _manut_listar(cnpj_frota=cnpj_frota, limit=2000)
+        for _mr in _man_rows:
+            _dt_mr = str(_mr.get("data_manutencao",""))[:10]
+            if not (dt_ini <= _dt_mr <= dt_fim): continue
+            _placa_mr = str(_mr.get("placa","") or "").strip()
+            _cc_mr    = _mapa.get(_placa_mr, "Sem centro alocado")
+            _custo_mr = float(_mr.get("custo_total") or 0)
+            if _cc_mr not in resultado:
+                resultado[_cc_mr] = {"comb":0,"manut":0,"litros":0,"n_abast":0,"n_manut":0,"veiculos":set()}
+            resultado[_cc_mr]["manut"]    += _custo_mr
+            resultado[_cc_mr]["n_manut"]  += 1
+            resultado[_cc_mr]["veiculos"].add(_placa_mr)
+    except Exception:
+        pass
+
+    # Converte sets para contagem
+    for _cc in resultado:
+        resultado[_cc]["veiculos"] = len(resultado[_cc]["veiculos"])
+    return resultado
+
+
+def _math_isnan(v):
+    try:
+        import math; return math.isnan(v)
+    except Exception: return False
 
 # ── Função central de indicadores de manutenção ─────────────────────────────
 @st.cache_data(show_spinner=False, ttl=60)
@@ -33257,13 +33342,9 @@ elif modo == "💰 Painel Financeiro":
         _df_fin["_vtot"] = pd.to_numeric(_df_fin["item_valor_total"],    errors="coerce")
         _mask_fin = _df_fin["_vun"].isna() | (_df_fin["_vun"] <= 0)
         _df_fin.loc[_mask_fin,"_vun"] = _df_fin.loc[_mask_fin,"_vtot"] / _df_fin.loc[_mask_fin,"_qtd"].replace(0,float("nan"))
-        # Usa mapa de centros de custo cadastrados, senão usa frota_razao_social
-        _mapa_cc_fin = _cc_mapa_placa()
-        if _mapa_cc_fin:
-            _df_fin["_cc"] = _df_fin["veiculo_placa"].map(_mapa_cc_fin).fillna("Sem centro alocado")
-        else:
-            _df_fin["_cc"] = _df_fin["frota_razao_social"].fillna("Sem centro").astype(str).str.strip()
-            _df_fin["_cc"] = _df_fin["_cc"].where(_df_fin["_cc"] != "", "Sem centro")
+        # Enriquece com centro de custo real via tabela centros_custo_veiculos
+        _df_fin = _cc_enriquecer_df(_df_fin, col_placa="veiculo_placa")
+        _df_fin["_cc"] = _df_fin["_centro_custo_real"]
         _df_fin["_valor_calc"] = _df_fin["_vtot"].fillna(
             _df_fin["_qtd"] * _df_fin["_vun"])
         _total_comb_fin  = float(_df_fin["_valor_calc"].fillna(0).sum())
@@ -33300,29 +33381,37 @@ elif modo == "💰 Painel Financeiro":
                 "🏢 Segmentação por Centro de Custo</div>", unsafe_allow_html=True)
 
     if not _df_fin.empty:
-        # Mapa de centros de custo disponíveis
-        _ccs_disponiveis = ["Todos os centros"] + sorted(_df_fin["_cc"].unique().tolist())
+        # Carrega resumo financeiro real por centro de custo
+        _resumo_cc = _cc_resumo_financeiro(_cnpj_fin, _dt_ini_fin, _dt_fim_fin)
+
+        _ccs_disponiveis = ["Todos os centros"] + sorted(_resumo_cc.keys())
         _cc_sel = st.selectbox("Filtrar por centro de custo", _ccs_disponiveis,
             key="fin_cc_sel", label_visibility="collapsed")
 
-        # Aplica filtro
-        _df_cc = _df_fin if _cc_sel == "Todos os centros" else _df_fin[_df_fin["_cc"] == _cc_sel]
+        # Aplica filtro no df principal
+        _df_cc = (_df_fin if _cc_sel == "Todos os centros"
+                  else _df_fin[_df_fin["_cc"] == _cc_sel])
 
-        # Tabela resumo por centro de custo
-        _cc_grp = (_df_fin.groupby("_cc")
-            .agg(
-                _n      =("_cc","count"),
-                _comb   =("_vtot","sum"),
-                _litros =("_qtd","sum"),
-                _preco  =("_vun","mean"),
-                _veic   =("veiculo_placa","nunique"),
-            )
-            .reset_index()
-            .sort_values("_comb", ascending=False))
+        # Monta tabela de resumo a partir do _resumo_cc
+        import pandas as _pd_cc
+        _cc_grp_rows = []
+        for _cc_nome_r, _cc_data_r in sorted(_resumo_cc.items(),
+                                               key=lambda x: x[1]["comb"], reverse=True):
+            _cc_grp_rows.append({
+                "_cc":    _cc_nome_r,
+                "_n":     _cc_data_r["n_abast"],
+                "_comb":  _cc_data_r["comb"],
+                "_litros":_cc_data_r["litros"],
+                "_manut": _cc_data_r["manut"],
+                "_preco": _cc_data_r["comb"] / max(_cc_data_r["litros"],1),
+                "_veic":  _cc_data_r["veiculos"],
+            })
+        _cc_grp = _pd_cc.DataFrame(_cc_grp_rows) if _cc_grp_rows else _pd_cc.DataFrame()
 
         # Exibe tabela
-        st.markdown("##### 📊 Resumo por centro de custo")
+        st.markdown("##### 📊 Resumo por centro de custo — abastecimentos + manutenção")
         _CORES_CC = ["#185FA5","#0F6E56","#854F0B","#534AB7","#A32D2D","#5F5E5A"]
+        _total_geral_cc = sum(v["comb"]+v["manut"] for v in _resumo_cc.values())
         for _ci, (_idx, _rc) in enumerate(_cc_grp.iterrows()):
             _cor_cc = _CORES_CC[_ci % len(_CORES_CC)]
             _val_cc   = float(_rc.get("_comb",  0) or 0)
@@ -33330,23 +33419,25 @@ elif modo == "💰 Painel Financeiro":
             _veic_cc  = int(_rc.get("_veic",   0) or 0)
             _litros_cc= float(_rc.get("_litros",0) or 0)
             _nome_cc  = str(_rc.get("_cc","")  or "")
-            _pct_cc   = _val_cc / max(_total_comb_fin,1) * 100
+            _manut_cc = float(_rc.get("_manut", 0) or 0)
+            _total_cc = _val_cc + _manut_cc
+            _pct_cc   = _total_cc / max(_total_geral_cc,1) * 100
             st.markdown(
-                f"<div style='display:flex;align-items:center;gap:10px;padding:8px 12px;"
+                f"<div style='display:flex;align-items:center;gap:8px;padding:8px 12px;"
                 f"background:var(--color-background-secondary);border-radius:var(--border-radius-md);"
-                f"margin-bottom:6px;font-size:12px'>"
+                f"margin-bottom:6px;font-size:12px;flex-wrap:wrap'>"
                 f"<span style='width:10px;height:10px;border-radius:50%;background:{_cor_cc};flex-shrink:0'></span>"
-                f"<span style='flex:1;font-weight:500;color:var(--color-text-primary)'>{_nome_cc}</span>"
-                f"<span style='color:var(--color-text-secondary);min-width:60px;text-align:right'>{_fmt_int(_n_cc)} abast.</span>"
-                f"<span style='color:var(--color-text-secondary);min-width:60px;text-align:right'>{_fmt_int(_veic_cc)} veíc.</span>"
-                f"<span style='color:var(--color-text-secondary);min-width:80px;text-align:right'>{_br_num(_litros_cc,0)} L</span>"
-                f"<div style='width:80px;height:6px;background:var(--color-background-primary);"
+                f"<span style='flex:1;min-width:120px;font-weight:500;color:var(--color-text-primary)'>{_nome_cc}</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:55px;text-align:right'>{_fmt_int(_n_cc)} ab.</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:50px;text-align:right'>{_fmt_int(_veic_cc)} vei.</span>"
+                f"<span style='color:var(--color-text-secondary);min-width:70px;text-align:right'>{_br_num(_litros_cc,0)} L</span>"
+                f"<span style='color:#185FA5;min-width:90px;text-align:right'>⛽ {_br_moeda(_val_cc)}</span>"
+                f"<span style='color:#3B6D11;min-width:90px;text-align:right'>🔧 {_br_moeda(_manut_cc)}</span>"
+                f"<div style='width:60px;height:5px;background:var(--color-background-primary);"
                 f"border-radius:3px;overflow:hidden;flex-shrink:0'>"
                 f"<div style='width:{min(_pct_cc,100):.0f}%;height:100%;background:{_cor_cc};border-radius:3px'></div></div>"
-                f"<span style='font-weight:500;color:var(--color-text-primary);min-width:100px;text-align:right'>"
-                f"{_br_moeda(_val_cc)}</span>"
-                f"<span style='color:var(--color-text-secondary);min-width:90px;text-align:right;font-size:11px'>"
-                f"{_pct_cc:.1f}% do total</span>"
+                f"<span style='font-weight:500;color:var(--color-text-primary);min-width:95px;text-align:right'>"
+                f"{_br_moeda(_total_cc)} ({_pct_cc:.1f}%)</span>"
                 f"</div>",
                 unsafe_allow_html=True)
 
