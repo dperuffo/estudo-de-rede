@@ -3572,6 +3572,10 @@ st.markdown("""
     text-overflow: ellipsis;
 }
 .gf-nav-item.ativo .gf-nav-label { color: #1565c0; }
+.gf-nav-item-menu .gf-nav-icon {
+    font-size: 20px;
+    color: #888780;
+}
 
 /* ── Padding-bottom para conteúdo não ficar atrás da nav ── */
 @media (max-width: 768px) {
@@ -3629,18 +3633,113 @@ st.markdown("""
     'use strict';
 
     var NAV = [
-        { e:'📍', l:'Mapa',    k:'btn_modo_estado' },
-        { e:'🗺️', l:'Rota',   k:'btn_modo_rota' },
-        { e:'🔍', l:'Busca',  k:'btn_modo_consulta' },
-        { e:'🛣️', l:'Roteiro',k:'btn_modo_roteirizacao' },
-        { e:'🔖', l:'Salvas', k:'btn_rotas_salvas' },
-        { e:'📈', l:'Dash',   k:'btn_dashboard' },
-        { e:'💡', l:'Intel',  k:'btn_inteligencia' },
+        { e:'☀️',  l:'Início',  k:'btn_comece_seu_dia' },
+        { e:'⛽',  l:'Postos',  k:'btn_modo_estado' },
+        { e:'▦',   l:'Menu',    k:'__drawer__' },
+        { e:'🔧',  l:'Manut.',  k:'btn_manutencao_frota' },
+        { e:'🤖',  l:'IA',      k:'btn_assistente_ia' },
+    ];
+
+    var DRAWER_GRUPOS = [
+        { titulo: 'Gestão de frota', itens: [
+            { e:'☀️', l:'Comece seu dia',        s:'Resumo operacional',     k:'btn_comece_seu_dia' },
+            { e:'🔧', l:'Manutenção de veículos', s:'Score preditivo',        k:'btn_manutencao_frota' },
+            { e:'🗺️', l:'Rotogramas',             s:'Segurança em rotas',    k:'btn_rotograma' },
+            { e:'🤝', l:'Acordos de preço',       s:'Gestão de contratos',   k:'btn_acordos_preco' },
+        ]},
+        { titulo: 'Financeiro', itens: [
+            { e:'💰', l:'Painel financeiro',      s:'Custos por centro',     k:'btn_painel_financeiro' },
+            { e:'🏢', l:'Centros de custo',       s:'Alocar veículos',       k:'btn_centros_custo' },
+        ]},
+        { titulo: 'Consultas & Análise', itens: [
+            { e:'📍', l:'Por UF / Município',     s:'Preços ANP',            k:'btn_modo_estado' },
+            { e:'🗺️', l:'Por rota',               s:'Consulta de rotas',     k:'btn_modo_rota' },
+            { e:'🔍', l:'Busca por posto',        s:'CNPJ ou nome',          k:'btn_modo_consulta' },
+            { e:'📈', l:'Dashboard',              s:'Visão geral',           k:'btn_dashboard' },
+            { e:'💡', l:'Inteligência',           s:'Score e oportunidades', k:'btn_inteligencia' },
+            { e:'👥', l:'Análise de cliente',     s:'Relatórios completos',  k:'btn_analise_cliente' },
+            { e:'📑', l:'Relatórios',             s:'Exportações',           k:'btn_relatorios' },
+            { e:'🤖', l:'Assistente IA',          s:'Perguntas sobre frota', k:'btn_assistente_ia' },
+        ]},
+        { titulo: 'Configurações', itens: [
+            { e:'🛰️', l:'Telemetria',             s:'Rastreamento',          k:'btn_telemetria' },
+            { e:'⚡',  l:'API & Integrações',      s:'Conectores externos',   k:'btn_api_integracoes' },
+            { e:'🛡️', l:'Admin',                  s:'Gestão de usuários',    k:'btn_admin' },
+            { e:'📚', l:'Documentação',           s:'Guias e tutoriais',     k:'btn_documentacao' },
+        ]},
     ];
 
     var _nav = null;
 
     function isMobile() { return window.innerWidth <= 768; }
+
+    /* ── Drawer mobile ── */
+    function _criarDrawer() {
+        if (document.getElementById('gf-drawer-bg')) return;
+        var bg = document.createElement('div');
+        bg.id = 'gf-drawer-bg';
+        bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.48);z-index:9800;display:none;-webkit-tap-highlight-color:transparent';
+        bg.onclick = function(){ _fecharDrawer(); };
+
+        var dr = document.createElement('div');
+        dr.id = 'gf-drawer';
+        dr.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;z-index:9801;display:none;max-height:80vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)';
+
+        var html = '<div style="width:36px;height:4px;background:#dde3ee;border-radius:2px;margin:12px auto 14px"></div>';
+        html += '<div style="font-size:14px;font-weight:500;color:#1a2540;padding:0 16px 12px;border-bottom:0.5px solid #eee">Todas as funcionalidades</div>';
+
+        DRAWER_GRUPOS.forEach(function(g) {
+            html += '<div style="padding:12px 16px 0">';
+            html += '<div style="font-size:10px;font-weight:500;color:#aaa;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px">' + g.titulo + '</div>';
+            g.itens.forEach(function(item) {
+                html += '<div onclick="_drawerNav(''+item.k+'')" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid #f5f5f5;cursor:pointer;-webkit-tap-highlight-color:transparent">';
+                html += '<div style="width:36px;height:36px;border-radius:9px;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">' + item.e + '</div>';
+                html += '<div style="flex:1"><div style="font-size:13px;font-weight:500;color:#1a2540">' + item.l + '</div><div style="font-size:11px;color:#888">' + item.s + '</div></div>';
+                html += '<svg width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/></svg>';
+                html += '</div>';
+            });
+            html += '</div>';
+        });
+        html += '<div style="height:24px"></div>';
+        dr.innerHTML = html;
+
+        document.body.appendChild(bg);
+        document.body.appendChild(dr);
+    }
+
+    function _abrirDrawer() {
+        _criarDrawer();
+        var bg = document.getElementById('gf-drawer-bg');
+        var dr = document.getElementById('gf-drawer');
+        if (bg) bg.style.display = 'block';
+        if (dr) {
+            dr.style.display = 'block';
+            dr.style.transform = 'translateY(100%)';
+            dr.style.transition = 'transform 0.3s ease';
+            requestAnimationFrame(function(){
+                requestAnimationFrame(function(){
+                    dr.style.transform = 'translateY(0)';
+                });
+            });
+        }
+    }
+
+    function _fecharDrawer() {
+        var bg = document.getElementById('gf-drawer-bg');
+        var dr = document.getElementById('gf-drawer');
+        if (dr) {
+            dr.style.transform = 'translateY(100%)';
+            setTimeout(function(){
+                if (bg) bg.style.display = 'none';
+                if (dr) dr.style.display = 'none';
+            }, 280);
+        }
+    }
+
+    function _drawerNav(key) {
+        _fecharDrawer();
+        setTimeout(function(){ clickSidebarBtn(key); }, 300);
+    }
 
     /* ── Clicar no botão sidebar correspondente ── */
     function clickSidebarBtn(key) {
@@ -3649,7 +3748,6 @@ st.markdown("""
         var b = c.querySelector('button');
         if (b) {
             b.click();
-            /* Feedback háptico se disponível */
             if (window.navigator && window.navigator.vibrate) {
                 window.navigator.vibrate(8);
             }
