@@ -29077,17 +29077,27 @@ elif modo == "👥 Análise de Cliente":
                     )
                 else:
                     # ── Diagnóstico das fontes (expander) ────────────────
-                    _n_fonte_banco  = len(st.session_state.get("rg_gf_cnpjs_cache", set()))
-                    _n_fonte_acordos = len(_ac_cnpjs_rg)
-                    _n_fonte_ss     = len(_ss_cnpjs_rg)
+                    # Diagnóstico baseado na profrotas_abastecimentos
+                    try:
+                        _db_diag = _db_client()
+                        _cnpj_diag_frota = _df["_cnpj_posto"].dropna().astype(str).str.strip()
+                        _n_postos_abast  = _cnpj_diag_frota.nunique()
+                        _n_abast_gf_diag = int(_df["_is_pf_r"].sum()) if "_is_pf_r" in _df.columns else 0
+                        _n_abast_fora    = len(_df) - _n_abast_gf_diag
+                        _pct_gf_diag     = round(_n_abast_gf_diag / max(len(_df),1) * 100, 1)
+                    except Exception:
+                        _n_postos_abast = _n_abast_gf_diag = _n_abast_fora = 0
+                        _pct_gf_diag = 0.0
+
                     with st.expander("🔍 Diagnóstico da rede GF — fontes e cobertura", expanded=False):
                         st.markdown(
-                            f"**Total de CNPJs GF reconhecidos: {_br_int(len(_rg_gf_cnpjs))}**\n\n"
-                            f"- 🗄️ Tabela `postos_gf` (banco Supabase): **{_n_fonte_banco:,}** CNPJs\n"
-                            f"- 🤝 Tabela `acordos_precos` (postos com acordo = GF por definição): **{_n_fonte_acordos:,}** CNPJs\n"
-                            f"- 📄 Arquivo GF em memória (sessão): **{_n_fonte_ss:,}** CNPJs\n\n"
-                            "Se um posto credenciado aparecer como 'Fora da Rede', verifique se o CNPJ "
-                            "consta em pelo menos uma dessas fontes. Você pode pesquisar abaixo:"
+                            f"**Fonte: tabela `profrotas_abastecimentos` — dados reais da frota**\n\n"
+                            f"- ⛽ Postos distintos utilizados: **{_n_postos_abast:,}** CNPJs\n"
+                            f"- ✅ Abastecimentos na Rede GF: **{_n_abast_gf_diag:,}** ({_pct_gf_diag}%)\n"
+                            f"- ❌ Abastecimentos fora da Rede: **{_n_abast_fora:,}** ({round(100-_pct_gf_diag,1)}%)\n\n"
+                            "Um posto é considerado **Rede GF** quando o CNPJ consta na base de postos "
+                            "credenciados carregada em Configurações ou na tabela `postos_gf`. "
+                            "Verifique um CNPJ específico abaixo:"
                         )
                         _diag_cnpj_input = st.text_input(
                             "Verificar CNPJ específico (somente dígitos ou formatado):",
@@ -29095,23 +29105,20 @@ elif modo == "👥 Análise de Cliente":
                             key="rg_diag_cnpj",
                         )
                         if _diag_cnpj_input:
-                            _diag_norm = _normalizar_cnpj14(_diag_cnpj_input)
-                            _diag_em_banco  = _diag_norm in st.session_state.get("rg_gf_cnpjs_cache", set())
-                            _diag_em_acordos = _diag_norm in _ac_cnpjs_rg
-                            _diag_em_ss     = _diag_norm in _ss_cnpjs_rg
-                            _diag_no_set    = _diag_norm in _rg_gf_cnpjs
+                            _diag_norm   = _normalizar_cnpj14(_diag_cnpj_input)
+                            _diag_no_set = _diag_norm in _rg_gf_cnpjs
+                            _diag_em_abast = _diag_norm in set(
+                                _normalizar_cnpj14(str(c)) for c in _df["_cnpj_posto"].dropna()
+                                if "_cnpj_posto" in _df.columns)
                             st.markdown(
                                 f"**CNPJ normalizado:** `{_diag_norm}`\n\n"
-                                f"- 🗄️ Em `postos_gf` (banco): {'✅ SIM' if _diag_em_banco else '❌ NÃO'}\n"
-                                f"- 🤝 Em `acordos_precos`: {'✅ SIM' if _diag_em_acordos else '❌ NÃO'}\n"
-                                f"- 📄 Em arquivo GF (sessão): {'✅ SIM' if _diag_em_ss else '❌ NÃO'}\n"
-                                f"- **Classificado como GF:** {'✅ SIM — Rede GF' if _diag_no_set else '❌ NÃO — Fora da Rede'}"
+                                f"- ⛽ Presente nos abastecimentos da frota: {'✅ SIM' if _diag_em_abast else '❌ NÃO'}\n"
+                                f"- 🏁 Classificado como Rede GF: {'✅ SIM — Rede GF' if _diag_no_set else '❌ NÃO — Fora da Rede'}"
                             )
-                            if not _diag_no_set:
+                            if _diag_em_abast and not _diag_no_set:
                                 st.warning(
-                                    "Este CNPJ não foi encontrado em nenhuma das fontes. "
-                                    "Certifique-se de que: (1) o arquivo GF carregado em Configurações contém este posto, "
-                                    "ou (2) a planilha de Acordos inclui este CNPJ na coluna 'CNPJ do Posto'.",
+                                    "Este posto foi utilizado pela frota mas não consta na base de postos GF. "
+                                    "Verifique em Configurações se o arquivo de postos credenciados está atualizado.",
                                     icon="⚠️",
                                 )
 
