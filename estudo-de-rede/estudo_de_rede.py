@@ -3529,68 +3529,76 @@ st.markdown("""
     padding: 0;
 }
 
-/* ══ MENU MOBILE — sidebar sempre visível em telas pequenas ══ */
+/* ══ MENU MOBILE ══ */
 @media (max-width: 768px) {
-    /* Força sidebar expandido */
-    [data-testid="stSidebar"][aria-expanded="false"] {
-        transform: none !important;
-        display: block !important;
-        visibility: visible !important;
-        margin-left: 0 !important;
-        left: 0 !important;
+    /* Sidebar tela cheia com scroll */
+    section[data-testid="stSidebar"] {
+        position: fixed !important;
+        top: 0 !important; left: 0 !important;
+        width: 100vw !important;
+        height: 100dvh !important;
+        z-index: 9999 !important;
+        overflow-y: auto !important;
     }
-    /* Botão de fechar sidebar — esconde para não confundir */
-    [data-testid="stSidebarCollapseButton"] {
-        display: none !important;
-    }
-    /* Sidebar ocupa largura total */
     section[data-testid="stSidebar"] > div:first-child {
         width: 100vw !important;
         min-width: 100vw !important;
-        padding: 0.5rem 1rem 5rem !important;
+        min-height: 100dvh !important;
+        padding: 3.5rem 1rem 6rem !important;
     }
-    /* Botões do sidebar touch-friendly */
-    section[data-testid="stSidebar"] button {
-        min-height: 48px !important;
-        font-size: 15px !important;
-        margin-bottom: 4px !important;
-    }
-    /* Conteúdo principal — empurra para baixo do sidebar quando expandido */
-    section[data-testid="stMain"] {
-        margin-left: 0 !important;
-    }
-    /* Esconde o conteúdo principal quando sidebar está aberto */
-    [data-testid="stSidebar"][aria-expanded="true"] ~ section[data-testid="stMain"] {
-        display: none !important;
-    }
-    /* Botão hambúrguer — força aparecer */
-    [data-testid="stSidebarCollapsedControl"],
-    button[kind="header"],
-    [data-testid="baseButton-header"] {
+    /* Botão fechar (X) do sidebar — grande e visível */
+    [data-testid="stSidebarCollapseButton"] {
         display: flex !important;
         position: fixed !important;
-        top: 8px !important;
-        left: 8px !important;
+        top: 10px !important;
+        right: 12px !important;
         z-index: 99999 !important;
         background: #0b3d6b !important;
         border-radius: 10px !important;
-        width: 44px !important;
-        height: 44px !important;
+        width: 44px !important; height: 44px !important;
         align-items: center !important;
         justify-content: center !important;
         border: none !important;
         box-shadow: 0 2px 12px rgba(11,61,107,0.4) !important;
     }
-    [data-testid="stSidebarCollapsedControl"] *,
-    button[kind="header"] * {
-        color: white !important;
-        fill: white !important;
-        stroke: white !important;
+    [data-testid="stSidebarCollapseButton"] svg {
+        fill: white !important; stroke: white !important;
+        width: 22px !important; height: 22px !important;
     }
-    /* Padding topo do conteúdo para não ficar atrás do botão */
+    /* Botão abrir sidebar (hambúrguer) */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: flex !important;
+        position: fixed !important;
+        top: 10px !important; left: 12px !important;
+        z-index: 99999 !important;
+        background: #0b3d6b !important;
+        border-radius: 10px !important;
+        width: 44px !important; height: 44px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border: none !important;
+        box-shadow: 0 2px 12px rgba(11,61,107,0.4) !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] svg {
+        fill: white !important; stroke: white !important;
+        width: 22px !important; height: 22px !important;
+    }
+    /* Botões do menu touch-friendly */
+    section[data-testid="stSidebar"] button {
+        min-height: 48px !important;
+        font-size: 15px !important;
+        width: 100% !important;
+        margin-bottom: 4px !important;
+    }
+    /* Padding topo conteúdo */
     .main .block-container,
     [data-testid="stMain"] .block-container {
         padding-top: 60px !important;
+        padding-bottom: 74px !important;
+    }
+    /* Conteúdo principal não some quando sidebar abre */
+    section[data-testid="stMain"] {
+        margin-left: 0 !important;
     }
 }
 .gf-nav-item {
