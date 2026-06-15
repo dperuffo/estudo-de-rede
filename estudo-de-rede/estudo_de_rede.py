@@ -19581,48 +19581,7 @@ if _var_df_global is not None and not _var_df_global.empty:
 
 modo = st.session_state.get("modo_selecionado", "📍 Por UF/Município")
 
-# ── Menu mobile — st.selectbox nativo (só aparece em mobile via CSS) ──
-_MODOS_MOBILE = {
-    "☀️ Comece seu dia":        "☀️ Comece seu dia",
-    "🔧 Manutenção de veículos": "🔧 Manutenção de Frota",
-    "🗺️ Rotogramas":             "🗺️ Rotograma",
-    "🤝 Acordos de preço":       "🤝 Acordos de Preço",
-    "💰 Painel financeiro":      "💰 Painel Financeiro",
-    "🏢 Centros de custo":       "🏢 Centros de Custo",
-    "📍 Por UF / Município":     "📍 Por UF/Município",
-    "🗺️ Por rota":               "🗺️ Por Rota",
-    "🔍 Busca por posto":        "🔍 Consulta por Posto",
-    "📈 Dashboard":              "📈 Dashboard",
-    "👥 Análise de cliente":     "👥 Análise de Cliente",
-    "🤖 Assistente IA":          "🤖 Assistente IA",
-    "🛰️ Telemetria":             "🛰️ Telemetria",
-    "📚 Documentação":           "📚 Documentação",
-}
-# Mostra só no mobile via CSS — st.selectbox nativo funciona em qualquer contexto
-st.markdown("""<style>
-div[data-testid="stSelectbox"][data-key="mobile_nav_select"] {
-    display: none;
-    position: sticky; top: 0; z-index: 9990;
-    background: #0b3d6b; padding: 8px; margin-bottom: 1rem;
-}
-@media (max-width: 768px) {
-    div[data-testid="stSelectbox"][data-key="mobile_nav_select"] {
-        display: block !important;
-    }
-}
-</style>""", unsafe_allow_html=True)
 
-_label_atual = next((k for k,v in _MODOS_MOBILE.items() if v == modo), list(_MODOS_MOBILE.keys())[0])
-_mobile_sel = st.selectbox(
-    "Navegar para",
-    options=list(_MODOS_MOBILE.keys()),
-    index=list(_MODOS_MOBILE.keys()).index(_label_atual),
-    key="mobile_nav_select",
-    label_visibility="collapsed",
-)
-if _MODOS_MOBILE[_mobile_sel] != modo:
-    st.session_state["modo_selecionado"] = _MODOS_MOBILE[_mobile_sel]
-    st.rerun()
 
 # ── Variáveis de parâmetros da sidebar (fallback seguro) ──────────────
 # Estas variáveis são normalmente definidas pelos widgets da sidebar.
