@@ -4535,7 +4535,7 @@ def _auth_login_page():
                 use_container_width=True,
                 pkce="S256",
                 icon="https://www.google.com/favicon.ico",
-                key="oauth_btn_google",
+                key="oauth_google_fixed",
             )
             if _res_g and "token" in _res_g:
                 try:
@@ -4577,7 +4577,7 @@ def _auth_login_page():
                 scope="openid email profile User.Read",
                 use_container_width=True,
                 pkce="S256",
-                key="oauth_btn_microsoft",
+                key="oauth_ms_fixed",
             )
             if _res_ms and "token" in _res_ms:
                 try:
