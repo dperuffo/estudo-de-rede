@@ -33433,14 +33433,16 @@ elif modo == "💰 Painel Financeiro":
                 _todas_emp_fin = (_db_client().table("empresas")
                     .select("id,razao_social,cnpj").order("razao_social").execute().data or [])
             _emp_opts_fin = {
-                (str(e.get("razao_social","?")) + " — " + str(e.get("cnpj",""))): e
+                (str(e.get("nome") or e.get("razao_social") or "?") + " — " + str(e.get("cnpj",""))): e
                 for e in _todas_emp_fin if e.get("cnpj")
             }
             if _emp_opts_fin:
                 _idx_fin = 0
                 if _cnpj_fin:
                     _keys_fin = list(_emp_opts_fin.keys())
-                    _idx_fin = next((i for i,k in enumerate(_keys_fin) if _cnpj_fin in k), 0)
+                    _cnpj_norm = _cnpj_fin.replace(".","").replace("/","").replace("-","")
+                    _idx_fin = next((i for i,k in enumerate(_keys_fin)
+                                     if _cnpj_norm in k.replace(".","").replace("/","").replace("-","")), 0)
                 _sel_emp_fin = st.selectbox(
                     "Selecionar cliente",
                     options=list(_emp_opts_fin.keys()),
@@ -33450,7 +33452,7 @@ elif modo == "💰 Painel Financeiro":
                 )
                 _empresa_fin = _emp_opts_fin[_sel_emp_fin]
                 _cnpj_fin    = _empresa_fin.get("cnpj","") or ""
-                _nome_fin    = _empresa_fin.get("razao_social","") or ""
+                _nome_fin    = _empresa_fin.get("nome") or _empresa_fin.get("razao_social","") or ""
             else:
                 st.info("Nenhuma empresa cadastrada.")
         except Exception as _e_emp_fin:
@@ -33501,6 +33503,9 @@ elif modo == "💰 Painel Financeiro":
             key="fin_periodo", label_visibility="collapsed")
     _dt_ini_fin, _dt_fim_fin = _periodos_fin[_periodo_fin]
 
+    # ── Normaliza CNPJ para query (remove pontos, barras e traços) ──
+    _cnpj_fin_norm = _cnpj_fin.replace(".","").replace("/","").replace("-","").strip() if _cnpj_fin else ""
+
     # ── Carrega dados de abastecimentos ──────────────────────────
     try:
         _db_fin = _db_client()
@@ -33512,8 +33517,8 @@ elif modo == "💰 Painel Financeiro":
             .gte("data_abastecimento", _dt_ini_fin)
             .lte("data_abastecimento", _dt_fim_fin + "T23:59:59")
             .limit(20000))
-        if _cnpj_fin:
-            _q_fin = _q_fin.eq("cnpj_frota", _cnpj_fin)
+        if _cnpj_fin_norm:
+            _q_fin = _q_fin.eq("cnpj_frota", _cnpj_fin_norm)
         _df_fin = pd.DataFrame((_q_fin.execute()).data or [])
     except Exception as _e_fin:
         _df_fin = pd.DataFrame()
@@ -33676,7 +33681,7 @@ elif modo == "💰 Painel Financeiro":
                     .not_.is_("pv_cnpj", "null")
                     .limit(10000))
                 if _emp_cnpj_fp:
-                    _q_fp = _q_fp.eq("cnpj_frota", _emp_cnpj_fp)
+                    _q_fp = _q_fp.eq("cnpj_frota", _emp_cnpj_fp.replace(".","").replace("/","").replace("-",""))
                 _df_fp = pd.DataFrame((_q_fp.execute()).data or [])
 
                 if not _df_fp.empty:
@@ -33946,7 +33951,7 @@ elif modo == "☀️ Comece seu dia":
                     .lte("data_abastecimento", _dt_fim_comb + "T23:59:59")
                     .limit(10000))
                 if _emp_cnpj_comb:
-                    _q_comb = _q_comb.eq("cnpj_frota", _emp_cnpj_comb)
+                    _q_comb = _q_comb.eq("cnpj_frota", _emp_cnpj_comb.replace(".","").replace("/","").replace("-",""))
                 _df_comb = pd.DataFrame((_q_comb.execute()).data or [])
                 if not _df_comb.empty and "item_nome" in _df_comb.columns:
                     _df_comb["_qtd"]  = pd.to_numeric(_df_comb["item_quantidade"],    errors="coerce").fillna(0)
