@@ -1309,6 +1309,7 @@ def _render_admin_usuarios():
 # ── Rotas ──────────────────────────────────────────────────────────
 
 @st.cache_data(show_spinner=False, ttl=600)  # 10 min
+@st.cache_data(show_spinner=False, ttl=10)
 def _db_carregar_rotas() -> list:
     """Carrega rotas do Supabase. Fallback para JSON local."""
     db = _db_client()
@@ -1330,7 +1331,8 @@ def _db_carregar_rotas() -> list:
 def _db_salvar_rota(nome: str, tipo: str, dados: dict) -> bool:
     """Salva rota no Supabase. Fallback para JSON local."""
     db = _db_client()
-    _id = f"{int(time.time())}_{nome[:8]}"
+    import uuid as _uuid_rota
+    _id = str(_uuid_rota.uuid4())  # UUID garante unicidade sem colisão
     # Garante que dados é JSON puro (converte numpy, datetime, etc.)
     try:
         _dados_json = _json_mod.loads(_json_mod.dumps(dados, default=str))
@@ -20088,6 +20090,7 @@ if modo == "📍 Por UF/Município":
                     ),
                 }
                 if _salvar_rota_nova(_nome_salvar_m1 or _nome_sugerido_m1, "estado", _dados_m1):
+                    _db_carregar_rotas.clear()
                     st.toast(f"✅ Consulta **{_nome_salvar_m1 or _nome_sugerido_m1}** salva!", icon="💾")
                 else:
                     st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
@@ -21513,6 +21516,7 @@ elif modo == "🗺️ Por Rota":
                     "lon_dest":     lon_dest,
                 }
                 if _salvar_rota_nova(_nome_salvar_m2 or _nome_sugerido_m2, "rota", _dados_m2):
+                    _db_carregar_rotas.clear()
                     st.toast(f"✅ Rota **{_nome_salvar_m2 or _nome_sugerido_m2}** salva!", icon="💾")
                 else:
                     st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
@@ -22116,6 +22120,7 @@ elif modo == "🔍 Consulta por Posto":
                         "_m3_uf":    _m3_uf,
                     }
                     if _salvar_rota_nova(_nome_salvar_m3 or _nome_sugerido_m3, "busca", _dados_m3):
+                        _db_carregar_rotas.clear()
                         st.toast(f"✅ Busca **{_nome_salvar_m3 or _nome_sugerido_m3}** salva!", icon="💾")
                     else:
                         st.error("❌ Não foi possível salvar. Verifique permissões do diretório.")
@@ -22665,6 +22670,7 @@ elif modo == "🔖 Rotas Salvas":
                 if st.button("🗑️", key=_btn_key_del, use_container_width=True,
                              help=f"Excluir '{_rv_nome}'"):
                     if _deletar_rota(_rv_id):
+                        _db_carregar_rotas.clear()
                         st.toast(f"🗑️ **{_rv_nome}** excluída.", icon="✅")
                         st.rerun()
                     else:
@@ -22680,6 +22686,7 @@ elif modo == "🔖 Rotas Salvas":
                          key="btn_del_todas",
                          help="Remove permanentemente todas as rotas salvas"):
                 if _gravar_rotas_salvas([]):
+                    _db_carregar_rotas.clear()
                     st.toast("🗑️ Todas as consultas foram excluídas.", icon="✅")
                     st.rerun()
                 else:
