@@ -33412,19 +33412,57 @@ elif modo == "🏢 Centros de Custo":
 
 elif modo == "💰 Painel Financeiro":
     _doc_tela("💰 Painel Financeiro")
-    _empresa_fin  = st.session_state.get("_empresa_ativa") or {}
-    _cnpj_fin     = _empresa_fin.get("cnpj","") or ""
-    _nome_fin     = _empresa_fin.get("razao_social","") or "Frota"
+    _perfil_fin  = st.session_state.get("_auth_perfil","")
+    _empresa_fin = st.session_state.get("_empresa_ativa") or {}
+    _cnpj_fin    = _empresa_fin.get("cnpj","") or ""
+    _nome_fin    = _empresa_fin.get("razao_social","") or ""
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
         "background:linear-gradient(135deg,#0b3d6b,#185FA5);"
         "-webkit-background-clip:text;-webkit-text-fill-color:transparent'>"
-        "💰 Painel Financeiro — Operação de Frota</h2>"
-        f"<p style='color:#555;font-size:13px;margin:0 0 16px'>"
-        f"{_nome_fin} · CNPJ: {_cnpj_fin}</p>",
+        "\U0001f4b0 Painel Financeiro \u2014 Opera\u00e7\u00e3o de Frota</h2>",
         unsafe_allow_html=True,
     )
+
+    # ── Admin: seleciona cliente; outros: vê sua empresa ─────────
+    if _perfil_fin == "admin":
+        try:
+            _todas_emp_fin = st.session_state.get("_todas_empresas", [])
+            if not _todas_emp_fin:
+                _todas_emp_fin = (_db_client().table("empresas")
+                    .select("id,razao_social,cnpj").order("razao_social").execute().data or [])
+            _emp_opts_fin = {
+                (str(e.get("razao_social","?")) + " — " + str(e.get("cnpj",""))): e
+                for e in _todas_emp_fin if e.get("cnpj")
+            }
+            if _emp_opts_fin:
+                _idx_fin = 0
+                if _cnpj_fin:
+                    _keys_fin = list(_emp_opts_fin.keys())
+                    _idx_fin = next((i for i,k in enumerate(_keys_fin) if _cnpj_fin in k), 0)
+                _sel_emp_fin = st.selectbox(
+                    "Selecionar cliente",
+                    options=list(_emp_opts_fin.keys()),
+                    index=_idx_fin,
+                    key="fin_empresa_sel",
+                    label_visibility="collapsed",
+                )
+                _empresa_fin = _emp_opts_fin[_sel_emp_fin]
+                _cnpj_fin    = _empresa_fin.get("cnpj","") or ""
+                _nome_fin    = _empresa_fin.get("razao_social","") or ""
+            else:
+                st.info("Nenhuma empresa cadastrada.")
+        except Exception as _e_emp_fin:
+            st.warning(f"Erro ao carregar empresas: {_e_emp_fin}")
+    else:
+        if _nome_fin and _cnpj_fin:
+            st.markdown(
+                "<p style='color:#555;font-size:13px;margin:0 0 8px'>"
+                + f"<b>{_nome_fin}</b> · CNPJ: {_cnpj_fin}</p>",
+                unsafe_allow_html=True)
+        elif not _cnpj_fin:
+            st.warning("Empresa não identificada. Fale com o administrador.")
 
     # ── Seletor de período ────────────────────────────────────────
     from datetime import datetime as _dt_fin, timedelta as _td_fin, timezone as _tz_fin, date as _date_fin
