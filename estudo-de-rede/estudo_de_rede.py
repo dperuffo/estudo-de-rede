@@ -33626,13 +33626,39 @@ elif modo == "💰 Painel Financeiro":
                     unsafe_allow_html=True)
 
         with _fc2:
-            # Top 5 postos por custo — usa vtot quando disponível, senão calcula qtd × vun
-            _df_cc_postos = _df_cc.copy()
-            _df_cc_postos["_valor_calc"] = _df_cc_postos["_vtot"].fillna(
-                _df_cc_postos["_qtd"] * _df_cc_postos["_vun"])
-            _postos_cc = (_df_cc_postos.groupby(["pv_cnpj","pv_razao_social","pv_municipio","pv_uf"])
-                .agg(_n=("_qtd","count"), _valor=("_valor_calc","sum"), _litros=("_qtd","sum"))
-                .reset_index().nlargest(5,"_valor"))
+            # Top 5 postos — busca direta no banco sem depender de _df_cc
+            try:
+                _db_fp = _db_client()
+                _emp_cnpj_fp = (_empresa_fin.get("cnpj") or "").strip()
+                _q_fp = (_db_fp.table("profrotas_abastecimentos")
+                    .select("pv_cnpj,pv_razao_social,pv_municipio,pv_uf,item_quantidade,item_valor_total,item_valor_unitario")
+                    .eq("item_tipo", 1)
+                    .gte("data_abastecimento", _dt_ini_fin)
+                    .lte("data_abastecimento", _dt_fim_fin + "T23:59:59")
+                    .not_.is_("pv_cnpj", "null")
+                    .limit(10000))
+                if _emp_cnpj_fp:
+                    _q_fp = _q_fp.eq("cnpj_frota", _emp_cnpj_fp)
+                _df_fp = pd.DataFrame((_q_fp.execute()).data or [])
+
+                if not _df_fp.empty:
+                    _df_fp["_qtd_fp"]  = pd.to_numeric(_df_fp["item_quantidade"],     errors="coerce").fillna(0)
+                    _df_fp["_vun_fp"]  = pd.to_numeric(_df_fp["item_valor_unitario"],  errors="coerce")
+                    _df_fp["_vtot_fp"] = pd.to_numeric(_df_fp["item_valor_total"],     errors="coerce")
+                    # Calcula valor: usa total direto ou qtd × unitário
+                    _df_fp["_val_fp"] = _df_fp["_vtot_fp"].where(
+                        _df_fp["_vtot_fp"].notna() & (_df_fp["_vtot_fp"] > 0),
+                        _df_fp["_qtd_fp"] * _df_fp["_vun_fp"]
+                    ).fillna(0)
+                    _df_fp = _df_fp[_df_fp["pv_cnpj"].astype(str).str.len() > 3]
+                    _postos_cc = (_df_fp.groupby(["pv_cnpj","pv_razao_social","pv_municipio","pv_uf"], as_index=False)
+                        .agg(_n=("_qtd_fp","count"), _valor=("_val_fp","sum"), _litros=("_qtd_fp","sum"))
+                        .nlargest(5,"_valor"))
+                else:
+                    _postos_cc = pd.DataFrame()
+            except Exception as _e_fp:
+                _postos_cc = pd.DataFrame()
+                st.caption(f"Erro postos: {str(_e_fp)[:60]}")
             st.markdown("**Top 5 postos por valor gasto**")
             for _mi2, (_, _rp2) in enumerate(zip(["🥇","🥈","🥉","4","5"], _postos_cc.itertuples())):
                 _rs2  = str(getattr(_rp2,"pv_razao_social","") or "").strip()[:24]
