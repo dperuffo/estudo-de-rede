@@ -4634,6 +4634,7 @@ def _auth_login_page():
                 use_container_width=True,
                 pkce="S256",
                 key="oauth_ms_fixed",
+                extras_params={"prompt": "select_account"},
             )
             if _res_ms and "token" in _res_ms:
                 try:
@@ -16229,7 +16230,8 @@ with st.sidebar:
         ):
             for _k in [k for k in st.session_state
                        if k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
-                                        "_admin_empresa", "_github_sync", "_mfa"))]:
+                                        "_admin_empresa", "_github_sync", "_mfa",
+                                        "token", "oauth"))]:
                 del st.session_state[_k]
             st.session_state.pop("_last_activity_ts", None)
             st.rerun()
