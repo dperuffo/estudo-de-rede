@@ -4734,6 +4734,9 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
                 # E-mail autenticado mas sem perfil cadastrado → trata como 'viewer' restrito
                 st.session_state["_auth_perfil"]         = "viewer"
                 st.session_state["_auth_cnpj_vinculado"] = None
+                # Notifica o admin — registra solicitação de acesso pendente
+                _nome_solic = (st.session_state.get("_auth_user") or {}).get("name", "")
+                _solic_registrar(_email_perm, _nome_solic)
 
 # ── A04: Verificar timeout de sessão por inatividade ────────────────
 if not _sec_verificar_timeout_sessao():
@@ -17299,7 +17302,9 @@ with st.sidebar:
         st.session_state["_tour_ativo"] = True
         st.rerun()
     if _auth_tem_permissao("aba_admin"):
-        _nav_btn("🛡️ Admin",                 "🛡️ Admin",                 "admin")
+        _n_solic_pend = len(_solic_listar_pendentes())
+        _label_admin = f"🛡️ Admin{f' 🔴 ({_n_solic_pend})' if _n_solic_pend else ''}"
+        _nav_btn(_label_admin, "🛡️ Admin", "admin")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
@@ -19825,6 +19830,59 @@ def _math_isnan(v):
     try:
         import math; return math.isnan(v)
     except Exception: return False
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  Solicitações de Acesso — notifica admin sobre novos usuários
+# ═══════════════════════════════════════════════════════════════════
+
+def _solic_registrar(email: str, nome: str = "") -> None:
+    """Registra uma solicitação de acesso pendente (idempotente por email)."""
+    try:
+        _db = _db_client()
+        if not _db:
+            return
+        _existe = (_db.table("solicitacoes_acesso")
+                   .select("id").eq("email", email.lower())
+                   .eq("status", "pendente").limit(1).execute().data)
+        if _existe:
+            return
+        _db.table("solicitacoes_acesso").insert({
+            "email": email.lower(),
+            "nome":  nome or "",
+            "status": "pendente",
+        }).execute()
+    except Exception:
+        pass
+
+
+@st.cache_data(show_spinner=False, ttl=30)
+def _solic_listar_pendentes() -> list:
+    """Lista solicitações de acesso pendentes."""
+    try:
+        _db = _db_client()
+        if not _db:
+            return []
+        return (_db.table("solicitacoes_acesso")
+                .select("*").eq("status", "pendente")
+                .order("criado_em", desc=True).execute().data or [])
+    except Exception:
+        return []
+
+
+def _solic_resolver(solic_id: str, resolvido_por: str) -> bool:
+    """Marca uma solicitação como resolvida."""
+    try:
+        _db = _db_client()
+        _db.table("solicitacoes_acesso").update({
+            "status": "resolvido",
+            "resolvido_em": _agora(),
+            "resolvido_por": resolvido_por,
+        }).eq("id", solic_id).execute()
+        _solic_listar_pendentes.clear()
+        return True
+    except Exception:
+        return False
 
 # ── Função central de indicadores de manutenção ─────────────────────────────
 @st.cache_data(show_spinner=False, ttl=60)
