@@ -26608,6 +26608,7 @@ elif modo == "📚 Documentação":
             "fonte": "Abastecimentos unificados + tabela manutencoes + acordos_precos + rotogramas do Supabase. Período configurável pelo gestor.",
             "regras": "Alertas ANP: abastecimentos >5% acima da referência por UF. Manutenções urgentes: status=urgente ou vencida. Acordos: vencidos ou que vencem em 30 dias.",
             "indicadores": "KPIs de combustível (volume, gasto, preço médio, ticket). Top 5 veículos por consumo km/L. Top 5 postos por transações. Status de manutenções e acordos.",
+            "tags": ["dashboard", "diário", "resumo", "alertas"],
         },
         "🏢 Centros de Custo": {
             "objetivo": "CRUD de centros de custo com alocação de veículos. Permite segmentar custos operacionais por unidade, filial ou grupo de veículos.",
@@ -26625,6 +26626,7 @@ elif modo == "📚 Documentação":
             "fonte": "Tabela manutencoes_realizadas do Supabase, filtrada por CNPJ da frota.",
             "regras": "Crítico: última manutenção há mais de 120 dias. Alerta: entre 75 e 120 dias. Em dia: menos de 75 dias. Lista ordenada sempre com críticos no topo.",
             "indicadores": "Total de registros, críticos, em alerta, em dia e custo total. Filtro por status e busca por placa ou tipo.",
+            "tags": ["manutenção", "veículos", "alertas", "score"],
         },
         "🤝 Acordos de Preço": {
             "objetivo": "Cadastre preços negociados com postos para comparação automática com os abastecimentos reais da frota.",
