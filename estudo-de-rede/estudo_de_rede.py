@@ -1346,6 +1346,37 @@ def _render_admin_usuarios():
     # ── Formulário: Adicionar / Editar ────────────────────────────
     st.markdown("#### ➕ Adicionar / Editar Usuário")
 
+    # ── Seletor de usuário existente — pré-popula o formulário ────
+    _usuarios_existentes = _admin_listar_usuarios()
+    _opcoes_editar = {"➕ Novo usuário": None}
+    for _ue in _usuarios_existentes:
+        _lbl_ue = f"{_ue.get('nome') or _ue.get('email')} ({_ue.get('email')}) — {_ue.get('perfil','?')}"
+        _opcoes_editar[_lbl_ue] = _ue
+
+    _editar_sel_lbl = st.selectbox(
+        "Editar usuário existente (ou crie um novo abaixo)",
+        options=list(_opcoes_editar.keys()),
+        key="admin_user_editar_sel",
+        help="Selecione um usuário para carregar seus dados atuais e evitar sobrescrever por engano.",
+    )
+    _usuario_editando = _opcoes_editar[_editar_sel_lbl]
+
+    # Detecta troca de seleção para recarregar os valores no formulário
+    _chave_edicao_atual = _usuario_editando.get("email") if _usuario_editando else "__novo__"
+    if st.session_state.get("_admin_user_edicao_ativa") != _chave_edicao_atual:
+        st.session_state["_admin_user_edicao_ativa"] = _chave_edicao_atual
+        st.session_state["form_perfil_sel"] = (_usuario_editando or {}).get("perfil", "posto")
+        st.session_state["_prefill_email"]   = (_usuario_editando or {}).get("email", "")
+        st.session_state["_prefill_nome"]    = (_usuario_editando or {}).get("nome", "")
+        st.session_state["_prefill_cnpj"]    = (_usuario_editando or {}).get("cnpj_vinculado") or ""
+        st.session_state["_prefill_empresa"] = (_usuario_editando or {}).get("empresa_nome") or ""
+        st.session_state["_prefill_ativo"]   = (_usuario_editando or {}).get("ativo", True)
+        st.rerun()
+
+    if _usuario_editando:
+        st.info(f"✏️ Editando **{_usuario_editando.get('email')}** — os campos abaixo já estão "
+                f"preenchidos com os dados atuais. Altere apenas o que for necessário.", icon="✏️")
+
     # Seletor de perfil FORA do form para controlar campos dinamicamente
     _u_perfil = st.selectbox("Perfil *", [
         "posto", "gestor_frota", "analista", "admin"
@@ -1358,20 +1389,26 @@ def _render_admin_usuarios():
 
     _precisa_cnpj = _u_perfil in ("posto", "gestor_frota")
 
-    with st.form("form_add_usuario", clear_on_submit=True):
+    with st.form("form_add_usuario", clear_on_submit=False):
         _c1, _c2 = st.columns(2)
         with _c1:
-            _u_email   = st.text_input("E-mail Google *", placeholder="usuario@empresa.com")
-            _u_nome    = st.text_input("Nome", placeholder="João Silva")
+            _u_email   = st.text_input("E-mail Google *",
+                                       value=st.session_state.get("_prefill_email", ""),
+                                       placeholder="usuario@empresa.com")
+            _u_nome    = st.text_input("Nome",
+                                       value=st.session_state.get("_prefill_nome", ""),
+                                       placeholder="João Silva")
             st.markdown(
                 f"**Perfil selecionado:** { {'admin':'🔴 Admin','analista':'🟠 Analista','gestor_frota':'🟢 Gestor de Frota','posto':'🔵 Posto / Rede'}.get(_u_perfil,_u_perfil) }"
             )
         with _c2:
             if _precisa_cnpj:
                 _u_cnpj    = st.text_input("CNPJ Vinculado *",
+                                           value=st.session_state.get("_prefill_cnpj", ""),
                                            placeholder="CNPJ do posto ou empresa de frota",
                                            help="Somente dígitos ou formatado (XX.XXX.XXX/XXXX-XX)")
                 _u_empresa = st.text_input("Nome da Empresa / Posto *",
+                                           value=st.session_state.get("_prefill_empresa", ""),
                                            placeholder="Ex: Posto Central Ltda")
             else:
                 _u_cnpj    = ""
@@ -1381,9 +1418,11 @@ def _render_admin_usuarios():
                     "— CNPJ e empresa não são necessários.",
                     icon="ℹ️",
                 )
-            _u_ativo = st.checkbox("Usuário ativo", value=True)
-        _sub = st.form_submit_button("💾 Salvar Usuário", type="primary",
-                                     use_container_width=True)
+            _u_ativo = st.checkbox("Usuário ativo",
+                                   value=st.session_state.get("_prefill_ativo", True))
+        _sub = st.form_submit_button(
+            "💾 Salvar Usuário" if not _usuario_editando else "💾 Salvar Alterações",
+            type="primary", use_container_width=True)
         if _sub:
             _email_ok, _email_err = _sec_validar_email(_u_email)
             _cnpj_ok  = True
@@ -1403,6 +1442,10 @@ def _render_admin_usuarios():
                                     f"Usuário salvo: {_sec_sanitizar(_u_email)} perfil={_u_perfil}",
                                     "INFO")
                     st.success(_msg)
+                    # Limpa o estado de edição para recomeçar do zero
+                    for _k_clear in ["_admin_user_edicao_ativa", "_prefill_email", "_prefill_nome",
+                                      "_prefill_cnpj", "_prefill_empresa", "_prefill_ativo"]:
+                        st.session_state.pop(_k_clear, None)
                     st.rerun()
                 else:
                     st.error(f"Erro: {_msg}")
