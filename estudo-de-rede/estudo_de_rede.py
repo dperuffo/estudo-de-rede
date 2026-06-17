@@ -33673,6 +33673,7 @@ elif modo == "💰 Painel Financeiro":
             try:
                 _db_fp = _db_client()
                 _emp_cnpj_fp = (_empresa_fin.get("cnpj") or "").strip()
+                st.caption(f"🔧 DEBUG: cnpj={_emp_cnpj_fp!r} dt_ini={_dt_ini_fin!r} dt_fim={_dt_fim_fin!r}")
                 _q_fp = (_db_fp.table("profrotas_abastecimentos")
                     .select("pv_cnpj,pv_razao_social,pv_municipio,pv_uf,item_quantidade,item_valor_total,item_valor_unitario")
                     .eq("item_tipo", 1)
