@@ -11260,14 +11260,28 @@ def _buscar_posto_completo(termo: str, uf: str = "") -> tuple[pd.DataFrame, str]
         # Prioridade 1: postos ANP locais (rápido, sem API)
         if not _anp_df_busca.empty:
             _t_norm = _anp_norm(termo)
+
+            # Cache de colunas normalizadas — evita reprocessar ~38k linhas a cada busca.
+            # Vinculado ao id() do DataFrame: se os dados ANP forem recarregados,
+            # o cache é automaticamente invalidado (novo id).
+            _cache_key_norm = f"_anp_norm_cache_{id(_anp_df_busca)}"
+            _norm_cols_cache = st.session_state.get(_cache_key_norm)
+            if _norm_cols_cache is None:
+                _norm_cols_cache = {}
+                for _col in ["razaoSocial", "nome", "nomeFantasia"]:
+                    if _col in _anp_df_busca.columns:
+                        _norm_cols_cache[_col] = (
+                            _anp_df_busca[_col].fillna("").apply(_anp_norm)
+                        )
+                # Limpa caches antigos (mantém só o mais recente) para não acumular memória
+                for _k_old in list(st.session_state.keys()):
+                    if str(_k_old).startswith("_anp_norm_cache_") and _k_old != _cache_key_norm:
+                        st.session_state.pop(_k_old, None)
+                st.session_state[_cache_key_norm] = _norm_cols_cache
+
             _mask = pd.Series(False, index=_anp_df_busca.index)
-            for _col in ["razaoSocial", "nome", "nomeFantasia"]:
-                if _col in _anp_df_busca.columns:
-                    _mask |= (
-                        _anp_df_busca[_col].fillna("")
-                        .apply(_anp_norm)
-                        .str.contains(_t_norm, regex=False, na=False)
-                    )
+            for _col, _norm_series in _norm_cols_cache.items():
+                _mask |= _norm_series.str.contains(_t_norm, regex=False, na=False)
             if uf:
                 _mask &= (
                     _anp_df_busca["uf"].fillna("").str.upper().str.strip() == uf.upper()
