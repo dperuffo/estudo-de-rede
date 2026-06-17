@@ -4592,6 +4592,7 @@ def _auth_login_page():
                 pkce="S256",
                 icon="https://www.google.com/favicon.ico",
                 key="oauth_google_fixed",
+                extras_params={"prompt": "select_account"},
             )
             if _res_g and "token" in _res_g:
                 try:
