@@ -22332,14 +22332,12 @@ elif modo == "🔍 Consulta por Posto":
                     # Tabela para múltiplos resultados
                     _cols_m3 = [c for c in [
                         "razaoSocial", "cnpj", "distribuidora",
-                        "_pro_frotas", "_cercado",
+                        "_pro_frotas",
                         "municipio", "uf", "endereco", "cep",
                     ] if c in _df_m3.columns]
                     _df_exib_m3 = _df_m3[_cols_m3].copy()
                     if "_pro_frotas" in _df_exib_m3.columns:
                         _df_exib_m3 = _df_exib_m3.rename(columns={"_pro_frotas": "Gestão de Frotas ⭐"})
-                    if "_cercado" in _df_exib_m3.columns:
-                        _df_exib_m3 = _df_exib_m3.rename(columns={"_cercado": "Cercado ⚠️"})
                     st.dataframe(_df_exib_m3, use_container_width=True, height=450)
                     st.download_button(
                         "⬇️ Baixar resultados em CSV",
