@@ -24697,6 +24697,40 @@ elif modo == "🛡️ Admin":
 
     st.markdown("## 🔐 Painel de Administração")
 
+
+    # ── Banner de solicitações de acesso pendentes ──────────────────
+    _solic_pend = _solic_listar_pendentes()
+    if _solic_pend:
+        st.markdown(
+            f"<div style='background:linear-gradient(90deg,#FFF3E0,#FFFDE7);"
+            f"border:1px solid #FFB300;border-radius:10px;padding:12px 16px;"
+            f"margin-bottom:14px'>"
+            f"<b>🔔 {len(_solic_pend)} novo(s) usuário(s) aguardando configuração</b><br>"
+            f"<span style='font-size:12px;color:#666'>Esses usuários fizeram login mas ainda não "
+            f"têm perfil, empresa ou permissões definidas.</span></div>",
+            unsafe_allow_html=True,
+        )
+        with st.expander(f"📋 Ver {len(_solic_pend)} solicitação(ões) pendente(s)", expanded=True):
+            for _sp in _solic_pend:
+                _sp_email = _sp.get("email","")
+                _sp_nome  = _sp.get("nome","") or "—"
+                _sp_data  = str(_sp.get("criado_em",""))[:16].replace("T"," ")
+                _spc1, _spc2, _spc3 = st.columns([3,2,1])
+                with _spc1:
+                    st.markdown(f"**{_sp_nome}**  \n`{_sp_email}`")
+                with _spc2:
+                    st.caption(f"Solicitado em {_sp_data}")
+                with _spc3:
+                    if st.button("✅ Resolver", key=f"btn_solic_resolver_{_sp['id']}",
+                                 use_container_width=True,
+                                 help="Marcar como resolvido após criar o perfil do usuário"):
+                        _admin_email_atual = (st.session_state.get("_auth_user") or {}).get("email","")
+                        if _solic_resolver(_sp["id"], _admin_email_atual):
+                            st.toast(f"Solicitação de {_sp_email} resolvida!", icon="✅")
+                            st.rerun()
+            st.caption("💡 Crie o perfil do usuário na aba **Perfis & Permissões** abaixo, "
+                       "depois clique em **Resolver** para limpar o alerta.")
+
     _adm_tab_users, _adm_tab_emp, _adm_tab_acesso, _adm_tab_dom, _adm_tab_logs, _adm_tab_matriz = st.tabs([
         "👥 Perfis & Permissões",
         "🏢 Empresas & Usuários",
