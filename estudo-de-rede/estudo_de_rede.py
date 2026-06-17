@@ -1016,10 +1016,11 @@ def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
         _btn_ok = st.button("✅ Verificar", type="primary", use_container_width=True,
                             key="_mfa_btn_verificar")
     with _col_sair:
-        if st.button("↩ Sair", use_container_width=True, key="_mfa_btn_sair"):
+        if st.button("↩ Sair / trocar usuário", use_container_width=True, key="_mfa_btn_sair"):
             for _k in list(st.session_state.keys()):
                 if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
-                                   "_admin_empresa", "_github_sync", "_mfa")):
+                                   "_admin_empresa", "_github_sync", "_mfa",
+                                   "token", "oauth")):
                     del st.session_state[_k]
             st.rerun()
 
@@ -1098,10 +1099,11 @@ def _mfa_render_setup_inicial(email: str, segredo: str):
                 use_container_width=True, key="_mfa_setup_confirmar"
             )
         with _c2s:
-            if st.button("↩ Sair", use_container_width=True, key="_mfa_setup_sair"):
+            if st.button("↩ Sair / trocar usuário", use_container_width=True, key="_mfa_setup_sair"):
                 for _k in list(st.session_state.keys()):
                     if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
-                                       "_admin_empresa", "_github_sync", "_mfa")):
+                                       "_admin_empresa", "_github_sync", "_mfa",
+                                       "token", "oauth")):
                         del st.session_state[_k]
                 st.rerun()
 
