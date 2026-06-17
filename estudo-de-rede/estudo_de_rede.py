@@ -4904,6 +4904,15 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
                 </div>
                 """, unsafe_allow_html=True)
 
+                st.markdown("""
+                <style>
+                div[data-testid="stForm"] label,
+                div[data-testid="stForm"] label p {
+                    color: #ffffff !important;
+                    font-weight: 500 !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
                 with st.form("form_auto_cadastro_empresa"):
                     _ac_nome = st.text_input(
                         "🏢 Nome da sua empresa *",
