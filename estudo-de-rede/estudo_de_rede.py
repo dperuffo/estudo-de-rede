@@ -370,6 +370,52 @@ def _db_client():
 
 
 
+
+def _db_criar_empresa_e_vincular(nome_empresa: str, cnpj_empresa: str,
+                                   email_usuario: str, nome_usuario: str) -> dict | None:
+    """
+    Auto-cadastro: cria a empresa e vincula o usuário como 'gestor' (role principal),
+    tudo em uma operação. Usado no onboarding de novos usuários sem empresa.
+    """
+    db = _db_client()
+    if not db:
+        return None
+    try:
+        _emp_res = db.table("empresas").insert({
+            "nome":   nome_empresa.strip(),
+            "cnpj":   cnpj_empresa.strip() or None,
+            "ativo":  True,
+            "plano":  "gratuito",
+            "status": "ativo",
+        }).execute()
+        if not _emp_res.data:
+            return None
+        _empresa = _emp_res.data[0]
+
+        db.table("usuarios_empresas").insert({
+            "user_email": email_usuario.lower(),
+            "empresa_id": _empresa["id"],
+            "role":       "gestor",
+            "ativo":      True,
+        }).execute()
+
+        # Atualiza/cria também em usuarios_app para manter perfil consistente
+        db.table("usuarios_app").upsert({
+            "email":          email_usuario.lower(),
+            "nome":           nome_usuario,
+            "perfil":         "gestor_frota",
+            "cnpj_vinculado": cnpj_empresa.strip() or None,
+            "empresa_nome":   nome_empresa.strip(),
+            "ativo":          True,
+            "criado_em":      _agora(),
+            "origem":         "auto_onboarding",
+        }, on_conflict="email").execute()
+
+        return _empresa
+    except Exception as _e_auto:
+        st.session_state["_erro_auto_cadastro"] = str(_e_auto)
+        return None
+
 def _solic_registrar(email: str, nome: str = "") -> None:
     """Registra uma solicitação de acesso pendente (idempotente por email)."""
     try:
@@ -19944,52 +19990,6 @@ def _math_isnan(v):
     try:
         import math; return math.isnan(v)
     except Exception: return False
-
-def _db_criar_empresa_e_vincular(nome_empresa: str, cnpj_empresa: str,
-                                   email_usuario: str, nome_usuario: str) -> dict | None:
-    """
-    Auto-cadastro: cria a empresa e vincula o usuário como 'gestor' (role principal),
-    tudo em uma operação. Usado no onboarding de novos usuários sem empresa.
-    """
-    db = _db_client()
-    if not db:
-        return None
-    try:
-        _emp_res = db.table("empresas").insert({
-            "nome":   nome_empresa.strip(),
-            "cnpj":   cnpj_empresa.strip() or None,
-            "ativo":  True,
-            "plano":  "gratuito",
-            "status": "ativo",
-        }).execute()
-        if not _emp_res.data:
-            return None
-        _empresa = _emp_res.data[0]
-
-        db.table("usuarios_empresas").insert({
-            "user_email": email_usuario.lower(),
-            "empresa_id": _empresa["id"],
-            "role":       "gestor",
-            "ativo":      True,
-        }).execute()
-
-        # Atualiza/cria também em usuarios_app para manter perfil consistente
-        db.table("usuarios_app").upsert({
-            "email":          email_usuario.lower(),
-            "nome":           nome_usuario,
-            "perfil":         "gestor_frota",
-            "cnpj_vinculado": cnpj_empresa.strip() or None,
-            "empresa_nome":   nome_empresa.strip(),
-            "ativo":          True,
-            "criado_em":      _agora(),
-            "origem":         "auto_onboarding",
-        }, on_conflict="email").execute()
-
-        return _empresa
-    except Exception as _e_auto:
-        st.session_state["_erro_auto_cadastro"] = str(_e_auto)
-        return None
-
 # ── Função central de indicadores de manutenção ─────────────────────────────
 @st.cache_data(show_spinner=False, ttl=60)
 def _mf_indicadores(cnpj_frota: str, km_por_placa: dict) -> dict:
