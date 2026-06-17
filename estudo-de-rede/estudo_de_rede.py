@@ -4866,7 +4866,7 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
         _emps = st.session_state.get("_empresas_usuario", [])
         _empresa_ativa = st.session_state.get("_empresa_ativa")
 
-        # Sem empresa associada → tela de aguardo
+        # Sem empresa associada → onboarding de auto-cadastro
         if not _emps:
             _hide_style = """
             <style>
@@ -4874,7 +4874,6 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             [data-testid="stToolbar"] { display: none !important; }
             [data-testid="stAppViewContainer"] {
                 background: linear-gradient(135deg, #0a0e27 0%, #0d1b4b 100%);
-                display: flex; align-items: center; justify-content: center;
                 min-height: 100vh;
             }
             </style>
@@ -4885,24 +4884,71 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
                 st.markdown(f"""
                 <div style="background:rgba(255,255,255,0.07);backdrop-filter:blur(20px);
                             border:1px solid rgba(255,255,255,0.12);border-radius:20px;
-                            padding:2.5rem 2rem;text-align:center;margin-top:15vh;">
+                            padding:2.5rem 2rem;text-align:center;margin-top:8vh;margin-bottom:1.5rem">
                   <div style="font-size:56px;margin-bottom:1rem;">🏢</div>
                   <div style="font-size:1.4rem;font-weight:700;color:#fff;margin-bottom:.5rem;">
-                    Aguardando Vínculo Empresarial
+                    Vamos configurar sua empresa!
                   </div>
-                  <div style="font-size:.9rem;color:rgba(255,255,255,.6);margin-bottom:1rem;
+                  <div style="font-size:.9rem;color:rgba(255,255,255,.6);margin-bottom:.5rem;
                               line-height:1.6">
-                    Sua conta ainda não está associada a nenhuma empresa.<br>
-                    Solicite ao administrador que vincule seu acesso.
+                    Essa é a sua primeira vez na plataforma. Cadastre os dados da sua
+                    empresa para começar a usar o sistema agora mesmo.
                   </div>
                   <div style="font-size:.75rem;color:rgba(255,255,255,.3);">
                     {_email_mt}
                   </div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("🔄 Verificar novamente", use_container_width=True):
-                    del st.session_state["_empresas_usuario"]
-                    st.rerun()
+
+                with st.form("form_auto_cadastro_empresa"):
+                    _ac_nome = st.text_input(
+                        "🏢 Nome da sua empresa *",
+                        placeholder="Ex: Transportes Silva Ltda",
+                        key="ac_nome_empresa",
+                    )
+                    _ac_cnpj = st.text_input(
+                        "📋 CNPJ (opcional)",
+                        placeholder="00.000.000/0001-00",
+                        key="ac_cnpj_empresa",
+                    )
+                    _ac_nome_user = st.text_input(
+                        "👤 Seu nome",
+                        value=(st.session_state.get("_auth_user") or {}).get("name", ""),
+                        key="ac_nome_usuario",
+                    )
+                    _ac_submit = st.form_submit_button(
+                        "🚀 Criar minha empresa e começar",
+                        type="primary", use_container_width=True,
+                    )
+
+                if _ac_submit:
+                    if not _ac_nome.strip():
+                        st.error("Informe o nome da empresa para continuar.")
+                    else:
+                        _nova_emp = _db_criar_empresa_e_vincular(
+                            _ac_nome, _ac_cnpj, _email_mt, _ac_nome_user or _email_mt,
+                        )
+                        if _nova_emp:
+                            # Notifica o admin sobre a nova empresa/usuário
+                            _solic_registrar(
+                                _email_mt,
+                                f"{_ac_nome_user or _email_mt} — nova empresa: {_ac_nome}",
+                            )
+                            st.session_state["_auth_perfil"]         = "gestor_frota"
+                            st.session_state["_auth_cnpj_vinculado"] = _ac_cnpj.strip() or None
+                            del st.session_state["_empresas_usuario"]
+                            st.session_state.pop("_empresa_ativa", None)
+                            st.toast(f"🎉 Empresa **{_ac_nome}** criada com sucesso!", icon="✅")
+                            st.session_state["_tour_ativo"] = True
+                            st.rerun()
+                        else:
+                            _erro_ac = st.session_state.pop("_erro_auto_cadastro", "")
+                            st.error(f"Não foi possível criar a empresa. {_erro_ac}")
+
+                st.caption(
+                    "Já tem uma empresa cadastrada e só precisa ser vinculado? "
+                    "Solicite ao administrador o vínculo da sua conta."
+                )
             st.stop()
 
         # Múltiplas empresas e nenhuma selecionada → tela de seleção
@@ -19884,6 +19930,52 @@ def _math_isnan(v):
     try:
         import math; return math.isnan(v)
     except Exception: return False
+
+def _db_criar_empresa_e_vincular(nome_empresa: str, cnpj_empresa: str,
+                                   email_usuario: str, nome_usuario: str) -> dict | None:
+    """
+    Auto-cadastro: cria a empresa e vincula o usuário como 'gestor' (role principal),
+    tudo em uma operação. Usado no onboarding de novos usuários sem empresa.
+    """
+    db = _db_client()
+    if not db:
+        return None
+    try:
+        _emp_res = db.table("empresas").insert({
+            "nome":   nome_empresa.strip(),
+            "cnpj":   cnpj_empresa.strip() or None,
+            "ativo":  True,
+            "plano":  "trial",
+            "status": "ativo",
+        }).execute()
+        if not _emp_res.data:
+            return None
+        _empresa = _emp_res.data[0]
+
+        db.table("usuarios_empresas").insert({
+            "user_email": email_usuario.lower(),
+            "empresa_id": _empresa["id"],
+            "role":       "gestor",
+            "ativo":      True,
+        }).execute()
+
+        # Atualiza/cria também em usuarios_app para manter perfil consistente
+        db.table("usuarios_app").upsert({
+            "email":          email_usuario.lower(),
+            "nome":           nome_usuario,
+            "perfil":         "gestor_frota",
+            "cnpj_vinculado": cnpj_empresa.strip() or None,
+            "empresa_nome":   nome_empresa.strip(),
+            "ativo":          True,
+            "criado_em":      _agora(),
+            "origem":         "auto_onboarding",
+        }, on_conflict="email").execute()
+
+        return _empresa
+    except Exception as _e_auto:
+        st.session_state["_erro_auto_cadastro"] = str(_e_auto)
+        return None
+
 # ── Função central de indicadores de manutenção ─────────────────────────────
 @st.cache_data(show_spinner=False, ttl=60)
 def _mf_indicadores(cnpj_frota: str, km_por_placa: dict) -> dict:
