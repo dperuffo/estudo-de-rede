@@ -19950,7 +19950,7 @@ def _db_criar_empresa_e_vincular(nome_empresa: str, cnpj_empresa: str,
             "nome":   nome_empresa.strip(),
             "cnpj":   cnpj_empresa.strip() or None,
             "ativo":  True,
-            "plano":  "trial",
+            "plano":  "gratuito",
             "status": "ativo",
         }).execute()
         if not _emp_res.data:
