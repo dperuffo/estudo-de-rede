@@ -16223,11 +16223,11 @@ with st.sidebar:
             st.session_state["_preview_onboarding"] = True
             st.rerun()
         if st.button(
-            "⎋  Sair da conta",
+            "⎋  Sair para logar com outro usuário",
             use_container_width=True,
             type="secondary",
             key="btn_logout",
-            help="Encerrar sessão e voltar ao login",
+            help="Encerrar sessão atual e permitir login com outra conta neste dispositivo",
         ):
             for _k in [k for k in st.session_state
                        if k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
