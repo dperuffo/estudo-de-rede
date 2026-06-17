@@ -33673,7 +33673,6 @@ elif modo == "💰 Painel Financeiro":
             try:
                 _db_fp = _db_client()
                 _emp_cnpj_fp = (_empresa_fin.get("cnpj") or "").strip()
-                st.caption(f"🔧 DEBUG: cnpj={_emp_cnpj_fp!r} dt_ini={_dt_ini_fin!r} dt_fim={_dt_fim_fin!r}")
                 _q_fp = (_db_fp.table("profrotas_abastecimentos")
                     .select("pv_cnpj,pv_razao_social,pv_municipio,pv_uf,item_quantidade,item_valor_total,item_valor_unitario")
                     .eq("item_tipo", 1)
@@ -33704,19 +33703,22 @@ elif modo == "💰 Painel Financeiro":
                 _postos_cc = pd.DataFrame()
                 st.caption(f"Erro postos: {str(_e_fp)[:60]}")
             st.markdown("**Top 5 postos por valor gasto**")
-            for _mi2, (_, _rp2) in enumerate(zip(["🥇","🥈","🥉","4","5"], _postos_cc.itertuples())):
-                _rs2  = str(getattr(_rp2,"pv_razao_social","") or "").strip()[:24]
-                _mun2 = str(getattr(_rp2,"pv_municipio","") or "").strip()
-                _uf2  = str(getattr(_rp2,"pv_uf","") or "").strip()
-                _nm2  = _rs2 if _rs2 and _rs2 not in ("nan","None") else str(getattr(_rp2,"pv_cnpj",""))[:18]
+            _medals = ["🥇","🥈","🥉","4","5"]
+            for _mi2, (_idx2, _rp2) in enumerate(_postos_cc.iterrows()):
+                _rs2  = str(_rp2.get("pv_razao_social","") or "").strip()[:24]
+                _mun2 = str(_rp2.get("pv_municipio","") or "").strip()
+                _uf2  = str(_rp2.get("pv_uf","") or "").strip()
+                _nm2  = _rs2 if _rs2 and _rs2 not in ("nan","None") else str(_rp2.get("pv_cnpj",""))[:18]
+                _val2 = float(_rp2.get("_valor", 0) or 0)
+                _n2   = int(_rp2.get("_n", 0) or 0)
                 st.markdown(
                     f"<div style='display:flex;align-items:flex-start;gap:8px;padding:6px 0;"
                     f"border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px'>"
-                    f"<span style='width:20px;flex-shrink:0'>{['🥇','🥈','🥉','4','5'][_mi2]}</span>"
+                    f"<span style='width:20px;flex-shrink:0'>{_medals[_mi2]}</span>"
                     f"<div style='flex:1'><div style='font-weight:500'>{_nm2}</div>"
                     f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_mun2}/{_uf2}</div></div>"
-                    f"<div style='text-align:right'><div style='font-weight:500'>{_br_moeda(float(getattr(_rp2,'_valor',0)))}</div>"
-                    f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_fmt_int(int(getattr(_rp2,'_n',0)))} abast.</div></div>"
+                    f"<div style='text-align:right'><div style='font-weight:500'>{_br_moeda(_val2)}</div>"
+                    f"<div style='font-size:10px;color:var(--color-text-secondary)'>{_fmt_int(_n2)} abast.</div></div>"
                     f"</div>",
                     unsafe_allow_html=True)
 
