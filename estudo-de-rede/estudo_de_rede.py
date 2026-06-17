@@ -368,6 +368,10 @@ def _db_client():
     return st.session_state["_supabase_client"]
 
 
+# ═══════════════════════════════════════════════════════════════════
+#  Solicitações de Acesso — notifica admin sobre novos usuários
+# ═══════════════════════════════════════════════════════════════════
+
 def _db_email() -> str:
     """E-mail do usuário logado, usado como identificador no banco."""
     return (st.session_state.get("_auth_user") or {}).get("email", "anonimo")
@@ -19831,10 +19835,6 @@ def _math_isnan(v):
         import math; return math.isnan(v)
     except Exception: return False
 
-
-# ═══════════════════════════════════════════════════════════════════
-#  Solicitações de Acesso — notifica admin sobre novos usuários
-# ═══════════════════════════════════════════════════════════════════
 
 def _solic_registrar(email: str, nome: str = "") -> None:
     """Registra uma solicitação de acesso pendente (idempotente por email)."""
