@@ -16907,6 +16907,55 @@ with st.sidebar:
             _log_acesso("MODO_SELECIONADO", modo, modo_override=modo)
             st.rerun()
 
+
+    # ── GRUPO: GESTÃO DA FROTA ───────────────────────────────────────
+    st.markdown("<div class='nav-group-header'>🚛 Gestão da Frota</div>",
+                unsafe_allow_html=True)
+
+    _nav_btn("☀️ Comece seu dia!",          "☀️ Comece seu dia",          "comece_seu_dia")
+    if _auth_tem_permissao("aba_analise_cliente"):
+        _nav_btn("👥 Análise do Cliente",    "👥 Análise de Cliente",      "analise_cliente")
+    if _auth_tem_permissao("aba_variacao_precos"):
+        _var_badge = " 🔔" if (st.session_state.get("pp_variacao_abast") is not None
+                               and not st.session_state["pp_variacao_abast"].empty) else ""
+        _nav_btn(f"💹 Variação de Preços{_var_badge}", "💹 Variação de Preços", "variacao_precos")
+    if _auth_tem_permissao("aba_financeiro"):
+        _nav_btn("💰 Painel Financeiro",     "💰 Painel Financeiro",       "painel_financeiro")
+    if _auth_tem_permissao("aba_acordos"):
+        _nav_btn("🤝 Acordos de Preços",     "🤝 Acordos de Preço",        "acordos_preco")
+    if _auth_tem_permissao("aba_manutencao"):
+        _nav_btn("🔧 Manutenção",            "🔧 Manutenção de Frota",     "manutencao_frota")
+    if _auth_tem_permissao("aba_dashboard"):
+        _nav_btn("📈 Dashboard",             "📈 Dashboard",               "dashboard")
+    if _auth_tem_permissao("aba_relatorios"):
+        _nav_btn("📑 Relatórios Gerenciais", "📑 Relatórios",              "relatorios")
+    if _auth_tem_permissao("aba_centros_custo"):
+        _nav_btn("🏢 Centro de Custo",       "🏢 Centros de Custo",        "centros_custo")
+    if _auth_tem_permissao("aba_recomendador"):
+        _nav_btn("🎯 Recomendador IA",       "🎯 Recomendador IA",         "recomendador")
+    if _auth_tem_permissao("aba_inteligencia"):
+        _nav_btn("💡 Inteligência",          "💡 Inteligência",            "inteligencia")
+    if _auth_tem_permissao("aba_rotograma"):
+        _nav_btn("🗺️ Rotograma",             "🗺️ Rotograma",               "rotograma")
+    if _auth_tem_permissao("aba_telemetria"):
+        _nav_btn("🛰️ Telemetria",            "🛰️ Telemetria",              "telemetria")
+    if _auth_tem_permissao("aba_assistente_ia") or _auth_tem_permissao("aba_relatorios"):
+        _nav_btn("🤖 Assistente IA",         "🤖 Assistente IA",           "assistente_ia")
+
+    st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
+
+    # ── GRUPO: REDE DE POSTOS ─────────────────────────────────────────
+    st.markdown("<div class='nav-group-header'>🗺️ Rede de Postos</div>",
+                unsafe_allow_html=True)
+
+    _nav_btn("📍 Consulta por UF/Município", "📍 Por UF/Município", "uf")
+    _nav_btn("🔍 Consulta por Posto",        "🔍 Consulta por Posto","busca")
+    _nav_btn("🗺️ Consulta por Rota",         "🗺️ Por Rota",          "rota")
+    _nav_btn("🧭 Roteirizador",              "🧭 Roteirização",       "roteirizacao")
+
+    _n_rotas_sb = len(_carregar_rotas_salvas())
+    _label_rotas = f"🔖 Rotas Salvas{f' ({_n_rotas_sb})' if _n_rotas_sb else ''}"
+    _nav_btn(_label_rotas, "🔖 Rotas Salvas", "rotas_salvas")
     # ── Parâmetros de consulta — renderizados conforme o modo ────────
     _sb_params_container = st.container()
     with _sb_params_container:
@@ -17212,55 +17261,6 @@ with st.sidebar:
                         st.rerun()
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
-
-    # ── GRUPO: GESTÃO DA FROTA ───────────────────────────────────────
-    st.markdown("<div class='nav-group-header'>🚛 Gestão da Frota</div>",
-                unsafe_allow_html=True)
-
-    _nav_btn("☀️ Comece seu dia!",          "☀️ Comece seu dia",          "comece_seu_dia")
-    if _auth_tem_permissao("aba_analise_cliente"):
-        _nav_btn("👥 Análise do Cliente",    "👥 Análise de Cliente",      "analise_cliente")
-    if _auth_tem_permissao("aba_variacao_precos"):
-        _var_badge = " 🔔" if (st.session_state.get("pp_variacao_abast") is not None
-                               and not st.session_state["pp_variacao_abast"].empty) else ""
-        _nav_btn(f"💹 Variação de Preços{_var_badge}", "💹 Variação de Preços", "variacao_precos")
-    if _auth_tem_permissao("aba_financeiro"):
-        _nav_btn("💰 Painel Financeiro",     "💰 Painel Financeiro",       "painel_financeiro")
-    if _auth_tem_permissao("aba_acordos"):
-        _nav_btn("🤝 Acordos de Preços",     "🤝 Acordos de Preço",        "acordos_preco")
-    if _auth_tem_permissao("aba_manutencao"):
-        _nav_btn("🔧 Manutenção",            "🔧 Manutenção de Frota",     "manutencao_frota")
-    if _auth_tem_permissao("aba_dashboard"):
-        _nav_btn("📈 Dashboard",             "📈 Dashboard",               "dashboard")
-    if _auth_tem_permissao("aba_relatorios"):
-        _nav_btn("📑 Relatórios Gerenciais", "📑 Relatórios",              "relatorios")
-    if _auth_tem_permissao("aba_centros_custo"):
-        _nav_btn("🏢 Centro de Custo",       "🏢 Centros de Custo",        "centros_custo")
-    if _auth_tem_permissao("aba_recomendador"):
-        _nav_btn("🎯 Recomendador IA",       "🎯 Recomendador IA",         "recomendador")
-    if _auth_tem_permissao("aba_inteligencia"):
-        _nav_btn("💡 Inteligência",          "💡 Inteligência",            "inteligencia")
-    if _auth_tem_permissao("aba_rotograma"):
-        _nav_btn("🗺️ Rotograma",             "🗺️ Rotograma",               "rotograma")
-    if _auth_tem_permissao("aba_telemetria"):
-        _nav_btn("🛰️ Telemetria",            "🛰️ Telemetria",              "telemetria")
-    if _auth_tem_permissao("aba_assistente_ia") or _auth_tem_permissao("aba_relatorios"):
-        _nav_btn("🤖 Assistente IA",         "🤖 Assistente IA",           "assistente_ia")
-
-    st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
-
-    # ── GRUPO: REDE DE POSTOS ─────────────────────────────────────────
-    st.markdown("<div class='nav-group-header'>🗺️ Rede de Postos</div>",
-                unsafe_allow_html=True)
-
-    _nav_btn("📍 Consulta por UF/Município", "📍 Por UF/Município", "uf")
-    _nav_btn("🔍 Consulta por Posto",        "🔍 Consulta por Posto","busca")
-    _nav_btn("🗺️ Consulta por Rota",         "🗺️ Por Rota",          "rota")
-    _nav_btn("🧭 Roteirizador",              "🧭 Roteirização",       "roteirizacao")
-
-    _n_rotas_sb = len(_carregar_rotas_salvas())
-    _label_rotas = f"🔖 Rotas Salvas{f' ({_n_rotas_sb})' if _n_rotas_sb else ''}"
-    _nav_btn(_label_rotas, "🔖 Rotas Salvas", "rotas_salvas")
 
     st.markdown("<hr class='nav-divider'>", unsafe_allow_html=True)
 
