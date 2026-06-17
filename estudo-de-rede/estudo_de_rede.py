@@ -13769,31 +13769,39 @@ def _anp_extrair_precos(sheets, uf=None, municipio=None):
     linhas_base = []
     nivel_real  = "Estado"
 
-    # 1. Município
+    # 1. Município — usa cache pré-filtrado por UF (evita re-normalizar a planilha inteira a cada chamada)
     if municipio and "municipios" in sheets:
         df_mun = sheets["municipios"]
         cm = _cols(df_mun)
         if cm["est"] and cm["mun"] and cm["prod"] and cm["med"] and nome_uf:
+            _cache_mun_uf = sheets.setdefault("_cache_mun_por_uf", {})
+            if nome_uf not in _cache_mun_uf:
+                _df_mun_norm = df_mun.copy()
+                _df_mun_norm["_est_norm"] = _df_mun_norm[cm["est"]].apply(_anp_norm)
+                _df_mun_norm["_mun_norm"] = _df_mun_norm[cm["mun"]].apply(_anp_norm)
+                _cache_mun_uf[nome_uf] = _df_mun_norm[_df_mun_norm["_est_norm"] == nome_uf]
+            _df_uf_pre = _cache_mun_uf[nome_uf]
             mun_n = _anp_norm(municipio)
-            df_fil = df_mun[
-                (df_mun[cm["est"]].apply(_anp_norm) == nome_uf) &
-                (df_mun[cm["mun"]].apply(_anp_norm).str.contains(mun_n, na=False))
-            ]
+            df_fil = _df_uf_pre[_df_uf_pre["_mun_norm"].str.contains(mun_n, na=False)]
             if not df_fil.empty:
                 linhas_base = _anp_preco_medio(df_fil, None, None,
                                                cm["prod"], cm["med"], cm["uni"], cm["npos"])
                 nivel_real = "Município"
 
-    # 2. Capital (fallback se município não encontrado em MUNICIPIOS)
+    # 2. Capital (fallback) — mesmo princípio de cache por UF
     if not linhas_base and municipio and "capitais" in sheets:
         df_cap = sheets["capitais"]
         cc = _cols(df_cap)
         if cc["est"] and cc["mun"] and cc["prod"] and cc["med"] and nome_uf:
+            _cache_cap_uf = sheets.setdefault("_cache_cap_por_uf", {})
+            if nome_uf not in _cache_cap_uf:
+                _df_cap_norm = df_cap.copy()
+                _df_cap_norm["_est_norm"] = _df_cap_norm[cc["est"]].apply(_anp_norm)
+                _df_cap_norm["_mun_norm"] = _df_cap_norm[cc["mun"]].apply(_anp_norm)
+                _cache_cap_uf[nome_uf] = _df_cap_norm[_df_cap_norm["_est_norm"] == nome_uf]
+            _df_cap_pre = _cache_cap_uf[nome_uf]
             mun_n = _anp_norm(municipio)
-            df_fil = df_cap[
-                (df_cap[cc["est"]].apply(_anp_norm) == nome_uf) &
-                (df_cap[cc["mun"]].apply(_anp_norm).str.contains(mun_n, na=False))
-            ]
+            df_fil = _df_cap_pre[_df_cap_pre["_mun_norm"].str.contains(mun_n, na=False)]
             if not df_fil.empty:
                 linhas_base = _anp_preco_medio(df_fil, None, None,
                                                cc["prod"], cc["med"], cc["uni"], cc["npos"])
