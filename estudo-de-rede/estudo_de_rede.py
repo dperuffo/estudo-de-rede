@@ -368,6 +368,56 @@ def _db_client():
     return st.session_state["_supabase_client"]
 
 
+
+
+def _solic_registrar(email: str, nome: str = "") -> None:
+    """Registra uma solicitação de acesso pendente (idempotente por email)."""
+    try:
+        _db = _db_client()
+        if not _db:
+            return
+        _existe = (_db.table("solicitacoes_acesso")
+                   .select("id").eq("email", email.lower())
+                   .eq("status", "pendente").limit(1).execute().data)
+        if _existe:
+            return
+        _db.table("solicitacoes_acesso").insert({
+            "email": email.lower(),
+            "nome":  nome or "",
+            "status": "pendente",
+        }).execute()
+    except Exception:
+        pass
+
+
+@st.cache_data(show_spinner=False, ttl=30)
+def _solic_listar_pendentes() -> list:
+    """Lista solicitações de acesso pendentes."""
+    try:
+        _db = _db_client()
+        if not _db:
+            return []
+        return (_db.table("solicitacoes_acesso")
+                .select("*").eq("status", "pendente")
+                .order("criado_em", desc=True).execute().data or [])
+    except Exception:
+        return []
+
+
+def _solic_resolver(solic_id: str, resolvido_por: str) -> bool:
+    """Marca uma solicitação como resolvida."""
+    try:
+        _db = _db_client()
+        _db.table("solicitacoes_acesso").update({
+            "status": "resolvido",
+            "resolvido_em": _agora(),
+            "resolvido_por": resolvido_por,
+        }).eq("id", solic_id).execute()
+        _solic_listar_pendentes.clear()
+        return True
+    except Exception:
+        return False
+
 # ═══════════════════════════════════════════════════════════════════
 #  Solicitações de Acesso — notifica admin sobre novos usuários
 # ═══════════════════════════════════════════════════════════════════
@@ -19834,56 +19884,6 @@ def _math_isnan(v):
     try:
         import math; return math.isnan(v)
     except Exception: return False
-
-
-def _solic_registrar(email: str, nome: str = "") -> None:
-    """Registra uma solicitação de acesso pendente (idempotente por email)."""
-    try:
-        _db = _db_client()
-        if not _db:
-            return
-        _existe = (_db.table("solicitacoes_acesso")
-                   .select("id").eq("email", email.lower())
-                   .eq("status", "pendente").limit(1).execute().data)
-        if _existe:
-            return
-        _db.table("solicitacoes_acesso").insert({
-            "email": email.lower(),
-            "nome":  nome or "",
-            "status": "pendente",
-        }).execute()
-    except Exception:
-        pass
-
-
-@st.cache_data(show_spinner=False, ttl=30)
-def _solic_listar_pendentes() -> list:
-    """Lista solicitações de acesso pendentes."""
-    try:
-        _db = _db_client()
-        if not _db:
-            return []
-        return (_db.table("solicitacoes_acesso")
-                .select("*").eq("status", "pendente")
-                .order("criado_em", desc=True).execute().data or [])
-    except Exception:
-        return []
-
-
-def _solic_resolver(solic_id: str, resolvido_por: str) -> bool:
-    """Marca uma solicitação como resolvida."""
-    try:
-        _db = _db_client()
-        _db.table("solicitacoes_acesso").update({
-            "status": "resolvido",
-            "resolvido_em": _agora(),
-            "resolvido_por": resolvido_por,
-        }).eq("id", solic_id).execute()
-        _solic_listar_pendentes.clear()
-        return True
-    except Exception:
-        return False
-
 # ── Função central de indicadores de manutenção ─────────────────────────────
 @st.cache_data(show_spinner=False, ttl=60)
 def _mf_indicadores(cnpj_frota: str, km_por_placa: dict) -> dict:
