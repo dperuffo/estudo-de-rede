@@ -34412,10 +34412,10 @@ elif modo == "☀️ Comece seu dia":
     # DEBUG temporário
     _dbg_emp = st.session_state.get("_empresa_ativa") or {}
     st.caption(
-        f"DEBUG: perfil={st.session_state.get('_auth_perfil','?')!r} | "
-        f"empresa_cnpj={_dbg_emp.get('cnpj')!r} | "
-        f"auth_cnpj={st.session_state.get('_auth_cnpj_vinculado','')!r} | "
-        f"cnpj_isol_resolvido={st.session_state.get('_debug_cnpj_isol','NÃO SETADO')!r}"
+        f"DEBUG função: cnpj_isol={st.session_state.get('_debug_cnpj_isol','?')!r} | "
+        f"perfil={st.session_state.get('_debug_perfil_isol','?')!r} | "
+        f"emp_cnpj={st.session_state.get('_debug_emp_cnpj','?')!r} | "
+        f"auth_cnpj={st.session_state.get('_debug_auth_cnpj','?')!r}"
     )
     # Usa dados de abastecimento para calcular score preditivo (mesmo método da aba Manutenção)
     try:
