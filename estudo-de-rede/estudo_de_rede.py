@@ -453,15 +453,17 @@ def _solic_listar_pendentes() -> list:
 def _solic_resolver(solic_id: str, resolvido_por: str) -> bool:
     """Marca uma solicitação como resolvida."""
     try:
+        import datetime as _dt_solic
         _db = _db_client()
         _db.table("solicitacoes_acesso").update({
             "status": "resolvido",
-            "resolvido_em": _agora(),
+            "resolvido_em": _dt_solic.datetime.now(_dt_solic.timezone.utc).isoformat(),
             "resolvido_por": resolvido_por,
         }).eq("id", solic_id).execute()
         _solic_listar_pendentes.clear()
         return True
-    except Exception:
+    except Exception as _e_solic:
+        st.session_state["_erro_solic_resolver"] = str(_e_solic)
         return False
 
 # ═══════════════════════════════════════════════════════════════════
