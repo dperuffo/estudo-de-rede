@@ -1661,6 +1661,16 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
       1. frota_abastecimentos  — uploads manuais via Análise de Cliente
       2. profrotas_abastecimentos — API Gestão de Frotas sincronizada
     """
+    # ── Resolve CNPJ de isolamento por perfil (multi-tenant) ───────
+    _perfil_isol = st.session_state.get("_auth_perfil", "")
+    _cnpj_isol = None
+    if _perfil_isol not in ("admin", "analista"):
+        _emp_isol = st.session_state.get("_empresa_ativa") or {}
+        _cnpj_isol = (_emp_isol.get("cnpj") or
+                      st.session_state.get("_auth_cnpj_vinculado") or "").strip() or None
+        if _cnpj_isol:
+            _cnpj_isol = re.sub(r"\D", "", _cnpj_isol)
+
     dfs = []
 
     # ── Fonte 1: uploads manuais ───────────────────────────────────
@@ -1668,6 +1678,9 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
         _rows = _db_carregar_abastecimentos()
         if _rows:
             _df1 = pd.DataFrame(_rows)
+            if _cnpj_isol and "cnpj_frota" in _df1.columns:
+                _cnpj_col_norm1 = _df1["cnpj_frota"].astype(str).str.replace(r"\D", "", regex=True)
+                _df1 = _df1[_cnpj_col_norm1 == _cnpj_isol]
             # Garante colunas normalizadas sem prefixo
             _df1["fonte"] = _df1.get("nome_arquivo", pd.Series(["upload"] * len(_df1)))
             if "meio_pagamento" not in _df1.columns:
@@ -1678,7 +1691,7 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
 
     # ── Fonte 2: API Gestão de Frotas ─────────────────────────────────────
     try:
-        _df_pf = _profrotas_para_df_analise(None, dias)
+        _df_pf = _profrotas_para_df_analise(_cnpj_isol, dias)
         if _df_pf is not None and not _df_pf.empty:
             # _profrotas_para_df_analise retorna colunas com prefixo _.
             # Remapeia para o formato padrão sem prefixo.
