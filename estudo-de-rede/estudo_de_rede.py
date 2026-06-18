@@ -19478,12 +19478,15 @@ if st.session_state.get("_mostrar_lgpd"):
 
 # ── Tela de Planos & Assinatura ──────────────────────────────────
 if st.session_state.get("_mostrar_planos"):
-    st.session_state["_mostrar_planos"] = False
     try:
         from stripe_billing import mostrar_tela_planos
         mostrar_tela_planos()
+        if st.button("← Voltar", key="btn_voltar_planos"):
+            st.session_state["_mostrar_planos"] = False
+            st.rerun()
         st.stop()
     except Exception as _e:
+        st.session_state["_mostrar_planos"] = False
         st.error(f"Erro ao carregar tela de planos: {_e}")
 # ── BLOCO ANTIGO
 
