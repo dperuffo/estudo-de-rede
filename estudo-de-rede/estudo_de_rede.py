@@ -26901,6 +26901,7 @@ elif modo == "📚 Documentação":
             "fonte": "Tabelas centros_custo e centros_custo_veiculos no Supabase.",
             "regras": "Um veículo só pode estar em um centro de custo ativo por vez. Alocações anteriores são desativadas automaticamente.",
             "indicadores": "Número de veículos por centro, lista de placas alocadas, histórico de alocações.",
+            "tags": ["centro de custo", "veículos", "alocação", "financeiro"],
         },
         "💰 Painel Financeiro": {
             "objetivo": "Visão financeira consolidada da operação de frota com segmentação por centro de custo. Mostra custos de combustível, manutenção e indicadores de eficiência por período selecionado.",
