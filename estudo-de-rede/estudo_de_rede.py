@@ -1727,6 +1727,14 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
                       st.session_state.get("_auth_cnpj_vinculado") or "").strip() or None
         if _cnpj_isol:
             _cnpj_isol = re.sub(r"\D", "", _cnpj_isol)
+    # DEBUG — remover após fix
+    try:
+        st.session_state["_debug_cnpj_isol"] = str(_cnpj_isol)
+        st.session_state["_debug_perfil_isol"] = str(_perfil_isol)
+        st.session_state["_debug_emp_cnpj"] = str((st.session_state.get("_empresa_ativa") or {}).get("cnpj"))
+    except Exception:
+        pass
+
 
     dfs = []
 
