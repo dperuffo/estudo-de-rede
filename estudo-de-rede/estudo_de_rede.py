@@ -26907,6 +26907,8 @@ elif modo == "📚 Documentação":
             "objetivo": "Visão financeira consolidada da operação de frota com segmentação por centro de custo. Mostra custos de combustível, manutenção e indicadores de eficiência por período selecionado.",
             "fonte": "profrotas_abastecimentos (combustíveis) + manutencoes_realizadas (manutenção). Centro de custo = frota_razao_social.",
             "indicadores": "Custo total, combustíveis, manutenção, volume em litros, veículos ativos, preço médio/L. Detalhamento por combustível, top 5 postos e registros de manutenção.",
+            "regras": "Valor do abastecimento usa item_valor_total quando disponível, senão calcula item_quantidade × item_valor_unitario.",
+            "tags": ["financeiro", "custos", "combustível", "manutenção", "centro de custo"],
         },
         "🔧 Manutenção de Frota": {
             "objetivo": "Controle de manutenções realizadas na frota com alertas de veículos críticos (>120 dias) e em alerta (75-120 dias). Otimizado para frotas com centenas de veículos.",
