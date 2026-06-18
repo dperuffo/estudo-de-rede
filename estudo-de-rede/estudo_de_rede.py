@@ -5338,12 +5338,28 @@ def _profrotas_salvar_chave(cnpj_frota: str, nome_empresa: str,
 
 
 def _profrotas_listar_chaves() -> list:
-    """Retorna lista de chaves cadastradas."""
+    """
+    Retorna lista de chaves cadastradas.
+    Multi-tenant: admin/analista veem todas; gestor_frota/posto só veem a própria.
+    """
     _db = _db_client()
     if not _db:
         return []
     try:
-        r = _db.table("profrotas_api_keys").select("*").order("nome_empresa").execute()
+        _perfil_ch = st.session_state.get("_auth_perfil", "")
+        _q = _db.table("profrotas_api_keys").select("*").order("nome_empresa")
+        if _perfil_ch not in ("admin", "analista"):
+            # Filtra pelo CNPJ da empresa vinculada ao usuário
+            _emp_ch  = st.session_state.get("_empresa_ativa") or {}
+            _cnpj_ch = (_emp_ch.get("cnpj") or
+                        st.session_state.get("_auth_cnpj_vinculado") or "").strip()
+            if _cnpj_ch:
+                import re as _re_ch
+                _cnpj_ch = _re_ch.sub(r"\D", "", _cnpj_ch)
+                _q = _q.eq("cnpj_frota", _cnpj_ch)
+            else:
+                return []  # sem CNPJ → não exibe nada por segurança
+        r = _q.execute()
         return r.data or []
     except Exception:
         return []
