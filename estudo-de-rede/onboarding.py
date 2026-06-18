@@ -20,7 +20,7 @@ from typing import Any
 # ─────────────────────────────────────────────────────────────────────────────
 
 TRIAL_DIAS = 14          # duração do trial em dias
-PLANO_TRIAL = "profissional"   # plano liberado durante o trial
+PLANO_TRIAL = "gratuito"   # plano inicial — upgrade via Planos & Assinatura
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -103,10 +103,10 @@ def _criar_empresa_trial(nome: str, cnpj: str, email: str) -> dict | None:
                 "cnpj":          cnpj_limpo,
                 "ativo":         True,
                 "plano":         PLANO_TRIAL,
-                "status":        "trial",
-                "trial_ends_at": trial_end,
-                "max_usuarios":  20,   # limite do plano profissional
-                "max_veiculos":  200,
+                "status":        "ativo",
+                "trial_ends_at": None,
+                "max_usuarios":  1,
+                "max_veiculos":  10,
             })
             .execute()
         )
