@@ -34420,15 +34420,17 @@ elif modo == "☀️ Comece seu dia":
     # DEBUG temporário
     _dbg_emp = st.session_state.get("_empresa_ativa") or {}
     st.caption(
-        f"DEBUG função: cnpj_isol={st.session_state.get('_debug_cnpj_isol','?')!r} | "
-        f"perfil={st.session_state.get('_debug_perfil_isol','?')!r} | "
-        f"emp_cnpj={st.session_state.get('_debug_emp_cnpj','?')!r} | "
-        f"auth_cnpj={st.session_state.get('_debug_auth_cnpj','?')!r}"
+        f"DEBUG: cnpj_isol={st.session_state.get('_debug_cnpj_isol','?')!r} | "
+        f"abast_len={st.session_state.get('_debug_abast_len','?')} | "
+        f"cnpj_vals={st.session_state.get('_debug_cnpj_frota_vals','?')}"
     )
     # Usa dados de abastecimento para calcular score preditivo (mesmo método da aba Manutenção)
     try:
         import math as _math_cd
         _abast_cd_man = _carregar_abastecimentos_unificados(dias=730)
+        st.session_state["_debug_abast_len"] = len(_abast_cd_man)
+        st.session_state["_debug_abast_cols"] = list(_abast_cd_man.columns) if not _abast_cd_man.empty else []
+        st.session_state["_debug_cnpj_frota_vals"] = list(_abast_cd_man["cnpj_frota"].unique()[:5]) if not _abast_cd_man.empty and "cnpj_frota" in _abast_cd_man.columns else []
         _pla_col_man  = next((c for c in ["placa"] if c in _abast_cd_man.columns), None) if not _abast_cd_man.empty else None
         _hod_col_man  = next((c for c in ["hodometro"] if c in _abast_cd_man.columns), None) if not _abast_cd_man.empty else None
 
