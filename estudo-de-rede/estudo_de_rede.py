@@ -5365,6 +5365,21 @@ def _profrotas_listar_chaves() -> list:
         return []
 
 
+
+def _cnpj_usuario_atual() -> str | None:
+    """
+    Retorna o CNPJ normalizado (só dígitos) do usuário logado,
+    ou None se for admin/analista (visão total).
+    """
+    import re as _re_cnpj
+    _p = st.session_state.get("_auth_perfil", "")
+    if _p in ("admin", "analista", ""):
+        return None
+    _emp = st.session_state.get("_empresa_ativa") or {}
+    _cnpj = (_emp.get("cnpj") or
+             st.session_state.get("_auth_cnpj_vinculado") or "").strip()
+    return _re_cnpj.sub(r"\D", "", _cnpj) or None
+
 # ─── Auto-sync: watchdog global — reinicia threads mortas em todo rerun ───────
 try:
     _auto_sync_heartbeat()
@@ -13542,7 +13557,10 @@ def _rg_listar(empresa_id: str) -> list:
     import json as _json_rg
     try:
         _db = _db_client()
+        _cnpj_rg = _cnpj_usuario_atual()
         _q = _db.table("rotogramas").select("*").order("criado_em", desc=True).limit(100)
+        if _cnpj_rg:
+            _q = _q.eq("cnpj_frota", _cnpj_rg)
         # Admin sem empresa vê todos; com empresa filtra pelo tenant
         if empresa_id:
             _q = _q.eq("empresa_id", empresa_id)
@@ -19936,9 +19954,10 @@ def _cc_listar(cnpj_frota: str | None = None, empresa_id: str | None = None) -> 
     """Lista centros de custo ativos."""
     try:
         _db = _db_client()
+        _cnpj_cc = cnpj_frota or _cnpj_usuario_atual()
         q = _db.table("centros_custo").select("*").eq("ativo", True).order("nome")
-        if cnpj_frota:
-            q = q.eq("cnpj_frota", cnpj_frota)
+        if _cnpj_cc:
+            q = q.eq("cnpj_frota", _cnpj_cc)
         elif empresa_id:
             q = q.eq("empresa_id", empresa_id)
         return q.execute().data or []
@@ -26968,6 +26987,12 @@ elif modo == "🎯 Recomendador IA":
     _rec_intel   = _intel_load()
     _rec_hist    = _rec_intel.get("historico") or {}
     _rec_abast   = _db_carregar_abastecimentos()
+    # Multi-tenant: filtra por CNPJ se não for admin/analista
+    _cnpj_rec = _cnpj_usuario_atual()
+    if _cnpj_rec and _rec_abast:
+        import re as _re_rec
+        _rec_abast = [r for r in _rec_abast
+                      if _re_rec.sub(r"\D","",str(r.get("cnpj_frota","") or "")) == _cnpj_rec]
     _rec_acordos = _db_carregar_acordos()
 
     if _rec_pf.empty:
