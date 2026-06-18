@@ -34409,6 +34409,9 @@ elif modo == "☀️ Comece seu dia":
                 "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
                 "🔧 Manutenção de Veículos</div>", unsafe_allow_html=True)
 
+    # DEBUG temporário
+    _dbg_emp = st.session_state.get("_empresa_ativa") or {}
+    st.caption(f"DEBUG: perfil={st.session_state.get('_auth_perfil','?')!r} | empresa_cnpj={_dbg_emp.get('cnpj')!r} | auth_cnpj={st.session_state.get('_auth_cnpj_vinculado','')!r}")
     # Usa dados de abastecimento para calcular score preditivo (mesmo método da aba Manutenção)
     try:
         import math as _math_cd
