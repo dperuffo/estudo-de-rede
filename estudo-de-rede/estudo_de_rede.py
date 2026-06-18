@@ -6920,11 +6920,38 @@ def _tele_salvar_abastecimentos_supabase(abast: list) -> bool:
 
 
 def _tele_carregar_abastecimentos_supabase() -> list:
-    """Carrega TODOS os abastecimentos do Supabase com paginação automática."""
+    """Carrega abastecimentos do Supabase com isolamento multi-tenant."""
     try:
+        _perfil_ta = st.session_state.get("_auth_perfil", "")
+        _filters_ta = []
+        if _perfil_ta not in ("admin", "analista"):
+            _emp_ta = st.session_state.get("_empresa_ativa") or {}
+            _emp_id_ta = _emp_ta.get("id")
+            if _emp_id_ta:
+                _filters_ta = [("empresa_id", _emp_id_ta)]
+            else:
+                # Sem empresa identificada — filtra pelas placas da frota do usuário
+                _placas_ta = {v.get("placa") for v in st.session_state.get("_tele_frota", []) if v.get("placa")}
+                if not _placas_ta:
+                    return []  # sem frota cadastrada → não exibe nada
+                # Usa in_ para filtrar por placas conhecidas
+                _db_ta = _db_client()
+                if not _db_ta:
+                    return []
+                _raw_ta = (_db_ta.table("tele_abastecimentos")
+                    .select("placa,data_abast,litros,valor_total,preco_litro,hodometro,nome_posto,cnpj_posto,fonte")
+                    .in_("placa", list(_placas_ta))
+                    .order("data_abast").execute().data or [])
+                return [{
+                    "placa": r.get("placa",""), "data": r.get("data_abast",""),
+                    "litros": r.get("litros"), "valor_total": r.get("valor_total"),
+                    "hodometro": r.get("hodometro"), "nome_posto": r.get("nome_posto",""),
+                    "cnpj_posto": r.get("cnpj_posto",""), "fonte": r.get("fonte","supabase"),
+                } for r in _raw_ta]
         _raw = _db_paginar(
             "tele_abastecimentos",
             "placa,data_abast,litros,valor_total,preco_litro,hodometro,nome_posto,cnpj_posto,fonte",
+            filters=_filters_ta,
             order_by="data_abast", order_desc=False,
         )
         return [
