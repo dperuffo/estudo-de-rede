@@ -6849,12 +6849,27 @@ def _tele_salvar_frota_supabase(frota: list) -> bool:
 
 
 def _tele_carregar_frota_supabase() -> list:
-    """Carrega todos os veículos ativos da tabela tele_frota com paginação."""
+    """Carrega veículos ativos da tabela tele_frota com isolamento multi-tenant."""
     try:
+        _perfil_tele = st.session_state.get("_auth_perfil", "")
+        _filters = [("ativo", True)]
+        # Admin/analista veem todos; outros veem só da própria empresa
+        if _perfil_tele not in ("admin", "analista"):
+            _emp_tele = st.session_state.get("_empresa_ativa") or {}
+            _emp_id_tele = _emp_tele.get("id")
+            _emp_nome_tele = _emp_tele.get("nome") or (
+                st.session_state.get("_auth_usuario_db") or {}
+            ).get("empresa_nome", "")
+            if _emp_id_tele:
+                _filters.append(("empresa_id", _emp_id_tele))
+            elif _emp_nome_tele:
+                _filters.append(("empresa", _emp_nome_tele))
+            else:
+                return []  # sem empresa identificada → não exibe nada
         return _db_paginar(
             "tele_frota",
             "placa,combustivel,tanque_l,consumo_esp_kml,empresa,modelo",
-            filters=[("ativo", True)],
+            filters=_filters,
         )
     except Exception:
         return []
@@ -31958,6 +31973,7 @@ elif modo == "🛰️ Telemetria":
     # ── Inicializa session state de telemetria ───────────────────────
     if "_tele_frota" not in st.session_state:
         st.session_state["_tele_frota"] = []
+        st.session_state.pop("_tele_restaurado", None)  # força recarregamento filtrado
     if "_tele_abast" not in st.session_state:
         st.session_state["_tele_abast"] = []
 
