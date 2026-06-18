@@ -678,7 +678,7 @@ def _sec_log_evento(tipo: str, descricao: str, nivel: str = "INFO"):
 #   Chave: slug da aba/funcionalidade.  Valor: set de perfis autorizados.
 _PERFIS_TODOS = {"admin", "analista", "gestor_frota", "posto"}
 
-_PERMISSOES: dict[str, set] = {
+_PERMISSOES_FALLBACK: dict[str, set] = {
     # ── Abas do menu ──────────────────────────────────────────────
     "aba_dashboard":        {"admin", "analista", "gestor_frota"},
     "aba_roteirizacao":     {"admin", "analista", "gestor_frota", "posto"},
@@ -710,10 +710,65 @@ _PERMISSOES: dict[str, set] = {
 }
 
 
+@st.cache_data(show_spinner=False, ttl=60)
+def _carregar_permissoes_db() -> dict:
+    """
+    Carrega a matriz de permissões da tabela permissoes_perfil no Supabase.
+    Fallback para os valores hardcoded em _PERMISSOES_FALLBACK se o banco
+    estiver indisponível ou a tabela ainda não tiver sido criada/populada.
+    """
+    try:
+        _db_perm = _db_client()
+        if not _db_perm:
+            return _PERMISSOES_FALLBACK
+        _rows = _db_perm.table("permissoes_perfil").select("funcionalidade,perfil,permitido").execute().data
+        if not _rows:
+            return _PERMISSOES_FALLBACK
+        _matriz: dict = {}
+        for _r in _rows:
+            _func = _r.get("funcionalidade")
+            _perf = _r.get("perfil")
+            if _r.get("permitido"):
+                _matriz.setdefault(_func, set()).add(_perf)
+            else:
+                _matriz.setdefault(_func, set())
+        return _matriz
+    except Exception:
+        return _PERMISSOES_FALLBACK
+
+
+def _salvar_permissoes_db(matriz: dict, atualizado_por: str = "") -> tuple[bool, str]:
+    """Persiste a matriz de permissões editada na tabela permissoes_perfil."""
+    try:
+        _db_perm = _db_client()
+        if not _db_perm:
+            return False, "Banco não disponível"
+        _todos_perfis = ["admin", "analista", "gestor_frota", "posto"]
+        _linhas = []
+        for _func, _perfis_permitidos in matriz.items():
+            for _perf in _todos_perfis:
+                _linhas.append({
+                    "funcionalidade": _func,
+                    "perfil": _perf,
+                    "permitido": _perf in _perfis_permitidos,
+                    "atualizado_por": atualizado_por or "admin",
+                })
+        for _i in range(0, len(_linhas), 100):
+            _lote = _linhas[_i:_i+100]
+            _db_perm.table("permissoes_perfil").upsert(
+                _lote, on_conflict="funcionalidade,perfil"
+            ).execute()
+        _carregar_permissoes_db.clear()
+        return True, f"{len(_linhas)} permissões salvas com sucesso."
+    except Exception as _e:
+        return False, str(_e)
+
+
 def _auth_tem_permissao(funcionalidade: str, _log_deny: bool = False) -> bool:
     """Retorna True se o usuário logado tem permissão para a funcionalidade."""
     _perfil = st.session_state.get("_auth_perfil", "")
-    _ok = _perfil in _PERMISSOES.get(funcionalidade, set())
+    _PERMISSOES = _carregar_permissoes_db()
+    _ok = _perfil in _PERMISSOES.get(funcionalidade, _PERMISSOES_FALLBACK.get(funcionalidade, set()))
     if not _ok and _log_deny and _perfil:
         _sec_log_evento("PERM_DENIED",
                         f"Acesso negado: perfil='{_perfil}' func='{funcionalidade}'",
@@ -25111,10 +25166,11 @@ elif modo == "🛡️ Admin":
         _PERFIS_INTERNOS = ["admin", "analista"]
         _PERFIS_TODOS_M  = ["admin", "analista", "gestor_frota", "posto"]
 
-        # Carrega permissões salvas do session_state (ou usa padrão)
+        # Carrega permissões do banco (Supabase) na primeira renderização
         if "perm_matrix_edit" not in st.session_state:
+            _perm_atual_db = _carregar_permissoes_db()
             st.session_state["perm_matrix_edit"] = {
-                slug: set(perfs) for slug, perfs in _PERMISSOES.items()
+                slug: set(perfs) for slug, perfs in _perm_atual_db.items()
             }
         _perm_edit = st.session_state["perm_matrix_edit"]
 
@@ -25174,16 +25230,21 @@ elif modo == "🛡️ Admin":
         with _btn_col1:
             if st.button("💾 Salvar permissões", type="primary",
                          use_container_width=True, key="btn_salvar_perm"):
-                # Aplica as permissões editadas ao dicionário global
-                for _slug, _perfs in _perm_edit.items():
-                    _PERMISSOES[_slug] = set(_perfs)
-                st.session_state["perm_matrix_edit"] = _perm_edit
-                st.toast("✅ Permissões atualizadas!", icon="🛡️")
-                st.rerun()
+                _email_quem_salva = (st.session_state.get("_auth_user") or {}).get("email", "")
+                _ok_save, _msg_save = _salvar_permissoes_db(_perm_edit, _email_quem_salva)
+                if _ok_save:
+                    st.session_state["perm_matrix_edit"] = _perm_edit
+                    st.toast(f"✅ {_msg_save}", icon="🛡️")
+                    st.rerun()
+                else:
+                    st.error(f"❌ Erro ao salvar: {_msg_save}")
         with _btn_col2:
             if st.button("↩️ Restaurar padrões", key="btn_reset_perm"):
                 st.session_state.pop("perm_matrix_edit", None)
-                st.toast("Permissões restauradas para o padrão.", icon="↩️")
+                _ok_reset, _msg_reset = _salvar_permissoes_db(_PERMISSOES_FALLBACK,
+                                                               (st.session_state.get("_auth_user") or {}).get("email", ""))
+                st.toast("Permissões restauradas para o padrão." if _ok_reset else f"Erro: {_msg_reset}",
+                        icon="↩️")
                 st.rerun()
 
         st.caption("⚠️ As permissões são aplicadas na sessão atual. Para persistência permanente, salve também no banco de dados.")
