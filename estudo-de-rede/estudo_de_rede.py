@@ -1705,7 +1705,6 @@ def _db_carregar_abastecimentos() -> list:
             return []
 
 
-@st.cache_data(show_spinner=False, ttl=900)  # 15 min
 def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
     """
     Carrega abastecimentos de TODAS as fontes disponíveis e retorna um
@@ -34417,20 +34416,11 @@ elif modo == "☀️ Comece seu dia":
                 "border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:12px'>"
                 "🔧 Manutenção de Veículos</div>", unsafe_allow_html=True)
 
-    # DEBUG temporário
-    _dbg_emp = st.session_state.get("_empresa_ativa") or {}
-    st.caption(
-        f"DEBUG: cnpj_isol={st.session_state.get('_debug_cnpj_isol','?')!r} | "
-        f"abast_len={st.session_state.get('_debug_abast_len','?')} | "
-        f"cnpj_vals={st.session_state.get('_debug_cnpj_frota_vals','?')}"
-    )
+
     # Usa dados de abastecimento para calcular score preditivo (mesmo método da aba Manutenção)
     try:
         import math as _math_cd
         _abast_cd_man = _carregar_abastecimentos_unificados(dias=730)
-        st.session_state["_debug_abast_len"] = len(_abast_cd_man)
-        st.session_state["_debug_abast_cols"] = list(_abast_cd_man.columns) if not _abast_cd_man.empty else []
-        st.session_state["_debug_cnpj_frota_vals"] = list(_abast_cd_man["cnpj_frota"].unique()[:5]) if not _abast_cd_man.empty and "cnpj_frota" in _abast_cd_man.columns else []
         _pla_col_man  = next((c for c in ["placa"] if c in _abast_cd_man.columns), None) if not _abast_cd_man.empty else None
         _hod_col_man  = next((c for c in ["hodometro"] if c in _abast_cd_man.columns), None) if not _abast_cd_man.empty else None
 
