@@ -2741,7 +2741,7 @@ def _db_resolver_empresas(email: str) -> list:
         _res = (
             db.table("usuarios_empresas")
             # Fase 1: inclui plano, status e trial_ends_at para feature flags e banners
-            .select("empresa_id, role, empresas(id, nome, ativo, plano, status, trial_ends_at, max_usuarios, max_veiculos)")
+            .select("empresa_id, role, empresas(id, nome, cnpj, ativo, plano, status, trial_ends_at, max_usuarios, max_veiculos)")
             .eq("user_email", email.lower())
             .eq("ativo", True)
             .execute()
@@ -2753,6 +2753,7 @@ def _db_resolver_empresas(email: str) -> list:
                 _empresas.append({
                     "id":            _emp["id"],
                     "nome":          _emp["nome"],
+                    "cnpj":          _emp.get("cnpj"),
                     "role":          _row.get("role", "viewer"),
                     # Fase 1: campos de plano para feature flags e banners
                     "plano":         _emp.get("plano", "gratuito"),
