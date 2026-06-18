@@ -28060,11 +28060,21 @@ elif modo == "👥 Análise de Cliente":
     elif _src_opcao == "Gestao de Frotas (API)":
         _pf_opts_ac = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c["cnpj_frota"]
                        for c in _pf_chaves_ac}
-        _pf_opts_ac = {"Todos os clientes": None, **_pf_opts_ac}
+        # Admin/analista podem ver todos os clientes; outros só veem o próprio
+        _perfil_ac = st.session_state.get("_auth_perfil", "")
+        if _perfil_ac in ("admin", "analista"):
+            _pf_opts_ac = {"Todos os clientes": None, **_pf_opts_ac}
         _pf_col1, _pf_col2 = st.columns([2, 1])
         with _pf_col1:
-            _pf_cli_ac = st.selectbox("Cliente Gestão de Frotas",
-                                       list(_pf_opts_ac.keys()), key="ac_pf_cli")
+            if len(_pf_opts_ac) > 1 or _perfil_ac in ("admin", "analista"):
+                _pf_cli_ac = st.selectbox("Cliente Gestão de Frotas",
+                                           list(_pf_opts_ac.keys()), key="ac_pf_cli")
+            elif _pf_opts_ac:
+                _pf_cli_ac = list(_pf_opts_ac.keys())[0]
+                st.info(f"Cliente: **{_pf_cli_ac}**")
+            else:
+                st.warning("Nenhuma chave de acesso configurada para sua empresa.")
+                _pf_cli_ac = None
         with _pf_col2:
             _pf_dias_ac = st.selectbox("Período", [30, 60, 90, 180, 365], index=2,
                                         format_func=lambda x: f"{x} dias", key="ac_pf_dias")
