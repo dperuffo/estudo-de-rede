@@ -324,54 +324,107 @@ def verificar_limite(recurso: str, quantidade_atual: int) -> bool:
 # UI — Tela de Planos
 # ─────────────────────────────────────────────
 def mostrar_tela_planos():
-    """Renderiza a tela de seleção de planos."""
-    st.title("🚀 Escolha seu plano")
-    st.caption("Comece grátis. Faça upgrade quando precisar.")
+    """Renderiza a tela de seleção de planos com integração real ao Stripe."""
+    import streamlit as _st
 
-    empresa_id = st.session_state.get("empresa_id", "")
-    email      = st.session_state.get("user_email", "")
+    # ── Resolve empresa e email do usuário logado ──────────────────
+    _emp_pl    = _st.session_state.get("_empresa_ativa") or {}
+    empresa_id = _emp_pl.get("id", "")
+    plano_atual= _emp_pl.get("plano", "gratuito")
+    _auth_user = _st.session_state.get("_auth_user") or {}
+    email      = (_auth_user.get("email") or
+                  _st.session_state.get("_auth_email", "") or "")
 
-    col1, col2, col3, col4 = st.columns(4)
+    _st.markdown(
+        "<h2 style='margin:0 0 4px'>🚀 Planos & Assinatura</h2>"
+        "<p style='color:#666;margin:0 0 20px'>Escolha o plano ideal para sua frota.</p>",
+        unsafe_allow_html=True,
+    )
 
-    with col1:
-        st.markdown("### 🆓 Gratuito")
-        st.markdown("**R$ 0/mês**")
-        st.markdown("- 1 usuário\n- 10 veículos\n- 2 postos")
-        st.button("Plano atual", disabled=True, key="btn_gratuito")
+    if not empresa_id:
+        _st.warning("Empresa não identificada. Faça login novamente.")
+        return
 
-    with col2:
-        st.markdown("### 📦 Básico")
-        st.markdown("**R$ 149/mês**")
-        st.markdown("- 5 usuários\n- 50 veículos\n- 10 postos\n- Exportação Excel")
-        if st.button("Assinar Básico", key="btn_basico", type="primary"):
-            url = criar_checkout_session("basico", empresa_id, email)
-            st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
+    PLANOS_INFO = [
+        {
+            "key": "gratuito",
+            "icon": "🆓", "nome": "Gratuito", "preco": "R$ 0/mês",
+            "recursos": ["1 usuário", "10 veículos", "Consulta de postos ANP"],
+        },
+        {
+            "key": "basico",
+            "icon": "📦", "nome": "Básico", "preco": "R$ 149/mês",
+            "recursos": ["5 usuários", "50 veículos", "Exportação Excel", "Suporte por e-mail"],
+        },
+        {
+            "key": "profissional",
+            "icon": "⭐", "nome": "Pro", "preco": "R$ 349/mês",
+            "recursos": ["20 usuários", "200 veículos", "Relatórios avançados", "API REST", "Assistente IA"],
+        },
+        {
+            "key": "enterprise",
+            "icon": "🏢", "nome": "Enterprise", "preco": "R$ 899/mês",
+            "recursos": ["Ilimitado", "SSO / SAML", "SLA 99,95%", "Suporte dedicado", "Onboarding guiado"],
+        },
+    ]
 
-    with col3:
-        st.markdown("### ⭐ Pro")
-        st.markdown("**R$ 349/mês**")
-        st.markdown("- 20 usuários\n- 200 veículos\n- Postos ilimitados\n- Relatórios avançados\n- API REST")
-        if st.button("Assinar Pro", key="btn_pro", type="primary"):
-            url = criar_checkout_session("profissional", empresa_id, email)
-            st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
+    cols = _st.columns(4)
+    for col, plano in zip(cols, PLANOS_INFO):
+        with col:
+            is_atual = (plano["key"] == plano_atual)
+            borda    = "2px solid #1565c0" if is_atual else "1px solid #e0e0e0"
+            _st.markdown(
+                f"<div style='border:{borda};border-radius:12px;padding:16px 12px;"
+                f"background:{'#f0f7ff' if is_atual else '#fff'};min-height:220px'>"
+                f"<div style='font-size:24px'>{plano['icon']}</div>"
+                f"<div style='font-weight:700;font-size:15px;margin:4px 0'>{plano['nome']}</div>"
+                f"<div style='color:#1565c0;font-weight:600;margin-bottom:10px'>{plano['preco']}</div>"
+                + "".join(f"<div style='font-size:12px;color:#555;margin-bottom:2px'>✔ {r}</div>"
+                          for r in plano["recursos"])
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+            _st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-    with col4:
-        st.markdown("### 🏢 Enterprise")
-        st.markdown("**R$ 899/mês**")
-        st.markdown("- Ilimitado\n- SSO SAML\n- SLA 99,95%\n- Suporte dedicado")
-        if st.button("Assinar Enterprise", key="btn_enterprise", type="primary"):
-            url = criar_checkout_session("enterprise", empresa_id, email)
-            st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
+            if is_atual:
+                _st.button("✅ Plano atual", disabled=True,
+                           key=f"btn_plano_{plano['key']}", use_container_width=True)
+            elif plano["key"] == "gratuito":
+                _st.button("Fazer downgrade", disabled=True,
+                           key=f"btn_plano_{plano['key']}", use_container_width=True)
+            else:
+                if _st.button(f"Assinar {plano['nome']}",
+                              key=f"btn_plano_{plano['key']}",
+                              type="primary", use_container_width=True):
+                    try:
+                        with _st.spinner("Preparando checkout seguro..."):
+                            _url = criar_checkout_session(plano["key"], empresa_id, email)
+                        _st.markdown(
+                            f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;"
+                            f"border-radius:8px;padding:12px 16px;margin-top:8px'>"
+                            f"✅ <b>Checkout criado!</b><br>"
+                            f"<a href='{_url}' target='_blank' style='color:#1565c0;font-weight:600'>"
+                            f"👉 Clique aqui para pagar com segurança no Stripe</a></div>",
+                            unsafe_allow_html=True,
+                        )
+                        _st.link_button(
+                            f"💳 Ir para pagamento — {plano['nome']}",
+                            url=_url, use_container_width=True,
+                        )
+                    except Exception as _e_str:
+                        _st.error(f"Erro ao criar sessão de pagamento: {_e_str}")
 
-    st.divider()
-    if st.button("⚙️ Gerenciar assinatura atual"):
-        url = portal_cliente(empresa_id)
-        st.markdown(f'<meta http-equiv="refresh" content="0;url={url}">', unsafe_allow_html=True)
+    _st.divider()
+    _st.markdown("#### ⚙️ Gerenciar assinatura existente")
+    _st.caption("Altere forma de pagamento, cancele ou veja faturas anteriores.")
+    if _st.button("Acessar portal do cliente Stripe", key="btn_portal_stripe"):
+        try:
+            with _st.spinner("Abrindo portal..."):
+                _url_portal = portal_cliente(empresa_id)
+            _st.link_button("🔗 Acessar portal", url=_url_portal)
+        except Exception as _e_portal:
+            _st.error(f"Erro ao abrir portal: {_e_portal}")
 
-
-# ─────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────
 def _ts(unix_timestamp):
     """Converte timestamp Unix para ISO 8601."""
     if not unix_timestamp:
