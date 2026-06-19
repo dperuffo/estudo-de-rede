@@ -1825,15 +1825,25 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
 # ── Rede GF — postos_gf ───────────────────────────────────────────
 
 def _normalizar_cnpj14(v) -> str:
-    """Normaliza qualquer valor para string de exatamente 14 dígitos com zero-padding."""
-    _s = str(v or "")
-    # Se for float com .0, converte para int primeiro para evitar "22912349000132.0"
-    if "." in _s:
+    """
+    Normaliza CNPJ para 14 caracteres alfanuméricos.
+    Aceita CNPJ numérico (14 dígitos) e alfanumérico (novo formato RF 2026+).
+    Remove pontos, barras, hífens e espaços.
+    """
+    _s = str(v or "").strip().upper()
+    # Remove formatação: pontos, barras, hífens, espaços
+    _s = re.sub(r"[\s.\-/]", "", _s)
+    # Se for float com .0, converte para int primeiro
+    if re.match(r"^\d+\.0+$", _s):
         try:
             _s = str(int(float(_s)))
         except Exception:
             pass
-    return re.sub(r"\D", "", _s).zfill(14)
+    # Se for puramente numérico, aplica zero-padding
+    if _s.isdigit():
+        return _s.zfill(14)
+    # Alfanumérico — retorna como está (já tem 14 chars após remoção de formatação)
+    return _s[:14] if len(_s) > 14 else _s
 
 
 def _db_paginar(table_name: str, select_cols: str,
