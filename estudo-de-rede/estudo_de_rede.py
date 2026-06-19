@@ -26015,22 +26015,27 @@ elif modo == "🧭 Roteirização":
         _pp_df_r  = st.session_state.get("_pp_df")
         _pf_df_r  = st.session_state.get("pf_coords_df", pd.DataFrame())
 
-        # Fallback: usa postos ANP quando não há postos GF sincronizados
-        # postos_anp_df tem colunas: cnpj, _lat, _lon, razaoSocial, municipio, uf
+        # ── Fallback: postos ANP (mesmo mecanismo da Consulta por Rota) ──
         if _pf_df_r.empty:
             _anp_df_rot = st.session_state.get("postos_anp_df")
             if _anp_df_rot is not None and not _anp_df_rot.empty:
+                _coords_rot_r = _rot_res.get("coords", [])
+                _ufs_rot_r = set(ufs_ao_longo_rota(_coords_rot_r)) if _coords_rot_r else set()
                 _pf_df_r = _anp_df_rot.copy()
-                # Renomeia _lat/_lon para lat/lon (formato esperado pela roteirização)
-                # Mantém _lat/_lon (formato original ANP) e adiciona aliases lat/lon
+                if _ufs_rot_r:
+                    _pf_df_r = _pf_df_r[
+                        _pf_df_r["uf"].fillna("").str.upper().str.strip().isin({u.upper() for u in _ufs_rot_r})
+                    ].copy()
                 for _c_r in ["_lat", "_lon"]:
                     if _c_r in _pf_df_r.columns:
                         _pf_df_r[_c_r] = pd.to_numeric(_pf_df_r[_c_r], errors="coerce")
-                _pf_df_r = _pf_df_r.dropna(subset=["_lat", "_lon"])
+                _pf_df_r = _pf_df_r.dropna(subset=["_lat", "_lon"]).reset_index(drop=True)
                 _pf_df_r["lat"] = _pf_df_r["_lat"]
                 _pf_df_r["lon"] = _pf_df_r["_lon"]
-                st.caption("📍 Usando base ANP de postos (API Gestão de Frotas não sincronizada)")
-
+                if "razaoSocial" in _pf_df_r.columns:
+                    _pf_df_r["razao_social"] = _pf_df_r["razaoSocial"]
+                _ufs_str = ", ".join(sorted(_ufs_rot_r)) if _ufs_rot_r else "todos os estados"
+                st.caption(f"📍 {len(_pf_df_r):,} postos ANP ({_ufs_str}) — API Gestão de Frotas não sincronizada")
         _sugest: list = []
         _cands:  list = []
         _range_avail = (_rcap - _rmin) * _raut
