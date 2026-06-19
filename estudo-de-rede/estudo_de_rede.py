@@ -28098,7 +28098,15 @@ elif modo == "👥 Análise de Cliente":
             _pf_dias_ac = st.selectbox("Período", [30, 60, 90, 180, 365], index=2,
                                         format_func=lambda x: f"{x} dias", key="ac_pf_dias")
         with st.spinner("Carregando dados do Gestão de Frotas..."):
-            _df_abast = _profrotas_para_df_analise(_pf_opts_ac[_pf_cli_ac], _pf_dias_ac)
+            # Segurança multi-tenant: gestor_frota nunca pode ver dados de outros clientes
+            _cnpj_para_query = _pf_opts_ac.get(_pf_cli_ac) if _pf_cli_ac else None
+            if _perfil_ac not in ("admin", "analista") and not _cnpj_para_query:
+                # Força o CNPJ da própria empresa
+                _emp_ac = st.session_state.get("_empresa_ativa") or {}
+                import re as _re_ac
+                _cnpj_para_query = _re_ac.sub(r"\D","",(_emp_ac.get("cnpj") or
+                    st.session_state.get("_auth_cnpj_vinculado") or "")) or None
+            _df_abast = _profrotas_para_df_analise(_cnpj_para_query, _pf_dias_ac)
         if _df_abast is not None and not _df_abast.empty:
             st.success(
                 f"🔌 **{len(_df_abast)}** registros do Gestão de Frotas — "
