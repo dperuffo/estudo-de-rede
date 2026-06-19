@@ -27051,8 +27051,7 @@ elif modo == "🎯 Recomendador IA":
 
     if _rec_pf.empty:
         st.info(
-            "ℹ️ Carregue a planilha **Gestão de Frotas** em Configurações "
-            "para ativar o Recomendador IA.",
+            "ℹ️ Nenhum dado de abastecimento encontrado. Importe dados via **(1)** planilha modelo em **Análise do Cliente → Importar**, ou **(2)** conecte a **API Gestão de Frotas** em **API & Integrações**.",
             icon="🤖",
         )
     else:
