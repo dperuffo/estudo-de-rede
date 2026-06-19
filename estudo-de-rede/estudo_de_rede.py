@@ -17793,7 +17793,7 @@ with st.sidebar:
                         st.session_state["_cfg_senha_errada"] = True
                 if st.session_state.get("_cfg_senha_errada", False):
                     st.error("❌ Senha incorreta. Tente novamente.")
-            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = tab_logs = tab_intel = tab_acordos = None
+            tab_pf = tab_cer = tab_pp = tab_base = tab_anp = tab_precos_anp = tab_logs = tab_intel = tab_acordos = None
         else:
             _col_cfg_lock, _ = st.columns([1, 5])
             with _col_cfg_lock:
@@ -17802,9 +17802,9 @@ with st.sidebar:
                     st.session_state["_cfg_autenticado"] = False
                     st.session_state.pop("_cfg_senha_errada", None)
                     st.rerun()
-            tab_pf = tab_cer = tab_pp = tab_intel = tab_acordos = None
-            tab_base, tab_anp, tab_logs = st.tabs(
-                ["🗃️ Base", "🔵 Postos ANP", "📊 Logs de Uso"]
+            tab_pf = tab_cer = tab_pp = tab_intel = tab_acordos = tab_precos_anp = None
+            tab_base, tab_anp, tab_precos_anp, tab_logs = st.tabs(
+                ["🗃️ Base", "🔵 Postos ANP", "💲 Preços ANP", "📊 Logs de Uso"]
             )
             tab_variacao = None  # movida para menu principal
 
@@ -18338,6 +18338,98 @@ with st.sidebar:
                         st.rerun()
                     else:
                         st.error(f"❌ {_anp_msg_cfg}")
+
+        # ── Tab Preços ANP ──────────────────────────────────────────────
+        if tab_precos_anp is not None:
+         with tab_precos_anp:
+            _precos_cache = st.session_state.get("_precos_anp_cache", {})
+            _sheets_ativos = _precos_cache.get("sheets")
+            _semana_ativa  = _precos_cache.get("semana", "")
+
+            if _sheets_ativos:
+                _n_abas = len(_sheets_ativos)
+                _abas_nomes = ", ".join(_sheets_ativos.keys())
+                st.markdown(
+                    f"<div style='background:#e8f5e9;border:1px solid #a5d6a7;"
+                    f"border-radius:8px;padding:8px 12px;font-size:11px;"
+                    f"color:#1b5e20;margin-bottom:10px'>"
+                    f"✅ <b>Preços ANP carregados</b> — {_n_abas} abas: {_abas_nomes}"
+                    + (f" · Semana: <b>{_semana_ativa}</b>" if _semana_ativa and _semana_ativa != "local" else " · Fonte: arquivo local")
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+                # Mostra amostra dos preços por estado
+                if "estados" in _sheets_ativos:
+                    _df_est_cfg = _sheets_ativos["estados"]
+                    _col_prod_cfg = _anp_col(_df_est_cfg, "produto")
+                    _col_preco_cfg = _anp_col(_df_est_cfg, "medio revenda", "media revenda", "preco medio")
+                    _col_est_cfg = _anp_col(_df_est_cfg, "estado", "estados")
+                    if _col_prod_cfg and _col_preco_cfg and _col_est_cfg:
+                        _produtos_cfg = sorted(_df_est_cfg[_col_prod_cfg].dropna().unique())
+                        _prod_sel = st.selectbox("Filtrar por combustível", ["Todos"] + list(_produtos_cfg),
+                                                  key="cfg_anp_prod_sel")
+                        _df_show_cfg = _df_est_cfg.copy()
+                        if _prod_sel != "Todos":
+                            _df_show_cfg = _df_show_cfg[_df_show_cfg[_col_prod_cfg] == _prod_sel]
+                        st.dataframe(
+                            _df_show_cfg[[_col_est_cfg, _col_prod_cfg, _col_preco_cfg]]
+                            .rename(columns={_col_est_cfg: "Estado", _col_prod_cfg: "Combustível",
+                                             _col_preco_cfg: "Preço Médio R$/L"})
+                            .sort_values("Estado")
+                            .reset_index(drop=True),
+                            use_container_width=True, height=300,
+                        )
+                if st.button("🗑️ Remover Preços ANP", key="btn_rm_precos_anp",
+                             use_container_width=False):
+                    st.session_state.pop("_precos_anp_cache", None)
+                    st.rerun()
+            else:
+                st.markdown(
+                    "<div style='background:#fff3e0;border:1px solid #ffcc80;"
+                    "border-radius:8px;padding:8px 12px;font-size:11px;color:#e65100;"
+                    "margin-bottom:10px'>"
+                    "⚠️ <b>Nenhum preço ANP carregado.</b><br>"
+                    "<span style='font-size:10px'>Faça upload da planilha semanal de preços ANP "
+                    "para alimentar consultas, relatórios e dashboard.</span></div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("#### 📥 Upload de Preços ANP")
+            st.caption(
+                "Faça upload da planilha semanal de preços ANP (arquivo .xlsx disponível em "
+                "[gov.br/anp](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/"
+                "precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos)). "
+                "Após o upload, os preços serão usados em consultas por UF, roteirização e dashboard."
+            )
+            _precos_up = st.file_uploader(
+                "📎 Selecione a planilha de Preços ANP (.xlsx)",
+                type=["xlsx", "xls"],
+                key="cfg_precos_anp_uploader",
+                help="Planilha semanal de preços ANP com abas: ESTADOS, CAPITAIS, MUNICÍPIOS, REGIÕES, BRASIL",
+            )
+            if _precos_up is not None:
+                with st.spinner("⏳ Processando planilha de preços ANP..."):
+                    try:
+                        import io as _io_cfg
+                        _bytes_up = _precos_up.read()
+                        _sheets_up = _anp_processar_arquivo(_io_cfg.BytesIO(_bytes_up))
+                        if _sheets_up:
+                            import hashlib as _hl_cfg
+                            _semana_up = _precos_up.name.replace(".xlsx","").replace(".xls","")
+                            st.session_state["_precos_anp_cache"] = {
+                                "sheets": _sheets_up,
+                                "semana": _semana_up,
+                            }
+                            _n_up = sum(len(v) for v in _sheets_up.values())
+                            st.success(
+                                f"✅ Planilha carregada com sucesso! "
+                                f"{len(_sheets_up)} abas · {_n_up} registros de preços."
+                            )
+                            st.rerun()
+                        else:
+                            st.error("❌ Não foi possível processar a planilha. Verifique se é o arquivo correto de preços ANP.")
+                    except Exception as _e_up:
+                        st.error(f"❌ Erro ao processar: {_e_up}")
 
         # ── Tab Logs de Uso ─────────────────────────────────────────────
         if tab_logs is not None:
