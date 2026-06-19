@@ -25864,14 +25864,13 @@ elif modo == "🧭 Roteirização":
             if _anp_df_rot is not None and not _anp_df_rot.empty:
                 _pf_df_r = _anp_df_rot.copy()
                 # Renomeia _lat/_lon para lat/lon (formato esperado pela roteirização)
-                _pf_df_r = _pf_df_r.rename(columns={
-                    "_lat": "lat", "_lon": "lon",
-                    "razaoSocial": "razao_social",
-                })
-                for _c_r in ["lat", "lon"]:
+                # Mantém _lat/_lon (formato original ANP) e adiciona aliases lat/lon
+                for _c_r in ["_lat", "_lon"]:
                     if _c_r in _pf_df_r.columns:
                         _pf_df_r[_c_r] = pd.to_numeric(_pf_df_r[_c_r], errors="coerce")
-                _pf_df_r = _pf_df_r.dropna(subset=["lat", "lon"])
+                _pf_df_r = _pf_df_r.dropna(subset=["_lat", "_lon"])
+                _pf_df_r["lat"] = _pf_df_r["_lat"]
+                _pf_df_r["lon"] = _pf_df_r["_lon"]
                 st.caption("📍 Usando base ANP de postos (API Gestão de Frotas não sincronizada)")
 
         _sugest: list = []
