@@ -9833,7 +9833,19 @@ def _auto_carregar_anp_repo():
     """
     Baixa precos_anp.xlsx do GitHub, processa e retorna (sheets, semana, erro).
     Usa cache Redis (1h) + cache servidor Streamlit (1h) em camadas.
+    Fallback: arquivo local /app/precos_anp.xlsx se GitHub indisponível.
     """
+    # Camada 0: arquivo local (mais rápido e sempre disponível)
+    _local_anp = os.path.join(_DIR, ARQUIVO_ANP_REPO)
+    if os.path.exists(_local_anp):
+        try:
+            with open(_local_anp, "rb") as _f_anp:
+                _bytes_local = _f_anp.read()
+            _sheets_local = _anp_processar_arquivo(io.BytesIO(_bytes_local))
+            if _sheets_local:
+                return _sheets_local, "local", None
+        except Exception:
+            pass
     # Camada 1: Redis cache
     try:
         from cache_redis import cache_anp_get, cache_anp_set
