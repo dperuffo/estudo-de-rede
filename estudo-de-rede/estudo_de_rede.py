@@ -376,21 +376,46 @@ def _db_criar_empresa_e_vincular(nome_empresa: str, cnpj_empresa: str,
     """
     Auto-cadastro: cria a empresa e vincula o usuário como 'gestor' (role principal),
     tudo em uma operação. Usado no onboarding de novos usuários sem empresa.
+    Garante unicidade: não cria empresa duplicada por CNPJ ou por email já vinculado.
     """
     db = _db_client()
     if not db:
         return None
     try:
-        _emp_res = db.table("empresas").insert({
-            "nome":   nome_empresa.strip(),
-            "cnpj":   cnpj_empresa.strip() or None,
-            "ativo":  True,
-            "plano":  "gratuito",
-            "status": "ativo",
-        }).execute()
-        if not _emp_res.data:
-            return None
-        _empresa = _emp_res.data[0]
+        import re as _re_emp
+        _cnpj_norm = _re_emp.sub(r"[\s.\-/]", "", cnpj_empresa.strip()).upper() or None
+
+        # 1. Verifica se o usuário já tem empresa vinculada
+        _vinc_exist = db.table("usuarios_empresas").select("empresa_id, empresas(id,nome,cnpj,plano,status)").eq("user_email", email_usuario.lower()).eq("ativo", True).execute()
+        if _vinc_exist.data:
+            _emp_exist = (_vinc_exist.data[0].get("empresas") or {})
+            if _emp_exist.get("id"):
+                return _emp_exist  # já tem empresa — retorna sem criar
+
+        # 2. Verifica se já existe empresa com mesmo CNPJ
+        _empresa = None
+        if _cnpj_norm:
+            _cnpj_check = db.table("empresas").select("*").eq("cnpj", _cnpj_norm).execute()
+            if not _cnpj_check.data:
+                # Tenta também com formatação original
+                _cnpj_check2 = db.table("empresas").select("*").eq("cnpj", cnpj_empresa.strip()).execute()
+                if _cnpj_check2.data:
+                    _empresa = _cnpj_check2.data[0]
+            else:
+                _empresa = _cnpj_check.data[0]
+
+        # 3. Cria empresa apenas se não existe
+        if not _empresa:
+            _emp_res = db.table("empresas").insert({
+                "nome":   nome_empresa.strip(),
+                "cnpj":   _cnpj_norm or cnpj_empresa.strip() or None,
+                "ativo":  True,
+                "plano":  "gratuito",
+                "status": "ativo",
+            }).execute()
+            if not _emp_res.data:
+                return None
+            _empresa = _emp_res.data[0]
 
         db.table("usuarios_empresas").insert({
             "user_email": email_usuario.lower(),
