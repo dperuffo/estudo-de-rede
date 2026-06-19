@@ -26040,11 +26040,10 @@ elif modo == "🧭 Roteirização":
         _cands:  list = []
         _range_avail = (_rcap - _rmin) * _raut
 
+        # ── Monta candidatos com preços ──────────────────────────────────
+        # Caso 1: planilha de preços PP carregada (postos GF com preços individuais)
         if _pp_df_r is not None and not _pf_df_r.empty and _rcomb:
-            # Matching flexível: usa _fuel_mask para aceitar variações do nome
-            # Ex: "ÓLEO DIESEL S10" encontra "🛢️ Diesel S10", "Diesel S-10", etc.
             _mask_comb = _fuel_mask(_pp_df_r["combustivel_label"], _rcomb)
-            # Fallback: tenta também por combustivel_pk normalizado
             if not _mask_comb.any() and "combustivel_pk" in _pp_df_r.columns:
                 _rcomb_norm = _anp_norm(_rcomb).replace("OLEO ", "").replace("O ", "")
                 _mask_comb  = _pp_df_r["combustivel_pk"].apply(
@@ -26058,7 +26057,6 @@ elif modo == "🧭 Roteirização":
                 _pfc = _pf_df_r.copy()
                 _pfc["_cn"] = _pfc["cnpj"].fillna("").str.replace(r"\D","",regex=True)
                 _mg  = _pfc.merge(_pr, left_on="_cn", right_on="cnpj_norm", how="inner")
-                # ── Vetorizado: sem iterrows() ─────────────────────
                 _mg_valid = _mg[pd.notna(_mg["_lat"]) & pd.notna(_mg["_lon"])].copy()
                 if not _mg_valid.empty:
                     _cands = [
@@ -26073,6 +26071,46 @@ elif modo == "🧭 Roteirização":
                         }
                         for r in _mg_valid.to_dict("records")
                     ]
+
+        # Caso 2: sem planilha PP — usa preços ANP por UF para cada posto ANP na rota
+        if not _cands and not _pf_df_r.empty and _rcomb:
+            _anp_cache_cands = st.session_state.get("_precos_anp_cache", {})
+            _sheets_cands = _anp_cache_cands.get("sheets", {})
+            _df_est_cands = _sheets_cands.get("estados")
+            if _df_est_cands is not None:
+                _col_est_c = _anp_col(_df_est_cands, "estado", "estados")
+                _col_prod_c = _anp_col(_df_est_cands, "produto")
+                _col_preco_c = _anp_col(_df_est_cands, "medio revenda", "media revenda", "preco medio")
+                _rcomb_n = _anp_norm(_rcomb)
+                # Mapa UF → preço médio ANP para o combustível
+                _preco_uf = {}
+                if _col_est_c and _col_prod_c and _col_preco_c:
+                    for _rr_c in _df_est_cands.to_dict("records"):
+                        _uf_c = _anp_norm(str(_rr_c.get(_col_est_c, "")))
+                        _pk_c = _anp_norm(str(_rr_c.get(_col_prod_c, "")))
+                        if _rcomb_n in _pk_c or _pk_c in _rcomb_n:
+                            try:
+                                _v_c = float(str(_rr_c.get(_col_preco_c, "")).replace(",", "."))
+                                if _v_c > 0:
+                                    _preco_uf[_uf_c] = _v_c
+                            except (ValueError, TypeError):
+                                pass
+                if _preco_uf:
+                    # Atribui preço ANP da UF a cada posto ANP na rota
+                    _cands = []
+                    for _rr_p in _pf_df_r.to_dict("records"):
+                        _uf_p = _anp_norm(str(_rr_p.get("uf", "")))
+                        _preco_p = _preco_uf.get(_uf_p)
+                        if _preco_p and pd.notna(_rr_p.get("_lat")) and pd.notna(_rr_p.get("_lon")):
+                            _cands.append({
+                                "label":     str(_rr_p.get("razaoSocial") or _rr_p.get("razao_social") or "Posto ANP")[:45],
+                                "cnpj":      str(_rr_p.get("cnpj", "")),
+                                "lat":       float(_rr_p["_lat"]),
+                                "lon":       float(_rr_p["_lon"]),
+                                "preco":     float(_preco_p),
+                                "municipio": str(_rr_p.get("municipio", "")),
+                                "uf":        str(_rr_p.get("uf", "")),
+                            })
 
         # Defaults para variáveis definidas dentro do bloco condicional abaixo
         _ests     = []
