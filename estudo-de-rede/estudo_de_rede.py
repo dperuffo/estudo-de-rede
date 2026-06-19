@@ -568,25 +568,35 @@ def _sec_validar_email(email: str) -> tuple[bool, str]:
     return True, ""
 
 def _sec_validar_cnpj(cnpj: str) -> tuple[bool, str]:
-    """Valida CNPJ com dígitos verificadores. Retorna (válido, mensagem)."""
+    """
+    Valida CNPJ numérico (14 dígitos) ou alfanumérico (novo formato Receita Federal 2026+).
+    CNPJ alfanumérico: 14 caracteres [A-Z0-9], aceito sem validação de dígito verificador
+    pois o algoritmo é diferente e ainda em implementação pelos órgãos.
+    """
     if not cnpj:
         return False, "CNPJ obrigatório."
-    _d = re.sub(r"\D", "", str(cnpj))
-    if len(_d) != 14:
-        return False, "CNPJ deve ter 14 dígitos."
-    if len(set(_d)) == 1:
-        return False, "CNPJ inválido (dígitos repetidos)."
-    # Cálculo dos dígitos verificadores
-    def _calc(digits, weights):
-        s = sum(int(d) * w for d, w in zip(digits, weights))
-        r = s % 11
-        return 0 if r < 2 else 11 - r
-    _w1 = [5,4,3,2,9,8,7,6,5,4,3,2]
-    _w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2]
-    if _calc(_d[:12], _w1) != int(_d[12]):
-        return False, "CNPJ inválido (dígito verificador)."
-    if _calc(_d[:13], _w2) != int(_d[13]):
-        return False, "CNPJ inválido (dígito verificador)."
+    # Remove formatação: pontos, barras, hífens, espaços
+    _raw = re.sub(r"[\s.\-/]", "", str(cnpj)).upper().strip()
+    if len(_raw) != 14:
+        return False, f"CNPJ deve ter 14 caracteres (recebido: {len(_raw)})."
+    # Verifica se é alfanumérico válido (letras e números apenas)
+    if not re.match(r'^[A-Z0-9]{14}$', _raw):
+        return False, "CNPJ contém caracteres inválidos."
+    # Se for puramente numérico, valida dígitos verificadores
+    if _raw.isdigit():
+        if len(set(_raw)) == 1:
+            return False, "CNPJ inválido (dígitos repetidos)."
+        def _calc(digits, weights):
+            s = sum(int(d) * w for d, w in zip(digits, weights))
+            r = s % 11
+            return 0 if r < 2 else 11 - r
+        _w1 = [5,4,3,2,9,8,7,6,5,4,3,2]
+        _w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2]
+        if _calc(_raw[:12], _w1) != int(_raw[12]):
+            return False, "CNPJ inválido (dígito verificador)."
+        if _calc(_raw[:13], _w2) != int(_raw[13]):
+            return False, "CNPJ inválido (dígito verificador)."
+    # CNPJ alfanumérico — aceito sem validação de dígito verificador
     return True, ""
 
 def _sec_validar_upload(nome_arquivo: str, tamanho_bytes: int,
