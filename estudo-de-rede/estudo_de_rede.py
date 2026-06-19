@@ -28081,6 +28081,10 @@ elif modo == "👥 Análise de Cliente":
         _perfil_ac = st.session_state.get("_auth_perfil", "")
         if _perfil_ac in ("admin", "analista"):
             _pf_opts_ac = {"Todos os clientes": None, **_pf_opts_ac}
+        else:
+            # Limpa seleção anterior caso tenha sido feita como admin
+            if st.session_state.get("ac_pf_cli") == "Todos os clientes":
+                st.session_state.pop("ac_pf_cli", None)
         _pf_col1, _pf_col2 = st.columns([2, 1])
         with _pf_col1:
             if len(_pf_opts_ac) > 1 or _perfil_ac in ("admin", "analista"):
