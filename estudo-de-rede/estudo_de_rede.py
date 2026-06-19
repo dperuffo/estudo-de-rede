@@ -8867,6 +8867,14 @@ def _github_baixar_bytes(nome_arquivo: str) -> "tuple[bytes | None, str]":
             _ultimo_erro = str(_e)
             if _tentativa < len(_timeouts):
                 import time as _t; _t.sleep(2 * _tentativa)
+    # Fallback: tenta arquivo local se download do GitHub falhou
+    _local_path = os.path.join(_DIR, nome_arquivo)
+    if os.path.exists(_local_path):
+        try:
+            with open(_local_path, "rb") as _f_local:
+                return _f_local.read(), ""
+        except Exception as _e_local:
+            return None, f"Erro ao baixar {nome_arquivo}: {_ultimo_erro} | local: {_e_local}"
     return None, f"Erro ao baixar {nome_arquivo}: {_ultimo_erro}"
 
 
