@@ -1547,7 +1547,7 @@ def _db_salvar_rota(nome: str, tipo: str, dados: dict) -> bool:
                 "usuario_email": _db_email(),
                 "nome":          nome.strip() or "Rota",
                 "tipo":          tipo,
-                "criado_em":     _agora(),
+                "criado_em":     __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
                 "dados":         _dados_json,
             }, _db_empresa_id())).execute()
             return True
@@ -15465,8 +15465,9 @@ def _gerar_excel_base_brasil() -> tuple:
 
         # Painel informativo — linha abaixo dos dados
         info_row = n_rows + 2
+        _ts_ws = _agora() if "_agora" in dir() else __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
         ws.cell(info_row, 1,
-                f"Gerado em: {_agora()}  |  "
+                f"Gerado em: {_ts_ws}  |  "
                 f"{_n(n_total)} postos  |  "
                 f"{_n(len(estados))} estados  |  "
                 f"{_n(n_pf_exp)} Gestão de Frotas  |  "
