@@ -16611,34 +16611,6 @@ with st.sidebar:
         _ac_loaded = _db_carregar_acordos()
         st.session_state["acordos_df"] = _ac_loaded
 
-    # ── Modo de consulta — toggle buttons ─────────────────────
-    # Banner: sutil quando Menu.jpg existe, com gradiente quando não existe
-    if _MENU_B64:
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'>"
-            "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
-            "#040d26,#1040a0)'></div>"
-            "<div style='font-size:9px;font-weight:700;color:#0b2660;"
-            "letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap'>"
-            "Modo de Consulta</div>"
-            "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
-            "#1040a0,#040d26)'></div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            "<div style='"
-            "background:linear-gradient(135deg,#040d26 0%,#0b2660 50%,#1040a0 100%);"
-            "border-radius:12px;padding:10px 14px 8px;margin-bottom:10px'>"
-            "<div style='color:rgba(144,202,249,.75);font-size:9px;font-weight:600;"
-            "letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px'>Modo de Consulta</div>"
-            "<div style='color:#fff;font-size:13px;font-weight:700;line-height:1.2'>"
-            "Selecione como deseja buscar</div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
     # CSS exclusivo para os 3 botões de modo (seletores st-key-* + data-testid)
     st.markdown("""
 <style>
@@ -17395,6 +17367,34 @@ with st.sidebar:
     # ── GRUPO: REDE DE POSTOS ─────────────────────────────────────────
     st.markdown("<div class='nav-group-header'>🗺️ Rede de Postos</div>",
                 unsafe_allow_html=True)
+    # ── Modo de consulta — toggle buttons ─────────────────────
+    # Banner: sutil quando Menu.jpg existe, com gradiente quando não existe
+    if _MENU_B64:
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'>"
+            "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
+            "#040d26,#1040a0)'></div>"
+            "<div style='font-size:9px;font-weight:700;color:#0b2660;"
+            "letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap'>"
+            "Modo de Consulta</div>"
+            "<div style='flex:1;height:1px;background:linear-gradient(90deg,"
+            "#1040a0,#040d26)'></div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div style='"
+            "background:linear-gradient(135deg,#040d26 0%,#0b2660 50%,#1040a0 100%);"
+            "border-radius:12px;padding:10px 14px 8px;margin-bottom:10px'>"
+            "<div style='color:rgba(144,202,249,.75);font-size:9px;font-weight:600;"
+            "letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px'>Modo de Consulta</div>"
+            "<div style='color:#fff;font-size:13px;font-weight:700;line-height:1.2'>"
+            "Selecione como deseja buscar</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
 
     _nav_btn("📍 Consulta por UF/Município", "📍 Por UF/Município", "uf")
     _nav_btn("🔍 Consulta por Posto",        "🔍 Consulta por Posto","busca")
