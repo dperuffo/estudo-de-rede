@@ -26082,25 +26082,35 @@ elif modo == "🧭 Roteirização":
                 _col_prod_c = _anp_col(_df_est_cands, "produto")
                 _col_preco_c = _anp_col(_df_est_cands, "medio revenda", "media revenda", "preco medio")
                 _rcomb_n = _anp_norm(_rcomb)
-                # Mapa UF → preço médio ANP para o combustível
-                _preco_uf = {}
+                # Mapa sigla → nome completo do estado (postos ANP usam sigla, preços ANP usam nome)
+                _UF_NOME = {
+                    "AC":"ACRE","AL":"ALAGOAS","AM":"AMAZONAS","AP":"AMAPA","BA":"BAHIA",
+                    "CE":"CEARA","DF":"DISTRITO FEDERAL","ES":"ESPIRITO SANTO","GO":"GOIAS",
+                    "MA":"MARANHAO","MG":"MINAS GERAIS","MS":"MATO GROSSO DO SUL",
+                    "MT":"MATO GROSSO","PA":"PARA","PB":"PARAIBA","PE":"PERNAMBUCO",
+                    "PI":"PIAUI","PR":"PARANA","RJ":"RIO DE JANEIRO","RN":"RIO GRANDE DO NORTE",
+                    "RO":"RONDONIA","RR":"RORAIMA","RS":"RIO GRANDE DO SUL","SC":"SANTA CATARINA",
+                    "SE":"SERGIPE","SP":"SAO PAULO","TO":"TOCANTINS",
+                }
+                # Mapa nome_completo → preço médio ANP
+                _preco_por_nome = {}
                 if _col_est_c and _col_prod_c and _col_preco_c:
                     for _rr_c in _df_est_cands.to_dict("records"):
-                        _uf_c = _anp_norm(str(_rr_c.get(_col_est_c, "")))
+                        _est_c = _anp_norm(str(_rr_c.get(_col_est_c, "")))
                         _pk_c = _anp_norm(str(_rr_c.get(_col_prod_c, "")))
                         if _rcomb_n in _pk_c or _pk_c in _rcomb_n:
                             try:
                                 _v_c = float(str(_rr_c.get(_col_preco_c, "")).replace(",", "."))
                                 if _v_c > 0:
-                                    _preco_uf[_uf_c] = _v_c
+                                    _preco_por_nome[_est_c] = _v_c
                             except (ValueError, TypeError):
                                 pass
-                if _preco_uf:
-                    # Atribui preço ANP da UF a cada posto ANP na rota
+                if _preco_por_nome:
                     _cands = []
                     for _rr_p in _pf_df_r.to_dict("records"):
-                        _uf_p = _anp_norm(str(_rr_p.get("uf", "")))
-                        _preco_p = _preco_uf.get(_uf_p)
+                        _sigla_p = str(_rr_p.get("uf", "")).strip().upper()
+                        _nome_p = _anp_norm(_UF_NOME.get(_sigla_p, _sigla_p))
+                        _preco_p = _preco_por_nome.get(_nome_p)
                         if _preco_p and pd.notna(_rr_p.get("_lat")) and pd.notna(_rr_p.get("_lon")):
                             _cands.append({
                                 "label":     str(_rr_p.get("razaoSocial") or _rr_p.get("razao_social") or "Posto ANP")[:45],
