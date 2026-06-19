@@ -407,7 +407,7 @@ def _db_criar_empresa_e_vincular(nome_empresa: str, cnpj_empresa: str,
             "cnpj_vinculado": cnpj_empresa.strip() or None,
             "empresa_nome":   nome_empresa.strip(),
             "ativo":          True,
-            "criado_em":      _agora(),
+            "criado_em":      __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
             "origem":         "auto_onboarding",
         }, on_conflict="email").execute()
 
