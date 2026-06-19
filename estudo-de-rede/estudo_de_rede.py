@@ -21056,8 +21056,7 @@ if modo == "📍 Por UF/Município":
 
             if _pf_all_sc.empty:
                 st.info(
-                    "ℹ️ Carregue a planilha **Gestão de Frotas** em Configurações "
-                    "para visualizar o ranking de scores."
+                    "ℹ️ Nenhum dado de abastecimento encontrado. Você pode importar dados de duas formas: **(1)** faça upload da **planilha modelo de abastecimentos** na aba **Análise do Cliente → Importar**, ou **(2)** conecte a **API Gestão de Frotas** na aba **API & Integrações** para sincronização automática."
                 )
             else:
                 _scope_sc = st.radio(
