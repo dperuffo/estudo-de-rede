@@ -35,9 +35,9 @@ APP_URL = os.environ.get("APP_URL", "https://fxgestaodefrotasonline.com")
 # Price IDs dos planos (Stripe)
 PLANOS = {
     "gratuito":    {"price_id": None,                              "max_usuarios": 1,  "max_veiculos": 10},
-    "basico":      {"price_id": "price_1Tf2ftRoRAomG8bP8hqJDGNC", "max_usuarios": 5,  "max_veiculos": 50},
+    "basico":      {"price_id": "price_1Tf2ftRoRAomG8bP8hqJDGNC", "preco": "149", "max_usuarios": 5,  "max_veiculos": 50},
     "profissional":{"price_id": "price_1Tf2gJRoRAomG8bPxUCKnKZy", "max_usuarios": 20, "max_veiculos": 200},
-    "enterprise":  {"price_id": "price_1Tf2goRoRAomG8bPU40Yll9M", "max_usuarios": -1, "max_veiculos": -1},
+    "enterprise":  {"price_id": "price_1Tf2goRoRAomG8bPU40Yll9M", "preco": "899", "max_usuarios": -1, "max_veiculos": -1},
 }
 
 # Mapeamento price_id → nome do plano
@@ -457,7 +457,6 @@ _SMTP_USER  = "contato@fxgestaodefrotasonline.com"
 _SMTP_PASS  = os.environ.get("SMTP_PASSWORD", "")
 _EMAIL_FROM = "FNI Gestão de Frotas <contato@fxgestaodefrotasonline.com>"
 
-@st.cache_data(ttl=300)
 def _baixar_termo_docx() -> bytes:
     try:
         req = urllib.request.Request(
@@ -832,8 +831,10 @@ def _mostrar_tela_planos_com_termo():
             sess  = _orig_checkout(**kwargs)
             meta  = kwargs.get("metadata", {})
             st.session_state["_checkout_url"] = sess.url
-            st.session_state["_termo_plano"]  = meta.get("plano", "")
-            st.session_state["_termo_preco"]  = meta.get("preco", "")
+            _plano_k = meta.get("plano", "")
+            _preco_k = meta.get("preco", "") or str(PLANOS.get(_plano_k, {}).get("preco", ""))
+            st.session_state["_termo_plano"]  = _plano_k
+            st.session_state["_termo_preco"]  = _preco_k
             return sess
         _stripe.checkout.Session.create = _patched_checkout
     except Exception:
