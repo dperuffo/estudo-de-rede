@@ -614,61 +614,56 @@ def _gerar_pdf_termo_assinado(docx_bytes: bytes, email: str, plano: str,
 def _enviar_email_termo(email_dest: str, plano: str,
                          pdf_bytes: bytes, aceito_em: str) -> bool:
     try:
-        if not _SMTP_PASS:
+        _resend_key  = os.environ.get("RESEND_API_KEY", "")
+        _resend_from = os.environ.get("RESEND_FROM_EMAIL",
+                                      "FNI Gestao de Frotas <noreply@fxgestaodefrotasonline.com>")
+        if not _resend_key:
             return False
-        msg = MIMEMultipart()
-        msg["From"]    = _EMAIL_FROM
-        msg["To"]      = email_dest
-        msg["Subject"] = "Seu Termo de Adesao FNI - Plano " + plano.capitalize()
         corpo = (
-            "<html><body style=\"font-family:Arial,sans-serif;color:#222;"
-            "max-width:600px;margin:0 auto\">"
-            "<div style=\"background:#0D1B3E;padding:24px 32px;"
-            "border-radius:8px 8px 0 0\">"
-            "<h1 style=\"color:#fff;margin:0;font-size:22px\">FNI Gestao de Frotas</h1>"
-            "<p style=\"color:#4FC3F7;margin:4px 0 0;font-size:13px\">"
-            "Confirmacao de Adesao</p></div>"
-            "<div style=\"background:#f9f9f9;padding:24px 32px;"
-            "border:1px solid #e0e0e0\">"
-            "<h2 style=\"color:#0D1B3E;font-size:17px\">"
-            "Parabens pela sua assinatura!</h2>"
-            "<p>Seu <b>Termo de Adesao ao Plano " + plano.capitalize() + "</b>"
-            " foi registrado com sucesso.</p>"
-            "<table style=\"width:100%;border-collapse:collapse;margin:16px 0\">"
-            "<tr style=\"background:#EEF2FF\">"
-            "<td style=\"padding:8px 12px;font-weight:bold;color:#0D1B3E;width:40%\">"
-            "Plano contratado</td>"
-            "<td style=\"padding:8px 12px\">" + plano.upper() + "</td></tr>"
-            "<tr><td style=\"padding:8px 12px;font-weight:bold;color:#0D1B3E\">"
-            "Data e hora (BRT)</td>"
-            "<td style=\"padding:8px 12px\">" + aceito_em + "</td></tr>"
-            "<tr style=\"background:#EEF2FF\">"
-            "<td style=\"padding:8px 12px;font-weight:bold;color:#0D1B3E\">"
-            "Assinatura eletronica</td>"
-            "<td style=\"padding:8px 12px\">"
-            "Registrada conforme MP 2.200-2/2001</td></tr></table>"
-            "<p>Em anexo: <b>copia do Termo de Adesao</b> com o registro "
-            "da sua assinatura eletronica.</p>"
-            "<hr style=\"border:none;border-top:1px solid #ddd;margin:20px 0\">"
-            "<p style=\"font-size:12px;color:#777\">"
-            "FNI Gestao de Frotas - contato@fxgestaodefrotasonline.com</p>"
+            "<html><body style='font-family:Arial,sans-serif;color:#222;max-width:600px;margin:0 auto'>"
+            "<div style='background:#0D1B3E;padding:24px 32px;border-radius:8px 8px 0 0'>"
+            "<h1 style='color:#fff;margin:0;font-size:22px'>FNI Gestao de Frotas</h1>"
+            "<p style='color:#4FC3F7;margin:4px 0 0;font-size:13px'>Confirmacao de Adesao</p></div>"
+            "<div style='background:#f9f9f9;padding:24px 32px;border:1px solid #e0e0e0'>"
+            "<h2 style='color:#0D1B3E;font-size:17px'>Parabens pela sua assinatura!</h2>"
+            "<p>Seu <b>Termo de Adesao ao Plano " + plano.capitalize() + "</b> foi registrado com sucesso.</p>"
+            "<table style='width:100%;border-collapse:collapse;margin:16px 0'>"
+            "<tr style='background:#EEF2FF'><td style='padding:8px 12px;font-weight:bold;color:#0D1B3E;width:40%'>Plano</td>"
+            "<td style='padding:8px 12px'>" + plano.upper() + "</td></tr>"
+            "<tr><td style='padding:8px 12px;font-weight:bold;color:#0D1B3E'>Data (BRT)</td>"
+            "<td style='padding:8px 12px'>" + aceito_em + "</td></tr>"
+            "<tr style='background:#EEF2FF'><td style='padding:8px 12px;font-weight:bold;color:#0D1B3E'>Assinatura</td>"
+            "<td style='padding:8px 12px'>Registrada conforme MP 2.200-2/2001</td></tr></table>"
+            "<p>Em anexo: <b>copia do Termo de Adesao</b> com registro da assinatura eletronica.</p>"
+            "<hr style='border:none;border-top:1px solid #ddd;margin:20px 0'>"
+            "<p style='font-size:12px;color:#777'>FNI Gestao de Frotas</p>"
             "</div></body></html>"
         )
-        msg.attach(MIMEText(corpo, "html", "utf-8"))
+        payload_resend = {
+            "from":    _resend_from,
+            "to":      [email_dest],
+            "subject": "Seu Termo de Adesao FNI - Plano " + plano.capitalize(),
+            "html":    corpo,
+        }
         if pdf_bytes:
-            parte = MIMEBase("application", "octet-stream")
-            parte.set_payload(pdf_bytes)
-            encoders.encode_base64(parte)
-            nome_pdf = "Termo_Adesao_FNI_" + plano.capitalize() + ".pdf"
-            parte.add_header("Content-Disposition",
-                             "attachment; filename=\"" + nome_pdf + "\"")
-            msg.attach(parte)
-        ctx = ssl.create_default_context()
-        with smtplib.SMTP_SSL(_SMTP_HOST, _SMTP_PORT, context=ctx) as srv:
-            srv.login(_SMTP_USER, _SMTP_PASS)
-            srv.sendmail(_SMTP_USER, email_dest, msg.as_string())
-        return True
-    except Exception:
+            import base64 as _b64
+            payload_resend["attachments"] = [{
+                "filename": "Termo_Adesao_FNI_" + plano.capitalize() + ".pdf",
+                "content":  _b64.b64encode(pdf_bytes).decode("utf-8"),
+            }]
+        req_r = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=json.dumps(payload_resend).encode("utf-8"),
+            headers={
+                "Authorization": "Bearer " + _resend_key,
+                "Content-Type":  "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req_r, timeout=15) as r:
+            resp = json.loads(r.read())
+            return bool(resp.get("id"))
+    except Exception as _e:
         return False
 
 def _tela_termo_adesao(plano: str, preco: str,
