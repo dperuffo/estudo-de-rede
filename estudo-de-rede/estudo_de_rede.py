@@ -27378,6 +27378,54 @@ elif modo == "🎯 Recomendador IA":
     # ── Carregar todas as fontes de dados ────────────────────────────
     _rec_pf      = st.session_state.get("pf_coords_df", pd.DataFrame())
     _rec_pp      = st.session_state.get("_pp_df")
+    # Fallback: monta _rec_pf e _rec_pp a partir de profrotas_abastecimentos
+    if _rec_pf.empty or _rec_pp is None:
+        try:
+            import re as _re_rec_fb
+            _cnpj_fb2 = _cnpj_usuario_atual()
+            _df_fb2   = _profrotas_carregar_abast(_cnpj_fb2 or None, 365)
+            if not _df_fb2.empty:
+                _df_fb2["_preco_n"] = pd.to_numeric(
+                    _df_fb2["item_valor_unitario"] if "item_valor_unitario" in _df_fb2.columns else 0,
+                    errors="coerce")
+                _df_fb2["cnpj_norm"] = _df_fb2["pv_cnpj"].apply(
+                    lambda x: _re_rec_fb.sub(r"\D","",str(x)))
+                # Monta _rec_pf (pf_coords_df sintetico)
+                if _rec_pf.empty:
+                    _grp_pf = _df_fb2.groupby(
+                        ["cnpj_norm","pv_razao_social","pv_municipio","pv_uf"],
+                        as_index=False
+                    ).agg(
+                        lat=("pv_latitude",  "first"),
+                        lon=("pv_longitude", "first"),
+                    )
+                    _grp_pf = _grp_pf.rename(columns={
+                        "pv_razao_social": "razaoSocial",
+                        "pv_municipio":    "municipio",
+                        "pv_uf":           "uf",
+                    })
+                    _grp_pf["cnpj"]       = _grp_pf["cnpj_norm"]
+                    _grp_pf["_pro_frotas"] = False
+                    _grp_pf["distribuidora"] = ""
+                    _rec_pf = _grp_pf.reset_index(drop=True)
+                # Monta _rec_pp (_pp_df sintetico)
+                if _rec_pp is None:
+                    _pp_rows = []
+                    for _, _r_fb in _df_fb2.iterrows():
+                        _cn  = str(_r_fb.get("cnpj_norm",""))
+                        _comb = str(_r_fb.get("item_nome",""))
+                        _preco = _r_fb.get("_preco_n")
+                        if _cn and _comb and pd.notna(_preco) and _preco > 0:
+                            _pp_rows.append({
+                                "cnpj_norm":        _cn,
+                                "combustivel_pk":   _comb,
+                                "combustivel_label": _comb,
+                                "preco":            float(_preco),
+                            })
+                    if _pp_rows:
+                        _rec_pp = pd.DataFrame(_pp_rows)
+        except Exception:
+            pass
     _rec_intel   = _intel_load()
     _rec_hist    = _rec_intel.get("historico") or {}
     _rec_abast   = _db_carregar_abastecimentos()
