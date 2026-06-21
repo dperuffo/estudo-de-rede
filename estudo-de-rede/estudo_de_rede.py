@@ -27349,9 +27349,11 @@ elif modo == "🎯 Recomendador IA":
                 _rec_combs_pp = sorted(
                     _rec_pp["combustivel_label"].dropna().str.strip().unique().tolist()
                 )
+            if not _rec_combs_pp and not _rec_pf.empty and "combustivel" in _rec_pf.columns:
+                _rec_combs_pp = sorted(_rec_pf["combustivel"].dropna().str.strip().unique().tolist())
             _rec_comb_sel = st.selectbox(
                 "⛽ Combustível principal",
-                _rec_combs_pp or ["Diesel S10", "Diesel", "Gasolina"],
+                _rec_combs_pp or ["Gasolina Aditivada","Gasolina Comum","Diesel S10","Diesel","Etanol Comum"],
                 key="rec_comb_sel",
             )
         with _rf3:
