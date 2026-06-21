@@ -32573,8 +32573,14 @@ elif modo == "🛰️ Telemetria":
 
                             if _novos_rows:
                                 _n_ok, _err_imp = _db_salvar_abastecimentos(_novos_rows, _tele_file.name)
-                                _db_carregar_abastecimentos.clear()
-                                _carregar_abastecimentos_unificados.clear()
+                                try:
+                                    _db_carregar_abastecimentos.clear()
+                                except AttributeError:
+                                    pass
+                                try:
+                                    _carregar_abastecimentos_unificados.clear()
+                                except AttributeError:
+                                    pass
                                 if _err_imp:
                                     st.warning(f"⚠️ {_err_imp}")
                                 else:
