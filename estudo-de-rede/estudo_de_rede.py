@@ -21238,8 +21238,9 @@ if modo == "📍 Por UF/Município":
                         _pf_all_sc = _grp_sc.reset_index(drop=True)
                 except Exception:
                     pass
+            if _pf_all_sc.empty:
                 st.info(
-                    "ℹ️ Nenhum dado de abastecimento encontrado. Você pode importar dados de duas formas: **(1)** faça upload da **planilha modelo de abastecimentos** na aba **Análise do Cliente → Importar**, ou **(2)** conecte a **API Gestão de Frotas** na aba **API & Integrações** para sincronização automática."
+                    "ℹ️ Nenhum dado de abastecimento encontrado. Importe via **(1)** planilha modelo em **Análise do Cliente → Importar**, ou **(2)** API Gestão de Frotas em **API & Integrações**."
                 )
             else:
                 _scope_sc = st.radio(
