@@ -27428,7 +27428,8 @@ elif modo == "🎯 Recomendador IA":
             pass
     _rec_intel   = _intel_load()
     _rec_hist    = _rec_intel.get("historico") or {}
-    _rec_abast   = _db_carregar_abastecimentos()
+    _rec_abast_df = _carregar_abastecimentos_unificados(dias=365)
+    _rec_abast   = _rec_abast_df.to_dict("records") if not _rec_abast_df.empty else []
     # Multi-tenant: filtra por CNPJ se não for admin/analista
     _cnpj_rec = _cnpj_usuario_atual()
     if _cnpj_rec and _rec_abast:
