@@ -14,6 +14,7 @@ Uso no estudo_de_rede.py:
 """
 
 import os
+import urllib.request
 import stripe
 import streamlit as st
 from supabase import create_client
