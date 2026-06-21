@@ -26367,17 +26367,30 @@ elif modo == "🧭 Roteirização":
         # TAB CUSTO DA VIAGEM
         # ══════════════════════════════════════════════════════════
         with _t_custo:
-            # ── Sem planilha de preços ────────────────────────────
-            if _pp_df_r is None or _pp_df_r.empty:
+            # ── Verifica se há alguma fonte de preços disponível ──
+            # Fonte 1: planilha PP carregada  → _pp_df_r não vazio
+            # Fonte 2: postos ANP com preço   → _cands não vazio (fallback já executado acima)
+            _tem_fonte_precos = (
+                (_pp_df_r is not None and not _pp_df_r.empty)
+                or bool(_cands)
+            )
+            if not _tem_fonte_precos:
                 st.info(
                     "ℹ️ Para calcular o custo da viagem, carregue a **planilha de preços** "
-                    "em Configurações → 💲 Preços PP."
+                    "em Configurações → 💲 Preços PP, ou aguarde o carregamento dos dados ANP."
                 )
             else:
+                # ── Aviso informativo quando usando somente ANP ───
+                if _pp_df_r is None or _pp_df_r.empty:
+                    st.caption(
+                        "📊 Custos calculados com base nos **preços médios ANP por UF** "
+                        "(planilha de preços PP não carregada)."
+                    )
+
                 # ── Dados base ────────────────────────────────────
                 _consumo_total_l = _rd / _raut if _raut > 0 else 0
 
-                # Preço médio dos candidatos GF para esse combustível
+                # Preço médio dos candidatos (GF ou ANP, conforme a fonte disponível)
                 _preco_medio_gf = (
                     sum(c["preco"] for c in _cands) / len(_cands) if _cands else None
                 )
@@ -26509,7 +26522,8 @@ elif modo == "🧭 Roteirização":
                                 _br_moeda(_custo_sem_par/_rd, 3) if _rd > 0 else "—")
                     st.info(
                         f"✅ O alcance efetivo do veículo (~{_br_int(_range_avail)} km) cobre toda a rota "
-                        f"({_br_int(_rd)} km). O custo é calculado com base no preço médio dos postos GF "
+                        f"({_br_int(_rd)} km). O custo é calculado com base no preço médio dos "
+                        f"{'postos GF' if (_pp_df_r is not None and not _pp_df_r.empty) else 'postos ANP'} "
                         f"para **{_rcomb}**."
                     )
 
@@ -26749,7 +26763,12 @@ elif modo == "🧭 Roteirização":
                         _comp_vals.append(_preco_pago_medio)
                         _comp_cores.append("#1B5E20")
                         if _preco_medio_gf and abs(_preco_medio_gf - _preco_pago_medio) > 0.001:
-                            _comp_nomes.append("Preço médio rede GF (rota)")
+                            _label_medio = (
+                                "Preço médio rede GF (rota)"
+                                if (_pp_df_r is not None and not _pp_df_r.empty)
+                                else "Preço médio ANP (postos da rota)"
+                            )
+                            _comp_nomes.append(_label_medio)
                             _comp_vals.append(_preco_medio_gf)
                             _comp_cores.append("#42A5F5")
                         if _preco_anp_ref:
@@ -26787,8 +26806,13 @@ elif modo == "🧭 Roteirização":
                     if _preco_medio_gf and _preco_pago_medio and _litros_sugest > 0:
                         _custo_se_medio = _litros_sugest * _preco_medio_gf
                         _eco_medio = _custo_se_medio - _custo_sugest
+                        _label_eco_medio = (
+                            "vs. Preço médio GF da rota"
+                            if (_pp_df_r is not None and not _pp_df_r.empty)
+                            else "vs. Preço médio ANP (postos da rota)"
+                        )
                         _economia_rows.append({
-                            "Cenário": "vs. Preço médio GF da rota",
+                            "Cenário": _label_eco_medio,
                             "Custo (R$)": f"R$ {_custo_se_medio:,.2f}".replace(",","X").replace(".",",").replace("X","."),
                             "Economia (R$)": f"{'+ R$ ' if _eco_medio >= 0 else '- R$ '}{abs(_eco_medio):,.2f}".replace(",","X").replace(".",",").replace("X","."),
                             "Economia (%)": f"{'▼' if _eco_medio >= 0 else '▲'} {abs(_eco_medio/_custo_se_medio*100):.1f}%",
