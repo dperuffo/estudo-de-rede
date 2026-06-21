@@ -27436,6 +27436,44 @@ elif modo == "🎯 Recomendador IA":
         _rec_abast = [r for r in _rec_abast
                       if _re_rec.sub(r"\D","",str(r.get("cnpj_frota","") or "")) == _cnpj_rec]
     _rec_acordos = _db_carregar_acordos()
+    # Fallback: popula _rec_hist e _rec_abast de profrotas_abastecimentos
+    if not _rec_hist or not _rec_abast:
+        try:
+            import re as _re_hist_fb
+            _cnpj_hfb = _cnpj_usuario_atual()
+            _df_hfb   = _profrotas_carregar_abast(_cnpj_hfb or None, 365)
+            if not _df_hfb.empty:
+                _df_hfb["_preco_n"] = pd.to_numeric(
+                    _df_hfb["item_valor_unitario"] if "item_valor_unitario" in _df_hfb.columns else 0,
+                    errors="coerce")
+                _df_hfb["cnpj_norm"] = _df_hfb["pv_cnpj"].apply(
+                    lambda x: _re_hist_fb.sub(r"\D","",str(x)))
+                # Monta _rec_hist por CNPJ do posto
+                if not _rec_hist:
+                    for _cn_h, _grp_h in _df_hfb.groupby("cnpj_norm"):
+                        _entries = []
+                        for _, _rh in _grp_h.iterrows():
+                            _p = _rh.get("_preco_n")
+                            _d = str(_rh.get("data_abastecimento","") or "")
+                            _c = str(_rh.get("item_nome","") or "")
+                            if pd.notna(_p) and _p > 0:
+                                _entries.append({"preco": float(_p), "data": _d[:10], "combustivel": _c})
+                        if _entries:
+                            _rec_hist[str(_cn_h)] = _entries
+                # Monta _rec_abast (lista de dicts no formato frota_abastecimentos)
+                if not _rec_abast:
+                    _rec_abast = []
+                    for _, _ra in _df_hfb.iterrows():
+                        _rec_abast.append({
+                            "cnpj_posto":        _re_hist_fb.sub(r"\D","",str(_ra.get("pv_cnpj",""))),
+                            "cnpj_frota":        str(_ra.get("cnpj_frota","")),
+                            "data_abastecimento": str(_ra.get("data_abastecimento","")),
+                            "volume":            float(_ra.get("item_quantidade") or 0),
+                            "preco_unitario":    float(_ra.get("_preco_n") or 0),
+                            "combustivel":       str(_ra.get("item_nome","")),
+                        })
+        except Exception:
+            pass
     # Fallback: monta pf_coords_df a partir de profrotas_abastecimentos
     if _rec_pf.empty:
         try:
