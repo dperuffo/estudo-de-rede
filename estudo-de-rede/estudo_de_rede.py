@@ -37120,11 +37120,11 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
     
                 elif _pf_secao == "📊 Abastecimentos":
                     st.markdown("#### 📊 Abastecimentos Sincronizados")
-                    _opts3 = {"Todos": None}
+                    _opts3 = {} if _auth_perfil() == "gestor_frota" else {"Todos": None}
                     for _c3 in _profrotas_listar_chaves():
                         _opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
                     _d1, _d2 = st.columns([2,1])
-                    _cli3  = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli")
+                    _cli3  = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli") if len(_opts3) > 1 else list(_opts3.keys())[0] if _opts3 else "Todos"
                     _dias3 = _d2.selectbox("Período", [7,30,60,90,180,365], index=2,
                                             format_func=lambda x: f"{x} dias", key="pf_d_dias")
                     _df3 = _profrotas_carregar_abast(_opts3[_cli3], _dias3)
