@@ -162,6 +162,10 @@ def processar_webhook(payload: bytes, sig_header: str) -> dict:
 
 
 def _handle_checkout_completed(session: dict):
+    try:
+        _webhook_pos_pagamento(session)
+    except Exception:
+        pass
     """Ativa tenant após checkout bem-sucedido."""
     empresa_id       = session.get("metadata", {}).get("empresa_id")
     plano            = session.get("metadata", {}).get("plano", "basico")
@@ -431,3 +435,456 @@ def _ts(unix_timestamp):
         return None
     from datetime import datetime, timezone
     return datetime.fromtimestamp(unix_timestamp, tz=timezone.utc).isoformat()
+
+# BLOCO_IMPORTS_MELHORIAS_V1
+import smtplib, ssl, hashlib, io, tempfile
+from email.mime.multipart import MIMEMultipart
+from email.mime.text       import MIMEText
+from email.mime.base       import MIMEBase
+from email                 import encoders
+import datetime as _dt_termo
+
+_TERMO_GITHUB_URL = (
+    "https://raw.githubusercontent.com/dperuffo/estudo-de-rede/"
+    "master/estudo-de-rede/Termo_Adesao_FNI_Gestao_Frotas.docx"
+)
+_SMTP_HOST  = "smtp.hostinger.com"
+_SMTP_PORT  = 465
+_SMTP_USER  = "contato@fxgestaodefrotasonline.com"
+_SMTP_PASS  = os.environ.get("SMTP_PASSWORD", "")
+_EMAIL_FROM = "FNI Gestão de Frotas <contato@fxgestaodefrotasonline.com>"
+
+@st.cache_data(ttl=3600)
+def _baixar_termo_docx() -> bytes:
+    try:
+        req = urllib.request.Request(
+            _TERMO_GITHUB_URL, headers={"User-Agent": "FNI-App/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return r.read()
+    except Exception:
+        return b""
+
+def _docx_para_html(docx_bytes: bytes) -> str:
+    try:
+        from docx import Document
+        doc = Document(io.BytesIO(docx_bytes))
+        linhas = []
+        for para in doc.paragraphs:
+            txt = para.text.strip()
+            if not txt:
+                linhas.append("<br>")
+                continue
+            style = para.style.name.lower() if para.style else ""
+            if "heading 1" in style or "titulo 1" in style:
+                linhas.append("<h3 style=\"color:#0D1B3E;margin:16px 0 6px\">" + txt + "</h3>")
+            elif "heading" in style or "titulo" in style:
+                linhas.append("<h4 style=\"color:#1565C0;margin:12px 0 4px\">" + txt + "</h4>")
+            else:
+                linhas.append("<p style=\"margin:4px 0;font-size:13px;line-height:1.6\">" + txt + "</p>")
+        return "\n".join(linhas)
+    except Exception:
+        return "<p>Nao foi possivel renderizar o termo. Faca o download para visualizar.</p>"
+
+def _gerar_hash_termo(docx_bytes: bytes) -> str:
+    return hashlib.sha256(docx_bytes).hexdigest()
+
+def _registrar_aceite_termo(email: str, plano: str, hash_termo: str,
+                             empresa_id: str = "") -> str | None:
+    try:
+        from supabase import create_client
+        _url = os.environ.get("SUPABASE_URL", "")
+        _key = os.environ.get("SUPABASE_KEY", "")
+        if not (_url and _key):
+            return None
+        db  = create_client(_url, _key)
+        ts  = _dt_termo.datetime.now(
+            _dt_termo.timezone(_dt_termo.timedelta(hours=-3))
+        ).isoformat()
+        resp = db.table("termos_aceite").insert({
+            "email":       email.lower().strip(),
+            "plano":       plano,
+            "hash_termo":  hash_termo,
+            "aceito_em":   ts,
+            "empresa_id":  empresa_id or None,
+            "versao_termo": "1.0",
+        }).execute()
+        return (resp.data or [{}])[0].get("id")
+    except Exception:
+        return None
+
+def _gerar_pdf_termo_assinado(docx_bytes: bytes, email: str, plano: str,
+                               aceito_em: str, hash_termo: str) -> bytes:
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles    import ParagraphStyle
+        from reportlab.lib.units     import cm
+        from reportlab.lib           import colors
+        from reportlab.platypus      import (SimpleDocTemplate, Paragraph,
+                                              Spacer, HRFlowable,
+                                              Table, TableStyle)
+        buf     = io.BytesIO()
+        doc_pdf = SimpleDocTemplate(buf, pagesize=A4,
+                                    rightMargin=2*cm, leftMargin=2*cm,
+                                    topMargin=2*cm, bottomMargin=2*cm)
+        story   = []
+
+        s_titulo = ParagraphStyle("titulo", fontSize=18,
+                                  fontName="Helvetica-Bold",
+                                  textColor=colors.HexColor("#0D1B3E"),
+                                  spaceAfter=4)
+        s_sub    = ParagraphStyle("sub", fontSize=10, fontName="Helvetica",
+                                  textColor=colors.HexColor("#1565C0"),
+                                  spaceAfter=12)
+        s_body   = ParagraphStyle("body", fontSize=9, fontName="Helvetica",
+                                  leading=14, spaceAfter=6)
+
+        story.append(Paragraph("FNI Gestao de Frotas", s_titulo))
+        story.append(Paragraph("Termo de Adesao - Copia do Assinante", s_sub))
+        story.append(HRFlowable(width="100%", thickness=2,
+                                color=colors.HexColor("#0D1B3E")))
+        story.append(Spacer(1, 0.4*cm))
+
+        try:
+            from docx import Document
+            tdoc = Document(io.BytesIO(docx_bytes))
+            for para in tdoc.paragraphs:
+                txt = para.text.strip()
+                if not txt:
+                    story.append(Spacer(1, 0.2*cm))
+                    continue
+                sn = para.style.name.lower() if para.style else ""
+                if "heading" in sn or "titulo" in sn:
+                    sh = ParagraphStyle("h", fontSize=11,
+                                        fontName="Helvetica-Bold",
+                                        textColor=colors.HexColor("#0D1B3E"),
+                                        spaceBefore=8, spaceAfter=4)
+                else:
+                    sh = s_body
+                story.append(Paragraph(
+                    txt.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;"), sh
+                ))
+        except Exception:
+            story.append(Paragraph("Termo conforme documento original.", s_body))
+
+        story.append(Spacer(1, 0.6*cm))
+        story.append(HRFlowable(width="100%", thickness=1,
+                                color=colors.HexColor("#4FC3F7")))
+        story.append(Spacer(1, 0.4*cm))
+
+        s_ah  = ParagraphStyle("ah", fontSize=11, fontName="Helvetica-Bold",
+                               textColor=colors.HexColor("#1B5E20"), spaceAfter=8)
+        story.append(Paragraph("ASSINATURA ELETRONICA", s_ah))
+
+        dados = [
+            ["Assinante (e-mail):", email],
+            ["Plano contratado:",   plano.upper()],
+            ["Data e hora (BRT):",  aceito_em],
+            ["Hash do documento:",  hash_termo[:32] + "..."],
+            ["Validade juridica:",  "MP 2.200-2/2001 - ICP-Brasil"],
+        ]
+        tbl = Table(dados, colWidths=[4.5*cm, 12.5*cm])
+        tbl.setStyle(TableStyle([
+            ("FONTNAME",  (0,0), (-1,-1), "Helvetica"),
+            ("FONTSIZE",  (0,0), (-1,-1), 8),
+            ("FONTNAME",  (0,0), (0,-1),  "Helvetica-Bold"),
+            ("TEXTCOLOR", (0,0), (0,-1),  colors.HexColor("#0D1B3E")),
+            ("ROWBACKGROUNDS", (0,0), (-1,-1),
+             [colors.HexColor("#F5F5F5"), colors.white]),
+            ("GRID",     (0,0), (-1,-1), 0.3, colors.HexColor("#CCCCCC")),
+            ("PADDING",  (0,0), (-1,-1), 5),
+        ]))
+        story.append(tbl)
+        story.append(Spacer(1, 0.4*cm))
+        s_rod = ParagraphStyle("rod", fontSize=7, fontName="Helvetica",
+                               textColor=colors.grey, leading=10)
+        story.append(Paragraph(
+            "Este documento e uma copia do Termo de Adesao com registro de aceite "
+            "eletronico conforme a Medida Provisoria 2.200-2/2001. "
+            "O hash SHA-256 garante sua integridade.", s_rod
+        ))
+        doc_pdf.build(story)
+        return buf.getvalue()
+    except Exception:
+        return b""
+
+def _enviar_email_termo(email_dest: str, plano: str,
+                         pdf_bytes: bytes, aceito_em: str) -> bool:
+    try:
+        if not _SMTP_PASS:
+            return False
+        msg = MIMEMultipart()
+        msg["From"]    = _EMAIL_FROM
+        msg["To"]      = email_dest
+        msg["Subject"] = "Seu Termo de Adesao FNI - Plano " + plano.capitalize()
+        corpo = (
+            "<html><body style=\"font-family:Arial,sans-serif;color:#222;"
+            "max-width:600px;margin:0 auto\">"
+            "<div style=\"background:#0D1B3E;padding:24px 32px;"
+            "border-radius:8px 8px 0 0\">"
+            "<h1 style=\"color:#fff;margin:0;font-size:22px\">FNI Gestao de Frotas</h1>"
+            "<p style=\"color:#4FC3F7;margin:4px 0 0;font-size:13px\">"
+            "Confirmacao de Adesao</p></div>"
+            "<div style=\"background:#f9f9f9;padding:24px 32px;"
+            "border:1px solid #e0e0e0\">"
+            "<h2 style=\"color:#0D1B3E;font-size:17px\">"
+            "Parabens pela sua assinatura!</h2>"
+            "<p>Seu <b>Termo de Adesao ao Plano " + plano.capitalize() + "</b>"
+            " foi registrado com sucesso.</p>"
+            "<table style=\"width:100%;border-collapse:collapse;margin:16px 0\">"
+            "<tr style=\"background:#EEF2FF\">"
+            "<td style=\"padding:8px 12px;font-weight:bold;color:#0D1B3E;width:40%\">"
+            "Plano contratado</td>"
+            "<td style=\"padding:8px 12px\">" + plano.upper() + "</td></tr>"
+            "<tr><td style=\"padding:8px 12px;font-weight:bold;color:#0D1B3E\">"
+            "Data e hora (BRT)</td>"
+            "<td style=\"padding:8px 12px\">" + aceito_em + "</td></tr>"
+            "<tr style=\"background:#EEF2FF\">"
+            "<td style=\"padding:8px 12px;font-weight:bold;color:#0D1B3E\">"
+            "Assinatura eletronica</td>"
+            "<td style=\"padding:8px 12px\">"
+            "Registrada conforme MP 2.200-2/2001</td></tr></table>"
+            "<p>Em anexo: <b>copia do Termo de Adesao</b> com o registro "
+            "da sua assinatura eletronica.</p>"
+            "<hr style=\"border:none;border-top:1px solid #ddd;margin:20px 0\">"
+            "<p style=\"font-size:12px;color:#777\">"
+            "FNI Gestao de Frotas - contato@fxgestaodefrotasonline.com</p>"
+            "</div></body></html>"
+        )
+        msg.attach(MIMEText(corpo, "html", "utf-8"))
+        if pdf_bytes:
+            parte = MIMEBase("application", "octet-stream")
+            parte.set_payload(pdf_bytes)
+            encoders.encode_base64(parte)
+            nome_pdf = "Termo_Adesao_FNI_" + plano.capitalize() + ".pdf"
+            parte.add_header("Content-Disposition",
+                             "attachment; filename=\"" + nome_pdf + "\"")
+            msg.attach(parte)
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(_SMTP_HOST, _SMTP_PORT, context=ctx) as srv:
+            srv.login(_SMTP_USER, _SMTP_PASS)
+            srv.sendmail(_SMTP_USER, email_dest, msg.as_string())
+        return True
+    except Exception:
+        return False
+
+def _tela_termo_adesao(plano: str, preco: str,
+                        email: str, empresa_id: str = "") -> bool:
+    st.markdown(
+        "<style>"
+        ".fni-th{background:linear-gradient(135deg,#0D1B3E 0%,#1565C0 100%);"
+        "border-radius:12px;padding:28px 32px;margin-bottom:24px;text-align:center}"
+        ".fni-th h1{color:#fff;font-size:26px;margin:0 0 6px;font-weight:900}"
+        ".fni-th p{color:#90CAF9;font-size:14px;margin:0}"
+        ".fni-tb{background:#FAFAFA;border:1px solid #E0E0E0;border-radius:10px;"
+        "padding:24px;max-height:420px;overflow-y:auto;margin-bottom:20px;"
+        "font-size:13px;line-height:1.7;color:#333}"
+        ".fni-pb{display:inline-block;background:#1565C0;color:#fff;"
+        "border-radius:20px;padding:4px 16px;font-size:13px;"
+        "font-weight:700;margin-bottom:16px}"
+        "</style>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "<div class=\"fni-th\"><h1>Termo de Adesao</h1>"
+        "<p>Leia atentamente antes de prosseguir para o pagamento</p></div>"
+        "<div style=\"text-align:center;margin-bottom:16px\">"
+        "<span class=\"fni-pb\">Plano " + plano.capitalize() +
+        " - R$ " + preco + "/mes</span></div>",
+        unsafe_allow_html=True
+    )
+    docx_bytes = _baixar_termo_docx()
+    if not docx_bytes:
+        st.error("Nao foi possivel carregar o termo. Tente novamente.")
+        return False
+    hash_termo = _gerar_hash_termo(docx_bytes)
+    html_termo = _docx_para_html(docx_bytes)
+    st.markdown(
+        "<div class=\"fni-tb\">" + html_termo + "</div>",
+        unsafe_allow_html=True
+    )
+    st.download_button(
+        "Baixar Termo (.docx)",
+        data=docx_bytes,
+        file_name="Termo_Adesao_FNI_Gestao_Frotas.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    st.markdown("<div style=\"height:12px\"></div>", unsafe_allow_html=True)
+    aceito = st.checkbox(
+        "Li, compreendi e aceito integralmente os termos e condicoes acima.",
+        key="chk_aceite_termo"
+    )
+    col_v, col_c = st.columns([1, 1])
+    with col_v:
+        if st.button("Voltar", use_container_width=True, key="btn_voltar_termo"):
+            st.session_state.pop("_termo_plano", None)
+            st.rerun()
+    with col_c:
+        if st.button("Continuar para Pagamento",
+                     use_container_width=True,
+                     disabled=not aceito,
+                     type="primary",
+                     key="btn_confirmar_termo"):
+            aceito_em = _dt_termo.datetime.now(
+                _dt_termo.timezone(_dt_termo.timedelta(hours=-3))
+            ).strftime("%d/%m/%Y %H:%M:%S BRT")
+            aceite_id = _registrar_aceite_termo(
+                email=email, plano=plano,
+                hash_termo=hash_termo, empresa_id=empresa_id
+            )
+            st.session_state["_termo_aceito"]    = True
+            st.session_state["_termo_hash"]      = hash_termo
+            st.session_state["_termo_aceito_em"] = aceito_em
+            st.session_state["_termo_aceite_id"] = aceite_id
+            st.session_state["_termo_docx"]      = docx_bytes
+            st.rerun()
+            return True
+    return False
+
+def _tela_transicao_fni(plano: str, preco: str, url_checkout: str):
+    st.markdown(
+        "<style>"
+        ".fpw{max-width:520px;margin:0 auto;text-align:center;padding:32px 16px}"
+        ".fpl{background:#0D1B3E;border-radius:16px;padding:28px 40px;"
+        "display:inline-block;margin-bottom:28px;"
+        "box-shadow:0 8px 32px rgba(13,27,62,0.35)}"
+        ".fpl h1{color:#fff;font-size:32px;font-weight:900;margin:0 0 4px;"
+        "letter-spacing:2px}"
+        ".fpl p{color:#4FC3F7;font-size:13px;margin:0;letter-spacing:0.5px}"
+        ".fpl hr{border:none;border-top:2px solid #4FC3F7;opacity:0.5;margin:10px 0 0}"
+        ".fpc{background:#fff;border:1px solid #E3EAF6;border-radius:14px;"
+        "padding:28px 32px;margin-top:8px;"
+        "box-shadow:0 4px 20px rgba(13,27,62,0.08)}"
+        ".fpn{font-size:22px;font-weight:900;color:#0D1B3E;margin:0 0 4px}"
+        ".fpp{font-size:36px;font-weight:900;color:#1565C0;margin:0 0 16px}"
+        ".fpb{display:inline-flex;align-items:center;gap:6px;"
+        "background:#E8F5E9;color:#1B5E20;border-radius:20px;"
+        "padding:4px 14px;font-size:12px;font-weight:700;margin-bottom:20px}"
+        ".fps{background:#F0F4FF;border-radius:10px;padding:12px 16px;"
+        "margin-bottom:20px;font-size:12px;color:#555;line-height:1.6}"
+        "</style>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "<div class=\"fpw\">"
+        "<div class=\"fpl\"><h1>FNI</h1><p>Gestao de Frotas</p><hr></div>"
+        "<div class=\"fpc\">"
+        "<p class=\"fpn\">Plano " + plano.capitalize() + "</p>"
+        "<p class=\"fpp\">R$ " + preco +
+        "<span style=\"font-size:14px;color:#888;font-weight:400\">/mes</span></p>"
+        "<div class=\"fpb\">Termo de Adesao aceito</div>"
+        "<div class=\"fps\"><b>Pagamento 100% seguro</b><br>"
+        "Seus dados sao protegidos por criptografia SSL e processados pela "
+        "<b>Stripe</b>, certificada PCI DSS nivel 1 - o mais alto padrao "
+        "de seguranca para pagamentos online.</div>"
+        "</div></div>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "<div style=\"max-width:520px;margin:16px auto 0\">",
+        unsafe_allow_html=True
+    )
+    st.link_button(
+        "Ir para Pagamento Seguro - Stripe",
+        url=url_checkout,
+        use_container_width=True,
+        type="primary",
+    )
+    if st.button("Voltar", use_container_width=True,
+                 key="btn_voltar_transicao"):
+        st.session_state.pop("_termo_aceito", None)
+        st.session_state.pop("_checkout_url", None)
+        st.rerun()
+    st.markdown(
+        "<p style=\"text-align:center;font-size:11px;color:#aaa;margin-top:10px\">"
+        "Powered by Stripe - Seus dados nunca sao armazenados pela FNI</p>"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+def _mostrar_tela_planos_com_termo():
+    _email_usr  = (
+        (st.session_state.get("_auth_user") or {}).get("email", "")
+        or st.session_state.get("_auth_usuario_db", {}).get("email", "")
+    )
+    _empresa_id = st.session_state.get("_empresa_ativa", {}).get("id", "") or ""
+    _plano_sel  = st.session_state.get("_termo_plano", "")
+    _preco_sel  = st.session_state.get("_termo_preco", "")
+    _aceito     = st.session_state.get("_termo_aceito", False)
+    _url_chk    = st.session_state.get("_checkout_url", "")
+    if _aceito and _url_chk:
+        _tela_transicao_fni(_plano_sel, _preco_sel, _url_chk)
+        return
+    if _plano_sel and not _aceito:
+        _tela_termo_adesao(
+            plano=_plano_sel, preco=_preco_sel,
+            email=_email_usr, empresa_id=_empresa_id
+        )
+        return
+    _orig_checkout = None
+    try:
+        import stripe as _stripe
+        _orig_checkout = _stripe.checkout.Session.create
+        def _patched_checkout(**kwargs):
+            sess  = _orig_checkout(**kwargs)
+            meta  = kwargs.get("metadata", {})
+            st.session_state["_checkout_url"] = sess.url
+            st.session_state["_termo_plano"]  = meta.get("plano", "")
+            st.session_state["_termo_preco"]  = meta.get("preco", "")
+            return sess
+        _stripe.checkout.Session.create = _patched_checkout
+    except Exception:
+        pass
+    mostrar_tela_planos()
+    try:
+        if _orig_checkout:
+            _stripe.checkout.Session.create = _orig_checkout
+    except Exception:
+        pass
+    if (st.session_state.get("_checkout_url")
+            and st.session_state.get("_termo_plano")
+            and not st.session_state.get("_termo_aceito")):
+        st.rerun()
+
+def _webhook_pos_pagamento(session: dict):
+    try:
+        email = (
+            session.get("customer_email")
+            or (session.get("customer_details") or {}).get("email", "")
+        )
+        meta  = session.get("metadata") or {}
+        plano = meta.get("plano", "assinatura")
+        if not email:
+            return
+        from supabase import create_client
+        _url = os.environ.get("SUPABASE_URL", "")
+        _key = os.environ.get("SUPABASE_KEY", "")
+        if not (_url and _key):
+            return
+        db   = create_client(_url, _key)
+        rows = (
+            db.table("termos_aceite")
+            .select("hash_termo,aceito_em,id")
+            .eq("email", email.lower())
+            .eq("plano", plano)
+            .order("aceito_em", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        hash_termo = rows[0]["hash_termo"] if rows else ""
+        aceito_em  = rows[0]["aceito_em"]  if rows else ""
+        docx_bytes = _baixar_termo_docx()
+        pdf_bytes  = (
+            _gerar_pdf_termo_assinado(
+                docx_bytes, email, plano, aceito_em, hash_termo
+            ) if docx_bytes else b""
+        )
+        ok = _enviar_email_termo(email, plano, pdf_bytes, aceito_em)
+        if rows:
+            db.table("termos_aceite").update({
+                "pagamento_confirmado": True,
+                "stripe_session_id":   session.get("id", ""),
+                "email_enviado":       ok,
+            }).eq("id", rows[0]["id"]).execute()
+    except Exception:
+        pass
