@@ -21287,6 +21287,43 @@ if modo == "📍 Por UF/Município":
                                 sum(_sp_list_sc) / len(_sp_list_sc)
                             )
 
+                # ── Fallback de preços: profrotas_abastecimentos + frota_abastecimentos ──
+                if not _preco_idx_sc:
+                    try:
+                        _cnpj_sc2 = _cnpj_usuario_atual()
+                        # Fonte 1: profrotas_abastecimentos (API GF)
+                        _df_pr = _profrotas_carregar_abast(_cnpj_sc2 or None, 365)
+                        if not _df_pr.empty:
+                            _df_pr["_preco_n"] = pd.to_numeric(
+                                _df_pr.get("item_valor_unitario", pd.Series()), errors="coerce")
+                            import re as _re_sc2
+                            for _cn_p, _grp_p in _df_pr.groupby("pv_cnpj"):
+                                _plist = _grp_p["_preco_n"].dropna().tolist()
+                                if _plist:
+                                    _med_p  = float(pd.Series(_plist).median())
+                                    _med_gl = float(_df_pr["_preco_n"].median() or _med_p)
+                                    _d_p    = (_med_p - _med_gl) / _med_gl if _med_gl else 0
+                                    _score_p = max(0.0, min(100.0, 50.0 - _d_p * 500.0))
+                                    _cn_norm = _re_sc2.sub(r"\D","",str(_cn_p))
+                                    _preco_idx_sc[_cn_norm] = _score_p
+                        # Fonte 2: frota_abastecimentos (planilha template)
+                        if not _preco_idx_sc:
+                            _abst_list = _db_carregar_abastecimentos()
+                            if _abst_list:
+                                _df_ab = pd.DataFrame(_abst_list)
+                                if "cnpj_posto" in _df_ab.columns and "preco_unitario" in _df_ab.columns:
+                                    _df_ab["_preco_n"] = pd.to_numeric(
+                                        _df_ab["preco_unitario"], errors="coerce")
+                                    _med_gl2 = float(_df_ab["_preco_n"].median() or 0)
+                                    for _cn_a, _grp_a in _df_ab.groupby("cnpj_posto"):
+                                        _plist_a = _grp_a["_preco_n"].dropna().tolist()
+                                        if _plist_a and _med_gl2:
+                                            _med_a  = float(pd.Series(_plist_a).median())
+                                            _d_a    = (_med_a - _med_gl2) / _med_gl2
+                                            _score_a = max(0.0, min(100.0, 50.0 - _d_a * 500.0))
+                                            _preco_idx_sc[str(_cn_a)] = _score_a
+                    except Exception:
+                        pass
                 # ── Calcula score para cada posto ──────────────────────────
                 _svc_keys_sc = list(
                     st.session_state.get("_servicos_pf_labels", {}).keys()
