@@ -21211,8 +21211,33 @@ if modo == "📍 Por UF/Município":
             # ── Base de postos para o ranking ─────────────────────────────
             _pf_all_sc = st.session_state.get("pf_coords_df", pd.DataFrame())
             _pp_df_sc  = st.session_state.get("_pp_df")
-
+            # Fallback: usa profrotas_abastecimentos se pf_coords_df vazio
             if _pf_all_sc.empty:
+                try:
+                    _cnpj_sc = _cnpj_usuario_atual()
+                    _df_sc_fb = _profrotas_carregar_abast(_cnpj_sc or None, 365)
+                    if not _df_sc_fb.empty and "pv_latitude" in _df_sc_fb.columns:
+                        _df_sc_fb = _df_sc_fb.dropna(subset=["pv_latitude","pv_longitude"])
+                        _df_sc_fb["preco_num"] = pd.to_numeric(
+                            _df_sc_fb["item_valor_unitario"], errors="coerce")
+                        _grp_sc = _df_sc_fb.groupby(
+                            ["pv_cnpj","pv_razao_social","pv_municipio","pv_uf","item_nome"],
+                            as_index=False
+                        ).agg(
+                            lat=("pv_latitude",  "first"),
+                            lon=("pv_longitude", "first"),
+                            preco=("preco_num",  "mean"),
+                        )
+                        _grp_sc = _grp_sc.rename(columns={
+                            "pv_razao_social": "nome_posto",
+                            "pv_municipio":    "municipio",
+                            "pv_uf":           "uf",
+                            "pv_cnpj":         "cnpj_posto",
+                            "item_nome":       "combustivel",
+                        })
+                        _pf_all_sc = _grp_sc.reset_index(drop=True)
+                except Exception:
+                    pass
                 st.info(
                     "ℹ️ Nenhum dado de abastecimento encontrado. Você pode importar dados de duas formas: **(1)** faça upload da **planilha modelo de abastecimentos** na aba **Análise do Cliente → Importar**, ou **(2)** conecte a **API Gestão de Frotas** na aba **API & Integrações** para sincronização automática."
                 )
