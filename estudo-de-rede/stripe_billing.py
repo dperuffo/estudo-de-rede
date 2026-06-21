@@ -615,8 +615,9 @@ def _enviar_email_termo(email_dest: str, plano: str,
                          pdf_bytes: bytes, aceito_em: str) -> bool:
     try:
         _resend_key  = os.environ.get("RESEND_API_KEY", "")
-        _resend_from = os.environ.get("RESEND_FROM_EMAIL",
-                                      "FNI Gestao de Frotas <noreply@fxgestaodefrotasonline.com>")
+        _resend_from = os.environ.get("RESEND_FROM_EMAIL", "")
+        if not _resend_from:
+            _resend_from = "FNI Pro-Frotas <noreply@fxgestaodefrotasonline.com>"
         if not _resend_key:
             return False
         corpo = (
@@ -657,6 +658,7 @@ def _enviar_email_termo(email_dest: str, plano: str,
             headers={
                 "Authorization": "Bearer " + _resend_key,
                 "Content-Type":  "application/json",
+                "User-Agent":    "python-resend/0.7.0",
             },
             method="POST",
         )
