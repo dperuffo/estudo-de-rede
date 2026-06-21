@@ -21331,60 +21331,33 @@ if modo == "📍 Por UF/Município":
                 )
                 _n_max_sc = max(len(_svc_keys_sc), 1)
 
-                # Se score veio do fallback API, usa postos reais do cliente
-                if _preco_idx_sc and _df_base_sc is not None:
+                # Se _preco_idx_sc veio do fallback API, substitui _df_base_sc pelos postos reais
+                if _preco_idx_sc:
                     try:
                         _cnpj_sc3 = _cnpj_usuario_atual()
                         _df_real  = _profrotas_carregar_abast(_cnpj_sc3 or None, 365)
                         if not _df_real.empty:
-                            _df_real["_preco_n"] = pd.to_numeric(
-                                _df_real.get("item_valor_unitario", pd.Series()), errors="coerce")
                             import re as _re_sc3
+                            _df_real["_preco_n"] = pd.to_numeric(
+                                _df_real["item_valor_unitario"] if "item_valor_unitario" in _df_real.columns else 0,
+                                errors="coerce")
                             _grp_real = _df_real.groupby(
                                 ["pv_cnpj","pv_razao_social","pv_municipio","pv_uf"],
                                 as_index=False
                             ).agg(preco_medio=("_preco_n","mean"))
-                            _grp_real["cnpj"]       = _grp_real["pv_cnpj"].apply(
+                            _grp_real["cnpj"]        = _grp_real["pv_cnpj"].apply(
                                 lambda x: _re_sc3.sub(r"\D","",str(x)))
-                            _grp_real["razaoSocial"]= _grp_real["pv_razao_social"]
-                            _grp_real["municipio"]  = _grp_real["pv_municipio"]
-                            _grp_real["uf"]         = _grp_real["pv_uf"]
-                            _grp_real["distribuidora"] = ""
-                            _grp_real["_pro_frotas"]   = True
+                            _grp_real["razaoSocial"] = _grp_real["pv_razao_social"]
+                            _grp_real["municipio"]   = _grp_real["pv_municipio"]
+                            _grp_real["uf"]          = _grp_real["pv_uf"]
+                            _grp_real["distribuidora"]  = ""
+                            _grp_real["_pro_frotas"]    = True
                             _df_base_sc = _grp_real[[
                                 "cnpj","razaoSocial","municipio","uf",
                                 "distribuidora","_pro_frotas"
                             ]].drop_duplicates("cnpj").reset_index(drop=True)
-                    except Exception:
-                        pass
-                # Se score veio do fallback API, usa postos reais do cliente
-                if _preco_idx_sc and _df_base_sc is not None:
-                    try:
-                        _cnpj_sc3 = _cnpj_usuario_atual()
-                        _df_real  = _profrotas_carregar_abast(_cnpj_sc3 or None, 365)
-                        if not _df_real.empty:
-                            _df_real["_preco_n"] = pd.to_numeric(
-                                _df_real.get("item_valor_unitario", pd.Series()), errors="coerce")
-                            import re as _re_sc3
-                            _grp_real = _df_real.groupby(
-                                ["pv_cnpj","pv_razao_social","pv_municipio","pv_uf"],
-                                as_index=False
-                            ).agg(preco_medio=("_preco_n","mean"))
-                            _grp_real["cnpj"]       = _grp_real["pv_cnpj"].apply(
-                                lambda x: _re_sc3.sub(r"\D","",str(x)))
-                            _grp_real["razaoSocial"]= _grp_real["pv_razao_social"]
-                            _grp_real["municipio"]  = _grp_real["pv_municipio"]
-                            _grp_real["uf"]         = _grp_real["pv_uf"]
-                            _grp_real["distribuidora"] = ""
-                            _grp_real["_pro_frotas"]   = True
-                            _df_base_sc = _grp_real[[
-                                "cnpj","razaoSocial","municipio","uf",
-                                "distribuidora","_pro_frotas"
-                            ]].drop_duplicates("cnpj").reset_index(drop=True)
-                    except Exception:
-                        pass
-                with st.spinner("🧮 Calculando scores…"):
-                    _rows_ranked_sc = []
+                    except Exception as _e_sc3:
+                        st.caption(f"debug fallback: {_e_sc3}")
                     for _, _row_sc in _df_base_sc.iterrows():
                         _rd = _row_sc.to_dict()
                         _cn_norm_sc = re.sub(r"\D", "", str(_rd.get("cnpj", "")))
