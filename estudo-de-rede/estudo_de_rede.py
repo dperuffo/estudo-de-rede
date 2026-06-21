@@ -27306,21 +27306,28 @@ elif modo == "🎯 Recomendador IA":
             _df_fb = _profrotas_carregar_abast(_cnpj_rec or None, 365)
             if not _df_fb.empty and "pv_latitude" in _df_fb.columns:
                 _df_fb = _df_fb.dropna(subset=["pv_latitude","pv_longitude"])
-                _df_fb = _df_fb.rename(columns={
-                    "pv_razao_social":    "nome_posto",
-                    "pv_municipio":       "municipio",
-                    "pv_uf":              "uf",
-                    "pv_latitude":        "latitude",
-                    "pv_longitude":       "longitude",
-                    "pv_cnpj":            "cnpj_posto",
-                    "item_nome":          "combustivel",
-                    "item_valor_unitario":"preco",
+                _df_fb["preco_num"] = pd.to_numeric(
+                    _df_fb["item_valor_unitario"], errors="coerce")
+                # Agrega por posto: media de preco, primeira lat/lon
+                _grp_fb = _df_fb.groupby(
+                    ["pv_cnpj","pv_razao_social","pv_municipio","pv_uf","item_nome"],
+                    as_index=False
+                ).agg(
+                    latitude=("pv_latitude",  "first"),
+                    longitude=("pv_longitude", "first"),
+                    preco=("preco_num", "mean"),
+                )
+                _grp_fb = _grp_fb.rename(columns={
+                    "pv_razao_social": "nome_posto",
+                    "pv_municipio":    "municipio",
+                    "pv_uf":           "uf",
+                    "pv_cnpj":         "cnpj_posto",
+                    "item_nome":       "combustivel",
                 })
                 _cols_fb = [c for c in ["nome_posto","municipio","uf","latitude",
                             "longitude","cnpj_posto","combustivel","preco"]
-                            if c in _df_fb.columns]
-                _rec_pf = _df_fb[_cols_fb].drop_duplicates(
-                    subset=["nome_posto","uf"]).reset_index(drop=True)
+                            if c in _grp_fb.columns]
+                _rec_pf = _grp_fb[_cols_fb].reset_index(drop=True)
         except Exception:
             pass
 
