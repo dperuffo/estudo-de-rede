@@ -19686,8 +19686,8 @@ if st.session_state.get("_mostrar_lgpd"):
 # ── Tela de Planos & Assinatura ──────────────────────────────────
 if st.session_state.get("_mostrar_planos"):
     try:
-        from stripe_billing import mostrar_tela_planos
-        mostrar_tela_planos()
+        from stripe_billing import _mostrar_tela_planos_com_termo
+        _mostrar_tela_planos_com_termo()
         if st.button("← Voltar", key="btn_voltar_planos"):
             st.session_state["_mostrar_planos"] = False
             st.rerun()
