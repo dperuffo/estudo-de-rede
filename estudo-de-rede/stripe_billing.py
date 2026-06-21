@@ -454,7 +454,7 @@ _SMTP_USER  = "contato@fxgestaodefrotasonline.com"
 _SMTP_PASS  = os.environ.get("SMTP_PASSWORD", "")
 _EMAIL_FROM = "FNI Gestão de Frotas <contato@fxgestaodefrotasonline.com>"
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def _baixar_termo_docx() -> bytes:
     try:
         req = urllib.request.Request(
