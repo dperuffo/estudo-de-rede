@@ -37148,19 +37148,27 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                 elif _pf_secao == "📊 Abastecimentos":
                     st.markdown("#### 📊 Abastecimentos Sincronizados")
                     _is_gestor3 = _auth_perfil() == "gestor_frota"
-                    _opts3 = {} if _is_gestor3 else {"Todos": None}
-                    for _c3 in _profrotas_listar_chaves():
-                        _opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
-                    _d1, _d2 = st.columns([2,1])
-                    if len(_opts3) > 1:
-                        _cli3 = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli_v2")
-                    elif _opts3:
-                        _cli3 = list(_opts3.keys())[0]
-                        if _is_gestor3:
-                            st.caption(f"🏢 {_cli3}")
+                    # Gestor: força CNPJ da empresa ativa — nunca None
+                    if _is_gestor3:
+                        _emp3   = st.session_state.get("_empresa_ativa") or {}
+                        _cnpj3  = _emp3.get("cnpj", "").strip().replace(".", "").replace("/", "").replace("-", "")
+                        _opts3  = {}
+                        for _c3 in _profrotas_listar_chaves():
+                            _opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
+                        # Usa o CNPJ da chave se disponível, senão usa o da empresa
+                        if _opts3:
+                            _cnpj3 = list(_opts3.values())[0]
+                            _d1, _d2 = st.columns([2,1])
+                            st.caption(f"🏢 {list(_opts3.keys())[0]}")
+                        else:
+                            _d1, _d2 = st.columns([2,1])
                     else:
-                        _cli3 = None
-                    _cnpj3 = _opts3.get(_cli3) if _cli3 else None
+                        _opts3 = {"Todos": None}
+                        for _c3 in _profrotas_listar_chaves():
+                            _opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
+                        _d1, _d2 = st.columns([2,1])
+                        _cli3  = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli_v2")
+                        _cnpj3 = _opts3.get(_cli3)
                     _dias3 = _d2.selectbox("Período", [7,30,60,90,180,365], index=2,
                                             format_func=lambda x: f"{x} dias", key="pf_d_dias")
                     _df3 = _profrotas_carregar_abast(_cnpj3, _dias3)
