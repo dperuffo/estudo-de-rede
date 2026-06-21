@@ -23,9 +23,12 @@ from supabase import create_client
 # ─────────────────────────────────────────────
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-supabase     = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+try:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+except Exception:
+    supabase = None
 
 APP_URL = os.environ.get("APP_URL", "https://fxgestaodefrotasonline.com")
 
