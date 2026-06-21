@@ -37132,7 +37132,7 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                         _opts3[f"{_c3['nome_empresa']} ({_c3['cnpj_frota']})"] = _c3["cnpj_frota"]
                     _d1, _d2 = st.columns([2,1])
                     if len(_opts3) > 1:
-                        _cli3 = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli")
+                        _cli3 = _d1.selectbox("Cliente", list(_opts3.keys()), key="pf_d_cli_v2")
                     elif _opts3:
                         _cli3 = list(_opts3.keys())[0]
                         if _is_gestor3:
