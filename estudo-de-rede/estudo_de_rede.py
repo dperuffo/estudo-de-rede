@@ -32574,11 +32574,17 @@ elif modo == "🛰️ Telemetria":
                             if _novos_rows:
                                 _n_ok, _err_imp = _db_salvar_abastecimentos(_novos_rows, _tele_file.name)
                                 try:
-                                    _db_carregar_abastecimentos.clear()
+                                    try:
+                                        _db_carregar_abastecimentos.clear()
+                                    except AttributeError:
+                                        pass
                                 except AttributeError:
                                     pass
                                 try:
-                                    _carregar_abastecimentos_unificados.clear()
+                                    try:
+                                        _carregar_abastecimentos_unificados.clear()
+                                    except AttributeError:
+                                        pass
                                 except AttributeError:
                                     pass
                                 if _err_imp:
@@ -32651,7 +32657,10 @@ elif modo == "🛰️ Telemetria":
                             _pf_sel_tele["cnpj_frota"], _pf_sel_tele["token"], _iso_tele, _prog_tele,
                             _usuario_email=_db_email())
                     _pb_tele.progress(1.0, text="Concluído!")
-                    _carregar_abastecimentos_unificados.clear()
+                    try:
+                        _carregar_abastecimentos_unificados.clear()
+                    except AttributeError:
+                        pass
                     if _perr2 and _ps3 == 0:
                         st.error(f"❌ {_perr2}")
                     elif _ps3 > 0:
@@ -32707,8 +32716,14 @@ elif modo == "🛰️ Telemetria":
                         "nome_arquivo":       "entrada_manual",
                     }
                     _n_ok_m, _err_m = _db_salvar_abastecimentos([_row_m], "entrada_manual")
-                    _db_carregar_abastecimentos.clear()
-                    _carregar_abastecimentos_unificados.clear()
+                    try:
+                        _db_carregar_abastecimentos.clear()
+                    except AttributeError:
+                        pass
+                    try:
+                        _carregar_abastecimentos_unificados.clear()
+                    except AttributeError:
+                        pass
                     if _err_m:
                         st.error(f"❌ {_err_m}")
                     else:
@@ -37063,8 +37078,14 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                                 "token_renovado": bool(_pnt),
                             }
                             if _ps2 > 0:
-                                _db_carregar_abastecimentos.clear()
-                                _carregar_abastecimentos_unificados.clear()
+                                try:
+                                    _db_carregar_abastecimentos.clear()
+                                except AttributeError:
+                                    pass
+                                try:
+                                    _carregar_abastecimentos_unificados.clear()
+                                except AttributeError:
+                                    pass
                                 st.rerun()   # atualiza contadores sem perder o resultado
     
                         # Exibe resultado persistido (sobrevive ao rerun)
