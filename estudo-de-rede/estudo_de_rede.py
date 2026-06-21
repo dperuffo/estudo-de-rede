@@ -27300,6 +27300,29 @@ elif modo == "🎯 Recomendador IA":
         _rec_abast = [r for r in _rec_abast
                       if _re_rec.sub(r"\D","",str(r.get("cnpj_frota","") or "")) == _cnpj_rec]
     _rec_acordos = _db_carregar_acordos()
+    # Fallback: monta pf_coords_df a partir de profrotas_abastecimentos
+    if _rec_pf.empty:
+        try:
+            _df_fb = _profrotas_carregar_abast(_cnpj_rec or None, 365)
+            if not _df_fb.empty and "pv_latitude" in _df_fb.columns:
+                _df_fb = _df_fb.dropna(subset=["pv_latitude","pv_longitude"])
+                _df_fb = _df_fb.rename(columns={
+                    "pv_razao_social":    "nome_posto",
+                    "pv_municipio":       "municipio",
+                    "pv_uf":              "uf",
+                    "pv_latitude":        "latitude",
+                    "pv_longitude":       "longitude",
+                    "pv_cnpj":            "cnpj_posto",
+                    "item_nome":          "combustivel",
+                    "item_valor_unitario":"preco",
+                })
+                _cols_fb = [c for c in ["nome_posto","municipio","uf","latitude",
+                            "longitude","cnpj_posto","combustivel","preco"]
+                            if c in _df_fb.columns]
+                _rec_pf = _df_fb[_cols_fb].drop_duplicates(
+                    subset=["nome_posto","uf"]).reset_index(drop=True)
+        except Exception:
+            pass
 
     if _rec_pf.empty:
         st.info(
