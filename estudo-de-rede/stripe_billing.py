@@ -37,7 +37,7 @@ APP_URL = os.environ.get("APP_URL", "https://fxgestaodefrotasonline.com")
 PLANOS = {
     "gratuito":    {"price_id": None,                              "max_usuarios": 1,  "max_veiculos": 10},
     "basico":      {"price_id": "price_1Tf2ftRoRAomG8bP8hqJDGNC", "preco": "149", "max_usuarios": 5,  "max_veiculos": 50},
-    "profissional":{"price_id": "price_1Tf2gJRoRAomG8bPxUCKnKZy", "max_usuarios": 20, "max_veiculos": 200},
+    "profissional":{"price_id": "price_1Tf2gJRoRAomG8bPxUCKnKZy", "preco": "349", "max_usuarios": 20, "max_veiculos": 200},
     "enterprise":  {"price_id": "price_1Tf2goRoRAomG8bPU40Yll9M", "preco": "899", "max_usuarios": -1, "max_veiculos": -1},
 }
 
