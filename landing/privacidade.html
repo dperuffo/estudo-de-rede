@@ -1,4 +1,15 @@
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Privacidade — FNI</title><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<!DOCTYPE html><html lang="pt-BR"><head><script>
+(function(){
+  var l = localStorage.getItem("fni_lang") || "pt";
+  var p = window.location.pathname;
+  if (l === "en" && !p.includes("-en")) {
+    window.location.replace(p.replace(".html", "-en.html"));
+  }
+  if (l === "pt" && p.includes("-en")) {
+    window.location.replace(p.replace("-en.html", ".html"));
+  }
+})();
+</script><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Privacidade — FNI</title><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root{--navy:#04112e;--blue:#0d2d6b;--cyan:#00b4d8;--white:#ffffff;--gray:#8a9bb5;--text:#c8d6e8;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
