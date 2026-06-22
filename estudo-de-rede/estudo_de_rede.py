@@ -4970,6 +4970,35 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
           </div>
         </div>
         """, unsafe_allow_html=True)
+        # Logo FNI na tela de boas-vindas
+        try:
+            import pathlib as _plw, base64 as _b64w, io as _iow
+            _logo_w = ""
+            for _lc in [
+                _plw.Path(__file__).parent / "estudo-de-rede" / "Logo plataforma FNI.png",
+                _plw.Path(__file__).parent / "Logo plataforma FNI.png",
+            ]:
+                if _lc.exists():
+                    try:
+                        from PIL import Image as _PILw
+                        _img_w = _PILw.open(_lc)
+                        _img_w.thumbnail((300,300), _PILw.LANCZOS)
+                        _buf_w = _iow.BytesIO()
+                        _img_w.save(_buf_w, format="PNG", optimize=True)
+                        _logo_w = _b64w.b64encode(_buf_w.getvalue()).decode()
+                    except Exception:
+                        _logo_w = _b64w.b64encode(_lc.read_bytes()).decode()
+                    break
+            if _logo_w:
+                st.markdown(
+                    f"<div style='text-align:center;margin-bottom:8px'>"
+                    f"<img src='data:image/png;base64,{_logo_w}' "
+                    f"style='width:180px;height:auto;filter:drop-shadow(0 0 20px rgba(0,180,216,0.4))' "
+                    f"alt='FNI'></div>",
+                    unsafe_allow_html=True
+                )
+        except Exception:
+            st.markdown("<div style='text-align:center;font-size:4rem'>🚛</div>", unsafe_allow_html=True)
         _c_btn = st.columns([1,2,1])
         with _c_btn[1]:
             if st.button("✅ Entendi — Continuar para o Login", use_container_width=True, type="primary", key="btn_welcome_ok"):
