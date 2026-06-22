@@ -12434,7 +12434,7 @@ def _manut_salvar(cnpj_frota: str, placa: str, data: str,
         return False, "Supabase não disponível."
     try:
         payload = {
-            "cnpj_frota":       cnpj_frota.strip(),
+            "cnpj_frota":       __import__("re").sub(r"\D","",str(cnpj_frota)).strip(),
             "placa":            placa.upper().strip(),
             "data_manutencao":  data,
             "hodometro":        hodometro,
@@ -12464,7 +12464,9 @@ def _manut_listar(cnpj_frota: str | None = None,
              .order("data_manutencao", desc=True)
              .limit(limit))
         if cnpj_frota:
-            q = q.eq("cnpj_frota", cnpj_frota)
+            import re as _re_ml
+            _cnpj_ml = _re_ml.sub(r"\D", "", str(cnpj_frota))
+            q = q.eq("cnpj_frota", _cnpj_ml)
         if placa:
             q = q.eq("placa", placa.upper().strip())
         r = q.execute()
