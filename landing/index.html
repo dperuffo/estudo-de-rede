@@ -315,9 +315,9 @@ sd(0);
 <section id="demo" style="padding:80px 0;background:rgba(0,0,0,0.2)">
 <div class="container">
 <div style="text-align:center;margin-bottom:40px">
-  <div style="color:#00e5ff;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">Plataforma em ação</div>
-  <h2 style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:800;color:#fff;margin-bottom:12px">Veja como funciona na prática</h2>
-  <p style="color:#a0aec0;font-size:15px">Explore as principais funcionalidades da FNI Gestão de Frotas</p>
+  <div style="color:#00e5ff;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px" data-i18n="demo_lbl">Plataforma em ação</div>
+  <h2 style="font-size:clamp(1.6rem,3vw,2.2rem);font-weight:800;color:#fff;margin-bottom:12px" data-i18n="demo_title">Veja como funciona na prática</h2>
+  <p style="color:#a0aec0;font-size:15px" data-i18n="demo_sub">Explore as principais funcionalidades da FNI Gestão de Frotas</p>
 </div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:28px">
   <button class="dtab2 dtab-on" onclick="sd(0)" data-i18n="demo_tab0">📈 Dashboard</button>
@@ -475,8 +475,8 @@ sd(0);
 .dtab2.dtab-on{background:rgba(0,229,255,0.12);border-color:#00e5ff;color:#00e5ff}
 </style>
 <script>
-var _u2=["fxgestaodefrotasonline.com - Dashboard Analitico","fxgestaodefrotasonline.com - Consulta por Rota","fxgestaodefrotasonline.com - Assistente IA","fxgestaodefrotasonline.com - Rotograma de Seguranca"];
-var _cp2=["<strong style='color:#fff'>Dashboard Analitico</strong> — Visao consolidada de abastecimentos reais, cobertura por UF e comparativo ANP em tempo real.","<strong style='color:#fff'>Consulta por Rota</strong> — Mapa interativo com postos ANP ao longo da rota, ordenados por menor preco.","<strong style='color:#fff'>Assistente IA</strong> — Converse em linguagem natural com IA especializada em frotas. Powered by Claude AI.","<strong style='color:#fff'>Rotograma de Seguranca</strong> — Mapeie riscos, paradas e contatos de emergencia. Exporte em PDF para o motorista."];
+var _u2_pt=["fxgestaodefrotasonline.com - Dashboard Analítico","fxgestaodefrotasonline.com - Consulta por Rota","fxgestaodefrotasonline.com - Assistente IA","fxgestaodefrotasonline.com - Rotograma de Segurança"];var _u2_en=["fxgestaodefrotasonline.com - Analytics Dashboard","fxgestaodefrotasonline.com - Route Search","fxgestaodefrotasonline.com - AI Assistant","fxgestaodefrotasonline.com - Safety Map"];var _u2=_lang==="en"?_u2_en:_u2_pt;
+var _cp2_pt=["<strong style='color:#fff'>Dashboard Analitico</strong> — Visao consolidada de abastecimentos reais, cobertura por UF e evolucao de precos.","<strong style='color:#fff'>Consulta por Rota</strong> — Mapa interativo com os melhores postos ANP ao longo da rota, com precos e distancias.","<strong style='color:#fff'>Assistente IA</strong> — Converse em linguagem natural com IA especializada em frotas.","<strong style='color:#fff'>Rotograma de Seguranca</strong> — Mapeie riscos, paradas e contatos de emergencia."];var _cp2_en=["<strong style='color:#fff'>Analytics Dashboard</strong> — Consolidated view of real fueling data, coverage by state and price trends.","<strong style='color:#fff'>Route Search</strong> — Interactive map with the best ANP stations along the route, with prices and distances.","<strong style='color:#fff'>AI Assistant</strong> — Chat in natural language with AI specialized in fleet management.","<strong style='color:#fff'>Safety Map</strong> — Map risks, stops and emergency contacts."];var _cp2=_lang==="en"?_cp2_en:_cp2_pt;
 var _c2=0,_t2;
 function sd(i){
   clearInterval(_t2);_c2=i;
@@ -497,12 +497,12 @@ document.addEventListener("DOMContentLoaded",function(){sd(0);});
   <div class="sec-title" data-i18n-html="func_title">Tudo que sua frota precisa,<br>em um só lugar</div>
   <p class="sec-sub" data-i18n="func_sub">Da análise de preços à gestão completa — dados em tempo real para decisões melhores.</p>
   <div class="grid">
-    <div class="card"><div class="icon">📊</div><div class="ct">Preços ANP em Tempo Real</div><div class="cd">Compare os preços praticados pelos postos com a tabela oficial da ANP por município e bandeira.</div></div>
-    <div class="card"><div class="icon">🗺️</div><div class="ct">Mapa de Rede de Postos</div><div class="cd">Visualize todos os postos credenciados na sua rota com scores de qualidade e preços negociados.</div></div>
-    <div class="card"><div class="icon">⛽</div><div class="ct">Telemetria de Frota</div><div class="cd">Monitore consumo real por veículo e detecte desvios com alertas automáticos.</div></div>
-    <div class="card"><div class="icon">💰</div><div class="ct">Acordos de Preços</div><div class="cd">Gerencie contratos com postos e valide automaticamente se os preços respeitam os acordos.</div></div>
-    <div class="card"><div class="icon">📈</div><div class="ct">Relatórios Avançados</div><div class="cd">Análises de consumo, custo por km e ranking de postos. Exporte para Excel ou integre via API.</div></div>
-    <div class="card"><div class="icon">🔌</div><div class="ct">Integrações Nativas</div><div class="cd">Conecte com TOTVS, SAP, rastreadores (Sascar, Onix, Autotrac) e valide NF-e pela SEFAZ.</div></div>
+    <div class="card"><div class="icon">📊</div><div class="ct" data-i18n="card0_t">Preços ANP em Tempo Real</div><div class="cd" data-i18n="card0_d">Compare os preços praticados pelos postos com a tabela oficial da ANP por município e bandeira.</div></div>
+    <div class="card"><div class="icon">🗺️</div><div class="ct" data-i18n="card1_t">Mapa de Rede de Postos</div><div class="cd" data-i18n="card1_d">Visualize todos os postos credenciados na sua rota com scores de qualidade e preços negociados.</div></div>
+    <div class="card"><div class="icon">⛽</div><div class="ct" data-i18n="card2_t">Telemetria de Frota</div><div class="cd" data-i18n="card2_d">Monitore consumo real por veículo e detecte desvios com alertas automáticos.</div></div>
+    <div class="card"><div class="icon">💰</div><div class="ct" data-i18n="card3_t">Acordos de Preços</div><div class="cd" data-i18n="card3_d">Gerencie contratos com postos e valide automaticamente se os preços respeitam os acordos.</div></div>
+    <div class="card"><div class="icon">📈</div><div class="ct" data-i18n="card4_t">Relatórios Avançados</div><div class="cd" data-i18n="card4_d">Análises de consumo, custo por km e ranking de postos. Exporte para Excel ou integre via API.</div></div>
+    <div class="card"><div class="icon">🔌</div><div class="ct" data-i18n="card5_t">Integrações Nativas</div><div class="cd" data-i18n="card5_d">Conecte com TOTVS, SAP, rastreadores (Sascar, Onix, Autotrac) e valide NF-e pela SEFAZ.</div></div>
   </div>
 </section>
 
@@ -510,10 +510,10 @@ document.addEventListener("DOMContentLoaded",function(){sd(0);});
   <div class="sec-lbl" data-i18n="como_lbl">Como funciona</div>
   <div class="sec-title" data-i18n="como_title">Comece em minutos</div>
   <div class="steps">
-    <div class="step"><div class="step-n">1</div><div class="step-t">Cadastre sua empresa</div><div class="step-d">14 dias grátis com acesso completo ao plano Profissional.</div></div>
-    <div class="step"><div class="step-n">2</div><div class="step-t">Importe sua frota</div><div class="step-d">Cadastre veículos individualmente ou em lote via Excel.</div></div>
-    <div class="step"><div class="step-n">3</div><div class="step-t">Conecte seus dados</div><div class="step-d">Integre com seu sistema ou registre via API.</div></div>
-    <div class="step"><div class="step-n">4</div><div class="step-t">Economize</div><div class="step-d">Análises em tempo real para reduzir custos imediatamente.</div></div>
+    <div class="step"><div class="step-n">1</div><div class="step-t" data-i18n="step1_t">Cadastre sua empresa</div><div class="step-d" data-i18n="step1_d">14 dias grátis com acesso completo ao plano Profissional.</div></div>
+    <div class="step"><div class="step-n">2</div><div class="step-t" data-i18n="step2_t">Importe sua frota</div><div class="step-d" data-i18n="step2_d">Cadastre veículos individualmente ou em lote via Excel.</div></div>
+    <div class="step"><div class="step-n">3</div><div class="step-t" data-i18n="step3_t">Conecte seus dados</div><div class="step-d" data-i18n="step3_d">Integre com seu sistema ou registre via API.</div></div>
+    <div class="step"><div class="step-n">4</div><div class="step-t" data-i18n="step4_t">Economize</div><div class="step-d" data-i18n="step4_d">Análises em tempo real para reduzir custos imediatamente.</div></div>
   </div>
 </section>
 
