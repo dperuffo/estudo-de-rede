@@ -4939,6 +4939,7 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap" rel="stylesheet">
         <div class="welcome-wrap">
+          ' + _logo_html_w + '
           <div class="welcome-logo">FNI <span>Gestão de Frotas</span></div>
           <div class="welcome-title">Antes de começar,<br>separe as informações da sua empresa</div>
           <p class="welcome-sub">Para completar seu cadastro rapidamente,<br>você precisará das seguintes informações:</p>
@@ -4970,7 +4971,7 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
           </div>
         </div>
         """, unsafe_allow_html=True)
-        # Logo FNI na tela de boas-vindas
+        # Logo FNI — carrega antes de renderizar o HTML
         try:
             import pathlib as _plw, base64 as _b64w, io as _iow
             _logo_w = ""
@@ -4982,27 +4983,25 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
                     try:
                         from PIL import Image as _PILw
                         _img_w = _PILw.open(_lc)
-                        _img_w.thumbnail((300,300), _PILw.LANCZOS)
+                        _img_w.thumbnail((400,400), _PILw.LANCZOS)
                         _buf_w = _iow.BytesIO()
                         _img_w.save(_buf_w, format="PNG", optimize=True)
                         _logo_w = _b64w.b64encode(_buf_w.getvalue()).decode()
                     except Exception:
                         _logo_w = _b64w.b64encode(_lc.read_bytes()).decode()
                     break
-            if _logo_w:
-                st.markdown(
-                    f"<div style='text-align:center;padding:40px 0 20px;position:relative'>"
-                    f"<div style='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"
-                    f"width:320px;height:320px;background:radial-gradient(ellipse,rgba(0,180,216,0.18),transparent 70%);"
-                    f"border-radius:50%;pointer-events:none'></div>"
-                    f"<img src='data:image/png;base64,{_logo_w}' "
-                    f"style='width:280px;height:auto;position:relative;z-index:2;"
-                    f"filter:drop-shadow(0 0 32px rgba(0,180,216,0.6)) drop-shadow(0 0 8px rgba(0,180,216,0.4))' "
-                    f"alt='FNI'></div>",
-                    unsafe_allow_html=True
-                )
         except Exception:
-            st.markdown("<div style='text-align:center;font-size:4rem'>🚛</div>", unsafe_allow_html=True)
+            _logo_w = ""
+        _logo_html_w = (
+            f"<div style='text-align:center;padding:20px 0 8px;position:relative'>"
+            f"<div style='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"
+            f"width:360px;height:360px;background:radial-gradient(ellipse,rgba(0,180,216,0.2),transparent 70%);"
+            f"border-radius:50%;pointer-events:none'></div>"
+            f"<img src='data:image/png;base64,{_logo_w}' "
+            f"style='width:320px;height:auto;position:relative;z-index:2;"
+            f"filter:drop-shadow(0 0 40px rgba(0,180,216,0.7)) drop-shadow(0 0 12px rgba(0,180,216,0.5))' "
+            f"alt='FNI'></div>"
+        ) if _logo_w else "<div style='text-align:center;font-size:5rem;padding:20px 0'>🚛</div>"
         _c_btn = st.columns([1,2,1])
         with _c_btn[1]:
             if st.button("✅ Entendi — Continuar para o Login", use_container_width=True, type="primary", key="btn_welcome_ok"):
