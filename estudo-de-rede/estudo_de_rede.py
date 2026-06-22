@@ -12730,9 +12730,42 @@ def _precos_tooltip_html_bulk(cnpjs: "pd.Series", ufs: "pd.Series", municipios: 
     ufs_arr   = ufs.fillna("").astype(str).str.strip().str.upper().values
     muns_arr  = municipios.fillna("").astype(str).values if municipios is not None else [""] * len(cnpjs_arr)
 
+    # ── Prioridade 0: último preço real de abastecimento do cliente ──
+    _abast_idx: dict = {}
+    try:
+        _abast_tt = _carregar_abastecimentos_unificados(dias=730)
+        if not _abast_tt.empty and "cnpj_posto" in _abast_tt.columns:
+            import re as _re_tt
+            _preco_col_tt = next((c for c in ["preco_litro","preco_unitario","item_valor_unitario"]
+                                  if c in _abast_tt.columns), None)
+            _prod_col_tt  = next((c for c in ["produto","combustivel","item_nome"]
+                                  if c in _abast_tt.columns), None)
+            if _preco_col_tt and _prod_col_tt:
+                _abast_tt["_cn_tt"] = _abast_tt["cnpj_posto"].astype(str).str.replace(r"\D","",regex=True)
+                _abast_tt["_preco_tt"] = pd.to_numeric(_abast_tt[_preco_col_tt], errors="coerce")
+                if "data_abastecimento" in _abast_tt.columns:
+                    _abast_tt = _abast_tt.sort_values("data_abastecimento", ascending=False)
+                for _cn_tt, _grp_tt in _abast_tt.groupby("_cn_tt"):
+                    _ult_tt = _grp_tt.groupby(_prod_col_tt).first().reset_index()
+                    _linhas_tt = []
+                    for _, _r_tt in _ult_tt.iterrows():
+                        _p_tt = _r_tt.get("_preco_tt")
+                        _c_tt = str(_r_tt.get(_prod_col_tt, "")).strip()
+                        if _c_tt and pd.notna(_p_tt) and 0.5 < float(_p_tt) < 50.0:
+                            _linhas_tt.append(f"<b>{_c_tt}:</b> R$ {float(_p_tt):.3f}/L")
+                    if _linhas_tt:
+                        _dt_tt = ""
+                        if "data_abastecimento" in _grp_tt.columns:
+                            _dt_tt = str(_grp_tt.iloc[0]["data_abastecimento"])[:10]
+                        _abast_idx[str(_cn_tt)] = _montar_html_precos(
+                            _linhas_tt, f"Último abastecimento{( ' · ' + _dt_tt) if _dt_tt else ''}")
+    except Exception:
+        pass
     for cnpj_n, uf_val, mun_val in zip(cnpjs_arr, ufs_arr, muns_arr):
         _mun_key = f"{mun_val}|{uf_val}"
-        if cnpj_n in pp_index:
+        if cnpj_n in _abast_idx:
+            resultado[cnpj_n] = _abast_idx[cnpj_n]
+        elif cnpj_n in pp_index:
             resultado[cnpj_n] = pp_index[cnpj_n]
         elif _mun_key in anp_por_mun:
             resultado[cnpj_n] = anp_por_mun[_mun_key]
