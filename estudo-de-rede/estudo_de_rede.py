@@ -17501,6 +17501,16 @@ with st.sidebar:
                 _fuel_opts_sb = ["— Todos —"]
                 if _pp_df_sb is not None and "combustivel_label" in _pp_df_sb.columns:
                     _fuel_opts_sb += sorted(_pp_df_sb["combustivel_label"].dropna().unique().tolist())
+                # Fallback: usa combustiveis de profrotas_abastecimentos
+                if len(_fuel_opts_sb) <= 1:
+                    try:
+                        _abast_fuel = _carregar_abastecimentos_unificados(dias=730)
+                        _col_fuel = next((c for c in ["produto","combustivel","item_nome"]
+                                         if c in _abast_fuel.columns), None)
+                        if _col_fuel and not _abast_fuel.empty:
+                            _fuel_opts_sb += sorted(_abast_fuel[_col_fuel].dropna().unique().tolist())
+                    except Exception:
+                        pass
 
                 _fuel_cur = st.session_state.get("_fuel_sel_m1", "— Todos —")
                 _fuel_idx = _fuel_opts_sb.index(_fuel_cur) if _fuel_cur in _fuel_opts_sb else 0
