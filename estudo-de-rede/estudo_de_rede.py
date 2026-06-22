@@ -35200,6 +35200,20 @@ elif modo == "🔧 Manutenção de Frota":
     _doc_tela("🔧 Manutenção de Frota")
     _empresa_mf = st.session_state.get("_empresa_ativa") or {}
     _cnpj_mf    = _empresa_mf.get("cnpj","") or ""
+    # Fallback: usa CNPJ do usuario vinculado quando empresa nao tem CNPJ
+    if not _cnpj_mf:
+        import re as _re_mf
+        _cnpj_mf_fb = _cnpj_usuario_atual() or ""
+        if not _cnpj_mf_fb:
+            # Tenta buscar de profrotas_abastecimentos pelo email do usuario
+            try:
+                _email_mf = st.session_state.get("_auth_email","") or st.session_state.get("_auth_user",{}).get("email","")
+                _chaves_mf = _profrotas_listar_chaves()
+                if _chaves_mf:
+                    _cnpj_mf_fb = _chaves_mf[0].get("cnpj_frota","")
+            except Exception:
+                pass
+        _cnpj_mf = _cnpj_mf_fb
 
     st.markdown(
         "<h2 style='margin:0 0 4px;font-size:1.35rem;"
