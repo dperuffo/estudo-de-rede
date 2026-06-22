@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>About Us — FNI Fleet Network Intelligence</title>
+<script>
+(function(){
+  var l = localStorage.getItem("fni_lang") || "pt";
+  if (l === "pt") window.location.replace("sobre.html");
+})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#04112e;--blue:#0d2d6b;--electric:#1a56f0;--cyan:#00b4d8;--white:#ffffff;--gray:#8a9bb5;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--white);line-height:1.7;}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 6%;background:rgba(4,17,46,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06);}
+.nav-logo{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.1rem;color:var(--white);text-decoration:none;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:28px;list-style:none;}
+.nav-links a{color:var(--gray);text-decoration:none;font-size:0.88rem;transition:color 0.2s;}
+.nav-links a:hover{color:var(--white);}
+.lang-bar{display:flex;gap:6px;align-items:center;}
+.lang-btn{background:none;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;color:var(--gray);}
+.lang-btn.active{border-color:var(--cyan);color:var(--cyan);}
+main{max-width:800px;margin:0 auto;padding:120px 6% 80px;}
+h1{font-family:'Outfit',sans-serif;font-size:clamp(2rem,4vw,2.8rem);font-weight:800;margin-bottom:24px;}
+h1 span{color:var(--cyan);}
+h2{font-family:'Outfit',sans-serif;font-size:1.4rem;font-weight:700;color:var(--cyan);margin:40px 0 16px;}
+p{color:rgba(255,255,255,0.8);margin-bottom:16px;font-size:0.97rem;}
+.highlight{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;margin:20px 0;}
+.highlight p{margin:0 0 12px;}
+.highlight p:last-child{margin:0;}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.chip{background:rgba(0,180,216,0.1);border:1px solid rgba(0,180,216,0.3);border-radius:20px;padding:4px 14px;font-size:0.82rem;color:var(--cyan);}
+ul.check{list-style:none;margin:0;}
+ul.check li{padding:6px 0;color:rgba(255,255,255,0.8);font-size:0.95rem;}
+ul.check li::before{content:"✓ ";color:var(--cyan);font-weight:700;}
+footer{padding:28px 6%;border-top:1px solid rgba(255,255,255,0.05);text-align:center;font-size:0.78rem;color:rgba(255,255,255,0.25);}
+footer a{color:var(--cyan);text-decoration:none;}
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-logo">FNI <span>Fleet</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="termos-en.html">Terms</a></li>
+    <li><a href="sobre-en.html">About</a></li>
+    <li><a href="privacidade-en.html">Privacy</a></li>
+    <li><a href="mailto:contato@fxgestaodefrotasonline.com">Contact</a></li>
+  </ul>
+  <div class="lang-bar">
+    <button class="lang-btn" onclick="localStorage.setItem('fni_lang','pt');window.location.replace('sobre.html')">🇧🇷 PT</button>
+    <button class="lang-btn active">🇺🇸 EN</button>
+  </div>
+</nav>
+<main>
+  <h1>About <span>FNI Fleet Network Intelligence</span></h1>
+  <p><strong>Fleet Network Intelligence (FNI)</strong> is a Brazilian technology company specialized in SaaS solutions for <strong>intelligent fleet and fuel management</strong>.</p>
+  <p>Our mission is to democratize access to accurate fuel price data, helping companies reduce operating costs and make smarter fueling decisions.</p>
+
+  <h2>What we do</h2>
+  <div class="highlight">
+    <p>Our platform connects fleet managers to real-time data from the <strong>ANP (National Petroleum Agency)</strong>, with coverage of approximately <strong>38,000 registered stations</strong> across Brazil.</p>
+    <p>We integrate with the main payment methods in the market:</p>
+    <div class="chips">
+      <span class="chip">Pró-Frotas</span>
+      <span class="chip">Ticket Log</span>
+      <span class="chip">Rede Frota</span>
+      <span class="chip">Veloe</span>
+      <span class="chip">Sem Parar</span>
+    </div>
+  </div>
+
+  <h2>Security & Privacy</h2>
+  <div class="highlight">
+    <ul class="check">
+      <li><strong>OAuth 2.0</strong> via Google and Microsoft — we never store passwords</li>
+      <li><strong>Encrypted data</strong> in transit (TLS 1.3) and at rest</li>
+      <li><strong>LGPD compliant</strong> — right to access, correction and deletion guaranteed</li>
+      <li><strong>Multi-tenant isolation</strong> — each company's data is completely separate</li>
+      <li><strong>Cloudflare WAF Protection</strong> — against DDoS, SQL injection and XSS</li>
+    </ul>
+  </div>
+
+  <h2>Contact</h2>
+  <p>📧 <a href="mailto:contato@fxgestaodefrotasonline.com" style="color:var(--cyan)">contato@fxgestaodefrotasonline.com</a></p>
+  <p>🌐 <a href="https://fxgestaodefrotasonline.com" style="color:var(--cyan)">fxgestaodefrotasonline.com</a></p>
+</main>
+<footer>
+  © 2026 Fleet Network Intelligence Ltda. · <a href="privacidade-en.html">Privacy</a> · <a href="termos-en.html">Terms</a>
+</footer>
+</body>
+</html>
