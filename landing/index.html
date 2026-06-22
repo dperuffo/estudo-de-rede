@@ -524,10 +524,10 @@ document.addEventListener("DOMContentLoaded",function(){sd(0);});
     <p class="sec-sub" style="margin:0 auto" data-i18n="precos_sub">Sem cartão de crédito. Cancele quando quiser.</p>
   </div>
   <div class="pgrid">
-    <div class="pc"><div class="pn">Gratuito</div><div class="pp"><sup>R$</sup>0<span>/mês</span></div><div class="pd">Para começar</div><ul class="pf"><li>1 usuário</li><li>10 veículos</li><li>2 postos</li><li class="off">Histórico ANP</li><li class="off">Excel</li><li class="off">API</li></ul><a href="https://app.fxgestaodefrotasonline.com" class="pbtn o">Começar grátis</a></div>
-    <div class="pc"><div class="pn">Básico</div><div class="pp"><sup>R$</sup>149<span>/mês</span></div><div class="pd">Pequenas frotas</div><ul class="pf"><li>5 usuários</li><li>50 veículos</li><li>10 postos</li><li>ANP 30 dias</li><li>Exportação Excel</li><li class="off">API</li></ul><a href="https://app.fxgestaodefrotasonline.com" class="pbtn o">Assinar Básico</a></div>
-    <div class="pc feat"><div class="pbadge" data-i18n="plan_popular">Mais popular</div><div class="pn">Profissional</div><div class="pp"><sup>R$</sup>349<span>/mês</span></div><div class="pd">Frotas em crescimento</div><ul class="pf"><li>20 usuários</li><li>200 veículos</li><li>Postos ilimitados</li><li>ANP 365 dias</li><li>Relatórios avançados</li><li>API + Webhooks</li></ul><a href="https://app.fxgestaodefrotasonline.com" class="pbtn p">Trial grátis 14 dias</a></div>
-    <div class="pc"><div class="pn">Enterprise</div><div class="pp" style="font-size:1.5rem;margin-bottom:8px">Sob consulta</div><div class="pd">Grandes operações</div><ul class="pf"><li>Ilimitado</li><li>SSO SAML</li><li>SLA 99,95%</li><li>TOTVS/SAP</li><li>Gerente dedicado</li><li>Suporte 24/7</li></ul><a href="mailto:contato@fxgestaodefrotasonline.com" class="pbtn o">Falar com vendas</a></div>
+    <div class="pc"><div class="pn" data-i18n="plan0_n">Gratuito</div><div class="pp"><sup>R$</sup>0<span data-i18n="plan_mes">/mês</span></div><div class="pd" data-i18n="plan0_d">Para começar</div><ul class="pf"><li data-i18n="plan0_f1">1 usuário</li><li data-i18n="plan0_f2">10 veículos</li><li data-i18n="plan0_f3">2 postos</li><li class="off" data-i18n="plan_anp_hist">Histórico ANP</li><li class="off">Excel</li><li class="off">API</li></ul><a href="https://app.fxgestaodefrotasonline.com" class="pbtn o" data-i18n="plan0_btn">Começar grátis</a></div>
+    <div class="pc"><div class="pn" data-i18n="plan1_n">Básico</div><div class="pp"><sup>R$</sup>149<span data-i18n="plan_mes">/mês</span></div><div class="pd" data-i18n="plan1_d">Pequenas frotas</div><ul class="pf"><li data-i18n="plan1_f1">5 usuários</li><li data-i18n="plan1_f2">50 veículos</li><li data-i18n="plan1_f3">10 postos</li><li data-i18n="plan1_f4">ANP 30 dias</li><li data-i18n="plan1_f5">Exportação Excel</li><li class="off">API</li></ul><a href="https://app.fxgestaodefrotasonline.com" class="pbtn o" data-i18n="plan1_btn">Assinar Básico</a></div>
+    <div class="pc feat"><div class="pbadge" data-i18n="plan_popular">Mais popular</div><div class="pn" data-i18n="plan2_n">Profissional</div><div class="pp"><sup>R$</sup>349<span data-i18n="plan_mes">/mês</span></div><div class="pd" data-i18n="plan2_d">Frotas em crescimento</div><ul class="pf"><li data-i18n="plan2_f1">20 usuários</li><li data-i18n="plan2_f2">200 veículos</li><li data-i18n="plan2_f3">Postos ilimitados</li><li data-i18n="plan2_f4">ANP 365 dias</li><li data-i18n="plan2_f5">Relatórios avançados</li><li data-i18n="plan2_f6">API + Webhooks</li></ul><a href="https://app.fxgestaodefrotasonline.com" class="pbtn p" data-i18n="plan2_btn">Trial grátis 14 dias</a></div>
+    <div class="pc"><div class="pn" data-i18n="plan3_n">Enterprise</div><div class="pp" style="font-size:1.5rem;margin-bottom:8px" data-i18n="plan3_price">Sob consulta</div><div class="pd" data-i18n="plan3_d">Grandes operações</div><ul class="pf"><li data-i18n="plan3_f1">Ilimitado</li><li>SSO SAML</li><li>SLA 99,95%</li><li>TOTVS/SAP</li><li data-i18n="plan3_f5">Gerente dedicado</li><li data-i18n="plan3_f6">Suporte 24/7</li></ul><a href="mailto:contato@fxgestaodefrotasonline.com" class="pbtn o" data-i18n="plan3_btn">Falar com vendas</a></div>
   </div>
 </section>
 
@@ -696,6 +696,20 @@ var _i18n = {
     footer_priv: "Privacy",
     footer_sobre: "About us",
     footer_contato: "Contact",
+    // Planos
+    plan_mes: "/mo",
+    plan0_n: "Free", plan0_d: "To get started", plan0_btn: "Start free",
+    plan0_f1: "1 user", plan0_f2: "10 vehicles", plan0_f3: "2 stations",
+    plan_anp_hist: "ANP History",
+    plan1_n: "Basic", plan1_d: "Small fleets", plan1_btn: "Subscribe Basic",
+    plan1_f1: "5 users", plan1_f2: "50 vehicles", plan1_f3: "10 stations",
+    plan1_f4: "ANP 30 days", plan1_f5: "Excel Export",
+    plan2_n: "Professional", plan2_d: "Growing fleets", plan2_btn: "Free trial 14 days",
+    plan2_f1: "20 users", plan2_f2: "200 vehicles", plan2_f3: "Unlimited stations",
+    plan2_f4: "ANP 365 days", plan2_f5: "Advanced reports", plan2_f6: "API + Webhooks",
+    plan3_n: "Enterprise", plan3_price: "Custom pricing", plan3_d: "Large operations",
+    plan3_btn: "Talk to sales", plan3_f1: "Unlimited", plan3_f5: "Dedicated manager",
+    plan3_f6: "24/7 Support",
   }
 };
 
