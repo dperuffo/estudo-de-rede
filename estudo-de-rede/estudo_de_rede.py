@@ -4991,9 +4991,13 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
                     break
             if _logo_w:
                 st.markdown(
-                    f"<div style='text-align:center;margin-bottom:8px'>"
+                    f"<div style='text-align:center;padding:40px 0 20px;position:relative'>"
+                    f"<div style='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"
+                    f"width:320px;height:320px;background:radial-gradient(ellipse,rgba(0,180,216,0.18),transparent 70%);"
+                    f"border-radius:50%;pointer-events:none'></div>"
                     f"<img src='data:image/png;base64,{_logo_w}' "
-                    f"style='width:180px;height:auto;filter:drop-shadow(0 0 20px rgba(0,180,216,0.4))' "
+                    f"style='width:280px;height:auto;position:relative;z-index:2;"
+                    f"filter:drop-shadow(0 0 32px rgba(0,180,216,0.6)) drop-shadow(0 0 8px rgba(0,180,216,0.4))' "
                     f"alt='FNI'></div>",
                     unsafe_allow_html=True
                 )
