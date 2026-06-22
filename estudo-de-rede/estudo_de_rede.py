@@ -1160,7 +1160,7 @@ def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
         _btn_ok = st.button("✅ Verificar", type="primary", use_container_width=True,
                             key="_mfa_btn_verificar")
     with _col_sair:
-        if st.button("↩ Sair / trocar usuário", use_container_width=True, key="_mfa_btn_sair"):
+        if st.button(t("↩ Sair / trocar usuário"), use_container_width=True, key="_mfa_btn_sair"):
             for _k in list(st.session_state.keys()):
                 if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
                                    "_admin_empresa", "_github_sync", "_mfa",
@@ -1243,7 +1243,7 @@ def _mfa_render_setup_inicial(email: str, segredo: str):
                 use_container_width=True, key="_mfa_setup_confirmar"
             )
         with _c2s:
-            if st.button("↩ Sair / trocar usuário", use_container_width=True, key="_mfa_setup_sair"):
+            if st.button(t("↩ Sair / trocar usuário"), use_container_width=True, key="_mfa_setup_sair"):
                 for _k in list(st.session_state.keys()):
                     if _k.startswith(("_auth", "_acesso", "_empresa", "_todas_emp",
                                        "_admin_empresa", "_github_sync", "_mfa",
@@ -5065,7 +5065,7 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             st.session_state["_empresas_usuario"] = [_sim_emp]
         # Preview do onboarding (apenas admin)
         if st.session_state.get("_preview_onboarding"):
-            if st.button("Fechar preview", key="btn_fechar_preview"):
+            if st.button(t("Fechar preview"), key="btn_fechar_preview"):
                 st.session_state.pop("_preview_onboarding", None)
                 st.rerun()
             try:
@@ -5226,7 +5226,7 @@ if _OAUTH_ATIVO and st.session_state.get("_auth_user"):
             banner_trial()             # avisa se trial expirando
         # Preview do onboarding (apenas admin)
         if st.session_state.get("_preview_onboarding"):
-            if st.button("Fechar preview", key="btn_fechar_preview"):
+            if st.button(t("Fechar preview"), key="btn_fechar_preview"):
                 st.session_state.pop("_preview_onboarding", None)
                 st.rerun()
             try:
@@ -7835,7 +7835,7 @@ def _fipe_secao_ui(
                     value=_ex3.get("cor", ""),
                     placeholder="Ex: Prata",
                     key=f"{key_prefix}_f_cor")
-                _f_comb    = st.selectbox("Combustível",
+                _f_comb    = st.selectbox(t("Combustível"),
                     ["", "Gasolina", "Flex", "Diesel", "Elétrico", "Híbrido", "GNV"],
                     index=(["", "Gasolina", "Flex", "Diesel", "Elétrico", "Híbrido", "GNV"]
                            .index(_ex3.get("combustivel_fipe", ""))
@@ -16576,19 +16576,19 @@ with st.sidebar:
         # ── Seletor de idioma ────────────────────────────────────
         render_lang_selector()
         st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
-        if st.button("⭐ Avaliar plataforma", use_container_width=True, key="btn_avaliar"):
+        if st.button(t("⭐ Avaliar plataforma"), use_container_width=True, key="btn_avaliar"):
             st.session_state["_mostrar_avaliacao"] = True
             st.rerun()
-        if st.button("🎫 Suporte & Melhorias", use_container_width=True, key="btn_tickets"):
+        if st.button(t("🎫 Suporte & Melhorias"), use_container_width=True, key="btn_tickets"):
             st.session_state["_mostrar_tickets"] = True
             st.rerun()
-        if st.button("🔒 Privacidade & LGPD", use_container_width=True, key="btn_lgpd"):
+        if st.button(t("🔒 Privacidade & LGPD"), use_container_width=True, key="btn_lgpd"):
             st.session_state["_mostrar_lgpd"] = True
             st.rerun()
-        if st.button("🚀 Planos & Assinatura", use_container_width=True, key="btn_planos"):
+        if st.button(t("🚀 Planos & Assinatura"), use_container_width=True, key="btn_planos"):
             st.session_state["_mostrar_planos"] = True
             st.rerun()
-        if _is_admin() and st.button("👁️ Preview Onboarding", use_container_width=True, key="btn_preview_onboard"):
+        if _is_admin() and st.button(t("👁️ Preview Onboarding"), use_container_width=True, key="btn_preview_onboard"):
             st.session_state["_preview_onboarding"] = True
             st.rerun()
         if st.button(
@@ -17750,7 +17750,7 @@ with st.sidebar:
 
             # ── Excluir perfil carregado ───────────────────────
             if _perfis_rot and _perfil_carregado:
-                if st.button("🗑️ Excluir este perfil", key="sb_btn_del_perfil",
+                if st.button(t("🗑️ Excluir este perfil"), key="sb_btn_del_perfil",
                              use_container_width=True):
                     if _db_deletar_perfil_veiculo(_perfil_carregado["id"]):
                         st.toast("Perfil excluído.", icon="🗑️")
@@ -17931,7 +17931,7 @@ with st.sidebar:
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do banco", use_container_width=True,
+            if st.button(t("🔄 Recarregar do banco"), use_container_width=True,
                          help="Recarrega dados de Gestão de Frotas salvos no Supabase",
                          key="btn_reload_pf_cfg"):
                 st.session_state["_pf_restaurado_supabase"] = False
@@ -18029,7 +18029,7 @@ with st.sidebar:
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do banco", use_container_width=True,
+            if st.button(t("🔄 Recarregar do banco"), use_container_width=True,
                          help="Recarrega postos cercados salvos no Supabase",
                          key="btn_reload_cercados"):
                 st.session_state["_cer_restaurado_supabase"] = False
@@ -18168,7 +18168,7 @@ with st.sidebar:
                     unsafe_allow_html=True,
                 )
             st.markdown("")
-            if st.button("🔄 Recarregar do banco", use_container_width=True,
+            if st.button(t("🔄 Recarregar do banco"), use_container_width=True,
                          help="Restaura última carga de Preços PP salva no Supabase",
                          key="btn_reload_pp"):
                 st.session_state["_pp_restaurado_supabase"] = False
@@ -18474,7 +18474,7 @@ with st.sidebar:
                             .reset_index(drop=True),
                             use_container_width=True, height=300,
                         )
-                if st.button("🗑️ Remover Preços ANP", key="btn_rm_precos_anp",
+                if st.button(t("🗑️ Remover Preços ANP"), key="btn_rm_precos_anp",
                              use_container_width=False):
                     st.session_state.pop("_precos_anp_cache", None)
                     st.rerun()
@@ -19039,7 +19039,7 @@ CREATE TABLE IF NOT EXISTS acordos_versoes (
 ALTER TABLE acordos_precos  DISABLE ROW LEVEL SECURITY;
 ALTER TABLE acordos_versoes DISABLE ROW LEVEL SECURITY;"""
                 st.code(_ac_sql_criar, language="sql")
-                if st.button("🔄 Verificar novamente após criar as tabelas", key="ac_recheck"):
+                if st.button(t("🔄 Verificar novamente após criar as tabelas"), key="ac_recheck"):
                     del st.session_state["acordos_db_status"]
                     st.rerun()
             else:
@@ -19709,7 +19709,7 @@ if st.session_state.get("_mostrar_tickets"):
     try:
         from tickets import mostrar_painel_tickets, mostrar_painel_admin_tickets
         if _is_admin():
-            _tk_aba = st.radio("Visão", ["👤 Meus tickets", "🔧 Gerenciar todos"], horizontal=True, key="tk_visao")
+            _tk_aba = st.radio(t("Visão"), ["👤 Meus tickets", "🔧 Gerenciar todos"], horizontal=True, key="tk_visao")
             if _tk_aba == "🔧 Gerenciar todos":
                 mostrar_painel_admin_tickets()
             else:
@@ -20735,7 +20735,7 @@ if modo == "📍 Por UF/Município":
             # ── Exportar mapa como PNG ─────────────────────────────
             _mc1, _mc2 = st.columns([5, 1])
             with _mc2:
-                if st.button("📸 Exportar mapa", use_container_width=True,
+                if st.button(t("📸 Exportar mapa"), use_container_width=True,
                              key="btn_exp_mapa_m1",
                              help="Baixar o mapa atual como imagem PNG"):
                     with st.spinner("🖼️ Gerando imagem…"):
@@ -22326,7 +22326,7 @@ elif modo == "🗺️ Por Rota":
             # ── Exportar mapa como PNG (Modo 2) ───────────────────
             _m2c1, _m2c2 = st.columns([5, 1])
             with _m2c2:
-                if st.button("📸 Exportar mapa", use_container_width=True,
+                if st.button(t("📸 Exportar mapa"), use_container_width=True,
                              key="btn_exp_mapa_m2",
                              help="Baixar o mapa da rota como imagem PNG"):
                     with st.spinner("🖼️ Gerando imagem…"):
@@ -22849,7 +22849,7 @@ elif modo == "🔍 Consulta por Posto":
                 # ── Exportar mapa como PNG (Modo 3) ───────────────
                 _m3c1, _m3c2 = st.columns([5, 1])
                 with _m3c2:
-                    if st.button("📸 Exportar mapa", use_container_width=True,
+                    if st.button(t("📸 Exportar mapa"), use_container_width=True,
                                  key="btn_exp_mapa_m3",
                                  help="Baixar o mapa dos postos como imagem PNG"):
                         with st.spinner("🖼️ Gerando imagem…"):
@@ -23825,7 +23825,7 @@ if modo == "📈 Dashboard":
                 "PB":223,"PR":399,"PE":185,"PI":224,"RJ":92,"RN":167,"RS":497,
                 "RO":52,"RR":15,"SC":295,"SP":645,"SE":75,"TO":139,
             }
-            _cmp_modo = st.radio("Comparar por:", ["🗺️ Estados","🌎 Regiões"],
+            _cmp_modo = st.radio(t("Comparar por:"), ["🗺️ Estados","🌎 Regiões"],
                                  horizontal=True, key="dash_cmp_modo")
             _ufs_disponiveis = sorted(_df_valid["uf"].unique().tolist())
             if _cmp_modo == "🗺️ Estados":
@@ -24010,7 +24010,7 @@ if modo == "📈 Dashboard":
                     else:
                         _op_map_df = _op_df[pd.notna(_op_df[_lat_col]) & pd.notna(_op_df[_lon_col]) & (_op_df[_preco_col8]>0)].copy()
                         _fuels8 = sorted(_op_map_df[_prod_col8].dropna().unique()) if _prod_col8 else []
-                        _fuel_sel8 = st.selectbox("Combustível", _fuels8 or ["(sem dados)"], key="op_map_fuel")
+                        _fuel_sel8 = st.selectbox(t("Combustível"), _fuels8 or ["(sem dados)"], key="op_map_fuel")
                         if _prod_col8:
                             _op_map_df = _op_map_df[_op_map_df[_prod_col8] == _fuel_sel8]
                         if _op_map_df.empty:
@@ -25560,7 +25560,7 @@ elif modo == "🛡️ Admin":
         _perm_edit = st.session_state["perm_matrix_edit"]
 
         # Filtro de categoria
-        _cat_sel = st.radio("Filtrar:", ["Todas", "Abas", "Funções"],
+        _cat_sel = st.radio(t("Filtrar:"), ["Todas", "Abas", "Funções"],
                             horizontal=True, key="perm_cat_sel")
 
         # Tabela editável
@@ -25671,7 +25671,7 @@ elif modo == "🛡️ Admin":
             _novo_motivo = st.text_input("Motivo (opcional)", key="admin_novo_motivo")
         with _ca4:
             st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-            if st.button("Adicionar", use_container_width=True, key="admin_add_btn", type="primary"):
+            if st.button(t("Adicionar"), use_container_width=True, key="admin_add_btn", type="primary"):
                 if _novo_email and "@" in _novo_email:
                     if _db_atualizar_status_acesso(_novo_email.strip(), _novo_status,
                                                    _novo_motivo, _ADMIN_EMAIL):
@@ -26038,7 +26038,7 @@ elif modo == "🧭 Roteirização":
         _ca, _cb = st.columns([2, 3])
         with _ca:
             if _rot_np < 10:
-                if st.button("➕ Adicionar Parada", key=f"rot_add_{_rot_fk}",
+                if st.button(t("➕ Adicionar Parada"), key=f"rot_add_{_rot_fk}",
                              use_container_width=True):
                     st.session_state["_rot_np"] = _rot_np + 1
                     st.rerun()
@@ -28541,7 +28541,7 @@ elif modo == "👥 Análise de Cliente":
         "<b>Carregar arquivo</b> = importar nova planilha e salvar no banco.</div>",
         unsafe_allow_html=True,
     )
-    _src_opcao = st.radio("Fonte dos dados:", _pf_src_opts, horizontal=True, key="frota_src_opcao")
+    _src_opcao = st.radio(t("Fonte dos dados:"), _pf_src_opts, horizontal=True, key="frota_src_opcao")
 
     _df_abast = None
     if _src_opcao == "Abastecimentos Unificados":
@@ -28587,7 +28587,7 @@ elif modo == "👥 Análise de Cliente":
                 st.warning("Nenhuma chave de acesso configurada para sua empresa.")
                 _pf_cli_ac = None
         with _pf_col2:
-            _pf_dias_ac = st.selectbox("Período", [30, 60, 90, 180, 365], index=2,
+            _pf_dias_ac = st.selectbox(t("Período"), [30, 60, 90, 180, 365], index=2,
                                         format_func=lambda x: f"{x} dias", key="ac_pf_dias")
         with st.spinner("Carregando dados do Gestão de Frotas..."):
             # Segurança multi-tenant: gestor_frota nunca pode ver dados de outros clientes
@@ -30989,7 +30989,7 @@ elif modo == "📑 Relatórios":
                 "GASOLINA COMUM", "GASOLINA ADITIVADA",
                 "ÓLEO DIESEL", "ÓLEO DIESEL S10", "ETANOL",
             ]
-            _re_comb = st.selectbox("Combustível", _re_comb_opts, key="re_comb")
+            _re_comb = st.selectbox(t("Combustível"), _re_comb_opts, key="re_comb")
 
         # ── Carregar dados históricos ──────────────────────────────
         # ── Carregar abastecimentos reais do cliente ──────────
@@ -32896,7 +32896,7 @@ elif modo == "🛰️ Telemetria":
 
                 st.markdown("**Sincronização manual:**")
                 _pf_opts_tele = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c for c in _pf_ativos_tele}
-                _pf_sel_tele  = _pf_opts_tele[st.selectbox("Cliente", list(_pf_opts_tele.keys()), key="tele_pf_cli")]
+                _pf_sel_tele  = _pf_opts_tele[st.selectbox(t("Cliente"), list(_pf_opts_tele.keys()), key="tele_pf_cli")]
                 _tele_data_ini = st.date_input(
                     "Desde",
                     value=__import__("datetime").date.today() - __import__("datetime").timedelta(days=7),
@@ -32943,7 +32943,7 @@ elif modo == "🛰️ Telemetria":
                         else st.text_input("Placa *", placeholder="ABC1D23", key="tele_m_placa_txt").strip().upper()
                     )
                     _a_data  = st.date_input("Data *", key="tele_m_data")
-                    _a_prod  = st.selectbox("Combustível", ["Diesel S10","Diesel","Gasolina","Etanol","GNV",""], key="tele_m_prod")
+                    _a_prod  = st.selectbox(t("Combustível"), ["Diesel S10","Diesel","Gasolina","Etanol","GNV",""], key="tele_m_prod")
                 with _fa2:
                     _a_litros = st.number_input("Litros *", min_value=1.0, max_value=5000.0, step=0.5, key="tele_m_lit")
                     _a_valor  = st.number_input("Valor total (R$)", min_value=0.0, max_value=100000.0, step=0.01, key="tele_m_val")
@@ -34490,7 +34490,7 @@ elif modo == "💰 Painel Financeiro":
 
     _fin_c1, _fin_c2 = st.columns([2,1])
     with _fin_c1:
-        _periodo_fin = st.selectbox("Período", list(_periodos_fin.keys()),
+        _periodo_fin = st.selectbox(t("Período"), list(_periodos_fin.keys()),
             index=list(_periodos_fin.keys()).index(_mes_atual_fin) if _mes_atual_fin in _periodos_fin else 5,
             key="fin_periodo", label_visibility="collapsed")
     _dt_ini_fin, _dt_fim_fin = _periodos_fin[_periodo_fin]
@@ -34783,7 +34783,7 @@ elif modo == "☀️ Comece seu dia":
         "Mês anterior":    60,
         "Ano atual":       365,
     }
-    _periodo_cd = st.selectbox("Período de análise", list(_periodos_cd.keys()),
+    _periodo_cd = st.selectbox(t("Período de análise"), list(_periodos_cd.keys()),
                                 index=2, key="cd_periodo",
                                 label_visibility="collapsed")
     _dias_cd = _periodos_cd[_periodo_cd]
@@ -35802,7 +35802,7 @@ elif modo == "🤝 Acordos de Preço":
             _fc1, _fc2, _fc3 = st.columns(3)
             with _fc1:
                 _combs_disp = sorted(set(a.get("combustivel","") for a in _acordos))
-                _comb_filt = st.selectbox("Filtrar combustível",
+                _comb_filt = st.selectbox(t("Filtrar combustível"),
                     ["Todos"] + _combs_disp, key="ac_filt_comb")
             with _fc2:
                 _posto_filt = st.text_input("Buscar posto",
@@ -36107,7 +36107,7 @@ elif modo == "🗺️ Rotograma":
             _parada_nome = st.text_input("Nome do Local", placeholder="Ex: Restaurante do Zé", key="rg_parada_nome")
             _parada_tel = st.text_input("Telefone", placeholder="(11) 99999-9999", key="rg_parada_tel")
         _parada_obs = st.text_input("Observação da Parada", placeholder="Horário de funcionamento, referências", key="rg_parada_obs")
-        if st.button("➕ Adicionar Parada", key="btn_add_parada"):
+        if st.button(t("➕ Adicionar Parada"), key="btn_add_parada"):
             if _parada_local:
                 _rg["paradas"].append({
                     "tipo": _parada_tipo, "local": _parada_local,
@@ -37288,7 +37288,7 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                                 if _asc_st.get("erro"):
                                     st.caption(f"⚠️ {_asc_st['erro'][:120]}")
                                 if _asc_status in ("—", "erro"):
-                                    if st.button("▶ Reiniciar auto-sync",
+                                    if st.button(t("▶ Reiniciar auto-sync"),
                                                  key=f"as_restart_{_asc_cnpj}",
                                                  use_container_width=False):
                                         _auto_sync_ensure_running(_asc_cnpj, _asc.get("token",""))
@@ -37323,7 +37323,7 @@ CREATE TABLE IF NOT EXISTS webhook_registrations (
                         st.warning("Nenhuma chave ativa. Cadastre em **🔑 Chaves de Acesso**.")
                     else:
                         _pf_opts  = {f"{c['nome_empresa']} ({c['cnpj_frota']})": c for c in _pf_ativos}
-                        _pf_sel   = _pf_opts[st.selectbox("Cliente", list(_pf_opts.keys()), key="pf_sync_cli")]
+                        _pf_sel   = _pf_opts[st.selectbox(t("Cliente"), list(_pf_opts.keys()), key="pf_sync_cli")]
                         try: _ini = _pf_dt.datetime.fromisoformat((_pf_sel.get("data_inicio_sync","")).replace("Z","")).date()
                         except Exception: _ini = _pf_dt.date.today()
                         _pf_data_sel = st.date_input("📅 Data inicial", value=_ini,
