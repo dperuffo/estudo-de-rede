@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
+<head><script>
+(function(){
+  var l = localStorage.getItem("fni_lang") || "pt";
+  var p = window.location.pathname;
+  if (l === "en" && !p.includes("-en")) {
+    window.location.replace(p.replace(".html", "-en.html"));
+  }
+  if (l === "pt" && p.includes("-en")) {
+    window.location.replace(p.replace("-en.html", ".html"));
+  }
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sobre &mdash; FNI Gest&atilde;o de Frotas</title>
