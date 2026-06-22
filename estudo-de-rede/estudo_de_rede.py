@@ -4913,7 +4913,7 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
             background:linear-gradient(135deg,#0a0e27 0%,#0d1b4b 35%,#0a2a6e 65%,#061840 100%);
             min-height:100vh;
         }
-        .welcome-wrap{max-width:640px;margin:0 auto;padding:80px 24px 40px;text-align:center;}
+        .welcome-wrap{max-width:640px;margin:0 auto;padding:20px 24px 40px;text-align:center;}
         .welcome-logo{font-family:"Outfit",sans-serif;font-size:1.5rem;font-weight:800;
             color:#fff;margin-bottom:8px;}
         .welcome-logo span{color:#00b4d8;}
@@ -4939,7 +4939,6 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap" rel="stylesheet">
         <div class="welcome-wrap">
-          ' + _logo_html_w + '
           <div class="welcome-logo">FNI <span>Gestão de Frotas</span></div>
           <div class="welcome-title">Antes de começar,<br>separe as informações da sua empresa</div>
           <p class="welcome-sub">Para completar seu cadastro rapidamente,<br>você precisará das seguintes informações:</p>
@@ -4992,16 +4991,21 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
                     break
         except Exception:
             _logo_w = ""
-        _logo_html_w = (
-            f"<div style='text-align:center;padding:20px 0 8px;position:relative'>"
-            f"<div style='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"
-            f"width:360px;height:360px;background:radial-gradient(ellipse,rgba(0,180,216,0.2),transparent 70%);"
-            f"border-radius:50%;pointer-events:none'></div>"
-            f"<img src='data:image/png;base64,{_logo_w}' "
-            f"style='width:320px;height:auto;position:relative;z-index:2;"
-            f"filter:drop-shadow(0 0 40px rgba(0,180,216,0.7)) drop-shadow(0 0 12px rgba(0,180,216,0.5))' "
-            f"alt='FNI'></div>"
-        ) if _logo_w else "<div style='text-align:center;font-size:5rem;padding:20px 0'>🚛</div>"
+        # Renderiza logo antes dos botões
+        if _logo_w:
+            st.markdown(
+                f"<div style='text-align:center;padding:30px 0 10px;position:relative'>"
+                f"<div style='position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);"
+                f"width:400px;height:400px;background:radial-gradient(ellipse,rgba(0,180,216,0.2),transparent 70%);"
+                f"border-radius:50%;pointer-events:none'></div>"
+                f"<img src='data:image/png;base64,{_logo_w}' "
+                f"style='width:320px;height:auto;position:relative;z-index:2;"
+                f"filter:drop-shadow(0 0 40px rgba(0,180,216,0.7)) drop-shadow(0 0 12px rgba(0,180,216,0.5))' "
+                f"alt='FNI Logo'></div>",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown("<div style='text-align:center;font-size:5rem;padding:30px 0'>🚛</div>", unsafe_allow_html=True)
         _c_btn = st.columns([1,2,1])
         with _c_btn[1]:
             if st.button("✅ Entendi — Continuar para o Login", use_container_width=True, type="primary", key="btn_welcome_ok"):
