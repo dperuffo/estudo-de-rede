@@ -718,6 +718,17 @@ var _lang = localStorage.getItem("fni_lang") || "pt";
 function _t(k) { return (_i18n[_lang] && _i18n[_lang][k]) || _i18n["pt"][k] || k; }
 
 function _applyLang() {
+  // Atualiza links para versão EN/PT
+  var sfx = _lang === "en" ? "-en" : "";
+  var lnks = {
+    "lnk_termos": "termos" + sfx + ".html",
+    "lnk_priv":   "privacidade" + sfx + ".html",
+    "lnk_sobre":  "sobre" + sfx + ".html"
+  };
+  Object.keys(lnks).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.href = lnks[id];
+  });
   // Nav
   // data-i18n: troca textContent
   document.querySelectorAll("[data-i18n]").forEach(function(el) {
