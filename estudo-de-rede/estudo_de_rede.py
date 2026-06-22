@@ -4902,6 +4902,82 @@ if st.session_state.get("_auth_user"):
 if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
     if st.session_state.pop("_sessao_expirada", False):
         st.toast("⏱️ Sessão encerrada por 30 min de inatividade.", icon="🔒")
+    # ── Tela de boas-vindas antes do login ──────────────────────
+    if not st.session_state.get("_viu_welcome"):
+        st.markdown("""
+        <style>
+        #MainMenu,header[data-testid="stHeader"],footer,
+        [data-testid="stSidebar"],[data-testid="stToolbar"],
+        [data-testid="collapsedControl"]{display:none!important;}
+        [data-testid="stAppViewContainer"]{
+            background:linear-gradient(135deg,#0a0e27 0%,#0d1b4b 35%,#0a2a6e 65%,#061840 100%);
+            min-height:100vh;
+        }
+        .welcome-wrap{max-width:640px;margin:0 auto;padding:80px 24px 40px;text-align:center;}
+        .welcome-logo{font-family:"Outfit",sans-serif;font-size:1.5rem;font-weight:800;
+            color:#fff;margin-bottom:8px;}
+        .welcome-logo span{color:#00b4d8;}
+        .welcome-title{font-family:"Outfit",sans-serif;font-size:clamp(1.6rem,3vw,2.2rem);
+            font-weight:800;color:#fff;margin:24px 0 12px;line-height:1.25;}
+        .welcome-sub{color:#8a9bb5;font-size:1rem;margin-bottom:36px;line-height:1.7;}
+        .welcome-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+            border-radius:16px;padding:28px 32px;margin-bottom:32px;text-align:left;}
+        .welcome-card h3{color:#00b4d8;font-size:0.85rem;font-weight:700;letter-spacing:0.1em;
+            text-transform:uppercase;margin-bottom:16px;}
+        .welcome-item{display:flex;align-items:flex-start;gap:14px;padding:10px 0;
+            border-bottom:1px solid rgba(255,255,255,0.06);}
+        .welcome-item:last-child{border-bottom:none;}
+        .welcome-icon{width:36px;height:36px;border-radius:10px;
+            background:rgba(0,180,216,0.15);display:flex;align-items:center;
+            justify-content:center;font-size:1.1rem;flex-shrink:0;margin-top:2px;}
+        .welcome-item-t{color:#fff;font-weight:600;font-size:0.95rem;margin-bottom:3px;}
+        .welcome-item-d{color:#8a9bb5;font-size:0.83rem;line-height:1.5;}
+        .welcome-note{background:rgba(0,180,216,0.08);border:1px solid rgba(0,180,216,0.25);
+            border-radius:10px;padding:14px 18px;font-size:0.85rem;color:#8a9bb5;
+            margin-bottom:28px;line-height:1.6;}
+        .welcome-note strong{color:#00b4d8;}
+        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+        <div class="welcome-wrap">
+          <div class="welcome-logo">FNI <span>Gestão de Frotas</span></div>
+          <div class="welcome-title">Antes de começar,<br>separe as informações da sua empresa</div>
+          <p class="welcome-sub">Para completar seu cadastro rapidamente,<br>você precisará das seguintes informações:</p>
+          <div class="welcome-card">
+            <h3>📋 O que você vai precisar</h3>
+            <div class="welcome-item">
+              <div class="welcome-icon">👤</div>
+              <div><div class="welcome-item-t">Nome completo</div>
+              <div class="welcome-item-d">Seu nome como responsável pela conta</div></div>
+            </div>
+            <div class="welcome-item">
+              <div class="welcome-icon">🏢</div>
+              <div><div class="welcome-item-t">Razão Social da Empresa</div>
+              <div class="welcome-item-d">Nome oficial da sua empresa conforme CNPJ</div></div>
+            </div>
+            <div class="welcome-item">
+              <div class="welcome-icon">📄</div>
+              <div><div class="welcome-item-t">CNPJ da Empresa</div>
+              <div class="welcome-item-d">CNPJ válido e ativo na Receita Federal</div></div>
+            </div>
+            <div class="welcome-item">
+              <div class="welcome-icon">📧</div>
+              <div><div class="welcome-item-t">E-mail corporativo Google</div>
+              <div class="welcome-item-d">Conta Google vinculada ao seu domínio corporativo</div></div>
+            </div>
+          </div>
+          <div class="welcome-note">
+            ⏱️ O processo leva menos de <strong>2 minutos</strong>. Após o cadastro, você terá <strong>14 dias grátis</strong> com acesso completo à plataforma.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        _c_btn = st.columns([1,2,1])
+        with _c_btn[1]:
+            if st.button("✅ Entendi — Continuar para o Login", use_container_width=True, type="primary", key="btn_welcome_ok"):
+                st.session_state["_viu_welcome"] = True
+                st.rerun()
+            if st.button("← Voltar para o site", use_container_width=True, key="btn_welcome_back"):
+                st.markdown('<meta http-equiv="refresh" content="0;url=https://fxgestaodefrotasonline.com">', unsafe_allow_html=True)
+        st.stop()
     _auth_login_page()
     st.stop()
 
