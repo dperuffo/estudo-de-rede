@@ -705,13 +705,15 @@ function _t(k) { return (_i18n[_lang] && _i18n[_lang][k]) || _i18n["pt"][k] || k
 
 function _applyLang() {
   // Nav
+  // data-i18n: troca textContent
   document.querySelectorAll("[data-i18n]").forEach(function(el) {
     var k = el.getAttribute("data-i18n");
-    if (k.endsWith("-html")) {
-      el.innerHTML = _t(k.replace("-html",""));
-    } else {
-      el.textContent = _t(k);
-    }
+    el.textContent = _t(k);
+  });
+  // data-i18n-html: troca innerHTML
+  document.querySelectorAll("[data-i18n-html]").forEach(function(el) {
+    var k = el.getAttribute("data-i18n-html");
+    el.innerHTML = _t(k);
   });
   // Demo captions dinâmicos
   if (typeof _cp2 !== "undefined") {
