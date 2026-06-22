@@ -17381,7 +17381,7 @@ with st.sidebar:
     st.markdown("<div class='nav-group-header'>🚛 Gestão da Frota</div>",
                 unsafe_allow_html=True)
 
-    _nav_btn("☀️ Comece seu dia!",          "☀️ Comece seu dia",          "comece_seu_dia")
+    _nav_btn(t("☀️ Comece seu dia!"),          "☀️ Comece seu dia",          "comece_seu_dia")
     if _auth_tem_permissao("aba_analise_cliente"):
         _nav_btn(t("👥 Análise do Cliente"),    "👥 Análise de Cliente",      "analise_cliente")
     if _auth_tem_permissao("aba_variacao_precos"):
@@ -17401,7 +17401,7 @@ with st.sidebar:
     if _auth_tem_permissao("aba_centros_custo"):
         _nav_btn("🏢 Centro de Custo",       "🏢 Centros de Custo",        "centros_custo")
     if _auth_tem_permissao("aba_recomendador"):
-        _nav_btn("🎯 Recomendador IA",       "🎯 Recomendador IA",         "recomendador")
+        _nav_btn(t("🎯 Recomendador IA"),       "🎯 Recomendador IA",         "recomendador")
     if _auth_tem_permissao("aba_inteligencia"):
         _nav_btn("💡 Inteligência",          "💡 Inteligência",            "inteligencia")
     if _auth_tem_permissao("aba_rotograma"):
@@ -17445,7 +17445,7 @@ with st.sidebar:
         )
 
 
-    _nav_btn("📍 Consulta por UF/Município", "📍 Por UF/Município", "uf")
+    _nav_btn(t("📍 Consulta por UF/Município"), "📍 Por UF/Município", "uf")
     _nav_btn(t("🔍 Consulta por Posto"),        "🔍 Consulta por Posto","busca")
     _nav_btn(t("🗺️ Consulta por Rota"),         "🗺️ Por Rota",          "rota")
     _nav_btn("🧭 Roteirizador",              "🧭 Roteirização",       "roteirizacao")
@@ -19652,7 +19652,7 @@ def _tour_dialog():
         st.markdown("---")
         _tn1, _tn2, _tn3, _tn4 = st.columns([1, 1, 1, 2])
         with _tn1:
-            if st.button("← Voltar", use_container_width=True, key="tour_back_ob"):
+            if st.button(t("← Voltar"), use_container_width=True, key="tour_back_ob"):
                 st.session_state["_ob_mode"] = "welcome"
                 st.session_state.pop("_tour_step", None)
                 st.rerun()
@@ -19693,7 +19693,7 @@ if st.session_state.get("_mostrar_avaliacao"):
             _av_aba = st.radio("Visao", ["⭐ Avaliar", "📊 Ver avaliacoes"], horizontal=True, key="av_visao")
             if _av_aba == "📊 Ver avaliacoes":
                 mostrar_painel_admin_avaliacoes()
-                if st.button("← Voltar", key="btn_voltar_av_admin"):
+                if st.button(t("← Voltar"), key="btn_voltar_av_admin"):
                     st.session_state.pop("_mostrar_avaliacao", None)
                     st.rerun()
             else:
@@ -19737,7 +19737,7 @@ if st.session_state.get("_mostrar_planos"):
     try:
         from stripe_billing import _mostrar_tela_planos_com_termo
         _mostrar_tela_planos_com_termo()
-        if st.button("← Voltar", key="btn_voltar_planos"):
+        if st.button(t("← Voltar"), key="btn_voltar_planos"):
             st.session_state["_mostrar_planos"] = False
             st.rerun()
         st.stop()
@@ -20675,7 +20675,7 @@ if modo == "📍 Por UF/Município":
                 placeholder="Nome para identificar esta consulta…",
             )
         with _col_sv2:
-            if st.button("💾 Salvar", use_container_width=True, key="btn_salvar_m1",
+            if st.button(t("💾 Salvar"), use_container_width=True, key="btn_salvar_m1",
                          help="Salvar esta consulta para acessar depois"):
                 _dados_m1 = {
                     "uf": uf,
@@ -22186,7 +22186,7 @@ elif modo == "🗺️ Por Rota":
                 placeholder="Nome para identificar esta rota…",
             )
         with _col_sv2b:
-            if st.button("💾 Salvar", use_container_width=True, key="btn_salvar_m2",
+            if st.button(t("💾 Salvar"), use_container_width=True, key="btn_salvar_m2",
                          help="Salvar esta rota para acessar depois"):
                 _dados_m2 = {
                     "orig_sel":     st.session_state.get("orig_sel"),
@@ -22260,7 +22260,7 @@ elif modo == "🗺️ Por Rota":
                     _PARADA_CORES = {
                         "🛏️ Pernoite":           "#1A5276",
                         "🍽️ Alimentação":        "#196F3D",
-                        "⛽ Abastecimento":      "#784212",
+                        t("⛽ Abastecimento"):      "#784212",
                         "🔧 Manutenção":         "#515A5A",
                         "🚔 Posto Policial/PRF": "#1B2631",
                         "🏥 Saúde/SAMU":        "#922B21",
@@ -22800,7 +22800,7 @@ elif modo == "🔍 Consulta por Posto":
                     placeholder="Nome para identificar esta busca…",
                 )
             with _col_sv3b:
-                if st.button("💾 Salvar", use_container_width=True, key="btn_salvar_m3",
+                if st.button(t("💾 Salvar"), use_container_width=True, key="btn_salvar_m3",
                              help="Salvar esta busca para acessar depois"):
                     _dados_m3 = {
                         "_m3_termo": _m3_termo,
@@ -25133,9 +25133,9 @@ elif modo == "💡 Inteligência":
 
     # ── Abas principais ───────────────────────────────────────────
     _tab_hist, _tab_score, _tab_alertas = st.tabs([
-        "📈 Histórico de Preços",
-        "⭐ Score de Postos",
-        "⚠️ Relatório de Alertas",
+        t("📈 Histórico de Preços"),
+        t("⭐ Score de Postos"),
+        t("⚠️ Relatório de Alertas"),
     ])
 
     # ══ ABA 1: Histórico ══════════════════════════════════════════
@@ -25334,12 +25334,12 @@ elif modo == "🛡️ Admin":
                        "depois clique em **Resolver** para limpar o alerta.")
 
     _adm_tab_users, _adm_tab_emp, _adm_tab_acesso, _adm_tab_dom, _adm_tab_logs, _adm_tab_matriz = st.tabs([
-        "👥 Perfis & Permissões",
-        "🏢 Empresas & Usuários",
-        "🔑 Controle de Acesso",
-        "🌐 Domínios Corporativos",
-        "📋 Logs de Atividade",
-        "🛡️ Matriz de Permissões",
+        t("👥 Perfis & Permissões"),
+        t("🏢 Empresas & Usuários"),
+        t("🔑 Controle de Acesso"),
+        t("🌐 Domínios Corporativos"),
+        t("📋 Logs de Atividade"),
+        t("🛡️ Matriz de Permissões"),
     ])
 
     # ══════════════════════════════════════════════════════════════
@@ -25416,7 +25416,7 @@ elif modo == "🛡️ Admin":
                         )
                     with _ec3:
                         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-                        if st.button("Salvar", key=f"btn_salvar_{_emp_id}",
+                        if st.button(t("Salvar"), key=f"btn_salvar_{_emp_id}",
                                      use_container_width=True):
                             _db_atualizar_empresa(_emp_id, nome=_edit_nome, cnpj=_edit_cnpj)
                             st.toast("✅ Empresa atualizada.", icon="✏️")
@@ -27132,7 +27132,7 @@ elif modo == "🧭 Roteirização":
             )
 
         with _exp_col2:
-            if st.button("📄 Gerar PDF", use_container_width=True,
+            if st.button(t("📄 Gerar PDF"), use_container_width=True,
                          key="rot_gerar_pdf", type="primary"):
                 with st.spinner("📄 Gerando relatório PDF…"):
                     try:
@@ -27184,7 +27184,7 @@ elif modo == "🧭 Roteirização":
                                      key="rot_nome_salvar")
         with _cn2:
             st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-            if st.button("💾 Salvar", key="rot_salvar"):
+            if st.button(t("💾 Salvar"), key="rot_salvar"):
                 if _salvar_rota_nova(_nome_in or _nome_sug, "roteirizacao", {
                     # ── Campos de exibição (lista de Rotas Salvas) ──
                     "label_orig":  _ro.get("label", ""),
@@ -29001,7 +29001,7 @@ elif modo == "👥 Análise de Cliente":
                     st.divider()
                     _c_sv1, _c_sv2 = st.columns([3, 1])
                     with _c_sv2:
-                        if st.button("💾 Salvar no banco", use_container_width=True, key="frota_salvar_db"):
+                        if st.button(t("💾 Salvar no banco"), use_container_width=True, key="frota_salvar_db"):
                             _rows_para_salvar = _df_to_rows(_df_abast, _arq.name)
                             with st.spinner("Salvando…"):
                                 _n_ok, _err_sv = _db_salvar_abastecimentos(_rows_para_salvar, _arq.name)
@@ -30941,13 +30941,13 @@ elif modo == "📑 Relatórios":
     )
 
     _rlt1, _rlt2, _rlt3, _rlt4, _rlt5, _rlt6, _rlt_custom = st.tabs([
-        "📊 Relatório Executivo",
-        "🌎 Oportunidades Comerciais",
-        "⭐ Performance por Posto",
-        "🎯 Score × Performance",
-        "🔍 Anomalias",
-        "🚘 Frota FIPE",
-        "🗂️ Relatórios Personalizados",
+        t("📊 Relatório Executivo"),
+        t("🌎 Oportunidades Comerciais"),
+        t("⭐ Performance por Posto"),
+        t("🎯 Score × Performance"),
+        t("🔍 Anomalias"),
+        t("🚘 Frota FIPE"),
+        t("🗂️ Relatórios Personalizados"),
     ])
 
     # ════════════════════════════════════════════════════════════════
@@ -32549,11 +32549,11 @@ elif modo == "🛰️ Telemetria":
 
     _tele_t1, _tele_t2, _tele_t3, _tele_t4, _tele_t5, _tele_t6 = st.tabs([
         "🚗 Frota",
-        "📥 Importar",
-        "⛽ Histórico",
-        "📊 Consumo",
-        "⚠️ Alertas",
-        "📈 Projeção de Volume",
+        t("📥 Importar"),
+        t("⛽ Histórico"),
+        t("📊 Consumo"),
+        t("⚠️ Alertas"),
+        t("📈 Projeção de Volume"),
     ])
 
     # ════════════════════════════════════════════
@@ -34191,9 +34191,9 @@ elif modo == "🏢 Centros de Custo":
     )
 
     _cc_tab1, _cc_tab2, _cc_tab3 = st.tabs([
-        "📋 Centros cadastrados",
-        "➕ Novo centro",
-        "🚛 Alocar veículos",
+        t("📋 Centros cadastrados"),
+        t("➕ Novo centro"),
+        t("🚛 Alocar veículos"),
     ])
 
     # ── TAB 1 — LISTA ────────────────────────────────────────────
@@ -34203,7 +34203,7 @@ elif modo == "🏢 Centros de Custo":
         with _cc_col1:
             st.markdown(f"**{len(_lista_cc)} centro(s) cadastrado(s)**")
         with _cc_col2:
-            if st.button("🔄 Atualizar", key="btn_cc_refresh", use_container_width=True):
+            if st.button(t("🔄 Atualizar"), key="btn_cc_refresh", use_container_width=True):
                 st.rerun()
 
         if not _lista_cc:
@@ -34241,7 +34241,7 @@ elif modo == "🏢 Centros de Custo":
 
                     _btn_c1, _btn_c2 = st.columns(2)
                     with _btn_c1:
-                        if st.button("✏️ Editar", key=f"btn_cc_edit_{_cc_id_item}",
+                        if st.button(t("✏️ Editar"), key=f"btn_cc_edit_{_cc_id_item}",
                                      use_container_width=True):
                             st.session_state["_cc_edit_id"]   = _cc_id_item
                             st.session_state["_cc_edit_nome"] = _cc_nome_item
@@ -35627,7 +35627,7 @@ elif modo == "🔧 Manutenção de Frota":
     with _mf_tab3:
         _mfh1, _mfh2 = st.columns([4,1])
         with _mfh2:
-            if st.button("🔄 Atualizar", key="btn_mf_refresh", use_container_width=True):
+            if st.button(t("🔄 Atualizar"), key="btn_mf_refresh", use_container_width=True):
                 st.session_state.pop("manut_cache", None)
                 st.cache_data.clear()
                 st.rerun()
@@ -35668,9 +35668,9 @@ elif modo == "🤝 Acordos de Preço":
     )
 
     _ac_tab1, _ac_tab2, _ac_tab3 = st.tabs([
-        "➕ Novo Acordo",
-        "📋 Acordos Vigentes",
-        "📁 Importar Planilha",
+        t("➕ Novo Acordo"),
+        t("📋 Acordos Vigentes"),
+        t("📁 Importar Planilha"),
     ])
 
     # ── TAB 1 — NOVO ACORDO ──────────────────────────────────────
@@ -35744,7 +35744,7 @@ elif modo == "🤝 Acordos de Preço":
         # Carrega acordos
         _col_ref, _col_btn = st.columns([4,1])
         with _col_btn:
-            if st.button("🔄 Atualizar", key="btn_refresh_ac", use_container_width=True):
+            if st.button(t("🔄 Atualizar"), key="btn_refresh_ac", use_container_width=True):
                 st.session_state.pop("_acordos_cache", None)
                 st.rerun()
 
@@ -36028,7 +36028,7 @@ elif modo == "🗺️ Rotograma":
     _PARADA_TIPOS = {
         "🛏️ Pernoite":           "Local seguro para pernoite do motorista",
         "🍽️ Alimentação":        "Restaurante ou ponto de refeição recomendado",
-        "⛽ Abastecimento":      "Posto de combustível confiável",
+        t("⛽ Abastecimento"):      "Posto de combustível confiável",
         "🔧 Manutenção":         "Borracharia, mecânica ou posto de apoio",
         "🚔 Posto Policial/PRF": "Policia Rodoviária Federal ou posto policial",
         "🏥 Saúde/SAMU":         "Hospital, UPA ou ponto de apoio médico",
@@ -36332,7 +36332,7 @@ elif modo == "🗺️ Rotograma":
         _emp_id_rg5 = (st.session_state.get("_empresa_ativa") or {}).get("id","")
         _col_rg5a, _col_rg5b = st.columns([4,1])
         with _col_rg5b:
-            if st.button("🔄 Atualizar", key="btn_refresh_rg", use_container_width=True):
+            if st.button(t("🔄 Atualizar"), key="btn_refresh_rg", use_container_width=True):
                 st.session_state["rotogramas_salvos"] = _rg_listar(_emp_id_rg5)
                 st.rerun()
         if "rotogramas_salvos" not in st.session_state or not st.session_state["rotogramas_salvos"]:
@@ -36366,7 +36366,7 @@ elif modo == "🗺️ Rotograma":
                             st.toast("Rotograma carregado!", icon="📋")
                             st.rerun()
                     with _bc2:
-                        if st.button("🗑️ Excluir",
+                        if st.button(t("🗑️ Excluir"),
                                      key=f"del_rg_{_sv.get('id',_sv_num)}",
                                      use_container_width=True):
                             if _rg_deletar(_sv.get("id","")):
