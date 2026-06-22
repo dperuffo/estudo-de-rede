@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Terms of Use — FNI Fleet Network Intelligence</title>
+<script>
+(function(){
+  var l = localStorage.getItem("fni_lang") || "pt";
+  if (l === "pt") window.location.replace("termos.html");
+})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#04112e;--cyan:#00b4d8;--white:#ffffff;--gray:#8a9bb5;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--white);line-height:1.75;}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 6%;background:rgba(4,17,46,0.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06);}
+.nav-logo{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.1rem;color:var(--white);text-decoration:none;}
+.nav-logo span{color:var(--cyan);}
+.nav-links{display:flex;gap:28px;list-style:none;}
+.nav-links a{color:var(--gray);text-decoration:none;font-size:0.88rem;}
+.nav-links a:hover{color:var(--white);}
+.lang-bar{display:flex;gap:6px;}
+.lang-btn{background:none;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;color:var(--gray);}
+.lang-btn.active{border-color:var(--cyan);color:var(--cyan);}
+main{max-width:800px;margin:0 auto;padding:120px 6% 80px;}
+h1{font-family:'Outfit',sans-serif;font-size:2rem;font-weight:800;margin-bottom:8px;}
+.updated{font-size:0.82rem;color:var(--gray);margin-bottom:40px;}
+h2{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;color:var(--cyan);margin:32px 0 10px;}
+p,li{color:rgba(255,255,255,0.8);font-size:0.95rem;margin-bottom:10px;}
+ul{padding-left:20px;margin-bottom:16px;}
+footer{padding:28px 6%;border-top:1px solid rgba(255,255,255,0.05);text-align:center;font-size:0.78rem;color:rgba(255,255,255,0.25);}
+footer a{color:var(--cyan);text-decoration:none;}
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-logo">FNI <span>Fleet</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="termos-en.html">Terms</a></li>
+    <li><a href="sobre-en.html">About</a></li>
+    <li><a href="privacidade-en.html">Privacy</a></li>
+    <li><a href="mailto:contato@fxgestaodefrotasonline.com">Contact</a></li>
+  </ul>
+  <div class="lang-bar">
+    <button class="lang-btn" onclick="localStorage.setItem('fni_lang','pt');window.location.replace('termos.html')">🇧🇷 PT</button>
+    <button class="lang-btn active">🇺🇸 EN</button>
+  </div>
+</nav>
+<main>
+  <h1>Terms of Use</h1>
+  <p class="updated">Last updated: June 2026</p>
+
+  <h2>1. Acceptance of Terms</h2>
+  <p>By accessing and using the FNI Fleet Network Intelligence platform, you agree to these Terms of Use. If you do not agree, please do not use the service.</p>
+
+  <h2>2. Description of Service</h2>
+  <p>FNI is a SaaS platform for fleet management that provides:</p>
+  <ul>
+    <li>Real-time fuel price consultation via ANP data</li>
+    <li>Fleet consumption monitoring and analytics</li>
+    <li>Integration with fleet management systems</li>
+    <li>Route optimization and station recommendations</li>
+  </ul>
+
+  <h2>3. User Registration</h2>
+  <p>To use the platform, you must register with valid information. You are responsible for maintaining the confidentiality of your credentials and for all activities that occur under your account.</p>
+
+  <h2>4. Acceptable Use</h2>
+  <p>You agree not to:</p>
+  <ul>
+    <li>Use the platform for illegal or unauthorized purposes</li>
+    <li>Attempt to gain unauthorized access to systems or data</li>
+    <li>Share account credentials with third parties</li>
+    <li>Use automated tools to extract data without authorization</li>
+  </ul>
+
+  <h2>5. Plans and Billing</h2>
+  <p>Paid plans are billed monthly or annually. Cancellations take effect at the end of the current billing period. No refunds are issued for partial periods.</p>
+
+  <h2>6. Data and Privacy</h2>
+  <p>Your data is processed in accordance with our <a href="privacidade-en.html" style="color:var(--cyan)">Privacy Policy</a> and Brazilian LGPD legislation.</p>
+
+  <h2>7. Service Availability</h2>
+  <p>We strive for 99.9% availability but do not guarantee uninterrupted service. Scheduled maintenance will be communicated in advance.</p>
+
+  <h2>8. Limitation of Liability</h2>
+  <p>FNI is not responsible for indirect damages, loss of profits or data arising from the use or inability to use the service.</p>
+
+  <h2>9. Changes to Terms</h2>
+  <p>We reserve the right to modify these terms at any time. Changes will be communicated via email or platform notification.</p>
+
+  <h2>10. Contact</h2>
+  <p>Questions about these terms: <a href="mailto:contato@fxgestaodefrotasonline.com" style="color:var(--cyan)">contato@fxgestaodefrotasonline.com</a></p>
+</main>
+<footer>
+  © 2026 Fleet Network Intelligence Ltda. · <a href="privacidade-en.html">Privacy</a> · <a href="sobre-en.html">About</a>
+</footer>
+</body>
+</html>
