@@ -21391,6 +21391,7 @@ if modo == "📍 Por UF/Município":
                             ]].drop_duplicates("cnpj").reset_index(drop=True)
                     except Exception as _e_sc3:
                         st.caption(f"debug fallback: {_e_sc3}")
+                    _rows_ranked_sc = []
                     for _, _row_sc in _df_base_sc.iterrows():
                         _rd = _row_sc.to_dict()
                         _cn_norm_sc = re.sub(r"\D", "", str(_rd.get("cnpj", "")))
