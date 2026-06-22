@@ -185,7 +185,7 @@ def set_lang(lang: str):
             _email = st.session_state.get("_auth_email","")
             if _url and _key and _email:
                 db = create_client(_url, _key)
-                db.table("usuarios").update({"lang": lang}).eq("email", _email).execute()
+                db.table("user_preferences").upsert({"email": _email, "lang": lang, "updated_at": "now()"}, on_conflict="email").execute()
         except Exception:
             pass
     except Exception:
@@ -244,7 +244,7 @@ def load_user_lang():
         _email = st.session_state.get("_auth_email","")
         if _url and _key and _email:
             db = create_client(_url, _key)
-            r = db.table("usuarios").select("lang").eq("email", _email).limit(1).execute()
+            r = db.table("user_preferences").select("lang").eq("email", _email).limit(1).execute()
             if r.data and r.data[0].get("lang"):
                 st.session_state["_lang"] = r.data[0]["lang"]
                 return
