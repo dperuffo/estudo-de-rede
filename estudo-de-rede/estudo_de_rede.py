@@ -17384,6 +17384,7 @@ with st.sidebar:
     _nav_btn(t("☀️ Comece seu dia!"),          "☀️ Comece seu dia",          "comece_seu_dia")
     if _auth_tem_permissao("aba_analise_cliente"):
         _nav_btn(t("👥 Análise do Cliente"),    "👥 Análise de Cliente",      "analise_cliente")
+    _var_cache_key = "pp_variacao_abast_" + (_cnpj_usuario_atual() or "admin")
     if _auth_tem_permissao("aba_variacao_precos"):
         _var_badge = " 🔔" if (st.session_state.get(_var_cache_key) is not None
                                and not st.session_state[_var_cache_key].empty) else ""
