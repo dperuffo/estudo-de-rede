@@ -16020,11 +16020,18 @@ def _icone_tipo(tipo: str) -> str:
 #  INTERFACE — BARRA SUPERIOR
 # ═══════════════════════════════════════════════════════════════════
 
-cnpjs_pf_ativos = st.session_state.get("cnpjs_pro_frotas", set())
+# Badge: mostra abastecimentos integrados (API GF ou planilha template)
+try:
+    _abast_badge = _carregar_abastecimentos_unificados(dias=730)
+    _n_abast_badge = len(_abast_badge) if not _abast_badge.empty else 0
+    _n_postos_badge = _abast_badge["cnpj_posto"].nunique() if _n_abast_badge and "cnpj_posto" in _abast_badge.columns else 0
+except Exception:
+    _n_abast_badge = 0
+    _n_postos_badge = 0
 pf_badge_html = (
-    f'<span class="topbar-badge">⭐ Gestão de Frotas: {len(cnpjs_pf_ativos)} CNPJs ativos</span>'
-    if cnpjs_pf_ativos else
-    '<span class="topbar-badge">⭐ Gestão de Frotas não carregado</span>'
+    f'<span class="topbar-badge">⛽ {_n_abast_badge:,} abastecimentos · {_n_postos_badge} postos</span>'
+    if _n_abast_badge > 0 else
+    '<span class="topbar-badge">⛽ Nenhum abastecimento integrado</span>'
 )
 
 st.markdown(f"""
