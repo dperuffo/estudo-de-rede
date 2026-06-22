@@ -751,6 +751,14 @@ function _applyLang() {
     var c = document.getElementById("demo-cap2");
     if (c) c.innerHTML = _cp2[typeof _c2 !== "undefined" ? _c2 : 0];
   }
+  // Atualiza captions do demo
+  var _cp2_atual = _lang === "en" ? _cp2_en : _cp2_pt;
+  var _capEl = document.getElementById("demo-cap2");
+  if (_capEl) _capEl.innerHTML = _cp2_atual[typeof _c2 !== "undefined" ? _c2 : 0];
+  // Atualiza URLs do mock browser
+  var _urlEl = document.getElementById("demo-url2");
+  var _u2_atual = _lang === "en" ? _u2_en : _u2_pt;
+  if (_urlEl && typeof _c2 !== "undefined") _urlEl.textContent = _u2_atual[_c2];
   // Botões de idioma
   document.getElementById("btn-pt") && document.getElementById("btn-pt").classList.toggle("lang-active", _lang==="pt");
   document.getElementById("btn-en") && document.getElementById("btn-en").classList.toggle("lang-active", _lang==="en");
