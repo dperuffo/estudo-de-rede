@@ -46,6 +46,12 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+try:
+    from translations_app import t, render_lang_selector, load_user_lang
+except ImportError:
+    def t(x): return x
+    def render_lang_selector(): pass
+    def load_user_lang(): pass
 import folium
 import matplotlib
 matplotlib.use("Agg")
@@ -17374,19 +17380,19 @@ with st.sidebar:
 
     _nav_btn("☀️ Comece seu dia!",          "☀️ Comece seu dia",          "comece_seu_dia")
     if _auth_tem_permissao("aba_analise_cliente"):
-        _nav_btn("👥 Análise do Cliente",    "👥 Análise de Cliente",      "analise_cliente")
+        _nav_btn(t("👥 Análise do Cliente"),    "👥 Análise de Cliente",      "analise_cliente")
     if _auth_tem_permissao("aba_variacao_precos"):
         _var_badge = " 🔔" if (st.session_state.get("pp_variacao_abast") is not None
                                and not st.session_state["pp_variacao_abast"].empty) else ""
         _nav_btn(f"💹 Variação de Preços{_var_badge}", "💹 Variação de Preços", "variacao_precos")
     if _auth_tem_permissao("aba_financeiro"):
-        _nav_btn("💰 Painel Financeiro",     "💰 Painel Financeiro",       "painel_financeiro")
+        _nav_btn(t("💰 Painel Financeiro"),     "💰 Painel Financeiro",       "painel_financeiro")
     if _auth_tem_permissao("aba_acordos"):
         _nav_btn("🤝 Acordos de Preços",     "🤝 Acordos de Preço",        "acordos_preco")
     if _auth_tem_permissao("aba_manutencao"):
-        _nav_btn("🔧 Manutenção",            "🔧 Manutenção de Frota",     "manutencao_frota")
+        _nav_btn(t("🔧 Manutenção"),            "🔧 Manutenção de Frota",     "manutencao_frota")
     if _auth_tem_permissao("aba_dashboard"):
-        _nav_btn("📈 Dashboard",             "📈 Dashboard",               "dashboard")
+        _nav_btn(t("📈 Dashboard"),             "📈 Dashboard",               "dashboard")
     if _auth_tem_permissao("aba_relatorios"):
         _nav_btn("📑 Relatórios Gerenciais", "📑 Relatórios",              "relatorios")
     if _auth_tem_permissao("aba_centros_custo"):
@@ -17437,8 +17443,8 @@ with st.sidebar:
 
 
     _nav_btn("📍 Consulta por UF/Município", "📍 Por UF/Município", "uf")
-    _nav_btn("🔍 Consulta por Posto",        "🔍 Consulta por Posto","busca")
-    _nav_btn("🗺️ Consulta por Rota",         "🗺️ Por Rota",          "rota")
+    _nav_btn(t("🔍 Consulta por Posto"),        "🔍 Consulta por Posto","busca")
+    _nav_btn(t("🗺️ Consulta por Rota"),         "🗺️ Por Rota",          "rota")
     _nav_btn("🧭 Roteirizador",              "🧭 Roteirização",       "roteirizacao")
 
     _n_rotas_sb = len(_carregar_rotas_salvas())
@@ -17757,8 +17763,8 @@ with st.sidebar:
                 unsafe_allow_html=True)
 
     if _auth_tem_permissao("aba_api_integracoes"):
-        _nav_btn("⚡ API & Integrações",     "⚡ API & Integrações",     "api_integracoes")
-    _nav_btn("📚 Documentação",              "📚 Documentação",           "documentacao")
+        _nav_btn(t("⚡ API & Integrações"),     "⚡ API & Integrações",     "api_integracoes")
+    _nav_btn(t("📚 Documentação"),              "📚 Documentação",           "documentacao")
     if st.button("🎯 Tutorial / Onboarding", use_container_width=True,
                  key="nav_tutorial_onboarding",
                  help="Reabrir o tutorial de boas-vindas"):
