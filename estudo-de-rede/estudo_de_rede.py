@@ -16573,6 +16573,9 @@ with st.sidebar:
         )
         st.markdown(_card_html, unsafe_allow_html=True)
 
+        # ── Seletor de idioma ────────────────────────────────────
+        render_lang_selector()
+        st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
         if st.button("⭐ Avaliar plataforma", use_container_width=True, key="btn_avaliar"):
             st.session_state["_mostrar_avaliacao"] = True
             st.rerun()
