@@ -17385,8 +17385,8 @@ with st.sidebar:
     if _auth_tem_permissao("aba_analise_cliente"):
         _nav_btn(t("👥 Análise do Cliente"),    "👥 Análise de Cliente",      "analise_cliente")
     if _auth_tem_permissao("aba_variacao_precos"):
-        _var_badge = " 🔔" if (st.session_state.get("pp_variacao_abast") is not None
-                               and not st.session_state["pp_variacao_abast"].empty) else ""
+        _var_badge = " 🔔" if (st.session_state.get(_var_cache_key) is not None
+                               and not st.session_state[_var_cache_key].empty) else ""
         _nav_btn(f"💹 Variação de Preços{_var_badge}", "💹 Variação de Preços", "variacao_precos")
     if _auth_tem_permissao("aba_financeiro"):
         _nav_btn(t("💰 Painel Financeiro"),     "💰 Painel Financeiro",       "painel_financeiro")
@@ -20032,7 +20032,9 @@ if False:
 # ═══════════════════════════════════════════════════════════════════
 
 # Calcula variação de preços a partir dos abastecimentos reais
-if "pp_variacao_abast" not in st.session_state or st.session_state.get("_var_abast_ts", 0) < (pd.Timestamp.now().timestamp() - 900):
+# Chave de cache inclui CNPJ para isolamento multi-tenant
+_var_cache_key = "pp_variacao_abast_" + (_cnpj_usuario_atual() or "admin")
+if _var_cache_key not in st.session_state or st.session_state.get("_var_abast_ts", 0) < (pd.Timestamp.now().timestamp() - 900):
     try:
         _var_abast_df = _carregar_abastecimentos_unificados(dias=90)
         if not _var_abast_df.empty and "preco_litro" in _var_abast_df.columns:
@@ -20077,15 +20079,15 @@ if "pp_variacao_abast" not in st.session_state or st.session_state.get("_var_aba
             ]
             _var_grp["Status"] = _var_grp["delta_pct"].apply(
                 lambda x: "🔺 Alta" if x > 0 else "🔻 Queda")
-            st.session_state["pp_variacao_abast"] = _var_grp
+            st.session_state[_var_cache_key] = _var_grp
             st.session_state["_var_abast_ts"] = pd.Timestamp.now().timestamp()
         else:
-            st.session_state["pp_variacao_abast"] = pd.DataFrame()
+            st.session_state[_var_cache_key] = pd.DataFrame()
             st.session_state["_var_abast_ts"] = pd.Timestamp.now().timestamp()
     except Exception:
-        st.session_state["pp_variacao_abast"] = pd.DataFrame()
+        st.session_state[_var_cache_key] = pd.DataFrame()
 
-_var_df_global = st.session_state.get("pp_variacao_abast", pd.DataFrame())
+_var_df_global = st.session_state.get(_var_cache_key, pd.DataFrame())
 if _var_df_global is not None and not _var_df_global.empty:
     _var_ts = st.session_state.get("_pp_variacao_ts", "")
     _n_alta   = int((_var_df_global["Status"] == "🔺 Alta").sum())
