@@ -33438,11 +33438,11 @@ elif modo == "🏢 Centros de Custo":
                     _pj_df_raw = _pj_df_raw.dropna(subset=[_dc])
                     _pj_df_raw["_data"] = _pj_df_raw[_dc].dt.date
                     _pj_df_raw["_dia_semana"] = _pj_df_raw[_dc].dt.dayofweek
-                    _pj_df_raw["litros"] = pd.to_numeric(_pj_df_raw.get("litros", pd.Series()), errors="coerce")
+                    _pj_df_raw["litros"] = pd.to_numeric(_pj_df_raw.get("litros", _pj_df_raw.get("item_quantidade", pd.Series())), errors="coerce")
                     _pj_df_raw["valor_total"] = pd.to_numeric(
-                        _pj_df_raw.get("valor_total", _pj_df_raw.get("valor_combustivel", pd.Series())), errors="coerce"
+                        _pj_df_raw.get("valor_total", _pj_df_raw.get("item_valor_total", _pj_df_raw.get("valor_combustivel", pd.Series()))), errors="coerce"
                     )
-                    _prod_col = "produto" if "produto" in _pj_df_raw.columns else None
+                    _prod_col = next((c for c in ["produto","item_nome","combustivel"] if c in _pj_df_raw.columns), None)
                     _pj_df_raw["_produto"] = (
                         _pj_df_raw[_prod_col].fillna("Outros").astype(str).str.strip().str.upper()
                         if _prod_col else "Combustível"
