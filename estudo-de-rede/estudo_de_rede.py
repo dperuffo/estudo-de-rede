@@ -34717,7 +34717,9 @@ elif modo == "💰 Painel Financeiro":
 
     if not _df_fin.empty:
         # Carrega resumo financeiro real por centro de custo
-        _resumo_cc = _cc_resumo_financeiro(_cnpj_fin, _dt_ini_fin, _dt_fim_fin)
+        import re as _re_fin
+        _cnpj_fin_cc = _re_fin.sub(r"\D","",str(_cnpj_fin)) if _cnpj_fin else ""
+        _resumo_cc = _cc_resumo_financeiro(_cnpj_fin_cc, _dt_ini_fin, _dt_fim_fin)
 
         _ccs_disponiveis = ["Todos os centros"] + sorted(_resumo_cc.keys())
         _cc_sel = st.selectbox("Filtrar por centro de custo", _ccs_disponiveis,
