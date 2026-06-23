@@ -3960,7 +3960,7 @@ st.markdown("""
             { e:'🤖', l:'Assistente IA',          s:'Perguntas sobre frota', k:'btn_assistente_ia' },
         ]},
         { titulo: 'Configurações', itens: [
-            { e:'🛰️', l:'Telemetria',             s:'Rastreamento',          k:'btn_telemetria' },
+            { e:'🛰️', l:'Rastreamento',           s:'Monitoramento GPS',      k:'btn_telemetria' },
             { e:'⚡',  l:'API & Integrações',      s:'Conectores externos',   k:'btn_api_integracoes' },
             { e:'🛡️', l:'Admin',                  s:'Gestão de usuários',    k:'btn_admin' },
             { e:'📚', l:'Documentação',           s:'Guias e tutoriais',     k:'btn_documentacao' },
@@ -19331,7 +19331,7 @@ _TOUR_STEPS = [
             ("📡","Telemetria real","#fce4ec"),
             ("📋","Relatórios avançados","#e0f2f1"),
         ],
-        "tips": ["🆕 v5.4: Frota FIPE + Telemetria + Recomendador IA + Relatórios avançados",
+        "tips": ["🆕 v5.4: Frota FIPE + Rastreamento + Recomendador IA + Relatórios avançados",
                  "🔄 Todos os dados persistidos no Supabase — acesse de qualquer lugar"],
     },
     # ── Passo 2: Dashboard ───────────────────────────────────────────
@@ -19443,7 +19443,7 @@ _TOUR_STEPS = [
     },
     # ── Passo 8: Telemetria ──────────────────────────────────────────
     {
-        "icon": "📡", "title": "Telemetria — Abastecimentos Reais da Frota",
+        "icon": "🛰️", "title": "Rastreamento de Frota",
         "desc": (
             "Importe dados reais de abastecimento via **.xlsx** com mapeamento automático de "
             "colunas e deduplicação. Analise: total abastecido (L), gasto (R$), consumo médio "
@@ -19605,7 +19605,7 @@ def _tour_dialog():
                  "Score A-D por posto, ranking, tendências e alertas")
         _ob_card(_oa5, "🚗", "Gestão de Frotas + FIPE",
                  "Cadastro de frota com dados FIPE automáticos por placa")
-        _ob_card(_oa6, "📡", "Telemetria de Abastecimentos",
+        _ob_card(_oa6, "🛰️", "Rastreamento de Frota",
                  "Importe dados reais: consumo, gastos e anomalias por veículo")
 
         _cb4, _cb5, _cb6 = st.columns(3)
@@ -19624,9 +19624,9 @@ def _tour_dialog():
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
         with _cb6:
-            if st.button("→ Telemetria", use_container_width=True,
+            if st.button("→ Rastreamento", use_container_width=True,
                          key="ob_go_telemetria"):
-                st.session_state["modo_selecionado"] = "📡 Telemetria"
+                st.session_state["modo_selecionado"] = "🛰️ Rastreamento"
                 _marcar_tour_concluido()
                 st.session_state["_tour_ativo"] = False
                 st.rerun()
@@ -25679,7 +25679,7 @@ elif modo == "🛡️ Admin":
             "aba_variacao_precos": ("💹 Variação de Preços",   "Abas",           True),
             "aba_recomendador":    ("⭐ Recomendador",          "Abas",           False),
             "aba_frotas":          ("🚛 Frotas",               "Abas",           False),
-            "aba_telemetria":      ("📡 Telemetria",           "Abas",           False),
+            "aba_telemetria":      ("🛰️ Rastreamento",         "Abas",           False),
             "aba_relatorios":      ("📋 Relatórios",           "Abas",           False),
             "aba_api_integracoes": ("🔌 API / Integrações",    "Abas",           True),
             "aba_admin":           ("🛡️ Admin",                "Abas",           True),
@@ -25689,7 +25689,7 @@ elif modo == "🛡️ Admin":
             "func_upload_planilha":("📁 Upload planilha",      "Funções",        True),
             "func_ver_todos_cnpj": ("👁️ Ver todos os CNPJs",   "Funções",        True),
             "func_gerenciar_users":("👥 Gerenciar usuários",   "Funções",        True),
-            "func_ver_telem_todos":("📡 Telemetria de todos",  "Funções",        True),
+            "func_ver_telem_todos":("🛰️ Rastreamento de todos","Funções",        True),
         }
 
         _PERFIS_EXTERNOS = ["gestor_frota", "posto"]
