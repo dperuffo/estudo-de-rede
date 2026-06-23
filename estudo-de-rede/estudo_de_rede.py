@@ -20536,17 +20536,27 @@ def _mf_indicadores(cnpj_frota: str, km_por_placa: dict) -> dict:
     """
     import math as _mf_math
     _PRED_CFG_IND = {
-        "oleo":    {"leve":10000,"pesado":15000,"custo":450},
-        "pneus":   {"leve":40000,"pesado":60000,"custo":3200},
-        "freios":  {"leve":40000,"pesado":60000,"custo":1800},
-        "filtros": {"leve":15000,"pesado":20000,"custo":380},
+        "oleo":         {"leve":10000,"pesado":15000,"custo":450},
+        "pneus":        {"leve":40000,"pesado":60000,"custo":3200},
+        "freios":       {"leve":40000,"pesado":60000,"custo":1800},
+        "filtros":      {"leve":15000,"pesado":20000,"custo":380},
+        "arrefecimento":{"leve":40000,"pesado":60000,"custo":800},
+        "suspensao":    {"leve":50000,"pesado":80000,"custo":2500},
+        "eletrico":     {"leve":30000,"pesado":50000,"custo":600},
+        "revisao":      {"leve":20000,"pesado":30000,"custo":1200},
     }
     _KWS_IND = {
-        "oleo":   ["óleo","oleo","oil","lubrif"],
-        "pneus":  ["pneu","rodíz","rodiz","tire"],
-        "freios": ["freio","pastilha","disco","brake"],
-        "filtros":["filtro","filter"],
+        "oleo":        ["óleo","oleo","oil","lubrif","troca de óleo","troca de oleo"],
+        "pneus":       ["pneu","rodíz","rodiz","tire"],
+        "freios":      ["freio","pastilha","disco","brake"],
+        "filtros":     ["filtro","filter"],
+        "arrefecimento":["arrefec","radiador","cooling"],
+        "suspensao":   ["suspensão","suspensao","amortec","mola"],
+        "eletrico":    ["elétric","eletric","electric","bateria"],
+        "revisao":     ["revisão geral","revisao geral","revisão","revisao","overhaul"],
     }
+    # Revisão Geral reseta todos os componentes
+    _REVISAO_GERAL_KWS = ["revisão geral","revisao geral","revisão completa","revisao completa"]
     # Carrega histórico sem cache
     _hist = _manut_listar(cnpj_frota=cnpj_frota if cnpj_frota else None, limit=2000)
     # Monta mapa placa → {comp: hod_ult}
@@ -20559,6 +20569,13 @@ def _mf_indicadores(cnpj_frota: str, km_por_placa: dict) -> dict:
         except: continue
         if _mf_math.isnan(_hod) or _hod <= 0: continue
         _itens_str = " ".join(str(it) for it in (_hr.get("itens_realizados") or [])).lower()
+        # Revisão Geral reseta TODOS os componentes
+        _is_revisao_geral = any(kw in _itens_str for kw in _REVISAO_GERAL_KWS)
+        if _is_revisao_geral:
+            if _pl not in _hod_ult_map: _hod_ult_map[_pl] = {}
+            for _comp_rg in _PRED_CFG_IND.keys():
+                if _hod > _hod_ult_map[_pl].get(_comp_rg, 0):
+                    _hod_ult_map[_pl][_comp_rg] = _hod
         for _comp, _kws in _KWS_IND.items():
             if any(kw in _itens_str for kw in _kws):
                 if _hod > _hod_ult_map.get(_pl, {}).get(_comp, 0):
