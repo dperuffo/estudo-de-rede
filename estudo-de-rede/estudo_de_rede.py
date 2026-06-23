@@ -19678,10 +19678,19 @@ def _tour_dialog():
         _has_abast_l = bool(len(_carregar_abastecimentos_unificados(dias=730)) > 0)
         _has_anp_l   = bool(st.session_state.get("postos_anp_df") is not None and
                             not getattr(st.session_state.get("postos_anp_df"), "empty", True))
-        _has_frota_l = bool(st.session_state.get("_frota_df") is not None and
-                            not getattr(st.session_state.get("_frota_df"), "empty", True))
-        _has_telem_l = bool(st.session_state.get("_telem_df") is not None and
-                            not getattr(st.session_state.get("_telem_df"), "empty", True))
+        # Frota: True se há veículos em profrotas_abastecimentos
+        _has_frota_l = bool(
+            st.session_state.get("_frota_df") is not None and
+            not getattr(st.session_state.get("_frota_df"), "empty", True)
+        ) or bool(
+            len(_carregar_abastecimentos_unificados(dias=730).get(
+                "veiculo_placa", _carregar_abastecimentos_unificados(dias=730).get(
+                "placa", [])).__class__ == list
+            ) if False else
+            _carregar_abastecimentos_unificados(dias=730).shape[0] > 0
+        )
+        # Telemetria: True se há chaves API Gestão de Frotas cadastradas
+        _has_telem_l = bool(_profrotas_listar_chaves())
         _has_ai_l    = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
         _chips = []
