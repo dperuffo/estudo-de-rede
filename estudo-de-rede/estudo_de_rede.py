@@ -1102,18 +1102,19 @@ def _mfa_render_tela_verificacao(email: str, segredo: str) -> bool:
     .mfa-hint strong { color: rgba(255,255,255,0.85); }
     .mfa-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); margin: 0 0 20px; }
     div[data-testid="stTextInput"] input {
-        background: rgba(255,255,255,0.08) !important;
-        border: 1px solid rgba(255,255,255,0.18) !important;
-        border-radius: 14px !important; color: #fff !important;
-        font-size: 1.6rem !important; letter-spacing: 0.5rem !important;
+        background: rgba(255,255,255,0.95) !important;
+        border: 2px solid rgba(100,181,246,0.5) !important;
+        border-radius: 14px !important; color: #0d2d6b !important;
+        font-size: 2rem !important; letter-spacing: 0.6rem !important;
         text-align: center !important; padding: 14px 20px !important;
+        font-weight: 700 !important;
         transition: border-color 0.2s, box-shadow 0.2s !important;
     }
     div[data-testid="stTextInput"] input:focus {
-        border-color: rgba(100,181,246,0.6) !important;
-        box-shadow: 0 0 0 3px rgba(25,118,210,0.25) !important; outline: none !important;
+        border-color: #1976D2 !important;
+        box-shadow: 0 0 0 3px rgba(25,118,210,0.3) !important; outline: none !important;
     }
-    div[data-testid="stTextInput"] input::placeholder { color: rgba(255,255,255,0.25) !important; }
+    div[data-testid="stTextInput"] input::placeholder { color: rgba(13,45,107,0.3) !important; font-weight:400 !important; }
     div[data-testid="stButton"] > button[kind="primary"] {
         background: linear-gradient(90deg, #1565C0, #1976D2) !important;
         border: none !important; border-radius: 14px !important; color: #fff !important;
