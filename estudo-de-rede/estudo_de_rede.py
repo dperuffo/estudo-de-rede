@@ -32676,7 +32676,7 @@ elif modo == "🛰️ Rastreamento":
     st.markdown(
         '<div style="background:linear-gradient(135deg,#1a237e,#283593);"'
         'border-radius:12px;padding:20px 24px;margin-bottom:24px;color:#fff;">'
-        '<div style="font-size:1.4rem;font-weight:700;margin-bottom:4px">🛰️ Rastreamento de Frota</div>'
+        '<div style="font-size:1.4rem;font-weight:800;margin-bottom:8px;color:#ffffff">🛰️ Rastreamento de Frota</div>'
         '<div style="font-size:.9rem;color:#e3f2fd;line-height:1.6;">Integração com plataformas de rastreamento '
         'veicular para monitoramento em tempo real de posicionamento, dados telemétricos e '
         'diagnóstico eletrônico dos veículos.</div>'
