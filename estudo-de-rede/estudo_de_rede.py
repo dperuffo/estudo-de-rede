@@ -33480,6 +33480,66 @@ if modo == "👥 Análise de Cliente":
             _pj2_por_comb["Valor (R$)"] = _pj2_por_comb["Valor (R$)"].apply(lambda v: _br_moeda(v))
             st.dataframe(_pj2_por_comb, use_container_width=True, hide_index=True)
 
+            # ── Insights automáticos ────────────────────────────
+            st.markdown("---")
+            st.markdown("##### 💡 Insights")
+            _ins2 = []
+            _mes2_nome = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][_pj2_mes-1]
+            _ins2.append(f"📅 Em **{_mes2_nome}/{_pj2_ano}**, a frota consumiu **{_br_num(_pj2_tot_cons,0)} L** em {_pj2_dias_dec} dias ({_pj2_dias_dec}/{_pj2_dias_mes} do mês).")
+            _ins2.append(f"🔮 Projeção total do mês: **{_br_num(_pj2_tot_mes,0)} L** — faltam {_br_num(_pj2_tot_proj,0)} L nos {_pj2_dias_res} dias restantes.")
+            _ins2.append(f"💰 Gasto acumulado: **{_br_moeda(_pj2_tot_val)}** — média de **{_br_moeda(_pj2_tot_val/max(_pj2_dias_dec,1))} /dia**.")
+            # Combustível mais consumido
+            if not _pj2_df_mes.empty:
+                _top_comb2 = _pj2_df_mes.groupby("_prod2")["_lits2"].sum()
+                if not _top_comb2.empty:
+                    _top_nome2 = _top_comb2.idxmax()
+                    _top_lits2 = float(_top_comb2.max())
+                    _pct_top2  = round(_top_lits2 / max(_pj2_tot_cons, 1) * 100, 1)
+                    _ins2.append(f"⛽ Combustível mais consumido: **{_top_nome2}** com {_br_num(_top_lits2,0)} L ({_pct_top2}% do total).")
+            # Dia de maior consumo
+            if not _pj2_hist.empty and _pj2_hist["litros"].max() > 0:
+                _dia_max2 = _pj2_hist.loc[_pj2_hist["litros"].idxmax()]
+                _ins2.append(f"📌 Maior consumo diário: **{_br_num(float(_dia_max2['litros']),0)} L** em {pd.Timestamp(_dia_max2['data']).strftime('%d/%m/%Y')}.")
+            # Dia da semana com maior consumo
+            _pj2_dow_names = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"]
+            if not _pj2_dow_med.empty:
+                _dow_max2 = int(_pj2_dow_med.idxmax())
+                _ins2.append(f"📆 **{_pj2_dow_names[_dow_max2]}** é o dia com maior consumo médio ({_br_num(float(_pj2_dow_med.max()),0)} L/dia).")
+            # Comparativo mês anterior
+            try:
+                import datetime as _dt_ins
+                _ant_ini2 = (_dt_ins.date(_pj2_ano, _pj2_mes, 1) - _dt_ins.timedelta(days=1)).replace(day=1)
+                _ant_fim2 = _dt_ins.date(_pj2_ano, _pj2_mes, 1) - _dt_ins.timedelta(days=1)
+                _df_ant2  = _pj2_df[(_pj2_df["_data2"] >= _ant_ini2) & (_pj2_df["_data2"] <= _ant_fim2)]
+                _lit_ant2 = float(_df_ant2["_lits2"].sum()) if not _df_ant2.empty else 0
+                if _lit_ant2 > 0:
+                    _diff2 = _pj2_tot_mes - _lit_ant2
+                    _ins2.append(f"📊 Vs mês anterior: projeção indica **{'🔺 +' if _diff2>0 else '🔻 '}{_br_num(abs(_diff2),0)} L** ({'mais' if _diff2>0 else 'menos'} que {_br_num(_lit_ant2,0)} L).")
+            except Exception:
+                pass
+            for _i2 in _ins2:
+                st.markdown(f"- {_i2}")
+
+            # ── Gráfico consumo por dia da semana ───────────────
+            if not _pj2_dow_med.empty:
+                st.markdown("---")
+                st.markdown("##### 📆 Consumo médio por dia da semana")
+                try:
+                    import plotly.graph_objects as _pgo_dow2
+                    _dow_max2_idx = int(_pj2_dow_med.idxmax())
+                    _fig_dow2 = _pgo_dow2.Figure(data=[_pgo_dow2.Bar(
+                        x=[_pj2_dow_names[i] for i in _pj2_dow_med.index],
+                        y=[round(v,1) for v in _pj2_dow_med.values],
+                        marker_color=["#1565c0" if i==_dow_max2_idx else "#64b5f6" for i in _pj2_dow_med.index],
+                        text=[f"{_br_num(v,0)} L" for v in _pj2_dow_med.values],
+                        textposition="outside",
+                    )])
+                    _fig_dow2.update_layout(height=280, margin=dict(t=10,b=30,l=0,r=0),
+                        yaxis_title="Litros (média)", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                    st.plotly_chart(_fig_dow2, use_container_width=True)
+                except Exception:
+                    pass
+
 
 elif modo == "💰 Painel Financeiro":
     _doc_tela("💰 Painel Financeiro")
