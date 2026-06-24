@@ -4905,6 +4905,39 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
         st.toast("⏱️ Sessão encerrada por 30 min de inatividade.", icon="🔒")
     # ── Tela de boas-vindas antes do login ──────────────────────
     if not st.session_state.get("_viu_welcome"):
+        # Carrega logo FNI
+        try:
+            import pathlib as _plw, base64 as _b64w, io as _iow
+            _logo_w = ""
+            for _lc in [
+                _plw.Path(__file__).parent / "estudo-de-rede" / "Logo plataforma FNI.png",
+                _plw.Path(__file__).parent / "Logo plataforma FNI.png",
+            ]:
+                if _lc.exists():
+                    try:
+                        from PIL import Image as _PILw
+                        _img_w = _PILw.open(_lc)
+                        _img_w.thumbnail((400,400), _PILw.LANCZOS)
+                        _buf_w = _iow.BytesIO()
+                        _img_w.save(_buf_w, format="PNG", optimize=True)
+                        _logo_w = _b64w.b64encode(_buf_w.getvalue()).decode()
+                    except Exception:
+                        _logo_w = _b64w.b64encode(_lc.read_bytes()).decode()
+                    break
+        except Exception:
+            _logo_w = ""
+        _logo_html_welcome = (
+            f"<div style='text-align:center;padding:30px 0 16px;position:relative'>"
+            f"<div style='position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);"
+            f"width:380px;height:380px;"
+            f"background:radial-gradient(ellipse,rgba(0,180,216,0.25),transparent 70%);"
+            f"border-radius:50%;pointer-events:none'></div>"
+            f"<img src='data:image/png;base64,{_logo_w}' "
+            f"style='width:300px;height:auto;position:relative;z-index:2;"
+            f"filter:drop-shadow(0 0 40px rgba(0,180,216,0.8)) drop-shadow(0 0 16px rgba(0,180,216,0.6))' "
+            f"alt='FNI Logo'></div>"
+        ) if _logo_w else "<div style='text-align:center;font-size:5rem;padding:30px 0'>🚛</div>"
+
         st.markdown("""
         <style>
         #MainMenu,header[data-testid="stHeader"],footer,
@@ -4940,6 +4973,7 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap" rel="stylesheet">
         <div class="welcome-wrap">
+          ' + _logo_html_welcome + '
           <div class="welcome-logo">FNI <span>Gestão de Frotas</span></div>
           <div class="welcome-title">Antes de começar,<br>separe as informações da sua empresa</div>
           <p class="welcome-sub">Para completar seu cadastro rapidamente,<br>você precisará das seguintes informações:</p>
