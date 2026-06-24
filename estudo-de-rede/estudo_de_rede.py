@@ -4938,6 +4938,22 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
             f"alt='FNI Logo'></div>"
         ) if _logo_w else "<div style='text-align:center;font-size:5rem;padding:30px 0'>🚛</div>"
 
+        # Renderiza logo FNI no topo
+        if _logo_w:
+            st.markdown(
+                f"<div style='text-align:center;padding:40px 0 8px;position:relative'>"
+                f"<div style='position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);"
+                f"width:380px;height:380px;background:radial-gradient(ellipse,rgba(0,180,216,0.25),transparent 70%);"
+                f"border-radius:50%;pointer-events:none'></div>"
+                f"<img src='data:image/png;base64,{_logo_w}' "
+                f"style='width:300px;height:auto;position:relative;z-index:2;"
+                f"filter:drop-shadow(0 0 40px rgba(0,180,216,0.8)) drop-shadow(0 0 16px rgba(0,180,216,0.6))' "
+                f"alt='FNI Logo'></div>",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown("<div style='text-align:center;font-size:5rem;padding:40px 0 8px'>🚛</div>", unsafe_allow_html=True)
+
         st.markdown("""
         <style>
         #MainMenu,header[data-testid="stHeader"],footer,
@@ -4973,7 +4989,6 @@ if _OAUTH_ATIVO and st.session_state["_auth_user"] is None:
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap" rel="stylesheet">
         <div class="welcome-wrap">
-          ' + _logo_html_welcome + '
           <div class="welcome-logo">FNI <span>Gestão de Frotas</span></div>
           <div class="welcome-title">Antes de começar,<br>separe as informações da sua empresa</div>
           <p class="welcome-sub">Para completar seu cadastro rapidamente,<br>você precisará das seguintes informações:</p>
