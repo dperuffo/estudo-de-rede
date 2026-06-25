@@ -19868,6 +19868,8 @@ if st.session_state.get("_mostrar_avaliacao"):
 # ── Tela Suporte & Melhorias ─────────────────────────────────────────────
 if st.session_state.get("_mostrar_tickets"):
     try:
+        import importlib, tickets as _tickets_mod
+        importlib.reload(_tickets_mod)
         from tickets import mostrar_painel_tickets, mostrar_painel_admin_tickets
         if _is_admin():
             _tk_aba = st.radio(t("Visão"), ["👤 Meus tickets", "🔧 Gerenciar todos"], horizontal=True, key="tk_visao")
