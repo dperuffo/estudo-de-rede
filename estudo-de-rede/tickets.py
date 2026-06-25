@@ -111,6 +111,44 @@ def _atualizar_status(ticket_id: str, status: str, resposta: str = "") -> bool:
     except Exception:
         return False
 
+def _adicionar_comentario(ticket_id: str, comentario: str, novos_anexos: list = []) -> bool:
+    db = _db()
+    if not db:
+        return False
+    try:
+        r = db.table("tickets").select("comentarios,anexos").eq("id", ticket_id).single().execute()
+        ticket = r.data or {}
+        coments = ticket.get("comentarios") or "[]"
+        if isinstance(coments, str):
+            try: coments = json.loads(coments)
+            except: coments = []
+        coments.append({
+            "texto": comentario,
+            "autor": _email(),
+            "data": datetime.now(tz=timezone.utc).isoformat()
+        })
+        anexos = ticket.get("anexos") or "[]"
+        if isinstance(anexos, str):
+            try: anexos = json.loads(anexos)
+            except: anexos = []
+        for arq in novos_anexos:
+            conteudo = base64.b64encode(arq["bytes"]).decode()
+            anexos.append({
+                "nome": arq["nome"],
+                "tamanho": arq["tamanho"],
+                "tipo_mime": arq["tipo_mime"],
+                "conteudo": conteudo,
+            })
+        upd = {
+            "comentarios": json.dumps(coments),
+            "anexos": json.dumps(anexos),
+            "atualizado_em": datetime.now(tz=timezone.utc).isoformat()
+        }
+        db.table("tickets").update(upd).eq("id", ticket_id).execute()
+        return True
+    except Exception:
+        return False
+
 def _notificar_admin(tipo: str, titulo: str, descricao: str, email_usuario: str, prioridade: str):
     try:
         from emails import _enviar, _base
