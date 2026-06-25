@@ -16707,7 +16707,20 @@ with st.sidebar:
         if st.button(t("⭐ Avaliar plataforma"), use_container_width=True, key="btn_avaliar"):
             st.session_state["_mostrar_avaliacao"] = True
             st.rerun()
-        if st.button(t("🎫 Suporte & Melhorias"), use_container_width=True, key="btn_tickets"):
+        # Badge de notificação para admin — tickets abertos
+        _tk_badge = ""
+        if st.session_state.get("_auth_perfil") in ("admin", "super_admin"):
+            try:
+                _tk_abertos = (_db_client().table("tickets")
+                    .select("id", count="exact")
+                    .eq("status", "aberto")
+                    .execute())
+                _tk_n = _tk_abertos.count or 0
+                if _tk_n > 0:
+                    _tk_badge = f" 🔴 {_tk_n}"
+            except Exception:
+                pass
+        if st.button(f"🎫 Suporte & Melhorias{_tk_badge}", use_container_width=True, key="btn_tickets"):
             st.session_state["_mostrar_tickets"] = True
             st.rerun()
         if st.button(t("🔒 Privacidade & LGPD"), use_container_width=True, key="btn_lgpd"):
