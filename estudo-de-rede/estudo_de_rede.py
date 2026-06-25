@@ -28302,7 +28302,8 @@ elif modo == "💹 Variação de Preços":
     _semana_vp  = st.session_state.get("_precos_anp_cache",{}).get("semana","")
 
     if not _abast_vp.empty and "data_abastecimento" in _abast_vp.columns:
-        _abast_vp["data_abastecimento"] = pd.to_datetime(_abast_vp["data_abastecimento"], errors="coerce")
+        _abast_vp["data_abastecimento"] = pd.to_datetime(_abast_vp["data_abastecimento"], utc=True, errors="coerce")
+        _abast_vp["data_abastecimento"] = _abast_vp["data_abastecimento"].dt.tz_localize(None)
         _abast_vp["_mes"] = _abast_vp["data_abastecimento"].dt.to_period("M").astype(str)
         _preco_col_vp = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_vp.columns), None)
         _comb_col_vp  = next((c for c in ["produto","combustivel"] if c in _abast_vp.columns), None)
