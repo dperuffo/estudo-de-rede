@@ -310,6 +310,53 @@ def mostrar_painel_tickets():
                         st.markdown("---")
                         st.markdown("**💬 Resposta do administrador:**")
                         st.info(t["resposta_admin"])
+                    # Comentários visíveis para o usuário
+                    _coments_usr = t.get("comentarios") or "[]"
+                    if isinstance(_coments_usr, str):
+                        try: _coments_usr = json.loads(_coments_usr)
+                        except: _coments_usr = []
+                    if _coments_usr:
+                        st.markdown("---")
+                        st.markdown("**💬 Histórico de comentários:**")
+                        for _cm in _coments_usr:
+                            _cm_data = _cm.get("data","")[:10]
+                            _cm_autor = _cm.get("autor","") or ""
+                            _is_adm = "admin" in _cm_autor.lower() or _cm_autor == _email()
+                            _bg  = "#fff3e0" if _is_adm else "#f0f4ff"
+                            _cor = "#e65100" if _is_adm else "#1565c0"
+                            _label = "🔧 Suporte FNI" if _is_adm else _cm_autor.split("@")[0]
+                            st.markdown(
+                                f"<div style='background:{_bg};border-left:3px solid {_cor};"
+                                f"padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:0.88rem'>"
+                                f"<span style='color:{_cor};font-weight:600'>{_label}</span> "
+                                f"<span style='color:#888;font-size:0.8rem'>{_cm_data}</span><br>"
+                                f"{_cm.get('texto','')}"
+                                f"</div>",
+                                unsafe_allow_html=True
+                            )
+                    # Usuário pode comentar se não estiver fechado
+                    if t.get("status") not in ("resolvido","fechado"):
+                        st.markdown("---")
+                        st.markdown("**➕ Adicionar comentário ou anexo:**")
+                        _novo_cm = st.text_area("Comentário",
+                            placeholder="Descreva uma atualização...",
+                            key=f"cm_{t['id']}", height=80, label_visibility="collapsed")
+                        _novos_anx = st.file_uploader("Anexar arquivos",
+                            accept_multiple_files=True, key=f"anx_new_{t['id']}",
+                            help="PDF, imagens ou documentos (máx. 5MB cada)")
+                        if st.button("💬 Enviar", key=f"btn_cm_{t['id']}", type="primary"):
+                            if not _novo_cm.strip() and not _novos_anx:
+                                st.warning("Digite um comentário ou anexe um arquivo.")
+                            else:
+                                _anx_proc = []
+                                for _arq in (_novos_anx or []):
+                                    _bytes = _arq.read()
+                                    _anx_proc.append({"nome":_arq.name,"tamanho":len(_bytes),"tipo_mime":_arq.type or "application/octet-stream","bytes":_bytes})
+                                if _adicionar_comentario(t["id"], _novo_cm.strip(), _anx_proc):
+                                    st.success("✅ Comentário adicionado!")
+                                    st.rerun()
+                                else:
+                                    st.error("Erro ao salvar comentário.")
 
 
 def mostrar_painel_admin_tickets():
