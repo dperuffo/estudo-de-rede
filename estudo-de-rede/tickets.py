@@ -360,6 +360,57 @@ def mostrar_painel_admin_tickets():
                             key=f"adm_anx_{t['id']}_{anx['nome']}"
                         )
 
+            # Comentários existentes (visível para admin)
+            _coments_adm = t.get("comentarios") or "[]"
+            if isinstance(_coments_adm, str):
+                try: _coments_adm = json.loads(_coments_adm)
+                except: _coments_adm = []
+            if _coments_adm:
+                st.markdown("---")
+                st.markdown("**💬 Histórico de comentários:**")
+                for _cm in _coments_adm:
+                    _cm_data = _cm.get("data","")[:10]
+                    _cm_autor = _cm.get("autor","").split("@")[0]
+                    _is_admin = "admin" in _cm.get("autor","").lower() or _cm.get("autor","") == "admin@fni.com"
+                    _bg = "#fff3e0" if _is_admin else "#f0f4ff"
+                    _cor = "#e65100" if _is_admin else "#1565c0"
+                    _label = "🔧 Admin" if _is_admin else _cm_autor
+                    st.markdown(
+                        f"<div style='background:{_bg};border-left:3px solid {_cor};"
+                        f"padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:0.88rem'>"
+                        f"<span style='color:{_cor};font-weight:600'>{_label}</span> "
+                        f"<span style='color:#888;font-size:0.8rem'>{_cm_data}</span><br>"
+                        f"{_cm.get('texto','')}"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+            # Adicionar comentário do admin
+            st.markdown("---")
+            st.markdown("**➕ Comentário do Admin:**")
+            _novo_cm_adm = st.text_area(
+                "Comentário admin",
+                placeholder="Adicione um comentário, resposta ou solicitação de informação...",
+                key=f"cm_adm_{t['id']}",
+                height=80,
+                label_visibility="collapsed"
+            )
+            _novos_anx_adm = st.file_uploader(
+                "Anexar arquivos (admin)",
+                accept_multiple_files=True,
+                key=f"anx_adm_{t['id']}",
+                help="PDF, imagens ou documentos"
+            )
+            if st.button("💬 Enviar comentário", key=f"btn_cm_adm_{t['id']}"):
+                if _novo_cm_adm.strip() or _novos_anx_adm:
+                    _anx_adm = []
+                    for _arq in (_novos_anx_adm or []):
+                        _bytes = _arq.read()
+                        _anx_adm.append({"nome":_arq.name,"tamanho":len(_bytes),"tipo_mime":_arq.type or "application/octet-stream","bytes":_bytes})
+                    if _adicionar_comentario(t["id"], _novo_cm_adm.strip(), _anx_adm):
+                        st.success("✅ Comentário adicionado!")
+                        st.rerun()
+                    else:
+                        st.error("Erro ao salvar.")
             # Resposta e mudança de status
             st.markdown("---")
             with st.form(f"form_resp_{t['id']}"):
@@ -394,3 +445,5 @@ def mostrar_painel_admin_tickets():
                             pass
                         st.success("✅ Ticket atualizado!")
                         st.rerun()
+
+# deploy 2026-06-25T14:10:53.532048
