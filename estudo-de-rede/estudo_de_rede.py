@@ -28342,7 +28342,8 @@ elif modo == "💹 Variação de Preços":
                         except Exception:
                             pass
                 _fig_vp.update_layout(height=350, margin=dict(l=0,r=0,t=20,b=0),
-                    yaxis_title="R$/L", xaxis_title="Mes",
+                    yaxis_title="R$/L", xaxis_title="Mês",
+                    xaxis=dict(type="category"),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02),
                     plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                 st.plotly_chart(_fig_vp, use_container_width=True)
