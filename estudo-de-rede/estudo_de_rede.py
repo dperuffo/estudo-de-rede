@@ -28306,7 +28306,7 @@ elif modo == "💹 Variação de Preços":
         _abast_vp["_mes"] = _abast_vp["data_abastecimento"].dt.to_period("M").astype(str)
         _preco_col_vp = next((c for c in ["preco_litro","item_valor_unitario"] if c in _abast_vp.columns), None)
         _comb_col_vp  = next((c for c in ["produto","combustivel"] if c in _abast_vp.columns), None)
-        _uf_col_vp    = "uf_posto" if "uf_posto" in _abast_vp.columns else None
+        _uf_col_vp    = next((c for c in ["pv_uf","uf_posto","uf"] if c in _abast_vp.columns), None)
 
         if _preco_col_vp and _comb_col_vp:
             st.markdown("#### Variacao de Preco por Periodo (Abastecimentos Reais)")
