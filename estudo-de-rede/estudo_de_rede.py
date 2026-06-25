@@ -29286,6 +29286,28 @@ elif modo == "👥 Análise de Cliente":
                             _ins2.append(f"📆 **{_dow2_names[int(_pj2_dow_med.idxmax())]}** é o dia com maior consumo médio ({_br_num(float(_pj2_dow_med.max()),0)} L/dia).")
                         for _i2 in _ins2:
                             st.markdown(f"- {_i2}")
+                        # Gráfico por dia da semana
+                        if not _pj2_dow_med.empty:
+                            st.markdown("---")
+                            st.markdown("##### 📆 Consumo médio por dia da semana")
+                            try:
+                                import plotly.graph_objects as _pgo_dow2
+                                _dow_max2_idx = int(_pj2_dow_med.idxmax())
+                                _fig_dow2 = _pgo_dow2.Figure(data=[_pgo_dow2.Bar(
+                                    x=[_dow2_names[i] for i in _pj2_dow_med.index],
+                                    y=[round(v,1) for v in _pj2_dow_med.values],
+                                    marker_color=["#1565c0" if i==_dow_max2_idx else "#64b5f6" for i in _pj2_dow_med.index],
+                                    text=[f"{_br_num(v,0)} L" for v in _pj2_dow_med.values],
+                                    textposition="outside",
+                                )])
+                                _fig_dow2.update_layout(height=280,
+                                    margin=dict(t=10,b=30,l=0,r=0),
+                                    yaxis_title="Litros (média)",
+                                    plot_bgcolor="rgba(0,0,0,0)",
+                                    paper_bgcolor="rgba(0,0,0,0)")
+                                st.plotly_chart(_fig_dow2, use_container_width=True)
+                            except Exception:
+                                pass
     
                 # ════════════════════════════════════════════════════
             # ABA 2 — VEÍCULOS
