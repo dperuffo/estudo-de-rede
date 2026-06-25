@@ -29194,100 +29194,100 @@ elif modo == "👥 Análise de Cliente":
                             else:
                                 st.success(f"✅ {_n_ok} registros salvos no Supabase!")
 
-            # ── Projeção de Volume de Consumo ─────────────────────
-            st.markdown("---")
-            with st.expander("📈 Projeção de Volume de Consumo", expanded=False):
-                import calendar as _cal_pj2, datetime as _dt_pj2
-                _pj2_hoje = _dt_pj2.date.today()
-                _pj2_ano  = _pj2_hoje.year
-                _pj2_mes  = _pj2_hoje.month
-                _pj2_dia_ini = _dt_pj2.date(_pj2_ano, _pj2_mes, 1)
-                _pj2_dias_mes = _cal_pj2.monthrange(_pj2_ano, _pj2_mes)[1]
-                _pj2_dias_dec = (_pj2_hoje - _pj2_dia_ini).days + 1
-                _pj2_dias_res = _pj2_dias_mes - _pj2_dias_dec
-                _pj2_base_dias = st.selectbox("📅 Base de cálculo", [30,60,90],
-                    format_func=lambda x: f"Últimos {x} dias", index=0, key="pj2_base")
-                _pj2_df = _carregar_abastecimentos_unificados(dias=max(_pj2_base_dias,60))
-                if _pj2_df.empty:
-                    st.info("Nenhum abastecimento encontrado.")
-                else:
-                    _dc2 = "data_abastecimento" if "data_abastecimento" in _pj2_df.columns else "data"
-                    _pj2_df[_dc2] = pd.to_datetime(_pj2_df[_dc2], utc=True, errors="coerce")
-                    _pj2_df[_dc2] = _pj2_df[_dc2].dt.tz_localize(None)
-                    _pj2_df = _pj2_df.dropna(subset=[_dc2])
-                    _pj2_df["_data2"] = _pj2_df[_dc2].dt.date
-                    _pj2_df["_dow2"]  = _pj2_df[_dc2].dt.dayofweek
-                    _pj2_df["_lits2"] = pd.to_numeric(_pj2_df.get("litros", _pj2_df.get("item_quantidade", pd.Series())), errors="coerce")
-                    _pj2_df["_val2"]  = pd.to_numeric(_pj2_df.get("valor_total", _pj2_df.get("item_valor_total", pd.Series())), errors="coerce")
-                    _pc2 = next((c for c in ["produto","item_nome","combustivel"] if c in _pj2_df.columns), None)
-                    _pj2_df["_prod2"] = _pj2_df[_pc2].fillna("Outros").astype(str).str.strip().str.upper() if _pc2 else "Combustível"
-                    _pj2_df_mes  = _pj2_df[(_pj2_df["_data2"] >= _pj2_dia_ini) & (_pj2_df["_data2"] <= _pj2_hoje)]
-                    _pj2_base_ini = _pj2_hoje - _dt_pj2.timedelta(days=_pj2_base_dias)
-                    _pj2_df_base  = _pj2_df[_pj2_df["_data2"] >= _pj2_base_ini]
-                    _pj2_tot_cons = float(_pj2_df_mes["_lits2"].sum())
-                    _pj2_tot_val  = float(_pj2_df_mes["_val2"].sum())
-                    _pj2_med_dia  = float(_pj2_df_base["_lits2"].sum()) / max(_pj2_base_dias, 1)
-                    _pj2_tot_proj = _pj2_med_dia * _pj2_dias_res
-                    _pj2_tot_mes  = _pj2_tot_cons + _pj2_tot_proj
-                    _pj2_k1,_pj2_k2,_pj2_k3,_pj2_k4,_pj2_k5 = st.columns(5)
-                    _pj2_k1.metric("⛽ Consumido", f"{_br_num(_pj2_tot_cons,0)} L", f"{_pj2_dias_dec}d de {_pj2_dias_mes}d")
-                    _pj2_k2.metric("🔮 Projeção mês", f"{_br_num(_pj2_tot_mes,0)} L")
-                    _pj2_k3.metric("📅 Restam", f"{_br_num(_pj2_tot_proj,0)} L", f"{_pj2_dias_res} dias")
-                    _pj2_k4.metric("💰 Gasto até hoje", _br_moeda(_pj2_tot_val))
-                    _pj2_k5.metric("📊 Média/dia", f"{_br_num(_pj2_med_dia,0)} L/dia")
-                    _pj2_hist = _pj2_df_mes.groupby("_data2")["_lits2"].sum().reset_index()
-                    _pj2_hist.columns = ["data","litros"]
-                    _pj2_dow_med = _pj2_df_base.groupby("_dow2")["_lits2"].mean()
-                    _pj2_proj_rows = []
-                    for _di2 in range(1, _pj2_dias_res+1):
-                        _df2 = _pj2_hoje + _dt_pj2.timedelta(days=_di2)
-                        _fw2 = float(_pj2_dow_med.get(_df2.weekday(), _pj2_dow_med.mean())) / float(_pj2_dow_med.mean()) if not _pj2_dow_med.empty and _pj2_dow_med.mean() > 0 else 1.0
-                        _fw2 = max(0.3, min(2.5, _fw2))
-                        _pj2_proj_rows.append({"data": _df2, "litros": round(_pj2_med_dia*_fw2,1)})
-                    _pj2_df_proj = pd.DataFrame(_pj2_proj_rows)
-                    try:
-                        import plotly.graph_objects as _pgo2
-                        _fig2 = _pgo2.Figure()
-                        _fig2.add_bar(x=[pd.Timestamp(d) for d in _pj2_hist["data"]], y=_pj2_hist["litros"].tolist(), name="✅ Consumido", marker_color="#1565c0", opacity=0.85)
-                        if not _pj2_df_proj.empty:
-                            _fig2.add_bar(x=[pd.Timestamp(d) for d in _pj2_df_proj["data"]], y=_pj2_df_proj["litros"].tolist(), name="🔮 Projetado", marker_color="#42a5f5", opacity=0.55)
-                        _all_x2 = [pd.Timestamp(d) for d in list(_pj2_hist["data"]) + list(_pj2_df_proj["data"] if not _pj2_df_proj.empty else [])]
-                        if _all_x2:
-                            _fig2.add_scatter(x=_all_x2, y=[_pj2_med_dia]*len(_all_x2), name=f"📐 Média ({_br_num(_pj2_med_dia,0)} L/dia)", mode="lines", line=dict(color="#ff7043",dash="dash",width=2))
-                            _fig2.add_vline(x=pd.Timestamp(_pj2_hoje).timestamp()*1000, line_dash="dot", line_color="#2e7d32", annotation_text="Hoje")
-                        _fig2.update_layout(barmode="stack", height=320, margin=dict(t=20,b=30,l=0,r=0), xaxis=dict(type="date"), yaxis_title="Litros", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", legend=dict(orientation="h",y=-0.2))
-                        st.plotly_chart(_fig2, use_container_width=True)
-                    except Exception as _e2:
-                        st.warning(f"Erro no gráfico: {_e2}")
-                    st.markdown("##### 🧾 Por Combustível")
-                    _pj2_por_comb = _pj2_df_mes.groupby("_prod2").agg(litros=("_lits2","sum"), valor=("_val2","sum"), n=("_lits2","count")).reset_index()
-                    _pj2_por_comb.columns = ["Combustível","Litros","Valor (R$)","Abastecimentos"]
-                    _pj2_por_comb["Litros"] = _pj2_por_comb["Litros"].apply(lambda v: _br_num(v,0))
-                    _pj2_por_comb["Valor (R$)"] = _pj2_por_comb["Valor (R$)"].apply(lambda v: _br_moeda(v))
-                    st.dataframe(_pj2_por_comb, use_container_width=True, hide_index=True)
-                    # Insights
-                    st.markdown("---")
-                    st.markdown("##### 💡 Insights")
-                    _mes2_nome = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][_pj2_mes-1]
-                    _ins2 = [
-                        f"📅 Em **{_mes2_nome}/{_pj2_ano}**, a frota consumiu **{_br_num(_pj2_tot_cons,0)} L** em {_pj2_dias_dec} dias.",
-                        f"🔮 Projeção total do mês: **{_br_num(_pj2_tot_mes,0)} L** — faltam {_br_num(_pj2_tot_proj,0)} L nos {_pj2_dias_res} dias restantes.",
-                        f"💰 Gasto acumulado: **{_br_moeda(_pj2_tot_val)}** — média de **{_br_moeda(_pj2_tot_val/max(_pj2_dias_dec,1))}/dia**.",
-                    ]
-                    if not _pj2_df_mes.empty:
-                        _top2 = _pj2_df_mes.groupby("_prod2")["_lits2"].sum()
-                        if not _top2.empty:
-                            _ins2.append(f"⛽ Mais consumido: **{_top2.idxmax()}** com {_br_num(float(_top2.max()),0)} L.")
-                    if not _pj2_hist.empty and _pj2_hist["litros"].max() > 0:
-                        _dia_max2 = _pj2_hist.loc[_pj2_hist["litros"].idxmax()]
-                        _ins2.append(f"📌 Maior consumo diário: **{_br_num(float(_dia_max2['litros']),0)} L** em {pd.Timestamp(_dia_max2['data']).strftime('%d/%m/%Y')}.")
-                    _dow2_names = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"]
-                    if not _pj2_dow_med.empty:
-                        _ins2.append(f"📆 **{_dow2_names[int(_pj2_dow_med.idxmax())]}** é o dia com maior consumo médio ({_br_num(float(_pj2_dow_med.max()),0)} L/dia).")
-                    for _i2 in _ins2:
-                        st.markdown(f"- {_i2}")
-
-            # ════════════════════════════════════════════════════
+                # ── Projeção de Volume de Consumo ─────────────────────
+                st.markdown("---")
+                with st.expander("📈 Projeção de Volume de Consumo", expanded=False):
+                    import calendar as _cal_pj2, datetime as _dt_pj2
+                    _pj2_hoje = _dt_pj2.date.today()
+                    _pj2_ano  = _pj2_hoje.year
+                    _pj2_mes  = _pj2_hoje.month
+                    _pj2_dia_ini = _dt_pj2.date(_pj2_ano, _pj2_mes, 1)
+                    _pj2_dias_mes = _cal_pj2.monthrange(_pj2_ano, _pj2_mes)[1]
+                    _pj2_dias_dec = (_pj2_hoje - _pj2_dia_ini).days + 1
+                    _pj2_dias_res = _pj2_dias_mes - _pj2_dias_dec
+                    _pj2_base_dias = st.selectbox("📅 Base de cálculo", [30,60,90],
+                        format_func=lambda x: f"Últimos {x} dias", index=0, key="pj2_base")
+                    _pj2_df = _carregar_abastecimentos_unificados(dias=max(_pj2_base_dias,60))
+                    if _pj2_df.empty:
+                        st.info("Nenhum abastecimento encontrado.")
+                    else:
+                        _dc2 = "data_abastecimento" if "data_abastecimento" in _pj2_df.columns else "data"
+                        _pj2_df[_dc2] = pd.to_datetime(_pj2_df[_dc2], utc=True, errors="coerce")
+                        _pj2_df[_dc2] = _pj2_df[_dc2].dt.tz_localize(None)
+                        _pj2_df = _pj2_df.dropna(subset=[_dc2])
+                        _pj2_df["_data2"] = _pj2_df[_dc2].dt.date
+                        _pj2_df["_dow2"]  = _pj2_df[_dc2].dt.dayofweek
+                        _pj2_df["_lits2"] = pd.to_numeric(_pj2_df.get("litros", _pj2_df.get("item_quantidade", pd.Series())), errors="coerce")
+                        _pj2_df["_val2"]  = pd.to_numeric(_pj2_df.get("valor_total", _pj2_df.get("item_valor_total", pd.Series())), errors="coerce")
+                        _pc2 = next((c for c in ["produto","item_nome","combustivel"] if c in _pj2_df.columns), None)
+                        _pj2_df["_prod2"] = _pj2_df[_pc2].fillna("Outros").astype(str).str.strip().str.upper() if _pc2 else "Combustível"
+                        _pj2_df_mes  = _pj2_df[(_pj2_df["_data2"] >= _pj2_dia_ini) & (_pj2_df["_data2"] <= _pj2_hoje)]
+                        _pj2_base_ini = _pj2_hoje - _dt_pj2.timedelta(days=_pj2_base_dias)
+                        _pj2_df_base  = _pj2_df[_pj2_df["_data2"] >= _pj2_base_ini]
+                        _pj2_tot_cons = float(_pj2_df_mes["_lits2"].sum())
+                        _pj2_tot_val  = float(_pj2_df_mes["_val2"].sum())
+                        _pj2_med_dia  = float(_pj2_df_base["_lits2"].sum()) / max(_pj2_base_dias, 1)
+                        _pj2_tot_proj = _pj2_med_dia * _pj2_dias_res
+                        _pj2_tot_mes  = _pj2_tot_cons + _pj2_tot_proj
+                        _pj2_k1,_pj2_k2,_pj2_k3,_pj2_k4,_pj2_k5 = st.columns(5)
+                        _pj2_k1.metric("⛽ Consumido", f"{_br_num(_pj2_tot_cons,0)} L", f"{_pj2_dias_dec}d de {_pj2_dias_mes}d")
+                        _pj2_k2.metric("🔮 Projeção mês", f"{_br_num(_pj2_tot_mes,0)} L")
+                        _pj2_k3.metric("📅 Restam", f"{_br_num(_pj2_tot_proj,0)} L", f"{_pj2_dias_res} dias")
+                        _pj2_k4.metric("💰 Gasto até hoje", _br_moeda(_pj2_tot_val))
+                        _pj2_k5.metric("📊 Média/dia", f"{_br_num(_pj2_med_dia,0)} L/dia")
+                        _pj2_hist = _pj2_df_mes.groupby("_data2")["_lits2"].sum().reset_index()
+                        _pj2_hist.columns = ["data","litros"]
+                        _pj2_dow_med = _pj2_df_base.groupby("_dow2")["_lits2"].mean()
+                        _pj2_proj_rows = []
+                        for _di2 in range(1, _pj2_dias_res+1):
+                            _df2 = _pj2_hoje + _dt_pj2.timedelta(days=_di2)
+                            _fw2 = float(_pj2_dow_med.get(_df2.weekday(), _pj2_dow_med.mean())) / float(_pj2_dow_med.mean()) if not _pj2_dow_med.empty and _pj2_dow_med.mean() > 0 else 1.0
+                            _fw2 = max(0.3, min(2.5, _fw2))
+                            _pj2_proj_rows.append({"data": _df2, "litros": round(_pj2_med_dia*_fw2,1)})
+                        _pj2_df_proj = pd.DataFrame(_pj2_proj_rows)
+                        try:
+                            import plotly.graph_objects as _pgo2
+                            _fig2 = _pgo2.Figure()
+                            _fig2.add_bar(x=[pd.Timestamp(d) for d in _pj2_hist["data"]], y=_pj2_hist["litros"].tolist(), name="✅ Consumido", marker_color="#1565c0", opacity=0.85)
+                            if not _pj2_df_proj.empty:
+                                _fig2.add_bar(x=[pd.Timestamp(d) for d in _pj2_df_proj["data"]], y=_pj2_df_proj["litros"].tolist(), name="🔮 Projetado", marker_color="#42a5f5", opacity=0.55)
+                            _all_x2 = [pd.Timestamp(d) for d in list(_pj2_hist["data"]) + list(_pj2_df_proj["data"] if not _pj2_df_proj.empty else [])]
+                            if _all_x2:
+                                _fig2.add_scatter(x=_all_x2, y=[_pj2_med_dia]*len(_all_x2), name=f"📐 Média ({_br_num(_pj2_med_dia,0)} L/dia)", mode="lines", line=dict(color="#ff7043",dash="dash",width=2))
+                                _fig2.add_vline(x=pd.Timestamp(_pj2_hoje).timestamp()*1000, line_dash="dot", line_color="#2e7d32", annotation_text="Hoje")
+                            _fig2.update_layout(barmode="stack", height=320, margin=dict(t=20,b=30,l=0,r=0), xaxis=dict(type="date"), yaxis_title="Litros", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", legend=dict(orientation="h",y=-0.2))
+                            st.plotly_chart(_fig2, use_container_width=True)
+                        except Exception as _e2:
+                            st.warning(f"Erro no gráfico: {_e2}")
+                        st.markdown("##### 🧾 Por Combustível")
+                        _pj2_por_comb = _pj2_df_mes.groupby("_prod2").agg(litros=("_lits2","sum"), valor=("_val2","sum"), n=("_lits2","count")).reset_index()
+                        _pj2_por_comb.columns = ["Combustível","Litros","Valor (R$)","Abastecimentos"]
+                        _pj2_por_comb["Litros"] = _pj2_por_comb["Litros"].apply(lambda v: _br_num(v,0))
+                        _pj2_por_comb["Valor (R$)"] = _pj2_por_comb["Valor (R$)"].apply(lambda v: _br_moeda(v))
+                        st.dataframe(_pj2_por_comb, use_container_width=True, hide_index=True)
+                        # Insights
+                        st.markdown("---")
+                        st.markdown("##### 💡 Insights")
+                        _mes2_nome = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][_pj2_mes-1]
+                        _ins2 = [
+                            f"📅 Em **{_mes2_nome}/{_pj2_ano}**, a frota consumiu **{_br_num(_pj2_tot_cons,0)} L** em {_pj2_dias_dec} dias.",
+                            f"🔮 Projeção total do mês: **{_br_num(_pj2_tot_mes,0)} L** — faltam {_br_num(_pj2_tot_proj,0)} L nos {_pj2_dias_res} dias restantes.",
+                            f"💰 Gasto acumulado: **{_br_moeda(_pj2_tot_val)}** — média de **{_br_moeda(_pj2_tot_val/max(_pj2_dias_dec,1))}/dia**.",
+                        ]
+                        if not _pj2_df_mes.empty:
+                            _top2 = _pj2_df_mes.groupby("_prod2")["_lits2"].sum()
+                            if not _top2.empty:
+                                _ins2.append(f"⛽ Mais consumido: **{_top2.idxmax()}** com {_br_num(float(_top2.max()),0)} L.")
+                        if not _pj2_hist.empty and _pj2_hist["litros"].max() > 0:
+                            _dia_max2 = _pj2_hist.loc[_pj2_hist["litros"].idxmax()]
+                            _ins2.append(f"📌 Maior consumo diário: **{_br_num(float(_dia_max2['litros']),0)} L** em {pd.Timestamp(_dia_max2['data']).strftime('%d/%m/%Y')}.")
+                        _dow2_names = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"]
+                        if not _pj2_dow_med.empty:
+                            _ins2.append(f"📆 **{_dow2_names[int(_pj2_dow_med.idxmax())]}** é o dia com maior consumo médio ({_br_num(float(_pj2_dow_med.max()),0)} L/dia).")
+                        for _i2 in _ins2:
+                            st.markdown(f"- {_i2}")
+    
+                # ════════════════════════════════════════════════════
             # ABA 2 — VEÍCULOS
             # ════════════════════════════════════════════════════
             with _tb:
