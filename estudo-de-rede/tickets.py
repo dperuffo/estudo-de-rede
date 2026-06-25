@@ -321,7 +321,8 @@ def mostrar_painel_tickets():
                         for _cm in _coments_usr:
                             _cm_data = _cm.get("data","")[:10]
                             _cm_autor = _cm.get("autor","") or ""
-                            _is_adm = "admin" in _cm_autor.lower() or _cm_autor == _email()
+                            # Se autor != usuário logado, é do suporte
+                            _is_adm = _cm_autor != _email()
                             _bg  = "#fff3e0" if _is_adm else "#f0f4ff"
                             _cor = "#e65100" if _is_adm else "#1565c0"
                             _label = "🔧 Suporte FNI" if _is_adm else _cm_autor.split("@")[0]
