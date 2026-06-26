@@ -33,7 +33,14 @@ class HomeScreen extends StatelessWidget {
       DrawerHeader(
         decoration: const BoxDecoration(color: Color(0xFF0D2D6B)),
         child: Center(
-          child: Image.asset('assets/logo_fni.png', height: 90, fit: BoxFit.contain),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Image.asset('assets/logo_fni.png', height: 70, fit: BoxFit.contain),
+          ),
         ),
       ),
       _grp('Inicio'),
