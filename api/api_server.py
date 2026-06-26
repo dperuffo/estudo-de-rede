@@ -72,7 +72,7 @@ def usuario_atual(creds: HTTPAuthorizationCredentials = Depends(security)) -> di
 
 # ── Models ────────────────────────────────────────────────────────
 class GoogleAuthRequest(BaseModel):
-    id_token: str          # token Google ID retornado pelo Flutter
+    access_token: str      # access token Google retornado pelo Flutter Web
 
 class LoginResponse(BaseModel):
     access_token: str
@@ -116,7 +116,7 @@ async def auth_google(body: GoogleAuthRequest):
     # Valida o ID token no Google
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"https://oauth2.googleapis.com/tokeninfo?id_token={body.id_token}"
+            f"https://www.googleapis.com/oauth2/v1/userinfo?access_token={body.access_token}"
         )
     if resp.status_code != 200:
         raise HTTPException(status_code=401, detail="Token Google inválido")
