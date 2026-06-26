@@ -1339,6 +1339,140 @@ def deletar_rota_salva(id: str, user: dict = Depends(usuario_atual)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+# ── Comece seu dia ────────────────────────────────────────────────
+@app.get("/comece-seu-dia", tags=["dashboard"])
+def comece_seu_dia(
+    dias: int = 7,
+    user: dict = Depends(usuario_atual)
+):
+    import pandas as pd
+    from datetime import date, timedelta
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    hoje = date.today()
+    dt_ini = (hoje - timedelta(days=dias)).isoformat()
+    dt_ontem = (hoje - timedelta(days=1)).isoformat()
+
+    # Abastecimentos do período
+    r = db.table("profrotas_abastecimentos").select(
+        "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,motorista_nome,pv_municipio,pv_uf"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+        "data_abastecimento", dt_ini
+    ).order("data_abastecimento", desc=True).execute()
+
+    df = pd.DataFrame(r.data or [])
+
+    if df.empty:
+        return {
+            "saudacao": {"nome": user.get("nome", "Gestor"), "hora": hoje.isoformat()},
+            "kpis": {"n_abastecimentos": 0, "total_litros": 0, "total_gasto": 0,
+                     "preco_medio": 0, "ticket_medio": 0, "n_veiculos": 0},
+            "por_dia": [], "por_combustivel": [], "top_veiculos": [],
+            "ultimos_abastecimentos": [], "alertas": [],
+        }
+
+    for col in ["item_quantidade", "item_valor_unitario", "item_valor_total"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    # KPIs principais
+    n_abast   = len(df)
+    total_lit = round(float(df["item_quantidade"].sum()), 1)
+    total_gas = round(float(df["item_valor_total"].sum()), 2)
+    preco_med = round(float(df["item_valor_unitario"].mean()), 4)
+    ticket_med = round(total_gas / max(n_abast, 1), 2)
+    n_veic    = int(df["veiculo_placa"].nunique())
+
+    # Por dia
+    df["dia"] = df["data_abastecimento"].str[:10]
+    por_dia = df.groupby("dia").agg(
+        gasto=("item_valor_total", "sum"),
+        litros=("item_quantidade", "sum"),
+        n=("item_valor_total", "count")
+    ).reset_index().sort_values("dia").tail(30).fillna(0).to_dict("records")
+    for d in por_dia:
+        d["gasto"]  = round(float(d["gasto"]), 2)
+        d["litros"] = round(float(d["litros"]), 1)
+
+    # Por combustível
+    por_comb = df.groupby("item_nome").agg(
+        litros=("item_quantidade", "sum"),
+        gasto=("item_valor_total", "sum"),
+        n=("item_nome", "count"),
+        preco_medio=("item_valor_unitario", "mean")
+    ).reset_index().sort_values("gasto", ascending=False).fillna(0).to_dict("records")
+    for d in por_comb:
+        d["litros"]      = round(float(d["litros"]), 1)
+        d["gasto"]       = round(float(d["gasto"]), 2)
+        d["preco_medio"] = round(float(d["preco_medio"]), 4)
+
+    # Top veículos por gasto
+    top_veic = df.groupby("veiculo_placa").agg(
+        gasto=("item_valor_total", "sum"),
+        litros=("item_quantidade", "sum"),
+        n=("veiculo_placa", "count")
+    ).reset_index().sort_values("gasto", ascending=False).head(5).fillna(0).to_dict("records")
+    for d in top_veic:
+        d["gasto"]  = round(float(d["gasto"]), 2)
+        d["litros"] = round(float(d["litros"]), 1)
+
+    # Últimos abastecimentos
+    ultimos = df.head(10).fillna("").to_dict("records")
+    for u in ultimos:
+        u["item_quantidade"]  = round(float(u["item_quantidade"]), 1)
+        u["item_valor_total"] = round(float(u["item_valor_total"]), 2)
+        u["item_valor_unitario"] = round(float(u["item_valor_unitario"]), 4)
+
+    # Manutenção
+    r2 = db.table("manutencoes_realizadas").select(
+        "placa,custo_total,data_manutencao,oficina,obs_gerais"
+    ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_ini).execute()
+    df2 = pd.DataFrame(r2.data or [])
+    total_manut = 0
+    n_manut = 0
+    if not df2.empty:
+        df2["custo_total"] = pd.to_numeric(df2["custo_total"], errors="coerce").fillna(0)
+        total_manut = round(float(df2["custo_total"].sum()), 2)
+        n_manut = len(df2)
+
+    # Alertas simples
+    alertas = []
+    if n_abast == 0:
+        alertas.append({"tipo": "warn", "msg": "Nenhum abastecimento registrado no período"})
+    if n_manut > 0:
+        alertas.append({"tipo": "info", "msg": f"{n_manut} manutencao(oes) registrada(s) no período"})
+    veic_sem_abast = []
+    if not df.empty:
+        todos_veic_r = db.table("profrotas_abastecimentos").select("veiculo_placa").eq(
+            "cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+            "data_abastecimento", (hoje - timedelta(days=30)).isoformat()).execute()
+        todos_veic = set(x["veiculo_placa"] for x in (todos_veic_r.data or []))
+        veic_periodo = set(df["veiculo_placa"].unique())
+        veic_sem_abast = list(todos_veic - veic_periodo)[:5]
+        if veic_sem_abast:
+            alertas.append({"tipo": "warn",
+                "msg": f"{len(veic_sem_abast)} veiculo(s) sem abastecimento no periodo: {', '.join(veic_sem_abast[:3])}"})
+
+    return {
+        "saudacao": {"nome": user.get("nome", "Gestor"), "hora": hoje.isoformat()},
+        "periodo": {"inicio": dt_ini, "fim": hoje.isoformat(), "dias": dias},
+        "kpis": {
+            "n_abastecimentos": n_abast,
+            "total_litros": total_lit,
+            "total_gasto": total_gas,
+            "preco_medio": preco_med,
+            "ticket_medio": ticket_med,
+            "n_veiculos": n_veic,
+            "total_manutencao": total_manut,
+            "total_geral": round(total_gas + total_manut, 2),
+        },
+        "por_dia": por_dia,
+        "por_combustivel": por_comb,
+        "top_veiculos": top_veic,
+        "ultimos_abastecimentos": ultimos,
+        "alertas": alertas,
+    }
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn

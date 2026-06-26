@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/comece_seu_dia/screens/comece_seu_dia_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/abastecimentos/screens/abastecimentos_screen.dart';
 import '../../features/frota/screens/frota_screen.dart';
@@ -31,7 +32,8 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
     ShellRoute(
       builder: (c, s, child) => HomeScreen(child: child),
       routes: [
-        GoRoute(path: '/',                builder: (_, __) => const DashboardScreen()),
+        GoRoute(path: '/',                builder: (_, __) => const ComeceSeuDiaScreen()),
+        GoRoute(path: '/dashboard',       builder: (_, __) => const DashboardScreen()),
         GoRoute(path: '/abastecimentos',  builder: (_, __) => const AbastecimentosScreen()),
         GoRoute(path: '/frota',           builder: (_, __) => const FrotaScreen()),
         GoRoute(path: '/manutencao',      builder: (_, __) => const ManutencaoScreen()),
