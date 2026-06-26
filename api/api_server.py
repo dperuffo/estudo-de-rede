@@ -786,7 +786,8 @@ def listar_ufs(user: dict = Depends(usuario_atual)):
 # ── Assistente IA ─────────────────────────────────────────────────
 @app.post("/assistente/chat", tags=["assistente"])
 async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
-    import httpx, pandas as pd
+    import httpx
+    import pandas as pd
     from datetime import date, timedelta
     pergunta = body.get("pergunta", "")
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
@@ -840,7 +841,7 @@ MANUTENCAO (ultimos 90 dias):
 - Veiculos: {df2["placa"].nunique()}
 """
     except Exception as e:
-        resumo = f"Dados disponiveis (erro ao processar detalhes: {type(e).__name__})"
+        resumo = f"Dados disponiveis. Erro interno: {type(e).__name__}: {str(e)[:200]}"
 
     sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI.
 O usuario e {user.get("nome", "gestor")} com perfil {user.get("perfil", "usuario")}.
