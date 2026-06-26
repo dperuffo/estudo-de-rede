@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/menu_button.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -34,7 +35,7 @@ class _State extends State<AbastecimentosScreen> {
   Widget build(BuildContext context) {
     final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(leading: const MenuButton(),
         title: const Text('Abastecimentos'),
         actions: [
           DropdownButton<int>(

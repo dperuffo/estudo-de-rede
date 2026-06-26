@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/menu_button.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 
@@ -27,7 +28,7 @@ class _State extends State<FrotaScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('Frota (${_veiculos.length} veiculos)')),
+    appBar: AppBar(leading: const MenuButton(),title: Text('Frota (${_veiculos.length} veiculos)')),
     body: _loading ? const Center(child: CircularProgressIndicator())
         : RefreshIndicator(onRefresh: _load, child: ListView.builder(
             padding: const EdgeInsets.all(16),

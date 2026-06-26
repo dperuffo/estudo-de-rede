@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/menu_button.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -30,7 +31,7 @@ class _State extends State<FinanceiroScreen> {
   Widget build(BuildContext context) {
     final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     return Scaffold(
-      appBar: AppBar(title: const Text('Painel Financeiro')),
+      appBar: AppBar(leading: const MenuButton(),title: const Text('Painel Financeiro')),
       body: _loading ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(onRefresh: _load, child: ListView(
               padding: const EdgeInsets.all(16),

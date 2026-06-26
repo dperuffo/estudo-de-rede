@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/menu_button.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
 
@@ -31,7 +32,7 @@ class _State extends State<PrecosScreen> {
     final fmtP = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     final porComb = (_dados?['por_combustivel'] as List?) ?? [];
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(leading: const MenuButton(),
         title: const Text('Variacao de Precos'),
         actions: [
           DropdownButton<int>(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/menu_button.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
 
@@ -33,7 +34,7 @@ class _State extends State<RelatoriosScreen> {
   Widget build(BuildContext context) {
     final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     return Scaffold(
-      appBar: AppBar(title: const Text('Relatorios')),
+      appBar: AppBar(leading: const MenuButton(),title: const Text('Relatorios')),
       body: Column(children: [
         Padding(padding: const EdgeInsets.all(12), child: Column(children: [
           Row(children: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/menu_button.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
 
@@ -34,7 +35,7 @@ class _State extends State<InteligenciaScreen> {
     final porMun = (_dados?['por_municipio'] as List?) ?? [];
     final porVei = (_dados?['por_veiculo'] as List?) ?? [];
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(leading: const MenuButton(),
         title: const Text('Inteligencia'),
         actions: [
           DropdownButton<int>(

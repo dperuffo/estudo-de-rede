@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/menu_button.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 
@@ -30,7 +31,7 @@ class _State extends State<TicketsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Suporte')),
+    appBar: AppBar(leading: const MenuButton(),title: const Text('Suporte')),
     floatingActionButton: FloatingActionButton(
       onPressed: _novoTicket, child: const Icon(Icons.add)),
     body: _loading ? const Center(child: CircularProgressIndicator())
