@@ -992,7 +992,7 @@ def listar_perfis_veiculo(user: dict = Depends(usuario_atual)):
 def criar_perfil_veiculo(body: dict, user: dict = Depends(usuario_atual)):
     db = get_db()
     body["usuario_email"] = user.get("email", "")
-    body["empresa_id"]    = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    body.pop("empresa_id", None)
     try:
         r = db.table("perfis_veiculo").insert(body).execute()
         return {"ok": True, "data": r.data}
