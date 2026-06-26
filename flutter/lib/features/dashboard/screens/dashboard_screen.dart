@@ -35,10 +35,13 @@ class _State extends State<DashboardScreen> {
     final topU = (_dados?['top_ufs'] as List?) ?? [];
     return Scaffold(
       appBar: AppBar(
-        leading: Builder(builder: (ctx) => IconButton(
+        leading: IconButton(
           icon: const Icon(Icons.menu),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-        )),
+          onPressed: () {
+            final scaffold = context.findAncestorStateOfType<ScaffoldState>();
+            scaffold?.openDrawer();
+          },
+        ),
         title: const Text('Dashboard'),
         actions: [
           DropdownButton<int>(
