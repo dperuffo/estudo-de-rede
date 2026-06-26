@@ -16,15 +16,13 @@ class _State extends State<RoteirizacaoScreen> {
   int _tabIndex = 0;
   String? _veiculoId;
 
-  final _origemCtrl  = TextEditingController();
-  final _destinoCtrl = TextEditingController();
-  final _origemLat   = TextEditingController();
-  final _origemLon   = TextEditingController();
-  final _destinoLat  = TextEditingController();
-  final _destinoLon  = TextEditingController();
-  final _tanqueCtrl  = TextEditingController(text: '80');
+  Map<String, dynamic>? _origemSel;
+  Map<String, dynamic>? _destinoSel;
+  List<Map<String, dynamic>> _paradas = [];
+
+  final _tanqueCtrl    = TextEditingController(text: '80');
   final _autonomiaCtrl = TextEditingController(text: '10');
-  final _combCtrl    = TextEditingController(text: 'Diesel');
+  final _combCtrl      = TextEditingController(text: 'Diesel');
 
   @override void initState() { super.initState(); _carregarVeiculos(); }
 
@@ -46,27 +44,81 @@ class _State extends State<RoteirizacaoScreen> {
     });
   }
 
+  Future<List<Map>> _buscarLocal(String q) async {
+    if (q.length < 3) return [];
+    try {
+      final r = await ApiService().get('/roteirizacao/geocoding', params: {'q': q});
+      return List<Map>.from(r['data'] ?? []);
+    } catch (_) { return []; }
+  }
+
+  Future<Map<String, dynamic>?> _dialogBuscarLocal(String titulo) async {
+    final ctrl = TextEditingController();
+    List<Map> sugestoes = [];
+    Map<String, dynamic>? selecionado;
+
+    return showDialog<Map<String, dynamic>>(context: context, builder: (dialogCtx) =>
+      StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
+        title: Text(titulo),
+        content: SizedBox(width: 400, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: ctrl,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Digite a cidade ou endereco',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (v) async {
+              final res = await _buscarLocal(v);
+              setSt(() => sugestoes = res);
+            },
+          ),
+          const SizedBox(height: 8),
+          if (sugestoes.isNotEmpty) Container(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: sugestoes.length,
+              itemBuilder: (_, i) => ListTile(
+                dense: true,
+                leading: const Icon(Icons.location_on, color: Colors.blue, size: 18),
+                title: Text(sugestoes[i]['nome'] ?? '', style: const TextStyle(fontSize: 13)),
+                subtitle: Text(sugestoes[i]['endereco'] ?? '',
+                    style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () => Navigator.pop(dialogCtx, sugestoes[i]),
+              ),
+            ),
+          ),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
+        ],
+      )),
+    );
+  }
+
   Future<void> _calcular() async {
-    if (_origemLat.text.isEmpty || _destinoLat.text.isEmpty) {
+    if (_origemSel == null || _destinoSel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Preencha as coordenadas de origem e destino')));
+          const SnackBar(content: Text('Selecione origem e destino')));
       return;
     }
     setState(() { _loading = true; _resultado = null; });
     try {
       final r = await ApiService().post('/roteirizacao/calcular', data: {
-        'origem':  {'lat': double.parse(_origemLat.text),  'lon': double.parse(_origemLon.text),  'nome': _origemCtrl.text},
-        'destino': {'lat': double.parse(_destinoLat.text), 'lon': double.parse(_destinoLon.text), 'nome': _destinoCtrl.text},
+        'origem':  _origemSel,
+        'destino': _destinoSel,
+        'paradas': _paradas,
         'veiculo': {
-          'tanque':     double.tryParse(_tanqueCtrl.text) ?? 80,
-          'autonomia':  double.tryParse(_autonomiaCtrl.text) ?? 10,
+          'tanque':      double.tryParse(_tanqueCtrl.text) ?? 80,
+          'autonomia':   double.tryParse(_autonomiaCtrl.text) ?? 10,
           'combustivel': _combCtrl.text,
         },
-        'raio_km': 5,
+        'raio_km': 10,
         'pesos': {'preco': 0.6, 'score': 0.2, 'desvio': 0.2},
       });
-      setState(() => _resultado = r);
-      setState(() => _tabIndex = 1);
+      setState(() { _resultado = r; _tabIndex = 1; });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     } finally {
@@ -79,7 +131,6 @@ class _State extends State<RoteirizacaoScreen> {
     final orig   = _resultado!['origem'];
     final dest   = _resultado!['destino'];
     final sugest = (_resultado!['sugestoes'] as List?) ?? [];
-
     final waypoints = sugest.map((s) => '${s["lat"]},${s["lon"]}').join('|');
     final url = Uri.parse(
       'https://www.google.com/maps/dir/?api=1'
@@ -102,7 +153,6 @@ class _State extends State<RoteirizacaoScreen> {
     final combCtrl      = TextEditingController(text: dados?['combustivel'] ?? '');
     final tanqueCtrl    = TextEditingController(text: dados?['tanque']?.toString() ?? '');
     final autonomiaCtrl = TextEditingController(text: dados?['autonomia']?.toString() ?? '');
-
     final salvou = await showDialog<bool>(context: context, builder: (dialogCtx) => AlertDialog(
       title: Text(dados == null ? 'Novo Veiculo' : 'Editar Veiculo'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -170,9 +220,9 @@ class _State extends State<RoteirizacaoScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Row(children: [
-            _tab('Planejar Rota', 0),
+            _tab('Planejar', 0),
             _tab('Resultado', 1),
-            _tab('Meus Veiculos', 2),
+            _tab('Veiculos', 2),
           ]),
         ),
       ),
@@ -186,88 +236,121 @@ class _State extends State<RoteirizacaoScreen> {
     );
   }
 
-  Widget _buildPlanejamento() => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      // Veículo
-      const Text('Veiculo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-      const SizedBox(height: 8),
-      if (_veiculos.isNotEmpty) DropdownButtonFormField<String>(
-        value: _veiculoId,
-        hint: const Text('Selecione um veiculo salvo (opcional)'),
-        items: _veiculos.map((v) => DropdownMenuItem(
-          value: v['id'].toString(),
-          child: Text('${v["placa"]} — ${v["combustivel"]} (${v["tanque"]}L / ${v["autonomia"]}km/L)'),
-        )).toList(),
-        onChanged: (v) { if (v != null) _selecionarVeiculo(v); },
-        decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+  Widget _buildPlanejamento() => ListView(padding: const EdgeInsets.all(16), children: [
+    // Veículo
+    const Text('Veiculo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+    const SizedBox(height: 8),
+    if (_veiculos.isNotEmpty) DropdownButtonFormField<String>(
+      value: _veiculoId,
+      hint: const Text('Selecione veiculo salvo (opcional)'),
+      items: _veiculos.map((v) => DropdownMenuItem(
+        value: v['id'].toString(),
+        child: Text('${v["placa"]} — ${v["combustivel"]} (${v["tanque"]}L)'),
+      )).toList(),
+      onChanged: (v) { if (v != null) _selecionarVeiculo(v); },
+      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+    ),
+    const SizedBox(height: 8),
+    Row(children: [
+      Expanded(child: TextField(controller: _tanqueCtrl,
+          decoration: const InputDecoration(labelText: 'Tanque (L)', border: OutlineInputBorder(), isDense: true),
+          keyboardType: TextInputType.number)),
+      const SizedBox(width: 8),
+      Expanded(child: TextField(controller: _autonomiaCtrl,
+          decoration: const InputDecoration(labelText: 'km/L', border: OutlineInputBorder(), isDense: true),
+          keyboardType: TextInputType.number)),
+      const SizedBox(width: 8),
+      Expanded(child: TextField(controller: _combCtrl,
+          decoration: const InputDecoration(labelText: 'Combustivel', border: OutlineInputBorder(), isDense: true))),
+    ]),
+    const SizedBox(height: 16),
+
+    // Origem
+    const Text('Origem', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+    const SizedBox(height: 8),
+    _localSelector(_origemSel, 'Selecionar origem', () async {
+      final r = await _dialogBuscarLocal('Origem');
+      if (r != null) setState(() => _origemSel = r);
+    }),
+    const SizedBox(height: 12),
+
+    // Paradas
+    Row(children: [
+      const Text('Paradas intermediarias', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+      const Spacer(),
+      TextButton.icon(
+        onPressed: () async {
+          final r = await _dialogBuscarLocal('Adicionar parada');
+          if (r != null) setState(() => _paradas.add(r));
+        },
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Adicionar'),
       ),
-      const SizedBox(height: 8),
-      Row(children: [
-        Expanded(child: TextField(controller: _tanqueCtrl,
-            decoration: const InputDecoration(labelText: 'Tanque (L)', border: OutlineInputBorder(), isDense: true),
-            keyboardType: TextInputType.number)),
+    ]),
+    ..._paradas.asMap().entries.map((e) => Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(children: [
+        const Icon(Icons.radio_button_checked, color: Colors.orange, size: 18),
         const SizedBox(width: 8),
-        Expanded(child: TextField(controller: _autonomiaCtrl,
-            decoration: const InputDecoration(labelText: 'Autonomia (km/L)', border: OutlineInputBorder(), isDense: true),
-            keyboardType: TextInputType.number)),
-        const SizedBox(width: 8),
-        Expanded(child: TextField(controller: _combCtrl,
-            decoration: const InputDecoration(labelText: 'Combustivel', border: OutlineInputBorder(), isDense: true))),
+        Expanded(child: Text(e.value['nome'] ?? e.value['endereco'] ?? '-')),
+        IconButton(icon: const Icon(Icons.close, size: 18, color: Colors.red),
+            onPressed: () => setState(() => _paradas.removeAt(e.key))),
       ]),
-      const SizedBox(height: 16),
+    )),
+    const SizedBox(height: 12),
 
-      // Origem
-      const Text('Origem', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-      const SizedBox(height: 8),
-      TextField(controller: _origemCtrl,
-          decoration: const InputDecoration(labelText: 'Nome da origem (ex: Sao Paulo, SP)', border: OutlineInputBorder(), isDense: true)),
-      const SizedBox(height: 8),
-      Row(children: [
-        Expanded(child: TextField(controller: _origemLat,
-            decoration: const InputDecoration(labelText: 'Latitude (ex: -23.5505)', border: OutlineInputBorder(), isDense: true),
-            keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true))),
+    // Destino
+    const Text('Destino', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+    const SizedBox(height: 8),
+    _localSelector(_destinoSel, 'Selecionar destino', () async {
+      final r = await _dialogBuscarLocal('Destino');
+      if (r != null) setState(() => _destinoSel = r);
+    }),
+    const SizedBox(height: 24),
+
+    SizedBox(width: double.infinity, child: ElevatedButton.icon(
+      onPressed: _loading ? null : _calcular,
+      icon: _loading
+          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : const Icon(Icons.route),
+      label: Text(_loading ? 'Calculando...' : 'Calcular Rota'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF0D2D6B),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+    )),
+  ]);
+
+  Widget _localSelector(Map? sel, String hint, VoidCallback onTap) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(children: [
+        Icon(sel != null ? Icons.location_on : Icons.search,
+            color: sel != null ? Colors.blue : Colors.grey),
         const SizedBox(width: 8),
-        Expanded(child: TextField(controller: _origemLon,
-            decoration: const InputDecoration(labelText: 'Longitude (ex: -46.6333)', border: OutlineInputBorder(), isDense: true),
-            keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true))),
-      ]),
-      const SizedBox(height: 16),
-
-      // Destino
-      const Text('Destino', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-      const SizedBox(height: 8),
-      TextField(controller: _destinoCtrl,
-          decoration: const InputDecoration(labelText: 'Nome do destino (ex: Rio de Janeiro, RJ)', border: OutlineInputBorder(), isDense: true)),
-      const SizedBox(height: 8),
-      Row(children: [
-        Expanded(child: TextField(controller: _destinoLat,
-            decoration: const InputDecoration(labelText: 'Latitude', border: OutlineInputBorder(), isDense: true),
-            keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true))),
-        const SizedBox(width: 8),
-        Expanded(child: TextField(controller: _destinoLon,
-            decoration: const InputDecoration(labelText: 'Longitude', border: OutlineInputBorder(), isDense: true),
-            keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true))),
-      ]),
-      const SizedBox(height: 24),
-
-      SizedBox(width: double.infinity, child: ElevatedButton.icon(
-        onPressed: _loading ? null : _calcular,
-        icon: _loading ? const SizedBox(width: 20, height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Icon(Icons.route),
-        label: Text(_loading ? 'Calculando...' : 'Calcular Rota'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0D2D6B),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 14),
+        Expanded(child: Text(
+          sel != null ? (sel['nome'] ?? sel['endereco'] ?? '-') : hint,
+          style: TextStyle(color: sel != null ? Colors.black87 : Colors.grey[600]),
+        )),
+        if (sel != null) GestureDetector(
+          onTap: () => setState(() {
+            if (sel == _origemSel) _origemSel = null;
+            else if (sel == _destinoSel) _destinoSel = null;
+          }),
+          child: const Icon(Icons.close, size: 18, color: Colors.grey),
         ),
-      )),
-    ],
+      ]),
+    ),
   );
 
   Widget _buildResultado() {
-    if (_resultado == null) return const Center(child: Text('Calcule uma rota primeiro na aba "Planejar Rota"'));
+    if (_resultado == null) return const Center(child: Text('Calcule uma rota na aba "Planejar"'));
     final fmt    = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     final rota   = _resultado!['rota'] as Map? ?? {};
     final resumo = _resultado!['resumo'] as Map? ?? {};
@@ -276,7 +359,6 @@ class _State extends State<RoteirizacaoScreen> {
     final sugest = (_resultado!['sugestoes'] as List?) ?? [];
 
     return ListView(padding: const EdgeInsets.all(16), children: [
-      // Resumo da rota
       Card(color: const Color(0xFF0D2D6B), child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
         Text('${orig["nome"] ?? "Origem"} → ${dest["nome"] ?? "Destino"}',
             style: const TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center),
@@ -286,14 +368,13 @@ class _State extends State<RoteirizacaoScreen> {
           _metrica('${(rota["dur_min"] as num? ?? 0).toStringAsFixed(0)} min', 'Duracao', Colors.white),
           _metrica('${resumo["n_paradas"]}', 'Paradas', Colors.white),
         ]),
-        const SizedBox(height: 8),
-        if (rota["linha_reta"] == true)
-          const Text('* Rota calculada em linha reta (OSRM indisponivel)',
+        if (rota["linha_reta"] == true) ...[
+          const SizedBox(height: 8),
+          const Text('* Rota em linha reta (OSRM indisponivel)',
               style: TextStyle(color: Colors.orange, fontSize: 11)),
+        ],
       ]))),
       const SizedBox(height: 12),
-
-      // KPIs de custo
       Row(children: [
         _kpi('Custo Total', fmt.format(resumo['custo_total'] ?? 0), Colors.green),
         const SizedBox(width: 8),
@@ -302,8 +383,6 @@ class _State extends State<RoteirizacaoScreen> {
         _kpi('R\$/km', 'R\$ ${resumo["custo_por_km"]}', Colors.orange),
       ]),
       const SizedBox(height: 12),
-
-      // Botão abrir no Google Maps
       SizedBox(width: double.infinity, child: ElevatedButton.icon(
         onPressed: _abrirMapaCompleto,
         icon: const Icon(Icons.map),
@@ -311,19 +390,16 @@ class _State extends State<RoteirizacaoScreen> {
         style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
       )),
       const SizedBox(height: 16),
-
-      // Postos sugeridos
       if (sugest.isEmpty)
         const Card(child: Padding(padding: EdgeInsets.all(16),
-            child: Text('Nenhum posto encontrado ao longo desta rota nos ultimos 180 dias.\nAbasteca nos postos que voce conhece.',
+            child: Text('Nenhum posto encontrado ao longo da rota nos ultimos 180 dias.',
                 textAlign: TextAlign.center)))
       else ...[
         Text('${sugest.length} parada(s) sugerida(s)',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 8),
         ...sugest.asMap().entries.map((e) {
-          final i = e.key;
-          final s = e.value;
+          final i = e.key; final s = e.value;
           return Card(margin: const EdgeInsets.only(bottom: 10), child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -333,7 +409,7 @@ class _State extends State<RoteirizacaoScreen> {
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(s['razao_social'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text('${s["municipio"] ?? "-"}/${s["uf"] ?? "-"} · ${s["_km"]} km na rota',
+                  Text('${s["municipio"] ?? "-"}/${s["uf"] ?? "-"} · km ${s["_km"]}',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                 ])),
                 IconButton(icon: const Icon(Icons.map, color: Colors.green),
@@ -348,9 +424,8 @@ class _State extends State<RoteirizacaoScreen> {
               ]),
               const SizedBox(height: 4),
               Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(4)),
-                child: Text(s['motivo'] ?? '-',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF1565C0)))),
+                  decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(4)),
+                  child: Text(s['motivo'] ?? '-', style: const TextStyle(fontSize: 11, color: Color(0xFF1565C0)))),
             ]),
           ));
         }),
@@ -388,7 +463,7 @@ class _State extends State<RoteirizacaoScreen> {
         decoration: BoxDecoration(border: Border(bottom: BorderSide(
             color: _tabIndex == idx ? Colors.white : Colors.transparent, width: 2))),
         child: Text(label, textAlign: TextAlign.center,
-            style: TextStyle(color: _tabIndex == idx ? Colors.white : Colors.white60, fontSize: 12)),
+            style: TextStyle(color: _tabIndex == idx ? Colors.white : Colors.white60, fontSize: 13)),
       ),
     ),
   );

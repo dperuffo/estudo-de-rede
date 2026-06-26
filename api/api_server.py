@@ -1266,6 +1266,29 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
         "destino": destino,
     }
 
+
+# ── Geocoding: busca coordenadas por nome ────────────────────────
+@app.get("/roteirizacao/geocoding", tags=["roteirizacao"])
+async def geocoding(q: str, user: dict = Depends(usuario_atual)):
+    import httpx
+    if not q or len(q) < 3:
+        return {"data": []}
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": f"{q}, Brasil", "format": "json", "limit": 5, "countrycodes": "br"},
+            headers={"User-Agent": "FNI-Gestao-Frotas/1.0"},
+            timeout=10,
+        )
+    if resp.status_code != 200:
+        return {"data": []}
+    results = resp.json()
+    data = [{"nome": r["display_name"].split(",")[0].strip(),
+             "endereco": r["display_name"],
+             "lat": float(r["lat"]),
+             "lon": float(r["lon"])} for r in results]
+    return {"data": data}
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn
