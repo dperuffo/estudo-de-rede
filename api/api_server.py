@@ -736,7 +736,7 @@ def excluir_usuario(email: str, user: dict = Depends(usuario_atual)):
 def listar_acordos(user: dict = Depends(usuario_atual)):
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    r = db.table("acordos_preco").select("*").eq("cnpj_frota", cnpj).order(
+    r = db.table("acordos_precos").select("*").eq("cnpj_frota", cnpj).order(
         "created_at", desc=True).execute()
     return {"total": len(r.data or []), "data": r.data or []}
 
