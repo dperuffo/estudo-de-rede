@@ -34,4 +34,14 @@ class ApiService {
     final r = await _dio.post(path, data: data);
     return r.data as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> put(String path, {Map<String, dynamic>? data}) async {
+    final r = await _dio.put(path, data: data);
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> delete(String path) async {
+    final r = await _dio.delete(path);
+    return r.data as Map<String, dynamic>;
+  }
 }

@@ -27,7 +27,7 @@ class _State extends State<AdminScreen> {
 
   Future<void> _toggleAtivo(String email, bool ativo) async {
     try {
-      await ApiService().post('/admin/usuarios/$email', data: {'ativo': !ativo});
+      await ApiService().put('/admin/usuarios/$email', data: {'ativo': !ativo});
       _load();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
