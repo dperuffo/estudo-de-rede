@@ -56,7 +56,7 @@ class _State extends State<AcordosScreen> {
     final inicioCtrl  = TextEditingController(text: dados?['dt_vigencia_inicio'] ?? '');
     final fimCtrl     = TextEditingController(text: dados?['dt_vigencia_fim'] ?? '');
 
-    await showDialog(context: context, builder: (_) => AlertDialog(
+    await showDialog(context: context, builder: (dialogCtx) => AlertDialog(
       title: Text(dados == null ? 'Novo Acordo' : 'Editar Acordo'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: cnpjCtrl,   decoration: const InputDecoration(labelText: 'CNPJ do Posto *')),
@@ -67,7 +67,7 @@ class _State extends State<AcordosScreen> {
         TextField(controller: fimCtrl,    decoration: const InputDecoration(labelText: 'Fim vigencia (YYYY-MM-DD)')),
       ])),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
             try {
@@ -84,7 +84,7 @@ class _State extends State<AcordosScreen> {
               } else {
                 await ApiService().put('/acordos/${dados["id"]}', data: body);
               }
-              Navigator.pop(context, true);
+              Navigator.pop(dialogCtx, true);
             } catch (e) {
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
             }

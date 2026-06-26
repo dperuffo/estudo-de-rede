@@ -79,7 +79,7 @@ class _State extends State<RoteirizacaoScreen> {
     final tanqueCtrl    = TextEditingController(text: dados?['tanque']?.toString() ?? '');
     final autonomiaCtrl = TextEditingController(text: dados?['autonomia']?.toString() ?? '');
 
-    await showDialog(context: context, builder: (_) => AlertDialog(
+    await showDialog(context: context, builder: (dialogCtx) => AlertDialog(
       title: Text(dados == null ? 'Novo Veiculo' : 'Editar Veiculo'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: nomeCtrl,      decoration: const InputDecoration(labelText: 'Nome/Apelido')),
@@ -89,7 +89,7 @@ class _State extends State<RoteirizacaoScreen> {
         TextField(controller: autonomiaCtrl, decoration: const InputDecoration(labelText: 'Autonomia (km/L)'), keyboardType: TextInputType.number),
       ])),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
             try {
@@ -105,7 +105,7 @@ class _State extends State<RoteirizacaoScreen> {
               } else {
                 await ApiService().put('/frota/perfis/${dados["id"]}', data: body);
               }
-              if (mounted) { Navigator.pop(context); _carregarInicial(); }
+              Navigator.pop(dialogCtx); _carregarInicial();
             } catch (e) {
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
             }

@@ -53,7 +53,7 @@ class _State extends State<CentrosCustoScreen> {
     final descricaoCtrl   = TextEditingController(text: dados?['descricao'] ?? '');
     final responsavelCtrl = TextEditingController(text: dados?['responsavel'] ?? '');
 
-    await showDialog(context: context, builder: (_) => AlertDialog(
+    await showDialog(context: context, builder: (dialogCtx) => AlertDialog(
       title: Text(dados == null ? 'Novo Centro de Custo' : 'Editar Centro de Custo'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: nomeCtrl,        decoration: const InputDecoration(labelText: 'Nome *')),
@@ -62,7 +62,7 @@ class _State extends State<CentrosCustoScreen> {
         TextField(controller: responsavelCtrl, decoration: const InputDecoration(labelText: 'Responsavel')),
       ])),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
             if (nomeCtrl.text.trim().isEmpty) {
@@ -82,7 +82,7 @@ class _State extends State<CentrosCustoScreen> {
               } else {
                 await ApiService().put('/centros-custo/${dados["id"]}', data: body);
               }
-              Navigator.pop(context, true);
+              Navigator.pop(dialogCtx, true);
             } catch (e) {
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
             }

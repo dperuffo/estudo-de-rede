@@ -105,7 +105,7 @@ class _State extends State<AdminScreen> {
         ),
       ])),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
             try {
@@ -115,7 +115,7 @@ class _State extends State<AdminScreen> {
                 'perfil': perfil,
                 'ativo': true,
               });
-              if (mounted) { Navigator.pop(context); _load(); }
+              Navigator.pop(dialogCtx); _load();
             } catch (e) {
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
             }
