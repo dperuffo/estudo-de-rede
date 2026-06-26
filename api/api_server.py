@@ -786,21 +786,73 @@ def listar_ufs(user: dict = Depends(usuario_atual)):
 # ── Assistente IA ─────────────────────────────────────────────────
 @app.post("/assistente/chat", tags=["assistente"])
 async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
-    import httpx
+    import httpx, pandas as pd
+    from datetime import date, timedelta
     pergunta = body.get("pergunta", "")
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
     if not pergunta:
         raise HTTPException(status_code=400, detail="Pergunta nao informada")
 
-    sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI.
-O usuario e {user.get('nome', 'gestor')} com perfil {user.get('perfil', 'usuario')}.
-CNPJ da frota: {cnpj}.
-Responda de forma objetiva e pratica sobre gestao de frotas, abastecimentos, manutencao e custos.
-Responda sempre em portugues brasileiro."""
-
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not anthropic_key:
         return {"resposta": "Assistente IA nao configurado. Configure ANTHROPIC_API_KEY no Railway."}
+
+    db = get_db()
+    dt_ini = (date.today() - timedelta(days=90)).isoformat()
+    try:
+        r = db.table("profrotas_abastecimentos").select(
+            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,motorista_nome"
+        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).execute()
+        df = pd.DataFrame(r.data or [])
+        if not df.empty:
+            for col in ["item_quantidade","item_valor_unitario","item_valor_total"]:
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+            resumo = f"""
+DADOS REAIS DA FROTA (ultimos 90 dias):
+- Total abastecimentos: {len(df)}
+- Total litros: {df["item_quantidade"].sum():.0f} L
+- Total gasto combustivel: R$ {df["item_valor_total"].sum():.2f}
+- Preco medio por litro: R$ {df["item_valor_unitario"].mean():.4f}
+- Veiculos ativos: {df["veiculo_placa"].nunique()}
+- Estados visitados: {df["pv_uf"].nunique() if "pv_uf" in df.columns else "N/A"}
+
+Por combustivel:
+{df.groupby("item_nome").agg(litros=("item_quantidade","sum"), gasto=("item_valor_total","sum"), n=("item_nome","count")).to_string()}
+
+Top 5 veiculos por gasto:
+{df.groupby("veiculo_placa")["item_valor_total"].sum().sort_values(ascending=False).head(5).to_string()}
+
+Por mes:
+{df.groupby(pd.to_datetime(df["data_abastecimento"]).dt.to_period("M").astype(str))["item_valor_total"].sum().to_string()}
+"""
+        else:
+            resumo = "Nenhum dado de abastecimento encontrado para os ultimos 90 dias."
+        r2 = db.table("manutencoes_realizadas").select(
+            "placa,custo_total,data_manutencao,oficina"
+        ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_ini).execute()
+        df2 = pd.DataFrame(r2.data or [])
+        if not df2.empty:
+            df2["custo_total"] = pd.to_numeric(df2["custo_total"], errors="coerce").fillna(0)
+            resumo += f"""
+MANUTENCAO (ultimos 90 dias):
+- Total registros: {len(df2)}
+- Total gasto: R$ {df2["custo_total"].sum():.2f}
+- Veiculos: {df2["placa"].nunique()}
+"""
+    except Exception as e:
+        resumo = f"Erro ao buscar dados: {e}"
+
+    sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI.
+O usuario e {user.get("nome", "gestor")} com perfil {user.get("perfil", "usuario")}.
+CNPJ da frota: {cnpj}.
+Data atual: {date.today().isoformat()}
+
+{resumo}
+
+Use os dados acima para responder perguntas sobre a frota do cliente.
+Responda de forma objetiva, pratica e use os numeros reais dos dados acima.
+Responda sempre em portugues brasileiro.
+Se perguntarem sobre dados fora do periodo de 90 dias, informe que so tem dados dos ultimos 90 dias."""
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -810,7 +862,7 @@ Responda sempre em portugues brasileiro."""
             json={"model": "claude-haiku-4-5-20251001", "max_tokens": 1024,
                   "system": sistema,
                   "messages": [{"role": "user", "content": pergunta}]},
-            timeout=30,
+            timeout=60,
         )
     if resp.status_code != 200:
         raise HTTPException(status_code=500, detail="Erro ao chamar IA")
