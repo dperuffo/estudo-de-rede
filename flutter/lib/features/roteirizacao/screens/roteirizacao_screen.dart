@@ -483,7 +483,7 @@ class _State extends State<RoteirizacaoScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Rota salva com sucesso!')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: \$e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 
@@ -516,10 +516,10 @@ class _State extends State<RoteirizacaoScreen> {
     ));
     if (ok != true) return;
     try {
-      await ApiService().delete('/roteirizacao/salvas/\$id');
+      await ApiService().delete('/roteirizacao/salvas/$id');
       setState(() => _rotasSalvas.removeWhere((r) => r['id'].toString() == id));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: \$e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 
@@ -543,7 +543,7 @@ class _State extends State<RoteirizacaoScreen> {
                             child: Icon(Icons.route, color: Colors.blue)),
                         title: Text(r['nome'] ?? '-',
                             style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('\${orig["nome"] ?? "-"} → \${dest["nome"] ?? "-"}'),
+                        subtitle: Text('${(r["origem"] as Map?)?["nome"] ?? "-"} → ${(r["destino"] as Map?)?["nome"] ?? "-"}'),
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(icon: const Icon(Icons.play_arrow, color: Colors.green),
                               onPressed: () => _carregarRotaSalva(r)),
