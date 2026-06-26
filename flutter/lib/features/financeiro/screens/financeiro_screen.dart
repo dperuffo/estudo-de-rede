@@ -67,7 +67,8 @@ class _State extends State<FinanceiroScreen> {
         actions: [
           DropdownButton<String>(
             value: _mesSel,
-            dropdownColor: Colors.white,
+            dropdownColor: const Color(0xFF0D2D6B),
+            style: const TextStyle(color: Colors.white),
             items: _meses.map((m) => DropdownMenuItem(
               value: m, child: Text(_nomeMes(m)))).toList(),
             onChanged: (v) { setState(() => _mesSel = v); _load(); },

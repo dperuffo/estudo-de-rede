@@ -61,7 +61,8 @@ class _State extends State<ComeceSeuDiaScreen> {
         actions: [
           DropdownButton<int>(
             value: _dias,
-            dropdownColor: Colors.white,
+            dropdownColor: const Color(0xFF0D2D6B),
+            style: const TextStyle(color: Colors.white),
             items: [1,7,15,30].map((d) => DropdownMenuItem(
               value: d,
               child: Text(d == 1 ? 'Hoje' : '$d dias'),

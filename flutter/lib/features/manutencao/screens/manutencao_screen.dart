@@ -106,7 +106,8 @@ class _State extends State<ManutencaoScreen> {
       appBar: AppBar(leading: const MenuButton(), title: const Text('Manutencao'),
         actions: [
           DropdownButton<int>(
-            value: _dias, dropdownColor: Colors.white,
+            value: _dias, dropdownColor: const Color(0xFF0D2D6B),
+            style: const TextStyle(color: Colors.white),
             items: [7,15,30,60,90].map((d) => DropdownMenuItem(value: d, child: Text('$d dias'))).toList(),
             onChanged: (v) { setState(() => _dias = v!); _load(); },
           ),

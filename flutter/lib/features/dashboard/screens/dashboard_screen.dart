@@ -46,7 +46,8 @@ class _State extends State<DashboardScreen> {
         actions: [
           DropdownButton<int>(
             value: _dias,
-            dropdownColor: Colors.white,
+            dropdownColor: const Color(0xFF0D2D6B),
+            style: const TextStyle(color: Colors.white),
             items: [7,15,30,60,90].map((d) => DropdownMenuItem(value: d, child: Text('$d dias'))).toList(),
             onChanged: (v) { setState(() => _dias = v!); _load(); },
           ),
