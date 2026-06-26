@@ -132,7 +132,7 @@ async def auth_google(body: GoogleAuthRequest):
     db = get_db()
     try:
         u = db.table("usuarios_app").select(
-            "email,perfil,cnpj_vinculado,empresa_id,ativo,nome"
+            "email,perfil,cnpj_vinculado,empresa_nome,ativo,nome"
         ).eq("email", email).single().execute()
         user = u.data
     except Exception:
@@ -142,7 +142,7 @@ async def auth_google(body: GoogleAuthRequest):
         raise HTTPException(status_code=403, detail="Usuário inativo ou não encontrado")
     
     # Busca empresa
-    empresa_id = user.get("empresa_id") or ""
+    empresa_id = user.get("empresa_nome") or ""
     cnpj_frota = re.sub(r"\D", "", user.get("cnpj_vinculado") or "")
     plano = "gratuito"
     if empresa_id:
