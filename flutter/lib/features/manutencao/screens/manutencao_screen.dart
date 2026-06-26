@@ -44,7 +44,9 @@ class _State extends State<ManutencaoScreen> {
     if (ok != true) return;
     try {
       await ApiService().delete('/manutencao/$id');
-      _load();
+      setState(() => _lista.removeWhere((m) => m['id'] == id));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registro excluido com sucesso')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }

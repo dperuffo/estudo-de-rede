@@ -40,7 +40,9 @@ class _State extends State<AcordosScreen> {
     if (ok != true) return;
     try {
       await ApiService().delete('/acordos/$id');
-      _load();
+      setState(() => _dados.removeWhere((a) => a['id'].toString() == id));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Acordo desativado com sucesso')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }

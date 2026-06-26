@@ -39,7 +39,9 @@ class _State extends State<CentrosCustoScreen> {
     if (ok != true) return;
     try {
       await ApiService().delete('/centros-custo/$id');
-      _load();
+      setState(() => _dados.removeWhere((c) => c['id'].toString() == id));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Centro de custo excluido com sucesso')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
