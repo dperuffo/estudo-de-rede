@@ -879,6 +879,155 @@ def listar_centros_custo(user: dict = Depends(usuario_atual)):
     r = db.table("centros_custo").select("*").eq("cnpj_frota", cnpj).execute()
     return {"total": len(r.data or []), "data": r.data or []}
 
+
+# ── Manutenção CRUD ───────────────────────────────────────────────
+@app.post("/manutencao", tags=["manutencao"])
+def criar_manutencao(body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    body["cnpj_frota"] = cnpj
+    body["criado_por"] = user.get("email", "")
+    try:
+        r = db.table("manutencoes_realizadas").insert(body).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/manutencao/{id}", tags=["manutencao"])
+def atualizar_manutencao(id: int, body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    try:
+        r = db.table("manutencoes_realizadas").update(body).eq("id", id).eq("cnpj_frota", cnpj).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/manutencao/{id}", tags=["manutencao"])
+def deletar_manutencao(id: int, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    try:
+        db.table("manutencoes_realizadas").delete().eq("id", id).eq("cnpj_frota", cnpj).execute()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ── Centros de Custo CRUD ─────────────────────────────────────────
+@app.post("/centros-custo", tags=["centros_custo"])
+def criar_centro_custo(body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    body["cnpj_frota"] = cnpj
+    body["criado_por"] = user.get("email", "")
+    try:
+        r = db.table("centros_custo").insert(body).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/centros-custo/{id}", tags=["centros_custo"])
+def atualizar_centro_custo(id: str, body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    try:
+        r = db.table("centros_custo").update(body).eq("id", id).eq("cnpj_frota", cnpj).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/centros-custo/{id}", tags=["centros_custo"])
+def deletar_centro_custo(id: str, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    try:
+        db.table("centros_custo").delete().eq("id", id).eq("cnpj_frota", cnpj).execute()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ── Acordos CRUD ──────────────────────────────────────────────────
+@app.post("/acordos", tags=["acordos"])
+def criar_acordo(body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    body["cnpj_frota"] = cnpj
+    body["ativo"] = True
+    try:
+        r = db.table("acordos_precos").insert(body).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/acordos/{id}", tags=["acordos"])
+def atualizar_acordo(id: str, body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    try:
+        r = db.table("acordos_precos").update(body).eq("id", id).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/acordos/{id}", tags=["acordos"])
+def deletar_acordo(id: str, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    try:
+        db.table("acordos_precos").update({"ativo": False}).eq("id", id).execute()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ── Perfis de Veículo CRUD ────────────────────────────────────────
+@app.get("/frota/perfis", tags=["frota"])
+def listar_perfis_veiculo(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    email = user.get("email", "")
+    cnpj  = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("perfis_veiculo").select("*").eq("empresa_id", cnpj).execute()
+    if not r.data:
+        r = db.table("perfis_veiculo").select("*").eq("usuario_email", email).execute()
+    return {"total": len(r.data or []), "data": r.data or []}
+
+@app.post("/frota/perfis", tags=["frota"])
+def criar_perfil_veiculo(body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    body["usuario_email"] = user.get("email", "")
+    body["empresa_id"]    = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    try:
+        r = db.table("perfis_veiculo").insert(body).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/frota/perfis/{id}", tags=["frota"])
+def atualizar_perfil_veiculo(id: str, body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    try:
+        r = db.table("perfis_veiculo").update(body).eq("id", id).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/frota/perfis/{id}", tags=["frota"])
+def deletar_perfil_veiculo(id: str, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    try:
+        db.table("perfis_veiculo").delete().eq("id", id).execute()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ── Roteirização: veículos com perfil ────────────────────────────
+@app.get("/roteirizacao/veiculos", tags=["roteirizacao"])
+def veiculos_para_rota(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    email = user.get("email", "")
+    cnpj  = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("perfis_veiculo").select("*").eq("empresa_id", cnpj).execute()
+    if not r.data:
+        r = db.table("perfis_veiculo").select("*").eq("usuario_email", email).execute()
+    return {"total": len(r.data or []), "data": r.data or []}
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn
