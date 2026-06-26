@@ -6,6 +6,10 @@ class HomeScreen extends StatelessWidget {
   final Widget child;
   const HomeScreen({super.key, required this.child});
 
+  static void openDrawer(BuildContext context) {
+    Scaffold.of(context).openDrawer();
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
@@ -23,12 +27,6 @@ class HomeScreen extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.support_agent),     label: 'Suporte'),
         ],
       ),
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: () => Scaffold.of(context).openDrawer(),
-        backgroundColor: const Color(0xFF0D2D6B),
-        child: const Icon(Icons.menu, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startTop,
     );
   }
 
