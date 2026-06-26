@@ -34,6 +34,14 @@ class _State extends State<AdminScreen> {
     }
   }
 
+  String _inicial(Map u) {
+    final nome = (u['nome'] ?? '').toString().trim();
+    final email = (u['email'] ?? '').toString().trim();
+    if (nome.isNotEmpty) return nome[0].toUpperCase();
+    if (email.isNotEmpty) return email[0].toUpperCase();
+    return '?';
+  }
+
   @override
   Widget build(BuildContext context) {
     final cores = {'admin': Colors.red, 'analista': Colors.blue,
@@ -45,32 +53,36 @@ class _State extends State<AdminScreen> {
         child: const Icon(Icons.person_add),
       ),
       body: _loading ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(onRefresh: _load, child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _usuarios.length,
-              itemBuilder: (_, i) {
-                final u = _usuarios[i];
-                final cor = cores[u['perfil']] ?? Colors.grey;
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: cor.withOpacity(0.15),
-                      child: Text((u['nome'] ?? u['email'] ?? '?')[0].toUpperCase(),
-                          style: TextStyle(color: cor, fontWeight: FontWeight.bold)),
-                    ),
-                    title: Text(u['nome'] ?? u['email'] ?? '-',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('${u["email"] ?? "-"}\n${u["perfil"] ?? "-"}'),
-                    isThreeLine: true,
-                    trailing: Switch(
-                      value: u['ativo'] == true,
-                      onChanged: (v) => _toggleAtivo(u['email'], u['ativo'] == true),
-                    ),
-                  ),
-                );
-              },
-            )),
+          : RefreshIndicator(onRefresh: _load, child: _usuarios.isEmpty
+              ? const Center(child: Text('Nenhum usuario encontrado'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _usuarios.length,
+                  itemBuilder: (_, i) {
+                    final u = _usuarios[i];
+                    final cor = cores[u['perfil']] ?? Colors.grey;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: cor.withOpacity(0.15),
+                          child: Text(_inicial(u),
+                              style: TextStyle(color: cor, fontWeight: FontWeight.bold)),
+                        ),
+                        title: Text(
+                          (u['nome'] ?? u['email'] ?? '-').toString(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text('${u["email"] ?? "-"}\n${u["perfil"] ?? "-"}'),
+                        isThreeLine: true,
+                        trailing: Switch(
+                          value: u['ativo'] == true,
+                          onChanged: (_) => _toggleAtivo(u['email'] ?? '', u['ativo'] == true),
+                        ),
+                      ),
+                    );
+                  },
+                )),
     );
   }
 
