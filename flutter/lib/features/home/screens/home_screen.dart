@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/widgets/menu_button.dart';
 
 class HomeScreen extends StatelessWidget {
   final Widget child;
   const HomeScreen({super.key, required this.child});
 
-  static void openDrawer(BuildContext context) {
-    Scaffold.of(context).openDrawer();
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
     return Scaffold(
+      key: rootScaffoldKey,
       drawer: _buildDrawer(context),
       body: child,
       bottomNavigationBar: NavigationBar(
