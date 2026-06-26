@@ -365,57 +365,127 @@ def criar_ticket(
 # ── Financeiro ────────────────────────────────────────────────────
 @app.get("/financeiro/resumo", tags=["financeiro"])
 def resumo_financeiro(
-    mes: Optional[str] = None,  # formato: "2026-06"
+    mes: Optional[str] = None,
     user: dict = Depends(usuario_atual)
 ):
-    """Resumo financeiro do mês: abastecimentos + manutenção por centro de custo."""
     import pandas as pd
     from datetime import date
-    
+    import calendar
+
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    
+
     if mes:
         ano, m = mes.split("-")
         dt_ini = f"{ano}-{m}-01"
-        import calendar
         last_day = calendar.monthrange(int(ano), int(m))[1]
         dt_fim = f"{ano}-{m}-{last_day:02d}"
     else:
         hoje = date.today()
         dt_ini = f"{hoje.year}-{hoje.month:02d}-01"
         dt_fim = hoje.isoformat()
-    
-    # Abastecimentos
+
+    # Abastecimentos completos
     r = db.table("profrotas_abastecimentos").select(
-        "item_valor_total,item_quantidade,veiculo_placa"
+        "data_abastecimento,item_valor_total,item_quantidade,item_valor_unitario,item_nome,veiculo_placa,pv_municipio,pv_uf"
     ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
         "data_abastecimento", dt_ini
     ).lte("data_abastecimento", dt_fim + "T23:59:59").execute()
-    
+
     df = pd.DataFrame(r.data or [])
     total_comb = 0.0
     total_litros = 0.0
+    por_combustivel = []
+    por_veiculo = []
+    por_dia = []
+    top_municipios = []
+
     if not df.empty:
-        df["item_valor_total"] = pd.to_numeric(df["item_valor_total"], errors="coerce").fillna(0)
-        df["item_quantidade"]  = pd.to_numeric(df["item_quantidade"],  errors="coerce").fillna(0)
+        for col in ["item_valor_total","item_quantidade","item_valor_unitario"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
         total_comb   = float(df["item_valor_total"].sum())
         total_litros = float(df["item_quantidade"].sum())
-    
+
+        por_combustivel = df.groupby("item_nome").agg(
+            gasto=("item_valor_total","sum"),
+            litros=("item_quantidade","sum"),
+            n=("item_nome","count"),
+            preco_medio=("item_valor_unitario","mean")
+        ).reset_index().sort_values("gasto", ascending=False).fillna(0).to_dict("records")
+        for d in por_combustivel:
+            d["gasto"] = round(float(d["gasto"]),2)
+            d["litros"] = round(float(d["litros"]),1)
+            d["preco_medio"] = round(float(d["preco_medio"]),4)
+
+        por_veiculo = df.groupby("veiculo_placa").agg(
+            gasto=("item_valor_total","sum"),
+            litros=("item_quantidade","sum"),
+            n=("veiculo_placa","count")
+        ).reset_index().sort_values("gasto", ascending=False).head(10).fillna(0).to_dict("records")
+        for d in por_veiculo:
+            d["gasto"] = round(float(d["gasto"]),2)
+            d["litros"] = round(float(d["litros"]),1)
+
+        df["dia"] = df["data_abastecimento"].str[:10]
+        por_dia = df.groupby("dia").agg(
+            gasto=("item_valor_total","sum"),
+            litros=("item_quantidade","sum"),
+            n=("dia","count")
+        ).reset_index().sort_values("dia").fillna(0).to_dict("records")
+        for d in por_dia:
+            d["gasto"] = round(float(d["gasto"]),2)
+            d["litros"] = round(float(d["litros"]),1)
+
+        if "pv_municipio" in df.columns:
+            top_municipios = df.groupby(["pv_municipio","pv_uf"]).agg(
+                gasto=("item_valor_total","sum"), n=("pv_municipio","count")
+            ).reset_index().sort_values("gasto", ascending=False).head(5).fillna("").to_dict("records")
+            for d in top_municipios:
+                d["gasto"] = round(float(d["gasto"]),2)
+
     # Manutenção
     r2 = db.table("manutencoes_realizadas").select(
-        "custo_total,placa"
-    ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_ini).lte(
-        "data_manutencao", dt_fim
-    ).execute()
-    
-    total_manut = sum(float(row.get("custo_total") or 0) for row in (r2.data or []))
-    
+        "custo_total,placa,data_manutencao,oficina"
+    ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_ini).lte("data_manutencao", dt_fim).execute()
+    df2 = pd.DataFrame(r2.data or [])
+    total_manut = 0.0
+    por_veiculo_manut = []
+    if not df2.empty:
+        df2["custo_total"] = pd.to_numeric(df2["custo_total"], errors="coerce").fillna(0)
+        total_manut = float(df2["custo_total"].sum())
+        por_veiculo_manut = df2.groupby("placa").agg(
+            gasto=("custo_total","sum"), n=("placa","count")
+        ).reset_index().sort_values("gasto", ascending=False).head(5).fillna(0).to_dict("records")
+        for d in por_veiculo_manut:
+            d["gasto"] = round(float(d["gasto"]),2)
+
+    total_geral = total_comb + total_manut
+    pct_comb  = round(total_comb  / max(total_geral, 1) * 100, 1)
+    pct_manut = round(total_manut / max(total_geral, 1) * 100, 1)
+
     return {
         "periodo": {"inicio": dt_ini, "fim": dt_fim},
+        "kpis": {
+            "total_geral":    round(total_geral, 2),
+            "total_comb":     round(total_comb, 2),
+            "total_litros":   round(total_litros, 2),
+            "total_manut":    round(total_manut, 2),
+            "n_abastec":      len(df) if not df.empty else 0,
+            "n_manut":        len(df2) if not df2.empty else 0,
+            "n_veiculos":     int(df["veiculo_placa"].nunique()) if not df.empty else 0,
+            "preco_medio":    round(float(df["item_valor_unitario"].mean()), 4) if not df.empty else 0,
+            "custo_km":       0,
+            "pct_comb":       pct_comb,
+            "pct_manut":      pct_manut,
+        },
+        "por_combustivel":    por_combustivel,
+        "por_veiculo":        por_veiculo,
+        "por_veiculo_manut":  por_veiculo_manut,
+        "por_dia":            por_dia,
+        "top_municipios":     top_municipios,
         "combustivel": {"total_gasto": round(total_comb, 2), "total_litros": round(total_litros, 2)},
-        "manutencao": {"total_gasto": round(total_manut, 2), "n_registros": len(r2.data or [])},
-        "total_geral": round(total_comb + total_manut, 2),
+        "manutencao":  {"total_gasto": round(total_manut, 2), "n_registros": len(r2.data or [])},
+        "total_geral": round(total_geral, 2),
     }
 
 
