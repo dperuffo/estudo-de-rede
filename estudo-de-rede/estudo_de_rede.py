@@ -29162,6 +29162,11 @@ elif modo == "👥 Análise de Cliente":
 
                 # gráfico: gasto por centro de custo
                 with _col_g2:
+                    # Enriquece _df com centro de custo real
+                    _placa_col_cc = next((c for c in ["_placa","veiculo_placa","placa"] if c in _df.columns), None)
+                    if _placa_col_cc and "_centro_custo_real" not in _df.columns:
+                        _df = _cc_enriquecer_df(_df, col_placa=_placa_col_cc)
+                        _df["_centro_custo"] = _df.get("_centro_custo_real", _df.get("_centro_custo", "Sem centro alocado"))
                     _cc_grp = _df.groupby("_centro_custo")["_valor_total"].sum().sort_values(ascending=True).reset_index()
                     _cc_grp.columns = ["Centro de Custo", "Gasto (R$)"]
                     if len(_cc_grp) > 0:
