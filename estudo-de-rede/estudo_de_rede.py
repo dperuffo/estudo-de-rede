@@ -30258,10 +30258,39 @@ elif modo == "👥 Análise de Cliente":
                 st.markdown("#### 🏢 Potencial de Savings — Rede GF Credenciada")
 
                 if not _tem_gf:
-                    st.info(
-                        "Preços da rede GF não disponíveis. "
-                        "Carregue a planilha de preços em Configurações."
-                    )
+                    # Fallback: usa preço ANP como referência de comparação
+                    _df_anp_ok = _df_sv.dropna(subset=["_preco_anp"]).copy()
+                    if not _df_anp_ok.empty:
+                        _df_anp_ok["_saving_vs_anp"] = (
+                            (_df_anp_ok["_preco_anp"] - _df_anp_ok["_preco_litro"])
+                            * _df_anp_ok["_litros"]
+                        )
+                        _lit_anp   = float(_df_anp_ok["_litros"].sum())
+                        _gasto_anp = float((_df_anp_ok["_preco_litro"] * _df_anp_ok["_litros"]).sum())
+                        _ref_anp   = float((_df_anp_ok["_preco_anp"] * _df_anp_ok["_litros"]).sum())
+                        _sav_anp   = float(_df_anp_ok["_saving_vs_anp"].sum())
+                        _col_a1, _col_a2, _col_a3, _col_a4 = st.columns(4)
+                        _col_a1.metric("💸 Gasto real (período)", _sv_frs(_gasto_anp))
+                        _col_a2.metric("📊 Referência ANP", _sv_frs(_ref_anp))
+                        _col_a3.metric(
+                            "💰 Economia vs ANP" if _sav_anp >= 0 else "⚠️ Gasto acima ANP",
+                            _sv_frs(abs(_sav_anp)),
+                            delta=f"{_sav_anp/max(_ref_anp,1)*100:.1f}%",
+                            delta_color="normal" if _sav_anp >= 0 else "inverse"
+                        )
+                        _col_a4.metric("⛽ Litros analisados", f"{_br_num(_lit_anp,0)} L")
+                        st.caption("📌 Comparativo baseado no preço médio ANP por UF e combustível.")
+                        # Top postos com maior saving vs ANP
+                        if "_nome_posto" in _df_anp_ok.columns:
+                            _top_sv = (_df_anp_ok.groupby("_nome_posto")["_saving_vs_anp"]
+                                .sum().sort_values(ascending=False).head(5).reset_index())
+                            _top_sv.columns = ["Posto", "Economia vs ANP (R$)"]
+                            _top_sv["Economia vs ANP (R$)"] = _top_sv["Economia vs ANP (R$)"].apply(
+                                lambda v: _sv_frs(v))
+                            st.markdown("**🏆 Top 5 postos com melhor preço vs ANP:**")
+                            st.dataframe(_top_sv, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Dados ANP não disponíveis para comparação.")
                 else:
                     _df_gf_ok = _df_sv.dropna(subset=["_saving_vs_gf"]).copy()
                     _litros_gf    = float(_df_gf_ok["_litros"].sum())
