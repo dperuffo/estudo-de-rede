@@ -82,7 +82,7 @@ class _State extends State<AcordosScreen> {
               } else {
                 await ApiService().put('/acordos/${dados["id"]}', data: body);
               }
-              if (mounted) { Navigator.pop(context); await Future.delayed(const Duration(milliseconds: 300)); _load(); }
+              Navigator.pop(context, true);
             } catch (e) {
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
             }

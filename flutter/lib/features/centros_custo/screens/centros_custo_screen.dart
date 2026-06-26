@@ -80,7 +80,7 @@ class _State extends State<CentrosCustoScreen> {
               } else {
                 await ApiService().put('/centros-custo/${dados["id"]}', data: body);
               }
-              if (mounted) { Navigator.pop(context); await Future.delayed(const Duration(milliseconds: 300)); _load(); }
+              Navigator.pop(context, true);
             } catch (e) {
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
             }
