@@ -1294,25 +1294,40 @@ async def geocoding(q: str, user: dict = Depends(usuario_atual)):
 @app.get("/roteirizacao/salvas", tags=["roteirizacao"])
 def listar_rotas_salvas(user: dict = Depends(usuario_atual)):
     db = get_db()
-    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    email = user.get("email", "")
     r = db.table("rotas_salvas").select(
-        "id,nome,origem,destino,paradas,veiculo,criado_em"
-    ).eq("cnpj_frota", cnpj).order("criado_em", desc=True).execute()
-    return {"total": len(r.data or []), "data": r.data or []}
+        "id,nome,tipo,dados,criado_em"
+    ).eq("usuario_email", email).order("criado_em", desc=True).execute()
+    # Expande dados jsonb para facilitar uso no Flutter
+    result = []
+    for row in (r.data or []):
+        dados = row.get("dados") or {}
+        result.append({
+            "id": row["id"],
+            "nome": row["nome"],
+            "criado_em": row.get("criado_em"),
+            "origem": dados.get("origem", {}),
+            "destino": dados.get("destino", {}),
+            "paradas": dados.get("paradas", []),
+            "veiculo": dados.get("veiculo", {}),
+            "resultado": dados.get("resultado"),
+        })
+    return {"total": len(result), "data": result}
 
 @app.post("/roteirizacao/salvas", tags=["roteirizacao"])
 def salvar_rota(body: dict, user: dict = Depends(usuario_atual)):
     db = get_db()
-    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
     payload = {
-        "cnpj_frota":    cnpj,
         "usuario_email": user.get("email", ""),
-        "nome":          body.get("nome", "Rota sem nome"),
-        "origem":        body.get("origem", {}),
-        "destino":       body.get("destino", {}),
-        "paradas":       body.get("paradas", []),
-        "veiculo":       body.get("veiculo", {}),
-        "resultado":     body.get("resultado"),
+        "nome":  body.get("nome", "Rota sem nome"),
+        "tipo":  "roteirizacao",
+        "dados": {
+            "origem":    body.get("origem", {}),
+            "destino":   body.get("destino", {}),
+            "paradas":   body.get("paradas", []),
+            "veiculo":   body.get("veiculo", {}),
+            "resultado": body.get("resultado"),
+        },
     }
     try:
         r = db.table("rotas_salvas").insert(payload).execute()
@@ -1323,9 +1338,9 @@ def salvar_rota(body: dict, user: dict = Depends(usuario_atual)):
 @app.delete("/roteirizacao/salvas/{id}", tags=["roteirizacao"])
 def deletar_rota_salva(id: str, user: dict = Depends(usuario_atual)):
     db = get_db()
-    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    email = user.get("email", "")
     try:
-        db.table("rotas_salvas").delete().eq("id", id).eq("cnpj_frota", cnpj).execute()
+        db.table("rotas_salvas").delete().eq("id", id).eq("usuario_email", email).execute()
         return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
