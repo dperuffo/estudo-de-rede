@@ -287,7 +287,7 @@ def listar_veiculos(user: dict = Depends(usuario_atual)):
     if df.empty:
         return {"total": 0, "data": []}
     
-    df["hodometro"] = pd.to_numeric(df["hodometro"], errors="coerce")
+    df["hodometro"] = pd.to_numeric(df["hodometro"], errors="coerce").fillna(0)
     veiculos = df.groupby("veiculo_placa").agg(
         ultimo_hodometro=("hodometro", "max"),
         ultimo_abastecimento=("data_abastecimento", "max"),
