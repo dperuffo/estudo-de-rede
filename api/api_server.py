@@ -748,22 +748,38 @@ def buscar_postos(
     limit: int = 50,
     user: dict = Depends(usuario_atual)
 ):
+    import pandas as pd
     db = get_db()
-    q = db.table("postos_gf").select(
-        "cnpj,razao_social,municipio,uf,lat,lon,combustiveis"
-    ).limit(limit)
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    q = db.table("profrotas_abastecimentos").select(
+        "pv_cnpj,pv_razao_social,pv_municipio,pv_uf,pv_latitude,pv_longitude,item_nome"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1)
     if uf:
-        q = q.eq("uf", uf.upper().strip())
+        q = q.eq("pv_uf", uf.upper().strip())
     if municipio:
-        q = q.ilike("municipio", f"%{municipio}%")
-    r = q.execute()
-    return {"total": len(r.data or []), "data": r.data or []}
+        q = q.ilike("pv_municipio", f"%{municipio}%")
+    r = q.limit(1000).execute()
+    df = pd.DataFrame(r.data or [])
+    if df.empty:
+        return {"total": 0, "data": []}
+    postos = df.groupby("pv_cnpj").agg(
+        razao_social=("pv_razao_social", "first"),
+        municipio=("pv_municipio", "first"),
+        uf=("pv_uf", "first"),
+        lat=("pv_latitude", "first"),
+        lon=("pv_longitude", "first"),
+        combustiveis=("item_nome", lambda x: ", ".join(sorted(set(x.dropna())))),
+        n_abastecimentos=("pv_cnpj", "count"),
+    ).reset_index().fillna("").head(limit).to_dict("records")
+    return {"total": len(postos), "data": postos}
 
 @app.get("/roteirizacao/ufs", tags=["roteirizacao"])
 def listar_ufs(user: dict = Depends(usuario_atual)):
     db = get_db()
-    r = db.table("postos_gf").select("uf").execute()
-    ufs = sorted(set(x["uf"] for x in (r.data or []) if x.get("uf")))
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("profrotas_abastecimentos").select("pv_uf").eq(
+        "cnpj_frota", cnpj).eq("item_tipo", 1).execute()
+    ufs = sorted(set(x["pv_uf"] for x in (r.data or []) if x.get("pv_uf")))
     return {"data": ufs}
 
 # ── Assistente IA ─────────────────────────────────────────────────
