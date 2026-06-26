@@ -1845,7 +1845,10 @@ def _carregar_abastecimentos_unificados(dias: int = 730) -> pd.DataFrame:
         )
         # Aplica corte por data_abastecimento em TODAS as fontes de forma uniforme.
         # Este é o filtro primário: dados fora do período simplesmente não são retornados.
-        _cutoff_dt = pd.Timestamp.now(tz=None) - pd.Timedelta(days=dias)
+        from datetime import datetime, timezone, timedelta
+        _brasilia = timezone(timedelta(hours=-3))
+        _hoje_br = datetime.now(_brasilia).date()
+        _cutoff_dt = pd.Timestamp(_hoje_br - pd.Timedelta(days=dias))
         _unified = _unified[
             _unified["data_abastecimento"].dt.tz_localize(None).fillna(
                 pd.Timestamp("2000-01-01")) >= _cutoff_dt
