@@ -458,13 +458,17 @@ def resumo_manutencao(
     for d in por_tipo: d["total"] = round(float(d["total"]), 2)
     for d in por_veiculo: d["total"] = round(float(d["total"]), 2)
 
+    # Limpar NaN dos dados brutos
+    df = df.fillna("")
+    ultimas = df.head(20).to_dict("records")
+
     return {
-        "total_gasto": round(float(df["custo_total"].sum()), 2),
+        "total_gasto": round(float(df["custo_total"].astype(float).sum()), 2),
         "n_registros": len(df),
         "n_veiculos": int(df["placa"].nunique()),
         "por_tipo": por_tipo,
         "por_veiculo": por_veiculo,
-        "ultimas": dados[:20],
+        "ultimas": ultimas,
     }
 
 # ── Entry point (desenvolvimento local) ──────────────────────────
