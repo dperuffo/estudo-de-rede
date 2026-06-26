@@ -433,40 +433,43 @@ def resumo_manutencao(
     dt_ini = (date.today() - timedelta(days=dias)).isoformat()
 
     r = db.table("manutencoes_realizadas").select(
-        "placa,tipo_servico,custo_total,data_manutencao,descricao,fornecedor"
+        "placa,custo_total,data_manutencao,hodometro,tecnico,oficina,itens_realizados,obs_gerais"
     ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_ini).order(
         "data_manutencao", desc=True
     ).execute()
 
     dados = r.data or []
     if not dados:
-        return {"total_gasto": 0, "n_registros": 0, "por_tipo": [], "por_veiculo": [], "ultimas": []}
+        return {"total_gasto": 0, "n_registros": 0, "por_oficina": [], "por_veiculo": [], "ultimas": []}
 
     df = pd.DataFrame(dados)
     df["custo_total"] = pd.to_numeric(df["custo_total"], errors="coerce").fillna(0)
 
-    por_tipo = df.groupby("tipo_servico").agg(
+    por_oficina = df.groupby("oficina").agg(
         total=("custo_total", "sum"),
         n=("custo_total", "count")
-    ).reset_index().rename(columns={"tipo_servico": "tipo"}).to_dict("records")
+    ).reset_index().sort_values("total", ascending=False).head(10).to_dict("records")
 
     por_veiculo = df.groupby("placa").agg(
         total=("custo_total", "sum"),
         n=("custo_total", "count")
     ).reset_index().sort_values("total", ascending=False).head(10).to_dict("records")
 
-    for d in por_tipo: d["total"] = round(float(d["total"]), 2)
+    for d in por_oficina: d["total"] = round(float(d["total"]), 2)
     for d in por_veiculo: d["total"] = round(float(d["total"]), 2)
 
-    # Limpar NaN dos dados brutos
     df = df.fillna("")
     ultimas = df.head(20).to_dict("records")
+    for u in ultimas:
+        u["custo_total"] = float(u["custo_total"]) if u["custo_total"] != "" else 0.0
+        if isinstance(u.get("itens_realizados"), list):
+            u["itens_realizados"] = ", ".join(u["itens_realizados"])
 
     return {
-        "total_gasto": round(float(df["custo_total"].astype(float).sum()), 2),
+        "total_gasto": round(float(df["custo_total"].sum()), 2),
         "n_registros": len(df),
         "n_veiculos": int(df["placa"].nunique()),
-        "por_tipo": por_tipo,
+        "por_oficina": por_oficina,
         "por_veiculo": por_veiculo,
         "ultimas": ultimas,
     }

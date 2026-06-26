@@ -20,7 +20,7 @@ class _State extends State<ManutencaoScreen> {
     try {
       final api = ApiService();
       final resumo = await api.get('/manutencao/resumo', params: {'dias': _dias});
-      final lista  = await api.get('/manutencao', params: {'dias': _dias, 'limit': 20});
+      final lista  = await api.get('/manutencao', params: {'limit': 20});
       setState(() { _resumo = resumo; _lista = lista['data'] ?? []; });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
@@ -62,17 +62,17 @@ class _State extends State<ManutencaoScreen> {
                     _kpi('Período', '$_dias dias', Colors.grey),
                   ]),
                   const SizedBox(height: 24),
-                  if ((_resumo!['por_tipo'] as List?)?.isNotEmpty == true) ...[
-                    const Text('Por tipo de serviço', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  if ((_resumo!['por_oficina'] as List?)?.isNotEmpty == true) ...[
+                    const Text('Por oficina', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    ...(_resumo!['por_tipo'] as List).map((t) => Padding(
+                    ...(_resumo!['por_oficina'] as List).map((o) => Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Row(children: [
-                        Expanded(child: Text(t['tipo'] ?? '-')),
-                        Text(fmt.format(t['total'] ?? 0),
+                        Expanded(child: Text(o['oficina'] ?? '-')),
+                        Text(fmt.format(o['total'] ?? 0),
                             style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
                         const SizedBox(width: 8),
-                        Text('(${t["n"]}x)', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                        Text('(${o["n"]}x)', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                       ]),
                     )),
                     const SizedBox(height: 16),
@@ -87,9 +87,11 @@ class _State extends State<ManutencaoScreen> {
                       backgroundColor: Color(0xFFFFEBEE),
                       child: Icon(Icons.build, color: Colors.red),
                     ),
-                    title: Text('${m["placa"] ?? "-"} — ${m["tipo_servico"] ?? "-"}',
+                    title: Text('${m["placa"] ?? "-"} — ${m["oficina"] ?? "-"}',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(m['descricao'] ?? m['fornecedor'] ?? '-',
+                    subtitle: Text(m['itens_realizados'] is List
+                        ? (m['itens_realizados'] as List).join(', ')
+                        : (m['itens_realizados'] ?? m['obs_gerais'] ?? '-'),
                         maxLines: 2, overflow: TextOverflow.ellipsis),
                     trailing: Text(fmt.format(m['custo_total'] ?? 0),
                         style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
