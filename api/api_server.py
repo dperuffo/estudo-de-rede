@@ -1289,6 +1289,47 @@ async def geocoding(q: str, user: dict = Depends(usuario_atual)):
              "lon": float(r["lon"])} for r in results]
     return {"data": data}
 
+
+# ── Rotas Salvas ──────────────────────────────────────────────────
+@app.get("/roteirizacao/salvas", tags=["roteirizacao"])
+def listar_rotas_salvas(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("rotas_salvas").select(
+        "id,nome,origem,destino,paradas,veiculo,criado_em"
+    ).eq("cnpj_frota", cnpj).order("criado_em", desc=True).execute()
+    return {"total": len(r.data or []), "data": r.data or []}
+
+@app.post("/roteirizacao/salvas", tags=["roteirizacao"])
+def salvar_rota(body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    payload = {
+        "cnpj_frota":    cnpj,
+        "usuario_email": user.get("email", ""),
+        "nome":          body.get("nome", "Rota sem nome"),
+        "origem":        body.get("origem", {}),
+        "destino":       body.get("destino", {}),
+        "paradas":       body.get("paradas", []),
+        "veiculo":       body.get("veiculo", {}),
+        "resultado":     body.get("resultado"),
+    }
+    try:
+        r = db.table("rotas_salvas").insert(payload).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/roteirizacao/salvas/{id}", tags=["roteirizacao"])
+def deletar_rota_salva(id: str, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    try:
+        db.table("rotas_salvas").delete().eq("id", id).eq("cnpj_frota", cnpj).execute()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn

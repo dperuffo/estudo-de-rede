@@ -11,8 +11,10 @@ class RoteirizacaoScreen extends StatefulWidget {
 
 class _State extends State<RoteirizacaoScreen> {
   List<dynamic> _veiculos = [];
+  List<dynamic> _rotasSalvas = [];
   Map<String, dynamic>? _resultado;
   bool _loading = false;
+  bool _loadingSalvas = false;
   int _tabIndex = 0;
   String? _veiculoId;
 
@@ -24,7 +26,7 @@ class _State extends State<RoteirizacaoScreen> {
   final _autonomiaCtrl = TextEditingController(text: '10');
   final _combCtrl      = TextEditingController(text: 'Diesel');
 
-  @override void initState() { super.initState(); _carregarVeiculos(); }
+  @override void initState() { super.initState(); _carregarVeiculos(); _carregarRotasSalvas(); }
 
   Future<void> _carregarVeiculos() async {
     try {
@@ -222,16 +224,18 @@ class _State extends State<RoteirizacaoScreen> {
           child: Row(children: [
             _tab('Planejar', 0),
             _tab('Resultado', 1),
-            _tab('Veiculos', 2),
+            _tab('Salvas', 2),
+            _tab('Veiculos', 3),
           ]),
         ),
       ),
-      floatingActionButton: _tabIndex == 2 ? FloatingActionButton(
+      floatingActionButton: _tabIndex == 3 ? FloatingActionButton(
         onPressed: () => _novoOuEditarVeiculo(),
         child: const Icon(Icons.add),
       ) : null,
       body: _tabIndex == 0 ? _buildPlanejamento()
           : _tabIndex == 1 ? _buildResultado()
+          : _tabIndex == 2 ? _buildRotasSalvas()
           : _buildVeiculos(),
     );
   }
@@ -383,12 +387,21 @@ class _State extends State<RoteirizacaoScreen> {
         _kpi('R\$/km', 'R\$ ${resumo["custo_por_km"]}', Colors.orange),
       ]),
       const SizedBox(height: 12),
-      SizedBox(width: double.infinity, child: ElevatedButton.icon(
-        onPressed: _abrirMapaCompleto,
-        icon: const Icon(Icons.map),
-        label: const Text('Abrir Rota no Google Maps'),
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-      )),
+      Row(children: [
+        Expanded(child: ElevatedButton.icon(
+          onPressed: _abrirMapaCompleto,
+          icon: const Icon(Icons.map),
+          label: const Text('Ver no Maps'),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+        )),
+        const SizedBox(width: 8),
+        Expanded(child: ElevatedButton.icon(
+          onPressed: _salvarRota,
+          icon: const Icon(Icons.bookmark),
+          label: const Text('Salvar Rota'),
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D2D6B), foregroundColor: Colors.white),
+        )),
+      ]),
       const SizedBox(height: 16),
       if (sugest.isEmpty)
         const Card(child: Padding(padding: EdgeInsets.all(16),
@@ -432,6 +445,115 @@ class _State extends State<RoteirizacaoScreen> {
       ],
     ]);
   }
+
+  Future<void> _carregarRotasSalvas() async {
+    setState(() => _loadingSalvas = true);
+    try {
+      final r = await ApiService().get('/roteirizacao/salvas');
+      setState(() => _rotasSalvas = r['data'] ?? []);
+    } catch (_) {} finally {
+      if (mounted) setState(() => _loadingSalvas = false);
+    }
+  }
+
+  Future<void> _salvarRota() async {
+    if (_resultado == null) return;
+    final nomeCtrl = TextEditingController(
+        text: '${_resultado!["origem"]?["nome"] ?? "Origem"} → ${_resultado!["destino"]?["nome"] ?? "Destino"}');
+    final ok = await showDialog<bool>(context: context, builder: (dialogCtx) => AlertDialog(
+      title: const Text('Salvar rota'),
+      content: TextField(controller: nomeCtrl,
+          decoration: const InputDecoration(labelText: 'Nome da rota')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
+        ElevatedButton(onPressed: () => Navigator.pop(dialogCtx, true), child: const Text('Salvar')),
+      ],
+    ));
+    if (ok != true) return;
+    try {
+      await ApiService().post('/roteirizacao/salvas', data: {
+        'nome':      nomeCtrl.text.trim(),
+        'origem':    _resultado!['origem'],
+        'destino':   _resultado!['destino'],
+        'paradas':   _paradas,
+        'veiculo':   _resultado!['veiculo'],
+        'resultado': _resultado,
+      });
+      _carregarRotasSalvas();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rota salva com sucesso!')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: \$e')));
+    }
+  }
+
+  void _carregarRotaSalva(Map rota) {
+    setState(() {
+      _origemSel  = Map<String, dynamic>.from(rota['origem'] ?? {});
+      _destinoSel = Map<String, dynamic>.from(rota['destino'] ?? {});
+      _paradas    = List<Map<String, dynamic>>.from(rota['paradas'] ?? []);
+      final v = rota['veiculo'] as Map? ?? {};
+      _tanqueCtrl.text    = (v['tanque'] ?? 80).toString();
+      _autonomiaCtrl.text = (v['autonomia'] ?? 10).toString();
+      _combCtrl.text      = v['combustivel'] ?? 'Diesel';
+      _resultado = rota['resultado'] != null ? Map<String, dynamic>.from(rota['resultado']) : null;
+      _tabIndex  = 0;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Rota carregada! Clique em Calcular Rota para recalcular.')));
+  }
+
+  Future<void> _deletarRotaSalva(String id) async {
+    final ok = await showDialog<bool>(context: context, builder: (dialogCtx) => AlertDialog(
+      title: const Text('Excluir rota'),
+      content: const Text('Deseja excluir esta rota salva?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancelar')),
+        ElevatedButton(onPressed: () => Navigator.pop(dialogCtx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir', style: TextStyle(color: Colors.white))),
+      ],
+    ));
+    if (ok != true) return;
+    try {
+      await ApiService().delete('/roteirizacao/salvas/\$id');
+      setState(() => _rotasSalvas.removeWhere((r) => r['id'].toString() == id));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: \$e')));
+    }
+  }
+
+  Widget _buildRotasSalvas() => _loadingSalvas
+      ? const Center(child: CircularProgressIndicator())
+      : RefreshIndicator(
+          onRefresh: _carregarRotasSalvas,
+          child: _rotasSalvas.isEmpty
+              ? const Center(child: Text('Nenhuma rota salva.\nCalcule uma rota e salve!', textAlign: TextAlign.center))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _rotasSalvas.length,
+                  itemBuilder: (_, i) {
+                    final r = _rotasSalvas[i];
+                    final orig = r['origem'] as Map? ?? {};
+                    final dest = r['destino'] as Map? ?? {};
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: const CircleAvatar(backgroundColor: Color(0xFFE3F2FD),
+                            child: Icon(Icons.route, color: Colors.blue)),
+                        title: Text(r['nome'] ?? '-',
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('\${orig["nome"] ?? "-"} → \${dest["nome"] ?? "-"}'),
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(icon: const Icon(Icons.play_arrow, color: Colors.green),
+                              onPressed: () => _carregarRotaSalva(r)),
+                          IconButton(icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deletarRotaSalva(r['id'].toString())),
+                        ]),
+                      ),
+                    );
+                  }),
+        );
 
   Widget _buildVeiculos() => _veiculos.isEmpty
       ? const Center(child: Text('Nenhum veiculo cadastrado.\nToque em + para adicionar.', textAlign: TextAlign.center))
