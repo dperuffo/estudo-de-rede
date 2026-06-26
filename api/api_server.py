@@ -27,6 +27,12 @@ JWT_EXPIRY  = 60 * 24 * 7  # 7 dias em minutos
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
+def _hoje_br():
+    """Retorna a data atual no fuso horario de Brasilia (UTC-3)."""
+    from datetime import datetime, timezone, timedelta
+    brasilia = timezone(timedelta(hours=-3))
+    return datetime.now(brasilia).date()
+
 app = FastAPI(
     title="FNI Gestão de Frotas API",
     description="API REST para o app mobile FNI — Flutter",
@@ -203,8 +209,7 @@ def listar_abastecimentos(
     if not cnpj:
         raise HTTPException(status_code=400, detail="CNPJ da frota não encontrado")
     
-    from datetime import date, timedelta
-    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=dias)).isoformat()
     
     q = (db.table("profrotas_abastecimentos")
          .select("id,data_abastecimento,veiculo_placa,item_nome,item_quantidade,"
@@ -239,7 +244,7 @@ def resumo_abastecimentos(
     
     db = get_db()
     cnpj = user.get("cnpj_frota", "")
-    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=dias)).isoformat()
     
     r = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,item_nome,item_quantidade,item_valor_total,veiculo_placa"
@@ -381,7 +386,7 @@ def resumo_financeiro(
         last_day = calendar.monthrange(int(ano), int(m))[1]
         dt_fim = f"{ano}-{m}-{last_day:02d}"
     else:
-        hoje = date.today()
+        hoje = _hoje_br()
         dt_ini = f"{hoje.year}-{hoje.month:02d}-01"
         dt_fim = hoje.isoformat()
 
@@ -500,7 +505,7 @@ def resumo_manutencao(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=dias)).isoformat()
 
     r = db.table("manutencoes_realizadas").select(
         "placa,custo_total,data_manutencao,hodometro,tecnico,oficina,itens_realizados,obs_gerais"
@@ -555,7 +560,7 @@ def dashboard_resumo(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=dias)).isoformat()
 
     # Abastecimentos
     r = db.table("profrotas_abastecimentos").select(
@@ -564,7 +569,7 @@ def dashboard_resumo(
 
     df = pd.DataFrame(r.data or [])
     if df.empty:
-        return {"periodo": {"inicio": dt_ini, "fim": date.today().isoformat()},
+        return {"periodo": {"inicio": dt_ini, "fim": _hoje_br().isoformat()},
                 "abastecimentos": {}, "frota": {}, "manutencao": {}, "top_ufs": [], "top_veiculos": []}
 
     df["item_quantidade"]  = pd.to_numeric(df["item_quantidade"],  errors="coerce").fillna(0)
@@ -596,7 +601,7 @@ def dashboard_resumo(
     total_manut = sum(float(x.get("custo_total") or 0) for x in (r2.data or []))
 
     return {
-        "periodo": {"inicio": dt_ini, "fim": date.today().isoformat()},
+        "periodo": {"inicio": dt_ini, "fim": _hoje_br().isoformat()},
         "abastecimentos": {
             "total_litros": round(float(df["item_quantidade"].sum()), 2),
             "total_gasto":  round(float(df["item_valor_total"].sum()), 2),
@@ -621,7 +626,7 @@ def inteligencia_resumo(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=dias)).isoformat()
 
     r = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,item_quantidade,item_valor_total,item_valor_unitario,veiculo_placa,pv_uf,pv_municipio,pv_razao_social"
@@ -688,7 +693,7 @@ def precos_variacao(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=dias)).isoformat()
 
     r = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,item_nome,item_valor_unitario,pv_uf"
@@ -734,7 +739,7 @@ def relatorio_abastecimentos(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=dias)).isoformat()
 
     q = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_razao_social,pv_municipio,pv_uf,hodometro"
@@ -869,7 +874,7 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
         return {"resposta": "Assistente IA nao configurado. Configure ANTHROPIC_API_KEY no Railway."}
 
     db = get_db()
-    dt_ini = (date.today() - timedelta(days=90)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=90)).isoformat()
     try:
         r = db.table("profrotas_abastecimentos").select(
             "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,motorista_nome"
@@ -916,7 +921,7 @@ MANUTENCAO (ultimos 90 dias):
     sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI.
 O usuario e {user.get("nome", "gestor")} com perfil {user.get("perfil", "usuario")}.
 CNPJ da frota: {cnpj}.
-Data atual: {date.today().isoformat()}
+Data atual: {_hoje_br().isoformat()}
 
 {resumo}
 
@@ -1171,7 +1176,7 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
     # 2. Buscar postos da frota ao longo da rota
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = (date.today() - timedelta(days=180)).isoformat()
+    dt_ini = (_hoje_br() - timedelta(days=180)).isoformat()
 
     r = db.table("profrotas_abastecimentos").select(
         "pv_cnpj,pv_razao_social,pv_municipio,pv_uf,pv_latitude,pv_longitude,item_nome,item_valor_unitario"
@@ -1420,7 +1425,7 @@ def comece_seu_dia(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    hoje = date.today()
+    hoje = _hoje_br()
     dt_ini = (hoje - timedelta(days=dias)).isoformat()
     dt_ontem = (hoje - timedelta(days=1)).isoformat()
 
