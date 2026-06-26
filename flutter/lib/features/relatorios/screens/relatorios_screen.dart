@@ -17,9 +17,9 @@ class _State extends State<RelatoriosScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final params = {'dias': _dias};
-      if (_placaCtrl.text.isNotEmpty) params['placa'] = _placaCtrl.text as dynamic;
-      if (_ufCtrl.text.isNotEmpty)    params['uf']    = _ufCtrl.text as dynamic;
+      final params = <String, dynamic>{'dias': _dias};
+      if (_placaCtrl.text.isNotEmpty) params['placa'] = _placaCtrl.text;
+      if (_ufCtrl.text.isNotEmpty)    params['uf']    = _ufCtrl.text;
       final r = await ApiService().get('/relatorios/abastecimentos', params: params);
       setState(() => _dados = r['data'] ?? []);
     } catch (e) {
@@ -33,7 +33,7 @@ class _State extends State<RelatoriosScreen> {
   Widget build(BuildContext context) {
     final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     return Scaffold(
-      appBar: AppBar(title: const Text('Relatórios')),
+      appBar: AppBar(title: const Text('Relatorios')),
       body: Column(children: [
         Padding(padding: const EdgeInsets.all(12), child: Column(children: [
           Row(children: [
@@ -51,7 +51,7 @@ class _State extends State<RelatoriosScreen> {
             const SizedBox(width: 8),
             DropdownButton<int>(
               value: _dias,
-              items: [7,15,30,60,90].map((d) => DropdownMenuItem(value: d, child: Text('$d d'))).toList(),
+              items: [7,15,30,60,90].map((d) => DropdownMenuItem(value: d, child: Text('${d}d'))).toList(),
               onChanged: (v) => setState(() => _dias = v!),
             ),
           ]),

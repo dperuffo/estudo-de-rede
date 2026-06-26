@@ -33,10 +33,9 @@ class _State extends State<InteligenciaScreen> {
     final porUf  = (_dados?['por_uf']  as List?) ?? [];
     final porMun = (_dados?['por_municipio'] as List?) ?? [];
     final porVei = (_dados?['por_veiculo'] as List?) ?? [];
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inteligência'),
+        title: const Text('Inteligencia'),
         actions: [
           DropdownButton<int>(
             value: _dias,
@@ -50,8 +49,8 @@ class _State extends State<InteligenciaScreen> {
           preferredSize: const Size.fromHeight(48),
           child: Row(children: [
             _tab('Por UF', 0),
-            _tab('Por Município', 1),
-            _tab('Por Veículo', 2),
+            _tab('Por Municipio', 1),
+            _tab('Por Veiculo', 2),
           ]),
         ),
       ),
@@ -59,7 +58,7 @@ class _State extends State<InteligenciaScreen> {
           : RefreshIndicator(onRefresh: _load, child: Builder(builder: (_) {
               final lista = _tabIndex == 0 ? porUf : _tabIndex == 1 ? porMun : porVei;
               final keyField = _tabIndex == 0 ? 'pv_uf' : _tabIndex == 1 ? 'pv_municipio' : 'veiculo_placa';
-              if (lista.isEmpty) return const Center(child: Text('Sem dados para o período'));
+              if (lista.isEmpty) return const Center(child: Text('Sem dados para o periodo'));
               return ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: lista.length,
