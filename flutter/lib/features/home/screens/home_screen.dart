@@ -30,17 +30,10 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildDrawer(BuildContext context) => Drawer(
     child: ListView(padding: EdgeInsets.zero, children: [
-      const DrawerHeader(
-        decoration: BoxDecoration(color: Color(0xFF0D2D6B)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Icon(Icons.local_shipping, color: Colors.white, size: 36),
-            SizedBox(height: 8),
-            Text('FNI Gestao de Frotas',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
+      DrawerHeader(
+        decoration: const BoxDecoration(color: Color(0xFF0D2D6B)),
+        child: Center(
+          child: Image.asset('assets/logo_fni.png', height: 90, fit: BoxFit.contain),
         ),
       ),
       _grp('Inicio'),

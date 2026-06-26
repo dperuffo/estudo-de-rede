@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user != null && mounted) context.go('/');
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: ${e}'), backgroundColor: Colors.red));
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -35,20 +35,14 @@ class _LoginScreenState extends State<LoginScreen> {
       child: SafeArea(child: Center(child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-            width: 120, height: 120,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: const Icon(Icons.local_shipping, size: 64, color: Color(0xFF00B4D8)),
-          ),
+          // Logo FNI
+          Image.asset('assets/logo_fni.png', height: 140, fit: BoxFit.contain),
           const SizedBox(height: 32),
-          const Text('FNI Gestao de Frotas',
-              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          const Text('Gestao de Frotas',
+              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           const Text('Plataforma de inteligencia de rede',
-              style: TextStyle(color: Colors.white70)),
+              style: TextStyle(color: Colors.white70, fontSize: 14)),
           const SizedBox(height: 64),
           SizedBox(
             width: double.infinity, height: 56,
@@ -57,8 +51,9 @@ class _LoginScreenState extends State<LoginScreen> {
               icon: _loading
                   ? const SizedBox(width: 20, height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.login),
-              label: Text(_loading ? 'Entrando...' : 'Continuar com Google'),
+                  : Image.asset('assets/logo_fni.png', height: 24),
+              label: Text(_loading ? 'Entrando...' : 'Continuar com Google',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xFF0D2D6B),
@@ -66,6 +61,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 32),
+          const Text('Fleet Network Intelligence',
+              style: TextStyle(color: Colors.white38, fontSize: 12)),
         ]),
       ))),
     ),
