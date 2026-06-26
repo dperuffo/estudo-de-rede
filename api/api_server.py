@@ -736,8 +736,9 @@ def excluir_usuario(email: str, user: dict = Depends(usuario_atual)):
 def listar_acordos(user: dict = Depends(usuario_atual)):
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    r = db.table("acordos_precos").select("*").eq("cnpj_frota", cnpj).order(
-        "created_at", desc=True).execute()
+    r = db.table("acordos_precos").select(
+        "id,cnpj_posto,nome_posto,combustivel,preco_negociado,va_desconto,dt_vigencia_inicio,dt_vigencia_fim,ativo"
+    ).eq("cnpj_frota", cnpj).eq("ativo", True).execute()
     return {"total": len(r.data or []), "data": r.data or []}
 
 # ── Roteirização ──────────────────────────────────────────────────
