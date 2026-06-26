@@ -33,6 +33,11 @@ def _hoje_br():
     brasilia = timezone(timedelta(hours=-3))
     return datetime.now(brasilia).date()
 
+def _dt_fim_br():
+    """Retorna amanha em Brasilia para usar como limite superior (exclusive)."""
+    from datetime import timedelta
+    return (_hoje_br() + timedelta(days=1)).isoformat()
+
 app = FastAPI(
     title="FNI Gestão de Frotas API",
     description="API REST para o app mobile FNI — Flutter",
@@ -209,7 +214,7 @@ def listar_abastecimentos(
     if not cnpj:
         raise HTTPException(status_code=400, detail="CNPJ da frota não encontrado")
     
-    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias-1)).isoformat()
+    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias)).isoformat()
     
     q = (db.table("profrotas_abastecimentos")
          .select("id,data_abastecimento,veiculo_placa,item_nome,item_quantidade,"
@@ -244,13 +249,11 @@ def resumo_abastecimentos(
     
     db = get_db()
     cnpj = user.get("cnpj_frota", "")
-    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias-1)).isoformat()
+    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias)).isoformat()
     
     r = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,item_nome,item_quantidade,item_valor_total,veiculo_placa"
-    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
-        "data_abastecimento", dt_ini
-    ).execute()
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).execute()
     
     df = pd.DataFrame(r.data or [])
     if df.empty:
@@ -505,7 +508,7 @@ def resumo_manutencao(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias-1)).isoformat()
+    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias)).isoformat()
 
     r = db.table("manutencoes_realizadas").select(
         "placa,custo_total,data_manutencao,hodometro,tecnico,oficina,itens_realizados,obs_gerais"
@@ -560,12 +563,12 @@ def dashboard_resumo(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias-1)).isoformat()
+    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias)).isoformat()
 
     # Abastecimentos
     r = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,item_quantidade,item_valor_total,veiculo_placa,pv_uf,pv_municipio"
-    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).execute()
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).execute()
 
     df = pd.DataFrame(r.data or [])
     if df.empty:
@@ -626,11 +629,11 @@ def inteligencia_resumo(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias-1)).isoformat()
+    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias)).isoformat()
 
     r = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,item_quantidade,item_valor_total,item_valor_unitario,veiculo_placa,pv_uf,pv_municipio,pv_razao_social"
-    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).execute()
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).execute()
 
     df = pd.DataFrame(r.data or [])
     if df.empty:
@@ -693,13 +696,11 @@ def precos_variacao(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias-1)).isoformat()
+    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias)).isoformat()
 
     r = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,item_nome,item_valor_unitario,pv_uf"
-    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
-        "data_abastecimento", dt_ini
-    ).order("data_abastecimento").execute()
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).order("data_abastecimento").execute()
 
     df = pd.DataFrame(r.data or [])
     if df.empty:
@@ -739,13 +740,11 @@ def relatorio_abastecimentos(
     from datetime import date, timedelta
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias-1)).isoformat()
+    dt_ini = _hoje_br().isoformat() if dias <= 1 else (_hoje_br() - timedelta(days=dias)).isoformat()
 
     q = db.table("profrotas_abastecimentos").select(
         "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_razao_social,pv_municipio,pv_uf,hodometro"
-    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
-        "data_abastecimento", dt_ini
-    ).order("data_abastecimento", desc=True).limit(500)
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).order("data_abastecimento", desc=True).limit(500)
 
     if placa:
         q = q.eq("veiculo_placa", placa.upper().strip())
@@ -878,7 +877,7 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
     try:
         r = db.table("profrotas_abastecimentos").select(
             "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,motorista_nome"
-        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).execute()
+        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).execute()
         df = pd.DataFrame(r.data or [])
         if not df.empty:
             for col in ["item_quantidade","item_valor_unitario","item_valor_total"]:
@@ -1180,7 +1179,7 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
 
     r = db.table("profrotas_abastecimentos").select(
         "pv_cnpj,pv_razao_social,pv_municipio,pv_uf,pv_latitude,pv_longitude,item_nome,item_valor_unitario"
-    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).execute()
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).execute()
 
     import pandas as pd
     df = pd.DataFrame(r.data or [])
@@ -1434,7 +1433,7 @@ def comece_seu_dia(
         "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,motorista_nome,pv_municipio,pv_uf"
     ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
         "data_abastecimento", dt_ini
-    ).lte("data_abastecimento", hoje.isoformat() + "T23:59:59").order("data_abastecimento", desc=True).execute()
+    ).lt("data_abastecimento", (hoje + timedelta(days=1)).isoformat()).order("data_abastecimento", desc=True).execute()
 
     df = pd.DataFrame(r.data or [])
 
