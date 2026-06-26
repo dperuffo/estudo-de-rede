@@ -686,6 +686,129 @@ def relatorio_abastecimentos(
 
     return {"total": len(data), "data": data}
 
+
+# ── Admin: Usuários ───────────────────────────────────────────────
+@app.get("/admin/usuarios", tags=["admin"])
+def listar_usuarios(user: dict = Depends(usuario_atual)):
+    if user.get("perfil") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a admins")
+    db = get_db()
+    r = db.table("usuarios_app").select(
+        "email,nome,perfil,cnpj_vinculado,empresa_nome,ativo,created_at"
+    ).order("created_at", desc=True).execute()
+    return {"total": len(r.data or []), "data": r.data or []}
+
+@app.post("/admin/usuarios", tags=["admin"])
+def criar_usuario(body: dict, user: dict = Depends(usuario_atual)):
+    if user.get("perfil") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a admins")
+    db = get_db()
+    try:
+        r = db.table("usuarios_app").insert(body).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/admin/usuarios/{email}", tags=["admin"])
+def atualizar_usuario(email: str, body: dict, user: dict = Depends(usuario_atual)):
+    if user.get("perfil") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a admins")
+    db = get_db()
+    try:
+        r = db.table("usuarios_app").update(body).eq("email", email).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/admin/usuarios/{email}", tags=["admin"])
+def excluir_usuario(email: str, user: dict = Depends(usuario_atual)):
+    if user.get("perfil") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a admins")
+    db = get_db()
+    try:
+        db.table("usuarios_app").delete().eq("email", email).execute()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ── Acordos de Preço ──────────────────────────────────────────────
+@app.get("/acordos", tags=["acordos"])
+def listar_acordos(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("acordos_preco").select("*").eq("cnpj_frota", cnpj).order(
+        "created_at", desc=True).execute()
+    return {"total": len(r.data or []), "data": r.data or []}
+
+# ── Roteirização ──────────────────────────────────────────────────
+@app.get("/roteirizacao/postos", tags=["roteirizacao"])
+def buscar_postos(
+    uf: Optional[str] = None,
+    municipio: Optional[str] = None,
+    limit: int = 50,
+    user: dict = Depends(usuario_atual)
+):
+    db = get_db()
+    q = db.table("postos_gf").select(
+        "cnpj,razao_social,municipio,uf,lat,lon,combustiveis"
+    ).limit(limit)
+    if uf:
+        q = q.eq("uf", uf.upper().strip())
+    if municipio:
+        q = q.ilike("municipio", f"%{municipio}%")
+    r = q.execute()
+    return {"total": len(r.data or []), "data": r.data or []}
+
+@app.get("/roteirizacao/ufs", tags=["roteirizacao"])
+def listar_ufs(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    r = db.table("postos_gf").select("uf").execute()
+    ufs = sorted(set(x["uf"] for x in (r.data or []) if x.get("uf")))
+    return {"data": ufs}
+
+# ── Assistente IA ─────────────────────────────────────────────────
+@app.post("/assistente/chat", tags=["assistente"])
+async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
+    import httpx
+    pergunta = body.get("pergunta", "")
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    if not pergunta:
+        raise HTTPException(status_code=400, detail="Pergunta nao informada")
+
+    sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI.
+O usuario e {user.get('nome', 'gestor')} com perfil {user.get('perfil', 'usuario')}.
+CNPJ da frota: {cnpj}.
+Responda de forma objetiva e pratica sobre gestao de frotas, abastecimentos, manutencao e custos.
+Responda sempre em portugues brasileiro."""
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not anthropic_key:
+        return {"resposta": "Assistente IA nao configurado. Configure ANTHROPIC_API_KEY no Railway."}
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": anthropic_key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            json={"model": "claude-haiku-4-5-20251001", "max_tokens": 1024,
+                  "system": sistema,
+                  "messages": [{"role": "user", "content": pergunta}]},
+            timeout=30,
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="Erro ao chamar IA")
+    data = resp.json()
+    resposta = data["content"][0]["text"] if data.get("content") else "Sem resposta"
+    return {"resposta": resposta}
+
+# ── Centro de Custo ───────────────────────────────────────────────
+@app.get("/centros-custo", tags=["centros_custo"])
+def listar_centros_custo(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("centros_custo").select("*").eq("cnpj_frota", cnpj).execute()
+    return {"total": len(r.data or []), "data": r.data or []}
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn

@@ -43,17 +43,26 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
+      _grp('Gestao da Frota'),
       _item(context, Icons.dashboard,         'Dashboard',          '/'),
       _item(context, Icons.local_gas_station, 'Abastecimentos',     '/abastecimentos'),
       _item(context, Icons.directions_car,    'Frota',              '/frota'),
       _item(context, Icons.build,             'Manutencao',         '/manutencao'),
       _item(context, Icons.attach_money,      'Financeiro',         '/financeiro'),
+      _item(context, Icons.business,          'Centros de Custo',   '/centros-custo'),
+      _item(context, Icons.handshake,         'Acordos de Preco',   '/acordos'),
       const Divider(),
+      _grp('Analise e Inteligencia'),
       _item(context, Icons.psychology,        'Inteligencia',       '/inteligencia'),
       _item(context, Icons.trending_up,       'Variacao de Precos', '/precos'),
       _item(context, Icons.description,       'Relatorios',         '/relatorios'),
+      _item(context, Icons.smart_toy,         'Assistente IA',      '/assistente'),
+      const Divider(),
+      _grp('Rede de Postos'),
+      _item(context, Icons.route,             'Roteirizacao',       '/roteirizacao'),
       const Divider(),
       _item(context, Icons.support_agent,     'Suporte',            '/tickets'),
+      _item(context, Icons.admin_panel_settings, 'Admin',           '/admin'),
       const Divider(),
       ListTile(
         leading: const Icon(Icons.logout, color: Colors.red),
@@ -66,9 +75,15 @@ class HomeScreen extends StatelessWidget {
     ]),
   );
 
+  Widget _grp(String label) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+    child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+  );
+
   ListTile _item(BuildContext context, IconData icon, String label, String route) => ListTile(
-    leading: Icon(icon, color: const Color(0xFF0D2D6B)),
-    title: Text(label),
+    dense: true,
+    leading: Icon(icon, color: const Color(0xFF0D2D6B), size: 20),
+    title: Text(label, style: const TextStyle(fontSize: 14)),
     onTap: () { Navigator.pop(context); context.go(route); },
   );
 
