@@ -22,7 +22,6 @@ __pycache__/
 .Python
 *.egg-info/
 dist/
-build/
 .eggs/
 .pytest_cache/
 .mypy_cache/
