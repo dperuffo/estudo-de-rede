@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../auth/screens/login_screen.dart';
 import '../../../core/services/auth_service.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -11,8 +10,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
     return Scaffold(
-      appBar: null,
-      drawer: _buildDrawer(context, loc),
+      drawer: _buildDrawer(context),
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _idx(loc),
@@ -25,30 +23,41 @@ class HomeScreen extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.support_agent),     label: 'Suporte'),
         ],
       ),
+      floatingActionButton: FloatingActionButton.small(
+        onPressed: () => Scaffold.of(context).openDrawer(),
+        backgroundColor: const Color(0xFF0D2D6B),
+        child: const Icon(Icons.menu, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startTop,
     );
   }
 
-  Widget _buildDrawer(BuildContext context, String loc) => Drawer(
+  Widget _buildDrawer(BuildContext context) => Drawer(
     child: ListView(padding: EdgeInsets.zero, children: [
       const DrawerHeader(
         decoration: BoxDecoration(color: Color(0xFF0D2D6B)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [
-          Icon(Icons.local_shipping, color: Colors.white, size: 36),
-          SizedBox(height: 8),
-          Text('FNI Gestão de Frotas', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Icon(Icons.local_shipping, color: Colors.white, size: 36),
+            SizedBox(height: 8),
+            Text('FNI Gestao de Frotas',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
-      _drawerItem(context, Icons.dashboard,         'Dashboard',        '/'),
-      _drawerItem(context, Icons.local_gas_station, 'Abastecimentos',   '/abastecimentos'),
-      _drawerItem(context, Icons.directions_car,    'Frota',            '/frota'),
-      _drawerItem(context, Icons.build,             'Manutenção',       '/manutencao'),
-      _drawerItem(context, Icons.attach_money,      'Financeiro',       '/financeiro'),
+      _item(context, Icons.dashboard,         'Dashboard',          '/'),
+      _item(context, Icons.local_gas_station, 'Abastecimentos',     '/abastecimentos'),
+      _item(context, Icons.directions_car,    'Frota',              '/frota'),
+      _item(context, Icons.build,             'Manutencao',         '/manutencao'),
+      _item(context, Icons.attach_money,      'Financeiro',         '/financeiro'),
       const Divider(),
-      _drawerItem(context, Icons.psychology,        'Inteligência',     '/inteligencia'),
-      _drawerItem(context, Icons.trending_up,       'Variação de Preços','/precos'),
-      _drawerItem(context, Icons.description,       'Relatórios',       '/relatorios'),
+      _item(context, Icons.psychology,        'Inteligencia',       '/inteligencia'),
+      _item(context, Icons.trending_up,       'Variacao de Precos', '/precos'),
+      _item(context, Icons.description,       'Relatorios',         '/relatorios'),
       const Divider(),
-      _drawerItem(context, Icons.support_agent,     'Suporte',          '/tickets'),
+      _item(context, Icons.support_agent,     'Suporte',            '/tickets'),
       const Divider(),
       ListTile(
         leading: const Icon(Icons.logout, color: Colors.red),
@@ -61,7 +70,7 @@ class HomeScreen extends StatelessWidget {
     ]),
   );
 
-  ListTile _drawerItem(BuildContext context, IconData icon, String label, String route) => ListTile(
+  ListTile _item(BuildContext context, IconData icon, String label, String route) => ListTile(
     leading: Icon(icon, color: const Color(0xFF0D2D6B)),
     title: Text(label),
     onTap: () { Navigator.pop(context); context.go(route); },
