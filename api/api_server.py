@@ -982,10 +982,7 @@ def deletar_acordo(id: str, user: dict = Depends(usuario_atual)):
 def listar_perfis_veiculo(user: dict = Depends(usuario_atual)):
     db = get_db()
     email = user.get("email", "")
-    cnpj  = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    r = db.table("perfis_veiculo").select("*").eq("empresa_id", cnpj).execute()
-    if not r.data:
-        r = db.table("perfis_veiculo").select("*").eq("usuario_email", email).execute()
+    r = db.table("perfis_veiculo").select("*").eq("usuario_email", email).execute()
     return {"total": len(r.data or []), "data": r.data or []}
 
 @app.post("/frota/perfis", tags=["frota"])
@@ -1022,10 +1019,7 @@ def deletar_perfil_veiculo(id: str, user: dict = Depends(usuario_atual)):
 def veiculos_para_rota(user: dict = Depends(usuario_atual)):
     db = get_db()
     email = user.get("email", "")
-    cnpj  = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    r = db.table("perfis_veiculo").select("*").eq("empresa_id", cnpj).execute()
-    if not r.data:
-        r = db.table("perfis_veiculo").select("*").eq("usuario_email", email).execute()
+    r = db.table("perfis_veiculo").select("*").eq("usuario_email", email).execute()
     return {"total": len(r.data or []), "data": r.data or []}
 
 
