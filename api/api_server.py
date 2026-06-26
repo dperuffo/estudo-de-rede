@@ -418,6 +418,55 @@ def resumo_financeiro(
         "total_geral": round(total_comb + total_manut, 2),
     }
 
+
+# ── Manutenção Resumo ─────────────────────────────────────────────
+@app.get("/manutencao/resumo", tags=["manutencao"])
+def resumo_manutencao(
+    dias: int = 30,
+    user: dict = Depends(usuario_atual)
+):
+    """Resumo de manutenções: total gasto, por tipo, por veículo."""
+    import pandas as pd
+    from datetime import date, timedelta
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+
+    r = db.table("manutencoes_realizadas").select(
+        "placa,tipo_servico,custo_total,data_manutencao,descricao,fornecedor"
+    ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_ini).order(
+        "data_manutencao", desc=True
+    ).execute()
+
+    dados = r.data or []
+    if not dados:
+        return {"total_gasto": 0, "n_registros": 0, "por_tipo": [], "por_veiculo": [], "ultimas": []}
+
+    df = pd.DataFrame(dados)
+    df["custo_total"] = pd.to_numeric(df["custo_total"], errors="coerce").fillna(0)
+
+    por_tipo = df.groupby("tipo_servico").agg(
+        total=("custo_total", "sum"),
+        n=("custo_total", "count")
+    ).reset_index().rename(columns={"tipo_servico": "tipo"}).to_dict("records")
+
+    por_veiculo = df.groupby("placa").agg(
+        total=("custo_total", "sum"),
+        n=("custo_total", "count")
+    ).reset_index().sort_values("total", ascending=False).head(10).to_dict("records")
+
+    for d in por_tipo: d["total"] = round(float(d["total"]), 2)
+    for d in por_veiculo: d["total"] = round(float(d["total"]), 2)
+
+    return {
+        "total_gasto": round(float(df["custo_total"].sum()), 2),
+        "n_registros": len(df),
+        "n_veiculos": int(df["placa"].nunique()),
+        "por_tipo": por_tipo,
+        "por_veiculo": por_veiculo,
+        "ultimas": dados[:20],
+    }
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn
