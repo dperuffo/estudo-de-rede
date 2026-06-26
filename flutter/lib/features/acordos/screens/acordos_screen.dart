@@ -27,12 +27,12 @@ class _State extends State<AcordosScreen> {
   }
 
   Future<void> _deletar(String id) async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+    final ok = await showDialog<bool>(context: context, builder: (dialogCtx) => AlertDialog(
       title: const Text('Confirmar exclusao'),
       content: const Text('Deseja desativar este acordo?'),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () => Navigator.pop(context, true),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancelar')),
+        ElevatedButton(onPressed: () => Navigator.pop(dialogCtx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Desativar', style: TextStyle(color: Colors.white))),
       ],
