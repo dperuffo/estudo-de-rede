@@ -822,8 +822,8 @@ Por combustivel:
 Top 5 veiculos por gasto:
 {df.groupby("veiculo_placa")["item_valor_total"].sum().sort_values(ascending=False).head(5).to_string()}
 
-Por mes:
-{df.groupby(pd.to_datetime(df["data_abastecimento"]).dt.to_period("M").astype(str))["item_valor_total"].sum().to_string()}
+Por mes (aproximado):
+{df.groupby(df["data_abastecimento"].str[:7])["item_valor_total"].sum().to_string()}
 """
         else:
             resumo = "Nenhum dado de abastecimento encontrado para os ultimos 90 dias."
@@ -840,7 +840,7 @@ MANUTENCAO (ultimos 90 dias):
 - Veiculos: {df2["placa"].nunique()}
 """
     except Exception as e:
-        resumo = f"Erro ao buscar dados: {e}"
+        resumo = f"Dados disponiveis (erro ao processar detalhes: {type(e).__name__})"
 
     sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI.
 O usuario e {user.get("nome", "gestor")} com perfil {user.get("perfil", "usuario")}.
