@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/widgets/menu_button.dart';
 
@@ -9,36 +10,63 @@ class RoteirizacaoScreen extends StatefulWidget {
 }
 
 class _State extends State<RoteirizacaoScreen> {
-  List<dynamic> _postos   = [];
   List<dynamic> _veiculos = [];
-  List<String>  _ufs      = [];
-  bool _loading           = false;
-  String? _ufSelecionada;
-  String? _veiculoSelecionado;
-  final _municipioCtrl = TextEditingController();
+  Map<String, dynamic>? _resultado;
+  bool _loading = false;
   int _tabIndex = 0;
+  String? _veiculoId;
 
-  @override void initState() { super.initState(); _carregarInicial(); }
+  final _origemCtrl  = TextEditingController();
+  final _destinoCtrl = TextEditingController();
+  final _origemLat   = TextEditingController();
+  final _origemLon   = TextEditingController();
+  final _destinoLat  = TextEditingController();
+  final _destinoLon  = TextEditingController();
+  final _tanqueCtrl  = TextEditingController(text: '80');
+  final _autonomiaCtrl = TextEditingController(text: '10');
+  final _combCtrl    = TextEditingController(text: 'Diesel');
 
-  Future<void> _carregarInicial() async {
+  @override void initState() { super.initState(); _carregarVeiculos(); }
+
+  Future<void> _carregarVeiculos() async {
     try {
-      final ufs = await ApiService().get('/roteirizacao/ufs');
-      final veic = await ApiService().get('/roteirizacao/veiculos');
-      setState(() {
-        _ufs      = List<String>.from(ufs['data'] ?? []);
-        _veiculos = veic['data'] ?? [];
-      });
+      final r = await ApiService().get('/roteirizacao/veiculos');
+      setState(() => _veiculos = r['data'] ?? []);
     } catch (_) {}
   }
 
-  Future<void> _buscar() async {
-    setState(() { _loading = true; _postos = []; });
+  void _selecionarVeiculo(String id) {
+    final v = _veiculos.firstWhere((v) => v['id'].toString() == id, orElse: () => {});
+    if (v.isEmpty) return;
+    setState(() {
+      _veiculoId = id;
+      _tanqueCtrl.text    = (v['tanque'] ?? 80).toString();
+      _autonomiaCtrl.text = (v['autonomia'] ?? 10).toString();
+      _combCtrl.text      = v['combustivel'] ?? 'Diesel';
+    });
+  }
+
+  Future<void> _calcular() async {
+    if (_origemLat.text.isEmpty || _destinoLat.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Preencha as coordenadas de origem e destino')));
+      return;
+    }
+    setState(() { _loading = true; _resultado = null; });
     try {
-      final params = <String, dynamic>{};
-      if (_ufSelecionada != null)        params['uf']       = _ufSelecionada;
-      if (_municipioCtrl.text.isNotEmpty) params['municipio'] = _municipioCtrl.text;
-      final r = await ApiService().get('/roteirizacao/postos', params: params);
-      setState(() => _postos = r['data'] ?? []);
+      final r = await ApiService().post('/roteirizacao/calcular', data: {
+        'origem':  {'lat': double.parse(_origemLat.text),  'lon': double.parse(_origemLon.text),  'nome': _origemCtrl.text},
+        'destino': {'lat': double.parse(_destinoLat.text), 'lon': double.parse(_destinoLon.text), 'nome': _destinoCtrl.text},
+        'veiculo': {
+          'tanque':     double.tryParse(_tanqueCtrl.text) ?? 80,
+          'autonomia':  double.tryParse(_autonomiaCtrl.text) ?? 10,
+          'combustivel': _combCtrl.text,
+        },
+        'raio_km': 5,
+        'pesos': {'preco': 0.6, 'score': 0.2, 'desvio': 0.2},
+      });
+      setState(() => _resultado = r);
+      setState(() => _tabIndex = 1);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     } finally {
@@ -46,29 +74,25 @@ class _State extends State<RoteirizacaoScreen> {
     }
   }
 
-  void _abrirMapa(Map posto) async {
-    final lat = posto['lat'];
-    final lon = posto['lon'];
-    if (lat == null || lon == null || lat == '' || lon == '') {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Coordenadas nao disponiveis para este posto')));
-      return;
-    }
-    final nome = Uri.encodeComponent(posto['razao_social'] ?? 'Posto');
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lon&query_place_id=$nome');
+  void _abrirMapaCompleto() async {
+    if (_resultado == null) return;
+    final orig   = _resultado!['origem'];
+    final dest   = _resultado!['destino'];
+    final sugest = (_resultado!['sugestoes'] as List?) ?? [];
+
+    final waypoints = sugest.map((s) => '${s["lat"]},${s["lon"]}').join('|');
+    final url = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&origin=${orig["lat"]},${orig["lon"]}'
+      '&destination=${dest["lat"]},${dest["lon"]}'
+      '${waypoints.isNotEmpty ? "&waypoints=$waypoints" : ""}'
+      '&travelmode=driving'
+    );
     if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
-  void _abrirRotaNoMapa() async {
-    if (_postos.isEmpty) return;
-    final postosComCoord = _postos.where((p) => p['lat'] != null && p['lat'] != '' && p['lon'] != null && p['lon'] != '').toList();
-    if (postosComCoord.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nenhum posto com coordenadas disponiveis')));
-      return;
-    }
-    final waypoints = postosComCoord.take(10).map((p) => '${p["lat"]},${p["lon"]}').join('|');
-    final url = Uri.parse('https://www.google.com/maps/dir/?api=1&waypoints=$waypoints');
+  void _abrirPostoNoMapa(Map posto) async {
+    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${posto["lat"]},${posto["lon"]}');
     if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
@@ -79,7 +103,7 @@ class _State extends State<RoteirizacaoScreen> {
     final tanqueCtrl    = TextEditingController(text: dados?['tanque']?.toString() ?? '');
     final autonomiaCtrl = TextEditingController(text: dados?['autonomia']?.toString() ?? '');
 
-    await showDialog(context: context, builder: (dialogCtx) => AlertDialog(
+    final salvou = await showDialog<bool>(context: context, builder: (dialogCtx) => AlertDialog(
       title: Text(dados == null ? 'Novo Veiculo' : 'Editar Veiculo'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: nomeCtrl,      decoration: const InputDecoration(labelText: 'Nome/Apelido')),
@@ -105,7 +129,7 @@ class _State extends State<RoteirizacaoScreen> {
               } else {
                 await ApiService().put('/frota/perfis/${dados["id"]}', data: body);
               }
-              Navigator.pop(dialogCtx); _carregarInicial();
+              Navigator.pop(dialogCtx, true);
             } catch (e) {
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
             }
@@ -114,15 +138,16 @@ class _State extends State<RoteirizacaoScreen> {
         ),
       ],
     ));
+    if (salvou == true) _carregarVeiculos();
   }
 
   Future<void> _deletarVeiculo(String id) async {
-    final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+    final ok = await showDialog<bool>(context: context, builder: (dialogCtx) => AlertDialog(
       title: const Text('Confirmar exclusao'),
       content: const Text('Deseja excluir este veiculo?'),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () => Navigator.pop(context, true),
+        TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancelar')),
+        ElevatedButton(onPressed: () => Navigator.pop(dialogCtx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Excluir', style: TextStyle(color: Colors.white))),
       ],
@@ -130,7 +155,7 @@ class _State extends State<RoteirizacaoScreen> {
     if (ok != true) return;
     try {
       await ApiService().delete('/frota/perfis/$id');
-      _carregarInicial();
+      setState(() => _veiculos.removeWhere((v) => v['id'].toString() == id));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
@@ -145,93 +170,193 @@ class _State extends State<RoteirizacaoScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Row(children: [
-            _tab('Buscar Postos', 0),
-            _tab('Meus Veiculos', 1),
+            _tab('Planejar Rota', 0),
+            _tab('Resultado', 1),
+            _tab('Meus Veiculos', 2),
           ]),
         ),
       ),
-      floatingActionButton: _tabIndex == 1 ? FloatingActionButton(
+      floatingActionButton: _tabIndex == 2 ? FloatingActionButton(
         onPressed: () => _novoOuEditarVeiculo(),
         child: const Icon(Icons.add),
       ) : null,
-      body: _tabIndex == 0 ? _buildBuscaPostos() : _buildVeiculos(),
+      body: _tabIndex == 0 ? _buildPlanejamento()
+          : _tabIndex == 1 ? _buildResultado()
+          : _buildVeiculos(),
     );
   }
 
-  Widget _buildBuscaPostos() => Column(children: [
-    Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-      Row(children: [
-        Expanded(child: DropdownButtonFormField<String>(
-          value: _ufSelecionada,
-          hint: const Text('UF'),
-          items: _ufs.map((uf) => DropdownMenuItem(value: uf, child: Text(uf))).toList(),
-          onChanged: (v) => setState(() => _ufSelecionada = v),
-          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-        )),
-        const SizedBox(width: 8),
-        Expanded(child: TextField(
-          controller: _municipioCtrl,
-          decoration: const InputDecoration(labelText: 'Municipio', border: OutlineInputBorder(), isDense: true),
-          textCapitalization: TextCapitalization.words,
-        )),
-      ]),
+  Widget _buildPlanejamento() => ListView(
+    padding: const EdgeInsets.all(16),
+    children: [
+      // Veículo
+      const Text('Veiculo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
       const SizedBox(height: 8),
       if (_veiculos.isNotEmpty) DropdownButtonFormField<String>(
-        value: _veiculoSelecionado,
-        hint: const Text('Selecione veiculo (opcional)'),
+        value: _veiculoId,
+        hint: const Text('Selecione um veiculo salvo (opcional)'),
         items: _veiculos.map((v) => DropdownMenuItem(
           value: v['id'].toString(),
-          child: Text('${v["placa"]} — ${v["combustivel"]} (${v["tanque"]}L)'),
+          child: Text('${v["placa"]} — ${v["combustivel"]} (${v["tanque"]}L / ${v["autonomia"]}km/L)'),
         )).toList(),
-        onChanged: (v) => setState(() => _veiculoSelecionado = v),
+        onChanged: (v) { if (v != null) _selecionarVeiculo(v); },
         decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
       ),
       const SizedBox(height: 8),
       Row(children: [
-        Expanded(child: ElevatedButton.icon(
-          onPressed: _buscar,
-          icon: const Icon(Icons.search),
-          label: Text(_loading ? 'Buscando...' : 'Buscar Postos'),
-        )),
+        Expanded(child: TextField(controller: _tanqueCtrl,
+            decoration: const InputDecoration(labelText: 'Tanque (L)', border: OutlineInputBorder(), isDense: true),
+            keyboardType: TextInputType.number)),
         const SizedBox(width: 8),
-        if (_postos.isNotEmpty) ElevatedButton.icon(
-          onPressed: _abrirRotaNoMapa,
-          icon: const Icon(Icons.map),
-          label: const Text('Ver no Mapa'),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-        ),
+        Expanded(child: TextField(controller: _autonomiaCtrl,
+            decoration: const InputDecoration(labelText: 'Autonomia (km/L)', border: OutlineInputBorder(), isDense: true),
+            keyboardType: TextInputType.number)),
+        const SizedBox(width: 8),
+        Expanded(child: TextField(controller: _combCtrl,
+            decoration: const InputDecoration(labelText: 'Combustivel', border: OutlineInputBorder(), isDense: true))),
       ]),
-    ])),
-    if (_loading) const LinearProgressIndicator(),
-    if (_postos.isNotEmpty) Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Text('${_postos.length} postos encontrados',
-          style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-    ),
-    Expanded(child: _postos.isEmpty
-        ? const Center(child: Text('Selecione UF ou municipio para buscar'))
-        : ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: _postos.length,
-            itemBuilder: (_, i) {
-              final p = _postos[i];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 6),
-                child: ListTile(
-                  leading: const CircleAvatar(backgroundColor: Color(0xFFE3F2FD),
-                      child: Icon(Icons.local_gas_station, color: Colors.blue)),
-                  title: Text(p['razao_social'] ?? '-',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: Text('${p["municipio"] ?? "-"}/${p["uf"] ?? "-"}\n${p["combustiveis"] ?? "-"}'),
-                  isThreeLine: true,
-                  trailing: IconButton(
-                    icon: const Icon(Icons.map, color: Colors.green),
-                    onPressed: () => _abrirMapa(p),
-                  ),
-                ),
-              );
-            })),
-  ]);
+      const SizedBox(height: 16),
+
+      // Origem
+      const Text('Origem', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+      const SizedBox(height: 8),
+      TextField(controller: _origemCtrl,
+          decoration: const InputDecoration(labelText: 'Nome da origem (ex: Sao Paulo, SP)', border: OutlineInputBorder(), isDense: true)),
+      const SizedBox(height: 8),
+      Row(children: [
+        Expanded(child: TextField(controller: _origemLat,
+            decoration: const InputDecoration(labelText: 'Latitude (ex: -23.5505)', border: OutlineInputBorder(), isDense: true),
+            keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true))),
+        const SizedBox(width: 8),
+        Expanded(child: TextField(controller: _origemLon,
+            decoration: const InputDecoration(labelText: 'Longitude (ex: -46.6333)', border: OutlineInputBorder(), isDense: true),
+            keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true))),
+      ]),
+      const SizedBox(height: 16),
+
+      // Destino
+      const Text('Destino', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+      const SizedBox(height: 8),
+      TextField(controller: _destinoCtrl,
+          decoration: const InputDecoration(labelText: 'Nome do destino (ex: Rio de Janeiro, RJ)', border: OutlineInputBorder(), isDense: true)),
+      const SizedBox(height: 8),
+      Row(children: [
+        Expanded(child: TextField(controller: _destinoLat,
+            decoration: const InputDecoration(labelText: 'Latitude', border: OutlineInputBorder(), isDense: true),
+            keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true))),
+        const SizedBox(width: 8),
+        Expanded(child: TextField(controller: _destinoLon,
+            decoration: const InputDecoration(labelText: 'Longitude', border: OutlineInputBorder(), isDense: true),
+            keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true))),
+      ]),
+      const SizedBox(height: 24),
+
+      SizedBox(width: double.infinity, child: ElevatedButton.icon(
+        onPressed: _loading ? null : _calcular,
+        icon: _loading ? const SizedBox(width: 20, height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.route),
+        label: Text(_loading ? 'Calculando...' : 'Calcular Rota'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0D2D6B),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      )),
+    ],
+  );
+
+  Widget _buildResultado() {
+    if (_resultado == null) return const Center(child: Text('Calcule uma rota primeiro na aba "Planejar Rota"'));
+    final fmt    = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+    final rota   = _resultado!['rota'] as Map? ?? {};
+    final resumo = _resultado!['resumo'] as Map? ?? {};
+    final orig   = _resultado!['origem'] as Map? ?? {};
+    final dest   = _resultado!['destino'] as Map? ?? {};
+    final sugest = (_resultado!['sugestoes'] as List?) ?? [];
+
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      // Resumo da rota
+      Card(color: const Color(0xFF0D2D6B), child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
+        Text('${orig["nome"] ?? "Origem"} → ${dest["nome"] ?? "Destino"}',
+            style: const TextStyle(color: Colors.white70, fontSize: 13), textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+          _metrica('${rota["dist_km"]} km', 'Distancia', Colors.white),
+          _metrica('${(rota["dur_min"] as num? ?? 0).toStringAsFixed(0)} min', 'Duracao', Colors.white),
+          _metrica('${resumo["n_paradas"]}', 'Paradas', Colors.white),
+        ]),
+        const SizedBox(height: 8),
+        if (rota["linha_reta"] == true)
+          const Text('* Rota calculada em linha reta (OSRM indisponivel)',
+              style: TextStyle(color: Colors.orange, fontSize: 11)),
+      ]))),
+      const SizedBox(height: 12),
+
+      // KPIs de custo
+      Row(children: [
+        _kpi('Custo Total', fmt.format(resumo['custo_total'] ?? 0), Colors.green),
+        const SizedBox(width: 8),
+        _kpi('Litros', '${resumo["litros_total"]} L', Colors.blue),
+        const SizedBox(width: 8),
+        _kpi('R\$/km', 'R\$ ${resumo["custo_por_km"]}', Colors.orange),
+      ]),
+      const SizedBox(height: 12),
+
+      // Botão abrir no Google Maps
+      SizedBox(width: double.infinity, child: ElevatedButton.icon(
+        onPressed: _abrirMapaCompleto,
+        icon: const Icon(Icons.map),
+        label: const Text('Abrir Rota no Google Maps'),
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+      )),
+      const SizedBox(height: 16),
+
+      // Postos sugeridos
+      if (sugest.isEmpty)
+        const Card(child: Padding(padding: EdgeInsets.all(16),
+            child: Text('Nenhum posto encontrado ao longo desta rota nos ultimos 180 dias.\nAbasteca nos postos que voce conhece.',
+                textAlign: TextAlign.center)))
+      else ...[
+        Text('${sugest.length} parada(s) sugerida(s)',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 8),
+        ...sugest.asMap().entries.map((e) {
+          final i = e.key;
+          final s = e.value;
+          return Card(margin: const EdgeInsets.only(bottom: 10), child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                CircleAvatar(backgroundColor: const Color(0xFF0D2D6B),
+                    child: Text('${i+1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(s['razao_social'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${s["municipio"] ?? "-"}/${s["uf"] ?? "-"} · ${s["_km"]} km na rota',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ])),
+                IconButton(icon: const Icon(Icons.map, color: Colors.green),
+                    onPressed: () => _abrirPostoNoMapa(s)),
+              ]),
+              const Divider(height: 12),
+              Row(children: [
+                _metricaSmall(fmt.format(s['preco'] ?? 0), 'Preco/L', Colors.blue),
+                _metricaSmall('${s["litros_sugeridos"]} L', 'Abastecer', Colors.orange),
+                _metricaSmall(fmt.format(s['custo_abast'] ?? 0), 'Custo', Colors.green),
+                _metricaSmall('${s["fuel_chegada_pct"]}%', 'Tanque chega', Colors.red),
+              ]),
+              const SizedBox(height: 4),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(4)),
+                child: Text(s['motivo'] ?? '-',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF1565C0)))),
+            ]),
+          ));
+        }),
+      ],
+    ]);
+  }
 
   Widget _buildVeiculos() => _veiculos.isEmpty
       ? const Center(child: Text('Nenhum veiculo cadastrado.\nToque em + para adicionar.', textAlign: TextAlign.center))
@@ -240,22 +365,19 @@ class _State extends State<RoteirizacaoScreen> {
           itemCount: _veiculos.length,
           itemBuilder: (_, i) {
             final v = _veiculos[i];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: const CircleAvatar(backgroundColor: Color(0xFFFFF3E0),
-                    child: Icon(Icons.directions_car, color: Colors.orange)),
-                title: Text('${v["placa"]} — ${v["nome"] ?? "-"}',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('${v["combustivel"] ?? "-"} · Tanque: ${v["tanque"] ?? "-"}L · ${v["autonomia"] ?? "-"}km/L'),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  IconButton(icon: const Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () => _novoOuEditarVeiculo(v)),
-                  IconButton(icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deletarVeiculo(v['id'].toString())),
-                ]),
-              ),
-            );
+            return Card(margin: const EdgeInsets.only(bottom: 8), child: ListTile(
+              leading: const CircleAvatar(backgroundColor: Color(0xFFFFF3E0),
+                  child: Icon(Icons.directions_car, color: Colors.orange)),
+              title: Text('${v["placa"]} — ${v["nome"] ?? "-"}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('${v["combustivel"] ?? "-"} · ${v["tanque"]}L · ${v["autonomia"]}km/L'),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                IconButton(icon: const Icon(Icons.edit, color: Colors.blue),
+                    onPressed: () => _novoOuEditarVeiculo(v)),
+                IconButton(icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deletarVeiculo(v['id'].toString())),
+              ]),
+            ));
           });
 
   Widget _tab(String label, int idx) => Expanded(
@@ -266,8 +388,28 @@ class _State extends State<RoteirizacaoScreen> {
         decoration: BoxDecoration(border: Border(bottom: BorderSide(
             color: _tabIndex == idx ? Colors.white : Colors.transparent, width: 2))),
         child: Text(label, textAlign: TextAlign.center,
-            style: TextStyle(color: _tabIndex == idx ? Colors.white : Colors.white60, fontSize: 13)),
+            style: TextStyle(color: _tabIndex == idx ? Colors.white : Colors.white60, fontSize: 12)),
       ),
     ),
   );
+
+  Widget _kpi(String label, String value, Color color) => Expanded(
+    child: Card(child: Padding(padding: const EdgeInsets.all(10), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+      ],
+    ))),
+  );
+
+  Widget _metrica(String value, String label, Color color) => Column(children: [
+    Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+    Text(label, style: TextStyle(color: color.withOpacity(0.7), fontSize: 11)),
+  ]);
+
+  Widget _metricaSmall(String value, String label, Color color) => Expanded(child: Column(children: [
+    Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 12)),
+    Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+  ]));
 }

@@ -1028,6 +1028,244 @@ def veiculos_para_rota(user: dict = Depends(usuario_atual)):
         r = db.table("perfis_veiculo").select("*").eq("usuario_email", email).execute()
     return {"total": len(r.data or []), "data": r.data or []}
 
+
+# ── Roteirização: Calcular Rota + Postos Sugeridos ───────────────
+@app.post("/roteirizacao/calcular", tags=["roteirizacao"])
+async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
+    """
+    Calcula rota entre origem e destino, sugere postos ao longo da rota.
+    Body: {
+        origem: {lat, lon, nome},
+        destino: {lat, lon, nome},
+        paradas: [{lat, lon, nome}],  # opcional
+        veiculo: {tanque, autonomia, combustivel},
+        raio_km: 5,  # raio para buscar postos ao longo da rota
+        pesos: {preco: 0.6, score: 0.2, desvio: 0.2}
+    }
+    """
+    import httpx, math
+    from datetime import date, timedelta
+
+    origem   = body.get("origem", {})
+    destino  = body.get("destino", {})
+    paradas  = body.get("paradas", [])
+    veiculo  = body.get("veiculo", {})
+    raio_km  = float(body.get("raio_km", 5))
+    pesos    = body.get("pesos", {"preco": 0.6, "score": 0.2, "desvio": 0.2})
+
+    if not origem.get("lat") or not destino.get("lat"):
+        raise HTTPException(status_code=400, detail="Origem e destino obrigatorios")
+
+    rcap = float(veiculo.get("tanque", 80))
+    raut = float(veiculo.get("autonomia", 10))
+    comb = veiculo.get("combustivel", "")
+
+    # 1. Calcular rota via OSRM
+    pontos = [[origem["lat"], origem["lon"]]]
+    for p in paradas:
+        pontos.append([p["lat"], p["lon"]])
+    pontos.append([destino["lat"], destino["lon"]])
+
+    coords_str = ";".join(f"{lon},{lat}" for lat, lon in pontos)
+    osrm_url = f"https://router.project-osrm.org/route/v1/driving/{coords_str}"
+
+    coords_rota = []
+    dist_km = 0
+    dur_min = 0
+    linha_reta = False
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(osrm_url,
+                params={"overview": "full", "geometries": "geojson"}, timeout=10)
+        d = resp.json()
+        if d.get("code") == "Ok":
+            geo = d["routes"][0]["geometry"]["coordinates"]
+            coords_rota = [[c[1], c[0]] for c in geo]
+            dist_km = d["routes"][0]["distance"] / 1000
+            dur_min = d["routes"][0]["duration"] / 60
+        else:
+            linha_reta = True
+    except Exception:
+        linha_reta = True
+
+    if linha_reta or not coords_rota:
+        # Fallback linha reta
+        coords_rota = []
+        for i in range(len(pontos) - 1):
+            la1, lo1 = pontos[i]; la2, lo2 = pontos[i+1]
+            for j in range(20):
+                t = j / 20
+                coords_rota.append([la1 + (la2-la1)*t, lo1 + (lo2-lo1)*t])
+        coords_rota.append(pontos[-1])
+        dist_km = sum(
+            math.sqrt((pontos[i][0]-pontos[i+1][0])**2 + (pontos[i][1]-pontos[i+1][1])**2) * 111
+            for i in range(len(pontos)-1)
+        )
+        dur_min = (dist_km / 80) * 60
+
+    # 2. Buscar postos da frota ao longo da rota
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    dt_ini = (date.today() - timedelta(days=180)).isoformat()
+
+    r = db.table("profrotas_abastecimentos").select(
+        "pv_cnpj,pv_razao_social,pv_municipio,pv_uf,pv_latitude,pv_longitude,item_nome,item_valor_unitario"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).execute()
+
+    import pandas as pd
+    df = pd.DataFrame(r.data or [])
+    postos_candidatos = []
+
+    if not df.empty:
+        df["item_valor_unitario"] = pd.to_numeric(df["item_valor_unitario"], errors="coerce").fillna(0)
+        df["pv_latitude"]  = pd.to_numeric(df["pv_latitude"],  errors="coerce")
+        df["pv_longitude"] = pd.to_numeric(df["pv_longitude"], errors="coerce")
+        df = df.dropna(subset=["pv_latitude","pv_longitude"])
+        if comb:
+            df_comb = df[df["item_nome"].str.contains(comb, case=False, na=False)]
+            if not df_comb.empty:
+                df = df_comb
+
+        # Preco medio por posto
+        precos = df.groupby("pv_cnpj").agg(
+            razao_social=("pv_razao_social","first"),
+            municipio=("pv_municipio","first"),
+            uf=("pv_uf","first"),
+            lat=("pv_latitude","first"),
+            lon=("pv_longitude","first"),
+            combustivel=("item_nome","first"),
+            preco=("item_valor_unitario","mean"),
+        ).reset_index()
+
+        # Filtra postos próximos à rota
+        step = max(1, len(coords_rota) // 50)
+        rota_sample = coords_rota[::step]
+
+        for _, posto in precos.iterrows():
+            plat, plon = posto["lat"], posto["lon"]
+            if pd.isna(plat) or pd.isna(plon):
+                continue
+            # Distância mínima a qualquer ponto da rota
+            min_dev = min(
+                math.sqrt((plat - rlat)**2 + (plon - rlon)**2) * 111
+                for rlat, rlon in rota_sample
+            )
+            if min_dev > raio_km:
+                continue
+            # Posição aproximada na rota (km)
+            km_na_rota = min(
+                (i / len(rota_sample)) * dist_km
+                for i, (rlat, rlon) in enumerate(rota_sample)
+                if math.sqrt((plat-rlat)**2 + (plon-rlon)**2)*111 < raio_km + 1
+            ) if rota_sample else 0
+
+            postos_candidatos.append({
+                "cnpj": posto["pv_cnpj"],
+                "razao_social": posto["razao_social"],
+                "municipio": posto["municipio"],
+                "uf": posto["uf"],
+                "lat": round(float(plat), 6),
+                "lon": round(float(plon), 6),
+                "combustivel": posto["combustivel"],
+                "preco": round(float(posto["preco"]), 4),
+                "_km": round(km_na_rota, 1),
+                "_dev": round(min_dev, 2),
+            })
+
+        postos_candidatos.sort(key=lambda x: x["_km"])
+
+    # 3. Motor de otimização greedy
+    sugestoes = []
+    if postos_candidatos and rcap > 0 and raut > 0:
+        rmin = rcap * 0.25
+        PCT_BAIXO = 0.65
+        VANT_PRECO = 0.03
+        _precos = [e["preco"] for e in postos_candidatos if e["preco"] > 0]
+        _pmin = min(_precos) if _precos else 0
+        _pmax = max(_precos) if _precos else 1
+
+        def _met(e):
+            _p = 1.0 - (e["preco"] - _pmin) / max(_pmax - _pmin, 0.01)
+            _d = 1.0 - min(e.get("_dev", 0) / 5.0, 1.0)
+            return pesos.get("preco", 0.6) * _p + pesos.get("desvio", 0.2) * _d
+
+        pos = 0.0
+        fuel = float(rcap)
+        seen = set()
+        ult_preco = None
+
+        for _ in range(30):
+            if pos >= dist_km:
+                break
+            can_go = (fuel - rmin) * raut
+            must = pos + can_go
+            if must >= dist_km:
+                break
+
+            janela = [e for e in postos_candidatos if pos < e["_km"] <= must and e["cnpj"] not in seen]
+            if not janela:
+                alem = [e for e in postos_candidatos if e["_km"] > pos and e["cnpj"] not in seen]
+                if not alem:
+                    break
+                best = dict(min(alem, key=lambda x: x["_km"]))
+                best["motivo"] = "emergencia"
+            else:
+                best = dict(max(janela, key=_met))
+                best["motivo"] = "otimizado"
+
+            km_ate = best["_km"] - pos
+            fuel_chegada = max(0.0, fuel - km_ate / raut)
+            pct_chegada = fuel_chegada / rcap * 100
+
+            if (best.get("motivo") != "emergencia"
+                    and pct_chegada >= PCT_BAIXO * 100
+                    and ult_preco is not None
+                    and best.get("preco", 9999) >= ult_preco * (1 - VANT_PRECO)):
+                pos = best["_km"]
+                fuel = fuel_chegada
+                seen.add(best["cnpj"])
+                continue
+
+            dist_rest = dist_km - best["_km"]
+            litros_sug = min(rcap - fuel_chegada, rcap * 0.95 - fuel_chegada)
+            litros_sug = max(0, litros_sug)
+            custo = round(litros_sug * best["preco"], 2)
+            fuel_apos = fuel_chegada + litros_sug
+
+            best["litros_sugeridos"] = round(litros_sug, 1)
+            best["custo_abast"] = custo
+            best["fuel_chegada_pct"] = round(pct_chegada, 1)
+            best["fuel_apos_pct"] = round(fuel_apos / rcap * 100, 1)
+            sugestoes.append(best)
+
+            pos = best["_km"]
+            fuel = fuel_apos
+            ult_preco = best["preco"]
+            seen.add(best["cnpj"])
+
+    custo_total = sum(s.get("custo_abast", 0) for s in sugestoes)
+    litros_total = sum(s.get("litros_sugeridos", 0) for s in sugestoes)
+
+    return {
+        "rota": {
+            "coords": coords_rota[::max(1, len(coords_rota)//200)],  # max 200 pontos
+            "dist_km": round(dist_km, 1),
+            "dur_min": round(dur_min, 1),
+            "linha_reta": linha_reta,
+        },
+        "veiculo": {"tanque": rcap, "autonomia": raut, "combustivel": comb},
+        "sugestoes": sugestoes,
+        "resumo": {
+            "n_paradas": len(sugestoes),
+            "custo_total": round(custo_total, 2),
+            "litros_total": round(litros_total, 1),
+            "custo_por_km": round(custo_total / max(dist_km, 1), 4),
+        },
+        "origem": origem,
+        "destino": destino,
+    }
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn
