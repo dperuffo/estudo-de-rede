@@ -474,6 +474,218 @@ def resumo_manutencao(
         "ultimas": ultimas,
     }
 
+
+# ── Dashboard ─────────────────────────────────────────────────────
+@app.get("/dashboard/resumo", tags=["dashboard"])
+def dashboard_resumo(
+    dias: int = 30,
+    user: dict = Depends(usuario_atual)
+):
+    import pandas as pd
+    from datetime import date, timedelta
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+
+    # Abastecimentos
+    r = db.table("profrotas_abastecimentos").select(
+        "data_abastecimento,item_quantidade,item_valor_total,veiculo_placa,pv_uf,pv_municipio"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).execute()
+
+    df = pd.DataFrame(r.data or [])
+    if df.empty:
+        return {"periodo": {"inicio": dt_ini, "fim": date.today().isoformat()},
+                "abastecimentos": {}, "frota": {}, "manutencao": {}, "top_ufs": [], "top_veiculos": []}
+
+    df["item_quantidade"]  = pd.to_numeric(df["item_quantidade"],  errors="coerce").fillna(0)
+    df["item_valor_total"] = pd.to_numeric(df["item_valor_total"], errors="coerce").fillna(0)
+
+    top_ufs = []
+    if "pv_uf" in df.columns:
+        top_ufs = df.groupby("pv_uf").agg(
+            litros=("item_quantidade", "sum"),
+            gasto=("item_valor_total", "sum"),
+            n=("item_quantidade", "count")
+        ).reset_index().sort_values("gasto", ascending=False).head(5).fillna("").to_dict("records")
+        for t in top_ufs:
+            t["litros"] = round(float(t["litros"]), 2)
+            t["gasto"]  = round(float(t["gasto"]), 2)
+
+    top_veiculos = df.groupby("veiculo_placa").agg(
+        litros=("item_quantidade", "sum"),
+        gasto=("item_valor_total", "sum"),
+        n=("item_quantidade", "count")
+    ).reset_index().sort_values("gasto", ascending=False).head(5).fillna("").to_dict("records")
+    for t in top_veiculos:
+        t["litros"] = round(float(t["litros"]), 2)
+        t["gasto"]  = round(float(t["gasto"]), 2)
+
+    # Manutenção
+    r2 = db.table("manutencoes_realizadas").select("custo_total").eq(
+        "cnpj_frota", cnpj).gte("data_manutencao", dt_ini).execute()
+    total_manut = sum(float(x.get("custo_total") or 0) for x in (r2.data or []))
+
+    return {
+        "periodo": {"inicio": dt_ini, "fim": date.today().isoformat()},
+        "abastecimentos": {
+            "total_litros": round(float(df["item_quantidade"].sum()), 2),
+            "total_gasto":  round(float(df["item_valor_total"].sum()), 2),
+            "n_registros":  len(df),
+            "n_veiculos":   int(df["veiculo_placa"].nunique()),
+            "n_ufs":        int(df["pv_uf"].nunique()) if "pv_uf" in df.columns else 0,
+            "media_litros_dia": round(float(df["item_quantidade"].sum()) / max(dias, 1), 2),
+        },
+        "manutencao": {"total_gasto": round(total_manut, 2), "n_registros": len(r2.data or [])},
+        "total_geral": round(float(df["item_valor_total"].sum()) + total_manut, 2),
+        "top_ufs": top_ufs,
+        "top_veiculos": top_veiculos,
+    }
+
+# ── Inteligência ──────────────────────────────────────────────────
+@app.get("/inteligencia/resumo", tags=["inteligencia"])
+def inteligencia_resumo(
+    dias: int = 90,
+    user: dict = Depends(usuario_atual)
+):
+    import pandas as pd
+    from datetime import date, timedelta
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+
+    r = db.table("profrotas_abastecimentos").select(
+        "data_abastecimento,item_quantidade,item_valor_total,item_valor_unitario,veiculo_placa,pv_uf,pv_municipio,pv_razao_social"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).execute()
+
+    df = pd.DataFrame(r.data or [])
+    if df.empty:
+        return {"por_uf": [], "por_municipio": [], "por_veiculo": [], "preco_medio": 0}
+
+    for col in ["item_quantidade", "item_valor_total", "item_valor_unitario"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    por_uf = []
+    if "pv_uf" in df.columns:
+        por_uf = df.groupby("pv_uf").agg(
+            litros=("item_quantidade", "sum"),
+            gasto=("item_valor_total", "sum"),
+            preco_medio=("item_valor_unitario", "mean"),
+            n=("item_quantidade", "count")
+        ).reset_index().sort_values("gasto", ascending=False).fillna(0).to_dict("records")
+        for t in por_uf:
+            t["litros"] = round(float(t["litros"]), 2)
+            t["gasto"]  = round(float(t["gasto"]), 2)
+            t["preco_medio"] = round(float(t["preco_medio"]), 4)
+
+    por_municipio = []
+    if "pv_municipio" in df.columns:
+        por_municipio = df.groupby(["pv_municipio", "pv_uf"] if "pv_uf" in df.columns else ["pv_municipio"]).agg(
+            litros=("item_quantidade", "sum"),
+            gasto=("item_valor_total", "sum"),
+            n=("item_quantidade", "count")
+        ).reset_index().sort_values("gasto", ascending=False).head(20).fillna("").to_dict("records")
+        for t in por_municipio:
+            t["litros"] = round(float(t["litros"]), 2)
+            t["gasto"]  = round(float(t["gasto"]), 2)
+
+    por_veiculo = df.groupby("veiculo_placa").agg(
+        litros=("item_quantidade", "sum"),
+        gasto=("item_valor_total", "sum"),
+        preco_medio=("item_valor_unitario", "mean"),
+        n=("item_quantidade", "count")
+    ).reset_index().sort_values("gasto", ascending=False).fillna(0).to_dict("records")
+    for t in por_veiculo:
+        t["litros"] = round(float(t["litros"]), 2)
+        t["gasto"]  = round(float(t["gasto"]), 2)
+        t["preco_medio"] = round(float(t["preco_medio"]), 4)
+
+    preco_medio_geral = round(float(df["item_valor_unitario"].mean()), 4) if not df.empty else 0
+
+    return {
+        "por_uf": por_uf,
+        "por_municipio": por_municipio,
+        "por_veiculo": por_veiculo,
+        "preco_medio": preco_medio_geral,
+    }
+
+# ── Variação de Preços ────────────────────────────────────────────
+@app.get("/precos/variacao", tags=["precos"])
+def precos_variacao(
+    dias: int = 90,
+    user: dict = Depends(usuario_atual)
+):
+    import pandas as pd
+    from datetime import date, timedelta
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+
+    r = db.table("profrotas_abastecimentos").select(
+        "data_abastecimento,item_nome,item_valor_unitario,pv_uf"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+        "data_abastecimento", dt_ini
+    ).order("data_abastecimento").execute()
+
+    df = pd.DataFrame(r.data or [])
+    if df.empty:
+        return {"por_combustivel": [], "serie_temporal": []}
+
+    df["item_valor_unitario"] = pd.to_numeric(df["item_valor_unitario"], errors="coerce").fillna(0)
+    df["data_abastecimento"]  = pd.to_datetime(df["data_abastecimento"], errors="coerce")
+    df["mes"] = df["data_abastecimento"].dt.to_period("M").astype(str)
+
+    por_combustivel = df.groupby("item_nome").agg(
+        preco_medio=("item_valor_unitario", "mean"),
+        preco_min=("item_valor_unitario", "min"),
+        preco_max=("item_valor_unitario", "max"),
+        n=("item_valor_unitario", "count")
+    ).reset_index().fillna(0).to_dict("records")
+    for t in por_combustivel:
+        t["preco_medio"] = round(float(t["preco_medio"]), 4)
+        t["preco_min"]   = round(float(t["preco_min"]), 4)
+        t["preco_max"]   = round(float(t["preco_max"]), 4)
+
+    serie = df.groupby(["mes", "item_nome"]).agg(
+        preco_medio=("item_valor_unitario", "mean")
+    ).reset_index().fillna(0).to_dict("records")
+    for t in serie:
+        t["preco_medio"] = round(float(t["preco_medio"]), 4)
+
+    return {"por_combustivel": por_combustivel, "serie_temporal": serie}
+
+# ── Relatórios ────────────────────────────────────────────────────
+@app.get("/relatorios/abastecimentos", tags=["relatorios"])
+def relatorio_abastecimentos(
+    dias: int = 30,
+    placa: Optional[str] = None,
+    uf: Optional[str] = None,
+    user: dict = Depends(usuario_atual)
+):
+    from datetime import date, timedelta
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    dt_ini = (date.today() - timedelta(days=dias)).isoformat()
+
+    q = db.table("profrotas_abastecimentos").select(
+        "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_razao_social,pv_municipio,pv_uf,hodometro"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+        "data_abastecimento", dt_ini
+    ).order("data_abastecimento", desc=True).limit(500)
+
+    if placa:
+        q = q.eq("veiculo_placa", placa.upper().strip())
+    if uf:
+        q = q.eq("pv_uf", uf.upper().strip())
+
+    r = q.execute()
+    data = r.data or []
+    for row in data:
+        for k in ["item_quantidade", "item_valor_unitario", "item_valor_total"]:
+            try: row[k] = round(float(row[k] or 0), 4)
+            except: row[k] = 0.0
+
+    return {"total": len(data), "data": data}
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn

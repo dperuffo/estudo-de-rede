@@ -2,11 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/abastecimentos/screens/abastecimentos_screen.dart';
 import '../../features/frota/screens/frota_screen.dart';
-import '../../features/financeiro/screens/financeiro_screen.dart';
-import '../../features/tickets/screens/tickets_screen.dart';
 import '../../features/manutencao/screens/manutencao_screen.dart';
+import '../../features/financeiro/screens/financeiro_screen.dart';
+import '../../features/inteligencia/screens/inteligencia_screen.dart';
+import '../../features/precos/screens/precos_screen.dart';
+import '../../features/relatorios/screens/relatorios_screen.dart';
+import '../../features/tickets/screens/tickets_screen.dart';
 import '../services/auth_service.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
@@ -22,11 +26,15 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
     ShellRoute(
       builder: (c, s, child) => HomeScreen(child: child),
       routes: [
-        GoRoute(path: '/',            builder: (_, __) => const AbastecimentosScreen()),
-        GoRoute(path: '/frota',       builder: (_, __) => const FrotaScreen()),
-        GoRoute(path: '/manutencao',  builder: (_, __) => const ManutencaoScreen()),
-        GoRoute(path: '/financeiro',  builder: (_, __) => const FinanceiroScreen()),
-        GoRoute(path: '/tickets',     builder: (_, __) => const TicketsScreen()),
+        GoRoute(path: '/',              builder: (_, __) => const DashboardScreen()),
+        GoRoute(path: '/abastecimentos',builder: (_, __) => const AbastecimentosScreen()),
+        GoRoute(path: '/frota',         builder: (_, __) => const FrotaScreen()),
+        GoRoute(path: '/manutencao',    builder: (_, __) => const ManutencaoScreen()),
+        GoRoute(path: '/financeiro',    builder: (_, __) => const FinanceiroScreen()),
+        GoRoute(path: '/inteligencia',  builder: (_, __) => const InteligenciaScreen()),
+        GoRoute(path: '/precos',        builder: (_, __) => const PrecosScreen()),
+        GoRoute(path: '/relatorios',    builder: (_, __) => const RelatoriosScreen()),
+        GoRoute(path: '/tickets',       builder: (_, __) => const TicketsScreen()),
       ],
     ),
   ],
