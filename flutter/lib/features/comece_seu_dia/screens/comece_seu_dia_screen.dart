@@ -13,13 +13,16 @@ class _State extends State<ComeceSeuDiaScreen> {
   Map<String, dynamic>? _dados;
   bool _loading = true;
   int _dias = 7;
+  String? _periodo;
 
   @override void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final r = await ApiService().get('/comece-seu-dia', params: {'dias': _dias});
+      final params = <String, dynamic>{'dias': _dias};
+      if (_periodo != null) params['periodo'] = _periodo;
+      final r = await ApiService().get('/comece-seu-dia', params: params);
       setState(() => _dados = r);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
@@ -59,15 +62,25 @@ class _State extends State<ComeceSeuDiaScreen> {
         leading: const MenuButton(),
         title: const Text('Comece seu dia'),
         actions: [
-          DropdownButton<int>(
-            value: _dias,
+          DropdownButton<String>(
+            value: _periodo ?? 'hoje',
             dropdownColor: const Color(0xFF0D2D6B),
             style: const TextStyle(color: Colors.white),
-            items: [1,7,15,30].map((d) => DropdownMenuItem(
-              value: d,
-              child: Text(d == 1 ? 'Hoje' : '$d dias'),
-            )).toList(),
-            onChanged: (v) { setState(() => _dias = v!); _load(); },
+            items: const [
+              DropdownMenuItem(value: 'hoje',   child: Text('Hoje')),
+              DropdownMenuItem(value: 'ontem',  child: Text('Ontem')),
+              DropdownMenuItem(value: '7dias',  child: Text('7 dias')),
+              DropdownMenuItem(value: '15dias', child: Text('15 dias')),
+              DropdownMenuItem(value: '30dias', child: Text('30 dias')),
+            ],
+            onChanged: (v) {
+              setState(() {
+                _periodo = v == 'ontem' ? 'ontem' : null;
+                _dias = v == 'hoje' ? 1 : v == 'ontem' ? 1
+                    : v == '7dias' ? 7 : v == '15dias' ? 15 : 30;
+              });
+              _load();
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -94,7 +107,7 @@ class _State extends State<ComeceSeuDiaScreen> {
                     Text(_dataHoje(),
                         style: const TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
-                    Text('Resumo operacional — ultimos $_dias ${_dias == 1 ? "dia" : "dias"}',
+                    Text('Resumo operacional — ${_periodo == "ontem" ? "ontem" : _dias == 1 ? "hoje" : "ultimos $_dias dias"}',
                         style: const TextStyle(color: Colors.white60, fontSize: 12)),
                   ]),
                 ),
