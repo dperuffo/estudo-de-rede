@@ -46,7 +46,7 @@ class _State extends State<FinanceiroScreen> {
   String _nomeMes(String mes) {
     final meses = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     final parts = mes.split('-');
-    return '${meses[int(parts[1])]}/${parts[0].substring(2)}';
+    return '${meses[int.parse(parts[1])]}/${parts[0].substring(2)}';
   }
 
   @override
