@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -55,6 +56,7 @@ class _State extends State<FrotaScreen> {
                           style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                     ],
                   ),
+                  onTap: () => context.go('/veiculos'),
                 ),
               );
             },
