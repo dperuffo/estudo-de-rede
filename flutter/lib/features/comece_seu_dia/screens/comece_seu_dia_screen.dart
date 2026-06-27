@@ -15,7 +15,7 @@ class _State extends State<ComeceSeuDiaScreen> {
   bool _loading = true;
   int _dias = 7;
   String? _periodo;
-  String _selecao = '7dias';
+  String _selecao = '7dias';  // valor inicial
 
   @override void initState() { super.initState(); _load(); }
 
