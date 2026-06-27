@@ -18,7 +18,7 @@ class HomeScreen extends StatelessWidget {
         selectedIndex: _idx(loc),
         onDestinationSelected: (i) => _nav(context, i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.wb_sunny),          label: 'Inicio'),
+          NavigationDestination(icon: Icon(Icons.wb_sunny, color: Colors.amber),          label: 'Inicio'),
           NavigationDestination(icon: Icon(Icons.local_gas_station),  label: 'Abastec.'),
           NavigationDestination(icon: Icon(Icons.directions_car),     label: 'Frota'),
           NavigationDestination(icon: Icon(Icons.attach_money),       label: 'Financeiro'),
