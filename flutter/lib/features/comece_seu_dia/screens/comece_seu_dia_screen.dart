@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/widgets/abastecimento_detalhe_modal.dart';
 import '../../../core/widgets/menu_button.dart';
 
 class ComeceSeuDiaScreen extends StatefulWidget {

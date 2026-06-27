@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/menu_button.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/widgets/abastecimento_detalhe_modal.dart';
 
 class RelatoriosScreen extends StatefulWidget {
   const RelatoriosScreen({super.key});

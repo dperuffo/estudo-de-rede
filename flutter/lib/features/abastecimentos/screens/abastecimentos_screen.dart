@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/menu_button.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/widgets/abastecimento_detalhe_modal.dart';
 import '../../../core/constants/api_constants.dart';
 
 class AbastecimentosScreen extends StatefulWidget {

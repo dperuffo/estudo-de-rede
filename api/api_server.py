@@ -218,7 +218,8 @@ def listar_abastecimentos(
     
     q = (db.table("profrotas_abastecimentos")
          .select("id,data_abastecimento,veiculo_placa,item_nome,item_quantidade,"
-                 "item_valor_unitario,item_valor_total,pv_razao_social,pv_municipio,pv_uf,hodometro")
+                 "item_valor_unitario,item_valor_total,pv_razao_social,pv_municipio,pv_uf,"
+                 "hodometro,motorista_nome,pv_cnpj,pv_latitude,pv_longitude,status_autorizacao")
          .eq("cnpj_frota", cnpj)
          .eq("item_tipo", 1)
          .gte("data_abastecimento", dt_ini)
@@ -1546,6 +1547,30 @@ def comece_seu_dia(
         "ultimos_abastecimentos": ultimos,
         "alertas": alertas,
     }
+
+
+# ── Abastecimento: Detalhe completo ──────────────────────────────
+@app.get("/abastecimentos/{id}", tags=["abastecimentos"])
+def detalhe_abastecimento(id: int, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("profrotas_abastecimentos").select(
+        "id,identificador,data_abastecimento,data_transacao,status_autorizacao,"
+        "motivo_recusa,motivo_cancelamento,abastecimento_estornado,"
+        "hodometro,horimetro,"
+        "motorista_id,motorista_nome,"
+        "veiculo_id,veiculo_placa,"
+        "pv_cnpj,pv_razao_social,pv_posto_interno,pv_municipio,pv_uf,pv_latitude,pv_longitude,"
+        "item_nome,item_quantidade,item_valor_unitario,item_valor_total,"
+        "frota_razao_social,importado_em,criado_em"
+    ).eq("id", id).eq("cnpj_frota", cnpj).execute()
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Abastecimento nao encontrado")
+    dado = r.data[0]
+    for k in ["item_quantidade","item_valor_unitario","item_valor_total","hodometro","horimetro"]:
+        try: dado[k] = round(float(dado[k] or 0), 4) if dado.get(k) is not None else None
+        except: dado[k] = None
+    return dado
 
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
