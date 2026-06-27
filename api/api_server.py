@@ -1419,6 +1419,7 @@ def deletar_rota_salva(id: str, user: dict = Depends(usuario_atual)):
 @app.get("/comece-seu-dia", tags=["dashboard"])
 def comece_seu_dia(
     dias: int = 7,
+    periodo: Optional[str] = None,
     user: dict = Depends(usuario_atual)
 ):
     import pandas as pd
@@ -1427,8 +1428,16 @@ def comece_seu_dia(
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
     hoje = _hoje_br()
     ontem = hoje - timedelta(days=1)
-    dt_ini = hoje.isoformat() if dias <= 1 else (hoje - timedelta(days=dias)).isoformat()
-    dt_fim_exc = (hoje + timedelta(days=1)).isoformat()
+
+    if periodo == "ontem":
+        dt_ini = ontem.isoformat()
+        dt_fim_exc = hoje.isoformat()
+    elif dias <= 1:
+        dt_ini = hoje.isoformat()
+        dt_fim_exc = (hoje + timedelta(days=1)).isoformat()
+    else:
+        dt_ini = (hoje - timedelta(days=dias)).isoformat()
+        dt_fim_exc = (hoje + timedelta(days=1)).isoformat()
 
     # Abastecimentos do período
     r = db.table("profrotas_abastecimentos").select(
