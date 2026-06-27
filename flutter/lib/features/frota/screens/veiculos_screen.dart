@@ -282,6 +282,7 @@ class _State extends State<VeiculosScreen> {
                                   ),
                                 ],
                               ]),
+                              onTap: () => _novoOuEditar(v),
                             ),
                           );
                         },
