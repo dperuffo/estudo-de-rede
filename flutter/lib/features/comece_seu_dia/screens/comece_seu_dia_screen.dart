@@ -226,6 +226,7 @@ class _State extends State<ComeceSeuDiaScreen> {
                         Text('${(a["item_quantidade"] ?? 0).toStringAsFixed(0)} L',
                             style: TextStyle(fontSize: 11, color: Colors.grey[600])),
                       ]),
+                      onTap: () => AbastecimentoDetalheModal.show(context, a),
                     ),
                   )),
                 ],
