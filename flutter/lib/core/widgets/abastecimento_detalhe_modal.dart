@@ -125,7 +125,7 @@ class _State extends State<_DetalheSheet> {
                 _secao('Abastecimento'),
                 _linha('Data', _formatarData(d['data_abastecimento'])),
                 _linha('Identificador', d['identificador']?.toString() ?? '-'),
-                _linha('Status', d['status_autorizacao'] ?? '-',
+                _linha('Status', _formatarStatus(d['status_autorizacao']),
                     cor: _corStatus(d['status_autorizacao'])),
                 if (d['abastecimento_estornado'] == 1)
                   _linha('Estornado', 'Sim', cor: Colors.red),
@@ -156,7 +156,7 @@ class _State extends State<_DetalheSheet> {
                 _linha('Razao Social', d['pv_razao_social'] ?? '-'),
                 _linha('CNPJ', _formatarCnpj(d['pv_cnpj'])),
                 _linha('Municipio', '${d['pv_municipio'] ?? '-'}/${d['pv_uf'] ?? '-'}'),
-                if (d['pv_posto_interno'] != null)
+                if (d['pv_posto_interno'] != null && d['pv_posto_interno'] != false)
                   _linha('Posto Interno', d['pv_posto_interno'].toString()),
                 if (d['pv_latitude'] != null && d['pv_longitude'] != null)
                   _linhaAcao('Ver no mapa', Icons.map, Colors.green, _abrirMapa),
@@ -232,10 +232,20 @@ class _State extends State<_DetalheSheet> {
 
   Color _corStatus(dynamic status) {
     if (status == null) return Colors.grey;
+    // status pode ser int (1=aprovado, 0=recusado) ou string
+    if (status is int) {
+      return status == 1 ? Colors.green : Colors.red;
+    }
     final s = status.toString().toLowerCase();
-    if (s.contains('aprovad') || s.contains('autorizado')) return Colors.green;
-    if (s.contains('recusad') || s.contains('negado')) return Colors.red;
+    if (s.contains('aprovad') || s.contains('autorizado') || s == '1') return Colors.green;
+    if (s.contains('recusad') || s.contains('negado') || s == '0') return Colors.red;
     if (s.contains('cancel')) return Colors.orange;
     return Colors.grey[700]!;
+  }
+  
+  String _formatarStatus(dynamic status) {
+    if (status == null) return '-';
+    if (status is int) return status == 1 ? 'Autorizado' : 'Recusado';
+    return status.toString();
   }
 }
