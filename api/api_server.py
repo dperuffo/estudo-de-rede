@@ -1426,8 +1426,9 @@ def comece_seu_dia(
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
     hoje = _hoje_br()
+    ontem = hoje - timedelta(days=1)
     dt_ini = hoje.isoformat() if dias <= 1 else (hoje - timedelta(days=dias)).isoformat()
-    dt_ontem = (hoje - timedelta(days=1)).isoformat()
+    dt_fim_exc = (hoje + timedelta(days=1)).isoformat()
 
     # Abastecimentos do período
     r = db.table("profrotas_abastecimentos").select(
