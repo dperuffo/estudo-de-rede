@@ -60,6 +60,7 @@ class HomeScreen extends StatelessWidget {
       _item(context, Icons.psychology,           'Inteligencia',       '/inteligencia'),
       _item(context, Icons.trending_up,          'Variacao de Precos', '/precos'),
       _item(context, Icons.description,          'Relatorios',         '/relatorios'),
+      _item(context, Icons.people,                'Analise de Cliente', '/analise-cliente'),
       _item(context, Icons.smart_toy,            'Assistente IA',      '/assistente'),
       const Divider(),
       _grp('Rede de Postos'),
