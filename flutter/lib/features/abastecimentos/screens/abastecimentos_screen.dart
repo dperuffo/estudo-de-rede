@@ -77,6 +77,7 @@ class _State extends State<AbastecimentosScreen> {
                     subtitle: Text(a['pv_razao_social'] ?? '-'),
                     trailing: Text('${(a["item_quantidade"] ?? 0).toStringAsFixed(0)} L',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () => AbastecimentoDetalheModal.show(context, a),
                   ),
                 )),
               ],
