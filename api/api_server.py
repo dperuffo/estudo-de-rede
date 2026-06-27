@@ -1681,6 +1681,91 @@ def detalhe_veiculo(placa: str, user: dict = Depends(usuario_atual)):
         return {"cadastrado": False, "placa": placa.upper()}
     return {"cadastrado": True, **r.data[0]}
 
+
+# ── Análise de Cliente ────────────────────────────────────────────
+@app.get("/analise-cliente", tags=["analise"])
+def analise_cliente(dias: int = 30, user: dict = Depends(usuario_atual)):
+    import pandas as pd
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    hoje = _hoje_br()
+    dt_ini = hoje.isoformat() if dias <= 1 else (hoje - timedelta(days=dias)).isoformat()
+    dt_fim = (hoje + timedelta(days=1)).isoformat()
+
+    r = db.table("profrotas_abastecimentos").select(
+        "id,data_abastecimento,veiculo_placa,motorista_nome,item_nome,"
+        "item_quantidade,item_valor_unitario,item_valor_total,"
+        "pv_razao_social,pv_municipio,pv_uf,pv_cnpj,hodometro"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+        "data_abastecimento", dt_ini
+    ).lt("data_abastecimento", dt_fim).execute()
+
+    df = pd.DataFrame(r.data or [])
+    if df.empty:
+        return {"kpis": {}, "por_veiculo": [], "por_motorista": [],
+                "por_posto": [], "por_combustivel": [], "por_uf": [], "evolucao": []}
+
+    for col in ["item_quantidade","item_valor_unitario","item_valor_total","hodometro"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    n_abast   = len(df)
+    total_lit = round(float(df["item_quantidade"].sum()), 1)
+    total_gas = round(float(df["item_valor_total"].sum()), 2)
+    preco_med = round(float(df["item_valor_unitario"].replace(0, float("nan")).mean()), 4)
+    ticket_med = round(total_gas / max(n_abast, 1), 2)
+
+    def agg(grupo, col_nome, sort="gasto", head=10):
+        g = df.groupby(col_nome).agg(
+            gasto=("item_valor_total","sum"),
+            litros=("item_quantidade","sum"),
+            n=(col_nome,"count"),
+            preco_medio=("item_valor_unitario","mean"),
+        ).reset_index().sort_values(sort, ascending=False).head(head).fillna(0)
+        for c in ["gasto","litros","preco_medio"]:
+            if c in g.columns:
+                g[c] = g[c].apply(lambda x: round(float(x), 2 if c=="gasto" else 1 if c=="litros" else 4))
+        return g.to_dict("records")
+
+    por_veiculo = agg(df, "veiculo_placa")
+    # adiciona hodometro_max
+    hod = df.groupby("veiculo_placa")["hodometro"].max().reset_index().rename(columns={"hodometro":"hodometro_max"})
+    por_veiculo_df = df.groupby("veiculo_placa").agg(gasto=("item_valor_total","sum"),litros=("item_quantidade","sum"),n=("veiculo_placa","count"),preco_medio=("item_valor_unitario","mean")).reset_index().sort_values("gasto",ascending=False).head(10).fillna(0)
+    por_veiculo_df = por_veiculo_df.merge(hod, on="veiculo_placa", how="left").fillna(0)
+    for c in ["gasto","litros","preco_medio","hodometro_max"]:
+        por_veiculo_df[c] = por_veiculo_df[c].apply(lambda x: round(float(x),2))
+    por_veiculo = por_veiculo_df.to_dict("records")
+
+    df_mot = df[df["motorista_nome"].str.strip() != ""]
+    por_motorista = df_mot.groupby("motorista_nome").agg(gasto=("item_valor_total","sum"),litros=("item_quantidade","sum"),n=("motorista_nome","count"),n_veiculos=("veiculo_placa","nunique")).reset_index().sort_values("gasto",ascending=False).head(10).fillna(0).to_dict("records")
+    for d in por_motorista:
+        d["gasto"]=round(float(d["gasto"]),2); d["litros"]=round(float(d["litros"]),1)
+
+    por_posto = df.groupby(["pv_razao_social","pv_municipio","pv_uf"]).agg(gasto=("item_valor_total","sum"),litros=("item_quantidade","sum"),n=("pv_razao_social","count"),preco_medio=("item_valor_unitario","mean")).reset_index().sort_values("gasto",ascending=False).head(10).fillna(0).to_dict("records")
+    for d in por_posto:
+        d["gasto"]=round(float(d["gasto"]),2); d["litros"]=round(float(d["litros"]),1); d["preco_medio"]=round(float(d["preco_medio"]),4)
+
+    por_comb = agg(df, "item_nome")
+    por_uf = df.groupby("pv_uf").agg(gasto=("item_valor_total","sum"),litros=("item_quantidade","sum"),n=("pv_uf","count")).reset_index().sort_values("gasto",ascending=False).fillna(0).to_dict("records")
+    for d in por_uf:
+        d["gasto"]=round(float(d["gasto"]),2); d["litros"]=round(float(d["litros"]),1)
+
+    df["dia"] = df["data_abastecimento"].str[:10]
+    evolucao = df.groupby("dia").agg(gasto=("item_valor_total","sum"),litros=("item_quantidade","sum"),n=("dia","count")).reset_index().sort_values("dia").fillna(0).to_dict("records")
+    for d in evolucao:
+        d["gasto"]=round(float(d["gasto"]),2); d["litros"]=round(float(d["litros"]),1)
+
+    return {
+        "periodo": {"inicio": dt_ini, "fim": hoje.isoformat(), "dias": dias},
+        "kpis": {"n_abastecimentos": n_abast, "total_litros": total_lit, "total_gasto": total_gas,
+                 "preco_medio": preco_med, "ticket_medio": ticket_med,
+                 "n_veiculos": int(df["veiculo_placa"].nunique()),
+                 "n_motoristas": int(df["motorista_nome"].nunique()),
+                 "n_postos": int(df["pv_cnpj"].nunique())},
+        "por_veiculo": por_veiculo, "por_motorista": por_motorista,
+        "por_posto": por_posto, "por_combustivel": por_comb,
+        "por_uf": por_uf, "evolucao": evolucao,
+    }
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn
