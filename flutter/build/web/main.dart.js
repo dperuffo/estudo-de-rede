@@ -29576,7 +29576,9 @@ Mu:function Mu(){var _=this
 _.d=null
 _.e=!0
 _.f=7
-_.c=_.a=_.r=null},
+_.r=null
+_.w="7dias"
+_.c=_.a=null},
 aJ0:function aJ0(a){this.a=a},
 aJ1:function aJ1(a,b){this.a=a
 this.b=b},
@@ -102690,18 +102692,16 @@ b=e.d
 b=s.a(b==null?d:J.W(b,"saudacao"))
 k=b==null?d:J.W(b,"nome")
 j=J.ws(J.aPX(k==null?"Gestor":k," "))
-b=e.r
-if(b==null)b="hoje"
-s=t.p
-b=A.hB(A.b([A.t6(B.a2,B.OD,new A.aKx(e),B.cF,b,t.N),B.a_],s),d,B.bB,B.a29)
-if(e.e)s=B.bL
+b=t.p
+s=A.hB(A.b([A.t6(B.a2,B.OD,new A.aKx(e),B.cF,e.w,t.N),B.a_],b),d,B.bB,B.a29)
+if(e.e)b=B.bL
 else{q=A.cN(12)
 i=A.R(e.aqo()+", "+A.j(j)+"! \ud83d\udc4b",d,d,d,B.ZB,d,d)
 h=new A.fC(Date.now(),0,!1)
 g=A.R(["Segunda","Terca","Quarta","Quinta","Sexta","Sabado","Domingo"][A.bax(h)-1]+", "+A.apj(h)+" de "+["janeiro","fevereiro","marco","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"][A.G1(h)-1],d,d,d,B.CZ,d,d)
 if(e.r==="ontem")f="ontem"
 else{f=e.f
-f=f===1?"hoje":"ultimos "+f+" dias"}q=A.b([A.bZ(d,A.bE(A.b([i,B.e0,g,B.aN,A.R("Resumo operacional \u2014 "+f,d,d,d,B.nD,d,d)],s),B.an,B.m,B.o),B.q,d,d,new A.bM(d,d,d,q,d,B.iI,B.J),d,d,d,d,B.aQ,d,d,d),B.bl],s)
+f=f===1?"hoje":"ultimos "+f+" dias"}q=A.b([A.bZ(d,A.bE(A.b([i,B.e0,g,B.aN,A.R("Resumo operacional \u2014 "+f,d,d,d,B.nD,d,d)],b),B.an,B.m,B.o),B.q,d,d,new A.bM(d,d,d,q,d,B.iI,B.J),d,d,d,d,B.aQ,d,d,d),B.bl],b)
 i=J.a1(l)
 if(i.gb2(l)){g=t.l
 i=A.a0(i.da(l,new A.aKy(),g),g)
@@ -102711,37 +102711,37 @@ i=J.a1(r)
 g=i.h(r,"n_abastecimentos")
 g=e.nv("Abastecimentos",A.j(g==null?0:g),B.ez,B.ad)
 f=i.h(r,"total_litros")
-q.push(A.bv(A.b([g,B.a_,e.nv("Litros",J.hi(f==null?0:f,0)+" L",B.Lo,B.eE)],s),B.n,B.m,B.o,0))
+q.push(A.bv(A.b([g,B.a_,e.nv("Litros",J.hi(f==null?0:f,0)+" L",B.Lo,B.eE)],b),B.n,B.m,B.o,0))
 q.push(B.aN)
 g=i.h(r,"total_gasto")
 g=e.nv("Gasto Combustivel",c.c4(g==null?0:g),B.Ld,B.aA)
 f=i.h(r,"preco_medio")
-q.push(A.bv(A.b([g,B.a_,e.nv("Preco Medio/L",c.c4(f==null?0:f),B.Lh,B.be)],s),B.n,B.m,B.o,0))
+q.push(A.bv(A.b([g,B.a_,e.nv("Preco Medio/L",c.c4(f==null?0:f),B.Lh,B.be)],b),B.n,B.m,B.o,0))
 q.push(B.aN)
 g=i.h(r,"ticket_medio")
 g=e.nv("Ticket Medio",c.c4(g==null?0:g),B.Lk,B.h3)
 f=i.h(r,"n_veiculos")
-q.push(A.bv(A.b([g,B.a_,e.nv("Veiculos Ativos",A.j(f==null?0:f),B.iB,B.cS)],s),B.n,B.m,B.o,0))
+q.push(A.bv(A.b([g,B.a_,e.nv("Veiculos Ativos",A.j(f==null?0:f),B.iB,B.cS)],b),B.n,B.m,B.o,0))
 q.push(B.aN)
 g=i.h(r,"total_manutencao")
 g=e.nv("Manutencao",c.c4(g==null?0:g),B.m5,B.a4)
 i=i.h(r,"total_geral")
-q.push(A.bv(A.b([g,B.a_,e.nv("Total Geral",c.c4(i==null?0:i),B.L2,B.a2)],s),B.n,B.m,B.o,0))
+q.push(A.bv(A.b([g,B.a_,e.nv("Total Geral",c.c4(i==null?0:i),B.L2,B.a2)],b),B.n,B.m,B.o,0))
 q.push(B.bm)
-if(J.fk(p))B.b.L(q,A.b([new A.aN(B.aU,A.R("Gasto por dia (R$)",d,d,d,B.bo,d,d),d),A.dx(e.ahS(p,c),200,d),B.bm],s))
+if(J.fk(p))B.b.L(q,A.b([new A.aN(B.aU,A.R("Gasto por dia (R$)",d,d,d,B.bo,d,d),d),A.dx(e.ahS(p,c),200,d),B.bm],b))
 i=J.a1(o)
-if(i.gb2(o)){g=A.b([new A.aN(B.aU,A.R("Por combustivel",d,d,d,B.bo,d,d),d)],s)
+if(i.gb2(o)){g=A.b([new A.aN(B.aU,A.R("Por combustivel",d,d,d,B.bo,d,d),d)],b)
 B.b.L(g,i.da(o,new A.aKz(e,r,c),t.l))
 g.push(B.bm)
 B.b.L(q,g)}i=J.a1(n)
-if(i.gb2(n)){g=A.b([new A.aN(B.aU,A.R("Top veiculos por gasto",d,d,d,B.bo,d,d),d)],s)
+if(i.gb2(n)){g=A.b([new A.aN(B.aU,A.R("Top veiculos por gasto",d,d,d,B.bo,d,d),d)],b)
 i=i.nH(n)
 B.b.L(g,i.ge0(i).da(0,new A.aKK(e,c),t.l))
 g.push(B.bm)
 B.b.L(q,g)}i=J.a1(m)
-if(i.gb2(m)){s=A.b([new A.aN(B.aU,A.R("Ultimos abastecimentos",d,d,d,B.bo,d,d),d)],s)
-B.b.L(s,i.da(m,new A.aKV(c,a),t.l))
-B.b.L(q,s)}s=A.ka(A.m2(q,B.aQ,d,!1),e.gamq())}return A.h7(b,s,d,d,d,d)},
+if(i.gb2(m)){b=A.b([new A.aN(B.aU,A.R("Ultimos abastecimentos",d,d,d,B.bo,d,d),d)],b)
+B.b.L(b,i.da(m,new A.aKV(c,a),t.l))
+B.b.L(q,b)}b=A.ka(A.m2(q,B.aQ,d,!1),e.gamq())}return A.h7(s,b,d,d,d,d)},
 nv(a,b,c,d){var s=null,r=A.ao(20,d.v()>>>16&255,d.v()>>>8&255,d.v()&255),q=A.cN(12),p=A.mZ(A.ao(51,d.v()>>>16&255,d.v()>>>8&255,d.v()&255),1),o=A.ao(38,d.v()>>>16&255,d.v()>>>8&255,d.v()&255),n=A.cN(8),m=t.p
 return A.cp(A.bZ(s,A.bv(A.b([A.bZ(s,A.tz(c,d,s,20),B.q,s,s,new A.bM(o,s,s,n,s,s,B.J),s,s,s,s,B.cP,s,s,s),B.Cn,A.cp(A.bE(A.b([A.R(a,s,s,s,A.bg(s,s,B.aj,s,s,s,s,s,s,s,s,10,s,s,s,s,s,!0,s,s,s,s,s,s,s,s),s,s),A.R(b,s,s,s,A.bg(s,s,d,s,s,s,s,s,s,s,s,14,s,s,B.E,s,s,!0,s,s,s,s,s,s,s,s),s,s)],m),B.an,B.m,B.o),1)],m),B.n,B.m,B.o,0),B.q,s,s,new A.bM(r,s,p,q,s,s,B.J),s,s,s,s,B.ce,s,s,s),1)},
 ahS(a,b){var s,r,q=null,p=J.a1(a)
@@ -102766,7 +102766,7 @@ s.M(new A.aKg(s,a))
 s.ri()},
 $S:68}
 A.aKg.prototype={
-$0(){var s,r=this.a,q=this.b,p=q==="ontem"
+$0(){var s,r=this.a,q=r.w=this.b,p=q==="ontem"
 r.r=p?"ontem":null
 s=1
 if(q==="hoje")q=s
