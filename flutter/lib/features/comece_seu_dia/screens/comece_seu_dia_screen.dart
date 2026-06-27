@@ -15,6 +15,7 @@ class _State extends State<ComeceSeuDiaScreen> {
   bool _loading = true;
   int _dias = 7;
   String? _periodo;
+  String _selecao = '7dias';
 
   @override void initState() { super.initState(); _load(); }
 
@@ -64,7 +65,7 @@ class _State extends State<ComeceSeuDiaScreen> {
         title: const Text('Comece seu dia'),
         actions: [
           DropdownButton<String>(
-            value: _periodo ?? 'hoje',
+            value: _selecao,
             dropdownColor: const Color(0xFF0D2D6B),
             style: const TextStyle(color: Colors.white),
             items: const [
@@ -76,6 +77,7 @@ class _State extends State<ComeceSeuDiaScreen> {
             ],
             onChanged: (v) {
               setState(() {
+                _selecao = v!;
                 _periodo = v == 'ontem' ? 'ontem' : null;
                 _dias = v == 'hoje' ? 1 : v == 'ontem' ? 1
                     : v == '7dias' ? 7 : v == '15dias' ? 15 : 30;

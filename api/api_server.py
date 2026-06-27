@@ -1434,7 +1434,7 @@ def comece_seu_dia(
         "id,data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,motorista_nome,pv_municipio,pv_uf,pv_razao_social,pv_cnpj,pv_latitude,pv_longitude,hodometro,status_autorizacao"
     ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
         "data_abastecimento", dt_ini
-    ).lt("data_abastecimento", (hoje + timedelta(days=1)).isoformat()).order("data_abastecimento", desc=True).execute()
+    ).lt("data_abastecimento", dt_fim_exc).order("data_abastecimento", desc=True).execute()
 
     df = pd.DataFrame(r.data or [])
 
