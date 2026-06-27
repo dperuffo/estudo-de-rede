@@ -50,6 +50,7 @@ class HomeScreen extends StatelessWidget {
       _grp('Gestao da Frota'),
       _item(context, Icons.local_gas_station,    'Abastecimentos',     '/abastecimentos'),
       _item(context, Icons.directions_car,       'Frota',              '/frota'),
+      _item(context, Icons.garage,                 'Cadastro Veiculos',  '/veiculos'),
       _item(context, Icons.build,                'Manutencao',         '/manutencao'),
       _item(context, Icons.attach_money,         'Financeiro',         '/financeiro'),
       _item(context, Icons.business,             'Centros de Custo',   '/centros-custo'),

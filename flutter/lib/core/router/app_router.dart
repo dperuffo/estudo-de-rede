@@ -6,6 +6,7 @@ import '../../features/comece_seu_dia/screens/comece_seu_dia_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/abastecimentos/screens/abastecimentos_screen.dart';
 import '../../features/frota/screens/frota_screen.dart';
+import '../../features/frota/screens/veiculos_screen.dart';
 import '../../features/manutencao/screens/manutencao_screen.dart';
 import '../../features/financeiro/screens/financeiro_screen.dart';
 import '../../features/inteligencia/screens/inteligencia_screen.dart';
@@ -36,6 +37,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         GoRoute(path: '/dashboard',       builder: (_, __) => const DashboardScreen()),
         GoRoute(path: '/abastecimentos',  builder: (_, __) => const AbastecimentosScreen()),
         GoRoute(path: '/frota',           builder: (_, __) => const FrotaScreen()),
+        GoRoute(path: '/veiculos',         builder: (_, __) => const VeiculosScreen()),
         GoRoute(path: '/manutencao',      builder: (_, __) => const ManutencaoScreen()),
         GoRoute(path: '/financeiro',      builder: (_, __) => const FinanceiroScreen()),
         GoRoute(path: '/inteligencia',    builder: (_, __) => const InteligenciaScreen()),

@@ -1582,6 +1582,105 @@ def detalhe_abastecimento(id: int, user: dict = Depends(usuario_atual)):
         except: dado[k] = None
     return dado
 
+
+# ── Cadastro de Veículos ──────────────────────────────────────────
+@app.get("/veiculos", tags=["veiculos"])
+def listar_veiculos_cadastro(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    
+    # Busca veículos cadastrados
+    r = db.table("cadastro_veiculos").select("*").eq("cnpj_frota", cnpj).eq("ativo", True).order("placa").execute()
+    cadastrados = {v["placa"]: v for v in (r.data or [])}
+    
+    # Busca placas dos abastecimentos
+    r2 = db.table("profrotas_abastecimentos").select("veiculo_placa,item_nome,hodometro").eq(
+        "cnpj_frota", cnpj).eq("item_tipo", 1).order("data_abastecimento", desc=True).limit(5000).execute()
+    
+    import pandas as pd
+    df = pd.DataFrame(r2.data or [])
+    placas_abast = []
+    if not df.empty:
+        df["hodometro"] = pd.to_numeric(df["hodometro"], errors="coerce").fillna(0)
+        grp = df.groupby("veiculo_placa").agg(
+            combustivel=("item_nome", lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else ""),
+            hodometro_ultimo=("hodometro", "max"),
+            n_abastecimentos=("veiculo_placa", "count")
+        ).reset_index()
+        placas_abast = grp.to_dict("records")
+
+    # Combina: cadastrados + não cadastrados
+    resultado = []
+    for p in placas_abast:
+        placa = p["veiculo_placa"]
+        if placa in cadastrados:
+            v = cadastrados[placa].copy()
+            v["n_abastecimentos"] = int(p["n_abastecimentos"])
+            v["hodometro_abast"] = float(p["hodometro_ultimo"])
+            v["cadastrado"] = True
+        else:
+            v = {
+                "placa": placa,
+                "combustivel": p["combustivel"],
+                "hodometro_atual": float(p["hodometro_ultimo"]),
+                "n_abastecimentos": int(p["n_abastecimentos"]),
+                "cadastrado": False,
+            }
+        resultado.append(v)
+
+    # Adiciona cadastrados sem abastecimento recente
+    placas_abast_set = {p["veiculo_placa"] for p in placas_abast}
+    for placa, v in cadastrados.items():
+        if placa not in placas_abast_set:
+            v["cadastrado"] = True
+            v["n_abastecimentos"] = 0
+            resultado.append(v)
+
+    return {"total": len(resultado), "data": resultado}
+
+@app.post("/veiculos", tags=["veiculos"])
+def criar_veiculo(body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    body["cnpj_frota"] = cnpj
+    body["criado_por"] = user.get("email", "")
+    body["placa"] = body.get("placa", "").upper().strip()
+    try:
+        r = db.table("cadastro_veiculos").insert(body).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/veiculos/{id}", tags=["veiculos"])
+def atualizar_veiculo(id: str, body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    body["atualizado_em"] = _hoje_br().isoformat()
+    try:
+        r = db.table("cadastro_veiculos").update(body).eq("id", id).eq("cnpj_frota", cnpj).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/veiculos/{id}", tags=["veiculos"])
+def deletar_veiculo(id: str, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    try:
+        db.table("cadastro_veiculos").update({"ativo": False}).eq("id", id).eq("cnpj_frota", cnpj).execute()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/veiculos/{placa}", tags=["veiculos"])
+def detalhe_veiculo(placa: str, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("cadastro_veiculos").select("*").eq("cnpj_frota", cnpj).eq("placa", placa.upper()).execute()
+    if not r.data:
+        return {"cadastrado": False, "placa": placa.upper()}
+    return {"cadastrado": True, **r.data[0]}
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn
