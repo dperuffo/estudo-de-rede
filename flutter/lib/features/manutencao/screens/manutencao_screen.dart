@@ -146,7 +146,14 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
                     'hodometro': int.tryParse(hodCtrl.text),
                     'tecnico': tecnicoCtrl.text.trim(),
                     'oficina': oficCtrl.text.trim(),
-                    'custo_total': double.tryParse(custoCtrl.text.replaceAll(',','.')),
+                    'custo_total': double.tryParse(
+                      custoCtrl.text
+                        .replaceAll('R\$', '')
+                        .replaceAll(' ', '')
+                        .replaceAll('.', '')
+                        .replaceAll(',', '.')
+                        .trim()
+                    ),
                     'obs_gerais': obsCtrl.text.trim(),
                     'itens_realizados': itensSelecionados.toList(),
                   };
