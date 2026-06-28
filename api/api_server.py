@@ -1358,20 +1358,24 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
             # 2. Além do ideal mas dentro do máximo → posto de menor preço disponível
             # 3. Emergência → mais próximo disponível
 
+            # Janela otimizada: busca postos na faixa 60-90% do alcance máximo
+            faixa_ini = pos + alcance_max * 0.60
+            faixa_fim = pos + alcance_max * 0.90
+
             janela_ideal = [e for e in postos_candidatos
-                if limite_ideal * 0.5 < e["_km"] <= limite_ideal  # 2a metade do alcance ideal
+                if faixa_ini < e["_km"] <= faixa_fim
                 and e["cnpj"] not in seen]
 
             janela_max = [e for e in postos_candidatos
-                if pos < e["_km"] <= limite_max
+                if pos + alcance_max * 0.40 < e["_km"] <= limite_max
                 and e["cnpj"] not in seen]
 
             if janela_ideal:
-                # Escolhe o melhor posto na janela ideal
-                best = dict(max(janela_ideal, key=lambda e: _score(e, km_restante)))
+                # Melhor preço na faixa ideal (60-90% do alcance)
+                best = dict(min(janela_ideal, key=lambda e: e["preco"]))
                 best["motivo"] = "otimizado"
             elif janela_max:
-                # Escolhe o mais barato no alcance máximo
+                # Mais barato no alcance máximo
                 best = dict(min(janela_max, key=lambda e: e["preco"]))
                 best["motivo"] = "economico"
             else:
