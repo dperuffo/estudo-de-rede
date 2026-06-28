@@ -247,6 +247,35 @@ class _State extends State<FinanceiroScreen> {
     ),
   );
 
+  Widget _barraDistribuicao(String label, double valor, double total, NumberFormat fmt, Color color, String sub) =>
+    Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14)),
+          const Spacer(),
+          Text(fmt.format(valor), style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16)),
+        ]),
+        const SizedBox(height: 8),
+        ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(
+          value: total > 0 ? valor / total : 0,
+          backgroundColor: Colors.grey[200],
+          valueColor: AlwaysStoppedAnimation(color),
+          minHeight: 12,
+        )),
+        const SizedBox(height: 4),
+        Text(sub, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ]),
+    );
+
   Widget _legenda(Color color, String label) => Row(children: [
     Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
     const SizedBox(width: 6),

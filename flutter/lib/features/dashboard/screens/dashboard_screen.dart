@@ -105,37 +105,12 @@ class _State extends State<DashboardScreen> {
                 ]),
                 const SizedBox(height: 24),
 
-                // Pizza
+                // Distribuição de custos - barras horizontais
                 if (total > 0) ...[
                   _secao('Distribuicao de custos'),
-                  SizedBox(height: 180, child: Row(children: [
-                    Expanded(child: PieChart(PieChartData(
-                      sections: [
-                        PieChartSectionData(
-                          value: totalC,
-                          title: '${(totalC/total*100).toStringAsFixed(0)}%',
-                          color: const Color(0xFF1565C0),
-                          radius: 70,
-                          titleStyle: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                        if (totalM > 0) PieChartSectionData(
-                          value: totalM,
-                          title: '${(totalM/total*100).toStringAsFixed(0)}%',
-                          color: Colors.red,
-                          radius: 70,
-                          titleStyle: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                      centerSpaceRadius: 35,
-                      sectionsSpace: 2,
-                    ))),
-                    const SizedBox(width: 16),
-                    Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      _legenda(const Color(0xFF1565C0), 'Combustivel', fmt.format(totalC)),
-                      const SizedBox(height: 12),
-                      if (totalM > 0) _legenda(Colors.red, 'Manutencao', fmt.format(totalM)),
-                    ]),
-                  ])),
+                  _barraDistrib('Combustivel', totalC, total, fmt, const Color(0xFF1565C0)),
+                  const SizedBox(height: 8),
+                  if (totalM > 0) _barraDistrib('Manutencao', totalM, total, fmt, Colors.red),
                   const SizedBox(height: 24),
                 ],
 
@@ -190,6 +165,36 @@ class _State extends State<DashboardScreen> {
       ]),
     ),
   );
+
+  Widget _barraDistrib(String label, double valor, double total, NumberFormat fmt, Color color) =>
+    Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14)),
+          const Spacer(),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(fmt.format(valor), style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 15)),
+            Text('${(valor/total*100).toStringAsFixed(1)}%', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+          ]),
+        ]),
+        const SizedBox(height: 8),
+        ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(
+          value: total > 0 ? valor / total : 0,
+          backgroundColor: Colors.grey[200],
+          valueColor: AlwaysStoppedAnimation(color),
+          minHeight: 12,
+        )),
+      ]),
+    );
 
   Widget _legenda(Color color, String label, String valor) => Row(children: [
     Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
