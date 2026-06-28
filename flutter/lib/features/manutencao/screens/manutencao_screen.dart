@@ -55,7 +55,36 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _DetalheManutencao(manutencao: m, fmt: _fmt),
+      builder: (_) => _DetalheManutencao(
+        manutencao: m,
+        fmt: _fmt,
+        onEditar: () { Navigator.pop(context); _novoOuEditar(m); },
+        onDeletar: () async {
+          Navigator.pop(context);
+          final ok = await showDialog<bool>(context: context,
+            builder: (dialogCtx) => AlertDialog(
+              title: const Text('Excluir manutencao'),
+              content: Text('Deseja excluir a manutencao do veiculo ${m["placa"]}?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancelar')),
+                ElevatedButton(onPressed: () => Navigator.pop(dialogCtx, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: const Text('Excluir', style: TextStyle(color: Colors.white))),
+              ],
+            ));
+          if (ok == true) {
+            try {
+              await ApiService().delete('/manutencao/${m["id"]}');
+              _load(); _loadStatus();
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Manutencao excluida!')));
+            } catch (e) {
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erro: \$e')));
+            }
+          }
+        },
+      ),
     );
   }
 
@@ -346,7 +375,9 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
 class _DetalheManutencao extends StatelessWidget {
   final Map manutencao;
   final NumberFormat fmt;
-  const _DetalheManutencao({required this.manutencao, required this.fmt});
+  final VoidCallback? onEditar;
+  final VoidCallback? onDeletar;
+  const _DetalheManutencao({required this.manutencao, required this.fmt, this.onEditar, this.onDeletar});
 
   @override
   Widget build(BuildContext context) {
@@ -376,6 +407,10 @@ class _DetalheManutencao extends StatelessWidget {
             ])),
             Text(fmt.format(m['custo_total'] ?? 0),
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+            Row(children: [
+              IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: onEditar),
+              IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: onDeletar),
+            ]),
           ]),
         ),
         const Divider(height: 24),
