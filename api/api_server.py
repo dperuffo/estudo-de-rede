@@ -1173,144 +1173,163 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
         )
         dur_min = (dist_km / 80) * 60
 
-    # 2. Buscar postos da frota ao longo da rota
+    # 2. Buscar postos ao longo da rota (frota + ANP/postos_gf)
     db = get_db()
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
-    dt_ini = (_hoje_br() - timedelta(days=180)).isoformat()
+    import pandas as pd
 
+    # Aumenta raio para rotas longas
+    raio_efetivo = max(raio_km, min(50, dist_km / 100))
+
+    # Sample da rota para comparação
+    step = max(1, len(coords_rota) // 100)
+    rota_sample = coords_rota[::step]
+
+    def _km_na_rota(plat, plon):
+        """Retorna posição aproximada em km na rota e desvio mínimo."""
+        min_dev = float("inf")
+        best_i = 0
+        for i, (rlat, rlon) in enumerate(rota_sample):
+            d = math.sqrt((plat - rlat)**2 + (plon - rlon)**2) * 111
+            if d < min_dev:
+                min_dev = d
+                best_i = i
+        km = (best_i / max(len(rota_sample)-1, 1)) * dist_km
+        return round(km, 1), round(min_dev, 2)
+
+    postos_candidatos = []
+    seen_cnpj = set()
+
+    # Fonte 1: postos da frota (histórico real com preços)
+    dt_ini = (_hoje_br() - timedelta(days=180)).isoformat()
     r = db.table("profrotas_abastecimentos").select(
         "pv_cnpj,pv_razao_social,pv_municipio,pv_uf,pv_latitude,pv_longitude,item_nome,item_valor_unitario"
     ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).execute()
 
-    import pandas as pd
     df = pd.DataFrame(r.data or [])
-    postos_candidatos = []
-
     if not df.empty:
         df["item_valor_unitario"] = pd.to_numeric(df["item_valor_unitario"], errors="coerce").fillna(0)
         df["pv_latitude"]  = pd.to_numeric(df["pv_latitude"],  errors="coerce")
         df["pv_longitude"] = pd.to_numeric(df["pv_longitude"], errors="coerce")
         df = df.dropna(subset=["pv_latitude","pv_longitude"])
         if comb:
-            df_comb = df[df["item_nome"].str.contains(comb, case=False, na=False)]
-            if not df_comb.empty:
-                df = df_comb
-
-        # Preco medio por posto
+            df_c = df[df["item_nome"].str.contains(comb, case=False, na=False)]
+            if not df_c.empty:
+                df = df_c
         precos = df.groupby("pv_cnpj").agg(
-            razao_social=("pv_razao_social","first"),
-            municipio=("pv_municipio","first"),
-            uf=("pv_uf","first"),
-            lat=("pv_latitude","first"),
-            lon=("pv_longitude","first"),
-            combustivel=("item_nome","first"),
-            preco=("item_valor_unitario","mean"),
+            razao_social=("pv_razao_social","first"), municipio=("pv_municipio","first"),
+            uf=("pv_uf","first"), lat=("pv_latitude","first"), lon=("pv_longitude","first"),
+            combustivel=("item_nome","first"), preco=("item_valor_unitario","mean"),
         ).reset_index()
-
-        # Filtra postos próximos à rota
-        step = max(1, len(coords_rota) // 50)
-        rota_sample = coords_rota[::step]
-
         for _, posto in precos.iterrows():
             plat, plon = posto["lat"], posto["lon"]
-            if pd.isna(plat) or pd.isna(plon):
-                continue
-            # Distância mínima a qualquer ponto da rota
-            min_dev = min(
-                math.sqrt((plat - rlat)**2 + (plon - rlon)**2) * 111
-                for rlat, rlon in rota_sample
-            )
-            if min_dev > raio_km:
-                continue
-            # Posição aproximada na rota (km)
-            km_na_rota = min(
-                (i / len(rota_sample)) * dist_km
-                for i, (rlat, rlon) in enumerate(rota_sample)
-                if math.sqrt((plat-rlat)**2 + (plon-rlon)**2)*111 < raio_km + 1
-            ) if rota_sample else 0
-
+            if pd.isna(plat) or pd.isna(plon): continue
+            km, dev = _km_na_rota(float(plat), float(plon))
+            if dev > raio_efetivo: continue
             postos_candidatos.append({
-                "cnpj": posto["pv_cnpj"],
-                "razao_social": posto["razao_social"],
-                "municipio": posto["municipio"],
-                "uf": posto["uf"],
-                "lat": round(float(plat), 6),
-                "lon": round(float(plon), 6),
-                "combustivel": posto["combustivel"],
-                "preco": round(float(posto["preco"]), 4),
-                "_km": round(km_na_rota, 1),
-                "_dev": round(min_dev, 2),
+                "cnpj": posto["pv_cnpj"], "razao_social": posto["razao_social"],
+                "municipio": posto["municipio"], "uf": posto["uf"],
+                "lat": round(float(plat),6), "lon": round(float(plon),6),
+                "combustivel": posto["combustivel"], "preco": round(float(posto["preco"]),4),
+                "_km": km, "_dev": dev, "fonte": "frota",
             })
+            seen_cnpj.add(posto["pv_cnpj"])
 
-        postos_candidatos.sort(key=lambda x: x["_km"])
+    # Fonte 2: rede GF (postos_gf) com preço estimado
+    r2 = db.table("postos_gf").select("cnpj,razao_social,municipio,uf,lat,lon").limit(5000).execute()
+    df2 = pd.DataFrame(r2.data or [])
+    if not df2.empty:
+        df2["lat"] = pd.to_numeric(df2["lat"], errors="coerce")
+        df2["lon"] = pd.to_numeric(df2["lon"], errors="coerce")
+        df2 = df2.dropna(subset=["lat","lon"])
+        # Preço médio da frota como referência
+        preco_ref = float(df["item_valor_unitario"].mean()) if not df.empty and "item_valor_unitario" in df.columns else 6.0
+        for _, posto in df2.iterrows():
+            if posto["cnpj"] in seen_cnpj: continue
+            plat, plon = float(posto["lat"]), float(posto["lon"])
+            km, dev = _km_na_rota(plat, plon)
+            if dev > raio_efetivo: continue
+            postos_candidatos.append({
+                "cnpj": posto["cnpj"], "razao_social": posto["razao_social"],
+                "municipio": posto["municipio"], "uf": posto["uf"],
+                "lat": round(plat,6), "lon": round(plon,6),
+                "combustivel": comb or "Diesel", "preco": round(preco_ref, 4),
+                "_km": km, "_dev": dev, "fonte": "rede_gf",
+            })
+            seen_cnpj.add(posto["cnpj"])
 
-    # 3. Motor de otimização greedy
+    postos_candidatos.sort(key=lambda x: x["_km"])
+
+    # 3. Motor de otimização greedy corrigido
     sugestoes = []
-    if postos_candidatos and rcap > 0 and raut > 0:
-        rmin = rcap * 0.25
-        PCT_BAIXO = 0.65
-        VANT_PRECO = 0.03
-        _precos = [e["preco"] for e in postos_candidatos if e["preco"] > 0]
-        _pmin = min(_precos) if _precos else 0
-        _pmax = max(_precos) if _precos else 1
+    autonomia_total = rcap * raut  # km com tanque cheio
+    n_paradas_min = max(0, int(dist_km / autonomia_total))  # mínimo de paradas necessárias
 
-        def _met(e):
+    if postos_candidatos and rcap > 0 and raut > 0:
+        RESERVA = 0.15          # manter 15% de reserva
+        ENCHER_ATE = 0.95       # encher até 95%
+        _precos = [e["preco"] for e in postos_candidatos if e["preco"] > 0]
+        _pmin = min(_precos) if _precos else 5.0
+        _pmax = max(_precos) if _precos else 8.0
+
+        def _score(e):
             _p = 1.0 - (e["preco"] - _pmin) / max(_pmax - _pmin, 0.01)
-            _d = 1.0 - min(e.get("_dev", 0) / 5.0, 1.0)
-            return pesos.get("preco", 0.6) * _p + pesos.get("desvio", 0.2) * _d
+            _d = 1.0 - min(e.get("_dev", 0) / raio_efetivo, 1.0)
+            _f = 1.0 if e.get("fonte") == "frota" else 0.7  # bonus frota
+            return pesos.get("preco", 0.6)*_p + pesos.get("desvio", 0.2)*_d + 0.1*_f
 
         pos = 0.0
         fuel = float(rcap)
         seen = set()
-        ult_preco = None
 
-        for _ in range(30):
+        for _ in range(50):  # max 50 iteracoes
             if pos >= dist_km:
                 break
-            can_go = (fuel - rmin) * raut
-            must = pos + can_go
-            if must >= dist_km:
-                break
 
-            janela = [e for e in postos_candidatos if pos < e["_km"] <= must and e["cnpj"] not in seen]
+            # Alcance máximo com reserva
+            alcance = (fuel - rcap * RESERVA) * raut
+            limite = pos + alcance
+
+            if limite >= dist_km and pos > 0:
+                break  # chegou ao destino
+
+            # Janela: postos alcançáveis
+            janela = [e for e in postos_candidatos
+                      if pos < e["_km"] <= min(limite, dist_km - 10)
+                      and e["cnpj"] not in seen]
+
             if not janela:
-                alem = [e for e in postos_candidatos if e["_km"] > pos and e["cnpj"] not in seen]
+                # Emergência: próximo posto disponível
+                alem = [e for e in postos_candidatos
+                        if e["_km"] > pos and e["cnpj"] not in seen]
                 if not alem:
                     break
                 best = dict(min(alem, key=lambda x: x["_km"]))
                 best["motivo"] = "emergencia"
             else:
-                best = dict(max(janela, key=_met))
+                # Melhor posto pela pontuação
+                best = dict(max(janela, key=_score))
                 best["motivo"] = "otimizado"
 
             km_ate = best["_km"] - pos
             fuel_chegada = max(0.0, fuel - km_ate / raut)
-            pct_chegada = fuel_chegada / rcap * 100
+            pct_chegada  = fuel_chegada / rcap * 100
 
-            if (best.get("motivo") != "emergencia"
-                    and pct_chegada >= PCT_BAIXO * 100
-                    and ult_preco is not None
-                    and best.get("preco", 9999) >= ult_preco * (1 - VANT_PRECO)):
-                pos = best["_km"]
-                fuel = fuel_chegada
-                seen.add(best["cnpj"])
-                continue
+            # Calcula litros para encher
+            litros_sug = (ENCHER_ATE * rcap) - fuel_chegada
+            litros_sug = max(0.0, round(litros_sug, 1))
+            fuel_apos  = fuel_chegada + litros_sug
+            custo      = round(litros_sug * best["preco"], 2)
 
-            dist_rest = dist_km - best["_km"]
-            litros_sug = min(rcap - fuel_chegada, rcap * 0.95 - fuel_chegada)
-            litros_sug = max(0, litros_sug)
-            custo = round(litros_sug * best["preco"], 2)
-            fuel_apos = fuel_chegada + litros_sug
-
-            best["litros_sugeridos"] = round(litros_sug, 1)
-            best["custo_abast"] = custo
-            best["fuel_chegada_pct"] = round(pct_chegada, 1)
-            best["fuel_apos_pct"] = round(fuel_apos / rcap * 100, 1)
+            best["litros_sugeridos"]  = litros_sug
+            best["custo_abast"]       = custo
+            best["fuel_chegada_pct"]  = round(pct_chegada, 1)
+            best["fuel_apos_pct"]     = round(fuel_apos / rcap * 100, 1)
+            best["km_posicao"]        = best["_km"]
             sugestoes.append(best)
 
-            pos = best["_km"]
+            pos  = best["_km"]
             fuel = fuel_apos
-            ult_preco = best["preco"]
             seen.add(best["cnpj"])
 
     custo_total = sum(s.get("custo_abast", 0) for s in sugestoes)
