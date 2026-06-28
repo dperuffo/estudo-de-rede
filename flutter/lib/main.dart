@@ -18,7 +18,7 @@ class FniApp extends ConsumerWidget {
     return MaterialApp.router(
       title: "FNI Gestao de Frotas",
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
