@@ -188,11 +188,7 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
           tabs: const [Tab(text: 'Registros'), Tab(text: 'Status Frota')],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _novoOuEditar(),
-        backgroundColor: const Color(0xFF0D2D6B),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+
       body: TabBarView(controller: _tabCtrl, children: [
         _buildRegistros(),
         _buildStatusFrota(),
