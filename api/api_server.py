@@ -1235,28 +1235,56 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
             })
             seen_cnpj.add(posto["pv_cnpj"])
 
-    # Fonte 2: rede GF (postos_gf) com preço estimado
-    r2 = db.table("postos_gf").select("cnpj,razao_social,municipio,uf,lat,lon").limit(5000).execute()
+    # Fonte 2: postos ANP (35k postos com coordenadas)
+    # Preço de referência: média da frota ou fallback por combustível
+    preco_ref = float(df["item_valor_unitario"].mean()) if not df.empty and "item_valor_unitario" in df.columns and float(df["item_valor_unitario"].mean()) > 0 else 6.0
+
+    # Busca preço ANP por UF para referência
+    ufs_rota = list(set(p.get("uf","") for p in postos_candidatos if p.get("uf")))
+    precos_anp_uf = {}
+    if ufs_rota:
+        try:
+            r_anp = db.table("historico_precos_anp").select(
+                "uf,municipio,produto_pk,preco_medio"
+            ).in_("uf", ufs_rota).order("data_referencia", desc=True).limit(500).execute()
+            for row in (r_anp.data or []):
+                k = row["uf"]
+                if k not in precos_anp_uf and row["preco_medio"]:
+                    precos_anp_uf[k] = float(row["preco_medio"])
+        except Exception:
+            pass
+
+    r2 = db.table("anp_postos").select(
+        "cnpj,razao_social,municipio,uf,latitude,longitude,bandeira"
+    ).eq("ativo", True).limit(10000).execute()
+
     df2 = pd.DataFrame(r2.data or [])
     if not df2.empty:
-        df2["lat"] = pd.to_numeric(df2["lat"], errors="coerce")
-        df2["lon"] = pd.to_numeric(df2["lon"], errors="coerce")
-        df2 = df2.dropna(subset=["lat","lon"])
-        # Preço médio da frota como referência
-        preco_ref = float(df["item_valor_unitario"].mean()) if not df.empty and "item_valor_unitario" in df.columns else 6.0
+        df2["latitude"]  = pd.to_numeric(df2["latitude"],  errors="coerce")
+        df2["longitude"] = pd.to_numeric(df2["longitude"], errors="coerce")
+        df2 = df2.dropna(subset=["latitude","longitude"])
+
         for _, posto in df2.iterrows():
-            if posto["cnpj"] in seen_cnpj: continue
-            plat, plon = float(posto["lat"]), float(posto["lon"])
+            cnpj_posto = str(posto["cnpj"]).replace(".","").replace("/","").replace("-","")
+            if cnpj_posto in seen_cnpj: continue
+            plat, plon = float(posto["latitude"]), float(posto["longitude"])
             km, dev = _km_na_rota(plat, plon)
             if dev > raio_efetivo: continue
+            # Preço: 1) frota 2) ANP por UF 3) referência geral
+            uf_posto = str(posto["uf"])
+            preco = precos_anp_uf.get(uf_posto, preco_ref)
             postos_candidatos.append({
-                "cnpj": posto["cnpj"], "razao_social": posto["razao_social"],
-                "municipio": posto["municipio"], "uf": posto["uf"],
+                "cnpj": cnpj_posto, "razao_social": posto["razao_social"],
+                "municipio": posto["municipio"], "uf": uf_posto,
                 "lat": round(plat,6), "lon": round(plon,6),
-                "combustivel": comb or "Diesel", "preco": round(preco_ref, 4),
-                "_km": km, "_dev": dev, "fonte": "rede_gf",
+                "combustivel": comb or "Diesel",
+                "preco": round(float(preco), 4),
+                "_km": km, "_dev": dev, "fonte": "anp",
+                "bandeira": posto.get("bandeira",""),
             })
-            seen_cnpj.add(posto["cnpj"])
+            seen_cnpj.add(cnpj_posto)
+
+    print(f"Postos candidatos total: {len(postos_candidatos)}", flush=True)
 
     postos_candidatos.sort(key=lambda x: x["_km"])
 
