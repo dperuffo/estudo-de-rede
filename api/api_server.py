@@ -1878,6 +1878,102 @@ def combustiveis_frota(user: dict = Depends(usuario_atual)):
     combs = sorted([c for c in combs if c.strip()])
     return {"data": combs}
 
+
+# ── Manutenção: Status da frota ──────────────────────────────────
+@app.get("/manutencao/status-frota", tags=["manutencao"])
+def status_frota_manutencao(user: dict = Depends(usuario_atual)):
+    import pandas as pd
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    hoje = _hoje_br()
+
+    # Última manutenção por veículo
+    r = db.table("manutencoes_realizadas").select(
+        "placa,data_manutencao,hodometro,itens_realizados,custo_total"
+    ).eq("cnpj_frota", cnpj).order("data_manutencao", desc=True).execute()
+
+    df = pd.DataFrame(r.data or [])
+
+    # Último hodômetro por veículo (abastecimentos)
+    r2 = db.table("profrotas_abastecimentos").select(
+        "veiculo_placa,hodometro,data_abastecimento"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).order(
+        "data_abastecimento", desc=True).limit(5000).execute()
+    df2 = pd.DataFrame(r2.data or [])
+
+    if df2.empty:
+        return {"status": [], "resumo": {"critico": 0, "atencao": 0, "ok": 0}}
+
+    df2["hodometro"] = pd.to_numeric(df2["hodometro"], errors="coerce").fillna(0)
+    hod_atual = df2.groupby("veiculo_placa").agg(
+        hod=("hodometro","max"),
+        ultimo_abast=("data_abastecimento","max")
+    ).reset_index()
+
+    resultado = []
+    for _, row in hod_atual.iterrows():
+        placa = row["veiculo_placa"]
+        hod = float(row["hod"])
+
+        # Ultima manutencao deste veiculo
+        ult_manut = None
+        hod_manut = 0
+        dias_sem_manut = None
+        if not df.empty:
+            df_v = df[df["placa"] == placa]
+            if not df_v.empty:
+                ult = df_v.iloc[0]
+                ult_manut = str(ult["data_manutencao"])
+                hod_manut = float(ult["hodometro"] or 0)
+                try:
+                    from datetime import date
+                    dt_manut = date.fromisoformat(ult_manut)
+                    dias_sem_manut = (hoje - dt_manut).days
+                except:
+                    dias_sem_manut = None
+
+        km_desde_manut = hod - hod_manut if hod_manut > 0 else None
+
+        # Status: critico > 10000km ou > 180 dias; atencao > 7500km ou > 90 dias; ok resto
+        status = "ok"
+        motivo = ""
+        if km_desde_manut and km_desde_manut > 10000:
+            status = "critico"
+            motivo = f"{int(km_desde_manut):,} km sem manutencao".replace(",",".")
+        elif dias_sem_manut and dias_sem_manut > 180:
+            status = "critico"
+            motivo = f"{dias_sem_manut} dias sem manutencao"
+        elif km_desde_manut and km_desde_manut > 7500:
+            status = "atencao"
+            motivo = f"{int(km_desde_manut):,} km sem manutencao".replace(",",".")
+        elif dias_sem_manut and dias_sem_manut > 90:
+            status = "atencao"
+            motivo = f"{dias_sem_manut} dias sem manutencao"
+        elif ult_manut is None:
+            status = "atencao"
+            motivo = "Sem registro de manutencao"
+        else:
+            motivo = f"Ultima: {ult_manut}"
+
+        resultado.append({
+            "placa": placa,
+            "status": status,
+            "motivo": motivo,
+            "ultima_manutencao": ult_manut,
+            "hodometro_atual": int(hod),
+            "hodometro_manutencao": int(hod_manut),
+            "km_desde_manut": int(km_desde_manut) if km_desde_manut else None,
+            "dias_sem_manut": dias_sem_manut,
+        })
+
+    resultado.sort(key=lambda x: {"critico":0,"atencao":1,"ok":2}[x["status"]])
+    resumo = {
+        "critico": sum(1 for r in resultado if r["status"]=="critico"),
+        "atencao": sum(1 for r in resultado if r["status"]=="atencao"),
+        "ok":      sum(1 for r in resultado if r["status"]=="ok"),
+    }
+    return {"status": resultado, "resumo": resumo}
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn
