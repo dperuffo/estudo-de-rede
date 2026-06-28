@@ -89,7 +89,7 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0D2D6B))),
           ),
           const Divider(height: 16),
-          Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(16), children: [
+          Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(children: [
             _campo(placaCtrl, 'Placa *', caps: TextCapitalization.characters),
             _campo(dataCtrl, 'Data (AAAA-MM-DD)'),
             _campo(hodCtrl, 'Hodometro (km)', tipo: TextInputType.number),
@@ -117,9 +117,9 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
                   } else {
                     await ApiService().post('/manutencao', data: body);
                   }
-                  if (mounted) { Navigator.pop(ctx); _load(); _loadStatus(); }
+                  if (ctx.mounted) { Navigator.pop(ctx); _load(); _loadStatus(); }
                 } catch (e) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Erro: $e')));
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -129,7 +129,7 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
               ),
               child: Text(id != null ? 'Salvar' : 'Registrar', style: const TextStyle(fontSize: 16)),
             )),
-          ])),
+          ]))),
         ]),
       ),
     );
