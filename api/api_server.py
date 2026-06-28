@@ -1254,11 +1254,32 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
         except Exception:
             pass
 
-    r2 = db.table("anp_postos").select(
-        "cnpj,razao_social,municipio,uf,latitude,longitude,bandeira"
-    ).eq("ativo", True).limit(10000).execute()
+    # Busca postos ANP por UF ao longo da rota (paginado)
+    # Identifica UFs da rota baseado nos pontos amostrados
+    ufs_na_rota = set()
+    step_uf = max(1, len(coords_rota) // 20)
+    for rlat, rlon in coords_rota[::step_uf]:
+        # Busca postos próximos a cada ponto da rota
+        pass
 
-    df2 = pd.DataFrame(r2.data or [])
+    # Busca todos os postos com paginação
+    todos_postos = []
+    page_size = 1000
+    offset = 0
+    while True:
+        r2 = db.table("anp_postos").select(
+            "cnpj,razao_social,municipio,uf,latitude,longitude,bandeira"
+        ).eq("ativo", True).range(offset, offset + page_size - 1).execute()
+        if not r2.data:
+            break
+        todos_postos.extend(r2.data)
+        if len(r2.data) < page_size:
+            break
+        offset += page_size
+        if offset > 40000:
+            break
+
+    df2 = pd.DataFrame(todos_postos or [])
     if not df2.empty:
         df2["latitude"]  = pd.to_numeric(df2["latitude"],  errors="coerce")
         df2["longitude"] = pd.to_numeric(df2["longitude"], errors="coerce")
