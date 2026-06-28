@@ -1309,72 +1309,96 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
 
     postos_candidatos.sort(key=lambda x: x["_km"])
 
-    # 3. Motor de otimização greedy corrigido
+    # 3. Motor de otimização — menos paradas, melhor preço, tanque cheio
     sugestoes = []
     autonomia_total = rcap * raut  # km com tanque cheio
-    n_paradas_min = max(0, int(dist_km / autonomia_total))  # mínimo de paradas necessárias
 
     if postos_candidatos and rcap > 0 and raut > 0:
-        RESERVA = 0.15          # manter 15% de reserva
-        ENCHER_ATE = 0.95       # encher até 95%
+        RESERVA      = 0.10   # parar apenas quando abaixo de 10% (emergência)
+        ALERTA       = 0.30   # começa a avaliar parada quando abaixo de 30%
+        ENCHER_ATE   = 0.98   # encher até 98% do tanque
+
         _precos = [e["preco"] for e in postos_candidatos if e["preco"] > 0]
         _pmin = min(_precos) if _precos else 5.0
         _pmax = max(_precos) if _precos else 8.0
+        _pmed = sum(_precos) / len(_precos) if _precos else 6.0
 
-        def _score(e):
+        def _score(e, km_restante):
+            # Preço normalizado (quanto menor, melhor)
             _p = 1.0 - (e["preco"] - _pmin) / max(_pmax - _pmin, 0.01)
+            # Desvio da rota (quanto menor, melhor)
             _d = 1.0 - min(e.get("_dev", 0) / raio_efetivo, 1.0)
-            _f = 1.0 if e.get("fonte") == "frota" else 0.7  # bonus frota
-            return pesos.get("preco", 0.6)*_p + pesos.get("desvio", 0.2)*_d + 0.1*_f
+            # Bônus frota (posto já conhecido)
+            _f = 0.15 if e.get("fonte") == "frota" else 0.0
+            # Posição na rota (prefere postos mais adiante para reduzir paradas)
+            _pos = min(e["_km"] / max(km_restante, 1), 1.0) * 0.1
+            return pesos.get("preco", 0.6)*_p + pesos.get("desvio", 0.15)*_d + _f + _pos
 
-        pos = 0.0
+        pos  = 0.0
         fuel = float(rcap)
         seen = set()
 
-        for _ in range(50):  # max 50 iteracoes
+        for _ in range(30):
             if pos >= dist_km:
                 break
 
-            # Alcance máximo com reserva
-            alcance = (fuel - rcap * RESERVA) * raut
-            limite = pos + alcance
+            # Alcance máximo (com reserva mínima de segurança)
+            alcance_max  = (fuel - rcap * RESERVA) * raut
+            alcance_ideal = (fuel - rcap * ALERTA) * raut
+            limite_max   = pos + alcance_max
+            limite_ideal = pos + alcance_ideal
+            km_restante  = dist_km - pos
 
-            if limite >= dist_km and pos > 0:
-                break  # chegou ao destino
+            # Se consegue chegar ao destino, termina
+            if alcance_max >= km_restante:
+                break
 
-            # Janela: postos alcançáveis
-            janela = [e for e in postos_candidatos
-                      if pos < e["_km"] <= min(limite, dist_km - 10)
-                      and e["cnpj"] not in seen]
+            # Busca o melhor posto: 
+            # 1. Dentro do alcance ideal → pode escolher o melhor preço
+            # 2. Além do ideal mas dentro do máximo → posto de menor preço disponível
+            # 3. Emergência → mais próximo disponível
 
-            if not janela:
-                # Emergência: próximo posto disponível
+            janela_ideal = [e for e in postos_candidatos
+                if limite_ideal * 0.5 < e["_km"] <= limite_ideal  # 2a metade do alcance ideal
+                and e["cnpj"] not in seen]
+
+            janela_max = [e for e in postos_candidatos
+                if pos < e["_km"] <= limite_max
+                and e["cnpj"] not in seen]
+
+            if janela_ideal:
+                # Escolhe o melhor posto na janela ideal
+                best = dict(max(janela_ideal, key=lambda e: _score(e, km_restante)))
+                best["motivo"] = "otimizado"
+            elif janela_max:
+                # Escolhe o mais barato no alcance máximo
+                best = dict(min(janela_max, key=lambda e: e["preco"]))
+                best["motivo"] = "economico"
+            else:
+                # Emergência: posto mais próximo disponível
                 alem = [e for e in postos_candidatos
                         if e["_km"] > pos and e["cnpj"] not in seen]
                 if not alem:
                     break
                 best = dict(min(alem, key=lambda x: x["_km"]))
                 best["motivo"] = "emergencia"
-            else:
-                # Melhor posto pela pontuação
-                best = dict(max(janela, key=_score))
-                best["motivo"] = "otimizado"
 
-            km_ate = best["_km"] - pos
+            km_ate       = best["_km"] - pos
             fuel_chegada = max(0.0, fuel - km_ate / raut)
             pct_chegada  = fuel_chegada / rcap * 100
 
-            # Calcula litros para encher
-            litros_sug = (ENCHER_ATE * rcap) - fuel_chegada
-            litros_sug = max(0.0, round(litros_sug, 1))
-            fuel_apos  = fuel_chegada + litros_sug
-            custo      = round(litros_sug * best["preco"], 2)
+            # Sempre enche o tanque ao parar
+            litros_sug   = (ENCHER_ATE * rcap) - fuel_chegada
+            litros_sug   = max(0.0, round(litros_sug, 1))
+            fuel_apos    = fuel_chegada + litros_sug
+            custo        = round(litros_sug * best["preco"], 2)
 
             best["litros_sugeridos"]  = litros_sug
             best["custo_abast"]       = custo
             best["fuel_chegada_pct"]  = round(pct_chegada, 1)
             best["fuel_apos_pct"]     = round(fuel_apos / rcap * 100, 1)
             best["km_posicao"]        = best["_km"]
+            best["preco_vs_media"]    = round((best["preco"] - _pmed) / _pmed * 100, 1)
             sugestoes.append(best)
 
             pos  = best["_km"]
