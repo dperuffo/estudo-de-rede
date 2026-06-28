@@ -291,6 +291,19 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
           if (v['ultima_manutencao'] != null)
             Text('Ultima: ${v["ultima_manutencao"]}',
                 style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          if ((v['itens_pendentes'] as List?)?.isNotEmpty == true) ...[
+            const SizedBox(height: 4),
+            Wrap(spacing: 4, runSpacing: 4, children: [
+              ...(v['itens_pendentes'] as List).map((item) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4)),
+                child: Text(item.toString(),
+                    style: const TextStyle(fontSize: 9, color: Colors.orange)),
+              )),
+            ]),
+          ],
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           if (v['hodometro_atual'] != null)

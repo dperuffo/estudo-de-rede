@@ -1955,6 +1955,24 @@ def status_frota_manutencao(user: dict = Depends(usuario_atual)):
         else:
             motivo = f"Ultima: {ult_manut}"
 
+        # Verifica itens minimos realizados
+        ITENS_MINIMOS = ["Troca de oleo e filtro", "Revisao de freios"]
+        itens_realizados = []
+        itens_pendentes = list(ITENS_MINIMOS)
+        if not df.empty:
+            df_v = df[df["placa"] == placa]
+            if not df_v.empty:
+                itens_raw = df_v.iloc[0].get("itens_realizados") or []
+                if isinstance(itens_raw, list):
+                    itens_realizados = [str(i).lower() for i in itens_raw]
+                    itens_pendentes = [
+                        item for item in ITENS_MINIMOS
+                        if not any(item.lower() in r for r in itens_realizados)
+                    ]
+        if status == "ok" and itens_pendentes:
+            status = "atencao"
+            motivo = f"Itens pendentes: {', '.join(itens_pendentes)}"
+
         resultado.append({
             "placa": placa,
             "status": status,
@@ -1964,6 +1982,7 @@ def status_frota_manutencao(user: dict = Depends(usuario_atual)):
             "hodometro_manutencao": int(hod_manut),
             "km_desde_manut": int(km_desde_manut) if km_desde_manut else None,
             "dias_sem_manut": dias_sem_manut,
+            "itens_pendentes": itens_pendentes,
         })
 
     resultado.sort(key=lambda x: {"critico":0,"atencao":1,"ok":2}[x["status"]])
