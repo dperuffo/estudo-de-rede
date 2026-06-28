@@ -1125,9 +1125,12 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
     if not origem.get("lat") or not destino.get("lat"):
         raise HTTPException(status_code=400, detail="Origem e destino obrigatorios")
 
-    rcap = float(veiculo.get("tanque", 80))
-    raut = float(veiculo.get("autonomia", 10))
-    comb = veiculo.get("combustivel", "")
+    rcap  = float(veiculo.get("tanque", 80))
+    rfuel = float(veiculo.get("combustivel_inicial", rcap))  # combustivel no tanque ao partir
+    if rfuel <= 0 or rfuel > rcap:
+        rfuel = rcap  # se nao informado, assume tanque cheio
+    raut  = float(veiculo.get("autonomia", 10))
+    comb  = veiculo.get("combustivel", "")
 
     # 1. Calcular rota via OSRM
     pontos = [[origem["lat"], origem["lon"]]]
@@ -1335,7 +1338,7 @@ async def calcular_rota_api(body: dict, user: dict = Depends(usuario_atual)):
             return pesos.get("preco", 0.6)*_p + pesos.get("desvio", 0.15)*_d + _f + _pos
 
         pos  = 0.0
-        fuel = float(rcap)
+        fuel = float(rfuel)  # inicia com combustivel atual no tanque
         seen = set()
 
         for _ in range(30):
@@ -1861,6 +1864,23 @@ def analise_cliente(dias: int = 30, user: dict = Depends(usuario_atual)):
         "por_posto": por_posto, "por_combustivel": por_comb,
         "por_uf": por_uf, "evolucao": evolucao,
     }
+
+
+# ── Combustíveis da frota ─────────────────────────────────────────
+@app.get("/roteirizacao/combustiveis", tags=["roteirizacao"])
+def combustiveis_frota(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    r = db.table("profrotas_abastecimentos").select(
+        "item_nome"
+    ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).execute()
+    import pandas as pd
+    df = pd.DataFrame(r.data or [])
+    if df.empty:
+        return {"data": ["Gasolina Comum", "Gasolina Aditivada", "Diesel S-10", "Etanol"]}
+    combs = df["item_nome"].dropna().unique().tolist()
+    combs = sorted([c for c in combs if c.strip()])
+    return {"data": combs}
 
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":

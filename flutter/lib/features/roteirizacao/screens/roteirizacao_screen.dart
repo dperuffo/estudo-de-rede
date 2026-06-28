@@ -23,10 +23,26 @@ class _State extends State<RoteirizacaoScreen> {
   List<Map<String, dynamic>> _paradas = [];
 
   final _tanqueCtrl    = TextEditingController(text: '80');
+  final _combustivelCtrl = TextEditingController(text: '0');
   final _autonomiaCtrl = TextEditingController(text: '10');
-  final _combCtrl      = TextEditingController(text: 'Diesel');
+  final _combCtrl      = TextEditingController(text: '');
+  List<String> _combustiveis = [];
 
-  @override void initState() { super.initState(); _carregarVeiculos(); _carregarRotasSalvas(); }
+  @override void initState() { super.initState(); _carregarVeiculos(); _carregarRotasSalvas(); _carregarCombustiveis(); }
+
+  Future<void> _carregarCombustiveis() async {
+    try {
+      final r = await ApiService().get('/roteirizacao/combustiveis');
+      setState(() {
+        _combustiveis = List<String>.from(r['data'] ?? []);
+        if (_combustiveis.isNotEmpty && _combCtrl.text.isEmpty) {
+          _combCtrl.text = _combustiveis.first;
+        }
+      });
+    } catch (_) {
+      _combustiveis = ['Gasolina Comum', 'Gasolina Aditivada', 'Diesel S-10', 'Etanol'];
+    }
+  }
 
   Future<void> _carregarVeiculos() async {
     try {
@@ -114,6 +130,7 @@ class _State extends State<RoteirizacaoScreen> {
         'paradas': _paradas,
         'veiculo': {
           'tanque':      double.tryParse(_tanqueCtrl.text) ?? 80,
+          'combustivel_inicial': double.tryParse(_combustivelCtrl.text) ?? 0,
           'autonomia':   double.tryParse(_autonomiaCtrl.text) ?? 10,
           'combustivel': _combCtrl.text,
         },
@@ -255,18 +272,31 @@ class _State extends State<RoteirizacaoScreen> {
       decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
     ),
     const SizedBox(height: 8),
+    // Linha 1: Capacidade + Combustivel atual + Autonomia
     Row(children: [
       Expanded(child: TextField(controller: _tanqueCtrl,
-          decoration: const InputDecoration(labelText: 'Tanque (L)', border: OutlineInputBorder(), isDense: true),
+          decoration: const InputDecoration(labelText: 'Capacidade (L)', border: OutlineInputBorder(), isDense: true),
+          keyboardType: TextInputType.number)),
+      const SizedBox(width: 8),
+      Expanded(child: TextField(controller: _combustivelCtrl,
+          decoration: const InputDecoration(labelText: 'Combustivel atual (L)', border: OutlineInputBorder(), isDense: true),
           keyboardType: TextInputType.number)),
       const SizedBox(width: 8),
       Expanded(child: TextField(controller: _autonomiaCtrl,
           decoration: const InputDecoration(labelText: 'km/L', border: OutlineInputBorder(), isDense: true),
           keyboardType: TextInputType.number)),
-      const SizedBox(width: 8),
-      Expanded(child: TextField(controller: _combCtrl,
-          decoration: const InputDecoration(labelText: 'Combustivel', border: OutlineInputBorder(), isDense: true))),
     ]),
+    const SizedBox(height: 8),
+    // Linha 2: Tipo de combustivel
+    _combustiveis.isEmpty
+        ? TextField(controller: _combCtrl,
+            decoration: const InputDecoration(labelText: 'Combustivel', border: OutlineInputBorder(), isDense: true))
+        : DropdownButtonFormField<String>(
+            value: _combustiveis.contains(_combCtrl.text) ? _combCtrl.text : _combustiveis.first,
+            decoration: const InputDecoration(labelText: 'Tipo de combustivel', border: OutlineInputBorder(), isDense: true),
+            items: _combustiveis.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+            onChanged: (v) => setState(() => _combCtrl.text = v ?? ''),
+          ),
     const SizedBox(height: 16),
 
     // Origem
