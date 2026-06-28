@@ -357,7 +357,6 @@ def criar_ticket(body: dict, user: dict = Depends(usuario_atual)):
         "prioridade": body.get("prioridade", "media"),
         "status":    "aberto",
         "user_email": user.get("email"),
-        "empresa_id": user.get("empresa_id"),
         "comentarios": "[]",
         "anexos":    "[]",
         "criado_em": datetime.now(tz=timezone.utc).isoformat(),
