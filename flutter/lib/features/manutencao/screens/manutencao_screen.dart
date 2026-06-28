@@ -68,6 +68,27 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
     final custoCtrl    = TextEditingController(text: dados?['custo_total']?.toString() ?? '');
     final obsCtrl      = TextEditingController(text: dados?['obs_gerais'] ?? '');
     final id = dados?['id'];
+    
+    const _itensOpcoes = [
+      'Troca de óleo e filtro',
+      'Revisão de freios',
+      'Alinhamento e balanceamento',
+      'Troca de pneus',
+      'Revisão elétrica',
+      'Troca de filtro de ar',
+      'Troca de filtro de combustível',
+      'Revisão de suspensão',
+      'Troca de correia dentada',
+      'Revisão do sistema de arrefecimento',
+      'Troca de velas',
+      'Revisão geral',
+      'Troca de pastilhas de freio',
+      'Troca de fluido de freio',
+      'Revisão de transmissão',
+      'Troca de amortecedores',
+    ];
+    final itensSelecionados = <String>{};
+
 
     await showModalBottomSheet(
       context: context,
@@ -98,6 +119,23 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
             _campo(custoCtrl, 'Custo Total (R\$)', tipo: TextInputType.number),
             _campo(obsCtrl, 'Observacoes', maxLines: 3),
             const SizedBox(height: 16),
+            const Text('Servicos realizados', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D2D6B))),
+            const SizedBox(height: 8),
+            StatefulBuilder(builder: (ctx2, setStateLocal) => Wrap(
+              spacing: 8, runSpacing: 8,
+              children: _itensOpcoes.map((item) {
+                final sel = itensSelecionados.contains(item);
+                return FilterChip(
+                  label: Text(item, style: TextStyle(fontSize: 11, color: sel ? Colors.white : Colors.black87)),
+                  selected: sel,
+                  onSelected: (v) => setStateLocal(() => v ? itensSelecionados.add(item) : itensSelecionados.remove(item)),
+                  selectedColor: const Color(0xFF0D2D6B),
+                  backgroundColor: Colors.grey[100],
+                  checkmarkColor: Colors.white,
+                );
+              }).toList(),
+            )),
+            const SizedBox(height: 16),
             SizedBox(width: double.infinity, child: ElevatedButton(
               onPressed: () async {
                 if (placaCtrl.text.trim().isEmpty) return;
@@ -110,6 +148,7 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
                     'oficina': oficCtrl.text.trim(),
                     'custo_total': double.tryParse(custoCtrl.text.replaceAll(',','.')),
                     'obs_gerais': obsCtrl.text.trim(),
+                    'itens_realizados': itensSelecionados.toList(),
                   };
                   body.removeWhere((k, v) => v == null || v == '');
                   if (id != null) {
@@ -233,7 +272,12 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
     final cor = status == 'critico' ? Colors.red : status == 'atencao' ? Colors.orange : Colors.green;
     final icon = status == 'critico' ? Icons.warning : status == 'atencao' ? Icons.info : Icons.check_circle;
 
-    return Container(
+    return GestureDetector(
+      onTap: () => _novoOuEditar({
+        'placa': v['placa'],
+        'hodometro': v['hodometro_atual'],
+      }),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -256,6 +300,7 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
           if (v['hodometro_atual'] != null)
             Text('${NumberFormat('#,##0').format(v["hodometro_atual"])} km',
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(10)),
@@ -264,6 +309,7 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
           ),
         ]),
       ]),
+    ),
     );
   }
 
