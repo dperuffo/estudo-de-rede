@@ -131,34 +131,13 @@ class _State extends State<FinanceiroScreen> {
                 // Gráfico pizza combustivel vs manutencao
                 if ((kpis['total_geral'] ?? 0) > 0) ...[
                   _secao('Distribuicao de custos'),
-                  SizedBox(height: 200, child: Row(children: [
-                    Expanded(child: PieChart(PieChartData(
-                      sections: [
-                        PieChartSectionData(
-                          value: (kpis['total_comb'] ?? 0).toDouble(),
-                          title: '${kpis["pct_comb"]}%',
-                          color: const Color(0xFF1565C0),
-                          radius: 80,
-                          titleStyle: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                        PieChartSectionData(
-                          value: (kpis['total_manut'] ?? 0).toDouble(),
-                          title: '${kpis["pct_manut"]}%',
-                          color: Colors.red,
-                          radius: 80,
-                          titleStyle: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                      centerSpaceRadius: 40,
-                      sectionsSpace: 2,
-                    ))),
-                    const SizedBox(width: 16),
-                    Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      _legenda(const Color(0xFF1565C0), 'Combustivel'),
-                      const SizedBox(height: 8),
-                      _legenda(Colors.red, 'Manutencao'),
-                    ]),
-                  ])),
+                  _barraDistribuicao('Combustivel', (kpis['total_comb'] ?? 0).toDouble(),
+                      (kpis['total_geral'] ?? 1).toDouble(), fmt, const Color(0xFF1565C0),
+                      '\${kpis["pct_comb"]}% do total'),
+                  const SizedBox(height: 8),
+                  _barraDistribuicao('Manutencao', (kpis['total_manut'] ?? 0).toDouble(),
+                      (kpis['total_geral'] ?? 1).toDouble(), fmt, Colors.red,
+                      '\${kpis["pct_manut"]}% do total · \${kpis["n_manut"]} registros'),
                   const SizedBox(height: 24),
                 ],
 
