@@ -959,6 +959,8 @@ def criar_manutencao(body: dict, user: dict = Depends(usuario_atual)):
     body["cnpj_frota"] = cnpj
     body["criado_por"] = user.get("email", "")
     try:
+        if not body.get("data_manutencao"):
+            body["data_manutencao"] = _hoje_br().isoformat()
         r = db.table("manutencoes_realizadas").insert(body).execute()
         return {"ok": True, "data": r.data}
     except Exception as e:

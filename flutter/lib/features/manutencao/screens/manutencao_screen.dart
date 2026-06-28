@@ -61,7 +61,7 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
 
   Future<void> _novoOuEditar([Map? dados]) async {
     final placaCtrl    = TextEditingController(text: dados?['placa'] ?? '');
-    final dataCtrl     = TextEditingController(text: dados?['data_manutencao'] ?? '');
+    final dataCtrl     = TextEditingController(text: dados?['data_manutencao'] ?? DateTime.now().toIso8601String().substring(0,10));
     final hodCtrl      = TextEditingController(text: dados?['hodometro']?.toString() ?? '');
     final tecnicoCtrl  = TextEditingController(text: dados?['tecnico'] ?? '');
     final oficCtrl     = TextEditingController(text: dados?['oficina'] ?? '');
