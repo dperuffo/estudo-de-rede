@@ -49,17 +49,14 @@ class HomeScreen extends StatelessWidget {
       const Divider(),
       _grp('Gestao da Frota'),
       _item(context, Icons.local_gas_station,    'Abastecimentos',     '/abastecimentos'),
-      _item(context, Icons.directions_car,       'Frota',              '/frota'),
-      _item(context, Icons.car_repair,             'Cadastro Veiculos',  '/veiculos'),
+      _item(context, Icons.directions_car,       'Frota',              '/veiculos'),
       _item(context, Icons.build,                'Manutencao',         '/manutencao'),
       _item(context, Icons.attach_money,         'Financeiro',         '/financeiro'),
       _item(context, Icons.business,             'Centros de Custo',   '/centros-custo'),
       _item(context, Icons.handshake,            'Acordos de Preco',   '/acordos'),
       const Divider(),
       _grp('Analise e Inteligencia'),
-      _item(context, Icons.psychology,           'Inteligencia',       '/inteligencia'),
       _item(context, Icons.trending_up,          'Variacao de Precos', '/precos'),
-      _item(context, Icons.description,          'Relatorios',         '/relatorios'),
       _item(context, Icons.people,                'Analise de Cliente', '/analise-cliente'),
       _item(context, Icons.smart_toy,            'Assistente IA',      '/assistente'),
       const Divider(),
@@ -94,7 +91,7 @@ class HomeScreen extends StatelessWidget {
 
   int _idx(String loc) {
     if (loc.startsWith('/abastecimentos')) return 1;
-    if (loc.startsWith('/frota'))          return 2;
+    if (loc.startsWith('/frota') || loc.startsWith('/veiculos')) return 2;
     if (loc.startsWith('/financeiro'))     return 3;
     if (loc.startsWith('/tickets'))        return 4;
     return 0;
@@ -104,7 +101,7 @@ class HomeScreen extends StatelessWidget {
     switch (i) {
       case 0: ctx.go('/');               break;
       case 1: ctx.go('/abastecimentos'); break;
-      case 2: ctx.go('/frota');          break;
+      case 2: ctx.go('/veiculos');       break;
       case 3: ctx.go('/financeiro');     break;
       case 4: ctx.go('/tickets');        break;
     }
