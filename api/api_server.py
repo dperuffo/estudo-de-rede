@@ -347,29 +347,26 @@ def listar_tickets(user: dict = Depends(usuario_atual)):
     return {"total": len(r.data or []), "data": r.data or []}
 
 @app.post("/tickets", tags=["tickets"])
-def criar_ticket(
-    titulo: str,
-    descricao: str,
-    tipo: str = "melhoria",
-    prioridade: str = "media",
-    user: dict = Depends(usuario_atual)
-):
+def criar_ticket(body: dict, user: dict = Depends(usuario_atual)):
     """Cria um novo ticket de suporte."""
     db = get_db()
     payload = {
-        "titulo": titulo,
-        "descricao": descricao,
-        "tipo": tipo,
-        "prioridade": prioridade,
-        "status": "aberto",
+        "titulo":    body.get("titulo", ""),
+        "descricao": body.get("descricao", ""),
+        "tipo":      body.get("tipo", "melhoria"),
+        "prioridade": body.get("prioridade", "media"),
+        "status":    "aberto",
         "user_email": user.get("email"),
         "empresa_id": user.get("empresa_id"),
         "comentarios": "[]",
-        "anexos": "[]",
+        "anexos":    "[]",
         "criado_em": datetime.now(tz=timezone.utc).isoformat(),
     }
-    r = db.table("tickets").insert(payload).execute()
-    return {"ok": True, "ticket": r.data[0] if r.data else {}}
+    try:
+        r = db.table("tickets").insert(payload).execute()
+        return {"ok": True, "ticket": r.data[0] if r.data else {}}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # ── Financeiro ────────────────────────────────────────────────────
 @app.get("/financeiro/resumo", tags=["financeiro"])

@@ -76,9 +76,19 @@ class _State extends State<TicketsScreen> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
-            await ApiService().post(ApiConstants.tickets,
-                data: {'titulo': titulo.text, 'descricao': descricao.text});
-            if (mounted) { Navigator.pop(context); _load(); }
+            if (titulo.text.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Titulo obrigatorio')));
+              return;
+            }
+            try {
+              await ApiService().post(ApiConstants.tickets,
+                  data: {'titulo': titulo.text.trim(), 'descricao': descricao.text.trim()});
+              if (context.mounted) { Navigator.pop(context); _load(); }
+            } catch (e) {
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erro: \$e')));
+            }
           },
           child: const Text('Enviar'),
         ),
