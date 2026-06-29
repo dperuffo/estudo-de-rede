@@ -881,20 +881,20 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
         r_hoje, r_7d, r_30d = await asyncio.wait_for(
             asyncio.gather(
                 asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
-                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,pv_municipio,pv_uf")
+                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,item_valor_unitario,hodometro,pv_municipio,pv_uf,pv_razao_social,motorista_nome,centro_custo")
                     .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
                     .gte("data_abastecimento", hoje_str)
-                    .limit(30).execute()),
+                    .limit(50).execute()),
                 asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
-                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total")
+                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,item_valor_unitario,hodometro,centro_custo,motorista_nome")
                     .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
                     .gte("data_abastecimento", d7)
-                    .limit(100).execute()),
+                    .limit(200).execute()),
                 asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
-                    .select("data_abastecimento,veiculo_placa,item_valor_total")
+                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,centro_custo")
                     .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
                     .gte("data_abastecimento", d30)
-                    .limit(200).execute()),
+                    .limit(500).execute()),
             ),
             timeout=12.0
         )
@@ -912,27 +912,72 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
 
     total_hoje_litros = soma(hoje_data, "item_quantidade")
     total_hoje_valor  = soma(hoje_data, "item_valor_total")
+    total_7d_litros   = soma(sete_data, "item_quantidade")
     total_7d_valor    = soma(sete_data, "item_valor_total")
+    total_30d_litros  = soma(trinta_data, "item_quantidade")
     total_30d_valor   = soma(trinta_data, "item_valor_total")
 
     veiculos_hoje = list({r.get("veiculo_placa") for r in hoje_data if r.get("veiculo_placa")})
 
+    # Consumo medio por veiculo (km/L) usando hodometro dos ultimos 7 dias
+    consumo_por_veiculo = {}
+    hod_por_veiculo = {}
+    for r in sete_data:
+        placa = r.get("veiculo_placa","?")
+        hod = float(r.get("hodometro") or 0)
+        lts = float(r.get("item_quantidade") or 0)
+        if hod > 0:
+            if placa not in hod_por_veiculo:
+                hod_por_veiculo[placa] = {"max": hod, "min": hod, "litros": 0}
+            hod_por_veiculo[placa]["max"] = max(hod_por_veiculo[placa]["max"], hod)
+            hod_por_veiculo[placa]["min"] = min(hod_por_veiculo[placa]["min"], hod)
+            hod_por_veiculo[placa]["litros"] += lts
+    for placa, v in hod_por_veiculo.items():
+        km = v["max"] - v["min"]
+        if v["litros"] > 0 and km > 0:
+            consumo_por_veiculo[placa] = round(km / v["litros"], 2)
+
+    # Agrupamento por centro de custo (30 dias)
+    cc_dados = {}
+    for r in trinta_data:
+        cc = r.get("centro_custo") or "Sem centro"
+        if cc not in cc_dados:
+            cc_dados[cc] = {"litros": 0, "valor": 0, "registros": 0}
+        cc_dados[cc]["litros"]    += float(r.get("item_quantidade") or 0)
+        cc_dados[cc]["valor"]     += float(r.get("item_valor_total") or 0)
+        cc_dados[cc]["registros"] += 1
+
+    # Detalhes de hoje
     detalhes = []
-    for r in hoje_data[:5]:
-        linha = (str(r.get("veiculo_placa","?")) + " | "
-                 + str(r.get("pv_municipio","?")) + "/" + str(r.get("pv_uf","?"))
+    for r in hoje_data[:10]:
+        linha = (str(r.get("veiculo_placa","?"))
+                 + " | " + str(r.get("motorista_nome","?"))
+                 + " | " + str(r.get("centro_custo","?"))
+                 + " | " + str(r.get("pv_municipio","?")) + "/" + str(r.get("pv_uf","?"))
                  + " | " + str(r.get("item_quantidade","0")) + "L"
-                 + " | R$" + str(r.get("item_valor_total","0")))
+                 + " | R$" + str(r.get("item_valor_total","0"))
+                 + " | R$" + str(r.get("item_valor_unitario","0")) + "/L")
         detalhes.append(linha)
 
     resumo = "DADOS DA FROTA - " + hoje_str + "\n"
     resumo += "HOJE: " + str(len(hoje_data)) + " abastecimentos | "
     resumo += str(round(total_hoje_litros, 1)) + " L | R$ " + str(round(total_hoje_valor, 2)) + "\n"
-    resumo += "Veiculos hoje: " + ", ".join(veiculos_hoje[:10]) + "\n"
+    resumo += "Veiculos abastecidos hoje: " + ", ".join(veiculos_hoje[:20]) + "\n"
     if detalhes:
-        resumo += "Detalhes: " + " || ".join(detalhes) + "\n"
-    resumo += "ULTIMOS 7 DIAS: " + str(len(sete_data)) + " registros | R$ " + str(round(total_7d_valor, 2)) + "\n"
-    resumo += "ULTIMOS 30 DIAS: " + str(len(trinta_data)) + " registros | R$ " + str(round(total_30d_valor, 2)) + "\n"
+        resumo += "Detalhes hoje (veiculo|motorista|centro_custo|cidade|litros|valor|preco_L):\n"
+        resumo += "\n".join(detalhes) + "\n"
+    resumo += "ULTIMOS 7 DIAS: " + str(len(sete_data)) + " registros | "
+    resumo += str(round(total_7d_litros,1)) + " L | R$ " + str(round(total_7d_valor, 2)) + "\n"
+    if consumo_por_veiculo:
+        resumo += "Consumo medio km/L por veiculo (7d): "
+        resumo += ", ".join(p + "=" + str(v) + "km/L" for p,v in list(consumo_por_veiculo.items())[:10]) + "\n"
+    resumo += "ULTIMOS 30 DIAS: " + str(len(trinta_data)) + " registros | "
+    resumo += str(round(total_30d_litros,1)) + " L | R$ " + str(round(total_30d_valor, 2)) + "\n"
+    if cc_dados:
+        resumo += "Por centro de custo (30d):\n"
+        for cc, v in cc_dados.items():
+            resumo += "  " + str(cc) + ": " + str(v["registros"]) + " abast | "
+            resumo += str(round(v["litros"],1)) + "L | R$ " + str(round(v["valor"],2)) + "\n"
 
     sistema = (
         "Voce e um assistente de gestao de frotas da FNI. "
