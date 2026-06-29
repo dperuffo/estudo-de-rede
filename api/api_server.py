@@ -1995,6 +1995,40 @@ def status_frota_manutencao(user: dict = Depends(usuario_atual)):
     }
     return {"status": resultado, "resumo": resumo}
 
+
+# ── Avaliações ───────────────────────────────────────────────────
+@app.get("/avaliacoes/minha", tags=["avaliacoes"])
+def minha_avaliacao_hoje(user: dict = Depends(usuario_atual)):
+    db = get_db()
+    email = user.get("email", "")
+    hoje = _hoje_br().isoformat()
+    r = db.table("avaliacoes").select("id,estrelas,comentario,criado_em").eq(
+        "user_email", email).gte("criado_em", f"{hoje}T00:00:00Z").limit(1).execute()
+    if r.data:
+        return {"ja_avaliou": True, "avaliacao": r.data[0]}
+    # Media geral
+    r2 = db.table("avaliacoes").select("estrelas").execute()
+    dados = r2.data or []
+    media = round(sum(d["estrelas"] for d in dados) / len(dados), 1) if dados else 0
+    return {"ja_avaliou": False, "media": media, "total": len(dados)}
+
+@app.post("/avaliacoes", tags=["avaliacoes"])
+def salvar_avaliacao(body: dict, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    estrelas = int(body.get("estrelas", 0))
+    if estrelas < 1 or estrelas > 5:
+        raise HTTPException(status_code=400, detail="Estrelas deve ser entre 1 e 5")
+    try:
+        r = db.table("avaliacoes").insert({
+            "empresa_id": user.get("empresa_id"),
+            "user_email": user.get("email", ""),
+            "estrelas":   estrelas,
+            "comentario": body.get("comentario", "").strip() or None,
+        }).execute()
+        return {"ok": True, "data": r.data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn

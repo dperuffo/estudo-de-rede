@@ -64,6 +64,7 @@ class HomeScreen extends StatelessWidget {
       _item(context, Icons.route,                'Roteirizacao',       '/roteirizacao'),
       const Divider(),
       _item(context, Icons.support_agent,        'Suporte',            '/tickets'),
+      _item(context, Icons.star,                   'Avaliar o App',      '/avaliacao'),
       _item(context, Icons.admin_panel_settings, 'Admin',              '/admin'),
       const Divider(),
       ListTile(

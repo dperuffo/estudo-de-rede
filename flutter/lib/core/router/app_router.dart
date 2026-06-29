@@ -15,6 +15,7 @@ import '../../features/relatorios/screens/relatorios_screen.dart';
 import '../../features/analise_cliente/screens/analise_cliente_screen.dart';
 import '../../features/tickets/screens/tickets_screen.dart';
 import '../../features/admin/screens/admin_screen.dart';
+import '../../features/avaliacao/screens/avaliacao_screen.dart';
 import '../../features/acordos/screens/acordos_screen.dart';
 import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
 import '../../features/assistente/screens/assistente_screen.dart';
@@ -47,6 +48,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         GoRoute(path: '/analise-cliente',  builder: (_, __) => const AnaliseClienteScreen()),
         GoRoute(path: '/tickets',         builder: (_, __) => const TicketsScreen()),
         GoRoute(path: '/admin',           builder: (_, __) => const AdminScreen()),
+        GoRoute(path: '/avaliacao',        builder: (_, __) => const AvaliacaoScreen()),
         GoRoute(path: '/acordos',         builder: (_, __) => const AcordosScreen()),
         GoRoute(path: '/roteirizacao',    builder: (_, __) => const RoteirizacaoScreen()),
         GoRoute(path: '/assistente',      builder: (_, __) => const AssistenteScreen()),
