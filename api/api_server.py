@@ -2019,12 +2019,12 @@ def salvar_avaliacao(body: dict, user: dict = Depends(usuario_atual)):
     if estrelas < 1 or estrelas > 5:
         raise HTTPException(status_code=400, detail="Estrelas deve ser entre 1 e 5")
     try:
-        r = db.table("avaliacoes").insert({
-            "empresa_id": user.get("empresa_id"),
+        payload = {
             "user_email": user.get("email", ""),
             "estrelas":   estrelas,
             "comentario": body.get("comentario", "").strip() or None,
-        }).execute()
+        }
+        r = db.table("avaliacoes").insert(payload).execute()
         return {"ok": True, "data": r.data}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
