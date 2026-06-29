@@ -58,7 +58,7 @@ class _State extends State<TicketsScreen> {
   Future<void> _novoTicket() async {
     final titulo = TextEditingController();
     final descricao = TextEditingController();
-    String tipo = 'melhoria';
+    String tipo = 'incidente';
     String prioridade = 'media';
 
     await showModalBottomSheet(
@@ -91,10 +91,8 @@ class _State extends State<TicketsScreen> {
               value: tipo,
               decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder()),
               items: const [
-                DropdownMenuItem(value: 'bug', child: Text('Bug / Erro')),
+                DropdownMenuItem(value: 'incidente', child: Text('Incidente / Erro')),
                 DropdownMenuItem(value: 'melhoria', child: Text('Melhoria')),
-                DropdownMenuItem(value: 'duvida', child: Text('Duvida')),
-                DropdownMenuItem(value: 'solicitacao', child: Text('Solicitacao')),
               ],
               onChanged: (v) => setLocal(() => tipo = v!),
             ),
