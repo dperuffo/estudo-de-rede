@@ -109,9 +109,11 @@ class _State extends State<_VeiculoSheet> {
                   }
                   if (bCtx.mounted) {
                     Navigator.pop(bCtx);
-                    _load();
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(content: Text('Veiculo salvo!')));
+                    if (mounted) {
+                      _load();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Veiculo salvo!')));
+                    }
                   }
                 } catch (e) {
                   if (bCtx.mounted) ScaffoldMessenger.of(bCtx).showSnackBar(
@@ -129,7 +131,6 @@ class _State extends State<_VeiculoSheet> {
         ]),
       ),
     );
-    _load(); // Recarrega após edição
   }
 
   Widget _campo(TextEditingController ctrl, String label,
@@ -209,10 +210,7 @@ class _State extends State<_VeiculoSheet> {
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.edit, color: Colors.white70),
-              onPressed: () {
-                Navigator.pop(context);
-                _abrirFormulario(context);
-              },
+              onPressed: () => _abrirFormulario(context),
             ),
           ]),
         ),
