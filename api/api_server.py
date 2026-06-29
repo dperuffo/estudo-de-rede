@@ -2052,11 +2052,15 @@ def adicionar_comentario(id: str, body: dict, user: dict = Depends(usuario_atual
         comentarios = json.loads(r.data[0].get("comentarios") or "[]")
     except:
         comentarios = []
-    comentarios.append({
+    comentario = {
         "texto": body.get("texto", ""),
         "autor": email,
         "data": datetime.now(tz=timezone.utc).isoformat(),
-    })
+    }
+    if body.get("anexo_nome") and body.get("anexo_base64"):
+        comentario["anexo_nome"] = body["anexo_nome"]
+        comentario["anexo_url"] = f"data:application/octet-stream;base64,{body['anexo_base64']}"
+    comentarios.append(comentario)
     db.table("tickets").update({
         "comentarios": json.dumps(comentarios, ensure_ascii=False),
         "atualizado_em": datetime.now(tz=timezone.utc).isoformat(),

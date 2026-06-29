@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/widgets/menu_button.dart';
 
@@ -223,6 +224,8 @@ class _DetalheState extends State<_DetalheTicket> {
   final _comentCtrl = TextEditingController();
   List<dynamic> _comentarios = [];
   bool _enviando = false;
+  String? _anexoNome;
+  String? _anexoBase64;
 
   @override void initState() {
     super.initState();
@@ -236,6 +239,24 @@ class _DetalheState extends State<_DetalheTicket> {
 
   @override void dispose() { _comentCtrl.dispose(); super.dispose(); }
 
+  Future<void> _selecionarAnexo() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.any,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      if (file.bytes == null) return;
+      setState(() {
+        _anexoNome = file.name;
+        _anexoBase64 = base64Encode(file.bytes!);
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: \$e')));
+    }
+  }
+
   Future<void> _enviarComentario() async {
     if (_comentCtrl.text.trim().isEmpty) return;
     setState(() => _enviando = true);
@@ -247,6 +268,8 @@ class _DetalheState extends State<_DetalheTicket> {
       setState(() {
         _comentarios = r['comentarios'] ?? [];
         _comentCtrl.clear();
+        _anexoNome = null;
+        _anexoBase64 = null;
       });
       widget.onAtualizar();
     } catch (e) {
@@ -365,6 +388,25 @@ class _DetalheState extends State<_DetalheTicket> {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 8),
+            // Anexo
+            Row(children: [
+              OutlinedButton.icon(
+                onPressed: _selecionarAnexo,
+                icon: const Icon(Icons.attach_file, size: 18),
+                label: const Text('Anexar arquivo'),
+                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF0D2D6B)),
+              ),
+              const SizedBox(width: 8),
+              if (_anexoNome != null) Expanded(child: Row(children: [
+                const Icon(Icons.insert_drive_file, color: Colors.green, size: 16),
+                const SizedBox(width: 4),
+                Expanded(child: Text(_anexoNome!, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
+                IconButton(icon: const Icon(Icons.close, size: 16), padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => setState(() { _anexoNome = null; _anexoBase64 = null; })),
+              ])),
+            ]),
             const SizedBox(height: 8),
             SizedBox(width: double.infinity, child: ElevatedButton.icon(
               onPressed: _enviando ? null : _enviarComentario,
