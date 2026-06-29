@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/widgets/menu_button.dart';
@@ -279,6 +280,16 @@ class _DetalheState extends State<_DetalheTicket> {
     }
   }
 
+  List<Map> _parseAnexos(dynamic raw) {
+    if (raw == null) return [];
+    try {
+      if (raw is List) return raw.cast<Map>();
+      final parsed = jsonDecode(raw.toString());
+      if (parsed is List) return parsed.cast<Map>();
+    } catch (_) {}
+    return [];
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = widget.ticket;
@@ -369,6 +380,37 @@ class _DetalheState extends State<_DetalheTicket> {
                 Text(
                   '${c["autor"] ?? ""} · ${(c["data"] ?? "").toString().substring(0, 10)}',
                   style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                ),
+              ]),
+            )),
+            const SizedBox(height: 16),
+          ],
+
+          // Anexos
+          if ((t['anexos'] != null) && _parseAnexos(t['anexos']).isNotEmpty) ...[
+            const Text('Anexos',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D2D6B), fontSize: 13)),
+            const SizedBox(height: 8),
+            ..._parseAnexos(t['anexos']).map((a) => Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.withOpacity(0.2)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.attach_file, color: Colors.blue, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(a['nome']?.toString() ?? '-',
+                    style: const TextStyle(fontSize: 13))),
+                if (a['conteudo'] != null) TextButton(
+                  onPressed: () async {
+                    final url = 'data:${a["tipo_mime"] ?? "application/octet-stream"};base64,${a["conteudo"]}';
+                    final uri = Uri.parse(url);
+                    if (await canLaunchUrl(uri)) await launchUrl(uri);
+                  },
+                  child: const Text('Ver', style: TextStyle(fontSize: 12)),
                 ),
               ]),
             )),

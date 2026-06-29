@@ -2049,14 +2049,39 @@ def adicionar_comentario(ticket_id: str, body: dict, user: dict = Depends(usuari
         "autor": email,
         "data": datetime.now(tz=timezone.utc).isoformat(),
     }
-    if body.get("anexo_nome") and body.get("anexo_base64"):
+    # Salva referencia do anexo no comentario
+    if body.get("anexo_nome"):
         comentario["anexo_nome"] = body["anexo_nome"]
-        comentario["anexo_url"] = f"data:application/octet-stream;base64,{body['anexo_base64']}"
+
     comentarios.append(comentario)
-    db.table("tickets").update({
+
+    upd = {
         "comentarios": json.dumps(comentarios, ensure_ascii=False),
         "atualizado_em": datetime.now(tz=timezone.utc).isoformat(),
-    }).eq("id", ticket_id).execute()
+    }
+
+    # Salva anexo na coluna anexos (igual a web)
+    if body.get("anexo_nome") and body.get("anexo_base64"):
+        try:
+            r_anx = db.table("tickets").select("anexos").eq("id", ticket_id).execute()
+            anexos_raw = (r_anx.data[0].get("anexos") or "[]") if r_anx.data else "[]"
+            if isinstance(anexos_raw, str):
+                try: anexos = json.loads(anexos_raw)
+                except: anexos = []
+            else:
+                anexos = anexos_raw or []
+            anexos.append({
+                "nome": body["anexo_nome"],
+                "conteudo": body["anexo_base64"],
+                "tipo_mime": body.get("anexo_tipo", "application/octet-stream"),
+                "autor": email,
+                "data": datetime.now(tz=timezone.utc).isoformat(),
+            })
+            upd["anexos"] = json.dumps(anexos, ensure_ascii=False)
+        except Exception:
+            pass
+
+    db.table("tickets").update(upd).eq("id", ticket_id).execute()
     return {"ok": True, "comentarios": comentarios}
 
 @app.get("/tickets/{id}", tags=["tickets"])
