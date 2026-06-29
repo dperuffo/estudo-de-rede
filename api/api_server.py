@@ -2031,12 +2031,12 @@ def salvar_avaliacao(body: dict, user: dict = Depends(usuario_atual)):
 
 
 # ── Tickets: detalhe e comentários ───────────────────────────────
-@app.post("/tickets/{id}/comentario", tags=["tickets"])
-def adicionar_comentario(id: str, body: dict, user: dict = Depends(usuario_atual)):
+@app.post("/tickets/comentario/{ticket_id}", tags=["tickets"])
+def adicionar_comentario(ticket_id: str, body: dict, user: dict = Depends(usuario_atual)):
     import json
     db = get_db()
     email = user.get("email", "")
-    r = db.table("tickets").select("comentarios").eq("id", id).eq("user_email", email).execute()
+    r = db.table("tickets").select("comentarios").eq("id", ticket_id).eq("user_email", email).execute()
     if not r.data:
         raise HTTPException(status_code=404, detail="Ticket nao encontrado")
     try:
@@ -2055,7 +2055,7 @@ def adicionar_comentario(id: str, body: dict, user: dict = Depends(usuario_atual
     db.table("tickets").update({
         "comentarios": json.dumps(comentarios, ensure_ascii=False),
         "atualizado_em": datetime.now(tz=timezone.utc).isoformat(),
-    }).eq("id", id).execute()
+    }).eq("id", ticket_id).execute()
     return {"ok": True, "comentarios": comentarios}
 
 @app.get("/tickets/{id}", tags=["tickets"])
