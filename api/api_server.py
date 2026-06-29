@@ -2031,15 +2031,6 @@ def salvar_avaliacao(body: dict, user: dict = Depends(usuario_atual)):
 
 
 # ── Tickets: detalhe e comentários ───────────────────────────────
-@app.get("/tickets/{id}", tags=["tickets"])
-def detalhe_ticket(id: str, user: dict = Depends(usuario_atual)):
-    db = get_db()
-    email = user.get("email", "")
-    r = db.table("tickets").select("*").eq("id", id).eq("user_email", email).execute()
-    if not r.data:
-        raise HTTPException(status_code=404, detail="Ticket nao encontrado")
-    return r.data[0]
-
 @app.post("/tickets/{id}/comentario", tags=["tickets"])
 def adicionar_comentario(id: str, body: dict, user: dict = Depends(usuario_atual)):
     import json
@@ -2066,6 +2057,16 @@ def adicionar_comentario(id: str, body: dict, user: dict = Depends(usuario_atual
         "atualizado_em": datetime.now(tz=timezone.utc).isoformat(),
     }).eq("id", id).execute()
     return {"ok": True, "comentarios": comentarios}
+
+@app.get("/tickets/{id}", tags=["tickets"])
+def detalhe_ticket(id: str, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    email = user.get("email", "")
+    r = db.table("tickets").select("*").eq("id", id).eq("user_email", email).execute()
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Ticket nao encontrado")
+    return r.data[0]
+
 
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
