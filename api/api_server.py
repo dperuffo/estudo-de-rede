@@ -875,111 +875,119 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
     dt_hoje_fim = _dt_fim_br().isoformat()
     dt_7d  = (hoje - timedelta(days=7)).isoformat()
     dt_30d = (hoje - timedelta(days=30)).isoformat()
-    dt_90d = (hoje - timedelta(days=90)).isoformat()
     resumo = ""
 
+    def _n(v):
+        try: return float(v or 0)
+        except: return 0.0
+
     try:
-        # ── Abastecimentos HOJE ──────────────────────────────────
+        # Abastecimentos hoje
         r_hoje = db.table("profrotas_abastecimentos").select(
-            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,pv_razao_social,motorista_nome,hodometro"
-        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
-            "data_abastecimento", dt_hoje_ini).lt("data_abastecimento", dt_hoje_fim).execute()
-        df_hoje = pd.DataFrame(r_hoje.data or [])
-
-        if not df_hoje.empty:
-            for col in ["item_quantidade","item_valor_unitario","item_valor_total"]:
-                df_hoje[col] = pd.to_numeric(df_hoje[col], errors="coerce").fillna(0)
-            resumo += f"""
-ABASTECIMENTOS DE HOJE ({hoje.isoformat()}):
-{df_hoje[["veiculo_placa","item_nome","item_quantidade","item_valor_unitario","item_valor_total","pv_razao_social","pv_municipio","pv_uf","motorista_nome"]].to_string(index=False)}
-- Total hoje: {len(df_hoje)} abastecimentos, {df_hoje["item_quantidade"].sum():.1f} L, R$ {df_hoje["item_valor_total"].sum():.2f}
-"""
-        else:
-            resumo += f"\nABASTECIMENTOS DE HOJE ({hoje.isoformat()}): Nenhum registro encontrado.\n"
-
-        # ── Abastecimentos 7 dias ────────────────────────────────
-        r_7d = db.table("profrotas_abastecimentos").select(
             "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,pv_razao_social,motorista_nome"
         ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
-            "data_abastecimento", dt_7d).lt("data_abastecimento", dt_hoje_fim).execute()
-        df_7d = pd.DataFrame(r_7d.data or [])
-        if not df_7d.empty:
-            for col in ["item_quantidade","item_valor_unitario","item_valor_total"]:
-                df_7d[col] = pd.to_numeric(df_7d[col], errors="coerce").fillna(0)
-            resumo += f"""
-ABASTECIMENTOS ULTIMOS 7 DIAS:
-- Total: {len(df_7d)} abastecimentos, {df_7d["item_quantidade"].sum():.1f} L, R$ {df_7d["item_valor_total"].sum():.2f}
-- Preco medio/L: R$ {df_7d["item_valor_unitario"].mean():.4f}
-- Veiculos: {df_7d["veiculo_placa"].nunique()}
-Por veiculo:
-{df_7d.groupby("veiculo_placa").agg(n=("veiculo_placa","count"), litros=("item_quantidade","sum"), gasto=("item_valor_total","sum")).sort_values("gasto",ascending=False).to_string()}
-"""
+            "data_abastecimento", dt_hoje_ini).lt("data_abastecimento", dt_hoje_fim).execute()
+        rows_hoje = r_hoje.data or []
+        if rows_hoje:
+            tl = sum(_n(r["item_quantidade"]) for r in rows_hoje)
+            tr = sum(_n(r["item_valor_total"]) for r in rows_hoje)
+            resumo += "\nABASTECIMENTOS DE HOJE (" + hoje.isoformat() + ") - " + str(len(rows_hoje)) + " registros:\n"
+            for r in rows_hoje:
+                resumo += "  " + str(r.get("veiculo_placa","")) + " | " + str(r.get("item_nome","")) + " | " + str(r.get("item_quantidade","")) + "L | R$ " + str(r.get("item_valor_total","")) + " | " + str(r.get("pv_razao_social","")) + " - " + str(r.get("pv_municipio","")) + "/" + str(r.get("pv_uf","")) + "\n"
+            resumo += "Total hoje: " + str(round(tl,1)) + " L, R$ " + str(round(tr,2)) + "\n"
+        else:
+            resumo += "\nABASTECIMENTOS DE HOJE (" + hoje.isoformat() + "): Nenhum registro.\n"
 
-        # ── Abastecimentos 30 dias ───────────────────────────────
+        # Abastecimentos 7 dias
+        r_7d = db.table("profrotas_abastecimentos").select(
+            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf"
+        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+            "data_abastecimento", dt_7d).lt("data_abastecimento", dt_hoje_fim).execute()
+        rows_7d = r_7d.data or []
+        if rows_7d:
+            tl7 = sum(_n(r["item_quantidade"]) for r in rows_7d)
+            tr7 = sum(_n(r["item_valor_total"]) for r in rows_7d)
+            med7 = sum(_n(r["item_valor_unitario"]) for r in rows_7d) / len(rows_7d)
+            por_placa7 = {}
+            for r in rows_7d:
+                p = r.get("veiculo_placa","?")
+                if p not in por_placa7: por_placa7[p] = {"n":0,"l":0,"g":0}
+                por_placa7[p]["n"] += 1
+                por_placa7[p]["l"] += _n(r["item_quantidade"])
+                por_placa7[p]["g"] += _n(r["item_valor_total"])
+            resumo += "\nABASTECIMENTOS ULTIMOS 7 DIAS: " + str(len(rows_7d)) + " registros, " + str(round(tl7,1)) + "L, R$ " + str(round(tr7,2)) + ", preco medio R$ " + str(round(med7,4)) + "/L\n"
+            resumo += "Por veiculo:\n"
+            for p, v in sorted(por_placa7.items(), key=lambda x: x[1]["g"], reverse=True)[:10]:
+                resumo += "  " + p + ": " + str(v["n"]) + " abast, " + str(round(v["l"],1)) + "L, R$ " + str(round(v["g"],2)) + "\n"
+
+        # Abastecimentos 30 dias
         r_30d = db.table("profrotas_abastecimentos").select(
-            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,motorista_nome"
+            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf"
         ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
             "data_abastecimento", dt_30d).lt("data_abastecimento", dt_hoje_fim).execute()
-        df_30d = pd.DataFrame(r_30d.data or [])
-        if not df_30d.empty:
-            for col in ["item_quantidade","item_valor_unitario","item_valor_total"]:
-                df_30d[col] = pd.to_numeric(df_30d[col], errors="coerce").fillna(0)
-            resumo += f"""
-ABASTECIMENTOS ULTIMOS 30 DIAS:
-- Total: {len(df_30d)} abastecimentos, {df_30d["item_quantidade"].sum():.1f} L, R$ {df_30d["item_valor_total"].sum():.2f}
-- Preco medio/L: R$ {df_30d["item_valor_unitario"].mean():.4f}
-- Veiculos ativos: {df_30d["veiculo_placa"].nunique()}
-Por combustivel:
-{df_30d.groupby("item_nome").agg(litros=("item_quantidade","sum"), gasto=("item_valor_total","sum"), n=("item_nome","count")).to_string()}
-Top 10 veiculos por gasto:
-{df_30d.groupby("veiculo_placa")["item_valor_total"].sum().sort_values(ascending=False).head(10).to_string()}
-Top estados:
-{df_30d.groupby("pv_uf")["item_valor_total"].sum().sort_values(ascending=False).head(5).to_string()}
-"""
+        rows_30d = r_30d.data or []
+        if rows_30d:
+            tl30 = sum(_n(r["item_quantidade"]) for r in rows_30d)
+            tr30 = sum(_n(r["item_valor_total"]) for r in rows_30d)
+            med30 = sum(_n(r["item_valor_unitario"]) for r in rows_30d) / len(rows_30d)
+            por_comb = {}
+            por_placa30 = {}
+            por_uf = {}
+            for r in rows_30d:
+                c = r.get("item_nome","?"); p = r.get("veiculo_placa","?"); u = r.get("pv_uf","?")
+                if c not in por_comb: por_comb[c] = {"n":0,"l":0,"g":0}
+                por_comb[c]["n"] += 1; por_comb[c]["l"] += _n(r["item_quantidade"]); por_comb[c]["g"] += _n(r["item_valor_total"])
+                por_placa30[p] = por_placa30.get(p, 0) + _n(r["item_valor_total"])
+                por_uf[u] = por_uf.get(u, 0) + _n(r["item_valor_total"])
+            resumo += "\nABASTECIMENTOS ULTIMOS 30 DIAS: " + str(len(rows_30d)) + " registros, " + str(round(tl30,1)) + "L, R$ " + str(round(tr30,2)) + ", preco medio R$ " + str(round(med30,4)) + "/L, " + str(len(por_placa30)) + " veiculos\n"
+            resumo += "Por combustivel:\n"
+            for c, v in por_comb.items():
+                resumo += "  " + c + ": " + str(v["n"]) + " abast, " + str(round(v["l"],1)) + "L, R$ " + str(round(v["g"],2)) + "\n"
+            resumo += "Top veiculos:\n"
+            for p, g in sorted(por_placa30.items(), key=lambda x: x[1], reverse=True)[:10]:
+                resumo += "  " + p + ": R$ " + str(round(g,2)) + "\n"
+            resumo += "Top estados:\n"
+            for u, g in sorted(por_uf.items(), key=lambda x: x[1], reverse=True)[:5]:
+                resumo += "  " + u + ": R$ " + str(round(g,2)) + "\n"
 
-        # ── Manutenções ──────────────────────────────────────────
+        # Manutenções
         r_manut = db.table("manutencoes_realizadas").select(
-            "placa,custo_total,data_manutencao,oficina,itens_realizados,hodometro,tecnico,obs_gerais"
+            "placa,custo_total,data_manutencao,oficina,itens_realizados"
         ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_30d).order("data_manutencao", desc=True).execute()
-        df_manut = pd.DataFrame(r_manut.data or [])
-        if not df_manut.empty:
-            df_manut["custo_total"] = pd.to_numeric(df_manut["custo_total"], errors="coerce").fillna(0)
-            resumo += f"""
-MANUTENCOES ULTIMOS 30 DIAS:
-- Total: {len(df_manut)} registros, R$ {df_manut["custo_total"].sum():.2f}
-- Veiculos: {df_manut["placa"].nunique()}
-Detalhes:
-{df_manut[["placa","data_manutencao","custo_total","oficina","itens_realizados"]].to_string(index=False)}
-"""
+        rows_manut = r_manut.data or []
+        if rows_manut:
+            tm = sum(_n(r["custo_total"]) for r in rows_manut)
+            resumo += "\nMANUTENCOES ULTIMOS 30 DIAS: " + str(len(rows_manut)) + " registros, R$ " + str(round(tm,2)) + "\n"
+            for r in rows_manut:
+                itens = r.get("itens_realizados") or []
+                itens_str = ", ".join(itens) if isinstance(itens, list) else str(itens)
+                resumo += "  " + str(r.get("placa","")) + " | " + str(r.get("data_manutencao","")) + " | R$ " + str(round(_n(r.get("custo_total")),2)) + " | " + str(r.get("oficina","")) + " | " + itens_str + "\n"
 
-        # ── Veículos cadastrados ─────────────────────────────────
+        # Veículos cadastrados
         r_veic = db.table("cadastro_veiculos").select(
-            "placa,marca,modelo,ano_modelo,combustivel,hodometro_atual,ativo"
+            "placa,marca,modelo,ano_modelo,combustivel,hodometro_atual"
         ).eq("cnpj_frota", cnpj).eq("ativo", True).execute()
         if r_veic.data:
-            resumo += f"""
-VEICULOS CADASTRADOS NA FROTA ({len(r_veic.data)} veiculos):
-{pd.DataFrame(r_veic.data).to_string(index=False)}
-"""
+            resumo += "\nVEICULOS CADASTRADOS (" + str(len(r_veic.data)) + "):\n"
+            for v in r_veic.data:
+                resumo += "  " + str(v.get("placa","")) + " | " + str(v.get("marca","")) + " " + str(v.get("modelo","")) + " | " + str(v.get("ano_modelo","")) + " | " + str(v.get("combustivel","")) + " | " + str(v.get("hodometro_atual",0)) + " km\n"
 
-        # ── Tickets ──────────────────────────────────────────────
+        # Tickets
         r_tick = db.table("tickets").select(
-            "numero,titulo,tipo,status,prioridade,criado_em,resposta_admin"
-        ).eq("cnpj_frota", cnpj).order("criado_em", desc=True).limit(20).execute()
+            "numero,titulo,tipo,status,prioridade"
+        ).eq("user_email", user.get("email","")).order("numero", desc=True).limit(10).execute()
         if r_tick.data:
-            resumo += f"""
-TICKETS DE SUPORTE:
-{pd.DataFrame(r_tick.data)[["numero","titulo","tipo","status","prioridade"]].to_string(index=False)}
-"""
+            resumo += "\nTICKETS DE SUPORTE:\n"
+            for t in r_tick.data:
+                resumo += "  #" + str(t.get("numero","")) + " | " + str(t.get("titulo","")) + " | " + str(t.get("tipo","")) + " | " + str(t.get("status","")) + " | " + str(t.get("prioridade","")) + "\n"
 
-        # ── Centros de custo ─────────────────────────────────────
-        r_cc = db.table("centros_custo").select("nome,descricao").eq("cnpj_frota", cnpj).execute()
+        # Centros de custo
+        r_cc = db.table("centros_custo").select("nome").eq("cnpj_frota", cnpj).execute()
         if r_cc.data:
             resumo += "\nCENTROS DE CUSTO: " + ", ".join([c["nome"] for c in r_cc.data]) + "\n"
 
     except Exception as e:
-        resumo += f"\nErro ao carregar dados: {type(e).__name__}: {str(e)[:200]}\n"
-
+        resumo += "\nErro ao carregar dados: " + str(type(e).__name__) + ": " + str(e)[:200] + "\n"
     sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI (Fleet Network Intelligence).
 Usuario: {user.get("nome", "gestor")} | Perfil: {user.get("perfil", "usuario")} | CNPJ: {cnpj}
 Data/hora atual: {hoje.isoformat()} (fuso horario: America/Sao_Paulo, UTC-3)
