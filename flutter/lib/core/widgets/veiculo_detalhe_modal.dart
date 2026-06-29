@@ -163,9 +163,9 @@ class _State extends State<_VeiculoSheet> {
 
     final marca  = cadastro['marca']  ?? fipe['marca']  ?? '-';
     final modelo = cadastro['modelo'] ?? fipe['modelo'] ?? '-';
-    final ano    = cadastro['ano_modelo'] ?? fipe['ano_modelo'] ?? '';
-    final cor    = cadastro['cor']    ?? fipe['cor']    ?? '';
-    final comb   = cadastro['combustivel'] ?? fipe['combustivel_fipe'] ?? '';
+    final ano    = (cadastro['ano_modelo'] ?? fipe['ano_modelo'])?.toString() ?? '';
+    final cor    = (cadastro['cor']    ?? fipe['cor'])?.toString()    ?? '';
+    final comb   = (cadastro['combustivel'] ?? fipe['combustivel_fipe'])?.toString() ?? '';
     final valorFipe = (fipe['valor_fipe'] as num?)?.toDouble();
 
     return Container(
