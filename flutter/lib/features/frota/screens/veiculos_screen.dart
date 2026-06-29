@@ -290,7 +290,7 @@ class _State extends State<VeiculosScreen> {
                                   ),
                                 ],
                               ]),
-                              onTap: () => _novoOuEditar(v),
+                              onTap: () => VeiculoDetalheModal.show(context, v['placa'] ?? ''),
                             ),
                           );
                         },
