@@ -79,8 +79,11 @@ class _State extends State<RelatoriosScreen> {
                     child: ListTile(
                       dense: true,
                       leading: const Icon(Icons.local_gas_station, color: Colors.blue),
-                      title: Text('${a["veiculo_placa"] ?? "-"} — ${a["item_nome"] ?? "-"}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      title: GestureDetector(
+                        onTap: () => VeiculoDetalheModal.show(context, a['veiculo_placa']?.toString() ?? ''),
+                        child: Text('${a["veiculo_placa"] ?? "-"} — ${a["item_nome"] ?? "-"}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D2D6B))),
+                      ),
                       subtitle: Text('${a["data_abastecimento"] ?? "-"} · ${a["pv_municipio"] ?? "-"}/${a["pv_uf"] ?? "-"}'),
                       trailing: Text(fmt.format(a['item_valor_total'] ?? 0),
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 13)),

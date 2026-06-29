@@ -197,12 +197,16 @@ class _State extends State<ComeceSeuDiaScreen> {
                   _secao('Top veiculos por gasto'),
                   ...topVeic.asMap().entries.map((e) {
                     final i = e.key; final v = e.value;
-                    return _itemRanking(
-                      i + 1,
-                      v['veiculo_placa'] ?? '-',
-                      fmt.format(v['gasto'] ?? 0),
-                      '${(v["litros"] ?? 0).toStringAsFixed(0)} L · ${v["n"]} abast.',
-                      Colors.blue,
+                    final placa = v['veiculo_placa']?.toString() ?? '-';
+                    return GestureDetector(
+                      onTap: () => VeiculoDetalheModal.show(context, placa),
+                      child: _itemRanking(
+                        i + 1,
+                        placa,
+                        fmt.format(v['gasto'] ?? 0),
+                        '${(v["litros"] ?? 0).toStringAsFixed(0)} L · ${v["n"]} abast.',
+                        Colors.blue,
+                      ),
                     );
                   }),
                   const SizedBox(height: 24),

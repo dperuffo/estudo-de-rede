@@ -74,7 +74,11 @@ class _State extends State<AbastecimentosScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: const CircleAvatar(child: Icon(Icons.local_gas_station)),
-                    title: Text('${a["veiculo_placa"] ?? "-"} - ${a["item_nome"] ?? "-"}'),
+                    title: GestureDetector(
+                      onTap: () => VeiculoDetalheModal.show(context, a['veiculo_placa']?.toString() ?? ''),
+                      child: Text('${a["veiculo_placa"] ?? "-"} - ${a["item_nome"] ?? "-"}',
+                          style: const TextStyle(color: Color(0xFF0D2D6B), fontWeight: FontWeight.bold)),
+                    ),
                     subtitle: Text(a['pv_razao_social'] ?? '-'),
                     trailing: Text('${(a["item_quantidade"] ?? 0).toStringAsFixed(0)} L',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
