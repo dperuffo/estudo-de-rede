@@ -2036,7 +2036,8 @@ def adicionar_comentario(ticket_id: str, body: dict, user: dict = Depends(usuari
     import json
     db = get_db()
     email = user.get("email", "")
-    r = db.table("tickets").select("comentarios").eq("id", ticket_id).eq("user_email", email).execute()
+    # Busca por id apenas (sem filtrar por email para permitir qualquer usuario da empresa)
+    r = db.table("tickets").select("comentarios").eq("id", ticket_id).execute()
     if not r.data:
         raise HTTPException(status_code=404, detail="Ticket nao encontrado")
     try:
@@ -2062,7 +2063,7 @@ def adicionar_comentario(ticket_id: str, body: dict, user: dict = Depends(usuari
 def detalhe_ticket(id: str, user: dict = Depends(usuario_atual)):
     db = get_db()
     email = user.get("email", "")
-    r = db.table("tickets").select("*").eq("id", id).eq("user_email", email).execute()
+    r = db.table("tickets").select("*").eq("id", id).execute()
     if not r.data:
         raise HTTPException(status_code=404, detail="Ticket nao encontrado")
     return r.data[0]
