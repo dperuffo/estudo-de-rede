@@ -55,6 +55,25 @@ class _State extends State<TicketsScreen> {
     }
   }
 
+  Widget _kpiTicket(String label, int count, Color color, IconData icon) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 6),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$count', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+        ]),
+      ]),
+    ),
+  );
+
   Future<void> _novoTicket() async {
     final titulo = TextEditingController();
     final descricao = TextEditingController();
@@ -162,7 +181,19 @@ class _State extends State<TicketsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              child: _tickets.isEmpty
+              child: Column(children: [
+                // KPIs
+                if (_tickets.isNotEmpty) Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                  child: Row(children: [
+                    _kpiTicket('Abertos', _resumo['abertos']!, Colors.blue, Icons.fiber_new),
+                    const SizedBox(width: 8),
+                    _kpiTicket('Em Analise', _resumo['analise']!, Colors.orange, Icons.hourglass_empty),
+                    const SizedBox(width: 8),
+                    _kpiTicket('Resolvidos', _resumo['resolvidos']!, Colors.green, Icons.check_circle),
+                  ]),
+                ),
+                Expanded(child: _tickets.isEmpty
                   ? const Center(child: Text('Nenhum ticket aberto'))
                   : ListView.builder(
                       padding: const EdgeInsets.all(12),
@@ -206,7 +237,8 @@ class _State extends State<TicketsScreen> {
                             onTap: () => _abrirDetalhe(t),
                           ),
                         );
-                      }),
+                      })),
+              ]),
             ),
     );
   }
