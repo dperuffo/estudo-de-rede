@@ -881,20 +881,20 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
         r_hoje, r_7d, r_30d = await asyncio.wait_for(
             asyncio.gather(
                 asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
-                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,item_valor_unitario,hodometro,pv_municipio,pv_uf,pv_razao_social,motorista_nome,centro_custo")
+                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,item_valor_unitario,hodometro,pv_municipio,pv_uf,motorista_nome,centro_custo")
                     .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
                     .gte("data_abastecimento", hoje_str)
-                    .limit(50).execute()),
+                    .limit(20).execute()),
                 asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
-                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,item_valor_unitario,hodometro,centro_custo,motorista_nome")
+                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,hodometro,centro_custo")
                     .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
                     .gte("data_abastecimento", d7)
-                    .limit(200).execute()),
+                    .limit(50).execute()),
                 asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
-                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,centro_custo")
+                    .select("veiculo_placa,item_quantidade,item_valor_total,centro_custo")
                     .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
                     .gte("data_abastecimento", d30)
-                    .limit(500).execute()),
+                    .limit(100).execute()),
             ),
             timeout=12.0
         )
