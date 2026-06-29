@@ -857,11 +857,12 @@ def listar_ufs(user: dict = Depends(usuario_atual)):
 # ── Assistente IA ─────────────────────────────────────────────────
 @app.post("/assistente/chat", tags=["assistente"])
 async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
-    import httpx
-    import pandas as pd
-    from datetime import date, timedelta
+    import httpx, asyncio
+    from datetime import timedelta
+
     pergunta = body.get("pergunta", "")
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+
     if not pergunta:
         raise HTTPException(status_code=400, detail="Pergunta nao informada")
 
@@ -869,159 +870,111 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
     if not anthropic_key:
         return {"resposta": "Assistente IA nao configurado. Configure ANTHROPIC_API_KEY no Railway."}
 
-    db = get_db()
     hoje = _hoje_br()
-    dt_hoje_ini = hoje.isoformat()
-    dt_hoje_fim = _dt_fim_br().isoformat()
-    dt_7d  = (hoje - timedelta(days=7)).isoformat()
-    dt_30d = (hoje - timedelta(days=30)).isoformat()
-    resumo = ""
+    d7   = (hoje - timedelta(days=7)).isoformat()
+    d30  = (hoje - timedelta(days=30)).isoformat()
+    hoje_str = hoje.isoformat()
 
-    def _n(v):
-        try: return float(v or 0)
-        except: return 0.0
+    db = get_db()
 
     try:
-        # Abastecimentos hoje
-        r_hoje = db.table("profrotas_abastecimentos").select(
-            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,pv_razao_social,motorista_nome"
-        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
-            "data_abastecimento", dt_hoje_ini).lt("data_abastecimento", dt_hoje_fim).execute()
-        rows_hoje = r_hoje.data or []
-        if rows_hoje:
-            tl = sum(_n(r["item_quantidade"]) for r in rows_hoje)
-            tr = sum(_n(r["item_valor_total"]) for r in rows_hoje)
-            resumo += "\nABASTECIMENTOS DE HOJE (" + hoje.isoformat() + ") - " + str(len(rows_hoje)) + " registros:\n"
-            for r in rows_hoje:
-                resumo += "  " + str(r.get("veiculo_placa","")) + " | " + str(r.get("item_nome","")) + " | " + str(r.get("item_quantidade","")) + "L | R$ " + str(r.get("item_valor_total","")) + " | " + str(r.get("pv_razao_social","")) + " - " + str(r.get("pv_municipio","")) + "/" + str(r.get("pv_uf","")) + "\n"
-            resumo += "Total hoje: " + str(round(tl,1)) + " L, R$ " + str(round(tr,2)) + "\n"
-        else:
-            resumo += "\nABASTECIMENTOS DE HOJE (" + hoje.isoformat() + "): Nenhum registro.\n"
-
-        # Abastecimentos 7 dias
-        r_7d = db.table("profrotas_abastecimentos").select(
-            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf"
-        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
-            "data_abastecimento", dt_7d).lt("data_abastecimento", dt_hoje_fim).execute()
-        rows_7d = r_7d.data or []
-        if rows_7d:
-            tl7 = sum(_n(r["item_quantidade"]) for r in rows_7d)
-            tr7 = sum(_n(r["item_valor_total"]) for r in rows_7d)
-            med7 = sum(_n(r["item_valor_unitario"]) for r in rows_7d) / len(rows_7d)
-            por_placa7 = {}
-            for r in rows_7d:
-                p = r.get("veiculo_placa","?")
-                if p not in por_placa7: por_placa7[p] = {"n":0,"l":0,"g":0}
-                por_placa7[p]["n"] += 1
-                por_placa7[p]["l"] += _n(r["item_quantidade"])
-                por_placa7[p]["g"] += _n(r["item_valor_total"])
-            resumo += "\nABASTECIMENTOS ULTIMOS 7 DIAS: " + str(len(rows_7d)) + " registros, " + str(round(tl7,1)) + "L, R$ " + str(round(tr7,2)) + ", preco medio R$ " + str(round(med7,4)) + "/L\n"
-            resumo += "Por veiculo:\n"
-            for p, v in sorted(por_placa7.items(), key=lambda x: x[1]["g"], reverse=True)[:10]:
-                resumo += "  " + p + ": " + str(v["n"]) + " abast, " + str(round(v["l"],1)) + "L, R$ " + str(round(v["g"],2)) + "\n"
-
-        # Abastecimentos 30 dias
-        r_30d = db.table("profrotas_abastecimentos").select(
-            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf"
-        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
-            "data_abastecimento", dt_30d).lt("data_abastecimento", dt_hoje_fim).execute()
-        rows_30d = r_30d.data or []
-        if rows_30d:
-            tl30 = sum(_n(r["item_quantidade"]) for r in rows_30d)
-            tr30 = sum(_n(r["item_valor_total"]) for r in rows_30d)
-            med30 = sum(_n(r["item_valor_unitario"]) for r in rows_30d) / len(rows_30d)
-            por_comb = {}
-            por_placa30 = {}
-            por_uf = {}
-            for r in rows_30d:
-                c = r.get("item_nome","?"); p = r.get("veiculo_placa","?"); u = r.get("pv_uf","?")
-                if c not in por_comb: por_comb[c] = {"n":0,"l":0,"g":0}
-                por_comb[c]["n"] += 1; por_comb[c]["l"] += _n(r["item_quantidade"]); por_comb[c]["g"] += _n(r["item_valor_total"])
-                por_placa30[p] = por_placa30.get(p, 0) + _n(r["item_valor_total"])
-                por_uf[u] = por_uf.get(u, 0) + _n(r["item_valor_total"])
-            resumo += "\nABASTECIMENTOS ULTIMOS 30 DIAS: " + str(len(rows_30d)) + " registros, " + str(round(tl30,1)) + "L, R$ " + str(round(tr30,2)) + ", preco medio R$ " + str(round(med30,4)) + "/L, " + str(len(por_placa30)) + " veiculos\n"
-            resumo += "Por combustivel:\n"
-            for c, v in por_comb.items():
-                resumo += "  " + c + ": " + str(v["n"]) + " abast, " + str(round(v["l"],1)) + "L, R$ " + str(round(v["g"],2)) + "\n"
-            resumo += "Top veiculos:\n"
-            for p, g in sorted(por_placa30.items(), key=lambda x: x[1], reverse=True)[:10]:
-                resumo += "  " + p + ": R$ " + str(round(g,2)) + "\n"
-            resumo += "Top estados:\n"
-            for u, g in sorted(por_uf.items(), key=lambda x: x[1], reverse=True)[:5]:
-                resumo += "  " + u + ": R$ " + str(round(g,2)) + "\n"
-
-        # Manutenções
-        r_manut = db.table("manutencoes_realizadas").select(
-            "placa,custo_total,data_manutencao,oficina,itens_realizados"
-        ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_30d).order("data_manutencao", desc=True).execute()
-        rows_manut = r_manut.data or []
-        if rows_manut:
-            tm = sum(_n(r["custo_total"]) for r in rows_manut)
-            resumo += "\nMANUTENCOES ULTIMOS 30 DIAS: " + str(len(rows_manut)) + " registros, R$ " + str(round(tm,2)) + "\n"
-            for r in rows_manut:
-                itens = r.get("itens_realizados") or []
-                itens_str = ", ".join(itens) if isinstance(itens, list) else str(itens)
-                resumo += "  " + str(r.get("placa","")) + " | " + str(r.get("data_manutencao","")) + " | R$ " + str(round(_n(r.get("custo_total")),2)) + " | " + str(r.get("oficina","")) + " | " + itens_str + "\n"
-
-        # Veículos cadastrados
-        r_veic = db.table("cadastro_veiculos").select(
-            "placa,marca,modelo,ano_modelo,combustivel,hodometro_atual"
-        ).eq("cnpj_frota", cnpj).eq("ativo", True).execute()
-        if r_veic.data:
-            resumo += "\nVEICULOS CADASTRADOS (" + str(len(r_veic.data)) + "):\n"
-            for v in r_veic.data:
-                resumo += "  " + str(v.get("placa","")) + " | " + str(v.get("marca","")) + " " + str(v.get("modelo","")) + " | " + str(v.get("ano_modelo","")) + " | " + str(v.get("combustivel","")) + " | " + str(v.get("hodometro_atual",0)) + " km\n"
-
-        # Tickets
-        r_tick = db.table("tickets").select(
-            "numero,titulo,tipo,status,prioridade"
-        ).eq("user_email", user.get("email","")).order("numero", desc=True).limit(10).execute()
-        if r_tick.data:
-            resumo += "\nTICKETS DE SUPORTE:\n"
-            for t in r_tick.data:
-                resumo += "  #" + str(t.get("numero","")) + " | " + str(t.get("titulo","")) + " | " + str(t.get("tipo","")) + " | " + str(t.get("status","")) + " | " + str(t.get("prioridade","")) + "\n"
-
-        # Centros de custo
-        r_cc = db.table("centros_custo").select("nome").eq("cnpj_frota", cnpj).execute()
-        if r_cc.data:
-            resumo += "\nCENTROS DE CUSTO: " + ", ".join([c["nome"] for c in r_cc.data]) + "\n"
-
-    except Exception as e:
-        resumo += "\nErro ao carregar dados: " + str(type(e).__name__) + ": " + str(e)[:200] + "\n"
-    sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI (Fleet Network Intelligence).
-Usuario: {user.get("nome", "gestor")} | Perfil: {user.get("perfil", "usuario")} | CNPJ: {cnpj}
-Data/hora atual: {hoje.isoformat()} (fuso horario: America/Sao_Paulo, UTC-3)
-
-DADOS REAIS E ATUALIZADOS DA FROTA:
-{resumo}
-
-INSTRUCOES:
-- Use SEMPRE os dados reais acima para responder. Nunca diga que nao tem dados se eles estao acima.
-- Seja objetivo e use numeros reais.
-- Para perguntas sobre "hoje", use os dados de ABASTECIMENTOS DE HOJE.
-- Para perguntas sobre "essa semana", use os dados de ULTIMOS 7 DIAS.
-- Para perguntas sobre "esse mes", use os dados de ULTIMOS 30 DIAS.
-- Formate valores monetarios como R$ X.XXX,XX.
-- Responda sempre em portugues brasileiro.
-- Se o dado nao estiver disponivel, diga especificamente o que nao foi encontrado."""
-
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": anthropic_key, "anthropic-version": "2023-06-01",
-                     "content-type": "application/json"},
-            json={"model": "claude-haiku-4-5-20251001", "max_tokens": 1024,
-                  "system": sistema,
-                  "messages": [{"role": "user", "content": pergunta}]},
-            timeout=60,
+        r_hoje, r_7d, r_30d = await asyncio.wait_for(
+            asyncio.gather(
+                asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
+                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total,pv_municipio,pv_uf")
+                    .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
+                    .gte("data_abastecimento", hoje_str)
+                    .limit(30).execute()),
+                asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
+                    .select("data_abastecimento,veiculo_placa,item_quantidade,item_valor_total")
+                    .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
+                    .gte("data_abastecimento", d7)
+                    .limit(100).execute()),
+                asyncio.to_thread(lambda: db.table("profrotas_abastecimentos")
+                    .select("data_abastecimento,veiculo_placa,item_valor_total")
+                    .eq("cnpj_frota", cnpj).eq("item_tipo", 1)
+                    .gte("data_abastecimento", d30)
+                    .limit(200).execute()),
+            ),
+            timeout=12.0
         )
+    except asyncio.TimeoutError:
+        class _R:
+            data = []
+        r_hoje = r_7d = r_30d = _R()
+
+    def soma(lista, campo):
+        return sum(float(r.get(campo) or 0) for r in lista)
+
+    hoje_data   = r_hoje.data or []
+    sete_data   = r_7d.data   or []
+    trinta_data = r_30d.data  or []
+
+    total_hoje_litros = soma(hoje_data, "item_quantidade")
+    total_hoje_valor  = soma(hoje_data, "item_valor_total")
+    total_7d_valor    = soma(sete_data, "item_valor_total")
+    total_30d_valor   = soma(trinta_data, "item_valor_total")
+
+    veiculos_hoje = list({r.get("veiculo_placa") for r in hoje_data if r.get("veiculo_placa")})
+
+    detalhes = []
+    for r in hoje_data[:5]:
+        linha = (str(r.get("veiculo_placa","?")) + " | "
+                 + str(r.get("pv_municipio","?")) + "/" + str(r.get("pv_uf","?"))
+                 + " | " + str(r.get("item_quantidade","0")) + "L"
+                 + " | R$" + str(r.get("item_valor_total","0")))
+        detalhes.append(linha)
+
+    resumo = "DADOS DA FROTA - " + hoje_str + "\n"
+    resumo += "HOJE: " + str(len(hoje_data)) + " abastecimentos | "
+    resumo += str(round(total_hoje_litros, 1)) + " L | R$ " + str(round(total_hoje_valor, 2)) + "\n"
+    resumo += "Veiculos hoje: " + ", ".join(veiculos_hoje[:10]) + "\n"
+    if detalhes:
+        resumo += "Detalhes: " + " || ".join(detalhes) + "\n"
+    resumo += "ULTIMOS 7 DIAS: " + str(len(sete_data)) + " registros | R$ " + str(round(total_7d_valor, 2)) + "\n"
+    resumo += "ULTIMOS 30 DIAS: " + str(len(trinta_data)) + " registros | R$ " + str(round(total_30d_valor, 2)) + "\n"
+
+    sistema = (
+        "Voce e um assistente de gestao de frotas da FNI. "
+        "Usuario: " + user.get("nome", "gestor") + ". "
+        "CNPJ: " + cnpj + ". "
+        "Use os dados abaixo para responder. "
+        "Nunca diga que nao tem dados se estao no contexto. "
+        "Formate valores como R$ X.XXX,XX. "
+        "Responda em portugues brasileiro de forma objetiva e curta."
+    )
+
+    mensagem_completa = resumo + "\nPERGUNTA: " + pergunta
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await asyncio.wait_for(
+                client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": anthropic_key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json",
+                    },
+                    json={
+                        "model": "claude-haiku-4-5-20251001",
+                        "max_tokens": 512,
+                        "system": sistema,
+                        "messages": [{"role": "user", "content": mensagem_completa}],
+                    },
+                    timeout=25.0,
+                ),
+                timeout=28.0
+            )
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Assistente demorou muito. Tente uma pergunta mais especifica.")
+
     if resp.status_code != 200:
-        raise HTTPException(status_code=500, detail="Erro ao chamar IA")
+        raise HTTPException(status_code=500, detail="Erro ao chamar IA: " + resp.text[:200])
+
     data = resp.json()
     resposta = data["content"][0]["text"] if data.get("content") else "Sem resposta"
     return {"resposta": resposta}
-
-# ── Centro de Custo ───────────────────────────────────────────────
 @app.get("/centros-custo", tags=["centros_custo"])
 def listar_centros_custo(user: dict = Depends(usuario_atual)):
     db = get_db()
