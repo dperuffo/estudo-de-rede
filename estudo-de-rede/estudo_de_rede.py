@@ -7710,7 +7710,7 @@ def _fipe_secao_ui(
                f"{int(_em_cache/_n_placas*100)}%" if _n_placas else "—")
 
     # ── abas ──────────────────────────────────────────────────────
-    _t1, _t2, _t3 = st.tabs(["📋 Visão Geral", "🔍 Busca Automática", "🔗 Associação Manual"])
+    _t1, _t2, _t3, _t4 = st.tabs(["📋 Visão Geral", "🔍 Busca Automática", "🔗 Associação Manual", "📤 Upload em Lote"])
 
     # ════════════════════════════════════
     #  TAB 1 — Visão geral
@@ -8034,6 +8034,14 @@ def _fipe_secao_ui(
                     st.rerun()
                 else:
                     st.error(f"Erro ao salvar no Supabase: {_err3}")
+
+    # TAB 4 — Upload em Lote
+    with _t4:
+        try:
+            from upload_veiculos import mostrar_upload_veiculos
+            mostrar_upload_veiculos()
+        except Exception as _e_uv:
+            st.error(f"Erro ao carregar módulo de upload: {_e_uv}")
 
     st.caption(
         f"Busca automática via **DENATRAN** (BrasilAPI). "
