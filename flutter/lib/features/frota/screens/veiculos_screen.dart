@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/veiculo_detalhe_modal.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/widgets/menu_button.dart';
@@ -266,6 +267,13 @@ class _State extends State<VeiculosScreen> {
                                   ),
                                 const SizedBox(width: 4),
                                 IconButton(
+                                  icon: const Icon(Icons.info_outline, color: Color(0xFF0D2D6B), size: 20),
+                                  onPressed: () => VeiculoDetalheModal.show(context, v['placa'] ?? ''),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              const SizedBox(width: 4),
+                              IconButton(
                                   icon: Icon(cadastrado ? Icons.edit : Icons.add_circle,
                                       color: cadastrado ? Colors.blue : Colors.orange, size: 20),
                                   onPressed: () => _novoOuEditar(v),

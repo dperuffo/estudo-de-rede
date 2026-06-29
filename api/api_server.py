@@ -2094,6 +2094,70 @@ def detalhe_ticket(id: str, user: dict = Depends(usuario_atual)):
     return r.data[0]
 
 
+
+# ── Detalhe completo do veículo ──────────────────────────────────
+@app.get("/veiculos/{placa}/detalhe", tags=["veiculos"])
+def detalhe_veiculo_completo(placa: str, user: dict = Depends(usuario_atual)):
+    import pandas as pd
+    db = get_db()
+    cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
+    placa = placa.upper().strip()
+
+    # 1. Cadastro do veículo
+    r1 = db.table("cadastro_veiculos").select("*").eq("cnpj_frota", cnpj).eq("placa", placa).execute()
+    cadastro = r1.data[0] if r1.data else {}
+
+    # 2. Dados FIPE
+    r2 = db.table("frota_veiculos_fipe").select("*").eq("placa", placa).execute()
+    fipe = r2.data[0] if r2.data else {}
+
+    # 3. Último abastecimento
+    r3 = db.table("profrotas_abastecimentos").select(
+        "data_abastecimento,item_nome,item_quantidade,item_valor_total,item_valor_unitario,hodometro,pv_razao_social,pv_municipio,pv_uf"
+    ).eq("cnpj_frota", cnpj).eq("veiculo_placa", placa).eq("item_tipo", 1).order(
+        "data_abastecimento", desc=True).limit(1).execute()
+    ultimo_abast = r3.data[0] if r3.data else {}
+
+    # 4. Resumo abastecimentos (30 dias)
+    dt_ini = (_hoje_br() - timedelta(days=30)).isoformat()
+    r4 = db.table("profrotas_abastecimentos").select(
+        "item_valor_total,item_quantidade,item_valor_unitario"
+    ).eq("cnpj_frota", cnpj).eq("veiculo_placa", placa).eq("item_tipo", 1).gte(
+        "data_abastecimento", dt_ini).execute()
+    df4 = pd.DataFrame(r4.data or [])
+    resumo_abast = {}
+    if not df4.empty:
+        for col in ["item_valor_total","item_quantidade","item_valor_unitario"]:
+            df4[col] = pd.to_numeric(df4[col], errors="coerce").fillna(0)
+        resumo_abast = {
+            "n_abastecimentos": len(df4),
+            "total_gasto": round(float(df4["item_valor_total"].sum()), 2),
+            "total_litros": round(float(df4["item_quantidade"].sum()), 1),
+            "preco_medio": round(float(df4["item_valor_unitario"].mean()), 4),
+        }
+
+    # 5. Última manutenção
+    r5 = db.table("manutencoes_realizadas").select(
+        "data_manutencao,custo_total,oficina,itens_realizados,hodometro"
+    ).eq("cnpj_frota", cnpj).eq("placa", placa).order(
+        "data_manutencao", desc=True).limit(1).execute()
+    ultima_manut = r5.data[0] if r5.data else {}
+
+    # 6. Total manutenção (30 dias)
+    r6 = db.table("manutencoes_realizadas").select("custo_total").eq(
+        "cnpj_frota", cnpj).eq("placa", placa).gte("data_manutencao", dt_ini).execute()
+    total_manut = round(sum(float(r.get("custo_total") or 0) for r in (r6.data or [])), 2)
+
+    return {
+        "placa": placa,
+        "cadastro": cadastro,
+        "fipe": fipe,
+        "ultimo_abastecimento": ultimo_abast,
+        "resumo_abastecimentos_30d": resumo_abast,
+        "ultima_manutencao": ultima_manut,
+        "total_manutencao_30d": total_manut,
+    }
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn

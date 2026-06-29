@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/veiculo_detalhe_modal.dart';
 import '../../../core/widgets/menu_button.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';

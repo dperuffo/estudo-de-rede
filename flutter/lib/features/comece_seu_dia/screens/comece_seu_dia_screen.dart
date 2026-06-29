@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/veiculo_detalhe_modal.dart';
 import '../../../core/utils/date_helper.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
