@@ -2029,6 +2029,40 @@ def salvar_avaliacao(body: dict, user: dict = Depends(usuario_atual)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+# ── Tickets: detalhe e comentários ───────────────────────────────
+@app.get("/tickets/{id}", tags=["tickets"])
+def detalhe_ticket(id: str, user: dict = Depends(usuario_atual)):
+    db = get_db()
+    email = user.get("email", "")
+    r = db.table("tickets").select("*").eq("id", id).eq("user_email", email).execute()
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Ticket nao encontrado")
+    return r.data[0]
+
+@app.post("/tickets/{id}/comentario", tags=["tickets"])
+def adicionar_comentario(id: str, body: dict, user: dict = Depends(usuario_atual)):
+    import json
+    db = get_db()
+    email = user.get("email", "")
+    r = db.table("tickets").select("comentarios").eq("id", id).eq("user_email", email).execute()
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Ticket nao encontrado")
+    try:
+        comentarios = json.loads(r.data[0].get("comentarios") or "[]")
+    except:
+        comentarios = []
+    comentarios.append({
+        "texto": body.get("texto", ""),
+        "autor": email,
+        "data": datetime.now(tz=timezone.utc).isoformat(),
+    })
+    db.table("tickets").update({
+        "comentarios": json.dumps(comentarios, ensure_ascii=False),
+        "atualizado_em": datetime.now(tz=timezone.utc).isoformat(),
+    }).eq("id", id).execute()
+    return {"ok": True, "comentarios": comentarios}
+
 # ── Entry point (desenvolvimento local) ──────────────────────────
 if __name__ == "__main__":
     import uvicorn
