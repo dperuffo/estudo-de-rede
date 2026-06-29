@@ -870,61 +870,138 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
         return {"resposta": "Assistente IA nao configurado. Configure ANTHROPIC_API_KEY no Railway."}
 
     db = get_db()
-    dt_ini = (_hoje_br() - timedelta(days=90)).isoformat()
+    hoje = _hoje_br()
+    dt_hoje_ini = hoje.isoformat()
+    dt_hoje_fim = _dt_fim_br().isoformat()
+    dt_7d  = (hoje - timedelta(days=7)).isoformat()
+    dt_30d = (hoje - timedelta(days=30)).isoformat()
+    dt_90d = (hoje - timedelta(days=90)).isoformat()
+    resumo = ""
+
     try:
-        r = db.table("profrotas_abastecimentos").select(
-            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,motorista_nome"
-        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte("data_abastecimento", dt_ini).lt("data_abastecimento", _dt_fim_br()).execute()
-        df = pd.DataFrame(r.data or [])
-        if not df.empty:
+        # ── Abastecimentos HOJE ──────────────────────────────────
+        r_hoje = db.table("profrotas_abastecimentos").select(
+            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,pv_razao_social,motorista_nome,hodometro"
+        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+            "data_abastecimento", dt_hoje_ini).lt("data_abastecimento", dt_hoje_fim).execute()
+        df_hoje = pd.DataFrame(r_hoje.data or [])
+
+        if not df_hoje.empty:
             for col in ["item_quantidade","item_valor_unitario","item_valor_total"]:
-                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-            resumo = f"""
-DADOS REAIS DA FROTA (ultimos 90 dias):
-- Total abastecimentos: {len(df)}
-- Total litros: {df["item_quantidade"].sum():.0f} L
-- Total gasto combustivel: R$ {df["item_valor_total"].sum():.2f}
-- Preco medio por litro: R$ {df["item_valor_unitario"].mean():.4f}
-- Veiculos ativos: {df["veiculo_placa"].nunique()}
-- Estados visitados: {df["pv_uf"].nunique() if "pv_uf" in df.columns else "N/A"}
-
-Por combustivel:
-{df.groupby("item_nome").agg(litros=("item_quantidade","sum"), gasto=("item_valor_total","sum"), n=("item_nome","count")).to_string()}
-
-Top 5 veiculos por gasto:
-{df.groupby("veiculo_placa")["item_valor_total"].sum().sort_values(ascending=False).head(5).to_string()}
-
-Por mes (aproximado):
-{df.groupby(df["data_abastecimento"].str[:7])["item_valor_total"].sum().to_string()}
+                df_hoje[col] = pd.to_numeric(df_hoje[col], errors="coerce").fillna(0)
+            resumo += f"""
+ABASTECIMENTOS DE HOJE ({hoje.isoformat()}):
+{df_hoje[["veiculo_placa","item_nome","item_quantidade","item_valor_unitario","item_valor_total","pv_razao_social","pv_municipio","pv_uf","motorista_nome"]].to_string(index=False)}
+- Total hoje: {len(df_hoje)} abastecimentos, {df_hoje["item_quantidade"].sum():.1f} L, R$ {df_hoje["item_valor_total"].sum():.2f}
 """
         else:
-            resumo = "Nenhum dado de abastecimento encontrado para os ultimos 90 dias."
-        r2 = db.table("manutencoes_realizadas").select(
-            "placa,custo_total,data_manutencao,oficina"
-        ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_ini).execute()
-        df2 = pd.DataFrame(r2.data or [])
-        if not df2.empty:
-            df2["custo_total"] = pd.to_numeric(df2["custo_total"], errors="coerce").fillna(0)
+            resumo += f"
+ABASTECIMENTOS DE HOJE ({hoje.isoformat()}): Nenhum registro encontrado.
+"
+
+        # ── Abastecimentos 7 dias ────────────────────────────────
+        r_7d = db.table("profrotas_abastecimentos").select(
+            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,pv_razao_social,motorista_nome"
+        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+            "data_abastecimento", dt_7d).lt("data_abastecimento", dt_hoje_fim).execute()
+        df_7d = pd.DataFrame(r_7d.data or [])
+        if not df_7d.empty:
+            for col in ["item_quantidade","item_valor_unitario","item_valor_total"]:
+                df_7d[col] = pd.to_numeric(df_7d[col], errors="coerce").fillna(0)
             resumo += f"""
-MANUTENCAO (ultimos 90 dias):
-- Total registros: {len(df2)}
-- Total gasto: R$ {df2["custo_total"].sum():.2f}
-- Veiculos: {df2["placa"].nunique()}
+ABASTECIMENTOS ULTIMOS 7 DIAS:
+- Total: {len(df_7d)} abastecimentos, {df_7d["item_quantidade"].sum():.1f} L, R$ {df_7d["item_valor_total"].sum():.2f}
+- Preco medio/L: R$ {df_7d["item_valor_unitario"].mean():.4f}
+- Veiculos: {df_7d["veiculo_placa"].nunique()}
+Por veiculo:
+{df_7d.groupby("veiculo_placa").agg(n=("veiculo_placa","count"), litros=("item_quantidade","sum"), gasto=("item_valor_total","sum")).sort_values("gasto",ascending=False).to_string()}
 """
+
+        # ── Abastecimentos 30 dias ───────────────────────────────
+        r_30d = db.table("profrotas_abastecimentos").select(
+            "data_abastecimento,veiculo_placa,item_nome,item_quantidade,item_valor_unitario,item_valor_total,pv_municipio,pv_uf,motorista_nome"
+        ).eq("cnpj_frota", cnpj).eq("item_tipo", 1).gte(
+            "data_abastecimento", dt_30d).lt("data_abastecimento", dt_hoje_fim).execute()
+        df_30d = pd.DataFrame(r_30d.data or [])
+        if not df_30d.empty:
+            for col in ["item_quantidade","item_valor_unitario","item_valor_total"]:
+                df_30d[col] = pd.to_numeric(df_30d[col], errors="coerce").fillna(0)
+            resumo += f"""
+ABASTECIMENTOS ULTIMOS 30 DIAS:
+- Total: {len(df_30d)} abastecimentos, {df_30d["item_quantidade"].sum():.1f} L, R$ {df_30d["item_valor_total"].sum():.2f}
+- Preco medio/L: R$ {df_30d["item_valor_unitario"].mean():.4f}
+- Veiculos ativos: {df_30d["veiculo_placa"].nunique()}
+Por combustivel:
+{df_30d.groupby("item_nome").agg(litros=("item_quantidade","sum"), gasto=("item_valor_total","sum"), n=("item_nome","count")).to_string()}
+Top 10 veiculos por gasto:
+{df_30d.groupby("veiculo_placa")["item_valor_total"].sum().sort_values(ascending=False).head(10).to_string()}
+Top estados:
+{df_30d.groupby("pv_uf")["item_valor_total"].sum().sort_values(ascending=False).head(5).to_string()}
+"""
+
+        # ── Manutenções ──────────────────────────────────────────
+        r_manut = db.table("manutencoes_realizadas").select(
+            "placa,custo_total,data_manutencao,oficina,itens_realizados,hodometro,tecnico,obs_gerais"
+        ).eq("cnpj_frota", cnpj).gte("data_manutencao", dt_30d).order("data_manutencao", desc=True).execute()
+        df_manut = pd.DataFrame(r_manut.data or [])
+        if not df_manut.empty:
+            df_manut["custo_total"] = pd.to_numeric(df_manut["custo_total"], errors="coerce").fillna(0)
+            resumo += f"""
+MANUTENCOES ULTIMOS 30 DIAS:
+- Total: {len(df_manut)} registros, R$ {df_manut["custo_total"].sum():.2f}
+- Veiculos: {df_manut["placa"].nunique()}
+Detalhes:
+{df_manut[["placa","data_manutencao","custo_total","oficina","itens_realizados"]].to_string(index=False)}
+"""
+
+        # ── Veículos cadastrados ─────────────────────────────────
+        r_veic = db.table("cadastro_veiculos").select(
+            "placa,marca,modelo,ano_modelo,combustivel,hodometro_atual,ativo"
+        ).eq("cnpj_frota", cnpj).eq("ativo", True).execute()
+        if r_veic.data:
+            resumo += f"""
+VEICULOS CADASTRADOS NA FROTA ({len(r_veic.data)} veiculos):
+{pd.DataFrame(r_veic.data).to_string(index=False)}
+"""
+
+        # ── Tickets ──────────────────────────────────────────────
+        r_tick = db.table("tickets").select(
+            "numero,titulo,tipo,status,prioridade,criado_em,resposta_admin"
+        ).eq("cnpj_frota", cnpj).order("criado_em", desc=True).limit(20).execute()
+        if r_tick.data:
+            resumo += f"""
+TICKETS DE SUPORTE:
+{pd.DataFrame(r_tick.data)[["numero","titulo","tipo","status","prioridade"]].to_string(index=False)}
+"""
+
+        # ── Centros de custo ─────────────────────────────────────
+        r_cc = db.table("centros_custo").select("nome,descricao").eq("cnpj_frota", cnpj).execute()
+        if r_cc.data:
+            resumo += f"
+CENTROS DE CUSTO: {', '.join([c['nome'] for c in r_cc.data])}
+"
+
     except Exception as e:
-        resumo = f"Dados disponiveis. Erro interno: {type(e).__name__}: {str(e)[:200]}"
+        resumo += f"
+Erro ao carregar dados: {type(e).__name__}: {str(e)[:200]}
+"
 
-    sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI.
-O usuario e {user.get("nome", "gestor")} com perfil {user.get("perfil", "usuario")}.
-CNPJ da frota: {cnpj}.
-Data atual: {_hoje_br().isoformat()}
+    sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI (Fleet Network Intelligence).
+Usuario: {user.get("nome", "gestor")} | Perfil: {user.get("perfil", "usuario")} | CNPJ: {cnpj}
+Data/hora atual: {hoje.isoformat()} (fuso horario: America/Sao_Paulo, UTC-3)
 
+DADOS REAIS E ATUALIZADOS DA FROTA:
 {resumo}
 
-Use os dados acima para responder perguntas sobre a frota do cliente.
-Responda de forma objetiva, pratica e use os numeros reais dos dados acima.
-Responda sempre em portugues brasileiro.
-Se perguntarem sobre dados fora do periodo de 90 dias, informe que so tem dados dos ultimos 90 dias."""
+INSTRUCOES:
+- Use SEMPRE os dados reais acima para responder. Nunca diga que nao tem dados se eles estao acima.
+- Seja objetivo e use numeros reais.
+- Para perguntas sobre "hoje", use os dados de ABASTECIMENTOS DE HOJE.
+- Para perguntas sobre "essa semana", use os dados de ULTIMOS 7 DIAS.
+- Para perguntas sobre "esse mes", use os dados de ULTIMOS 30 DIAS.
+- Formate valores monetarios como R$ X.XXX,XX.
+- Responda sempre em portugues brasileiro.
+- Se o dado nao estiver disponivel, diga especificamente o que nao foi encontrado."""
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
