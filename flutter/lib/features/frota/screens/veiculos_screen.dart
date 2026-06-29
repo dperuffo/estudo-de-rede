@@ -52,6 +52,16 @@ class _State extends State<VeiculosScreen> {
     final isCadastrado = dados?['cadastrado'] == true;
     final id = dados?['id'];
 
+    // Centro de custo
+    List<Map> _centros = [];
+    String? _ccId   = dados?['centro_custo_id'];
+    String? _ccNome = dados?['centro_custo_nome'];
+
+    try {
+      final r = await ApiService().get('/centros-custo');
+      _centros = List<Map>.from(r['data'] ?? []);
+    } catch (_) {}
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -114,6 +124,34 @@ class _State extends State<VeiculosScreen> {
               const SizedBox(height: 16),
               _secao('Hodometro'),
               _campo(hodCtrl, 'Hodometro Atual (km)', tipo: TextInputType.number),
+              const SizedBox(height: 16),
+              _secao('Centro de Custo'),
+              StatefulBuilder(
+                builder: (context, setStateCC) => DropdownButtonFormField<String>(
+                  value: _ccId,
+                  decoration: const InputDecoration(
+                    labelText: 'Centro de Custo',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  ),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Nenhum')),
+                    ..._centros.map((c) => DropdownMenuItem(
+                      value: c['id']?.toString(),
+                      child: Text(c['nome']?.toString() ?? ''),
+                    )),
+                  ],
+                  onChanged: (v) {
+                    setStateCC(() {
+                      _ccId = v;
+                      _ccNome = _centros.firstWhere(
+                        (c) => c['id']?.toString() == v,
+                        orElse: () => {},
+                      )['nome']?.toString();
+                    });
+                  },
+                ),
+              ),
               const SizedBox(height: 24),
               SizedBox(width: double.infinity, child: ElevatedButton(
                 onPressed: () async {
@@ -137,6 +175,8 @@ class _State extends State<VeiculosScreen> {
                       'cor': corCtrl.text.trim(),
                       'chassi': chassiCtrl.text.trim(),
                       'renavam': renavamCtrl.text.trim(),
+                      'centro_custo_id': _ccId,
+                      'centro_custo_nome': _ccNome,
                     };
                     body.removeWhere((k, v) => v == null || v == '');
                     if (isCadastrado && id != null) {

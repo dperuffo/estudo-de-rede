@@ -903,6 +903,20 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
             data = []
         r_hoje = r_7d = r_30d = _R()
 
+    # Busca veículos com centro de custo (separado, sem afetar timeout principal)
+    try:
+        r_veiculos = await asyncio.wait_for(
+            asyncio.to_thread(lambda: db.table("cadastro_veiculos")
+                .select("placa,modelo,marca,centro_custo_id,centro_custo_nome,hodometro_atual,combustivel,autonomia")
+                .eq("cnpj_frota", cnpj)
+                .eq("ativo", True)
+                .limit(50).execute()),
+            timeout=5.0
+        )
+        veiculos_data = r_veiculos.data or []
+    except Exception:
+        veiculos_data = []
+
     def soma(lista, campo):
         return sum(float(r.get(campo) or 0) for r in lista)
 
@@ -973,11 +987,33 @@ async def assistente_chat(body: dict, user: dict = Depends(usuario_atual)):
         resumo += ", ".join(p + "=" + str(v) + "km/L" for p,v in list(consumo_por_veiculo.items())[:10]) + "\n"
     resumo += "ULTIMOS 30 DIAS: " + str(len(trinta_data)) + " registros | "
     resumo += str(round(total_30d_litros,1)) + " L | R$ " + str(round(total_30d_valor, 2)) + "\n"
-    if cc_dados:
-        resumo += "Por centro de custo (30d):\n"
-        for cc, v in cc_dados.items():
-            resumo += "  " + str(cc) + ": " + str(v["registros"]) + " abast | "
-            resumo += str(round(v["litros"],1)) + "L | R$ " + str(round(v["valor"],2)) + "\n"
+
+    # Resumo de veículos por centro de custo
+    if veiculos_data:
+        resumo += "VEICULOS DA FROTA:\n"
+        cc_map = {}
+        for v in veiculos_data:
+            cc = v.get("centro_custo_nome") or "Sem centro de custo"
+            if cc not in cc_map:
+                cc_map[cc] = []
+            cc_map[cc].append(v.get("placa","?") + " " + str(v.get("modelo","") or ""))
+        for cc, placas in cc_map.items():
+            resumo += "  " + cc + ": " + ", ".join(placas[:10]) + "\n"
+
+        # Consumo medio por centro de custo (cruzando com abastecimentos 7d)
+        placa_cc = {v.get("placa"): v.get("centro_custo_nome") or "Sem centro" for v in veiculos_data}
+        cc_consumo = {}
+        for r in sete_data:
+            placa = r.get("veiculo_placa","")
+            cc = placa_cc.get(placa, "Sem centro")
+            if cc not in cc_consumo:
+                cc_consumo[cc] = {"litros": 0, "valor": 0}
+            cc_consumo[cc]["litros"] += float(r.get("item_quantidade") or 0)
+            cc_consumo[cc]["valor"]  += float(r.get("item_valor_total") or 0)
+        if cc_consumo:
+            resumo += "CONSUMO POR CENTRO DE CUSTO (7 dias):\n"
+            for cc, v in cc_consumo.items():
+                resumo += "  " + cc + ": " + str(round(v["litros"],1)) + "L | R$ " + str(round(v["valor"],2)) + "\n"
 
     sistema = (
         "Voce e um assistente de gestao de frotas da FNI. "
