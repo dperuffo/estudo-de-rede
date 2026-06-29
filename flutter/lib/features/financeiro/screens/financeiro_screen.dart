@@ -133,11 +133,11 @@ class _State extends State<FinanceiroScreen> {
                   _secao('Distribuicao de custos'),
                   _barraDistribuicao('Combustivel', (kpis['total_comb'] ?? 0).toDouble(),
                       (kpis['total_geral'] ?? 1).toDouble(), fmt, const Color(0xFF1565C0),
-                      '\${kpis["pct_comb"]}% do total'),
+                      '${kpis["pct_comb"]}% do total'),
                   const SizedBox(height: 8),
                   _barraDistribuicao('Manutencao', (kpis['total_manut'] ?? 0).toDouble(),
                       (kpis['total_geral'] ?? 1).toDouble(), fmt, Colors.red,
-                      '\${kpis["pct_manut"]}% do total · \${kpis["n_manut"]} registros'),
+                      '${kpis["pct_manut"]}% do total · ${kpis["n_manut"]} registros'),
                   const SizedBox(height: 24),
                 ],
 
