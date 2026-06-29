@@ -108964,7 +108964,7 @@ if(B.c.bB(i.a.a).length===0){s=1
 break}m.I(new A.aCL(m))
 p=4
 s=7
-return A.y($.cc().ip("/tickets/"+A.i(J.R(m.a.c,"id"))+"/comentario",A.ai(["texto",B.c.bB(i.a.a)],t.N,t.z)),$async$AQ)
+return A.y($.cc().ip("/tickets/comentario/"+A.i(J.R(m.a.c,"id")),A.ai(["texto",B.c.bB(i.a.a)],t.N,t.z)),$async$AQ)
 case 7:l=b
 m.I(new A.aCM(m,l))
 m.a.aFf()

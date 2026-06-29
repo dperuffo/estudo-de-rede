@@ -262,7 +262,7 @@ class _DetalheState extends State<_DetalheTicket> {
     setState(() => _enviando = true);
     try {
       final r = await ApiService().post(
-        '/tickets/${widget.ticket["id"]}/comentario',
+        '/tickets/comentario/${widget.ticket["id"]}',
         data: {'texto': _comentCtrl.text.trim()},
       );
       setState(() {
