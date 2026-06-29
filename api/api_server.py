@@ -895,9 +895,7 @@ ABASTECIMENTOS DE HOJE ({hoje.isoformat()}):
 - Total hoje: {len(df_hoje)} abastecimentos, {df_hoje["item_quantidade"].sum():.1f} L, R$ {df_hoje["item_valor_total"].sum():.2f}
 """
         else:
-            resumo += f"
-ABASTECIMENTOS DE HOJE ({hoje.isoformat()}): Nenhum registro encontrado.
-"
+            resumo += f"\nABASTECIMENTOS DE HOJE ({hoje.isoformat()}): Nenhum registro encontrado.\n"
 
         # ── Abastecimentos 7 dias ────────────────────────────────
         r_7d = db.table("profrotas_abastecimentos").select(
@@ -977,14 +975,10 @@ TICKETS DE SUPORTE:
         # ── Centros de custo ─────────────────────────────────────
         r_cc = db.table("centros_custo").select("nome,descricao").eq("cnpj_frota", cnpj).execute()
         if r_cc.data:
-            resumo += f"
-CENTROS DE CUSTO: {', '.join([c['nome'] for c in r_cc.data])}
-"
+            resumo += "\nCENTROS DE CUSTO: " + ", ".join([c["nome"] for c in r_cc.data]) + "\n"
 
     except Exception as e:
-        resumo += f"
-Erro ao carregar dados: {type(e).__name__}: {str(e)[:200]}
-"
+        resumo += f"\nErro ao carregar dados: {type(e).__name__}: {str(e)[:200]}\n"
 
     sistema = f"""Voce e um assistente especializado em gestao de frotas da FNI (Fleet Network Intelligence).
 Usuario: {user.get("nome", "gestor")} | Perfil: {user.get("perfil", "usuario")} | CNPJ: {cnpj}
