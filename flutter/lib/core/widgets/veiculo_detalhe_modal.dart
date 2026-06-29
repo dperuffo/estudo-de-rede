@@ -117,7 +117,7 @@ class _State extends State<_VeiculoSheet> {
                   }
                 } catch (e) {
                   if (bCtx.mounted) ScaffoldMessenger.of(bCtx).showSnackBar(
-                      SnackBar(content: Text('Erro: \$e')));
+                      SnackBar(content: Text('Erro ao salvar: \$e'), duration: const Duration(seconds: 5)));
                 }
               },
               style: ElevatedButton.styleFrom(
