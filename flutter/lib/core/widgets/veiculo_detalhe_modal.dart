@@ -34,13 +34,13 @@ class _State extends State<_VeiculoSheet> {
     final marcaCtrl     = TextEditingController(text: cadastro['marca']  ?? fipe['marca']  ?? '');
     final modeloCtrl    = TextEditingController(text: cadastro['modelo'] ?? fipe['modelo'] ?? '');
     final motorCtrl     = TextEditingController(text: cadastro['motor']  ?? '');
-    final anoModCtrl    = TextEditingController(text: cadastro['ano_modelo']  ?? fipe['ano_modelo'] ?? '');
+    final anoModCtrl    = TextEditingController(text: (cadastro['ano_modelo'] ?? fipe['ano_modelo'])?.toString() ?? '');
     final anoFabCtrl    = TextEditingController(text: cadastro['ano_fabricacao']?.toString() ?? '');
     final corCtrl       = TextEditingController(text: cadastro['cor']    ?? fipe['cor']    ?? '');
     final combCtrl      = TextEditingController(text: cadastro['combustivel'] ?? fipe['combustivel_fipe'] ?? '');
-    final tanqueCtrl    = TextEditingController(text: cadastro['tanque']?.toString() ?? '');
-    final autonomiaCtrl = TextEditingController(text: cadastro['autonomia']?.toString() ?? '');
-    final hodCtrl       = TextEditingController(text: cadastro['hodometro_atual']?.toString() ?? '');
+    final tanqueCtrl    = TextEditingController(text: (cadastro['tanque'] as num?)?.toStringAsFixed(0) ?? '');
+    final autonomiaCtrl = TextEditingController(text: (cadastro['autonomia'] as num?)?.toStringAsFixed(1) ?? '');
+    final hodCtrl       = TextEditingController(text: (cadastro['hodometro_atual'] as num?)?.toStringAsFixed(0) ?? '');
     final chassiCtrl    = TextEditingController(text: cadastro['chassi'] ?? '');
     final renavamCtrl   = TextEditingController(text: cadastro['renavam'] ?? '');
     final codFipeCtrl   = TextEditingController(text: fipe['codigo_fipe'] ?? '');
@@ -215,7 +215,7 @@ class _State extends State<_VeiculoSheet> {
           ]),
         ),
 
-        Expanded(child: _loading
+        Expanded(child: (_loading || _dados == null)
             ? const Center(child: CircularProgressIndicator())
             : ListView(padding: const EdgeInsets.all(16), children: [
 
