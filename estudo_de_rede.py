@@ -2454,6 +2454,26 @@ def _db_empresa_id() -> str | None:
     return (st.session_state.get("_empresa_ativa") or {}).get("id")
 
 
+def _db_cnpj_frota_ativo() -> str:
+    """
+    Retorna o cnpj_frota (somente digitos) correspondente a empresa ativa na sessao.
+    Usado para tabelas que usam cnpj_frota como filtro multi-tenant (ex: cadastro_veiculos).
+    """
+    import re as _re
+    _emp_id = _db_empresa_id()
+    if not _emp_id:
+        return ""
+    _db = _db_client()
+    if _db is None:
+        return ""
+    try:
+        _r = _db.table("empresas").select("cnpj").eq("id", _emp_id).single().execute()
+        _cnpj = (_r.data or {}).get("cnpj", "") or ""
+        return _re.sub(r"\D", "", _cnpj)
+    except Exception:
+        return ""
+
+
 def _db_empresa_nome() -> str:
     """Retorna o nome da empresa ativa (ou 'Todas as Empresas' para admin sem filtro)."""
     if _is_admin():
@@ -6632,41 +6652,66 @@ def _fipe_valor(tipo: str, marca_cod: str, modelo_cod: str, ano_cod: str) -> dic
 
 
 def _fipe_carregar_cache() -> dict:
-    """Carrega cache Supabase. Retorna {placa_norm: {...}}."""
+    """Carrega cache de dados FIPE a partir de cadastro_veiculos. Retorna {placa_norm: {...}}."""
     _db = _db_client()
     if not _db:
         return {}
     try:
-        _rows = _db_paginar("frota_veiculos_fipe", "*")
+        _cnpj = _db_cnpj_frota_ativo()
+        _filtros = [("cnpj_frota", _cnpj)] if _cnpj else None
+        _rows = _db_paginar("cadastro_veiculos", "*", filters=_filtros)
         return {r["placa"]: r for r in _rows}
     except Exception:
         return {}
 
 
 def _fipe_salvar_registro(placa: str, dados: dict) -> tuple[bool, str]:
-    """Upsert em frota_veiculos_fipe. Retorna (ok, erro)."""
+    """Upsert em cadastro_veiculos (dados FIPE). Retorna (ok, erro)."""
+    import re as _re
     from datetime import timezone as _tz
     _db = _db_client()
     if not _db:
         return False, "Sem conexão com Supabase"
+    _cnpj = _db_cnpj_frota_ativo()
+    if not _cnpj:
+        return False, "Nao foi possivel determinar o CNPJ da frota ativa"
+    _placa_norm = _fipe_normalizar_placa(placa)
+
+    _ano_raw = dados.get("ano_modelo", "")
+    _m = _re.search(r"\d{4}", str(_ano_raw))
+    _ano_limpo = int(_m.group()) if _m else None
+
+    _campos = {
+        "marca":            dados.get("marca", ""),
+        "modelo":           dados.get("modelo", ""),
+        "ano_modelo":       _ano_limpo,
+        "cor":              dados.get("cor", ""),
+        "tipo_veiculo":     dados.get("tipo_veiculo", ""),
+        "municipio":        dados.get("municipio", ""),
+        "uf_veiculo":       dados.get("uf_veiculo", ""),
+        "codigo_fipe":      dados.get("codigo_fipe", ""),
+        "valor_fipe":       dados.get("valor_fipe"),
+        "combustivel_fipe": dados.get("combustivel_fipe", ""),
+        "mes_referencia":   dados.get("mes_referencia", ""),
+        "buscado_em":       datetime.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    _campos = {k: v for k, v in _campos.items() if v not in (None, "")}
+
     try:
-        _row = {
-            "placa":            _fipe_normalizar_placa(placa),
-            "marca":            dados.get("marca", ""),
-            "modelo":           dados.get("modelo", ""),
-            "ano_modelo":       dados.get("ano_modelo", ""),
-            "cor":              dados.get("cor", ""),
-            "tipo_veiculo":     dados.get("tipo_veiculo", ""),
-            "municipio":        dados.get("municipio", ""),
-            "uf_veiculo":       dados.get("uf_veiculo", ""),
-            "codigo_fipe":      dados.get("codigo_fipe", ""),
-            "valor_fipe":       dados.get("valor_fipe"),
-            "combustivel_fipe": dados.get("combustivel_fipe", ""),
-            "mes_referencia":   dados.get("mes_referencia", ""),
-            "empresa_id":       _db_empresa_id(),
-            "buscado_em":       datetime.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        }
-        _db.table("frota_veiculos_fipe").upsert(_row, on_conflict="placa").execute()
+        _existe = _db.table("cadastro_veiculos").select("id").eq(
+            "cnpj_frota", _cnpj).eq("placa", _placa_norm).execute()
+        if _existe.data:
+            _db.table("cadastro_veiculos").update(_campos).eq(
+                "id", _existe.data[0]["id"]).execute()
+        else:
+            _novo = {
+                "placa": _placa_norm,
+                "cnpj_frota": _cnpj,
+                "ativo": True,
+                "criado_por": "fipe_lookup",
+                **_campos,
+            }
+            _db.table("cadastro_veiculos").insert(_novo).execute()
         return True, ""
     except Exception as _e:
         return False, str(_e)

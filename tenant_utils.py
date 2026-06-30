@@ -387,7 +387,7 @@ def assert_tenant_isolation(
     if tabelas is None:
         tabelas = [
             "frota_abastecimentos", "postos_gf", "acordos_precos",
-            "frota_veiculos_fipe", "rotas_salvas", "preferencias",
+            "cadastro_veiculos", "rotas_salvas", "preferencias",
         ]
     resultados = {}
     for tabela in tabelas:

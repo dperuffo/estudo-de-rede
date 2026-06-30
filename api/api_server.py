@@ -2375,13 +2375,20 @@ def detalhe_veiculo_completo(placa: str, user: dict = Depends(usuario_atual)):
     cnpj = re.sub(r"\D", "", user.get("cnpj_frota", ""))
     placa = placa.upper().strip()
 
-    # 1. Cadastro do veículo
+    # 1. Cadastro do veículo (inclui dados FIPE, ja unificados)
     r1 = db.table("cadastro_veiculos").select("*").eq("cnpj_frota", cnpj).eq("placa", placa).execute()
     cadastro = r1.data[0] if r1.data else {}
 
-    # 2. Dados FIPE
-    r2 = db.table("frota_veiculos_fipe").select("*").eq("placa", placa).execute()
-    fipe = r2.data[0] if r2.data else {}
+    # Dados FIPE agora vivem dentro do proprio cadastro (unificacao realizada)
+    fipe = {
+        "codigo_fipe":      cadastro.get("codigo_fipe"),
+        "valor_fipe":       cadastro.get("valor_fipe"),
+        "combustivel_fipe": cadastro.get("combustivel_fipe"),
+        "mes_referencia":   cadastro.get("mes_referencia"),
+        "municipio":        cadastro.get("municipio"),
+        "uf_veiculo":       cadastro.get("uf_veiculo"),
+        "buscado_em":       cadastro.get("buscado_em"),
+    } if cadastro else {}
 
     # 3. Último abastecimento
     r3 = db.table("profrotas_abastecimentos").select(
