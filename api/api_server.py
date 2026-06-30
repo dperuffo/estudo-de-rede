@@ -15,7 +15,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from pydantic import BaseModel
-from supabase import create_client, Client
+from supabase import create_client, Client, acreate_client, AsyncClient
+from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
 
 # ── Configuração ──────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -38,6 +40,84 @@ def _dt_fim_br():
     from datetime import timedelta
     return (_hoje_br() + timedelta(days=1)).isoformat()
 
+# ── WebSocket: gerenciador de conexoes por empresa ─────────────────
+class ConnectionManager:
+    def __init__(self):
+        # cnpj_frota -> lista de websockets conectados
+        self.conexoes: dict[str, list[WebSocket]] = {}
+
+    async def conectar(self, ws: WebSocket, cnpj: str):
+        await ws.accept()
+        self.conexoes.setdefault(cnpj, []).append(ws)
+        logging.info("WS conectado para cnpj=%s (total=%d)", cnpj, len(self.conexoes[cnpj]))
+
+    def desconectar(self, ws: WebSocket, cnpj: str):
+        if cnpj in self.conexoes and ws in self.conexoes[cnpj]:
+            self.conexoes[cnpj].remove(ws)
+            if not self.conexoes[cnpj]:
+                del self.conexoes[cnpj]
+
+    async def notificar(self, cnpj: str, evento: dict):
+        if cnpj not in self.conexoes:
+            return
+        mortos = []
+        for ws in self.conexoes[cnpj]:
+            try:
+                await ws.send_json(evento)
+            except Exception:
+                mortos.append(ws)
+        for ws in mortos:
+            self.desconectar(ws, cnpj)
+
+manager = ConnectionManager()
+
+# ── Listener do Supabase Realtime (roda em background) ──────────────
+TABELAS_MONITORADAS = [
+    "cadastro_veiculos",
+    "profrotas_abastecimentos",
+    "manutencoes_realizadas",
+    "centros_custo",
+]
+
+async def iniciar_realtime_listener():
+    """Conecta no Supabase Realtime e repassa mudancas via WebSocket."""
+    try:
+        async_client: AsyncClient = await acreate_client(SUPABASE_URL, SUPABASE_KEY)
+
+        def _fazer_callback(tabela_nome):
+            def _callback(payload):
+                try:
+                    dados = payload.get("data", {})
+                    registro = dados.get("record") or dados.get("old_record") or {}
+                    cnpj = registro.get("cnpj_frota")
+                    evento_tipo = dados.get("type")
+                    if not cnpj:
+                        return
+                    asyncio.create_task(manager.notificar(cnpj, {
+                        "tabela": tabela_nome,
+                        "evento": evento_tipo,
+                        "registro_id": registro.get("id"),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }))
+                except Exception as e:
+                    logging.error("Erro no callback realtime: %s", e)
+            return _callback
+
+        channel = async_client.channel("fni-notificacoes")
+        for tabela in TABELAS_MONITORADAS:
+            channel.on_postgres_changes(
+                "*", schema="public", table=tabela, callback=_fazer_callback(tabela)
+            )
+
+        def _on_subscribe(status, err=None):
+            logging.info("Realtime subscribe status: %s", status)
+
+        await channel.subscribe(_on_subscribe)
+        logging.info("Supabase Realtime listener iniciado para: %s", TABELAS_MONITORADAS)
+    except Exception as e:
+        logging.error("Falha ao iniciar Realtime listener: %s", e)
+
+
 app = FastAPI(
     title="FNI Gestão de Frotas API",
     description="API REST para o app mobile FNI — Flutter",
@@ -45,6 +125,37 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# ── Startup: inicia o listener do Supabase Realtime ─────────────────
+@app.on_event("startup")
+async def _on_startup():
+    asyncio.create_task(iniciar_realtime_listener())
+
+
+# ── WebSocket: endpoint de notificacoes em tempo real ────────────────
+@app.websocket("/ws/notificacoes")
+async def ws_notificacoes(websocket: WebSocket, token: str = ""):
+    try:
+        payload = verificar_token(token)
+        cnpj = re.sub(r"\D", "", payload.get("cnpj_frota", ""))
+    except Exception:
+        await websocket.close(code=4001)
+        return
+
+    if not cnpj:
+        await websocket.close(code=4001)
+        return
+
+    await manager.conectar(websocket, cnpj)
+    try:
+        while True:
+            # Mantem a conexao viva; cliente pode mandar "ping" periodico
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.desconectar(websocket, cnpj)
+    except Exception:
+        manager.desconectar(websocket, cnpj)
+
 
 # ── CORS — permite Flutter web e mobile ──────────────────────────
 app.add_middleware(
