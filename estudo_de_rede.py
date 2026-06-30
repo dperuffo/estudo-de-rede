@@ -30698,6 +30698,8 @@ elif modo == "👥 Análise de Cliente":
                         lambda v: f"R$ {_br_num(v, 2)}".replace(",", "X").replace(".", ",").replace("X", ".") if v and _pd.notna(v) else "—"
                     )
                     _df_alertas = _df_alertas.sort_values("Severidade").reset_index(drop=True)
+                    # Evita conflito de tipos na coluna ID (inteiros + "—") ao serializar para Arrow
+                    _df_alertas["ID"] = _df_alertas["ID"].astype(str)
 
                     _n_alta  = sum(1 for a in _alertas if "Alta"  in a["Severidade"])
                     _n_media = sum(1 for a in _alertas if "Média" in a["Severidade"])
