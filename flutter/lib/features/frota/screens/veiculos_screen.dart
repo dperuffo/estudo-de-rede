@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/widgets/veiculo_detalhe_modal.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/realtime_service.dart';
 import '../../../core/widgets/menu_button.dart';
 
 class VeiculosScreen extends StatefulWidget {
@@ -14,7 +16,41 @@ class _State extends State<VeiculosScreen> {
   bool _loading = true;
   String _filtro = 'todos';
 
-  @override void initState() { super.initState(); _load(); }
+  final _realtimeService = RealtimeService();
+  StreamSubscription<RealtimeEvento>? _realtimeSub;
+
+  @override void initState() {
+    super.initState();
+    _load();
+    _conectarRealtime();
+  }
+
+  @override void dispose() {
+    _realtimeSub?.cancel();
+    _realtimeService.desconectar();
+    super.dispose();
+  }
+
+  Future<void> _conectarRealtime() async {
+    try {
+      final stream = await _realtimeService.conectar(
+        tabelas: ['cadastro_veiculos'],
+      );
+      _realtimeSub = stream.listen((evento) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🔄 ' + evento.mensagemAmigavel),
+            duration: const Duration(seconds: 3),
+            backgroundColor: const Color(0xFF0D2D6B),
+          ),
+        );
+        _load();
+      });
+    } catch (_) {
+      // Falha silenciosa: app continua funcionando sem realtime
+    }
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
