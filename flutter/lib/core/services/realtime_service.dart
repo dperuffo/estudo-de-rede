@@ -46,9 +46,9 @@ class RealtimeEvento {
     }[tabela] ?? 'Registro';
 
     if (descricao != null && descricao!.isNotEmpty) {
-      return '\$tipoLabel \$descricao foi \$acao';
+      return '$tipoLabel $descricao foi $acao';
     }
-    return '\$tipoLabel foi \$acao';
+    return '$tipoLabel foi $acao';
   }
 }
 
@@ -75,7 +75,7 @@ class RealtimeService {
         .replaceFirst('http://', 'ws://');
 
     _channel = WebSocketChannel.connect(
-      Uri.parse('\$wsUrl/ws/notificacoes?token=\$token'),
+      Uri.parse('$wsUrl/ws/notificacoes?token=$token'),
     );
 
     _channel!.stream.listen(

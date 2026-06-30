@@ -105086,22 +105086,23 @@ break
 case 1:return A.E(q,r)}})
 return A.F($async$F1,r)}}
 A.vm.prototype={
-gaFj(){var s=t.N
-A.ag(["INSERT","criado","UPDATE","atualizado","DELETE","removido"],s,s).h(0,this.b)
-A.ag(["cadastro_veiculos","Veiculo","profrotas_abastecimentos","Abastecimento","manutencoes_realizadas","Manutencao","centros_custo","Centro de custo"],s,s).h(0,this.a)
-s=this.d
-if(s!=null&&s.length!==0)return"$tipoLabel $descricao foi $acao"
-return"$tipoLabel foi $acao"}}
+gaFj(){var s,r=t.N,q=A.ag(["INSERT","criado","UPDATE","atualizado","DELETE","removido"],r,r).h(0,this.b)
+if(q==null)q="alterado"
+s=A.ag(["cadastro_veiculos","Veiculo","profrotas_abastecimentos","Abastecimento","manutencoes_realizadas","Manutencao","centros_custo","Centro de custo"],r,r).h(0,this.a)
+if(s==null)s="Registro"
+r=this.d
+if(r!=null&&r.length!==0)return s+" "+r+" foi "+q
+return s+" foi "+q}}
 A.ass.prototype={
 Dy(a){return this.az1(a)},
-az1(a){var s=0,r=A.G(t.uY),q,p=this,o
+az1(a){var s=0,r=A.G(t.uY),q,p=this,o,n
 var $async$Dy=A.H(function(b,c){if(b===1)return A.D(c,r)
 for(;;)switch(s){case 0:s=3
 return A.v(B.dr.Q6(0,"jwt_token"),$async$Dy)
-case 3:if(c==null)throw A.e(A.dM("Usuario nao autenticado"))
+case 3:n=c
+if(n==null)throw A.e(A.dM("Usuario nao autenticado"))
 p.b=new A.hK(null,null,t.YM)
-B.c.oW(B.c.oW("https://api.fxgestaodefrotasonline.com","https://","wss://"),"http://","ws://")
-o=A.baR(A.aV4(A.d0("$wsUrl/ws/notificacoes?token=$token",0,null),null))
+o=A.baR(A.aV4(A.d0(B.c.oW(B.c.oW("https://api.fxgestaodefrotasonline.com","https://","wss://"),"http://","ws://")+"/ws/notificacoes?token="+n,0,null),null))
 p.a=o
 o=o.r.b
 o===$&&A.a()
