@@ -79,53 +79,91 @@ TABELAS_MONITORADAS = [
     "centros_custo",
 ]
 
-async def iniciar_realtime_listener():
-    """Conecta no Supabase Realtime e repassa mudancas via WebSocket."""
+def _fazer_callback(tabela_nome):
+    def _callback(payload):
+        try:
+            dados = payload.get("data", {})
+            registro = dados.get("record") or dados.get("old_record") or {}
+            cnpj = registro.get("cnpj_frota")
+            evento_tipo = dados.get("type")
+            if not cnpj:
+                return
+            LABEL_FIELDS = {
+                "cadastro_veiculos": "placa",
+                "profrotas_abastecimentos": "veiculo_placa",
+                "manutencoes_realizadas": "placa",
+                "centros_custo": "nome",
+            }
+            campo_label = LABEL_FIELDS.get(tabela_nome)
+            descricao = registro.get(campo_label) if campo_label else None
+
+            asyncio.create_task(manager.notificar(cnpj, {
+                "tabela": tabela_nome,
+                "evento": evento_tipo,
+                "registro_id": registro.get("id"),
+                "descricao": descricao,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }))
+        except Exception as e:
+            logging.error("Erro no callback realtime: %s", e)
+    return _callback
+
+
+_realtime_channel_status = {"conectado": False}
+
+async def _conectar_realtime_uma_vez():
+    """Tenta conectar uma vez. Retorna True se subscreveu com sucesso."""
+    async_client: AsyncClient = await acreate_client(SUPABASE_URL, SUPABASE_KEY)
+    channel = async_client.channel("fni-notificacoes-" + str(int(datetime.now().timestamp())))
+    for tabela in TABELAS_MONITORADAS:
+        channel.on_postgres_changes(
+            "*", schema="public", table=tabela, callback=_fazer_callback(tabela)
+        )
+
+    conectado_evt = asyncio.Event()
+
+    def _on_subscribe(status, err=None):
+        logging.info("Realtime subscribe status: %s (err=%s)", status, err)
+        if str(status) == "RealtimeSubscribeStates.SUBSCRIBED":
+            _realtime_channel_status["conectado"] = True
+            conectado_evt.set()
+        elif str(status) in ("RealtimeSubscribeStates.CHANNEL_ERROR", "RealtimeSubscribeStates.TIMED_OUT", "RealtimeSubscribeStates.CLOSED"):
+            _realtime_channel_status["conectado"] = False
+
+    await channel.subscribe(_on_subscribe)
+
     try:
-        async_client: AsyncClient = await acreate_client(SUPABASE_URL, SUPABASE_KEY)
+        await asyncio.wait_for(conectado_evt.wait(), timeout=10.0)
+    except asyncio.TimeoutError:
+        logging.warning("Timeout aguardando subscribe do realtime")
 
-        def _fazer_callback(tabela_nome):
-            def _callback(payload):
-                try:
-                    dados = payload.get("data", {})
-                    registro = dados.get("record") or dados.get("old_record") or {}
-                    cnpj = registro.get("cnpj_frota")
-                    evento_tipo = dados.get("type")
-                    if not cnpj:
-                        return
-                    LABEL_FIELDS = {
-                        "cadastro_veiculos": "placa",
-                        "profrotas_abastecimentos": "veiculo_placa",
-                        "manutencoes_realizadas": "placa",
-                        "centros_custo": "nome",
-                    }
-                    campo_label = LABEL_FIELDS.get(tabela_nome)
-                    descricao = registro.get(campo_label) if campo_label else None
+    return channel
 
-                    asyncio.create_task(manager.notificar(cnpj, {
-                        "tabela": tabela_nome,
-                        "evento": evento_tipo,
-                        "registro_id": registro.get("id"),
-                        "descricao": descricao,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }))
-                except Exception as e:
-                    logging.error("Erro no callback realtime: %s", e)
-            return _callback
 
-        channel = async_client.channel("fni-notificacoes")
-        for tabela in TABELAS_MONITORADAS:
-            channel.on_postgres_changes(
-                "*", schema="public", table=tabela, callback=_fazer_callback(tabela)
-            )
+async def iniciar_realtime_listener():
+    """Conecta no Supabase Realtime com reconexao automatica em loop."""
+    tentativa = 0
+    while True:
+        try:
+            _realtime_channel_status["conectado"] = False
+            channel = await _conectar_realtime_uma_vez()
+            logging.info("Supabase Realtime listener iniciado para: %s", TABELAS_MONITORADAS)
+            tentativa = 0
 
-        def _on_subscribe(status, err=None):
-            logging.info("Realtime subscribe status: %s", status)
+            # Fica monitorando a conexao; se cair, sai do loop interno e reconecta
+            while True:
+                await asyncio.sleep(15)
+                if not _realtime_channel_status["conectado"]:
+                    logging.warning("Realtime desconectado, tentando reconectar...")
+                    break
 
-        await channel.subscribe(_on_subscribe)
-        logging.info("Supabase Realtime listener iniciado para: %s", TABELAS_MONITORADAS)
-    except Exception as e:
-        logging.error("Falha ao iniciar Realtime listener: %s", e)
+        except Exception as e:
+            logging.error("Falha no Realtime listener: %s", e)
+
+        tentativa += 1
+        espera = min(5 * tentativa, 60)
+        logging.info("Reconectando ao Realtime em %ds (tentativa %d)...", espera, tentativa)
+        await asyncio.sleep(espera)
 
 
 app = FastAPI(
