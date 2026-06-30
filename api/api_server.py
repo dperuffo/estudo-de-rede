@@ -93,10 +93,20 @@ async def iniciar_realtime_listener():
                     evento_tipo = dados.get("type")
                     if not cnpj:
                         return
+                    LABEL_FIELDS = {
+                        "cadastro_veiculos": "placa",
+                        "profrotas_abastecimentos": "veiculo_placa",
+                        "manutencoes_realizadas": "placa",
+                        "centros_custo": "nome",
+                    }
+                    campo_label = LABEL_FIELDS.get(tabela_nome)
+                    descricao = registro.get(campo_label) if campo_label else None
+
                     asyncio.create_task(manager.notificar(cnpj, {
                         "tabela": tabela_nome,
                         "evento": evento_tipo,
                         "registro_id": registro.get("id"),
+                        "descricao": descricao,
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     }))
                 except Exception as e:
