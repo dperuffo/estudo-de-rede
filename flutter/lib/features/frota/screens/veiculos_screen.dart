@@ -33,10 +33,13 @@ class _State extends State<VeiculosScreen> {
 
   Future<void> _conectarRealtime() async {
     try {
+      debugPrint('[REALTIME] Iniciando conexao...');
       final stream = await _realtimeService.conectar(
         tabelas: ['cadastro_veiculos'],
       );
+      debugPrint('[REALTIME] Stream obtido, escutando...');
       _realtimeSub = stream.listen((evento) {
+        debugPrint('[REALTIME] Evento recebido: \${evento.tabela} \${evento.evento}');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -47,8 +50,9 @@ class _State extends State<VeiculosScreen> {
         );
         _load();
       });
-    } catch (_) {
-      // Falha silenciosa: app continua funcionando sem realtime
+    } catch (e, st) {
+      debugPrint('[REALTIME] ERRO ao conectar: \$e');
+      debugPrint('[REALTIME] Stack: \$st');
     }
   }
 
