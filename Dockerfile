@@ -20,6 +20,7 @@ WORKDIR /app
 
 # Instala dependências Python primeiro (melhor cache Docker)
 COPY requirements.txt .
+# Cache bust: 1782853200
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia o restante da aplicação
