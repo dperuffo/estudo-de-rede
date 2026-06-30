@@ -7291,7 +7291,9 @@ def _fipe_secao_ui(
                     "combustivel_fipe": _f_comb,
                     "mes_referencia":   "",
                 }
+                print(f"[DEBUG_FIPE] Tentando salvar {_placa_sel3}: {_dados3}", flush=True)
                 _ok3, _err3 = _fipe_salvar_registro(_placa_sel3, _dados3)
+                print(f"[DEBUG_FIPE] Resultado: ok={_ok3} err={_err3}", flush=True)
                 if _ok3:
                     _new_cache3 = dict(_cache_t3)
                     _new_cache3[_pn3] = _dados3
