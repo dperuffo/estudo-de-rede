@@ -84,7 +84,7 @@ class _ChamadoDetalheScreenState extends ConsumerState<ChamadoDetalheScreen> {
   }
 
   Future<void> _enviarAnexo() async {
-    final resultado = await FilePicker.platform.pickFiles(withData: true);
+    final resultado = await FilePicker.pickFiles(withData: true);
     if (resultado == null || resultado.files.isEmpty) return;
     final arquivo = resultado.files.first;
     if (arquivo.bytes == null) return;

@@ -33,7 +33,7 @@ class _ChamadoNovoScreenState extends ConsumerState<ChamadoNovoScreen> {
   }
 
   Future<void> _selecionarAnexo() async {
-    final resultado = await FilePicker.platform.pickFiles(withData: true);
+    final resultado = await FilePicker.pickFiles(withData: true);
     if (resultado == null || resultado.files.isEmpty) return;
     final arquivo = resultado.files.first;
     if (arquivo.bytes == null) return;
