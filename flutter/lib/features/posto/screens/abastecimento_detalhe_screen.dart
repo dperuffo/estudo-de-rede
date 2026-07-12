@@ -263,7 +263,6 @@ class _AbastecimentoDetalheScreenState extends ConsumerState<AbastecimentoDetalh
           final a = d.abastecimento;
           if (a == null) return const Center(child: Text('Abastecimento não encontrado.'));
           if (d.minhaVezDeResponder || d.ajusteAberto != null) _prepararControllers(a);
-          if (d.ajusteAberto == null && !_formularioAberto) _controllersProntos = false;
 
           return ListView(
             padding: const EdgeInsets.all(16),

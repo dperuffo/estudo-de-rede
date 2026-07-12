@@ -135,7 +135,14 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   logada — sem precisar de `resolver_empresa_por_cnpj_segmento` nem
   `empresas_do_usuario`. Fora do escopo desta versão: notificação por
   e-mail ao cliente (a web também não tem isso pra ajustes, só pra
-  negociações).
+  negociações). **Achado real:** `LateInitializationError: Field
+  '_dataHora' has already been initialized` ao abrir "Solicitar ajuste",
+  cancelar e abrir de novo — o código resetava `_controllersProntos` pra
+  `false` sem descartar os controllers `late final` já criados, e
+  `_prepararControllers` tentava reatribuí-los (campo `late final` só
+  aceita 1 atribuição por instância). Corrigido removendo o reset — os
+  controllers são preparados uma única vez por tela (mesmo padrão, sem essa
+  falha, já usado em `negociacao_detalhe_screen.dart`).
 - **Clientes (`/posto/clientes` + `/posto/clientes/:id`)** — real desde a
   Fase FLT-2. Ver `lib/features/posto/providers/clientes_posto_provider.dart`
   (lista, RPC `clientes_do_posto`) e
