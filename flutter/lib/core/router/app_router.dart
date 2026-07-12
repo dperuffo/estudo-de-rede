@@ -35,6 +35,9 @@ import '../../features/posto/screens/cliente_posto_detalhe_screen.dart';
 import '../../features/posto/screens/fatura_posto_detalhe_screen.dart';
 import '../../features/posto/screens/ciclo_aberto_detalhe_screen.dart';
 import '../../features/posto/screens/precos_posto_screen.dart';
+import '../../features/posto/screens/chamados_posto_screen.dart';
+import '../../features/posto/screens/chamado_novo_screen.dart';
+import '../../features/posto/screens/chamado_detalhe_screen.dart';
 import '../widgets/em_construcao_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sessao_provider.dart';
@@ -157,6 +160,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => CicloAbertoDetalheScreen(negociacaoId: state.pathParameters['negociacaoId']!),
             ),
             GoRoute(path: '/posto/precos', builder: (_, __) => const PrecosPostoScreen()),
+            GoRoute(path: '/posto/chamados', builder: (_, __) => const ChamadosPostoScreen()),
+            GoRoute(path: '/posto/chamados/novo', builder: (_, __) => const ChamadoNovoScreen()),
+            GoRoute(
+              path: '/posto/chamados/:id',
+              builder: (_, state) => ChamadoDetalheScreen(id: state.pathParameters['id']!),
+            ),
           ],
         ),
       ],

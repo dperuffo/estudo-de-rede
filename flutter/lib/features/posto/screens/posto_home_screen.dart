@@ -72,6 +72,7 @@ class PostoHomeScreen extends ConsumerWidget {
             _item(context, Icons.account_balance, 'Meus Dados / PIX', '/posto/meus-dados'),
             _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
             _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
+            _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados'),
             const Divider(),
             _grp('Operação'),
             _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes'),

@@ -211,6 +211,34 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
     achado real da Fase 27.123 na web: o limite padrão do PostgREST,
     db-max-rows, corta silenciosamente ciclos com mais de 1000 linhas).
 
+- **Chamados (`/posto/chamados` + `/posto/chamados/novo` +
+  `/posto/chamados/:id`)** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/providers/chamados_provider.dart` e
+  `lib/features/posto/services/chamados_service.dart`. Espelha (com escopo
+  reduzido) `chamados/page.tsx` + `chamados/[id]/page.tsx` +
+  `ThreadChamado.tsx` + `ChamadoForm.tsx` + `lib/chamados.ts` da web:
+  indicadores (abertos/em análise/resolvidos/não vistos), filtro por
+  status, abrir chamado (tipo/título/descrição/prioridade/anexo opcional),
+  thread de mensagens tipo chat + anexos, botão "marcar como resolvido".
+  Sem o seletor de "Cliente" da listagem web (só existe pra admin, que
+  enxerga tickets de todos os clientes — a visão posto já é uma única
+  empresa) e sem `ControlesAdminChamado` (status/prioridade manuais são
+  decisão da equipe FNI, não do posto). **Importante:**
+  `chamados_service.dart` é uma PORTA MANUAL de `chamados/actions.ts`
+  (mesmo aviso de `negociacoes_service.dart`/
+  `ajustes_abastecimentos_service.dart` — não existe RPC pra essa lógica,
+  é regra de negócio replicada à mão, incluindo a resolução de "papel"
+  do usuário — admin/time FNI vs. usuário comum — usada pra rotular autor
+  de comentário e decidir qual coluna de "visto" atualizar). Upload de
+  anexo usa `file_picker` (já dependência do projeto, antes só usado pela
+  tela legada `/tickets` do shell genérico, que fala com a API Python
+  antiga e não deve ser confundida com esta) + `Supabase.storage` no
+  bucket privado `ticket-anexos`, com URL assinada (1h) pra download —
+  mesmo padrão da web. Fora do escopo desta versão: a bolinha de
+  notificação de "não vistos" no item do menu lateral (Fase 27.150 na
+  web só existe pra Aprovação de Documentos do admin; aqui o contador só
+  aparece dentro da própria tela de Chamados, nos indicadores).
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do
