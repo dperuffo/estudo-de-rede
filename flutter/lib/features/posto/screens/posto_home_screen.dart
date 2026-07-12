@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../../core/services/sessao_usuario.dart';
 import '../../../core/widgets/menu_button.dart';
 
 // Fase FLT-1 — shell da visão Posto, espelhando a estrutura de menu de
@@ -21,7 +22,7 @@ class PostoHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       key: rootScaffoldKey,
-      drawer: _buildDrawer(context, ref, sessao.valueOrNull?.nomeEmpresa),
+      drawer: _buildDrawer(context, ref, sessao.valueOrNull),
       appBar: AppBar(
         title: const Text('FNI — Posto'),
       ),
@@ -40,7 +41,14 @@ class PostoHomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDrawer(BuildContext context, WidgetRef ref, String? nomeEmpresa) => Drawer(
+  Widget _buildDrawer(BuildContext context, WidgetRef ref, SessaoUsuario? sessao) {
+    final nomeEmpresa = sessao?.nomeEmpresa;
+    // Fase FLT-2 — pedido do Daniel: seletor pra alternar entre os postos
+    // da Rede de Postos (grupo econômico) a qualquer momento, não só no
+    // gate inicial (ver "Camada 3" em app_router.dart) — só faz sentido
+    // pra quem tem 2+ empresas vinculadas.
+    final temMultiplasEmpresas = (sessao?.empresasIds.length ?? 0) > 1;
+    return Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -56,6 +64,24 @@ class PostoHomeScreen extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(nomeEmpresa, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                    ),
+                  if (temMultiplasEmpresas)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/selecionar-empresa');
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.swap_horiz, color: Colors.white, size: 16),
+                            SizedBox(width: 4),
+                            Text('Trocar posto', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -93,6 +119,7 @@ class PostoHomeScreen extends ConsumerWidget {
           ],
         ),
       );
+  }
 
   Widget _grp(String label) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),

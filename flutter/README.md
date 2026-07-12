@@ -44,6 +44,19 @@ as mesmas RPCs já documentadas no README da web.
   `empresaSelecionadaProvider` (StateProvider) — não persiste entre
   aberturas do app (aceitável por ora, mesmo esperado pela web sem
   `?empresa=` na URL).
+- **Pedido do Daniel:** a tela `/selecionar-empresa` não podia mais ser
+  reaberta depois da primeira escolha — a Camada 3 sempre redirecionava
+  de volta pra `/` assim que `empresaId` deixava de ser `null`. Agora ela
+  também funciona como um seletor de "trocar posto" acessível a qualquer
+  momento: item "Trocar posto" no cabeçalho do drawer do posto
+  (`posto_home_screen.dart`, só aparece com 2+ empresas vinculadas) abre a
+  mesma tela via `context.push`, que agora destaca a empresa atual e tem
+  botão de voltar (só quando há pra onde voltar — no gate obrigatório
+  continua sem botão de voltar, pra não dar pra pular a escolha). A
+  Camada 3 do router só bloqueia acesso voluntário quando não há nada pra
+  escolher (1 empresa só); nesse caso o `return null` explícito é
+  necessário pra não cair na Camada 4 (perfil) e ser redirecionado de
+  volta pra `/posto` por engano.
 
 A API Python antiga (`ApiConstants.baseUrl`) continua sendo usada pelas
 telas que ainda não foram migradas (Abastecimentos, Frota, Financeiro,

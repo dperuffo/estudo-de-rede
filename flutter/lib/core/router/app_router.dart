@@ -77,7 +77,17 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         if (sessao.precisaEscolherEmpresa) {
           return loc == '/selecionar-empresa' ? null : '/selecionar-empresa';
         }
-        if (loc == '/selecionar-empresa') return '/';
+        // Pedido do Daniel — seletor de "trocar empresa" acessível a
+        // qualquer momento (não só no gate inicial), pra quem tem 2+
+        // postos na Rede de Postos poder alternar entre eles. Só bloqueia
+        // acesso voluntário à tela quando não há nada pra escolher (conta
+        // de 1 empresa só) — nesse caso não faz sentido a tela existir.
+        // O `return null` (em vez de só deixar cair pra Camada 4) é
+        // necessário: sem ele, a Camada 4 abaixo redireciona o posto de
+        // volta pra /posto por essa rota não começar com "/posto".
+        if (loc == '/selecionar-empresa') {
+          return sessao.empresasIds.length <= 1 ? '/' : null;
+        }
 
         // Camada 4 — perfil (posto x demais).
         final estaEmRotaPosto = loc.startsWith('/posto');
