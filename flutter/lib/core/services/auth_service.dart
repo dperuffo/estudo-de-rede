@@ -122,9 +122,21 @@ class AuthService {
   }
 
   // Resolve perfil + empresa atual, mesmo espírito de
-  // src/lib/empresaAtual.ts::resolverEmpresaAtual na web — versão
-  // simplificada (sem seletor de empresa ainda; ver SessaoUsuario.
-  // precisaEscolherEmpresa, tratado na Fase FLT-2).
+  // src/lib/empresaAtual.ts::resolverEmpresaAtual na web.
+  //
+  // Achado real (Fase FLT-2) — testando com uma conta vinculada a 2 empresas
+  // (Rede de Postos/grupo econômico: "Posto Teste 2" + "Posto Teste", via
+  // empresas_do_usuario), os dados de "Ciclo em andamento" de um cliente não
+  // batiam com o que a tela de Abastecimentos mostrava. Causa: este código
+  // pegava `empresasIds.first` — mas a RPC `empresas_do_usuario` não tem
+  // ORDER BY, então a ordem do array não é garantida (pode variar entre
+  // chamadas), então "a empresa atual" era escolhida meio ao acaso a cada
+  // carregamento de sessão. A web NUNCA faz isso: `resolverEmpresaAtual` só
+  // resolve sozinho quando há EXATAMENTE 1 empresa; com 2+, fica sem empresa
+  // selecionada até o usuário escolher explicitamente. Corrigido pra seguir
+  // a mesma regra — com 2+ empresas, `empresaId` fica null
+  // (`SessaoUsuario.precisaEscolherEmpresa` vira true) até o usuário
+  // escolher na tela `/selecionar-empresa` (ver sessao_provider.dart).
   Future<SessaoUsuario> carregarSessao() async {
     final email = emailAtual ?? '';
 
@@ -137,13 +149,9 @@ class AuthService {
     String? nomeEmpresa;
     String? segmento;
 
-    if (perfil != 'admin' && empresasIds.isNotEmpty) {
+    if (perfil != 'admin' && empresasIds.length == 1) {
       empresaId = empresasIds.first;
-      final empresa = await _supabase
-          .from('empresas')
-          .select('nome, segmento')
-          .eq('id', empresaId)
-          .maybeSingle();
+      final empresa = await buscarEmpresa(empresaId);
       nomeEmpresa = empresa?['nome'] as String?;
       segmento = empresa?['segmento'] as String?;
     }
@@ -156,5 +164,9 @@ class AuthService {
       segmento: segmento,
       empresasIds: empresasIds,
     );
+  }
+
+  Future<Map<String, dynamic>?> buscarEmpresa(String id) {
+    return _supabase.from('empresas').select('nome, segmento').eq('id', id).maybeSingle();
   }
 }

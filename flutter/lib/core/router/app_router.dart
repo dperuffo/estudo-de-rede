@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/selecionar_empresa_screen.dart';
 import '../../features/mfa/screens/mfa_pendente_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/comece_seu_dia/screens/comece_seu_dia_screen.dart';
@@ -64,8 +65,16 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         }
         if (loc == '/mfa-pendente') return '/';
 
-        // Camada 3 — perfil (posto x demais).
+        // Camada 3 — empresa atual (achado real: Rede de Postos/grupo
+        // econômico com 2+ empresas vinculadas não pode escolher sozinho
+        // qual é "a atual" — ver comentário em sessao_provider.dart).
         final sessao = await ref.read(sessaoProvider.future);
+        if (sessao.precisaEscolherEmpresa) {
+          return loc == '/selecionar-empresa' ? null : '/selecionar-empresa';
+        }
+        if (loc == '/selecionar-empresa') return '/';
+
+        // Camada 4 — perfil (posto x demais).
         final estaEmRotaPosto = loc.startsWith('/posto');
         if (sessao.ehPosto && !estaEmRotaPosto) return '/posto';
         if (!sessao.ehPosto && estaEmRotaPosto) return '/';
@@ -75,6 +84,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
       routes: [
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         GoRoute(path: '/mfa-pendente', builder: (_, __) => const MfaPendenteScreen()),
+        GoRoute(path: '/selecionar-empresa', builder: (_, __) => const SelecionarEmpresaScreen()),
 
         // Shell genérico (cliente/admin) — inalterado nesta fase, além da
         // proteção de rota acima.

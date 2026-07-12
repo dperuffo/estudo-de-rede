@@ -27,6 +27,23 @@ as mesmas RPCs já documentadas no README da web.
   perfil/segmento (`lib/core/services/sessao_provider.dart`) e manda quem é
   "posto" pro shell próprio (`/posto/...`); cliente/admin continuam no shell
   genérico existente por enquanto.
+- **Achado real (Fase FLT-2):** conta vinculada a 2+ empresas (Rede de
+  Postos/grupo econômico) tinha "a empresa atual" resolvida por
+  `empresasIds.first` — mas a RPC `empresas_do_usuario` não tem `ORDER BY`,
+  então a ordem do array não é garantida, e a empresa escolhida variava
+  entre recarregamentos de sessão (descoberto quando "Ciclo em andamento"
+  de um cliente não batia com o que a tela de Abastecimentos mostrava — as
+  duas podiam estar olhando pra empresas diferentes do mesmo grupo).
+  Corrigido pra seguir a mesma regra da web
+  (`resolverEmpresaAtual`/`empresaAtual.ts`): só resolve sozinho com
+  EXATAMENTE 1 empresa; com 2+, `empresaId` fica `null`
+  (`SessaoUsuario.precisaEscolherEmpresa`) até o usuário escolher
+  explicitamente na nova tela `lib/features/auth/screens/selecionar_empresa_screen.dart`
+  (rota `/selecionar-empresa`, nova "Camada 3" do redirect do router — antes
+  da separação por perfil). A escolha fica em
+  `empresaSelecionadaProvider` (StateProvider) — não persiste entre
+  aberturas do app (aceitável por ora, mesmo esperado pela web sem
+  `?empresa=` na URL).
 
 A API Python antiga (`ApiConstants.baseUrl`) continua sendo usada pelas
 telas que ainda não foram migradas (Abastecimentos, Frota, Financeiro,

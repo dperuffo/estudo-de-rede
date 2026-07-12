@@ -87,6 +87,7 @@ class PostoHomeScreen extends ConsumerWidget {
               onTap: () async {
                 await AuthService().signOut();
                 ref.invalidate(sessaoProvider);
+                ref.invalidate(empresaSelecionadaProvider);
                 if (context.mounted) context.go('/login');
               },
             ),
