@@ -114,6 +114,16 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   solicitação de ajuste a partir desta tela — corrigido, ver
   "Abastecimento — detalhe/ajuste" abaixo. Cada linha da lista agora navega
   pro detalhe (`context.push('/posto/abastecimentos/\${r.chave}')`).
+  **Achado real (3):** nome do cliente aparecia sempre como "—" — mesmo bug
+  de RLS cruzada de sempre (`empresas_select_membro` só libera SELECT pra
+  membro/admin/superusuário; o posto não é membro das empresas-clientes).
+  Atingia dois pontos: a resolução de `clientesOpcoes` (SELECT direto em
+  `empresas`) e a busca por nome de cliente no campo de busca livre (`ilike`
+  direto em `empresas`). Corrigido: `clientesOpcoes` agora usa a nova RPC
+  SECURITY DEFINER `nomes_empresas_publico` (lote); a busca por nome agora
+  filtra em memória sobre `clientesOpcoes` já resolvido, em vez de bater de
+  novo em `empresas`. Mesmo bug existia na web (`AbastecimentosPosto.tsx`) —
+  corrigido lá também.
 - **Abastecimento — detalhe/ajuste (`/posto/abastecimentos/:chave`, chave =
   "provedor:id")** — real desde a Fase FLT-2. Ver
   `lib/features/posto/providers/ajuste_abastecimento_provider.dart`,

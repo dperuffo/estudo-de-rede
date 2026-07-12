@@ -184,8 +184,16 @@ class AbastecimentosPostoService {
     }.toList();
     List<({String id, String nome})> clientesOpcoes = [];
     if (idsClientes.isNotEmpty) {
-      final empresasRaw =
-          await _supabase.from('empresas').select('id, nome').inFilter('id', idsClientes);
+      // Achado real (Fase FLT-2) — mesmo bug de RLS cruzada já corrigido em
+      // exigirDocumentacaoAprovada (ver README): o posto não é membro das
+      // empresas-clientes, então `empresas_select_membro` bloqueia um SELECT
+      // direto e a lista de clientes (e o nome de cada linha) vinha vazia
+      // pra contas reais (só não aparecia com a superusuária, que ignora
+      // RLS). Corrigido chamando a RPC SECURITY DEFINER
+      // `nomes_empresas_publico` (mesmo padrão de `nome_empresa_publico`,
+      // agora em lote).
+      final empresasRaw = await _supabase
+          .rpc('nomes_empresas_publico', params: {'p_empresa_ids': idsClientes}) as List;
       clientesOpcoes = empresasRaw
           .map((m) => (id: m['id'] as String, nome: m['nome'] as String? ?? '—'))
           .toList()
@@ -199,12 +207,23 @@ class AbastecimentosPostoService {
 
     // Se o campo de busca livre bater com nome de cliente, inclui os
     // empresa_id encontrados no filtro OR abaixo (mesma ideia da web).
+    //
+    // Achado real (Fase FLT-2) — mesmo bug de RLS cruzada do bloco acima:
+    // um SELECT direto em `empresas` filtrando por nome (`ilike`) também é
+    // bloqueado pra empresas das quais o posto não é membro, então a busca
+    // por nome de cliente nunca encontrava nada pra contas reais. Corrigido
+    // filtrando em memória sobre `clientesOpcoes` (já resolvido acima via
+    // RPC) em vez de bater de novo em `empresas` — também é mais correto
+    // semanticamente: só busca entre clientes que já abasteceram com este
+    // posto, nunca a base inteira.
     List<String> idsClientesQ = [];
     final termo = filtros.q?.trim();
     if (termo != null && termo.isNotEmpty) {
-      final match =
-          await _supabase.from('empresas').select('id').ilike('nome', '%$termo%').limit(200);
-      idsClientesQ = match.map((m) => m['id'] as String).toList();
+      final termoLower = termo.toLowerCase();
+      idsClientesQ = clientesOpcoes
+          .where((c) => c.nome.toLowerCase().contains(termoLower))
+          .map((c) => c.id)
+          .toList();
     }
 
     PostgrestFilterBuilder<T> aplicar<T>(PostgrestFilterBuilder<T> query) {
