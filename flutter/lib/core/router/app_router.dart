@@ -157,8 +157,6 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => CicloAbertoDetalheScreen(negociacaoId: state.pathParameters['negociacaoId']!),
             ),
             GoRoute(path: '/posto/precos', builder: (_, __) => const PrecosPostoScreen()),
-            GoRoute(path: '/posto/notas-fiscais', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Notas Fiscais')),
-            GoRoute(path: '/posto/integracoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Integrações')),
           ],
         ),
       ],

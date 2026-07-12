@@ -212,7 +212,10 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
     db-max-rows, corta silenciosamente ciclos com mais de 1000 linhas).
 
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
-fases.
+fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
+ficam só na visão web, não fazem parte do escopo do PWA — removidas do
+menu (`posto_home_screen.dart`) e das rotas (`app_router.dart`), em vez de
+placeholder.
 
 ## Telas
 - Login (e-mail/senha e Google)

@@ -78,8 +78,6 @@ class PostoHomeScreen extends ConsumerWidget {
             _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos'),
             _item(context, Icons.business, 'Clientes', '/posto/clientes'),
             _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
-            _item(context, Icons.description, 'Notas Fiscais', '/posto/notas-fiscais'),
-            _item(context, Icons.power, 'Integrações', '/posto/integracoes'),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
