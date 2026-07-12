@@ -170,8 +170,8 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   aceita 1 atribuição por instância). Corrigido removendo o reset — os
   controllers são preparados uma única vez por tela (mesmo padrão, sem essa
   falha, já usado em `negociacao_detalhe_screen.dart`).
-- **Clientes (`/posto/clientes` + `/posto/clientes/:id`)** — real desde a
-  Fase FLT-2. Ver `lib/features/posto/providers/precos_posto_provider.dart` e
+- **Meus Preços (`/posto/precos`)** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/providers/precos_posto_provider.dart` e
   `lib/features/posto/screens/precos_posto_screen.dart`. Espelha (só o lado
   posto — `PainelPosto`, o lado cliente não se aplica aqui) `precos-postos/page.tsx`
   + `FormularioPrecosPosto.tsx` da web: 1 preço por combustível
@@ -188,9 +188,28 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   `clientes-posto/page.tsx` + `[clienteId]/page.tsx` +
   `CicloAbastecimentoPagamento.tsx` da web: lista de transportadoras que já
   negociaram com o posto (qualquer status), com cadastro, ciclo atual,
-  faturas e negociações no detalhe. Fora do escopo desta versão: extrato de
-  fatura em PDF, geração manual de fatura, edição de ciclo/prazo — só
-  leitura por enquanto.
+  faturas e negociações no detalhe. Fora do escopo desta versão: geração
+  manual de fatura, edição de ciclo/prazo — só leitura.
+  - **Detalhe da fatura (`/posto/faturas/:id`)** — pedido do Daniel: clicar
+    numa fatura e ver o extrato. Ver
+    `lib/features/posto/providers/fatura_posto_detalhe_provider.dart` +
+    `lib/features/posto/screens/fatura_posto_detalhe_screen.dart`. Porta
+    (com escopo reduzido) de `faturas-postos/[id]/page.tsx`: período,
+    vencimento, valor, status e o detalhamento linha a linha dos
+    abastecimentos, via a mesma RPC `abastecimentos_da_fatura` (SECURITY
+    DEFINER) usada na web. Fora do escopo desta versão: boleto/PDF, QR
+    Code PIX, dados de cedente/sacado (CNPJ/endereço completo).
+  - **Detalhe do ciclo em andamento (`/posto/ciclos-abertos/:negociacaoId`)**
+    — pedido do Daniel: clicar no card "Ciclo em andamento" e ver quais
+    abastecimentos compõem o valor acumulado. Ver
+    `lib/features/posto/providers/ciclo_aberto_detalhe_provider.dart` +
+    `lib/features/posto/screens/ciclo_aberto_detalhe_screen.dart`. Porta de
+    `ciclo-aberto/[negociacaoId]/page.tsx`: período/vencimento/valor
+    PREVISTOS (o robô fecha automaticamente quando o ciclo termina) + lista
+    de abastecimentos com filtro Todos/Com NF-e/Pendente NF-e, via RPC
+    `abastecimentos_do_ciclo_aberto` — paginada em lotes de 1000 (mesmo
+    achado real da Fase 27.123 na web: o limite padrão do PostgREST,
+    db-max-rows, corta silenciosamente ciclos com mais de 1000 linhas).
 
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases.

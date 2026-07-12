@@ -32,6 +32,8 @@ import '../../features/posto/screens/abastecimentos_posto_screen.dart';
 import '../../features/posto/screens/abastecimento_detalhe_screen.dart';
 import '../../features/posto/screens/clientes_posto_screen.dart';
 import '../../features/posto/screens/cliente_posto_detalhe_screen.dart';
+import '../../features/posto/screens/fatura_posto_detalhe_screen.dart';
+import '../../features/posto/screens/ciclo_aberto_detalhe_screen.dart';
 import '../../features/posto/screens/precos_posto_screen.dart';
 import '../widgets/em_construcao_screen.dart';
 import '../services/auth_service.dart';
@@ -145,6 +147,14 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(
               path: '/posto/clientes/:id',
               builder: (_, state) => ClientePostoDetalheScreen(id: state.pathParameters['id']!),
+            ),
+            GoRoute(
+              path: '/posto/faturas/:id',
+              builder: (_, state) => FaturaPostoDetalheScreen(id: state.pathParameters['id']!),
+            ),
+            GoRoute(
+              path: '/posto/ciclos-abertos/:negociacaoId',
+              builder: (_, state) => CicloAbertoDetalheScreen(negociacaoId: state.pathParameters['negociacaoId']!),
             ),
             GoRoute(path: '/posto/precos', builder: (_, __) => const PrecosPostoScreen()),
             GoRoute(path: '/posto/notas-fiscais', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Notas Fiscais')),

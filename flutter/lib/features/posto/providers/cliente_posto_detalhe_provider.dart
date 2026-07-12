@@ -69,6 +69,10 @@ class FaturaDoCliente {
 }
 
 class CicloAberto {
+  // Fase FLT-2 — chave usada pra navegar até o detalhamento do ciclo
+  // (/posto/ciclos-abertos/:negociacaoId), mesma chave que
+  // ciclos_abertos_postos() usa como identificador de cada linha.
+  final String negociacaoId;
   final String? periodoInicio;
   final String? periodoFimPrevisto;
   final String? vencimentoPrevisto;
@@ -79,6 +83,7 @@ class CicloAberto {
   final int quantidadePendenteNfe;
 
   const CicloAberto({
+    required this.negociacaoId,
     this.periodoInicio,
     this.periodoFimPrevisto,
     this.vencimentoPrevisto,
@@ -90,6 +95,7 @@ class CicloAberto {
   });
 
   factory CicloAberto.fromMap(Map<String, dynamic> m) => CicloAberto(
+        negociacaoId: m['negociacao_id'].toString(),
         periodoInicio: m['periodo_inicio'] as String?,
         periodoFimPrevisto: m['periodo_fim_previsto'] as String?,
         vencimentoPrevisto: m['vencimento_previsto'] as String?,

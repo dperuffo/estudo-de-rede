@@ -102,27 +102,38 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                   )
                 else
                   Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${_fmtData(d.cicloAtual!.periodoInicio)} — ${_fmtData(d.cicloAtual!.periodoFimPrevisto)}',
-                              style: const TextStyle(fontWeight: FontWeight.w600)),
-                          Text('Vencimento previsto: ${_fmtData(d.cicloAtual!.vencimentoPrevisto)}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                          const SizedBox(height: 8),
-                          Text('${_numero.format(d.cicloAtual!.quantidadeAbastecimentos)} abastecimentos · '
-                              '${_numero.format(d.cicloAtual!.volumeAcumulado.round())} L · '
-                              '${_moeda.format(d.cicloAtual!.valorAcumulado)}'),
-                          if (d.cicloAtual!.quantidadePendenteNfe > 0) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              '${d.cicloAtual!.quantidadePendenteNfe} sem NF-e ainda (${_moeda.format(d.cicloAtual!.valorPendenteNfe)}, fora do acumulado)',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                    child: InkWell(
+                      onTap: () => context.push('/posto/ciclos-abertos/${d.cicloAtual!.negociacaoId}'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                      '${_fmtData(d.cicloAtual!.periodoInicio)} — ${_fmtData(d.cicloAtual!.periodoFimPrevisto)}',
+                                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                                ),
+                                const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                              ],
                             ),
+                            Text('Vencimento previsto: ${_fmtData(d.cicloAtual!.vencimentoPrevisto)}',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                            const SizedBox(height: 8),
+                            Text('${_numero.format(d.cicloAtual!.quantidadeAbastecimentos)} abastecimentos · '
+                                '${_numero.format(d.cicloAtual!.volumeAcumulado.round())} L · '
+                                '${_moeda.format(d.cicloAtual!.valorAcumulado)}'),
+                            if (d.cicloAtual!.quantidadePendenteNfe > 0) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '${d.cicloAtual!.quantidadePendenteNfe} sem NF-e ainda (${_moeda.format(d.cicloAtual!.valorPendenteNfe)}, fora do acumulado)',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -138,7 +149,7 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
                     ),
                   )
                 else
-                  ...d.faturas.map((f) => _linhaFatura(f)),
+                  ...d.faturas.map((f) => _linhaFatura(context, f)),
 
                 const SizedBox(height: 20),
                 const Text('Negociações', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -160,7 +171,7 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
     );
   }
 
-  Widget _linhaFatura(FaturaDoCliente f) {
+  Widget _linhaFatura(BuildContext context, FaturaDoCliente f) {
     final statusExib = _statusFaturaExibicao(f.status, f.vencimento);
     final cor = switch (statusExib) {
       'paga' => const Color(0xFF15803D),
@@ -170,30 +181,35 @@ class ClientePostoDetalheScreen extends ConsumerWidget {
     };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: InkWell(
+        onTap: () => context.push('/posto/faturas/${f.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${_fmtData(f.periodoInicio)} — ${_fmtData(f.periodoFim)}',
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text('Vencimento: ${_fmtData(f.vencimento)}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('${_fmtData(f.periodoInicio)} — ${_fmtData(f.periodoFim)}',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text('Vencimento: ${_fmtData(f.vencimento)}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(_moeda.format(f.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(_statusFaturaLabel[statusExib] ?? statusExib,
+                      style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(_moeda.format(f.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(_statusFaturaLabel[statusExib] ?? statusExib,
-                    style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ],
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+            ],
+          ),
         ),
       ),
     );
