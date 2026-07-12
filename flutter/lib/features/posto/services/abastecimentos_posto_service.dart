@@ -290,7 +290,7 @@ class AbastecimentosPostoService {
       for (final n in notasRaw) {
         final idProfrotas = n['abastecimento_id'];
         final idExterno = n['abastecimento_externo_id'];
-        final numero = n['numero_nf'] as String?;
+        final numero = n['numero_nf']?.toString();
         if (idProfrotas != null) notaPorAbastecimento.putIfAbsent('profrotas:$idProfrotas', () => numero);
         final registroExterno = idExterno != null ? registroPorIdExterno[idExterno.toString()] : null;
         if (registroExterno != null) notaPorAbastecimento.putIfAbsent(registroExterno.chave, () => numero);

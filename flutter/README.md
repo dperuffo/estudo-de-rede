@@ -106,7 +106,10 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   50 mais recentes que baterem com o filtro), os botões de filtro por
   status de NF-e com contador (só o badge informativo em cada linha), e
   navegação pra tela de detalhe/ajuste do abastecimento (ainda não existe
-  no Flutter).
+  no Flutter). **Achado real:** tela quebrava com `type 'int' is not a
+  subtype of type 'String?'` — `numero_nf` (`notas_fiscais_abastecimento`/
+  `notas_fiscais_pendencias`) é `integer` no banco, não texto; o código
+  fazia `as String?` direto. Corrigido pra `?.toString()`.
 
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases.
