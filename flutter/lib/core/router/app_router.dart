@@ -23,6 +23,7 @@ import '../../features/assistente/screens/assistente_screen.dart';
 import '../../features/centros_custo/screens/centros_custo_screen.dart';
 import '../../features/posto/screens/posto_home_screen.dart';
 import '../../features/posto/screens/posto_dashboard_screen.dart';
+import '../../features/posto/screens/meu_posto_screen.dart';
 import '../widgets/em_construcao_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sessao_provider.dart';
@@ -101,7 +102,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
           builder: (c, s, child) => PostoHomeScreen(child: child),
           routes: [
             GoRoute(path: '/posto', builder: (_, __) => const PostoDashboardScreen()),
-            GoRoute(path: '/posto/meu-posto', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Meu Posto')),
+            GoRoute(path: '/posto/meu-posto', builder: (_, __) => const MeuPostoScreen()),
             GoRoute(path: '/posto/rede-postos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Rede de Postos')),
             GoRoute(path: '/posto/assistente', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Assistente FNI')),
             GoRoute(path: '/posto/assinatura', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Minha Assinatura')),

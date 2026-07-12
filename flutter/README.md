@@ -55,6 +55,14 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   combustível, indicadores/listas de negociações). Não incluído ainda: o
   gráfico evolutivo diário (`GraficoEvolutivoPostos`) e a seção de Ajustes
   de Abastecimentos — ficam pra uma próxima iteração.
+- **Meu Posto (`/posto/meu-posto`)** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/providers/meu_posto_provider.dart` e
+  `lib/features/posto/screens/meu_posto_screen.dart`. Espelha
+  `MeuPostoForm.tsx` da web (Fase 27.137): cadastro do estabelecimento
+  (CNPJ, razão social, endereço, contatos, lat/long) verificado contra a
+  base ANP via a mesma RPC `verificar_e_registrar_posto_anp`. Não incluído
+  ainda: o botão "usar minha localização atual" (Geolocation API do
+  navegador na web) — lat/long são preenchidos à mão por enquanto.
 
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases.
