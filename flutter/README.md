@@ -154,6 +154,15 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   controllers são preparados uma única vez por tela (mesmo padrão, sem essa
   falha, já usado em `negociacao_detalhe_screen.dart`).
 - **Clientes (`/posto/clientes` + `/posto/clientes/:id`)** — real desde a
+  Fase FLT-2. Ver `lib/features/posto/providers/precos_posto_provider.dart` e
+  `lib/features/posto/screens/precos_posto_screen.dart`. Espelha (só o lado
+  posto — `PainelPosto`, o lado cliente não se aplica aqui) `precos-postos/page.tsx`
+  + `FormularioPrecosPosto.tsx` da web: 1 preço por combustível
+  (`upsert` em `precos_postos`, sem histórico — campo em branco não grava,
+  e também não apaga um preço já salvo, mesma regra da web). Fora do
+  escopo desta versão: resolver o NOME de quem atualizou por último (a web
+  faz um lookup extra em `usuarios_app`) — mostra só o e-mail.
+- **Clientes (`/posto/clientes` + `/posto/clientes/:id`)** — real desde a
   Fase FLT-2. Ver `lib/features/posto/providers/clientes_posto_provider.dart`
   (lista, RPC `clientes_do_posto`) e
   `lib/features/posto/providers/cliente_posto_detalhe_provider.dart`
