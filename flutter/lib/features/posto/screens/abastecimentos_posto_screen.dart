@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../services/abastecimentos_posto_service.dart';
@@ -272,7 +273,9 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
+      child: InkWell(
+        onTap: () => context.push('/posto/abastecimentos/${r.chave}'),
+        child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,6 +317,7 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
             ] else
               _badgeTexto('Pendente', const Color(0xFFFEF3C7), const Color(0xFF92400E)),
           ],
+        ),
         ),
       ),
     );

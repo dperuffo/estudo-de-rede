@@ -109,7 +109,45 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   no Flutter). **Achado real:** tela quebrava com `type 'int' is not a
   subtype of type 'String?'` — `numero_nf` (`notas_fiscais_abastecimento`/
   `notas_fiscais_pendencias`) é `integer` no banco, não texto; o código
-  fazia `as String?` direto. Corrigido pra `?.toString()`.
+  fazia `as String?` direto. Corrigido pra `?.toString()`. **Achado real
+  (2):** não dava pra ver o detalhe do abastecimento nem abrir o fluxo de
+  solicitação de ajuste a partir desta tela — corrigido, ver
+  "Abastecimento — detalhe/ajuste" abaixo. Cada linha da lista agora navega
+  pro detalhe (`context.push('/posto/abastecimentos/\${r.chave}')`).
+- **Abastecimento — detalhe/ajuste (`/posto/abastecimentos/:chave`, chave =
+  "provedor:id")** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/providers/ajuste_abastecimento_provider.dart`,
+  `lib/features/posto/services/ajustes_abastecimentos_service.dart` e
+  `lib/features/posto/screens/abastecimento_detalhe_screen.dart`. Espelha
+  (com escopo reduzido) `abastecimentos/[id]/page.tsx` +
+  `abastecimentos/externo/[id]/page.tsx` + `PainelAjusteAbastecimento.tsx` +
+  `FormularioSolicitarAjuste.tsx` da web: valores atuais do abastecimento
+  (PróFrotas ou externo, via `abastecimentos_unificado`) e o painel de
+  ajuste completo — solicitar, ver histórico de rodadas, aprovar/recusar/
+  contrapropor/cancelar. `ajustes_abastecimentos_service.dart` é PORTA
+  MANUAL de `src/lib/ajustesAbastecimentos.ts` (mesmo aviso de
+  `negociacoes_service.dart`: não é RPC, é regra de negócio replicada à mão
+  — só `decidirAjuste` chama RPC de verdade, `decidir_ajuste_abastecimento`,
+  porque só ela precisa aplicar o valor de fato na tabela de origem).
+  Diferente da web (que serve os dois lados e precisa resolver quem é
+  posto/cliente por CNPJ), aqui já sabemos: esta tela só existe dentro do
+  shell `/posto`, então `empresaPostoId` é sempre a empresa da sessão
+  logada — sem precisar de `resolver_empresa_por_cnpj_segmento` nem
+  `empresas_do_usuario`. Fora do escopo desta versão: notificação por
+  e-mail ao cliente (a web também não tem isso pra ajustes, só pra
+  negociações).
+- **Clientes (`/posto/clientes` + `/posto/clientes/:id`)** — real desde a
+  Fase FLT-2. Ver `lib/features/posto/providers/clientes_posto_provider.dart`
+  (lista, RPC `clientes_do_posto`) e
+  `lib/features/posto/providers/cliente_posto_detalhe_provider.dart`
+  (detalhe: negociações + faturas + ciclo em andamento via RPC
+  `ciclos_abertos_postos`). Espelha (com escopo reduzido)
+  `clientes-posto/page.tsx` + `[clienteId]/page.tsx` +
+  `CicloAbastecimentoPagamento.tsx` da web: lista de transportadoras que já
+  negociaram com o posto (qualquer status), com cadastro, ciclo atual,
+  faturas e negociações no detalhe. Fora do escopo desta versão: extrato de
+  fatura em PDF, geração manual de fatura, edição de ciclo/prazo — só
+  leitura por enquanto.
 
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases.
