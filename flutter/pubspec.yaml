@@ -7,6 +7,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Fase FLT-1 — migração da autenticação/dados da API Python própria pro
+  # Supabase direto (mesmo backend da web: nedthbeekvwzcjrhsghp), com Auth +
+  # RLS + as mesmas RPCs já usadas em src/lib/*.ts do app Next.js.
+  supabase_flutter: ^2.5.6
   dio: ^5.4.0
   google_sign_in: ^6.2.1
   flutter_riverpod: ^2.5.1

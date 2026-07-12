@@ -1,30 +1,14 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+// Teste padrão do template do Flutter, desatualizado desde antes da Fase
+// FLT-1 (referenciava uma classe MyApp/contador que não existe mais neste
+// app — o app real se chama FniApp, sem contador). Como o app agora
+// depende de Supabase.initialize() (feito em main()) e de rede pra
+// resolver sessão/rotas, um smoke test completo de widget não é trivial
+// de escrever sem mockar o Supabase — deixamos só um placeholder que
+// garante que o arquivo compila e passa, sem falso teste de comportamento.
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:fni_gestao_frotas/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('placeholder', (WidgetTester tester) async {
+    expect(1 + 1, 2);
   });
 }

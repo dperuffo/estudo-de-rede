@@ -2,11 +2,14 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "core/router/app_router.dart";
 import "core/theme/app_theme.dart";
-import "core/services/api_service.dart";
+import "core/services/supabase_service.dart";
 
+// Fase FLT-1 — troca da inicialização da API Python própria (ApiService, só
+// configurava o Dio com o token salvo — nada de rede aqui) pela inicialização
+// do Supabase (Auth + client de dados), que agora é a base de tudo.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  ApiService().init();
+  await SupabaseService.init();
   runApp(const ProviderScope(child: FniApp()));
 }
 
