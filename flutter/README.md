@@ -94,6 +94,19 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   existia na função equivalente da web (`exigirDocumentacaoAprovada` em
   `src/lib/empresasDocumentos.ts`) — corrigido lá também, nunca tinha
   aparecido porque só era testado com a conta superusuária.
+- **Abastecimentos (`/posto/abastecimentos`)** — real desde a Fase FLT-2.
+  Ver `lib/features/posto/services/abastecimentos_posto_service.dart` e
+  `lib/features/posto/screens/abastecimentos_posto_screen.dart`. Espelha
+  (com escopo reduzido) `AbastecimentosPosto.tsx` da web: abastecimentos
+  fornecidos por este posto via `abastecimentos_unificado` (multi-provedor
+  — PróFrotas + externos), com indicadores, filtro de combustível/meio de
+  pagamento/cliente/busca/data, e badge de NF-e (emitida/rejeitada/
+  pendente) + bolinha de ajuste pendente por linha. Fora do escopo desta
+  versão (fica pra uma próxima iteração): paginação de verdade (só traz os
+  50 mais recentes que baterem com o filtro), os botões de filtro por
+  status de NF-e com contador (só o badge informativo em cada linha), e
+  navegação pra tela de detalhe/ajuste do abastecimento (ainda não existe
+  no Flutter).
 
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases.
