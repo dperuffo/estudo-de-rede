@@ -63,6 +63,37 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   base ANP via a mesma RPC `verificar_e_registrar_posto_anp`. Não incluído
   ainda: o botão "usar minha localização atual" (Geolocation API do
   navegador na web) — lat/long são preenchidos à mão por enquanto.
+- **Negociações (`/posto/negociacoes` + `/posto/negociacoes/:id`)** — real
+  desde a Fase FLT-2. Ver `lib/features/posto/providers/negociacoes_provider.dart`
+  (lista), `negociacao_detalhe_provider.dart` (detalhe + rodadas) e
+  `lib/features/posto/services/negociacoes_service.dart` (ações). Espelha
+  `negociacoes/page.tsx` + `[id]/page.tsx` + `FormularioContraproposta.tsx`
+  da web, lado posto: listar com indicadores/filtros, ver histórico de
+  rodadas, aceitar/recusar/contrapropor/cancelar. **Importante:**
+  `negociacoes_service.dart` é uma PORTA MANUAL de
+  `src/lib/negociacoesPostos.ts` (não existe RPC pra essa lógica no banco
+  — é regra de negócio em TS, replicada função a função no Dart, incluindo
+  os gates de assinatura/documentação e a substituição de negociação aceita
+  anterior). Web e app não compartilham código aqui — qualquer mudança
+  nessa lógica na web precisa ser espelhada manualmente no Dart, ou vice
+  versa. Seria mais seguro migrar isso pra uma função Postgres compartilhada
+  numa fase futura. Criar negociação nova (`/posto/negociacoes/novo`) também
+  já é real — `NegociacoesService.criarNegociacao`, porta de
+  `criarNegociacao` (negociacoesPostos.ts) + a parte do lado posto de
+  `criarNegociacaoAcao`. Só cobre "cliente já existe na FNI" (informa o
+  CNPJ, precisa dar match via `empresa_id_do_cnpj`) — o provisionamento
+  automático de posto novo por e-mail (quando é o CLIENTE que cria a
+  negociação) não se aplica aqui, é exclusivo do outro lado.
+  **Achado real (Fase FLT-2):** criar negociação dava "Empresa não
+  encontrada" com uma conta de posto de teste — a checagem de documentação
+  (`_exigirDocumentacaoAprovada`) lia a empresa CLIENTE direto da tabela
+  `empresas`, e a RLS só libera SELECT pra quem é membro/admin/superusuário
+  daquela empresa (o posto nunca é membro do cliente). Corrigido chamando a
+  nova RPC `status_documentacao_empresa_publico` (SECURITY DEFINER, mesmo
+  padrão de `nome_empresa_publico`) em vez do SELECT direto. Mesmo bug
+  existia na função equivalente da web (`exigirDocumentacaoAprovada` em
+  `src/lib/empresasDocumentos.ts`) — corrigido lá também, nunca tinha
+  aparecido porque só era testado com a conta superusuária.
 
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases.

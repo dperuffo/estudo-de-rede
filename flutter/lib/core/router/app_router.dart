@@ -24,6 +24,9 @@ import '../../features/centros_custo/screens/centros_custo_screen.dart';
 import '../../features/posto/screens/posto_home_screen.dart';
 import '../../features/posto/screens/posto_dashboard_screen.dart';
 import '../../features/posto/screens/meu_posto_screen.dart';
+import '../../features/posto/screens/negociacoes_screen.dart';
+import '../../features/posto/screens/negociacao_detalhe_screen.dart';
+import '../../features/posto/screens/criar_negociacao_screen.dart';
 import '../widgets/em_construcao_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sessao_provider.dart';
@@ -112,7 +115,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/posto/meus-dados', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Meus Dados / PIX')),
             GoRoute(path: '/posto/documentos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Documentos')),
             GoRoute(path: '/posto/usuarios', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Usuários')),
-            GoRoute(path: '/posto/negociacoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Negociações')),
+            GoRoute(path: '/posto/negociacoes', builder: (_, __) => const NegociacoesScreen()),
+            GoRoute(path: '/posto/negociacoes/novo', builder: (_, __) => const CriarNegociacaoScreen()),
+            GoRoute(
+              path: '/posto/negociacoes/:id',
+              builder: (_, state) => NegociacaoDetalheScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(path: '/posto/abastecimentos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Abastecimentos')),
             GoRoute(path: '/posto/clientes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Clientes')),
             GoRoute(path: '/posto/precos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Meus Preços')),
