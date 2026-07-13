@@ -1,202 +1,236 @@
 import 'package:flutter/material.dart';
-import '../../../core/services/api_service.dart';
-import '../../../core/widgets/menu_button.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/sessao_provider.dart';
+import '../../posto/providers/avaliacoes_provider.dart';
+import '../../posto/services/avaliacoes_service.dart';
 
-class AvaliacaoScreen extends StatefulWidget {
+// Fase FLT-3 — porta de FormularioAvaliacao.tsx pro shell Cliente. Cópia
+// quase 1:1 de avaliar_screen.dart do Posto — reaproveita direto
+// `avaliacoesProvider`/`AvaliacoesService` (já eram genéricos por perfil,
+// filtrados só por e-mail do usuário logado + RLS). Nome de classe
+// `AvaliacaoScreen` reaproveitado do arquivo antigo (que era legado/
+// quebrado — ver README FLT-3), agora com o mesmo import direto do Posto.
+class AvaliacaoScreen extends ConsumerStatefulWidget {
   const AvaliacaoScreen({super.key});
-  @override State<AvaliacaoScreen> createState() => _State();
+
+  @override
+  ConsumerState<AvaliacaoScreen> createState() => _AvaliacaoScreenState();
 }
 
-class _State extends State<AvaliacaoScreen> {
-  bool _loading = true;
-  bool _jaAvaliou = false;
+class _AvaliacaoScreenState extends ConsumerState<AvaliacaoScreen> {
   int _estrelas = 0;
-  double _media = 0;
-  int _total = 0;
   final _comentarioCtrl = TextEditingController();
   bool _enviando = false;
+  String? _erro;
+  bool _sucesso = false;
 
-  @override void initState() { super.initState(); _load(); }
-  @override void dispose() { _comentarioCtrl.dispose(); super.dispose(); }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    try {
-      final r = await ApiService().get('/avaliacoes/minha');
-      setState(() {
-        _jaAvaliou = r['ja_avaliou'] ?? false;
-        _media = (r['media'] as num? ?? 0).toDouble();
-        _total = r['total'] as int? ?? 0;
-      });
-    } catch (_) {} finally {
-      if (mounted) setState(() => _loading = false);
-    }
+  @override
+  void dispose() {
+    _comentarioCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _enviar() async {
-    if (_estrelas == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Selecione pelo menos 1 estrela')));
+    if (_estrelas == 0) return;
+    setState(() {
+      _enviando = true;
+      _erro = null;
+      _sucesso = false;
+    });
+
+    final sessao = await ref.read(sessaoProvider.future);
+    final erro = await AvaliacoesService().enviarAvaliacao(
+      estrelas: _estrelas,
+      comentario: _comentarioCtrl.text,
+      empresaId: sessao.empresaId,
+    );
+
+    if (!mounted) return;
+    setState(() => _enviando = false);
+    if (erro != null) {
+      setState(() => _erro = erro);
       return;
     }
-    setState(() => _enviando = true);
-    try {
-      await ApiService().post('/avaliacoes', data: {
-        'estrelas': _estrelas,
-        'comentario': _comentarioCtrl.text.trim(),
-      });
-      setState(() => _jaAvaliou = true);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Obrigado pela avaliacao!')));
-      _load();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')));
-    } finally {
-      if (mounted) setState(() => _enviando = false);
-    }
+    setState(() {
+      _sucesso = true;
+      _estrelas = 0;
+      _comentarioCtrl.clear();
+    });
+    ref.invalidate(avaliacoesProvider);
   }
 
   @override
   Widget build(BuildContext context) {
+    final historicoAsync = ref.watch(avaliacoesProvider);
+
     return Scaffold(
-      appBar: AppBar(
-        leading: const MenuButton(),
-        title: const Text('Avaliar o App'),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(children: [
-
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0D2D6B), Color(0xFF1565C0)],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 48),
-                    const SizedBox(height: 12),
-                    const Text('FNI Gestao de Frotas',
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    const Text('Sua opiniao nos ajuda a melhorar',
-                        style: TextStyle(color: Colors.white70, fontSize: 13)),
-                    if (_total > 0) ...[
-                      const SizedBox(height: 16),
-                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        ...List.generate(5, (i) => Icon(
-                          i < _media.round() ? Icons.star : Icons.star_border,
-                          color: Colors.amber, size: 20,
-                        )),
-                        const SizedBox(width: 8),
-                        Text('$_media/5 ($_total avaliacoes)',
-                            style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                      ]),
-                    ],
-                  ]),
-                ),
-                const SizedBox(height: 32),
-
-                if (_jaAvaliou) ...[
-                  // Já avaliou hoje
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.withOpacity(0.3)),
-                    ),
-                    child: Column(children: [
-                      const Icon(Icons.check_circle, color: Colors.green, size: 48),
-                      const SizedBox(height: 12),
-                      const Text('Obrigado pelo feedback!',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-                      const SizedBox(height: 8),
-                      const Text('Voce ja avaliou hoje. Volte amanha para avaliar novamente.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey)),
-                    ]),
-                  ),
-                ] else ...[
-                  // Formulário de avaliação
-                  const Text('Como voce avalia o app?',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 24),
-
-                  // Estrelas
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(5, (i) {
-                    final n = i + 1;
-                    return GestureDetector(
-                      onTap: () => setState(() => _estrelas = n),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Icon(
-                          n <= _estrelas ? Icons.star : Icons.star_border,
-                          color: Colors.amber,
-                          size: 48,
-                        ),
-                      ),
-                    );
-                  })),
+      appBar: AppBar(title: const Text('Avaliar Plataforma')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Column(
+            children: [
+              Image.asset('assets/logo_fni.png', height: 56),
+              const SizedBox(height: 12),
+              const Text('Avalie a plataforma', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 4),
+              const Text(
+                'Sua opinião ajuda a FNI a melhorar a experiência de todos os clientes.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Sua nota', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 8),
-                  Text(
-                    _estrelas == 0 ? 'Toque nas estrelas para avaliar'
-                        : _estrelas == 1 ? 'Muito ruim'
-                        : _estrelas == 2 ? 'Ruim'
-                        : _estrelas == 3 ? 'Regular'
-                        : _estrelas == 4 ? 'Bom'
-                        : 'Excelente!',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: _estrelas == 0 ? Colors.grey
-                          : _estrelas <= 2 ? Colors.red
-                          : _estrelas == 3 ? Colors.orange
-                          : Colors.green,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    children: [
+                      ...List.generate(5, (i) {
+                        final n = i + 1;
+                        return IconButton(
+                          onPressed: () => setState(() => _estrelas = n),
+                          icon: Icon(
+                            n <= _estrelas ? Icons.star : Icons.star_border,
+                            color: n <= _estrelas ? const Color(0xFFFBBF24) : Colors.grey,
+                            size: 30,
+                          ),
+                        );
+                      }),
+                      if (_estrelas > 0)
+                        Text(rotuloNota(_estrelas),
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // Comentário
+                  const SizedBox(height: 16),
+                  const Text('Observações (opcional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: _comentarioCtrl,
                     maxLines: 4,
                     decoration: const InputDecoration(
-                      labelText: 'Comentario (opcional)',
-                      hintText: 'Conte o que voce achou, sugestoes de melhoria...',
                       border: OutlineInputBorder(),
+                      hintText: 'Conte pra gente o que está funcionando bem ou o que podemos melhorar.',
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // Botão enviar
+                  if (_erro != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
+                      child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13)),
+                    ),
+                  ],
+                  if (_sucesso) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(8)),
+                      child: const Text('Avaliação enviada. Obrigado pelo retorno!',
+                          style: TextStyle(color: Color(0xFF15803D), fontSize: 13)),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _enviando ? null : _enviar,
-                      icon: _enviando
-                          ? const SizedBox(width: 20, height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.send),
-                      label: Text(_enviando ? 'Enviando...' : 'Enviar avaliacao'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D2D6B),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                    child: FilledButton(
+                      onPressed: (_enviando || _estrelas == 0) ? null : _enviar,
+                      child: Text(_enviando ? 'Enviando...' : 'Enviar avaliação'),
                     ),
                   ),
                 ],
-              ]),
+              ),
             ),
+          ),
+          const SizedBox(height: 24),
+          historicoAsync.when(
+            loading: () => const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+            error: (e, _) => Text('Erro ao carregar histórico: $e'),
+            data: (historico) {
+              if (historico.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Suas avaliações anteriores',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 10),
+                  ...historico.map((a) => Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      ...List.generate(
+                                        5,
+                                        (i) => Icon(
+                                          i < a.estrelas ? Icons.star : Icons.star_border,
+                                          size: 16,
+                                          color: i < a.estrelas ? const Color(0xFFFBBF24) : Colors.grey,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(rotuloNota(a.estrelas),
+                                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                    ],
+                                  ),
+                                  Text(_dataFormatada(a.criadoEm),
+                                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                ],
+                              ),
+                              if (a.comentario != null && a.comentario!.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(a.comentario!, style: const TextStyle(fontSize: 13)),
+                              ],
+                              if (a.respostaAdmin != null && a.respostaAdmin!.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEFF6FF),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Resposta da equipe FNI',
+                                          style: TextStyle(
+                                              fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8))),
+                                      const SizedBox(height: 4),
+                                      Text(a.respostaAdmin!, style: const TextStyle(fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      )),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
+  }
+
+  String _dataFormatada(String? iso) {
+    if (iso == null) return '';
+    final d = DateTime.tryParse(iso);
+    if (d == null) return '';
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 }

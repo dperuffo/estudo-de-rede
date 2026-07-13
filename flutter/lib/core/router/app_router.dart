@@ -5,6 +5,9 @@ import '../../features/auth/screens/selecionar_empresa_screen.dart';
 import '../../features/mfa/screens/mfa_pendente_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
+import '../../features/assistente/screens/assistente_screen.dart';
+import '../../features/assinatura/screens/assinatura_cliente_screen.dart';
+import '../../features/avaliacao/screens/avaliacao_screen.dart';
 import '../../features/posto/screens/posto_home_screen.dart';
 import '../../features/posto/screens/posto_dashboard_screen.dart';
 import '../../features/posto/screens/meu_posto_screen.dart';
@@ -110,9 +113,9 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
           routes: [
             GoRoute(path: '/', builder: (_, __) => const DashboardScreen()),
             GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-            GoRoute(path: '/assistente', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Assistente FNI')),
-            GoRoute(path: '/assinatura', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Minha Assinatura')),
-            GoRoute(path: '/avaliar', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Avaliar Plataforma')),
+            GoRoute(path: '/assistente', builder: (_, __) => const AssistenteClienteScreen()),
+            GoRoute(path: '/assinatura', builder: (_, __) => const AssinaturaClienteScreen()),
+            GoRoute(path: '/avaliar', builder: (_, __) => const AvaliacaoScreen()),
             GoRoute(path: '/financeiro', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Painel Financeiro')),
             GoRoute(path: '/documentos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Documentos')),
             GoRoute(path: '/inteligencia-rede', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Inteligência de Rede')),

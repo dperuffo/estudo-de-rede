@@ -1,141 +1,237 @@
 import 'package:flutter/material.dart';
-import '../../../core/services/api_service.dart';
-import '../../../core/widgets/menu_button.dart';
+import '../../posto/services/assistente_service.dart';
 
-class AssistenteScreen extends StatefulWidget {
-  const AssistenteScreen({super.key});
-  @override State<AssistenteScreen> createState() => _State();
+// Fase FLT-3 — porta de ChatAssistente.tsx pro shell Cliente. Cópia quase
+// 1:1 de assistente_screen.dart do Posto (lib/features/posto/screens/) —
+// reaproveita o MESMO AssistenteService (rota /api/assistente do site),
+// que já é genérico por perfil (autentica com o access_token da sessão de
+// quem estiver chamando, a rota monta o client Supabase "como" esse
+// usuário — RLS decide o que ele pode ver, sem precisar de nada
+// posto-específico). Import direto do serviço do Posto (em vez de mover o
+// arquivo pra um lugar "compartilhado") — decisão de menor esforço, já que
+// o arquivo já era 100% genérico e mover ficaria maior que o valor que
+// agrega agora. Nome de classe diferente (`AssistenteClienteScreen`, não
+// `AssistenteScreen` nem `AssistentePostoScreen`) pra evitar o mesmo
+// ambiguous_import que já apareceu antes quando os dois shells importavam
+// classes de mesmo nome dentro de app_router.dart.
+class _MensagemExibida {
+  final String role;
+  final String content;
+  final List<ConsultaExecutada>? consultas;
+  final bool erro;
+  const _MensagemExibida({required this.role, required this.content, this.consultas, this.erro = false});
 }
 
-class _State extends State<AssistenteScreen> {
-  final List<Map<String, String>> _msgs = [];
-  final _ctrl = TextEditingController();
-  final _scroll = ScrollController();
-  bool _loading = false;
+const _perguntasSugeridas = [
+  'Quanto gastamos com combustível nos últimos 30 dias?',
+  'Quais os 5 veículos com maior custo de manutenção este ano?',
+  'Quantos motoristas ativos temos por centro de custo?',
+  'Qual veículo está sem manutenção registrada há mais tempo?',
+];
 
-  Future<void> _enviar() async {
-    final texto = _ctrl.text.trim();
-    if (texto.isEmpty) return;
-    _ctrl.clear();
-    setState(() {
-      _msgs.add({'role': 'user', 'text': texto});
-      _loading = true;
-    });
-    _scrollDown();
-    try {
-      final r = await ApiService().post('/assistente/chat', data: {'pergunta': texto});
-      setState(() => _msgs.add({'role': 'assistant', 'text': r['resposta'] ?? '-'}));
-    } catch (e) {
-      setState(() => _msgs.add({'role': 'assistant', 'text': 'Erro: $e'}));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-      _scrollDown();
-    }
+class AssistenteClienteScreen extends StatefulWidget {
+  const AssistenteClienteScreen({super.key});
+
+  @override
+  State<AssistenteClienteScreen> createState() => _AssistenteClienteScreenState();
+}
+
+class _AssistenteClienteScreenState extends State<AssistenteClienteScreen> {
+  final _mensagens = <_MensagemExibida>[];
+  final _controller = TextEditingController();
+  final _scrollController = ScrollController();
+  bool _enviando = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
-  void _scrollDown() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scroll.hasClients) _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
+  void _rolarParaFim() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
     });
   }
 
+  Future<void> _enviar(String texto) async {
+    final perguntaLimpa = texto.trim();
+    if (perguntaLimpa.isEmpty || _enviando) return;
+
+    final historico = _mensagens.map((m) => MensagemChat(role: m.role, content: m.content)).toList();
+
+    setState(() {
+      _mensagens.add(_MensagemExibida(role: 'user', content: perguntaLimpa));
+      _controller.clear();
+      _enviando = true;
+    });
+    _rolarParaFim();
+
+    final resultado = await AssistenteService().perguntar(perguntaLimpa, historico);
+
+    if (!mounted) return;
+    setState(() {
+      _enviando = false;
+      if (resultado.erro != null) {
+        _mensagens.add(_MensagemExibida(role: 'assistant', content: resultado.erro!, erro: true));
+      } else {
+        _mensagens.add(_MensagemExibida(
+          role: 'assistant',
+          content: resultado.resposta ?? 'Não consegui gerar uma resposta para essa pergunta.',
+          consultas: resultado.consultas,
+        ));
+      }
+    });
+    _rolarParaFim();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: const MenuButton(), title: const Text('Assistente IA')),
-      body: Column(children: [
-        Expanded(child: _msgs.isEmpty
-            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.smart_toy, size: 64, color: Color(0xFF0D2D6B)),
-                const SizedBox(height: 16),
-                const Text('Assistente FNI', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text('Pergunte sobre sua frota, custos,\nabastecimentos e manutencao.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600])),
-              ]))
-            : ListView.builder(
-                controller: _scroll,
-                padding: const EdgeInsets.all(16),
-                itemCount: _msgs.length + (_loading ? 1 : 0),
-                itemBuilder: (_, i) {
-                  if (i == _msgs.length) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Row(children: [
-                        CircleAvatar(backgroundColor: Color(0xFF0D2D6B),
-                            child: Icon(Icons.smart_toy, color: Colors.white, size: 16)),
-                        SizedBox(width: 8),
-                        SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                      ]),
-                    );
-                  }
-                  final msg = _msgs[i];
-                  final isUser = msg['role'] == 'user';
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!isUser) ...[
-                          const CircleAvatar(
-                            backgroundColor: Color(0xFF0D2D6B),
-                            child: Icon(Icons.smart_toy, color: Colors.white, size: 16),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Flexible(child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isUser ? const Color(0xFF0D2D6B) : Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(msg['text'] ?? '',
-                              style: TextStyle(color: isUser ? Colors.white : Colors.black87)),
-                        )),
-                        if (isUser) ...[
-                          const SizedBox(width: 8),
-                          const CircleAvatar(
-                            backgroundColor: Colors.grey,
-                            child: Icon(Icons.person, color: Colors.white, size: 16),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                },
-              )),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey[200]!)),
+      appBar: AppBar(title: const Text('Assistente FNI')),
+      body: Column(
+        children: [
+          Expanded(
+            child: _mensagens.isEmpty
+                ? _buildVazio()
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _mensagens.length + (_enviando ? 1 : 0),
+                    itemBuilder: (context, i) {
+                      if (i == _mensagens.length) return _buildBalaoCarregando();
+                      return _buildBalao(_mensagens[i]);
+                    },
+                  ),
           ),
-          child: Row(children: [
-            Expanded(child: TextField(
-              controller: _ctrl,
-              decoration: const InputDecoration(
-                hintText: 'Pergunte sobre sua frota...',
-                border: OutlineInputBorder(),
-                isDense: true,
+          _buildEntrada(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVazio() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pergunte sobre abastecimentos, custos, veículos, motoristas, manutenção ou '
+            'centros de custo da sua operação. Exemplos:',
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _perguntasSugeridas
+                .map((s) => ActionChip(
+                      label: Text(s, style: const TextStyle(fontSize: 12)),
+                      backgroundColor: const Color(0xFFF8FAFC),
+                      onPressed: () => _enviar(s),
+                    ))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalao(_MensagemExibida m) {
+    final ehUsuario = m.role == 'user';
+    final cor = ehUsuario ? const Color(0xFF0D2D6B) : (m.erro ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9));
+    final corTexto = ehUsuario ? Colors.white : (m.erro ? const Color(0xFFB91C1C) : const Color(0xFF1E293B));
+
+    return Align(
+      alignment: ehUsuario ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(m.content, style: TextStyle(color: corTexto, fontSize: 14)),
+            if (m.consultas != null && m.consultas!.isNotEmpty)
+              Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: Text(
+                    '${m.consultas!.length} consulta${m.consultas!.length > 1 ? 's' : ''} ao banco',
+                    style: TextStyle(fontSize: 11, color: corTexto.withOpacity(0.7)),
+                  ),
+                  children: m.consultas!
+                      .map((c) => Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 4),
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${c.erro != null ? "Erro: ${c.erro}" : "${c.linhas} linha(s)"} — ${c.sql}',
+                              style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                            ),
+                          ))
+                      .toList(),
+                ),
               ),
-              onSubmitted: (_) => _enviar(),
-              maxLines: null,
-            )),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: _loading ? null : _enviar,
-              icon: const Icon(Icons.send),
-              color: const Color(0xFF0D2D6B),
-            ),
-          ]),
+          ],
         ),
-      ]),
+      ),
+    );
+  }
+
+  Widget _buildBalaoCarregando() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(16)),
+        child: const Text('Consultando os dados da sua operação…',
+            style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+      ),
+    );
+  }
+
+  Widget _buildEntrada() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                enabled: !_enviando,
+                decoration: const InputDecoration(
+                  hintText: 'Pergunte algo sobre sua frota…',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                onSubmitted: _enviar,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              onPressed: _enviando ? null : () => _enviar(_controller.text),
+              icon: const Icon(Icons.send),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
