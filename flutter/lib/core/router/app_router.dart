@@ -8,6 +8,11 @@ import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/assistente/screens/assistente_screen.dart';
 import '../../features/assinatura/screens/assinatura_cliente_screen.dart';
 import '../../features/avaliacao/screens/avaliacao_screen.dart';
+import '../../features/financeiro/screens/financeiro_screen.dart';
+import '../../features/financeiro/screens/fatura_detalhe_screen.dart';
+import '../../features/financeiro/screens/ciclo_aberto_detalhe_screen.dart' show CicloAbertoClienteDetalheScreen;
+import '../../features/financeiro/screens/posto_cobranca_detalhe_screen.dart';
+import '../../features/inteligencia_rede/screens/inteligencia_rede_screen.dart';
 import '../../features/posto/screens/posto_home_screen.dart';
 import '../../features/posto/screens/posto_dashboard_screen.dart';
 import '../../features/posto/screens/meu_posto_screen.dart';
@@ -33,9 +38,24 @@ import '../../features/posto/screens/documentos_screen.dart';
 import '../../features/posto/screens/usuarios_screen.dart';
 import '../../features/posto/screens/usuario_novo_screen.dart';
 import '../../features/posto/screens/usuario_editar_screen.dart';
+import '../../features/usuarios/screens/usuarios_cliente_screen.dart';
+import '../../features/usuarios/screens/usuario_novo_cliente_screen.dart';
+import '../../features/motoristas/screens/motoristas_screen.dart';
+import '../../features/motoristas/screens/motorista_novo_screen.dart';
+import '../../features/motoristas/screens/motorista_editar_screen.dart';
+import '../../features/centros_custo/screens/centros_custo_screen.dart';
+import '../../features/centros_custo/screens/centro_custo_novo_screen.dart';
+import '../../features/centros_custo/screens/centro_custo_editar_screen.dart';
+import '../../features/postos/screens/postos_screen.dart';
+import '../../features/postos/screens/postos_buscar_screen.dart';
+import '../../features/postos/screens/posto_detalhe_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
+import '../../features/chamados/screens/chamados_cliente_screen.dart';
+import '../../features/chamados/screens/chamado_novo_cliente_screen.dart';
+import '../../features/clientes/screens/clientes_screen.dart';
+import '../../features/grupo_economico/screens/grupo_economico_screen.dart';
 import '../widgets/em_construcao_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sessao_provider.dart';
@@ -90,7 +110,13 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         }
 
         // Camada 4 — perfil (posto x demais).
-        final estaEmRotaPosto = loc.startsWith('/posto');
+        // Hotfix (achado real: "Ver histórico" de uma cobrança levava pro
+        // Dashboard): `loc.startsWith('/posto')` também batia em
+        // '/postos-cobranca/...' e '/postos' (Postos Revendedores, rota do
+        // CLIENTE) — "posto" é prefixo de string dessas duas. Trocado por
+        // comparação exata ou com barra, que só bate nas rotas de verdade
+        // do shell /posto/... .
+        final estaEmRotaPosto = loc == '/posto' || loc.startsWith('/posto/');
         if (sessao.ehPosto && !estaEmRotaPosto) return '/posto';
         if (!sessao.ehPosto && estaEmRotaPosto) return '/';
 
@@ -116,18 +142,76 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/assistente', builder: (_, __) => const AssistenteClienteScreen()),
             GoRoute(path: '/assinatura', builder: (_, __) => const AssinaturaClienteScreen()),
             GoRoute(path: '/avaliar', builder: (_, __) => const AvaliacaoScreen()),
-            GoRoute(path: '/financeiro', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Painel Financeiro')),
-            GoRoute(path: '/documentos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Documentos')),
-            GoRoute(path: '/inteligencia-rede', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Inteligência de Rede')),
-            GoRoute(path: '/lgpd', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Privacidade (LGPD)')),
-            GoRoute(path: '/chamados', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Chamados')),
-            GoRoute(path: '/clientes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Clientes')),
-            GoRoute(path: '/grupo-economico', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Grupo Econômico')),
-            GoRoute(path: '/usuarios', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Usuários')),
-            GoRoute(path: '/motoristas', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Motoristas')),
+            GoRoute(path: '/financeiro', builder: (_, __) => const FinanceiroScreen()),
+            GoRoute(
+              path: '/faturas/:id',
+              builder: (_, state) => FaturaDetalheScreen(id: state.pathParameters['id']!),
+            ),
+            GoRoute(
+              path: '/ciclos-abertos/:negociacaoId',
+              builder: (_, state) =>
+                  CicloAbertoClienteDetalheScreen(negociacaoId: state.pathParameters['negociacaoId']!),
+            ),
+            // Sem :id na URL de propósito — os dados já estão carregados na
+            // tela de Financeiro (ver comentário em
+            // posto_cobranca_detalhe_screen.dart), passados via `extra` do
+            // GoRouter em vez de uma consulta nova ao banco.
+            GoRoute(
+              path: '/postos-cobranca/detalhe',
+              builder: (_, state) => state.extra as PostoCobrancaDetalheScreen,
+            ),
+            // Fase FLT-3 — Documentos (cliente): porta 1:1 direta, sem tela
+            // nova. O próprio documentos_provider.dart já documenta que é
+            // "mesma tela pra posto e cliente na web" (nenhum campo/fluxo
+            // bifurca por segmento — lê sessao.empresaId e pronto).
+            GoRoute(path: '/documentos', builder: (_, __) => const DocumentosScreen()),
+            GoRoute(path: '/inteligencia-rede', builder: (_, __) => const InteligenciaRedeScreen()),
+            // Fase FLT-3 — Privacidade (LGPD) cliente: porta 1:1 direta,
+            // mesmo espírito de Documentos. O próprio lgpd_provider.dart já
+            // documenta que na web é uma ÚNICA rota /lgpd compartilhada por
+            // cliente/posto (conteúdo idêntico, só muda onde o link aparece
+            // no menu) — e o provider só lê `sessao.email`/`empresasIds`,
+            // sem bifurcação por segmento.
+            GoRoute(path: '/lgpd', builder: (_, __) => const LgpdScreen()),
+            // Fase FLT-3 — Chamados (cliente): telas próprias (rotas sem
+            // prefixo /posto), mas providers/service 100% compartilhados
+            // com a FLT-2 (ver comentário em chamados_cliente_screen.dart).
+            // ChamadoDetalheScreen é reaproveitada DIRETO — não tem rota
+            // hardcoded nenhuma dentro dela.
+            GoRoute(path: '/chamados', builder: (_, __) => const ChamadosClienteScreen()),
+            GoRoute(path: '/chamados/novo', builder: (_, __) => const ChamadoNovoClienteScreen()),
+            GoRoute(path: '/chamados/:id', builder: (_, state) => ChamadoDetalheScreen(id: state.pathParameters['id']!)),
+            GoRoute(path: '/clientes', builder: (_, __) => const ClientesScreen()),
+            GoRoute(path: '/grupo-economico', builder: (_, __) => const GrupoEconomicoScreen()),
+            // Fase FLT-3 — Usuários (cliente): telas próprias (mesmo
+            // espírito de Chamados), providers/service compartilhados com
+            // a FLT-2. UsuarioEditarScreen reaproveitada DIRETO — não tem
+            // rota hardcoded dentro dela.
+            GoRoute(path: '/usuarios', builder: (_, __) => const UsuariosClienteScreen()),
+            GoRoute(path: '/usuarios/novo', builder: (_, __) => const UsuarioNovoClienteScreen()),
+            GoRoute(
+              path: '/usuarios/:email',
+              builder: (_, state) => UsuarioEditarScreen(email: Uri.decodeComponent(state.pathParameters['email']!)),
+            ),
+            GoRoute(path: '/motoristas', builder: (_, __) => const MotoristasScreen()),
+            GoRoute(path: '/motoristas/novo', builder: (_, __) => const MotoristaNovoScreen()),
+            GoRoute(
+              path: '/motoristas/:id',
+              builder: (_, state) => MotoristaEditarScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(path: '/veiculos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Veículos')),
-            GoRoute(path: '/centros-custo', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Centros de Custo')),
-            GoRoute(path: '/postos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Postos Revendedores')),
+            GoRoute(path: '/centros-custo', builder: (_, __) => const CentrosCustoScreen()),
+            GoRoute(path: '/centros-custo/novo', builder: (_, __) => const CentroCustoNovoScreen()),
+            GoRoute(
+              path: '/centros-custo/:id',
+              builder: (_, state) => CentroCustoEditarScreen(id: state.pathParameters['id']!),
+            ),
+            GoRoute(path: '/postos', builder: (_, __) => const PostosScreen()),
+            GoRoute(path: '/postos/buscar', builder: (_, __) => const PostosBuscarScreen()),
+            GoRoute(
+              path: '/postos/:cnpj',
+              builder: (_, state) => PostoDetalheScreen(cnpj: state.pathParameters['cnpj']!),
+            ),
             GoRoute(path: '/abastecimentos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Abastecimentos')),
             GoRoute(path: '/notas-fiscais', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Notas Fiscais')),
             GoRoute(path: '/anomalias', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Anomalias')),

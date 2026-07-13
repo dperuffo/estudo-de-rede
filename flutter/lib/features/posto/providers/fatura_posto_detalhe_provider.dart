@@ -53,6 +53,12 @@ class FaturaPostoDetalhe {
   final int quantidadeAbastecimentos;
   final String status;
   final String? clienteNome;
+  // Fase FLT-3 — adicionado pra reaproveitar esta MESMA tela/provider na
+  // visão Cliente (Cobrança em Aberto → "Ver detalhamento" de uma fatura):
+  // `faturas_postos` não tem posto_nome denormalizado (só cliente_nome),
+  // então buscamos via `nome_empresa_publico` (RLS-safe) — igual à web
+  // resolve nomes cruzados sem depender de RLS direta em `empresas`.
+  final String? postoNome;
   final List<ItemExtratoAbastecimento> itens;
 
   const FaturaPostoDetalhe({
@@ -66,6 +72,7 @@ class FaturaPostoDetalhe {
     required this.quantidadeAbastecimentos,
     required this.status,
     this.clienteNome,
+    this.postoNome,
     required this.itens,
   });
 }
@@ -77,13 +84,19 @@ final faturaPostoDetalheProvider =
   final fatura = await supabase
       .from('faturas_postos')
       .select('id, numero_fatura, periodo_inicio, periodo_fim, vencimento, valor_total, '
-          'volume_total, quantidade_abastecimentos, status, cliente_nome')
+          'volume_total, quantidade_abastecimentos, status, cliente_nome, empresa_posto_id')
       .eq('id', faturaId)
       .maybeSingle();
   if (fatura == null) return null;
 
   final itensRaw = await supabase.rpc('abastecimentos_da_fatura', params: {'p_fatura_id': faturaId}) as List;
   final itens = itensRaw.map((m) => ItemExtratoAbastecimento.fromMap(m as Map<String, dynamic>)).toList();
+
+  String? postoNome;
+  final empresaPostoId = fatura['empresa_posto_id'] as String?;
+  if (empresaPostoId != null) {
+    postoNome = await supabase.rpc('nome_empresa_publico', params: {'p_empresa_id': empresaPostoId}) as String?;
+  }
 
   return FaturaPostoDetalhe(
     id: fatura['id'].toString(),
@@ -96,6 +109,7 @@ final faturaPostoDetalheProvider =
     quantidadeAbastecimentos: (fatura['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
     status: fatura['status'] as String? ?? '',
     clienteNome: fatura['cliente_nome'] as String?,
+    postoNome: postoNome,
     itens: itens,
   );
 });

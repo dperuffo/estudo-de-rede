@@ -1,347 +1,500 @@
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../../core/services/api_service.dart';
-import '../../../core/widgets/menu_button.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import '../../posto/providers/financeiro_posto_provider.dart'
+    show IndicadorProvedor, LinhaContraparte, FaturaFinanceiro;
+import '../providers/financeiro_provider.dart';
+import 'posto_cobranca_detalhe_screen.dart';
 
-class FinanceiroScreen extends StatefulWidget {
-  const FinanceiroScreen({super.key});
-  @override State<FinanceiroScreen> createState() => _State();
+final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+
+const _corMeioPagamento = <String, Color>{
+  'profrotas': Color(0xFF2563EB),
+  'Valecard': Color(0xFF7C3AED),
+  'RedeFrota': Color(0xFFEA580C),
+  'TicketLog': Color(0xFF0D9488),
+  'Veloe': Color(0xFFDB2777),
+};
+const _corMeioPagamentoFallback = Color(0xFF64748B);
+String _nomeProvedor(String p) => p == 'profrotas' ? 'PróFrotas' : p;
+
+String _dataBr(String iso) {
+  final d = DateTime.tryParse(iso);
+  if (d == null) return iso;
+  return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
-class _State extends State<FinanceiroScreen> {
-  Map<String, dynamic>? _dados;
-  bool _loading = true;
-  String? _mesSel;
+String _mesLabel(String isoMes) {
+  // "mes" volta como yyyy-MM-dd (1º dia do mês) da RPC.
+  final d = DateTime.tryParse(isoMes);
+  if (d == null) return isoMes;
+  const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return '${meses[d.month - 1]}/${d.year.toString().substring(2)}';
+}
 
-  final List<String> _meses = _gerarMeses();
-
-  static List<String> _gerarMeses() {
-    final now = DateTime.now();
-    return List.generate(12, (i) {
-      final d = DateTime(now.year, now.month - i, 1);
-      return '${d.year}-${d.month.toString().padLeft(2, '0')}';
-    });
-  }
-
-  @override void initState() {
-    super.initState();
-    _mesSel = _meses.first;
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    try {
-      final r = await ApiService().get('/financeiro/resumo',
-          params: _mesSel != null ? {'mes': _mesSel} : {});
-      setState(() => _dados = r);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  String _nomeMes(String mes) {
-    final meses = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    final parts = mes.split('-');
-    return '${meses[int.parse(parts[1])]}/${parts[0].substring(2)}';
-  }
+// Fase FLT-3 — reescrita completa (a versão antiga usava ApiService, o
+// backend Python legado sem auth funcional — ver README). Porta reduzida
+// de financeiro/page.tsx pro Flutter (visão Cliente). Ver escopo completo
+// (o que ficou de fora) no comentário de financeiro_provider.dart.
+class FinanceiroScreen extends ConsumerWidget {
+  const FinanceiroScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final fmt  = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    final kpis = _dados?['kpis'] as Map? ?? {};
-    final porDia   = (_dados?['por_dia']   as List?) ?? [];
-    final porComb  = (_dados?['por_combustivel'] as List?) ?? [];
-    final porVeic  = (_dados?['por_veiculo'] as List?) ?? [];
-    final porVeicM = (_dados?['por_veiculo_manut'] as List?) ?? [];
-    final topMun   = (_dados?['top_municipios'] as List?) ?? [];
-    final periodo  = _dados?['periodo'] as Map? ?? {};
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(financeiroClienteProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: const MenuButton(),
-        title: const Text('Painel Financeiro'),
-        actions: [
-          DropdownButton<String>(
-            value: _mesSel,
-            dropdownColor: const Color(0xFF0D2D6B),
-            style: const TextStyle(color: Colors.white),
-            items: _meses.map((m) => DropdownMenuItem(
-              value: m, child: Text(_nomeMes(m)))).toList(),
-            onChanged: (v) { setState(() => _mesSel = v); _load(); },
-          ),
-          const SizedBox(width: 8),
-        ],
+      appBar: AppBar(title: const Text('Painel Financeiro')),
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
+        data: (dados) {
+          if (dados == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
+          return _buildConteudo(context, dados);
+        },
       ),
-      body: _loading ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(onRefresh: _load, child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-
-                // Card total geral
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0D2D6B), Color(0xFF1565C0)],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(children: [
-                    Text('${periodo["inicio"] ?? ""} — ${periodo["fim"] ?? ""}',
-                        style: const TextStyle(color: Colors.white60, fontSize: 12)),
-                    const SizedBox(height: 8),
-                    Text('Total Geral', style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                    Text(fmt.format(kpis['total_geral'] ?? 0),
-                        style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                      _metricaBranca('Combustivel', fmt.format(kpis['total_comb'] ?? 0),
-                          '${kpis["pct_comb"]}%'),
-                      Container(width: 1, height: 40, color: Colors.white24),
-                      _metricaBranca('Manutencao', fmt.format(kpis['total_manut'] ?? 0),
-                          '${kpis["pct_manut"]}%'),
-                    ]),
-                  ]),
-                ),
-                const SizedBox(height: 16),
-
-                // KPIs secundários
-                Row(children: [
-                  _kpi('Abastecimentos', '${kpis["n_abastec"] ?? 0}', Colors.blue),
-                  const SizedBox(width: 8),
-                  _kpi('Litros', '${(kpis["total_litros"] ?? 0).toStringAsFixed(0)} L', Colors.cyan),
-                  const SizedBox(width: 8),
-                  _kpi('Veiculos', '${kpis["n_veiculos"] ?? 0}', Colors.teal),
-                ]),
-                const SizedBox(height: 8),
-                Row(children: [
-                  _kpi('Preco Medio/L', fmt.format(kpis['preco_medio'] ?? 0), Colors.orange),
-                  const SizedBox(width: 8),
-                  _kpi('Manutencoes', '${kpis["n_manut"] ?? 0}', Colors.red),
-                  const SizedBox(width: 8),
-                  _kpi('Custo/Veiculo', fmt.format((kpis['total_geral'] ?? 0) / (kpis['n_veiculos'] ?? 1).toDouble()), Colors.purple),
-                ]),
-                const SizedBox(height: 24),
-
-                // Gráfico pizza combustivel vs manutencao
-                if ((kpis['total_geral'] ?? 0) > 0) ...[
-                  _secao('Distribuicao de custos'),
-                  _barraDistribuicao('Combustivel', (kpis['total_comb'] ?? 0).toDouble(),
-                      (kpis['total_geral'] ?? 1).toDouble(), fmt, const Color(0xFF1565C0),
-                      '${kpis["pct_comb"]}% do total'),
-                  const SizedBox(height: 8),
-                  _barraDistribuicao('Manutencao', (kpis['total_manut'] ?? 0).toDouble(),
-                      (kpis['total_geral'] ?? 1).toDouble(), fmt, Colors.red,
-                      '${kpis["pct_manut"]}% do total · ${kpis["n_manut"]} registros'),
-                  const SizedBox(height: 24),
-                ],
-
-                // Gráfico barras por dia
-                if (porDia.isNotEmpty) ...[
-                  _secao('Gasto diario (R\$)'),
-                  SizedBox(height: 180, child: _graficoBarras(porDia, fmt)),
-                  const SizedBox(height: 24),
-                ],
-
-                // Por combustível
-                if (porComb.isNotEmpty) ...[
-                  _secao('Por combustivel'),
-                  ...porComb.map((c) => _barraHorizontal(
-                    c['item_nome'] ?? '-',
-                    (c['gasto'] as num? ?? 0).toDouble(),
-                    (kpis['total_comb'] as num? ?? 1).toDouble(),
-                    fmt,
-                    '${(c["litros"] ?? 0).toStringAsFixed(0)} L · R\$ ${(c["preco_medio"] ?? 0).toStringAsFixed(3)}/L',
-                    const Color(0xFF1565C0),
-                  )),
-                  const SizedBox(height: 24),
-                ],
-
-                // Top veículos combustível
-                if (porVeic.isNotEmpty) ...[
-                  _secao('Top veiculos — Combustivel'),
-                  ...porVeic.take(5).toList().asMap().entries.map((e) =>
-                    _itemRanking(e.key+1, e.value['veiculo_placa']??'-',
-                      fmt.format(e.value['gasto']??0),
-                      '${(e.value["litros"]??0).toStringAsFixed(0)} L · ${e.value["n"]} abast.',
-                      Colors.blue)),
-                  const SizedBox(height: 24),
-                ],
-
-                // Top veículos manutenção
-                if (porVeicM.isNotEmpty) ...[
-                  _secao('Top veiculos — Manutencao'),
-                  ...porVeicM.asMap().entries.map((e) =>
-                    _itemRanking(e.key+1, e.value['placa']??'-',
-                      fmt.format(e.value['gasto']??0),
-                      '${e.value["n"]} manutencao(oes)',
-                      Colors.red)),
-                  const SizedBox(height: 24),
-                ],
-
-                // Top municípios
-                if (topMun.isNotEmpty) ...[
-                  _secao('Top municipios por gasto'),
-                  ...topMun.asMap().entries.map((e) =>
-                    _itemRanking(e.key+1,
-                      '${e.value["pv_municipio"]??"-"}/${e.value["pv_uf"]??"-"}',
-                      fmt.format(e.value['gasto']??0),
-                      '${e.value["n"]} abastecimentos',
-                      Colors.teal)),
-                ],
-              ],
-            )),
     );
   }
 
-  Widget _secao(String t) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Text(t, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0D2D6B))),
-  );
-
-  Widget _metricaBranca(String label, String valor, String pct) => Column(children: [
-    Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
-    Text(valor, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-    Text(pct, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-  ]);
-
-  Widget _kpi(String label, String value, Color color) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-        const SizedBox(height: 2),
-        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-      ]),
-    ),
-  );
-
-  Widget _barraDistribuicao(String label, double valor, double total, NumberFormat fmt, Color color, String sub) =>
-    Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(width: 8),
-          Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14)),
-          const Spacer(),
-          Text(fmt.format(valor), style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16)),
-        ]),
-        const SizedBox(height: 8),
-        ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(
-          value: total > 0 ? valor / total : 0,
-          backgroundColor: Colors.grey[200],
-          valueColor: AlwaysStoppedAnimation(color),
-          minHeight: 12,
-        )),
-        const SizedBox(height: 4),
-        Text(sub, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-      ]),
-    );
-
-  Widget _legenda(Color color, String label) => Row(children: [
-    Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
-    const SizedBox(width: 6),
-    Text(label, style: const TextStyle(fontSize: 13)),
-  ]);
-
-  Widget _graficoBarras(List dados, NumberFormat fmt) {
-    if (dados.isEmpty) return const SizedBox();
-    final maxVal = dados.map((d) => (d['gasto'] as num? ?? 0).toDouble()).reduce((a, b) => a > b ? a : b);
-    return BarChart(BarChartData(
-      maxY: maxVal * 1.2,
-      barGroups: dados.asMap().entries.map((e) => BarChartGroupData(
-        x: e.key,
-        barRods: [BarChartRodData(
-          toY: (e.value['gasto'] as num? ?? 0).toDouble(),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-            begin: Alignment.bottomCenter, end: Alignment.topCenter,
+  Widget _buildConteudo(BuildContext context, FinanceiroClienteDados dados) {
+    final ind = dados.indicadores;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: [
+        const Text('Custos do mês atual, consolidado por meio de pagamento e cobrança em aberto com os postos.',
+            style: TextStyle(color: Colors.grey, fontSize: 13)),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 1.9,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          children: [
+            _indicador('Custo total', _moeda.format(ind.custoTotal)),
+            _indicador('Custo por km', ind.custoPorKm == null ? '—' : '${_moeda.format(ind.custoPorKm)}/km'),
+            _indicador('Orçamento planejado', _moeda.format(ind.orcamentoPlanejado)),
+            _indicador('Saldo do orçamento', _moeda.format(ind.saldoOrcamento),
+                cor: ind.saldoOrcamento < 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A)),
+            _indicador('Combustível', _moeda.format(ind.custoCombustivel)),
+            _indicador('Manutenção', _moeda.format(ind.custoManutencao)),
+            _indicador('Custos fixos', _moeda.format(ind.custoFixos)),
+          ],
+        ),
+        if (dados.evolucao.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          const Text('Evolução mensal (6 meses)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 4),
+          const Text('Combustível, manutenção e custos fixos por mês.',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 10),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 16, 16, 8),
+              child: _graficoEvolucao(dados.evolucao),
+            ),
           ),
-          width: 10,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-        )],
-      )).toList(),
-      titlesData: FlTitlesData(
-        leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        bottomTitles: AxisTitles(sideTitles: SideTitles(
-          showTitles: true, reservedSize: 20,
-          getTitlesWidget: (v, _) {
-            final idx = v.toInt();
-            if (idx < 0 || idx >= dados.length) return const SizedBox();
-            final dia = (dados[idx]['dia'] as String? ?? '').substring(8);
-            return Text(dia, style: const TextStyle(fontSize: 9));
-          },
-        )),
-      ),
-      borderData: FlBorderData(show: false),
-      gridData: FlGridData(show: true, drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1)),
-      barTouchData: BarTouchData(
-        touchTooltipData: BarTouchTooltipData(
-          getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-            fmt.format(rod.toY), const TextStyle(color: Colors.white, fontSize: 11)),
+        ],
+        if (dados.porProvedor.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          const Text('Consolidado por meio de pagamento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 4),
+          const Text('Abastecimentos do mês, por meio de pagamento usado.',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 10),
+          if (dados.porProvedor.length > 1)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: _donutMeioPagamento(dados.porProvedor),
+              ),
+            ),
+          const SizedBox(height: 8),
+          ...dados.porProvedor.map((p) => Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: (_corMeioPagamento[p.provedor] ?? _corMeioPagamentoFallback).withOpacity(0.15),
+                    child: Text(_nomeProvedor(p.provedor).substring(0, 1),
+                        style: const TextStyle(color: Colors.black87, fontSize: 13)),
+                  ),
+                  title: Text(_nomeProvedor(p.provedor)),
+                  subtitle: Text('${p.qtdAbastecimentos} abastecimento(s) · ${p.litros.toStringAsFixed(0)} L'),
+                  trailing: Text(_moeda.format(p.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              )),
+        ],
+        const SizedBox(height: 20),
+        _buildCobrancaEmAberto(context, dados.linhasPorPosto, dados.faturas),
+        const SizedBox(height: 20),
+        _buildUltimasFaturas(context, dados.faturas),
+      ],
+    );
+  }
+
+  // Cobrança em Aberto (visão Cliente) — mesmo espírito de Ciclos por
+  // Cliente do Financeiro Posto, com posto no lugar de cliente. "Ver
+  // detalhamento" (ciclo em andamento) leva pro CicloAbertoClienteDetalheScreen
+  // (rota /ciclos-abertos/:negociacaoId). "Ver histórico" (pedido do
+  // Daniel) leva pro PostoCobrancaDetalheScreen novo, com TODAS as faturas
+  // desse posto — escopo mais enxuto que /posto/clientes/:id (sem
+  // cadastro/negociações, que dependem da futura tela Postos
+  // Revendedores).
+  Widget _buildCobrancaEmAberto(BuildContext context, List<LinhaContraparte> linhas, List<FaturaFinanceiro> todasFaturas) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Cobrança em Aberto', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 4),
+        const Text('Ciclo atual (em andamento) e resumo de faturas com cada posto.',
+            style: TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 10),
+        if (linhas.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('Nenhum posto com ciclo ainda.', style: TextStyle(color: Colors.grey)),
+          )
+        else
+          ...linhas.map((l) => _linhaContraparte(context, l, todasFaturas)),
+      ],
+    );
+  }
+
+  // Pedido do Daniel — lista de faturas individuais (não só o resumo
+  // agrupado por posto acima), cada uma levando pro extrato completo em
+  // FaturaDetalheScreen (rota /faturas/:id). Mostra só as mais recentes
+  // pra não sobrecarregar a tela (mesmo limite "recente" usado noutras
+  // listas do app).
+  Widget _buildUltimasFaturas(BuildContext context, List<FaturaFinanceiro> faturas) {
+    final recentes = faturas.take(10).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Últimas faturas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 4),
+        const Text('Toque numa fatura pra ver o extrato de abastecimentos.',
+            style: TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 10),
+        if (recentes.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('Nenhuma fatura ainda.', style: TextStyle(color: Colors.grey)),
+          )
+        else
+          ...recentes.map((f) => _linhaFatura(context, f)),
+      ],
+    );
+  }
+
+  Widget _linhaFatura(BuildContext context, FaturaFinanceiro f) {
+    final cor = switch (f.status) {
+      'paga' => const Color(0xFF16A34A),
+      'cancelada' => Colors.grey,
+      _ => const Color(0xFF92400E),
+    };
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => context.push('/faturas/${f.id}'),
+        title: Text(f.clienteNome ?? '—'),
+        subtitle: Text('Vence ${_dataBr(f.vencimento)}'),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(_moeda.format(f.valorTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(f.status, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
+          ],
         ),
       ),
-    ));
+    );
   }
 
-  Widget _barraHorizontal(String label, double valor, double total, NumberFormat fmt, String sub, Color color) {
-    final pct = total > 0 ? valor / total : 0.0;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-          Text(fmt.format(valor), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-        ]),
-        const SizedBox(height: 4),
-        ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(
-          value: pct, backgroundColor: Colors.grey[200],
-          valueColor: AlwaysStoppedAnimation(color), minHeight: 8,
+  Widget _linhaContraparte(BuildContext context, LinhaContraparte l, List<FaturaFinanceiro> todasFaturas) {
+    final ciclo = l.cicloAtual;
+    final faturasDoPosto = todasFaturas.where((f) => f.empresaClienteId == l.contraparteId).toList();
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.contraparteNome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            if (l.cicloFaturamentoDias > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text('Ciclo ${l.cicloFaturamentoDias}+${l.prazoVencimentoDias} dias',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              ),
+            const SizedBox(height: 8),
+            if (ciclo != null) ...[
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text('Em andamento',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              Text(
+                '${ciclo.periodoInicio != null ? _dataBr(ciclo.periodoInicio!) : '—'} – ${ciclo.periodoFimPrevisto != null ? _dataBr(ciclo.periodoFimPrevisto!) : '—'} · '
+                '${ciclo.quantidadeAbastecimentos} abastecimento${ciclo.quantidadeAbastecimentos == 1 ? '' : 's'} · '
+                '${_moeda.format(ciclo.valorAcumulado)}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              if (ciclo.quantidadePendenteNfe > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${_moeda.format(ciclo.valorPendenteNfe)} (${ciclo.quantidadePendenteNfe}) esperando NF-e',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626)),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: GestureDetector(
+                  onTap: () => context.push('/ciclos-abertos/${ciclo.negociacaoId}'),
+                  child: const Text('Ver detalhamento',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ] else
+              const Text('Sem ciclo em andamento', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (l.contagem.vencida > 0) _chipContagem('${l.contagem.vencida} vencida(s)', const Color(0xFFDC2626)),
+                if (l.contagem.aberta > 0) _chipContagem('${l.contagem.aberta} em aberto', const Color(0xFF64748B)),
+                if (l.contagem.paga > 0) _chipContagem('${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
+                if (l.contagem.vencida == 0 && l.contagem.aberta == 0 && l.contagem.paga == 0)
+                  const Text('Nenhuma ainda', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+            if (l.valorEmAberto > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    children: [
+                      const TextSpan(text: 'Em aberto: '),
+                      TextSpan(
+                          text: _moeda.format(l.valorEmAberto), style: const TextStyle(fontWeight: FontWeight.bold)),
+                      if (l.valorVencido > 0)
+                        TextSpan(
+                          text: ' (${_moeda.format(l.valorVencido)} vencido)',
+                          style: const TextStyle(color: Color(0xFFDC2626)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.push(
+                  '/postos-cobranca/detalhe',
+                  extra: PostoCobrancaDetalheScreen(
+                    postoNome: l.contraparteNome,
+                    cicloFaturamentoDias: l.cicloFaturamentoDias,
+                    prazoVencimentoDias: l.prazoVencimentoDias,
+                    cicloAtual: l.cicloAtual,
+                    faturas: faturasDoPosto,
+                  ),
+                ),
+                child: const Text('Ver histórico'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // BarChart agrupado (3 barras/mês) — combustível/manutenção/custos fixos.
+  Widget _graficoEvolucao(List<PontoEvolucaoFinanceira> pontos) {
+    const corCombustivel = Color(0xFF2563EB);
+    const corManutencao = Color(0xFFEA580C);
+    const corFixos = Color(0xFF64748B);
+    final maxVal = pontos
+        .map((p) => [p.custoCombustivel, p.custoManutencao, p.custoFixos].reduce((a, b) => a > b ? a : b))
+        .fold<double>(0, (a, b) => a > b ? a : b);
+
+    return Column(children: [
+      SizedBox(
+        height: 200,
+        child: BarChart(BarChartData(
+          maxY: maxVal <= 0 ? 1 : maxVal * 1.2,
+          barGroups: pontos.asMap().entries.map((e) {
+            final i = e.key;
+            final p = e.value;
+            return BarChartGroupData(x: i, barsSpace: 3, barRods: [
+              BarChartRodData(
+                  toY: p.custoCombustivel,
+                  color: corCombustivel,
+                  width: 6,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+              BarChartRodData(
+                  toY: p.custoManutencao,
+                  color: corManutencao,
+                  width: 6,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+              BarChartRodData(
+                  toY: p.custoFixos,
+                  color: corFixos,
+                  width: 6,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+            ]);
+          }).toList(),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 44,
+              getTitlesWidget: (v, _) => Text('R\$${v.round()}', style: const TextStyle(fontSize: 9)),
+            )),
+            bottomTitles: AxisTitles(sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              getTitlesWidget: (v, _) {
+                final idx = v.toInt();
+                if (idx < 0 || idx >= pontos.length) return const SizedBox();
+                return Text(_mesLabel(pontos[idx].mes), style: const TextStyle(fontSize: 9));
+              },
+            )),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: false),
+          gridData: FlGridData(
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
+          ),
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              // Achado do Daniel — texto colorido em cima do fundo escuro
+              // padrão do tooltip ficava ilegível. Corrigido: fundo escuro
+              // explícito + texto branco, cor só na bolinha.
+              getTooltipColor: (_) => const Color(0xFF1E293B),
+              getTooltipItem: (group, groupIdx, rod, rodIdx) {
+                const labels = ['Combustível', 'Manutenção', 'Fixos'];
+                final cores = [corCombustivel, corManutencao, corFixos];
+                return BarTooltipItem(
+                  '● ',
+                  TextStyle(color: cores[rodIdx], fontSize: 11),
+                  children: [
+                    TextSpan(
+                      text: '${labels[rodIdx]}\n${_moeda.format(rod.toY)}',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
         )),
-        const SizedBox(height: 2),
-        Text(sub, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ),
+      const SizedBox(height: 8),
+      Wrap(spacing: 12, children: const [
+        _Legenda(cor: corCombustivel, rotulo: 'Combustível'),
+        _Legenda(cor: corManutencao, rotulo: 'Manutenção'),
+        _Legenda(cor: corFixos, rotulo: 'Custos fixos'),
+      ]),
+    ]);
+  }
+
+  Widget _donutMeioPagamento(List<IndicadorProvedor> lista) {
+    return SizedBox(
+      height: 170,
+      child: Row(children: [
+        Expanded(
+          child: PieChart(PieChartData(
+            sections: lista.map((p) {
+              final totalGeral = lista.fold<double>(0, (s, x) => s + x.valorTotal);
+              final pct = totalGeral > 0 ? (p.valorTotal / totalGeral) * 100 : 0.0;
+              return PieChartSectionData(
+                value: p.valorTotal,
+                title: '${pct.toStringAsFixed(0)}%',
+                color: _corMeioPagamento[p.provedor] ?? _corMeioPagamentoFallback,
+                radius: 55,
+                titleStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+              );
+            }).toList(),
+            centerSpaceRadius: 30,
+            sectionsSpace: 2,
+          )),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: lista.map((p) {
+              final cor = _corMeioPagamento[p.provedor] ?? _corMeioPagamentoFallback;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  Container(width: 10, height: 10, decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(_nomeProvedor(p.provedor),
+                        style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                  ),
+                ]),
+              );
+            }).toList(),
+          ),
+        ),
       ]),
     );
   }
 
-  Widget _itemRanking(int pos, String titulo, String valor, String sub, Color color) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: Colors.grey.withOpacity(0.2)),
-    ),
-    child: Row(children: [
-      Container(width: 28, height: 28,
-        decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(14)),
-        child: Center(child: Text('$pos', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)))),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        Text(sub, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-      ])),
-      Text(valor, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13)),
-    ]),
-  );
+  Widget _chipContagem(String texto, Color cor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      child: Text(texto, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Widget _indicador(String label, String valor, {Color? cor}) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, color: Colors.grey)),
+            const SizedBox(height: 4),
+            Text(valor,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: cor),
+                overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Legenda extends StatelessWidget {
+  final Color cor;
+  final String rotulo;
+  const _Legenda({required this.cor, required this.rotulo});
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 10, height: 10, decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
+        const SizedBox(width: 4),
+        Text(rotulo, style: const TextStyle(fontSize: 11)),
+      ]);
 }

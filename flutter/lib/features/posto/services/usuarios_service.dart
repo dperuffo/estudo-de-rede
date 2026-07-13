@@ -17,15 +17,22 @@ class UsuariosService {
     headers: {'Content-Type': 'application/json'},
   ));
 
-  // Convites nesta tela são sempre pro time do próprio posto — perfil
-  // 'posto' e segmento 'Revenda' fixos (sem dropdown, diferente da web,
-  // que também atende Frota/admin na mesma tela).
+  // Convites nesta tela são sempre pro time da própria empresa — sem
+  // dropdown de perfil/segmento como a web tem (que atende admin também
+  // na mesma tela). `perfil`/`segmento` têm default 'posto'/'Revenda'
+  // (comportamento original, usado pelo UsuarioNovoScreen do Posto);
+  // Fase FLT-3 — UsuarioNovoClienteScreen passa 'gestor_frota'/'Frota'
+  // (mesmo default que a web usa pro perfil de acesso — ver
+  // PERFIL_LABEL/PERFIS em constants.ts — quando quem convida não é
+  // admin escolhendo outro perfil).
   Future<String?> convidarUsuario({
     required String empresaId,
     required String nome,
     required String email,
     String? cpf,
     String? telefone,
+    String perfil = 'posto',
+    String segmento = 'Revenda',
   }) async {
     final nomeLimpo = nome.trim();
     final emailLimpo = email.trim().toLowerCase();
@@ -43,8 +50,8 @@ class UsuariosService {
           'nome': nomeLimpo,
           'cpf': cpf,
           'telefone': telefone,
-          'perfil': 'posto',
-          'segmento': 'Revenda',
+          'perfil': perfil,
+          'segmento': segmento,
           'empresa_id': empresaId,
         },
       );

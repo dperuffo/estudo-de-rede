@@ -186,11 +186,16 @@ class DashboardScreen extends ConsumerWidget {
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
+              // Achado do Daniel — texto colorido (igual à cor da barra) em
+              // cima do fundo escuro padrão do tooltip do fl_chart ficava
+              // ilegível. Corrigido em todos os gráficos de barra/linha do
+              // app: texto sempre branco, fundo escuro explícito.
+              getTooltipColor: (_) => const Color(0xFF1E293B),
               getTooltipItem: (group, groupIdx, rod, rodIdx) {
                 final p = pontos[group.x];
                 return BarTooltipItem(
                   '${_numero.format(p.litros.round())} L\n${_moeda.format(p.valor)}',
-                  const TextStyle(color: Color(0xFF1565C0), fontSize: 11, fontWeight: FontWeight.bold),
+                  const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                 );
               },
             ),

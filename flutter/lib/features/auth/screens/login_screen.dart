@@ -56,11 +56,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _erro = null;
     });
     try {
+      // Fase FLT-3 (hotfix) — signInWithOAuth faz um redirect de página
+      // cheia pro Google e volta; esta chamada só dispara o redirect (a
+      // aba sai do app). Quando o Google devolve o controle, o app
+      // recarrega do zero e o redirect do GoRouter (app_router.dart) já
+      // vê a sessão nova e manda pra "/" sozinho — não precisamos (nem
+      // conseguimos) navegar manualmente aqui depois disso.
       await AuthService().signInWithGoogle();
-      ref.invalidate(sessaoProvider);
-      if (mounted) context.go('/');
     } catch (e) {
-      setState(() => _erro = 'Não foi possível entrar com Google: $e');
+      if (mounted) setState(() => _erro = 'Não foi possível entrar com Google: $e');
     } finally {
       if (mounted) setState(() => _loadingGoogle = false);
     }

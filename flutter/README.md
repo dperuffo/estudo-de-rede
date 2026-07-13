@@ -65,11 +65,13 @@ pro Supabase é o trabalho da Fase FLT-2 em diante.
 
 ## Pendência de configuração (não é código)
 
-Login com Google via `signInWithIdToken` só funciona de verdade se o
-provider "Google" estiver habilitado no Supabase (Dashboard → Authentication
-→ Providers) com um Client ID Web autorizado pra este app — o Client ID
-hoje hardcoded em `auth_service.dart` era da integração com a API antiga.
-Login por e-mail/senha não depende disso.
+Login com Google via `signInWithOAuth` (ver hotfix na seção FLT-3 abaixo) só
+funciona de verdade se: (1) o provider "Google" estiver habilitado no
+Supabase (Dashboard → Authentication → Providers), e (2) a URL do app
+estiver cadastrada em Supabase Dashboard → Authentication → URL
+Configuration → Redirect URLs (ex.: `http://localhost:5173/**` pra dev e o
+domínio do Railway pra produção — sem isso o Supabase recusa o redirect de
+volta). Login por e-mail/senha não depende disso.
 
 ## Visão Posto (Fase FLT-1/FLT-2)
 
@@ -553,14 +555,212 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   pra somar por empresa; aqui a consulta busca só `empresa_id` e
   `valor_total` — mesmo resultado, payload bem menor (relevante no
   celular).
+- **Assistente FNI, Minha Assinatura, Avaliar Plataforma** — reaproveitam
+  direto as telas/providers/services já portados pro Posto na FLT-2 (eram
+  100% genéricos, não específicos de perfil): `AssistenteClienteScreen`,
+  `AssinaturaClienteScreen` (com `assinatura_cliente_provider.dart` novo,
+  dimensionamento por usuários/veículos em vez de Rede de Postos) e
+  `AvaliacaoScreen`.
+- **Painel Financeiro** (`lib/features/financeiro/`) — porta reduzida de
+  `financeiro/page.tsx`. Mantém os 7 KPIs do mês (`indicadores_
+  financeiros`), consolidado por meio de pagamento (donut, mesmo padrão do
+  Financeiro Posto), evolução mensal de 6 meses (combustível/manutenção/
+  custos fixos, gráfico de barras agrupadas) e "Cobrança em Aberto" — esta
+  última reaproveitando DIRETO `agruparPorContraparte`/`LinhaContraparte`
+  já portados pro Financeiro do Posto (lá a contraparte é o cliente, aqui é
+  o posto; a função é agnóstica, só lê os campos do mapa que a gente
+  monta). Fora do escopo: os 2 formulários de CRUD (Planejar orçamento /
+  Lançar custo fixo — cada um merece sua própria iteração), a tabela de
+  Orçamento por categoria, o link pra Planos de Viagem (tela que nem existe
+  ainda) e o ramo só-admin de indicadores FNI. Período fixo (mês atual pros
+  KPIs/provedor, 6 meses pra evolução) — sem seletor customizado por ora.
+  **Drill-down** (pedido do Daniel, adicionado depois do v1): "Ver
+  detalhamento" no ciclo em andamento e lista "Últimas faturas" (10 mais
+  recentes) levam pras telas de detalhe, reaproveitando DIRETO
+  `faturaPostoDetalheProvider`/`cicloAbertoDetalheProvider` (FLT-2) — a
+  consulta já era genérica (busca por id, RLS decide quem vê); só
+  adicionamos o campo `postoNome` no provider de fatura (via
+  `nome_empresa_publico`, já que `faturas_postos` só tinha `cliente_nome`
+  denormalizado) e trocamos o rótulo "Cliente" por "Posto" nas telas novas
+  (`fatura_detalhe_screen.dart`, `ciclo_aberto_detalhe_screen.dart` — esta
+  com a classe renomeada pra `CicloAbertoClienteDetalheScreen` pra não
+  colidir com a homônima do Posto). "Ver histórico" (pedido do Daniel, 2ª
+  rodada) leva pro `PostoCobrancaDetalheScreen` novo (rota
+  `/postos-cobranca/detalhe`, sem `:id` de propósito — os dados (ciclo +
+  TODAS as faturas do posto, não só as 10 mais recentes) já estavam
+  carregados na tela de Financeiro, passados via `extra` do GoRouter em
+  vez de uma consulta nova). Escopo mais enxuto que `/posto/clientes/:id`:
+  sem cadastro do posto nem negociações — isso fica pra futura tela
+  Postos Revendedores.
+- **Documentos** (`/documentos`) — porta 1:1, sem tela nova nenhuma: o
+  próprio `documentos_provider.dart` da FLT-2 já documentava "mesma tela
+  pra posto e cliente na web (só muda o grupo do menu onde o link
+  aparece) — não há bifurcação de campos/fluxo por segmento". Bastou
+  trocar a rota `/documentos` de `EmConstrucaoScreen` pra
+  `DocumentosScreen` (mesma classe usada em `/posto/documentos`) direto no
+  `app_router.dart`.
+- **Inteligência de Rede** (`lib/features/inteligencia_rede/`) — porta
+  **drasticamente reduzida** de `inteligencia-rede/page.tsx`: a página na
+  web tem 941 linhas, ~15 RPCs em paralelo e 20 componentes (mapas
+  Leaflet, cobertura por macrorregião, score de oportunidade de expansão,
+  modo comparativo, tendência de sazonalidade, cruzamentos avançados...) —
+  nível painel executivo admin, não cabe numa tela de celular. Esta v1
+  traz só: 3 KPIs (postos na rede, municípios únicos, UFs cobertas via
+  `postos_gf_municipios_unicos`/`postos_gf_por_uf`, RLS de `postos_gf` já
+  escopando por empresa sem precisar de parâmetro), preço médio da rede
+  por combustível (`preco_medio_por_combustivel`, sem comparação com ANP —
+  a web calcula esse delta com uma resolução de referência client-side
+  meio elaborada, fica pra depois) e postos com preço acima da referência
+  ANP (`postos_gf_desvio_anp` já traz preço próprio, preço ANP e % de
+  desvio calculados no banco — zero lógica extra aqui, só ordenar/mostrar)
+  e top municípios da rede (`postos_gf_top_municipios`). Fora do escopo:
+  os mapas, cobertura por macrorregião, score de expansão, modo
+  comparativo, sazonalidade, cruzamentos avançados, cobertura x demanda.
+  Existe também um `lib/features/inteligencia/inteligencia_screen.dart`
+  antigo (herdado do backend Python legado, usa `ApiService`) — não tem
+  rota nenhuma, ficou morto no código; não usar/reaproveitar.
+- **Privacidade (LGPD)** (`/lgpd`) — porta 1:1, sem tela nova: o próprio
+  `lgpd_provider.dart` da FLT-2 já documenta que na web é uma ÚNICA rota
+  compartilhada por cliente/posto (conteúdo idêntico, só muda onde o link
+  aparece no menu — a única bifurcação real é admin x não-admin, e o shell
+  Flutter cliente nunca é admin). Bastou trocar a rota `/lgpd` de
+  `EmConstrucaoScreen` pra `LgpdScreen` (mesma classe usada em
+  `/posto/lgpd`) direto no `app_router.dart`.
+- **Chamados** (`lib/features/chamados/`) — diferente de Documentos/LGPD,
+  aqui NÃO deu pra reaproveitar as telas em si (`chamados_posto_screen.dart`/
+  `chamado_novo_screen.dart` têm rotas `/posto/chamados/...` hardcoded nos
+  `context.push`/`pushReplacement`) — só o provider/service
+  (`chamadosPostoProvider`/`ChamadosService`/`Ticket`/`statusTicket`/
+  `tiposTicket`/`prioridadesTicket`, todos genéricos, filtram só por
+  `sessao.empresaId`). Solução: `ChamadosClienteScreen`/
+  `ChamadoNovoClienteScreen` novas (cópia adaptada, só trocando as rotas
+  pra sem o prefixo `/posto`), importando os providers do Posto direto.
+  `ChamadoDetalheScreen` (tela de detalhe + thread de mensagens/anexos) já
+  não tinha NENHUMA rota hardcoded — reaproveitada 100% direto, sem cópia,
+  em `/chamados/:id`.
+- **Clientes** (`lib/features/clientes/`) — achado real: a RLS de
+  `empresas` (`empresas_select_membro`) só deixa um usuário ver a(s)
+  própria(s) empresa(s); a página `/clientes` da web faz um SELECT sem
+  filtro nenhum e depende 100% disso — pra um cliente comum ela NUNCA
+  mostra outras empresas, é na prática um "cadastro da minha empresa", não
+  uma lista de clientes de verdade (isso só existe pro admin, via seções
+  condicionadas a `ehAdmin` que nem chegam a renderizar pro cliente: "+
+  Novo Cliente", toggle Ativar/Suspender, "Últimos acessos"). Por isso a
+  porta aqui é bem mais simples: mostra o cadastro (nome, CNPJ, status,
+  plano, cidade/UF, segmento, porte, limites de veículos/usuários,
+  contato) da empresa atual, read-only. Fora do escopo: o formulário de
+  edição (`ClienteForm` — poucos campos editáveis pelo próprio cliente,
+  vale uma iteração própria) e o widget `CicloAbastecimentoPagamento`
+  (resumo cruzando todos os postos negociados) — dado redundante com a
+  "Cobrança em Aberto" que o Painel Financeiro já mostra.
+- **Grupo Econômico** (`lib/features/grupo_economico/`) — mesma mecânica
+  de "Rede de Postos" (FLT-2, lado posto): a tabela `grupos_economicos`/
+  `grupos_economicos_empresas` é compartilhada entre as duas, só muda o
+  filtro de `segmento` (`Revenda` × `Frota`). Achado real checando a RLS
+  direto no banco antes de portar: pra `segmento='Frota'`, tanto
+  `grupos_economicos_empresas` (`gee_insere`) quanto `grupos_economicos`
+  (`grupos_insert`/`grupos_update`) só permitem escrita self-service
+  quando `grupo_economico_e_revenda(...)` é verdadeiro (ou admin) — ou
+  seja, diferente do posto (self-service completo desde a Fase 27.139),
+  um cliente comum NUNCA consegue criar/editar/vincular grupo, mesmo que a
+  web mostre o botão "+ Novo Grupo" (falharia no servidor). Por isso a
+  porta aqui é só leitura: nome do grupo, CNPJ matriz, status e lista de
+  empresas vinculadas (RLS já escopa pro(s) grupo(s) que a empresa atual
+  integra). Sem criação/edição/vínculo.
+- **Usuários** (`lib/features/usuarios/`) — mesmo padrão de Chamados:
+  telas próprias (`UsuariosClienteScreen`/`UsuarioNovoClienteScreen`, só
+  rotas sem prefixo `/posto`), mas provider 100% compartilhado
+  (`usuariosPostoProvider`, já genérico). `UsuarioEditarScreen` é
+  reaproveitada DIRETO — não tem rota hardcoded. Único ajuste real:
+  `UsuariosService.convidarUsuario` ganhou parâmetros opcionais
+  `perfil`/`segmento` (default `'posto'`/`'Revenda'`, preservando o
+  comportamento do Posto) — o convite do cliente passa
+  `'gestor_frota'`/`'Frota'` (perfil padrão pra quem não é admin
+  escolhendo outro papel, mesmo default do dropdown da web em
+  `UsuarioForm.tsx`). Sem seletor de perfil (Analista/Admin) — mesma
+  simplificação "sem dropdown" já usada pro convite do Posto.
+- **Motoristas** (`lib/features/motoristas/`) — porta de
+  `motoristas/page.tsx` + `[id]/page.tsx` + `actions.ts`. Conceito só
+  existe do lado Frota (posto não tem motoristas, tem Usuários) — feature
+  nova, sem equivalente FLT-2 pra reaproveitar. CRUD completo: lista com
+  indicadores (total/ativos/inativos), cadastro
+  (nome/CPF/telefone/e-mail/classificação/CNH+vencimento/centro de custo,
+  com checagem de CPF duplicado via RPC `motorista_duplicado`, mesma da
+  web) e edição + ativar/inativar. Fora do escopo: paginação (a web pagina
+  de 30 em 30; aqui traz até 500 — suficiente pro celular) e importação
+  por planilha (`/motoristas/importar`). **Filtros de busca** (pedido do
+  Daniel, adicionado depois do v1): campo de busca por nome/CPF (ignora
+  pontuação) + chips Todos/Ativos/Inativos, tudo client-side sobre a lista
+  já carregada — sem round-trip novo ao banco.
+- **Centros de Custo** (`lib/features/centros_custo/`) — porta de
+  `centros-custo/page.tsx` + `[id]/page.tsx` + `actions.ts`. Cadastro
+  completo (nome*/código/responsável/descrição/ativo) + alocação de
+  **motoristas** (um `UPDATE` em lote na coluna `centro_custo_id` de
+  `motoristas`, igual à web — sem tabela de histórico). A tela de edição
+  mostra os motoristas já alocados (com botão pra desalocar) e uma lista
+  de disponíveis com checkbox pra alocar em lote. Fora do escopo: alocação
+  de **veículos** — a web mantém histórico completo via
+  `centros_custo_veiculos` (alocar/desalocar em massa, `AlocarVeiculoForm`
+  separado); fica mais natural portar junto com a própria tela de
+  Veículos, que ainda não existe no Flutter. A contagem "Veículos
+  alocados" no card/lista já aparece com dado real (via
+  `cadastro_veiculos(count)`, populado pela web), só não dá pra alocar por
+  aqui ainda. Também fora: importação por planilha
+  (`/centros-custo/importar`).
+- **Postos Revendedores** (`lib/features/postos/`) — porta de
+  `postos/page.tsx` + `[cnpj]/page.tsx` + `actions.ts`. RLS conferida antes
+  de portar: `postos_gf`/`historico_precos` têm CRUD self-service completo
+  pra empresa do usuário (igual à web), então o v1 já sai com ações reais,
+  não só leitura. 3 telas: lista "Rede do cliente" (busca por
+  nome/município/CNPJ, indicadores Na rede/Liberados/Bloqueados), busca no
+  universo ANP (`/postos/buscar` — só dispara com 3+ letras digitadas,
+  capado em 30 resultados, sem paginação; botão "Ativar" copia os dados
+  básicos do posto ANP pra rede do cliente) e detalhe (dados de origem da
+  importação/ANP, bloquear/desbloquear pra abastecimento, remover da rede,
+  registrar/excluir preço por combustível — lista `PRODUTOS_POSTO`, mesma
+  da web). Fora do escopo: aba "Inteligência da Minha Frota" (dado já
+  coberto, de forma reduzida, pela tela Inteligência de Rede que existe no
+  Flutter desde a Fase FLT-3), edição dos campos operacionais do posto
+  (`PostoForm` completo — perfil de venda, horário, ARLA etc.), o
+  cascateamento completo de fontes de preço que `resolverPrecosVigentes`
+  calcula na web (meios de pagamento → Meus Preços → ANP
+  município/estado/Brasil — aqui mostra direto o histórico manual),
+  importação por planilha (`/postos/importar`, `/postos/importar-precos`)
+  e "Atualizar universo ANP" (admin only).
 
-Demais itens do menu (Assistente FNI, Minha Assinatura, Avaliar
-Plataforma, Painel Financeiro, Documentos, Inteligência de Rede,
-Privacidade/LGPD, Chamados, Clientes, Grupo Econômico, Usuários,
-Motoristas, Veículos, Centros de Custo, Postos Revendedores,
-Abastecimentos, Notas Fiscais, Anomalias, Roteirização, Rotograma, Planos
-de Viagem, Negociações com Postos, Preços dos Postos Parceiros, Manutenção
-Preditiva, Parâmetros de Uso, Relatórios, Integrações, Permissões) seguem
-como `EmConstrucaoScreen`, uma de cada vez nas próximas fases — várias
-devem reaproveitar bastante lógica já pronta do lado Posto (Documentos,
-LGPD, Usuários, Chamados especialmente).
+Demais itens do menu (Veículos, Abastecimentos, Notas Fiscais, Anomalias,
+Roteirização, Rotograma, Planos de Viagem, Negociações com Postos, Preços
+dos Postos Parceiros, Manutenção Preditiva, Parâmetros de Uso,
+Relatórios, Integrações, Permissões) seguem como `EmConstrucaoScreen`,
+uma de cada vez nas próximas fases — várias devem reaproveitar bastante
+lógica já pronta do lado Posto (LGPD, Usuários, Chamados especialmente).
+
+## Hotfix: login com Google (fora da sequência FLT-3)
+
+Achado real testando com o Daniel: o botão "Continuar com Google" sempre
+falhava com "Não foi possível obter o idToken do Google.", mesmo com
+Client ID certo e Authorized Origins cadastrados no Google Cloud Console
+(hipótese inicial, descartada). Causa raiz encontrada no Console do
+navegador: `[GSI_LOGGER-TOKEN_CLIENT] Starting popup flow` seguido de uma
+chamada a `people.googleapis.com` pra buscar nome/e-mail/foto — ou seja, o
+pacote `google_sign_in`, no Flutter Web, só obtém um `access_token` via
+Google Identity Services (fluxo de popup), nunca um `id_token`. É uma
+mudança do próprio Google (o método `signIn()` imperativo foi
+descontinuado pra esse fim); a web contorna isso renderizando o botão
+oficial do GIS, que dá bem mais trabalho de replicar no Flutter.
+
+Trocado `auth_service.dart`/`login_screen.dart` pra usar
+`supabase.auth.signInWithOAuth(OAuthProvider.google)` — fluxo de redirect
+PKCE em que o Supabase troca o código de autorização pelo token
+diretamente com o Google no backend dele, sem depender de idToken no
+navegador. Pré-requisito de configuração (não é código, ver seção
+"Pendência de configuração" acima): a URL do app precisa estar cadastrada
+em Supabase Dashboard → Authentication → URL Configuration → Redirect
+URLs. Pacote `google_sign_in` ficou sem uso no código (removido do
+`auth_service.dart`); mantido em `pubspec.yaml` por ora pra não mexer no
+lockfile sem rodar `flutter pub get` localmente.
+
+**Correção (2ª rodada de teste):** sem `redirectTo`, o Supabase mandava de
+volta pra "Site URL" do projeto (landing page da web), não pro PWA.
+Corrigido passando `redirectTo: Uri.base.origin` — usa a origem de onde o
+app está rodando na hora, sem hardcode.

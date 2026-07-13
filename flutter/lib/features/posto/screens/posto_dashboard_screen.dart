@@ -250,10 +250,21 @@ class PostoDashboardScreen extends ConsumerWidget {
           ),
           lineTouchData: LineTouchData(
             touchTooltipData: LineTouchTooltipData(
+              // Achado do Daniel — texto colorido igual à linha em cima do
+              // fundo escuro padrão do tooltip ficava ilegível (ex.: azul
+              // sobre cinza escuro). Corrigido: fundo escuro explícito,
+              // texto branco, bolinha colorida só como identificador.
+              getTooltipColor: (_) => const Color(0xFF1E293B),
               getTooltipItems: (spots) => spots
                   .map((s) => LineTooltipItem(
-                        '${_numero.format(s.y.round())} L',
+                        '● ',
                         TextStyle(color: _coresCombustivel[s.barIndex % _coresCombustivel.length], fontSize: 11),
+                        children: [
+                          TextSpan(
+                            text: '${_numero.format(s.y.round())} L',
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ))
                   .toList(),
             ),

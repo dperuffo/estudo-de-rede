@@ -1,132 +1,102 @@
 import 'package:flutter/material.dart';
-import '../../../core/services/api_service.dart';
-import '../../../core/widgets/menu_button.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../providers/centros_custo_provider.dart';
 
-class CentrosCustoScreen extends StatefulWidget {
+// Fase FLT-3 — Centros de Custo (cliente). Ver escopo completo (sem
+// alocação de veículos/importação por planilha) no comentário de
+// centros_custo_provider.dart.
+class CentrosCustoScreen extends ConsumerWidget {
   const CentrosCustoScreen({super.key});
-  @override State<CentrosCustoScreen> createState() => _State();
-}
-
-class _State extends State<CentrosCustoScreen> {
-  List<dynamic> _dados = [];
-  bool _loading = true;
-
-  @override void initState() { super.initState(); _load(); }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    try {
-      final r = await ApiService().get('/centros-custo');
-      setState(() => _dados = r['data'] ?? []);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _deletar(String id) async {
-    final ok = await showDialog<bool>(context: context, builder: (dialogCtx) => AlertDialog(
-      title: const Text('Confirmar exclusao'),
-      content: const Text('Deseja excluir este centro de custo?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () => Navigator.pop(dialogCtx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Excluir', style: TextStyle(color: Colors.white))),
-      ],
-    ));
-    if (ok != true) return;
-    try {
-      await ApiService().delete('/centros-custo/$id');
-      setState(() => _dados.removeWhere((c) => c['id'].toString() == id));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Centro de custo excluido com sucesso')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
-    }
-  }
-
-  Future<void> _novoOuEditar([Map? dados]) async {
-    final nomeCtrl        = TextEditingController(text: dados?['nome'] ?? '');
-    final codigoCtrl      = TextEditingController(text: dados?['codigo'] ?? '');
-    final descricaoCtrl   = TextEditingController(text: dados?['descricao'] ?? '');
-    final responsavelCtrl = TextEditingController(text: dados?['responsavel'] ?? '');
-
-    await showDialog(context: context, builder: (dialogCtx) => AlertDialog(
-      title: Text(dados == null ? 'Novo Centro de Custo' : 'Editar Centro de Custo'),
-      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: nomeCtrl,        decoration: const InputDecoration(labelText: 'Nome *')),
-        TextField(controller: codigoCtrl,      decoration: const InputDecoration(labelText: 'Codigo')),
-        TextField(controller: descricaoCtrl,   decoration: const InputDecoration(labelText: 'Descricao')),
-        TextField(controller: responsavelCtrl, decoration: const InputDecoration(labelText: 'Responsavel')),
-      ])),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
-        ElevatedButton(
-          onPressed: () async {
-            if (nomeCtrl.text.trim().isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nome obrigatorio')));
-              return;
-            }
-            try {
-              final body = {
-                'nome': nomeCtrl.text.trim(),
-                'codigo': codigoCtrl.text.trim(),
-                'descricao': descricaoCtrl.text.trim(),
-                'responsavel': responsavelCtrl.text.trim(),
-                'ativo': true,
-              };
-              if (dados == null) {
-                await ApiService().post('/centros-custo', data: body);
-              } else {
-                await ApiService().put('/centros-custo/${dados["id"]}', data: body);
-              }
-              Navigator.pop(dialogCtx, true);
-            } catch (e) {
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
-            }
-          },
-          child: Text(dados == null ? 'Criar' : 'Salvar'),
-        ),
-      ],
-    ));
-  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(centrosCustoClienteProvider);
+
     return Scaffold(
-      appBar: AppBar(leading: const MenuButton(), title: const Text('Centros de Custo')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _novoOuEditar(),
-        child: const Icon(Icons.add),
+      appBar: AppBar(title: const Text('Centros de Custo')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/centros-custo/novo'),
+        icon: const Icon(Icons.add),
+        label: const Text('Novo'),
       ),
-      body: _loading ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(onRefresh: _load, child: _dados.isEmpty
-              ? const Center(child: Text('Nenhum centro de custo cadastrado'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _dados.length,
-                  itemBuilder: (_, i) {
-                    final c = _dados[i];
-                    return Card(
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
+        data: (centros) {
+          if (centros.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Nenhum centro de custo cadastrado ainda.', style: TextStyle(color: Colors.grey)),
+              ),
+            );
+          }
+          final ativos = centros.where((c) => c.ativo).length;
+          final totalVeiculos = centros.fold<int>(0, (soma, c) => soma + c.veiculosAlocados);
+
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(centrosCustoClienteProvider),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _indicador('Total', centros.length.toString())),
+                    const SizedBox(width: 8),
+                    Expanded(child: _indicador('Ativos', ativos.toString())),
+                    const SizedBox(width: 8),
+                    Expanded(child: _indicador('Veículos', totalVeiculos.toString())),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...centros.map((c) => Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
-                        leading: const CircleAvatar(backgroundColor: Color(0xFFF3E5F5),
-                            child: Icon(Icons.business, color: Colors.purple)),
-                        title: Text(c['nome'] ?? '-',
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('${c["codigo"] ?? "-"} · ${c["responsavel"] ?? "-"}'),
-                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                          IconButton(icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _novoOuEditar(c)),
-                          IconButton(icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deletar(c['id'].toString())),
-                        ]),
+                        onTap: () => context.push('/centros-custo/${c.id}'),
+                        title: Text(c.nome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        subtitle: Text(
+                          [
+                            if (c.codigo != null && c.codigo!.isNotEmpty) 'Código ${c.codigo}',
+                            if (c.responsavel != null && c.responsavel!.isNotEmpty) c.responsavel!,
+                            '${c.veiculosAlocados} veículo(s) alocado(s)',
+                          ].join(' · '),
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: (c.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B)).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(c.ativo ? 'Ativo' : 'Inativo',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: c.ativo ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                  fontWeight: FontWeight.w600)),
+                        ),
                       ),
-                    );
-                  },
-                )),
+                    )),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _indicador(String label, String valor) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Text(valor, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 2),
+            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+      ),
     );
   }
 }

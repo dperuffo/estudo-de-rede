@@ -1,4 +1,3 @@
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 import 'sessao_usuario.dart';
@@ -36,11 +35,6 @@ class AuthService {
   factory AuthService() => _i;
   AuthService._();
 
-  final _g = GoogleSignIn(
-    clientId: '629066078340-h9o6518gmnf5lsu6a8n606d4dsva65tn.apps.googleusercontent.com',
-    scopes: ['email', 'profile'],
-  );
-
   SupabaseClient get _supabase => SupabaseService.client;
 
   // Espelha entrarComSenha (web/src/app/login/actions.ts).
@@ -48,30 +42,50 @@ class AuthService {
     await _supabase.auth.signInWithPassword(email: email.trim().toLowerCase(), password: senha);
   }
 
-  // Espelha entrarComGoogle (web/src/app/login/actions.ts) — lá o nonce é
-  // gerado no browser (Google Identity Services); aqui o google_sign_in
-  // nativo já cuida da emissão do idToken, sem precisar desse passo manual.
+  // Fase FLT-1b/FLT-3 (hotfix) — troca de estratégia. A versão original
+  // usava o pacote google_sign_in (popup imperativo) + signInWithIdToken,
+  // igual ao comentário antigo dizia. Achado real testando com o Daniel:
+  // no Console do navegador aparecia [GSI_LOGGER-TOKEN_CLIENT] "Starting
+  // popup flow" seguido de uma chamada a people.googleapis.com buscando
+  // nome/e-mail/foto — ou seja, o Google Identity Services só devolvia um
+  // access_token, nunca um id_token, por isso o
+  // "Não foi possível obter o idToken do Google." sempre acontecia. Isso é
+  // um comportamento conhecido do google_sign_in no Flutter Web (o método
+  // signIn() imperativo foi descontinuado pelo Google pra esse fim — só
+  // funciona de verdade via um botão renderizado pelo GIS, que dá mais
+  // trabalho de implementar). Troca: usar o signInWithOAuth do próprio
+  // Supabase (fluxo de redirect PKCE) — a troca do código de autorização
+  // pelo token acontece no backend do Supabase, sem depender de idToken
+  // nenhum no navegador. Único pré-requisito (fora do código, configuração
+  // no Supabase): a URL do app precisa estar na lista de Redirect URLs em
+  // Supabase Dashboard → Authentication → URL Configuration (ex.:
+  // http://localhost:5173/** pra dev e o domínio do Railway pra produção).
+  //
+  // Achado real (2ª rodada de teste com o Daniel) — sem `redirectTo`
+  // explícito, o Supabase NÃO volta pra página atual: ele manda pra "Site
+  // URL" configurada no projeto (que aponta pra landing page da web), daí
+  // o Daniel caindo na landing depois de logar com Google. Corrigido
+  // passando `redirectTo: Uri.base.origin` — a origem (protocolo+host+
+  // porta) de onde o PWA está rodando NA HORA, funciona igual em dev
+  // (http://localhost:5173) e produção (domínio do Railway) sem precisar
+  // hardcodar nada.
+  //
+  // Achado real (3ª rodada de teste) — mesmo com `http://localhost:5173/**`
+  // cadastrado em Redirect URLs no Supabase, o Daniel continuava caindo na
+  // Site URL (landing page da web). Suspeita: `Uri.base.origin` manda a
+  // URL SEM barra no final (`http://localhost:5173`), e o padrão `/**`
+  // cadastrado no Supabase pode exigir que o valor recebido já comece com
+  // a barra (`http://localhost:5173/...`) pra bater — sem ela, não casa
+  // com nenhum padrão da lista e o Supabase cai no padrão (Site URL).
+  // Corrigido adicionando a barra final explicitamente.
   Future<void> signInWithGoogle() async {
-    final account = await _g.signIn();
-    if (account == null) return; // usuário cancelou
-    final auth = await account.authentication;
-    final idToken = auth.idToken;
-    if (idToken == null) {
-      throw Exception('Não foi possível obter o idToken do Google.');
-    }
-    await _supabase.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: auth.accessToken,
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: '${Uri.base.origin}/',
     );
   }
 
   Future<void> signOut() async {
-    try {
-      await _g.signOut();
-    } catch (_) {
-      // usuário pode não ter entrado via Google — ignora.
-    }
     await _supabase.auth.signOut();
   }
 

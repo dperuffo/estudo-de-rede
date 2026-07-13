@@ -580,9 +580,19 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           ),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
+              // Achado do Daniel — texto colorido em cima do fundo escuro
+              // padrão do tooltip ficava ilegível. Corrigido: fundo escuro
+              // explícito + texto branco, cor só na bolinha.
+              getTooltipColor: (_) => const Color(0xFF1E293B),
               getTooltipItem: (group, groupIdx, rod, rodIdx) => BarTooltipItem(
-                _moeda.format(rod.toY),
-                TextStyle(color: rodIdx == 0 ? corReceber : corPagar, fontSize: 11, fontWeight: FontWeight.bold),
+                '● ',
+                TextStyle(color: rodIdx == 0 ? corReceber : corPagar, fontSize: 11),
+                children: [
+                  TextSpan(
+                    text: _moeda.format(rod.toY),
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
           ),
