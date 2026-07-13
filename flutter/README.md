@@ -399,6 +399,31 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   UMA empresa atual por vez (troca pelo seletor já existente no shell,
   Fase FLT-2 "seletor de empresa").
 
+- **Documentos (`/posto/documentos`)** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/providers/documentos_provider.dart`,
+  `lib/features/posto/services/documentos_service.dart`. Porta de
+  `documentos/page.tsx` + `documentos/actions.ts` +
+  `src/lib/empresasDocumentos.ts` (Fase 27.149) — documentação societária
+  self-service: 2 documentos de empresa (Contrato Social/Estatuto,
+  comprovante de endereço), quadro de sócios (nome + CPF, criar/remover)
+  com 3 documentos cada (CPF, RG/CNH, comprovante de endereço), upload
+  pro bucket privado `documentos-empresas` (mesmo path convencionado da
+  web: `{empresa_id}/{tipo}[-{socio_id}].{ext}`, reenvio substitui o
+  anterior via `upsert:true`, limite de 5 MB, `.pdf/.jpg/.jpeg/.png`,
+  link de abrir via URL assinada de 1h) e botão "Enviar para análise" com
+  a mesma validação de completude da web
+  (`validarDocumentacaoCompleta`) rodando client-side antes de marcar
+  `documentacao_status='pendente'`. Badge + banner de status
+  (não iniciada/em análise/aprovada/rejeitada com motivo). **Fora do
+  escopo:** o lado admin (fila de aprovação, `/documentos-empresas`) —
+  isso é ferramenta interna da equipe FNI, nunca acessada pelo shell
+  `/posto`. Os 4 "gates de bloqueio" que exigem documentação aprovada
+  (criar/vincular Rede de Postos, criar/aceitar negociação) já estavam
+  replicados em fases anteriores deste app (`rede_postos_service.dart`,
+  `negociacoes_service.dart`) via a mesma RPC pública
+  `status_documentacao_empresa_publico` da web — nada novo aqui, só
+  documentando a ligação.
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do
