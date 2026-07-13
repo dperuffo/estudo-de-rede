@@ -501,3 +501,66 @@ Financeiro por ora.
 - Frota
 - Financeiro
 - Tickets
+
+## Fase FLT-3 — visão Cliente (reconstrução do zero)
+
+Pedido do Daniel: "vamos partir para o desenvolvimento da visão de cliente
+no PWA". **Achado real, antes de escrever qualquer código:** o "shell
+genérico" (usado até então por qualquer perfil não-posto — cliente ou
+admin) tinha 18 telas com CARA de reais (StatefulWidget, chamadas de rede,
+centenas de linhas), mas todas usavam um backend Python legado
+(`api.fxgestaodefrotasonline.com`, ver `api_service.dart`) autenticado por
+um `jwt_token` gravado no `FlutterSecureStorage` — mecanismo apagado no
+commit da migração pra Supabase Auth (Fase FLT-1, `78c181a`), sem nunca ter
+sido substituído. Ou seja: nenhuma dessas 18 telas funcionava de fato,
+todo request protegido caía em 401 em silêncio. "Visão cliente" não
+existia — decisão do Daniel (confirmada antes de começar) foi reconstruir
+do zero, mesmo padrão da Fase FLT-2 (Riverpod + Supabase direto/RLS), tela
+por tela, igual foi feito pro Posto.
+
+**Escopo:** espelha exatamente o menu cliente da web
+(`src/app/(dashboard)/layout.tsx`: seções Gestão, Cadastros, Operação,
+Configurações). **Descartadas** (sem equivalente no menu cliente atual —
+sobras de uma versão mais antiga do produto): Frota (`/frota`, nunca teve
+link no menu nem na web), Manutenção antiga (`/manutencao` — diferente de
+"Manutenção Preditiva", que É real na web e está na lista de tarefas),
+Variação de Preços como página própria (`/precos` — na web é só um widget
+dentro do Dashboard), Análise de Cliente (`/analise-cliente`) e Acordos de
+Preço (`/acordos`). A separação cliente × admin dentro do shell genérico
+(hoje qualquer perfil "não-posto" vê o mesmo menu) segue fora de escopo —
+mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
+
+- **Shell/menu** (`lib/features/home/screens/home_screen.dart`) — reescrito
+  do zero, mesma identidade visual do menu do Posto (fundo `frota-950`,
+  card branco com a logo, "Trocar empresa" pra quem tem 2+ empresas
+  vinculadas). Cada rota do menu cliente vira `EmConstrucaoScreen` até
+  virar tela de verdade, uma de cada vez (ver `app_router.dart`).
+- **Dashboard** (`lib/features/dashboard/`) — primeira tela reconstruída,
+  porta de `dashboard/page.tsx` (ramo cliente/frota — o ramo posto já foi
+  portado à parte na FLT-2). **Escopo bem reduzido em relação à web**, que
+  tem MUITO mais coisa nessa página só (seletor de cliente+período no
+  topo, "Primeiros Passos", seção de Ajustes de Abastecimento, Desempenho
+  por Centro de Custo, KPIs de Manutenção Preditiva, e 8 "Indicadores
+  avançados" — cada um com sua própria RPC e gráfico). Esta primeira
+  versão traz: 6 KPIs do mês, consolidado por meio de pagamento, gráfico
+  de consumo dos últimos 6 meses (litros — a web usa 2 eixos Y, litros e
+  valor; simplificado aqui pra 1 eixo + valor no tooltip, mais legível em
+  tela pequena), CNH vencendo em 30 dias e Top 5 clientes por gasto (rede
+  toda, não escopado ao cliente selecionado — mesmo comportamento
+  intencional da web). O resto fica para as próximas iterações.
+  **Otimização em relação à web:** o "Top 5 clientes por gasto" na web
+  busca TODOS os campos de `abastecimentos_unificado` da rede inteira só
+  pra somar por empresa; aqui a consulta busca só `empresa_id` e
+  `valor_total` — mesmo resultado, payload bem menor (relevante no
+  celular).
+
+Demais itens do menu (Assistente FNI, Minha Assinatura, Avaliar
+Plataforma, Painel Financeiro, Documentos, Inteligência de Rede,
+Privacidade/LGPD, Chamados, Clientes, Grupo Econômico, Usuários,
+Motoristas, Veículos, Centros de Custo, Postos Revendedores,
+Abastecimentos, Notas Fiscais, Anomalias, Roteirização, Rotograma, Planos
+de Viagem, Negociações com Postos, Preços dos Postos Parceiros, Manutenção
+Preditiva, Parâmetros de Uso, Relatórios, Integrações, Permissões) seguem
+como `EmConstrucaoScreen`, uma de cada vez nas próximas fases — várias
+devem reaproveitar bastante lógica já pronta do lado Posto (Documentos,
+LGPD, Usuários, Chamados especialmente).

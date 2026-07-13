@@ -4,24 +4,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/selecionar_empresa_screen.dart';
 import '../../features/mfa/screens/mfa_pendente_screen.dart';
 import '../../features/home/screens/home_screen.dart';
-import '../../features/comece_seu_dia/screens/comece_seu_dia_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
-import '../../features/abastecimentos/screens/abastecimentos_screen.dart';
-import '../../features/frota/screens/frota_screen.dart';
-import '../../features/frota/screens/veiculos_screen.dart';
-import '../../features/manutencao/screens/manutencao_screen.dart';
-import '../../features/financeiro/screens/financeiro_screen.dart';
-import '../../features/inteligencia/screens/inteligencia_screen.dart';
-import '../../features/precos/screens/precos_screen.dart';
-import '../../features/relatorios/screens/relatorios_screen.dart';
-import '../../features/analise_cliente/screens/analise_cliente_screen.dart';
-import '../../features/tickets/screens/tickets_screen.dart';
-import '../../features/admin/screens/admin_screen.dart';
-import '../../features/avaliacao/screens/avaliacao_screen.dart';
-import '../../features/acordos/screens/acordos_screen.dart';
-import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
-import '../../features/assistente/screens/assistente_screen.dart';
-import '../../features/centros_custo/screens/centros_custo_screen.dart';
 import '../../features/posto/screens/posto_home_screen.dart';
 import '../../features/posto/screens/posto_dashboard_screen.dart';
 import '../../features/posto/screens/meu_posto_screen.dart';
@@ -60,10 +43,12 @@ import '../services/sessao_provider.dart';
 //   1. Sessão (logado ou não) — igual já existia.
 //   2. MFA obrigatório (novo — mesmo gate do layout.tsx da web).
 //   3. Perfil — "posto" vai pro shell próprio (/posto/...); qualquer outro
-//      perfil logado (cliente ou admin) continua no shell genérico que já
-//      existia (/...). A separação de admin/cliente dentro desse shell
-//      genérico fica pra uma fase futura (FLT-3) — por ora só garantimos
-//      que quem é posto NUNCA cai nas telas de frota/cliente e vice-versa.
+//      perfil logado (cliente ou admin) continua no shell genérico (/...).
+//      A separação de admin/cliente DENTRO desse shell genérico (hoje
+//      qualquer perfil "não-posto" vê o mesmo menu) segue fora de escopo
+//      por ora — decisão do Daniel ao iniciar a Fase FLT-3, mesmo espírito
+//      da decisão original aqui: só garantir que quem é posto NUNCA cai
+//      nas telas de frota/cliente e vice-versa.
 final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
       initialLocation: '/',
       redirect: (context, state) async {
@@ -113,29 +98,46 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         GoRoute(path: '/mfa-pendente', builder: (_, __) => const MfaPendenteScreen()),
         GoRoute(path: '/selecionar-empresa', builder: (_, __) => const SelecionarEmpresaScreen()),
 
-        // Shell genérico (cliente/admin) — inalterado nesta fase, além da
-        // proteção de rota acima.
+        // Fase FLT-3 — shell da visão Cliente, reescrito do zero (ver
+        // comentário completo em home_screen.dart: as 18 telas antigas
+        // usavam um backend Python legado com auth quebrada). "/" e
+        // "/dashboard" apontam pro mesmo Dashboard real (a web não tem uma
+        // landing separada tipo "Comece seu dia" pra cliente — cai direto
+        // no /dashboard). Todo o resto é placeholder até virar tela de
+        // verdade, uma de cada vez (ver lista de tarefas FLT-3).
         ShellRoute(
           builder: (c, s, child) => HomeScreen(child: child),
           routes: [
-            GoRoute(path: '/', builder: (_, __) => const ComeceSeuDiaScreen()),
+            GoRoute(path: '/', builder: (_, __) => const DashboardScreen()),
             GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-            GoRoute(path: '/abastecimentos', builder: (_, __) => const AbastecimentosScreen()),
-            GoRoute(path: '/frota', builder: (_, __) => const FrotaScreen()),
-            GoRoute(path: '/veiculos', builder: (_, __) => const VeiculosScreen()),
-            GoRoute(path: '/manutencao', builder: (_, __) => const ManutencaoScreen()),
-            GoRoute(path: '/financeiro', builder: (_, __) => const FinanceiroScreen()),
-            GoRoute(path: '/inteligencia', builder: (_, __) => const InteligenciaScreen()),
-            GoRoute(path: '/precos', builder: (_, __) => const PrecosScreen()),
-            GoRoute(path: '/relatorios', builder: (_, __) => const RelatoriosScreen()),
-            GoRoute(path: '/analise-cliente', builder: (_, __) => const AnaliseClienteScreen()),
-            GoRoute(path: '/tickets', builder: (_, __) => const TicketsScreen()),
-            GoRoute(path: '/admin', builder: (_, __) => const AdminScreen()),
-            GoRoute(path: '/avaliacao', builder: (_, __) => const AvaliacaoScreen()),
-            GoRoute(path: '/acordos', builder: (_, __) => const AcordosScreen()),
-            GoRoute(path: '/roteirizacao', builder: (_, __) => const RoteirizacaoScreen()),
-            GoRoute(path: '/assistente', builder: (_, __) => const AssistenteScreen()),
-            GoRoute(path: '/centros-custo', builder: (_, __) => const CentrosCustoScreen()),
+            GoRoute(path: '/assistente', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Assistente FNI')),
+            GoRoute(path: '/assinatura', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Minha Assinatura')),
+            GoRoute(path: '/avaliar', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Avaliar Plataforma')),
+            GoRoute(path: '/financeiro', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Painel Financeiro')),
+            GoRoute(path: '/documentos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Documentos')),
+            GoRoute(path: '/inteligencia-rede', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Inteligência de Rede')),
+            GoRoute(path: '/lgpd', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Privacidade (LGPD)')),
+            GoRoute(path: '/chamados', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Chamados')),
+            GoRoute(path: '/clientes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Clientes')),
+            GoRoute(path: '/grupo-economico', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Grupo Econômico')),
+            GoRoute(path: '/usuarios', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Usuários')),
+            GoRoute(path: '/motoristas', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Motoristas')),
+            GoRoute(path: '/veiculos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Veículos')),
+            GoRoute(path: '/centros-custo', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Centros de Custo')),
+            GoRoute(path: '/postos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Postos Revendedores')),
+            GoRoute(path: '/abastecimentos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Abastecimentos')),
+            GoRoute(path: '/notas-fiscais', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Notas Fiscais')),
+            GoRoute(path: '/anomalias', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Anomalias')),
+            GoRoute(path: '/roteirizacao', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Roteirização')),
+            GoRoute(path: '/rotograma', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Rotograma')),
+            GoRoute(path: '/planos-viagem', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Planos de Viagem')),
+            GoRoute(path: '/negociacoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Negociações com Postos')),
+            GoRoute(path: '/precos-postos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Preços dos Postos Parceiros')),
+            GoRoute(path: '/manutencao-preditiva', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Manutenção Preditiva')),
+            GoRoute(path: '/parametros-uso', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Parâmetros de Uso')),
+            GoRoute(path: '/relatorios', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Relatórios')),
+            GoRoute(path: '/integracoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Integrações')),
+            GoRoute(path: '/permissoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Permissões')),
           ],
         ),
 
