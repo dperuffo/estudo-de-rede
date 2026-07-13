@@ -382,6 +382,23 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   a ação de marcar como executada (RLS já bloqueia isso pra quem não é
   admin, mesmo que tentasse).
 
+- **Meus Dados / PIX (`/posto/meus-dados`)** — real desde a Fase FLT-2.
+  Ver `lib/features/posto/providers/meus_dados_provider.dart`,
+  `lib/features/posto/services/meus_dados_service.dart`. Porta de
+  `minha-empresa/page.tsx` + `minha-empresa/actions.ts` (`FormularioPix` +
+  `FormularioDadosBancarios`) — mesma tabela `empresas` de "Meu Posto",
+  colunas diferentes: `pix_chave` (Fase 27.92, usada como cedente no
+  boleto) e as 9 colunas de dados bancários da Fase 27.141 (`banco_codigo`,
+  `banco_nome`, `agencia`, `agencia_digito`, `conta`, `conta_digito`,
+  `tipo_conta` — só aceita "corrente"/"poupanca" — `titular_nome`,
+  `titular_documento`), com os mesmos limites de tamanho por campo
+  validados client-side da web. Nome/CNPJ do posto aparecem só como
+  referência (somente leitura) — editar isso continua sendo em "Meu
+  Posto". **Fora do escopo:** o seletor de posto que a web mostra quando o
+  usuário tem 2+ postos Revenda ou é admin — o shell `/posto` só resolve
+  UMA empresa atual por vez (troca pelo seletor já existente no shell,
+  Fase FLT-2 "seletor de empresa").
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do
