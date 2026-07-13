@@ -21,14 +21,18 @@ const _perguntasSugeridas = [
   'Qual veículo está sem manutenção registrada há mais tempo?',
 ];
 
-class AssistenteScreen extends StatefulWidget {
-  const AssistenteScreen({super.key});
+// Nome diferente de AssistenteScreen (lib/features/assistente/screens/) de
+// propósito — aquela é a tela do shell genérico (cliente/admin), essa é a
+// versão do shell /posto; mesmo nome nas duas causava ambiguous_import em
+// app_router.dart (achado real ao rodar `flutter analyze`).
+class AssistentePostoScreen extends StatefulWidget {
+  const AssistentePostoScreen({super.key});
 
   @override
-  State<AssistenteScreen> createState() => _AssistenteScreenState();
+  State<AssistentePostoScreen> createState() => _AssistentePostoScreenState();
 }
 
-class _AssistenteScreenState extends State<AssistenteScreen> {
+class _AssistentePostoScreenState extends State<AssistentePostoScreen> {
   final _mensagens = <_MensagemExibida>[];
   final _controller = TextEditingController();
   final _scrollController = ScrollController();

@@ -141,7 +141,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/posto/meu-posto', builder: (_, __) => const MeuPostoScreen()),
             GoRoute(path: '/posto/rede-postos', builder: (_, __) => const RedePostosScreen()),
             GoRoute(path: '/posto/rede-postos/nova', builder: (_, __) => const NovaRedeScreen()),
-            GoRoute(path: '/posto/assistente', builder: (_, __) => const AssistenteScreen()),
+            GoRoute(path: '/posto/assistente', builder: (_, __) => const AssistentePostoScreen()),
             GoRoute(path: '/posto/assinatura', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Minha Assinatura')),
             GoRoute(path: '/posto/avaliar', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Avaliar Plataforma')),
             GoRoute(path: '/posto/financeiro', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Financeiro')),
