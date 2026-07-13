@@ -58,8 +58,13 @@ class PostoHomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const Text('FNI — Posto',
-                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.asset('assets/logo_fni.png', height: 44, fit: BoxFit.contain),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Posto',
+                      style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                   if (nomeEmpresa != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
