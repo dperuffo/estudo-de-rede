@@ -61,69 +61,86 @@ class PostoHomeScreen extends ConsumerWidget {
             // antes era um recorte diferente, quadrado, que ficava
             // minúsculo dentro da altura fixa) e o rótulo "POSTO" no ciano
             // `frota-500` (#0EA5E9), igual ao `cargoExibido` da web.
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF0B1220)),
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0B1220).withOpacity(0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: AspectRatio(
-                      aspectRatio: 1132 / 441,
-                      child: Image.asset('assets/logo_fni.png', fit: BoxFit.contain),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    nomeEmpresa ?? 'Posto',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'POSTO',
-                    style: TextStyle(
-                      color: Color(0xFF0EA5E9),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  if (temMultiplasEmpresas)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/selecionar-empresa');
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.swap_horiz, color: Colors.white, size: 16),
-                            SizedBox(width: 4),
-                            Text('Trocar posto', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+            // Achado real (correção): `DrawerHeader` impõe uma altura
+            // MÍNIMA fixa (~160 + status bar) mas o Column de dentro tinha
+            // `mainAxisSize.max` (o padrão) + `mainAxisAlignment: end` —
+            // com o card do logo em largura cheia (mais alto que os 44px
+            // antigos) o conteúdo passou dessa altura e "empurrou" tudo pra
+            // baixo, vazando por cima da lista (Gestão/Dashboard). Trocado
+            // por um `Container` comum (sem altura mínima imposta) dentro
+            // do próprio `ListView`, com o Column em `mainAxisSize.min` —
+            // a altura do cabeçalho agora é sempre exatamente o que o
+            // conteúdo precisa, sem overflow.
+            Container(
+              width: double.infinity,
+              color: const Color(0xFF0B1220),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.95),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0B1220).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
                           ],
                         ),
+                        child: AspectRatio(
+                          aspectRatio: 1132 / 441,
+                          child: Image.asset('assets/logo_fni.png', fit: BoxFit.contain),
+                        ),
                       ),
-                    ),
-                ],
+                      const SizedBox(height: 12),
+                      Text(
+                        nomeEmpresa ?? 'Posto',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'POSTO',
+                        style: TextStyle(
+                          color: Color(0xFF0EA5E9),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      if (temMultiplasEmpresas)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.push('/selecionar-empresa');
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.swap_horiz, color: Colors.white, size: 16),
+                                SizedBox(width: 4),
+                                Text('Trocar posto',
+                                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
             _grp('Gestão'),
