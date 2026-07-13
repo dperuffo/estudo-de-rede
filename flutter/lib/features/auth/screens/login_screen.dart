@@ -18,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _senhaCtrl = TextEditingController();
   bool _loadingSenha = false;
   bool _loadingGoogle = false;
+  bool _senhaVisivel = false;
   String? _erro;
 
   @override
@@ -112,9 +113,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _senhaCtrl,
-                      obscureText: true,
+                      obscureText: !_senhaVisivel,
                       style: const TextStyle(color: Colors.white),
-                      decoration: _inputDecoration('Senha'),
+                      decoration: _inputDecoration(
+                        'Senha',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _senhaVisivel ? Icons.visibility_off : Icons.visibility,
+                            color: Colors.white60,
+                          ),
+                          onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
+                        ),
+                      ),
                       onSubmitted: (_) => _entrarComSenha(),
                     ),
                     if (_erro != null) ...[
@@ -184,9 +194,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       );
 
-  InputDecoration _inputDecoration(String label) => InputDecoration(
+  InputDecoration _inputDecoration(String label, {Widget? suffixIcon}) => InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white60),
+        suffixIcon: suffixIcon,
         filled: true,
         fillColor: Colors.white.withOpacity(0.06),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
