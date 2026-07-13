@@ -459,6 +459,42 @@ ficam só na visão web, não fazem parte do escopo do PWA — removidas do
 menu (`posto_home_screen.dart`) e das rotas (`app_router.dart`), em vez de
 placeholder.
 
+## Indicadores gráficos (Dashboard + Financeiro, visão Posto)
+
+Pedido do Daniel: "começar a desenvolver indicadores gráficos" no PWA,
+citando Dashboard e Financeiro como exemplos. `fl_chart` já era dependência
+usada no shell genérico/cliente (`dashboard_screen.dart`,
+`financeiro_screen.dart`, `precos_screen.dart`, `analise_cliente_screen.dart`)
+— nada disso existia ainda na visão Posto, que só tinha números em cards.
+Confirmado com o Daniel: os 2 gráficos com equivalente na web + 2 donuts
+novos (sem equivalente na web ainda), só nessas 2 telas por ora.
+
+- **Dashboard (`posto_dashboard_screen.dart`/`dashboard_posto_provider.dart`)**
+  — linha "Venda diária por combustível" (porta de `GraficoEvolutivoPostos.tsx`
+  da web): 1 linha por combustível, últimos `janelaGraficoDias` (14) dias,
+  reaproveitando a MESMA resposta da RPC `resumo_vendas_diarias_posto` que
+  já alimentava os KPIs (só precisou agregar por dia+combustível em vez de
+  só por combustível total — novo campo `serieDiariaPorCombustivel`). Donut
+  de participação por combustível (novo, sem equivalente na web) usando
+  `desempenhoPorCombustivel`, já calculado.
+- **Financeiro (`financeiro_posto_screen.dart`/`financeiro_posto_provider.dart`)**
+  — barras agrupadas "Fluxo de caixa previsto" (porta de
+  `GraficoFluxoCaixaPosto.tsx`): a receber (verde) x a pagar (vermelho) por
+  dia de vencimento, na MESMA janela prospectiva (`janelaPrevista`) que já
+  alimentava os KPIs "vencendo no período"/"saldo previsto" — só quebrada
+  por dia em vez de só o total (`_dadosFluxoCaixa`, calculado na tela, não
+  no provider, por depender do período selecionado). Donut de consolidado
+  por meio de pagamento (novo) usando `indicadoresPorProvedor`, já
+  calculado — paleta sólida separada (`_corSolidaMeioPagamento`) da paleta
+  pastel já usada nos avatares da lista, só pro gráfico/legenda (mais
+  contraste).
+
+Mesmo padrão visual dos gráficos já existentes no app (cor azul/gradiente
+nas barras, curva suave com área leve nas linhas, tooltip formatado em
+R$/L, legenda manual). **Fora do escopo desta rodada:** gráficos em outras
+telas (Preços, Abastecimentos) — Daniel optou por fechar só Dashboard e
+Financeiro por ora.
+
 ## Telas
 - Login (e-mail/senha e Google)
 - Abastecimentos

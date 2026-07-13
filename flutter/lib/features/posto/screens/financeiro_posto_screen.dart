@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +26,18 @@ const _corMeioPagamento = <String, Color>{
   'TicketLog': Color(0xFFCCFBF1),
   'Veloe': Color(0xFFFCE7F3),
 };
+
+// Indicador gráfico (pedido do Daniel) — versão "sólida" da paleta acima
+// (que é pastel, pensada pra fundo de avatar) só pro donut/legenda, onde
+// precisa de mais contraste. Mesma correspondência de chaves.
+const _corSolidaMeioPagamento = <String, Color>{
+  'profrotas': Color(0xFF2563EB),
+  'Valecard': Color(0xFF7C3AED),
+  'RedeFrota': Color(0xFFEA580C),
+  'TicketLog': Color(0xFF0D9488),
+  'Veloe': Color(0xFFDB2777),
+};
+const _corSolidaMeioPagamentoFallback = Color(0xFF64748B);
 
 String _nomeProvedor(String p) => p == 'profrotas' ? 'PróFrotas' : p;
 
@@ -161,6 +174,20 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
                 cor: saldoPrevisto < 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A)),
           ],
         ),
+        if (_dadosFluxoCaixa(dados, janelaPrevista).isNotEmpty) ...[
+          const SizedBox(height: 20),
+          const Text('Fluxo de caixa previsto', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 4),
+          Text('A receber x a pagar por dia de vencimento (${_dataBr(janelaPrevista.inicio)} – ${_dataBr(janelaPrevista.fim)}).',
+              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 10),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 16, 16, 8),
+              child: _graficoFluxoCaixa(_dadosFluxoCaixa(dados, janelaPrevista)),
+            ),
+          ),
+        ],
         if (dados.indicadoresPorProvedor.isNotEmpty) ...[
           const SizedBox(height: 20),
           const Text('Consolidado por meio de pagamento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
@@ -168,6 +195,14 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           const Text('Abastecimentos que você forneceu no período, por meio de pagamento usado pelo cliente.',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 10),
+          if (dados.indicadoresPorProvedor.length > 1)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: _donutMeioPagamento(dados.indicadoresPorProvedor),
+              ),
+            ),
+          const SizedBox(height: 8),
           ...dados.indicadoresPorProvedor.map((p) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
@@ -462,6 +497,161 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
     );
   }
 
+  // Porta de GraficoFluxoCaixaPosto.tsx — mesma janela PROSPECTIVA
+  // (janelaPrevista) já usada pros KPIs "vencendo no período"/"saldo
+  // previsto" acima, só que quebrada por dia em vez de só o total.
+  List<_PontoFluxoCaixa> _dadosFluxoCaixa(
+      FinanceiroPostoDetalhe dados, ({String inicio, String fim}) janelaPrevista) {
+    final porDia = <String, ({double aReceber, double aPagar})>{};
+    for (final f in dados.faturas) {
+      if (f.status != 'aberta') continue;
+      if (f.vencimento.compareTo(janelaPrevista.inicio) < 0 || f.vencimento.compareTo(janelaPrevista.fim) > 0) continue;
+      final atual = porDia[f.vencimento] ?? (aReceber: 0.0, aPagar: 0.0);
+      porDia[f.vencimento] = (aReceber: atual.aReceber + f.valorTotal, aPagar: atual.aPagar);
+    }
+    for (final d in dados.despesas) {
+      if (d.status != 'aberta') continue;
+      if (d.vencimento.compareTo(janelaPrevista.inicio) < 0 || d.vencimento.compareTo(janelaPrevista.fim) > 0) continue;
+      final atual = porDia[d.vencimento] ?? (aReceber: 0.0, aPagar: 0.0);
+      porDia[d.vencimento] = (aReceber: atual.aReceber, aPagar: atual.aPagar + d.valor);
+    }
+    final lista = porDia.entries
+        .map((e) => _PontoFluxoCaixa(dia: e.key, aReceber: e.value.aReceber, aPagar: e.value.aPagar))
+        .toList()
+      ..sort((a, b) => a.dia.compareTo(b.dia));
+    return lista;
+  }
+
+  // BarChart agrupado (2 barras/dia) — mesmo espírito do BarChart da web
+  // (grupos, não linha: só 2 séries, o interesse é comparar dia a dia).
+  Widget _graficoFluxoCaixa(List<_PontoFluxoCaixa> pontos) {
+    const corReceber = Color(0xFF16A34A);
+    const corPagar = Color(0xFFDC2626);
+    final maxVal = pontos
+        .map((p) => p.aReceber > p.aPagar ? p.aReceber : p.aPagar)
+        .fold<double>(0, (a, b) => a > b ? a : b);
+
+    return Column(children: [
+      SizedBox(
+        height: 200,
+        child: BarChart(BarChartData(
+          maxY: maxVal <= 0 ? 1 : maxVal * 1.2,
+          barGroups: pontos.asMap().entries.map((e) {
+            final i = e.key;
+            final p = e.value;
+            return BarChartGroupData(x: i, barsSpace: 4, barRods: [
+              BarChartRodData(
+                toY: p.aReceber,
+                color: corReceber,
+                width: 8,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+              ),
+              BarChartRodData(
+                toY: p.aPagar,
+                color: corPagar,
+                width: 8,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+              ),
+            ]);
+          }).toList(),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 44,
+              getTitlesWidget: (v, _) => Text('R\$${v.round()}', style: const TextStyle(fontSize: 9)),
+            )),
+            bottomTitles: AxisTitles(sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              interval: pontos.length > 6 ? (pontos.length / 6).ceilToDouble() : 1,
+              getTitlesWidget: (v, _) {
+                final idx = v.toInt();
+                if (idx < 0 || idx >= pontos.length) return const SizedBox();
+                return Text(_dataBr(pontos[idx].dia).substring(0, 5), style: const TextStyle(fontSize: 9));
+              },
+            )),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: false),
+          gridData: FlGridData(
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
+          ),
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipItem: (group, groupIdx, rod, rodIdx) => BarTooltipItem(
+                _moeda.format(rod.toY),
+                TextStyle(color: rodIdx == 0 ? corReceber : corPagar, fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        )),
+      ),
+      const SizedBox(height: 8),
+      Wrap(spacing: 12, children: [
+        Row(mainAxisSize: MainAxisSize.min, children: const [
+          _LegendaDot(cor: corReceber),
+          SizedBox(width: 4),
+          Text('A receber', style: TextStyle(fontSize: 11)),
+        ]),
+        Row(mainAxisSize: MainAxisSize.min, children: const [
+          _LegendaDot(cor: corPagar),
+          SizedBox(width: 4),
+          Text('A pagar', style: TextStyle(fontSize: 11)),
+        ]),
+      ]),
+    ]);
+  }
+
+  // Donut de consolidado por meio de pagamento — sem equivalente direto na
+  // web ainda; dado já vinha calculado no provider (indicadoresPorProvedor).
+  Widget _donutMeioPagamento(List<IndicadorProvedor> lista) {
+    return SizedBox(
+      height: 170,
+      child: Row(children: [
+        Expanded(
+          child: PieChart(PieChartData(
+            sections: lista.map((p) {
+              final totalGeral = lista.fold<double>(0, (s, x) => s + x.valorTotal);
+              final pct = totalGeral > 0 ? (p.valorTotal / totalGeral) * 100 : 0.0;
+              return PieChartSectionData(
+                value: p.valorTotal,
+                title: '${pct.toStringAsFixed(0)}%',
+                color: _corSolidaMeioPagamento[p.provedor] ?? _corSolidaMeioPagamentoFallback,
+                radius: 55,
+                titleStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+              );
+            }).toList(),
+            centerSpaceRadius: 30,
+            sectionsSpace: 2,
+          )),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: lista.map((p) {
+              final cor = _corSolidaMeioPagamento[p.provedor] ?? _corSolidaMeioPagamentoFallback;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  Container(width: 10, height: 10, decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(_nomeProvedor(p.provedor),
+                        style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                  ),
+                ]),
+              );
+            }).toList(),
+          ),
+        ),
+      ]),
+    );
+  }
+
   Widget _chipContagem(String texto, Color cor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -488,6 +678,21 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
       ),
     );
   }
+}
+
+class _PontoFluxoCaixa {
+  final String dia; // yyyy-MM-dd
+  final double aReceber;
+  final double aPagar;
+  const _PontoFluxoCaixa({required this.dia, required this.aReceber, required this.aPagar});
+}
+
+class _LegendaDot extends StatelessWidget {
+  final Color cor;
+  const _LegendaDot({required this.cor});
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 10, height: 10, decoration: BoxDecoration(color: cor, shape: BoxShape.circle));
 }
 
 // Formulário "Lançar despesa" — mesmos campos de LancarDespesaForm (web),

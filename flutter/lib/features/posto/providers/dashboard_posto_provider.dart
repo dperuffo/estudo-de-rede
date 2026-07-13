@@ -8,10 +8,27 @@ import '../../../core/services/supabase_service.dart';
 // DashboardPosto.tsx da web (src/app/(dashboard)/dashboard/_components/).
 // Mesmas fontes de dados (negociacoes_postos + RPC
 // resumo_vendas_diarias_posto), só que via Supabase direto no Flutter em
-// vez de Server Component. O gráfico evolutivo diário (GraficoEvolutivoPostos)
-// fica pra uma próxima iteração — aqui entram os indicadores e tabelas.
+// vez de Server Component.
+//
+// Indicadores gráficos (pedido do Daniel) — porta de GraficoEvolutivoPostos
+// (venda diária por combustível, últimos `janelaGraficoDias`) usando a MESMA
+// resposta de `resumo_vendas_diarias_posto` que já alimenta os KPIs acima —
+// só precisou agregar por (dia, combustível) em vez de só por combustível
+// total. Donut de participação por combustível é novo (não existe ainda na
+// web) — mesmos dados de `desempenhoPorCombustivel`, já calculados.
 
 const janelaDesempenhoDias = 30;
+const janelaGraficoDias = 14;
+
+// 1 ponto = 1 combustível em 1 dia — equivalente ao dado bruto que
+// GraficoEvolutivoPostos.tsx recebe da web, já filtrado pra janela do
+// gráfico (janelaGraficoDias, não os janelaDesempenhoDias inteiros dos KPIs).
+class PontoVendaDiaria {
+  final String dia; // yyyy-MM-dd
+  final String combustivel;
+  final double volume;
+  const PontoVendaDiaria({required this.dia, required this.combustivel, required this.volume});
+}
 
 class DesempenhoCombustivel {
   final String combustivel;
@@ -66,6 +83,7 @@ class DashboardPostoDados {
   final double precoMedioGeral;
   final double ticketMedio;
   final List<DesempenhoCombustivel> desempenhoPorCombustivel;
+  final List<PontoVendaDiaria> serieDiariaPorCombustivel;
   final int pendentes;
   final int vigentes;
   final int clientesAtivos;
@@ -79,6 +97,7 @@ class DashboardPostoDados {
     required this.precoMedioGeral,
     required this.ticketMedio,
     required this.desempenhoPorCombustivel,
+    required this.serieDiariaPorCombustivel,
     required this.pendentes,
     required this.vigentes,
     required this.clientesAtivos,
@@ -94,6 +113,7 @@ class DashboardPostoDados {
     precoMedioGeral: 0,
     ticketMedio: 0,
     desempenhoPorCombustivel: [],
+    serieDiariaPorCombustivel: [],
     pendentes: 0,
     vigentes: 0,
     clientesAtivos: 0,
@@ -219,6 +239,20 @@ final dashboardPostoProvider = FutureProvider.autoDispose<DashboardPostoDados>((
       .toList()
     ..sort((a, b) => b.volume.compareTo(a.volume));
 
+  // Série diária do gráfico — recorte de janelaGraficoDias sobre o mesmo
+  // resumoDiario acima (que já cobre janelaDesempenhoDias inteiros).
+  final desdeGraficoIso =
+      DateFormat('yyyy-MM-dd').format(agoraUtc.subtract(const Duration(days: janelaGraficoDias)));
+  final serieDiariaPorCombustivel = resumoDiario
+      .where((r) => (r['dia'] as String? ?? '').compareTo(desdeGraficoIso) >= 0)
+      .map((r) => PontoVendaDiaria(
+            dia: r['dia'] as String? ?? '',
+            combustivel: r['item_nome'] as String? ?? '—',
+            volume: (r['volume'] as num?)?.toDouble() ?? 0,
+          ))
+      .toList()
+    ..sort((a, b) => a.dia.compareTo(b.dia));
+
   return DashboardPostoDados(
     totalAbastecimentos: totalAbastecimentos,
     volumeVendido: volumeVendido,
@@ -226,6 +260,7 @@ final dashboardPostoProvider = FutureProvider.autoDispose<DashboardPostoDados>((
     precoMedioGeral: precoMedioGeral,
     ticketMedio: ticketMedio,
     desempenhoPorCombustivel: desempenhoPorCombustivel,
+    serieDiariaPorCombustivel: serieDiariaPorCombustivel,
     pendentes: pendentes,
     vigentes: vigentes,
     clientesAtivos: clientesAtivos,

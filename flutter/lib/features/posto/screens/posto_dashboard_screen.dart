@@ -1,9 +1,22 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../providers/dashboard_posto_provider.dart';
+
+// Paleta fixa por combustível — mesma família de cores usada nos gráficos
+// já existentes (precos_screen.dart, analise_cliente_screen.dart), pra
+// manter a identidade visual entre as duas visões do app.
+const _coresCombustivel = [
+  Color(0xFF1565C0),
+  Colors.red,
+  Colors.green,
+  Colors.orange,
+  Colors.purple,
+  Colors.teal,
+];
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
@@ -70,10 +83,29 @@ class PostoDashboardScreen extends ConsumerWidget {
             ]),
 
             const SizedBox(height: 20),
+            _tituloSecao('Venda diária por combustível — últimos $janelaGraficoDias dias'),
+            if (dados.serieDiariaPorCombustivel.isEmpty)
+              _cardVazio('Sem dados suficientes no período.')
+            else
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 16, 16, 12),
+                  child: _graficoLinhaVendaDiaria(dados.serieDiariaPorCombustivel),
+                ),
+              ),
+
+            const SizedBox(height: 20),
             _tituloSecao('Desempenho por combustível'),
             if (dados.desempenhoPorCombustivel.isEmpty)
               _cardVazio('Nenhum abastecimento no período.')
-            else
+            else ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _donutParticipacao(dados.desempenhoPorCombustivel),
+                ),
+              ),
+              const SizedBox(height: 12),
               Card(
                 child: Column(
                   children: dados.desempenhoPorCombustivel
@@ -97,6 +129,7 @@ class PostoDashboardScreen extends ConsumerWidget {
                       .toList(),
                 ),
               ),
+            ],
 
             const SizedBox(height: 20),
             _tituloSecao('Negociações'),
@@ -151,6 +184,144 @@ class PostoDashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  // Porta de GraficoEvolutivoPostos.tsx (LineChart do recharts) — 1 linha
+  // por combustível, eixo X = dia, eixo Y = litros. Mesmo padrão visual dos
+  // outros LineChart do app (precos_screen.dart): curva suave, área leve
+  // abaixo, tooltip formatado, legenda manual.
+  Widget _graficoLinhaVendaDiaria(List<PontoVendaDiaria> pontos) {
+    final dias = pontos.map((p) => p.dia).toSet().toList()..sort();
+    final combustiveis = pontos.map((p) => p.combustivel).toSet().toList()..sort();
+    if (dias.isEmpty || combustiveis.isEmpty) return const SizedBox();
+
+    final linhas = <LineChartBarData>[];
+    for (var ci = 0; ci < combustiveis.length; ci++) {
+      final comb = combustiveis[ci];
+      final spots = <FlSpot>[];
+      for (var di = 0; di < dias.length; di++) {
+        final ponto = pontos.where((p) => p.dia == dias[di] && p.combustivel == comb);
+        final volume = ponto.isNotEmpty ? ponto.first.volume : 0.0;
+        spots.add(FlSpot(di.toDouble(), volume));
+      }
+      final cor = _coresCombustivel[ci % _coresCombustivel.length];
+      linhas.add(LineChartBarData(
+        spots: spots,
+        isCurved: true,
+        color: cor,
+        barWidth: 2.5,
+        dotData: FlDotData(show: dias.length < 10),
+        belowBarData: BarAreaData(show: true, color: cor.withOpacity(0.05)),
+      ));
+    }
+
+    return Column(children: [
+      SizedBox(
+        height: 220,
+        child: LineChart(LineChartData(
+          lineBarsData: linhas,
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 44,
+              getTitlesWidget: (v, _) =>
+                  Text(_numero.format(v.round()), style: const TextStyle(fontSize: 9)),
+            )),
+            bottomTitles: AxisTitles(sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              interval: dias.length > 6 ? (dias.length / 6).ceilToDouble() : 1,
+              getTitlesWidget: (v, _) {
+                final idx = v.toInt();
+                if (idx < 0 || idx >= dias.length) return const SizedBox();
+                return Text(_formatarData(dias[idx]).substring(0, 5),
+                    style: const TextStyle(fontSize: 9));
+              },
+            )),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: false),
+          gridData: FlGridData(
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) =>
+                FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
+          ),
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (spots) => spots
+                  .map((s) => LineTooltipItem(
+                        '${_numero.format(s.y.round())} L',
+                        TextStyle(color: _coresCombustivel[s.barIndex % _coresCombustivel.length], fontSize: 11),
+                      ))
+                  .toList(),
+            ),
+          ),
+        )),
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 12,
+        children: List.generate(
+          combustiveis.length,
+          (i) => Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 12, height: 3, color: _coresCombustivel[i % _coresCombustivel.length]),
+            const SizedBox(width: 4),
+            Text(combustiveis[i], style: const TextStyle(fontSize: 11)),
+          ]),
+        ),
+      ),
+    ]);
+  }
+
+  // Donut de participação por combustível — sem equivalente direto na web
+  // ainda; dado já vinha calculado no provider (desempenhoPorCombustivel).
+  Widget _donutParticipacao(List<DesempenhoCombustivel> lista) {
+    return SizedBox(
+      height: 180,
+      child: Row(children: [
+        Expanded(
+          child: PieChart(PieChartData(
+            sections: lista.asMap().entries.map((e) {
+              final cor = _coresCombustivel[e.key % _coresCombustivel.length];
+              return PieChartSectionData(
+                value: e.value.volume,
+                title: '${e.value.participacao.toStringAsFixed(0)}%',
+                color: cor,
+                radius: 60,
+                titleStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+              );
+            }).toList(),
+            centerSpaceRadius: 32,
+            sectionsSpace: 2,
+          )),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: lista.asMap().entries.map((e) {
+              final cor = _coresCombustivel[e.key % _coresCombustivel.length];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(e.value.combustivel,
+                        style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                  ),
+                ]),
+              );
+            }).toList(),
+          ),
+        ),
+      ]),
     );
   }
 
