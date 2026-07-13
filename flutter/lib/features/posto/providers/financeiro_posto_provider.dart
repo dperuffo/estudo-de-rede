@@ -3,14 +3,18 @@ import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
 
 // Fase FLT-2 — porta de src/app/(dashboard)/financeiro-posto/page.tsx +
-// src/lib/financeiroPostos.ts pro Flutter, escopo bem reduzido (tela mais
+// src/lib/financeiroPostos.ts pro Flutter, escopo reduzido (tela mais
 // complexa da web até agora): mantém os KPIs principais (a receber/vencido/
 // recebido/a pagar/pago/saldo previsto), o consolidado por meio de
-// pagamento e as contas a pagar (despesas) com lançar/marcar paga/excluir.
-// Fora do escopo desta versão: gráfico de fluxo de caixa por dia
-// (GraficoFluxoCaixaPosto), tabela de aging (faixas de atraso) e a visão
-// agrupada por cliente (VisaoCiclosPorContraparte — já dá pra ver o ciclo/
-// fatura de cada cliente em /posto/clientes/:id) e o resumo de ajustes de
+// pagamento, a visão "Ciclos por Cliente" (VisaoCiclosPorContraparte — 1
+// linha por cliente com o ciclo atual + resumo de faturas, com drill-down
+// pra /posto/ciclos-abertos/:negociacaoId, /posto/faturas/:id e
+// /posto/clientes/:id) e as contas a pagar (despesas) com lançar/marcar
+// paga/excluir. **Achado do Daniel:** "Ciclos por Cliente" tinha sido
+// cortado do escopo por engano (achando que /posto/clientes/:id já cobria
+// sozinho) — restaurado nesta revisão, igual à web. Fora do escopo desta
+// versão: gráfico de fluxo de caixa por dia (GraficoFluxoCaixaPosto),
+// tabela de aging (faixas de atraso) e o resumo de ajustes de
 // abastecimento (SecaoAjustesAbastecimentos — cada ajuste específico já é
 // visto no detalhe do abastecimento). Período "personalizado" (datas
 // escolhidas à mão) também fora do escopo — só as 4 opções rápidas.
@@ -85,12 +89,16 @@ String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
 
 class FaturaFinanceiro {
   final String id;
+  final String? empresaClienteId;
+  final String? clienteNome;
   final double valorTotal;
   final String status;
   final String vencimento;
   final String? pagoEm;
   const FaturaFinanceiro({
     required this.id,
+    this.empresaClienteId,
+    this.clienteNome,
     required this.valorTotal,
     required this.status,
     required this.vencimento,
@@ -98,6 +106,8 @@ class FaturaFinanceiro {
   });
   factory FaturaFinanceiro.fromMap(Map<String, dynamic> m) => FaturaFinanceiro(
         id: m['id'] as String,
+        empresaClienteId: m['empresa_cliente_id'] as String?,
+        clienteNome: m['cliente_nome'] as String?,
         valorTotal: (m['valor_total'] as num?)?.toDouble() ?? 0,
         status: m['status'] as String? ?? 'aberta',
         vencimento: m['vencimento'] as String,
@@ -152,16 +162,162 @@ class IndicadorProvedor {
   });
 }
 
+// Ciclo em andamento (ainda não fechado pelo robô), resumido só com o que
+// a visão "Ciclos por Cliente" precisa — mesmos campos de
+// ciclo_aberto_detalhe_provider.dart (RPC ciclos_abertos_postos).
+class CicloAbertoResumo {
+  final String negociacaoId;
+  final String? periodoInicio;
+  final String? periodoFimPrevisto;
+  final double valorAcumulado;
+  final int quantidadeAbastecimentos;
+  final double valorPendenteNfe;
+  final int quantidadePendenteNfe;
+
+  const CicloAbertoResumo({
+    required this.negociacaoId,
+    this.periodoInicio,
+    this.periodoFimPrevisto,
+    required this.valorAcumulado,
+    required this.quantidadeAbastecimentos,
+    required this.valorPendenteNfe,
+    required this.quantidadePendenteNfe,
+  });
+
+  factory CicloAbertoResumo.fromMap(Map<String, dynamic> m) => CicloAbertoResumo(
+        negociacaoId: m['negociacao_id'].toString(),
+        periodoInicio: m['periodo_inicio'] as String?,
+        periodoFimPrevisto: m['periodo_fim_previsto'] as String?,
+        valorAcumulado: (m['valor_acumulado'] as num?)?.toDouble() ?? 0,
+        quantidadeAbastecimentos: (m['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
+        valorPendenteNfe: (m['valor_pendente_nfe'] as num?)?.toDouble() ?? 0,
+        quantidadePendenteNfe: (m['quantidade_pendente_nfe'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class ContagemFaturas {
+  int aberta;
+  int vencida;
+  int paga;
+  int cancelada;
+  ContagemFaturas({this.aberta = 0, this.vencida = 0, this.paga = 0, this.cancelada = 0});
+}
+
+// Espelha LinhaContraparte (ciclosAbertos.ts) — 1 linha por cliente.
+class LinhaContraparte {
+  final String contraparteId;
+  final String contraparteNome;
+  final int cicloFaturamentoDias;
+  final int prazoVencimentoDias;
+  final CicloAbertoResumo? cicloAtual;
+  final ContagemFaturas contagem;
+  double valorEmAberto;
+  double valorVencido;
+
+  LinhaContraparte({
+    required this.contraparteId,
+    required this.contraparteNome,
+    required this.cicloFaturamentoDias,
+    required this.prazoVencimentoDias,
+    required this.cicloAtual,
+    required this.contagem,
+    this.valorEmAberto = 0,
+    this.valorVencido = 0,
+  });
+}
+
+// Espelha agruparCiclosPorContraparte (ciclosAbertos.ts) 1:1, inclusive a
+// ordem de prioridade (vencida > aberta > ciclo em andamento > histórico).
+List<LinhaContraparte> agruparPorContraparte({
+  required List<({String contraparteId, String? contraparteNome, int cicloFaturamentoDias, int prazoVencimentoDias})>
+      negociacoes,
+  required List<FaturaFinanceiro> faturas,
+  required Map<String, CicloAbertoResumo> ciclosAbertosPorContraparte,
+  required String hojeIso,
+}) {
+  final linhas = <String, LinhaContraparte>{};
+
+  for (final n in negociacoes) {
+    linhas[n.contraparteId] = LinhaContraparte(
+      contraparteId: n.contraparteId,
+      contraparteNome: n.contraparteNome ?? '—',
+      cicloFaturamentoDias: n.cicloFaturamentoDias,
+      prazoVencimentoDias: n.prazoVencimentoDias,
+      cicloAtual: ciclosAbertosPorContraparte[n.contraparteId],
+      contagem: ContagemFaturas(),
+    );
+  }
+
+  for (final f in faturas) {
+    final contraparteId = f.empresaClienteId;
+    if (contraparteId == null) continue;
+    var linha = linhas[contraparteId];
+    if (linha == null) {
+      linha = LinhaContraparte(
+        contraparteId: contraparteId,
+        contraparteNome: f.clienteNome ?? '—',
+        cicloFaturamentoDias: 0,
+        prazoVencimentoDias: 0,
+        cicloAtual: null,
+        contagem: ContagemFaturas(),
+      );
+      linhas[contraparteId] = linha;
+    }
+
+    final vencida = f.status == 'aberta' && f.vencimento.compareTo(hojeIso) < 0;
+    if (vencida) {
+      linha.contagem.vencida += 1;
+    } else if (f.status == 'aberta') {
+      linha.contagem.aberta += 1;
+    } else if (f.status == 'paga') {
+      linha.contagem.paga += 1;
+    } else if (f.status == 'cancelada') {
+      linha.contagem.cancelada += 1;
+    }
+
+    if (f.status == 'aberta') {
+      linha.valorEmAberto += f.valorTotal;
+      if (vencida) linha.valorVencido += f.valorTotal;
+    }
+  }
+
+  // Ciclo em andamento soma como +1 "aberta" mesmo com valor 0 (Fase 27.91
+  // na web — já está aberto desde o primeiro dia, só ainda não fechou).
+  for (final linha in linhas.values) {
+    if (linha.cicloAtual != null) {
+      linha.contagem.aberta += 1;
+      linha.valorEmAberto += linha.cicloAtual!.valorAcumulado;
+    }
+  }
+
+  int prioridade(LinhaContraparte l) {
+    if (l.contagem.vencida > 0) return 0;
+    if (l.contagem.aberta > 0) return 1;
+    if (l.cicloAtual != null) return 2;
+    return 3;
+  }
+
+  final lista = linhas.values.toList();
+  lista.sort((a, b) {
+    final p = prioridade(a) - prioridade(b);
+    if (p != 0) return p;
+    return a.contraparteNome.compareTo(b.contraparteNome);
+  });
+  return lista;
+}
+
 class FinanceiroPostoDetalhe {
   final List<FaturaFinanceiro> faturas;
   final List<DespesaFinanceiro> despesas;
   final List<IndicadorProvedor> indicadoresPorProvedor;
   final double cicloAbertoValorTotal;
+  final List<LinhaContraparte> linhasPorCliente;
   const FinanceiroPostoDetalhe({
     required this.faturas,
     required this.despesas,
     required this.indicadoresPorProvedor,
     required this.cicloAbertoValorTotal,
+    required this.linhasPorCliente,
   });
 }
 
@@ -173,10 +329,11 @@ final financeiroPostoProvider =
   final supabase = SupabaseService.client;
 
   final janela = resolverPeriodo(periodo);
+  final hojeIso = _iso(DateTime.now());
 
   final faturasRaw = await supabase
       .from('faturas_postos')
-      .select('id, valor_total, status, vencimento, pago_em')
+      .select('id, empresa_cliente_id, cliente_nome, valor_total, status, vencimento, pago_em')
       .eq('empresa_posto_id', empresaId)
       .order('vencimento', ascending: false)
       .limit(500) as List;
@@ -226,20 +383,74 @@ final financeiroPostoProvider =
   }
 
   // Ciclo em andamento (ainda não fechado pelo robô) — já representa valor
-  // devido; soma no "A receber (em aberto)" (Fase 27.91 na web).
+  // devido; soma no "A receber (em aberto)" (Fase 27.91 na web). Também
+  // usado abaixo (por cliente) na visão "Ciclos por Cliente".
   final ciclosRaw = await supabase.rpc('ciclos_abertos_postos') as List;
   double cicloAbertoValorTotal = 0;
+  final ciclosAbertosPorCliente = <String, CicloAbertoResumo>{};
   for (final m in ciclosRaw) {
     final mm = m as Map<String, dynamic>;
     if (mm['empresa_posto_id'] == empresaId) {
       cicloAbertoValorTotal += (mm['valor_acumulado'] as num?)?.toDouble() ?? 0;
+      final clienteId = mm['empresa_cliente_id'] as String?;
+      if (clienteId != null) {
+        ciclosAbertosPorCliente[clienteId] = CicloAbertoResumo.fromMap(mm);
+      }
     }
   }
+
+  // Ciclos por Cliente (VisaoCiclosPorContraparte na web) — base de
+  // negociações aceitas (mesmo sem fatura ainda) + ciclo/prazo do CLIENTE
+  // (empresas.ciclo_faturamento_dias/prazo_vencimento_dias, default 30
+  // igual à web).
+  final negociacoesRaw = await supabase
+      .from('negociacoes_postos')
+      .select('empresa_cliente_id, cliente_nome')
+      .eq('empresa_posto_id', empresaId)
+      .eq('status', 'aceita') as List;
+  final idsClientes = negociacoesRaw
+      .map((m) => (m as Map<String, dynamic>)['empresa_cliente_id'] as String?)
+      .whereType<String>()
+      .toSet()
+      .toList();
+  final ciclosPorClienteMap = <String, ({int cicloDias, int prazoDias})>{};
+  if (idsClientes.isNotEmpty) {
+    final clientesCicloRaw = await supabase
+        .from('empresas')
+        .select('id, ciclo_faturamento_dias, prazo_vencimento_dias')
+        .inFilter('id', idsClientes) as List;
+    for (final c in clientesCicloRaw) {
+      final cc = c as Map<String, dynamic>;
+      ciclosPorClienteMap[cc['id'] as String] = (
+        cicloDias: (cc['ciclo_faturamento_dias'] as num?)?.toInt() ?? 30,
+        prazoDias: (cc['prazo_vencimento_dias'] as num?)?.toInt() ?? 30,
+      );
+    }
+  }
+  final negociacoesParaAgrupar = negociacoesRaw.map((m) {
+    final mm = m as Map<String, dynamic>;
+    final clienteId = mm['empresa_cliente_id'] as String;
+    final ciclo = ciclosPorClienteMap[clienteId];
+    return (
+      contraparteId: clienteId,
+      contraparteNome: mm['cliente_nome'] as String?,
+      cicloFaturamentoDias: ciclo?.cicloDias ?? 30,
+      prazoVencimentoDias: ciclo?.prazoDias ?? 30,
+    );
+  }).toList();
+
+  final linhasPorCliente = agruparPorContraparte(
+    negociacoes: negociacoesParaAgrupar,
+    faturas: faturas,
+    ciclosAbertosPorContraparte: ciclosAbertosPorCliente,
+    hojeIso: hojeIso,
+  );
 
   return FinanceiroPostoDetalhe(
     faturas: faturas,
     despesas: despesas,
     indicadoresPorProvedor: indicadoresPorProvedor,
     cicloAbertoValorTotal: cicloAbertoValorTotal,
+    linhasPorCliente: linhasPorCliente,
   );
 });

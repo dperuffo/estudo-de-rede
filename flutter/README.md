@@ -338,22 +338,28 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   `lib/features/posto/providers/financeiro_posto_provider.dart`,
   `lib/features/posto/services/financeiro_posto_service.dart`. Porta de
   `financeiro-posto/page.tsx` + `src/lib/financeiroPostos.ts` +
-  `financeiro-posto/actions.ts` — a tela mais complexa da web até agora,
-  então esta versão tem escopo bem reduzido: seletor de período (Hoje/7
-  dias/15 dias/Mês atual — sem "personalizado"), os 6 indicadores
-  principais (a receber em aberto, vencido, recebido no período, a pagar
-  em aberto, pago no período, saldo previsto — calculados no cliente, mesma
-  lógica de `.reduce()` da web), consolidado por meio de pagamento
-  (`abastecimentos_unificado` por `posto_cnpj`) e contas a pagar (despesas)
-  com lançar/marcar paga/excluir. **Fora do escopo desta versão:** gráfico
-  de fluxo de caixa por dia (`GraficoFluxoCaixaPosto`), tabela de aging
-  (faixas de atraso), visão agrupada por cliente
-  (`VisaoCiclosPorContraparte` — já dá pra ver o ciclo/fatura de cada
-  cliente em `/posto/clientes/:id`) e o resumo de ajustes de abastecimento
-  (`SecaoAjustesAbastecimentos` — cada ajuste específico já é visto no
-  detalhe do abastecimento). Faturas são só leitura aqui (mudar status de
-  fatura continua sendo via `/posto/clientes/:id` → `/posto/faturas/:id`,
-  já construído em fase anterior).
+  `src/lib/ciclosAbertos.ts` + `financeiro-posto/actions.ts` — a tela mais
+  complexa da web até agora, então esta versão tem escopo reduzido:
+  seletor de período (Hoje/7 dias/15 dias/Mês atual — sem
+  "personalizado"), os 6 indicadores principais (a receber em aberto,
+  vencido, recebido no período, a pagar em aberto, pago no período, saldo
+  previsto — calculados no cliente, mesma lógica de `.reduce()` da web),
+  consolidado por meio de pagamento (`abastecimentos_unificado` por
+  `posto_cnpj`), **Ciclos por Cliente** (`VisaoCiclosPorContraparte` na
+  web — 1 linha por cliente com o ciclo atual em andamento + resumo de
+  faturas por status, filtros Todos/Em andamento/Em aberto/Vencida/Paga +
+  busca por nome, com "Ver detalhamento" abrindo
+  `/posto/ciclos-abertos/:negociacaoId` e "Ver histórico" abrindo
+  `/posto/clientes/:id` — porta fiel de `agruparCiclosPorContraparte`,
+  inclusive a ordem de prioridade vencida > aberta > ciclo em andamento >
+  histórico) e contas a pagar (despesas) com lançar/marcar paga/excluir.
+  **Fora do escopo desta versão:** gráfico de fluxo de caixa por dia
+  (`GraficoFluxoCaixaPosto`), tabela de aging (faixas de atraso) e o
+  resumo de ajustes de abastecimento (`SecaoAjustesAbastecimentos` — cada
+  ajuste específico já é visto no detalhe do abastecimento). Faturas são
+  só leitura aqui (mudar status de fatura continua sendo via
+  `/posto/clientes/:id` → `/posto/faturas/:id`, já construído em fase
+  anterior).
 
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"

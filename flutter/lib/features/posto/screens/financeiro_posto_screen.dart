@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../providers/financeiro_posto_provider.dart';
 import '../services/financeiro_posto_service.dart';
+
+enum _FiltroCiclo { todos, andamento, aberta, vencida, paga }
+
+const _filtroCicloLabel = <_FiltroCiclo, String>{
+  _FiltroCiclo.todos: 'Todos',
+  _FiltroCiclo.andamento: 'Em andamento',
+  _FiltroCiclo.aberta: 'Em aberto',
+  _FiltroCiclo.vencida: 'Vencida',
+  _FiltroCiclo.paga: 'Paga',
+};
 
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
@@ -35,6 +46,14 @@ class FinanceiroPostoScreen extends ConsumerStatefulWidget {
 class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
   PeriodoFinanceiro _periodo = PeriodoFinanceiro.quinzeDias;
   bool _formularioAberto = false;
+  _FiltroCiclo _filtroCiclo = _FiltroCiclo.todos;
+  final _buscaCiclosCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _buscaCiclosCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,6 +183,8 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               )),
         ],
         const SizedBox(height: 20),
+        _buildCiclosPorCliente(context, dados.linhasPorCliente),
+        const SizedBox(height: 20),
         if (_formularioAberto && empresaPostoId != null) ...[
           _FormularioDespesa(
             empresaPostoId: empresaPostoId,
@@ -267,6 +288,185 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // Ciclos por Cliente (VisaoCiclosPorContraparte na web) — pedido do
+  // Daniel: tinha ficado de fora do escopo reduzido; restaurado com filtros
+  // por status + busca por nome (client-side, igual à web) e drill-down
+  // pras telas já existentes de ciclo aberto/fatura/cliente.
+  Widget _buildCiclosPorCliente(BuildContext context, List<LinhaContraparte> linhas) {
+    final busca = _buscaCiclosCtrl.text.trim().toLowerCase();
+    var filtradas = linhas.where((l) {
+      switch (_filtroCiclo) {
+        case _FiltroCiclo.todos:
+          return true;
+        case _FiltroCiclo.andamento:
+          return l.cicloAtual != null;
+        case _FiltroCiclo.aberta:
+          return l.contagem.aberta > 0;
+        case _FiltroCiclo.vencida:
+          return l.contagem.vencida > 0;
+        case _FiltroCiclo.paga:
+          return l.contagem.paga > 0;
+      }
+    }).toList();
+    if (busca.isNotEmpty) {
+      filtradas = filtradas.where((l) => l.contraparteNome.toLowerCase().contains(busca)).toList();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Ciclos por Cliente', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 4),
+        const Text('Ciclo atual (em andamento) e resumo de faturas de cada cliente.',
+            style: TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _buscaCiclosCtrl,
+          decoration: const InputDecoration(
+            hintText: 'Buscar cliente...',
+            prefixIcon: Icon(Icons.search),
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: _FiltroCiclo.values
+              .map((f) => ChoiceChip(
+                    label: Text(_filtroCicloLabel[f]!),
+                    selected: _filtroCiclo == f,
+                    onSelected: (_) => setState(() => _filtroCiclo = f),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 10),
+        if (linhas.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('Nenhum cliente com ciclo ainda.', style: TextStyle(color: Colors.grey)),
+          )
+        else if (filtradas.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('Nenhum resultado para esse filtro/busca.', style: TextStyle(color: Colors.grey)),
+          )
+        else
+          ...filtradas.map((l) => _linhaContraparte(context, l)),
+      ],
+    );
+  }
+
+  Widget _linhaContraparte(BuildContext context, LinhaContraparte l) {
+    final ciclo = l.cicloAtual;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.contraparteNome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            if (l.cicloFaturamentoDias > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text('Ciclo ${l.cicloFaturamentoDias}+${l.prazoVencimentoDias} dias',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              ),
+            const SizedBox(height: 8),
+            if (ciclo != null) ...[
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text('Em andamento',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${ciclo.periodoInicio != null ? _dataBr(ciclo.periodoInicio!) : '—'} – ${ciclo.periodoFimPrevisto != null ? _dataBr(ciclo.periodoFimPrevisto!) : '—'} · '
+                '${ciclo.quantidadeAbastecimentos} abastecimento${ciclo.quantidadeAbastecimentos == 1 ? '' : 's'} · '
+                '${_moeda.format(ciclo.valorAcumulado)}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              if (ciclo.quantidadePendenteNfe > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${_moeda.format(ciclo.valorPendenteNfe)} (${ciclo.quantidadePendenteNfe}) esperando NF-e',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626)),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: GestureDetector(
+                  onTap: () => context.push('/posto/ciclos-abertos/${ciclo.negociacaoId}'),
+                  child: const Text('Ver detalhamento',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ] else
+              const Text('Sem ciclo em andamento', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (l.contagem.vencida > 0) _chipContagem('${l.contagem.vencida} vencida(s)', const Color(0xFFDC2626)),
+                if (l.contagem.aberta > 0) _chipContagem('${l.contagem.aberta} em aberto', const Color(0xFF64748B)),
+                if (l.contagem.paga > 0) _chipContagem('${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
+                if (l.contagem.vencida == 0 && l.contagem.aberta == 0 && l.contagem.paga == 0)
+                  const Text('Nenhuma ainda', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+            if (l.valorEmAberto > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    children: [
+                      const TextSpan(text: 'Em aberto: '),
+                      TextSpan(
+                          text: _moeda.format(l.valorEmAberto), style: const TextStyle(fontWeight: FontWeight.bold)),
+                      if (l.valorVencido > 0)
+                        TextSpan(
+                          text: ' (${_moeda.format(l.valorVencido)} vencido)',
+                          style: const TextStyle(color: Color(0xFFDC2626)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.push('/posto/clientes/${l.contraparteId}'),
+                child: const Text('Ver histórico'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chipContagem(String texto, Color cor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: cor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      child: Text(texto, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
     );
   }
 
