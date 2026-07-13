@@ -361,6 +361,27 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   `/posto/clientes/:id` → `/posto/faturas/:id`, já construído em fase
   anterior).
 
+- **Privacidade (LGPD) (`/posto/lgpd`)** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/providers/lgpd_provider.dart`,
+  `lib/features/posto/services/lgpd_service.dart`. Porta de
+  `lgpd/page.tsx` + `lgpd/actions.ts`. **Achado real:** na web é UMA ÚNICA
+  rota (`/lgpd`) compartilhada por cliente e posto — o conteúdo é idêntico
+  pros dois perfis, só o link no menu muda de lugar; a única bifurcação de
+  UI de verdade é admin x não-admin. Como o shell `/posto` nunca é acessado
+  por admin, portamos só os 4 blocos "não-admin": dados cadastrais
+  (leitura de `usuarios_app`), revogar consentimento (grava em
+  `lgpd_consents`), solicitar exclusão dos meus dados (grava em
+  `lgpd_exclusoes`, com checagem de duplicidade pendente + histórico das
+  próprias solicitações) e histórico de consentimento. **Escopo
+  reduzido:** a Server Action da web captura IP/user-agent a partir dos
+  headers da requisição (só possível rodando no servidor Next.js) — sem
+  equivalente no Flutter, que fala direto com o Supabase; os registros
+  gravados pelo app ficam com esses dois campos nulos (o que importa
+  legalmente — e-mail, tipo, timestamp — continua gravado normalmente). O
+  bloco "todas as solicitações de exclusão" (admin) não existe aqui, nem
+  a ação de marcar como executada (RLS já bloqueia isso pra quem não é
+  admin, mesmo que tentasse).
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do
