@@ -294,6 +294,34 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   resposta. Fora do escopo desta versão: exportar a conversa em PDF
   (`BotaoBaixarPdfAssistente*.tsx` na web).
 
+- **Minha Assinatura (`/posto/assinatura`)** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/providers/assinatura_provider.dart`,
+  `lib/features/posto/services/assinatura_service.dart` e
+  `lib/core/constants/termo_adesao.dart`. Porta de
+  `assinatura/page.tsx` + `BotaoAssinarPlano.tsx` + `ModalTermoAdesao.tsx` +
+  `BotaoPortalPagamento.tsx`, escopo reduzido ao caminho POSTO (a web tem
+  dois critérios de dimensionamento de plano — usuários/veículos pra
+  frota, tamanho da Rede de Postos pra posto, Fase 27.125 — aqui só o
+  segundo se aplica). Mostra plano atual/status/postos na Rede, banner de
+  trial, os 3 planos com preço real (buscado da Edge Function
+  `planos-precos`, nunca hardcoded) e destaque do recomendado pelo tamanho
+  da Rede, histórico de faturas. Botão "Assinar" abre o Termo de Adesão
+  (texto legal completo, igual à web) — só depois de marcar "li e aceito"
+  chama a MESMA Edge Function `create-checkout-session` da web (com
+  `aceite_termo: true`) e abre a URL do Stripe Checkout no navegador
+  externo (`url_launcher`, `LaunchMode.externalApplication` — o app não
+  processa pagamento, só entrega pro Stripe). Botão "Gerenciar pagamento"
+  idem, via `create-billing-portal-session`. **Importante:** não gera nem
+  sobe o comprovante em PDF do aceite do termo (`@react-pdf/renderer` não
+  tem equivalente direto no Flutter) — confirmado lendo o código da Edge
+  Function que o registro de aceite (hash/versão/IP/timestamp — o que
+  importa legalmente) é gravado no banco (`termos_aceite`) ANTES da sessão
+  do Stripe ser criada, então não depende do PDF pra ser válido; na web o
+  PDF é só um comprovante anexado depois no e-mail de confirmação. Outra
+  observação: como a Edge Function usa uma URL de retorno fixa
+  (`DASHBOARD_URL`, o site Next.js), depois do checkout o usuário é
+  redirecionado pro site — não volta direto pro app.
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do
