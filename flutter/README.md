@@ -252,6 +252,29 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   web só existe pra Aprovação de Documentos do admin; aqui o contador só
   aparece dentro da própria tela de Chamados, nos indicadores).
 
+- **Rede de Postos (`/posto/rede-postos` + `/posto/rede-postos/nova`)** —
+  real desde a Fase FLT-2. Ver `lib/features/posto/providers/
+  rede_posto_provider.dart` e `lib/features/posto/services/
+  rede_postos_service.dart`. Espelha (com escopo reduzido)
+  `rede-postos/[id]/page.tsx` + `rede-postos/novo/page.tsx` +
+  `RedeForm.tsx` + `VincularPostoForm.tsx` + `NovaRedeForm.tsx` +
+  `src/lib/gruposEconomicos.ts` da web: se a empresa atual ainda não
+  pertence a nenhuma Rede, mostra estado vazio com botão "Criar Rede de
+  Postos" (nome + CNPJ da matriz opcional + posto fundador, via RPC
+  `criar_rede_posto_self_service`); se já pertence, mostra os dados da
+  Rede (editáveis: nome/CNPJ/ativa) + lista de postos vinculados, com
+  vincular/desvincular (usando só os postos que o próprio login já
+  controla — `sessao.empresasIds`, a mesma lista da RPC
+  `empresas_do_usuario` que a web usa em "postosDisponiveis" pra quem não
+  é admin). Sem o caminho admin (visão global de todas as Redes, escolher
+  qualquer posto Revenda como fundador de outro) — não se aplica, o
+  Flutter só existe pro shell `/posto`. **Importante:**
+  `rede_postos_service.dart` replica em código a checagem de documentação
+  societária aprovada (`_exigirDocumentacaoAprovada`, mesmo padrão de
+  `negociacoes_service.dart`) — confirmado lendo a função
+  `criar_rede_posto_self_service` no banco que essa checagem só existe na
+  camada TS/Dart, não na RPC nem na RLS.
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do
