@@ -322,6 +322,18 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   (`DASHBOARD_URL`, o site Next.js), depois do checkout o usuário é
   redirecionado pro site — não volta direto pro app.
 
+- **Avaliar Plataforma (`/posto/avaliar`)** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/providers/avaliacoes_provider.dart`,
+  `lib/features/posto/services/avaliacoes_service.dart`. Porta de
+  `avaliar/page.tsx` + `FormularioAvaliacao.tsx` + `src/lib/avaliacoes.ts`:
+  estrelas (1 a 5) + observações opcionais, histórico das avaliações
+  anteriores com a resposta da equipe FNI quando houver. Sem o seletor de
+  "sobre qual cliente é esta avaliação" (só faz sentido pra quem enxerga
+  vários clientes — o shell `/posto` sempre tem uma única empresa atual).
+  Tela mais simples desta fase: sem gates de documentação/assinatura, RLS
+  (`avaliacoes_insert_proprio`) já garante que o insert vale só com o
+  próprio e-mail.
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do

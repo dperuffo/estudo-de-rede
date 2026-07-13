@@ -39,6 +39,7 @@ import '../../features/posto/screens/rede_postos_screen.dart';
 import '../../features/posto/screens/nova_rede_screen.dart';
 import '../../features/posto/screens/assistente_screen.dart';
 import '../../features/posto/screens/assinatura_screen.dart';
+import '../../features/posto/screens/avaliar_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
@@ -144,7 +145,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/posto/rede-postos/nova', builder: (_, __) => const NovaRedeScreen()),
             GoRoute(path: '/posto/assistente', builder: (_, __) => const AssistentePostoScreen()),
             GoRoute(path: '/posto/assinatura', builder: (_, __) => const AssinaturaScreen()),
-            GoRoute(path: '/posto/avaliar', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Avaliar Plataforma')),
+            GoRoute(path: '/posto/avaliar', builder: (_, __) => const AvaliarScreen()),
             GoRoute(path: '/posto/financeiro', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Financeiro')),
             GoRoute(path: '/posto/lgpd', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Privacidade (LGPD)')),
             GoRoute(path: '/posto/meus-dados', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Meus Dados / PIX')),
