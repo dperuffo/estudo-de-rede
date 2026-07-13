@@ -424,6 +424,35 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   `status_documentacao_empresa_publico` da web — nada novo aqui, só
   documentando a ligação.
 
+- **Usuários (`/posto/usuarios`)** — real desde a Fase FLT-2, a última aba
+  desta fase. Ver `lib/features/posto/providers/usuarios_provider.dart`,
+  `lib/features/posto/services/usuarios_service.dart`. Porta de
+  `usuarios/page.tsx` + `usuarios/[email]/page.tsx` +
+  `usuarios/novo/page.tsx` + `usuarios/actions.ts`. **Achado real +
+  decisão confirmada com o Daniel:** convidar usuário usa a Auth Admin API
+  do Supabase (`inviteUserByEmail`), que exige a SERVICE ROLE KEY — chave
+  secreta que nunca pode ir pro bundle do app (mesma situação do
+  Assistente FNI). Criada a rota `POST /api/usuarios/convidar` (repo
+  `Gestão de Frotas`, `src/app/api/usuarios/convidar/route.ts`),
+  autenticada por Bearer token da sessão Supabase, que replica os mesmos 3
+  passos de `criarUsuario()`: convite no Auth → upsert `usuarios_app` →
+  upsert `usuarios_empresas` (`role = perfil`). Endurecimento em relação à
+  web (não um bug corrigido, um cuidado a mais por esta ser uma rota HTTP
+  nova, chamável por qualquer posto autenticado): a rota confere, com o
+  client RLS-scoped do próprio chamador, que ele pertence à empresa pra
+  qual está convidando, antes de trocar pro client admin — a Server Action
+  original não tinha essa checagem porque só é alcançável hoje por quem já
+  é admin dentro do dashboard autenticado por sessão. Lista: usuários
+  vinculados ao posto atual (via `usuarios_empresas` filtrado por
+  `empresa_id` — nisso diverge da web, que lista "o que a RLS deixa ver",
+  sem filtro de empresa no código; aqui filtramos explicitamente pra ficar
+  mais útil: "quem tem acesso ao MEU posto"), com indicadores de
+  total/ativos/com MFA. Editar: nome/CPF/telefone/ativo (perfil e segmento
+  ficam fixos em "posto"/"Revenda", definidos no convite — sem o dropdown
+  de perfil da web, que também atende Frota/admin na mesma tela). MFA é
+  só leitura (nem a web tem resetar MFA de terceiros). **Fora do escopo:**
+  importação de usuários em lote via planilha (`/usuarios/importar`).
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do

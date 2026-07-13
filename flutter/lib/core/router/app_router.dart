@@ -44,6 +44,9 @@ import '../../features/posto/screens/financeiro_posto_screen.dart';
 import '../../features/posto/screens/lgpd_screen.dart';
 import '../../features/posto/screens/meus_dados_screen.dart';
 import '../../features/posto/screens/documentos_screen.dart';
+import '../../features/posto/screens/usuarios_screen.dart';
+import '../../features/posto/screens/usuario_novo_screen.dart';
+import '../../features/posto/screens/usuario_editar_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
@@ -154,7 +157,13 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/posto/lgpd', builder: (_, __) => const LgpdScreen()),
             GoRoute(path: '/posto/meus-dados', builder: (_, __) => const MeusDadosScreen()),
             GoRoute(path: '/posto/documentos', builder: (_, __) => const DocumentosScreen()),
-            GoRoute(path: '/posto/usuarios', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Usuários')),
+            GoRoute(path: '/posto/usuarios', builder: (_, __) => const UsuariosScreen()),
+            GoRoute(path: '/posto/usuarios/novo', builder: (_, __) => const UsuarioNovoScreen()),
+            GoRoute(
+              path: '/posto/usuarios/:email',
+              builder: (_, state) =>
+                  UsuarioEditarScreen(email: Uri.decodeComponent(state.pathParameters['email']!)),
+            ),
             GoRoute(path: '/posto/negociacoes', builder: (_, __) => const NegociacoesScreen()),
             GoRoute(path: '/posto/negociacoes/novo', builder: (_, __) => const CriarNegociacaoScreen()),
             GoRoute(
