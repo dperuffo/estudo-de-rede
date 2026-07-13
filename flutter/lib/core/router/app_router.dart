@@ -37,6 +37,7 @@ import '../../features/posto/screens/ciclo_aberto_detalhe_screen.dart';
 import '../../features/posto/screens/precos_posto_screen.dart';
 import '../../features/posto/screens/rede_postos_screen.dart';
 import '../../features/posto/screens/nova_rede_screen.dart';
+import '../../features/posto/screens/assistente_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
@@ -140,7 +141,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/posto/meu-posto', builder: (_, __) => const MeuPostoScreen()),
             GoRoute(path: '/posto/rede-postos', builder: (_, __) => const RedePostosScreen()),
             GoRoute(path: '/posto/rede-postos/nova', builder: (_, __) => const NovaRedeScreen()),
-            GoRoute(path: '/posto/assistente', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Assistente FNI')),
+            GoRoute(path: '/posto/assistente', builder: (_, __) => const AssistenteScreen()),
             GoRoute(path: '/posto/assinatura', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Minha Assinatura')),
             GoRoute(path: '/posto/avaliar', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Avaliar Plataforma')),
             GoRoute(path: '/posto/financeiro', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Financeiro')),

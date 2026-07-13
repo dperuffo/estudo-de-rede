@@ -275,6 +275,25 @@ web. Telas ainda placeholders (`EmConstrucaoScreen`), exceto:
   `criar_rede_posto_self_service` no banco que essa checagem só existe na
   camada TS/Dart, não na RPC nem na RLS.
 
+- **Assistente FNI (`/posto/assistente`)** — real desde a Fase FLT-2. Ver
+  `lib/features/posto/services/assistente_service.dart` e
+  `lib/features/posto/screens/assistente_screen.dart`. Porta de
+  `ChatAssistente.tsx` da web, mas com uma diferença de arquitetura em
+  relação a TODAS as outras telas do Flutter: as demais falam direto com o
+  Supabase (RLS cuida da segurança); esta chama a IA (Claude, via API da
+  Anthropic) que roda com uma chave secreta (`ANTHROPIC_API_KEY`) —
+  segredo que nunca pode ir pro bundle JS do app. Por isso foi criada uma
+  rota nova no site (`POST /api/assistente`, ver `route.ts` no repo Gestão
+  de Frotas), autenticada com o próprio access_token da sessão Supabase do
+  usuário (`Authorization: Bearer <token>` em vez de cookies — o app não
+  compartilha domínio com o site) — a rota valida o token, monta um client
+  Supabase "como" aquele usuário (RLS aplica normalmente) e chama a MESMA
+  `perguntarAssistente()` já usada pela web. Chat com histórico só em
+  memória (fecha a tela, perde a conversa — igual a web), perguntas
+  sugeridas, indicação de quantas consultas SQL o Assistente rodou por
+  resposta. Fora do escopo desta versão: exportar a conversa em PDF
+  (`BotaoBaixarPdfAssistente*.tsx` na web).
+
 As demais telas viram funcionalidade real uma de cada vez, nas próximas
 fases. **Exceção — decisão do Daniel:** "Notas Fiscais" e "Integrações"
 ficam só na visão web, não fazem parte do escopo do PWA — removidas do
