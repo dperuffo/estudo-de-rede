@@ -124,7 +124,26 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
 
     return Column(
       children: [
-        Text(perfilLabel[perfil] ?? perfil, style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+        // Achado real (Daniel, print do PWA): rótulos com tamanhos
+        // diferentes ("Administrador"/"Gestor de Frota" quebram em 2
+        // linhas num box de 68px, "Analista"/"Posto" cabem numa só) faziam
+        // cada switch da linha começar numa altura diferente, porque cada
+        // Column dentro do Wrap só tem a altura do próprio conteúdo. Altura
+        // fixa (2 linhas) + alinhamento embaixo resolve: todo rótulo ocupa
+        // o mesmo espaço, então todo switch nasce na mesma posição.
+        SizedBox(
+          height: 28,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Text(
+              perfilLabel[perfil] ?? perfil,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
         const SizedBox(height: 2),
         SizedBox(
           height: 32,
