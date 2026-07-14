@@ -1122,11 +1122,33 @@ comentário e caixa de resposta inline (ver resposta já enviada com
 "Editar", ou formulário direto se ainda não respondida — mesmo padrão
 "ver ou editar" da web).
 
+**Assinaturas — todos os clientes** (`lib/features/assinaturas_admin/`)
+— porta de `assinaturas/page.tsx` +
+`_components/IndicadoresFinanceirosFni.tsx` (componente que a web
+também usa em `/financeiro` quando o admin não tem cliente selecionado
+— aqui virou tela própria, ligada direto no menu Administração; dar a
+`/financeiro` esse mesmo comportamento fica pra outra fase). RLS
+conferida: `empresas` e `invoices` já liberam SELECT total pro admin
+(mesma policy do resto do FLT-4). Preço real de cada plano vem da Edge
+Function `planos-precos` (`verify_jwt:false`, só usa o anon key — por
+isso pode ser chamada direto do app, sem proxy, diferente do Assistente
+FNI) — reaproveitada via `show` do provider que a visão Posto já usa
+(`precosPlanosProvider`/`PrecoPlano`, em
+`posto/providers/assinatura_provider.dart`), nenhuma chamada nova.
+KPIs (total de clientes, trial/ativos/suspensos/cancelados, MRR
+estimado), faturamento/inadimplência do mês, novos assinantes, churn,
+taxa de conversão, avisos de trials expirando em ≤3 dias e cancelamentos
+do mês, e lista de clientes com plano/status/Stripe/data. Achado real ao
+portar: comparação de datas "dentro do mês" precisa ser por `DateTime`
+de verdade (`isBefore`/`isAfter`), não por string — os timestamps do
+banco vêm com timezone explícito (`+00:00`), diferente de
+`DateTime.now()` local sem offset; comparar como texto dava resultado
+errado.
+
 **Fora do escopo desta fase** (fica pra próximas rodadas — telas
 exclusivas do menu "Administração" da web, nenhuma delas com
 equivalente hoje no Flutter): Aprovação de Documentos
-(`/documentos-empresas`), Assinaturas de todos os clientes
-(`/assinaturas`), Rede de Postos (visão consolidada do admin —
+(`/documentos-empresas`), Rede de Postos (visão consolidada do admin —
 `/rede-postos` já existe só do lado posto), Possíveis Duplicados
 (`/postos-duplicados`), e o menu "Cadastros" (lista de
 Clientes/`/clientes` e Grupo Econômico/`/grupo-economico` no sentido de

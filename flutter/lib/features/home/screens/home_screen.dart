@@ -180,6 +180,7 @@ class HomeScreen extends ConsumerWidget {
           // nem faz sentido oferecer o item de menu nesse caso).
           if (sessao?.ehAdmin ?? false) _item(context, Icons.settings, 'Configurações do Sistema', '/configuracoes'),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.star_outline, 'Avaliações dos Clientes', '/avaliacoes'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.credit_card, 'Assinaturas (todos os clientes)', '/assinaturas'),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
