@@ -59,15 +59,17 @@ class InteligenciaRedeScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Inteligência de Rede'),
-          // Achado real (reportado pelo Daniel com print): esta AppBar,
-          // aninhada dentro do Scaffold do HomeScreen, aparecia num azul
-          // ligeiramente diferente do azul do menu principal — mesmo sem
-          // nenhuma cor customizada aqui, o Material 3 aplica um overlay de
-          // "surface tint" em cima do `backgroundColor` do tema sempre que
-          // uma AppBar fica aninhada/elevada, deixando o tom sutilmente
-          // deslocado. Corrigido fixando explicitamente a MESMA cor navy do
-          // menu (AppTheme._primary, 0xFF0D2D6B) e zerando elevação/tint.
-          backgroundColor: const Color(0xFF0D2D6B),
+          // Achado real (reportado pelo Daniel com print, 2 rodadas): esta
+          // AppBar, aninhada dentro do Scaffold do HomeScreen, aparecia num
+          // azul diferente do menu/drawer principal — 1ª causa (Material 3
+          // aplicando "surface tint" numa AppBar aninhada) corrigida fixando
+          // a cor explícita; 2ª causa (pedido do Daniel: a barra do topo tem
+          // que usar a MESMA cor do MENU, não a antiga AppTheme._primary)
+          // corrigida trocando pra `AppTheme._menu` (0xFF0B1220 — o mesmo
+          // hex hardcoded no cabeçalho do Drawer em home_screen.dart), que
+          // agora também é o `appBarTheme.backgroundColor` padrão do app
+          // inteiro (ver app_theme.dart).
+          backgroundColor: const Color(0xFF0B1220),
           foregroundColor: Colors.white,
           elevation: 0,
           scrolledUnderElevation: 0,
