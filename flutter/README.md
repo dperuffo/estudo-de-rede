@@ -1477,3 +1477,92 @@ Depois, mais 2 ajustes:
    `barTouchPadrao()`/`lineTouchPadrao()` em `inteligencia_shared.dart`
    (caixa escura fixa + texto branco em negrito) e aplicadas nos 9
    gráficos de barra/linha das 10 abas.
+
+## Fase FLT-6 — Dashboard: o resto da página web que tinha ficado de fora
+
+Pedido do Daniel: "o Dashboard inicial também tem gráficos e indicadores
+muito interessantes, trazer pro PWA" — a Fase FLT-3 só tinha portado os 6
+KPIs principais, meios de pagamento, consumo de 6 meses, CNH vencendo e
+Top 5 clientes (ver comentário antigo em `dashboard_provider.dart`,
+removido nesta reescrita). Faltava: Primeiros Passos (onboarding), Ajustes
+de Abastecimento, Desempenho por Centro de Custo, Manutenção Preditiva
+(resumo) e os 8 "Indicadores avançados" (variação de preços, previsão de
+consumo, evolução de preço médio, evolutivo/top postos, ranking de
+veículos/motoristas, eficiência real por veículo).
+
+**Decisão de escopo (confirmada com o Daniel via pergunta):** tudo de uma
+vez, igual à Inteligência de Rede, em vez de só o subconjunto "Indicadores
+avançados" ou uma lista escolhida a dedo.
+
+**Decisão de layout (confirmada com o Daniel via pergunta):** o Dashboard
+virou 2 abas em vez de uma página só rolável gigante como na web:
+
+- **Visão Geral** — tudo que já existia (6 KPIs, meios de pagamento,
+  gráfico de consumo, CNH vencendo, Top 5 clientes) mais Primeiros Passos,
+  Ajustes de Abastecimento, Desempenho por Centro de Custo e Manutenção
+  Preditiva (resumo).
+- **Indicadores Avançados** — os 8 gráficos de período (variação de
+  preços, previsão de consumo, evolução de preço médio, evolutivo/top
+  postos, ranking de veículos/motoristas, eficiência por veículo), com um
+  seletor de mês/ano próprio (últimos 12 meses).
+
+**Decisão de escopo não perguntada ao Daniel (simplificação deliberada):**
+na web, a seção "Desempenho por centro de custo" usa o MESMO seletor único
+de mês/ano do topo da página que também direciona os 8 indicadores
+avançados — um seletor só para a página inteira. Como o Daniel pediu pra
+separar em 2 abas e o seletor de período ficou só na aba "Indicadores
+Avançados", Centro de Custo na aba "Visão Geral" aqui sempre mostra o MÊS
+ATUAL, sem seletor próprio — evita duplicar o seletor ou espalhar estado
+entre as 2 abas. Se o Daniel quiser escolher outro mês pro Centro de
+Custo, é só pedir que dá pra reavaliar.
+
+**Arquivos:**
+
+- `providers/dashboard_provider.dart` — reescrito. Além dos campos que já
+  existiam, `DashboardClienteDados` ganhou `totalPostosProprios`,
+  `resumoAjustes`, `centroCusto` e `manutencao`. O provider agora também
+  busca (sempre com `sessao.empresaId`, nunca null): contagem de
+  `postos_gf` (Primeiros Passos), resumo de `ajustes_abastecimentos` +
+  `ajustes_abastecimentos_rodadas` (Ajustes de Abastecimento — mesma
+  lógica de `resumoAjustesAbastecimentos()` da web, porém direto em Dart,
+  sem um lib próprio), RPC `indicadores_centro_custo` (mês atual) e RPC
+  `manutencao_preditiva_kpis`.
+- `providers/indicadores_avancados_provider.dart` — novo.
+  `FutureProvider.family` parametrizado por `(ano, mes)`, chama as 7 RPCs
+  dos indicadores avançados (`indicador_variacao_precos`,
+  `indicador_consumo_diario`, `indicador_padrao_dia_semana`,
+  `indicador_volume_postos`, `indicador_ranking_veiculos`,
+  `indicador_ranking_motoristas`, `indicador_eficiencia_veiculos`) e
+  porta `calcularPrevisaoConsumo()` de `previsaoConsumo.ts` linha por
+  linha (mesmo shrinkage K=5 entre a taxa real-até-agora e a média
+  histórica por dia da semana, mesma conversão de `getDay()` do JS via
+  `weekday % 7`).
+- `screens/dashboard_screen.dart` — reescrito: virou só o host das 2 abas
+  (`DefaultTabController` + `TabBar` branca sobre azul, mesmo padrão da
+  Inteligência de Rede).
+- `screens/abas/aba_visao_geral.dart` — novo (conteúdo que antes estava
+  direto em `dashboard_screen.dart`, mais as 4 seções novas).
+- `screens/abas/aba_indicadores_avancados.dart` — novo, com o seletor de
+  mês (`DropdownButton`) e os 8 itens.
+
+**Simplificações/limitações conhecidas:**
+
+- O link "Ver" de um ajuste de abastecimento na lista "Últimos ajustes"
+  só aparece quando o ajuste é de um abastecimento PróFrotas (`tipo:
+  'profrotas'`) — a rota `/abastecimentos/:chave` do Flutter espera uma
+  chave `"profrotas:$id"` ou `"$provedor:$id"`, mas
+  `ajustes_abastecimentos` guarda só o id numérico do abastecimento
+  externo, sem o nome do provedor (Valecard/RedeFrota/TicketLog/Veloe) —
+  precisaria de uma consulta extra por linha pra descobrir. Como é só uma
+  lista resumo de 5 itens, a linha aparece sem link nesse caso em vez de
+  arriscar um link quebrado.
+- "Carregar postos revendedores" (3º passo de Primeiros Passos) aponta
+  pra `/postos` em vez de uma tela de importação de planilha — o Flutter
+  ainda não tem uma tela `/postos/importar` equivalente à da web.
+- Igual à Inteligência de Rede: não foi possível rodar
+  `flutter build web --release` neste ambiente (sem SDK Flutter/pacotes
+  instalados) — só validação de balanceamento de chaves/parênteses. As 7
+  RPCs dos indicadores avançados e as 2 dos indicadores gerais
+  (`indicadores_centro_custo`, `manutencao_preditiva_kpis`) foram todas
+  conferidas via `execute_sql` (assinatura exata, tipo de retorno,
+  `SECURITY INVOKER`/`DEFINER`) antes de escrever qualquer código Dart.

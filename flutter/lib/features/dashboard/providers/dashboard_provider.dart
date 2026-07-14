@@ -3,31 +3,34 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
 
-// Fase FLT-3 — primeira tela real da visão Cliente, porta de
-// src/app/(dashboard)/dashboard/page.tsx (ramo cliente/frota — o ramo
-// posto, segmento "Revenda", já foi portado à parte na Fase FLT-2 como
-// posto_dashboard_screen.dart). A página web é MUITO maior que isso: além
-// do que está aqui, tem "Primeiros Passos" (onboarding), seção de Ajustes
-// de Abastecimento, seletor de cliente+período no topo, Desempenho por
-// Centro de Custo, KPIs de Manutenção Preditiva, e um bloco inteiro de
-// "Indicadores avançados" com 8 gráficos (variação de preços, previsão de
-// consumo, evolução de preço médio, evolutivo/ranking de postos, ranking
-// de veículos/motoristas, eficiência real por veículo — cada um com sua
-// própria RPC). **Escopo reduzido desta primeira versão:** só os 6 KPIs
-// principais, consolidado por meio de pagamento no mês, gráfico de consumo
-// dos últimos 6 meses, CNH vencendo em 30 dias e Top 5 clientes por gasto
-// (rede toda). O resto fica para uma próxima iteração — cada indicador
-// avançado é praticamente uma tela em si.
+// Fase FLT-6 — porta o restante de src/app/(dashboard)/dashboard/page.tsx
+// que tinha ficado de fora na Fase FLT-3 (ver comentário antigo, removido
+// aqui): Ajustes de Abastecimento, Primeiros Passos, Desempenho por Centro
+// de Custo e Manutenção Preditiva (resumo). Os 8 "Indicadores avançados"
+// (variação de preços, previsão de consumo, evolução de preço médio,
+// evolutivo/top postos, ranking veículos/motoristas, eficiência por
+// veículo) ficam em indicadores_avancados_provider.dart — são todos
+// escopados por período (mês/ano) e viraram uma aba própria na tela
+// ("Indicadores Avançados"), com seletor de mês independente.
 //
-// Igual à web: nem todo perfil "cliente" (empresa da frota) tem
-// necessariamente uma única empresa vinculada — a resolução de qual
-// empresa mostrar já acontece antes desta tela (sessaoProvider +
-// /selecionar-empresa, mesmo mecanismo usado no Posto pra "Rede de
-// Postos") — aqui só usamos `sessao.empresaId` já resolvido, sem repetir
-// o seletor de cliente que a web tem no topo da página.
+// Igual à web: nem todo perfil "cliente" tem necessariamente uma única
+// empresa vinculada — a resolução de qual empresa mostrar já acontece antes
+// desta tela (sessaoProvider + /selecionar-empresa) — aqui só usamos
+// `sessao.empresaId` já resolvido, sem repetir o seletor de cliente que a
+// web tem no topo da página.
+//
+// Decisão de escopo (Centro de Custo x seletor de período): na web, Centro
+// de Custo usa o MESMO seletor único de mês/ano do topo da página que
+// também direciona os 8 indicadores avançados. Como o Daniel pediu pra
+// separar em 2 abas (Visão Geral x Indicadores Avançados) e o seletor de
+// período fica só na 2ª aba, Centro de Custo aqui na Visão Geral sempre
+// mostra o MÊS ATUAL (sem seletor próprio) — simplificação deliberada pra
+// não duplicar o seletor nem espalhar estado entre abas. Se o Daniel quiser
+// escolher outro mês pro Centro de Custo, dá pra reavaliar depois.
 
 const _janelaConsumoMeses = 6;
 const _janelaCnhDias = 30;
+const _janelaAjustesDias = 30;
 
 const _mesesAbrev = [
   'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez',
@@ -61,6 +64,104 @@ class ClienteGasto {
   const ClienteGasto({required this.nome, required this.valor});
 }
 
+// Fase FLT-6 — item da lista "Últimos ajustes" (porta ItemResumoAjuste de
+// ajustesAbastecimentos.ts). O link "Ver" só é confiável quando `tipo` é
+// 'profrotas' (chave da rota /abastecimentos/:chave = "profrotas:$id" —
+// mesmo formato já usado em ajuste_abastecimento_cliente_provider.dart).
+// Pra `tipo` 'externo' não dá pra montar a chave sem saber qual provedor
+// (Valecard/RedeFrota/TicketLog/Veloe) sem uma consulta extra por linha —
+// simplificação: mostramos a linha sem link nesse caso.
+class ItemAjuste {
+  final String id;
+  final String tipo; // 'profrotas' | 'externo'
+  final int abastecimentoId;
+  final String status;
+  final String origem; // 'cliente' | 'posto'
+  final double? valorOriginal;
+  final String criadoEm;
+  final String atualizadoEm;
+  const ItemAjuste({
+    required this.id,
+    required this.tipo,
+    required this.abastecimentoId,
+    required this.status,
+    required this.origem,
+    required this.valorOriginal,
+    required this.criadoEm,
+    required this.atualizadoEm,
+  });
+
+  String? get chaveRota => tipo == 'profrotas' ? 'profrotas:$abastecimentoId' : null;
+}
+
+const statusAjusteLabel = <String, String>{
+  'pendente_posto': 'Aguardando posto',
+  'pendente_cliente': 'Aguardando cliente',
+  'aceito': 'Aceito',
+  'recusado': 'Recusado',
+  'cancelado': 'Cancelado',
+};
+
+class ResumoAjustes {
+  final int pendentes;
+  final int aceitosNoPeriodo;
+  final double impactoFinanceiro;
+  final List<ItemAjuste> ultimos;
+  const ResumoAjustes({
+    required this.pendentes,
+    required this.aceitosNoPeriodo,
+    required this.impactoFinanceiro,
+    required this.ultimos,
+  });
+  static const vazio = ResumoAjustes(pendentes: 0, aceitosNoPeriodo: 0, impactoFinanceiro: 0, ultimos: []);
+}
+
+class LinhaCentroCusto {
+  final String id;
+  final String nome;
+  final int qtdVeiculos;
+  final double custoAbastecimento;
+  final double custoManutencao;
+  final double? custoPorKm;
+  final double? consumoMedio;
+  const LinhaCentroCusto({
+    required this.id,
+    required this.nome,
+    required this.qtdVeiculos,
+    required this.custoAbastecimento,
+    required this.custoManutencao,
+    required this.custoPorKm,
+    required this.consumoMedio,
+  });
+}
+
+class CentroCustoDados {
+  final List<LinhaCentroCusto> linhas;
+  final int totalVeiculos;
+  final double totalAbastecimento;
+  final double totalManutencao;
+  const CentroCustoDados({
+    required this.linhas,
+    required this.totalVeiculos,
+    required this.totalAbastecimento,
+    required this.totalManutencao,
+  });
+  static const vazio = CentroCustoDados(linhas: [], totalVeiculos: 0, totalAbastecimento: 0, totalManutencao: 0);
+}
+
+class ManutencaoResumo {
+  final int totalVeiculos;
+  final int totalCriticos;
+  final int totalAlertas;
+  final double scoreMedio;
+  const ManutencaoResumo({
+    required this.totalVeiculos,
+    required this.totalCriticos,
+    required this.totalAlertas,
+    required this.scoreMedio,
+  });
+}
+
 class DashboardClienteDados {
   final int totalClientes;
   final int clientesAtivos;
@@ -68,6 +169,7 @@ class DashboardClienteDados {
   final int motoristasAtivos;
   final int totalVeiculos;
   final int veiculosAtivos;
+  final int totalPostosProprios;
   final double litrosMes;
   final double valorMes;
   final double custoMedioLitroMes;
@@ -75,6 +177,9 @@ class DashboardClienteDados {
   final List<PontoConsumoMensal> serieConsumo;
   final List<CnhVencendo> cnhVencendo;
   final List<ClienteGasto> topClientes;
+  final ResumoAjustes? resumoAjustes;
+  final CentroCustoDados? centroCusto;
+  final ManutencaoResumo? manutencao;
 
   const DashboardClienteDados({
     required this.totalClientes,
@@ -83,6 +188,7 @@ class DashboardClienteDados {
     required this.motoristasAtivos,
     required this.totalVeiculos,
     required this.veiculosAtivos,
+    required this.totalPostosProprios,
     required this.litrosMes,
     required this.valorMes,
     required this.custoMedioLitroMes,
@@ -90,6 +196,9 @@ class DashboardClienteDados {
     required this.serieConsumo,
     required this.cnhVencendo,
     required this.topClientes,
+    required this.resumoAjustes,
+    required this.centroCusto,
+    required this.manutencao,
   });
 
   static const vazio = DashboardClienteDados(
@@ -99,6 +208,7 @@ class DashboardClienteDados {
     motoristasAtivos: 0,
     totalVeiculos: 0,
     veiculosAtivos: 0,
+    totalPostosProprios: 0,
     litrosMes: 0,
     valorMes: 0,
     custoMedioLitroMes: 0,
@@ -106,7 +216,14 @@ class DashboardClienteDados {
     serieConsumo: [],
     cnhVencendo: [],
     topClientes: [],
+    resumoAjustes: null,
+    centroCusto: null,
+    manutencao: null,
   );
+
+  // Onboarding some sozinho assim que veículos E motoristas já estiverem
+  // cadastrados — mesma condição de saída de PrimeirosPassos.tsx.
+  bool get mostrarPrimeirosPassos => !(totalVeiculos > 0 && totalMotoristas > 0);
 }
 
 final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDados>((ref) async {
@@ -119,9 +236,11 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
   final inicioMesAtual = DateTime(agora.year, agora.month, 1);
   final seisMesesAtras = DateTime(agora.year, agora.month - (_janelaConsumoMeses - 1), 1);
   final daqui30Dias = agora.add(const Duration(days: _janelaCnhDias));
+  final desdeAjustes = agora.subtract(const Duration(days: _janelaAjustesDias));
 
-  // Chamadas sequenciais (não Future.wait) — mesmo motivo do
-  // dashboard_posto_provider.dart: tipos de retorno diferentes por consulta.
+  // Chamadas sequenciais (não Future.wait) — tipos de retorno diferentes
+  // por consulta tornam o Future.wait tipado chato de escrever em Dart;
+  // sequencial é mais simples de ler e o ganho de latência aqui é pequeno.
   final totalClientesResp = await supabase.from('empresas').select('id').count(CountOption.exact);
   final clientesAtivosResp =
       await supabase.from('empresas').select('id').eq('status', 'ativo').count(CountOption.exact);
@@ -133,6 +252,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
       .eq('empresa_id', empresaId)
       .eq('status', 'Ativo')
       .count(CountOption.exact);
+  final totalPostosPropriosResp =
+      await supabase.from('postos_gf').select('cnpj').eq('empresa_id', empresaId).count(CountOption.exact);
 
   final veiculosRaw = await supabase.rpc('veiculos_da_empresa', params: {'p_empresa_id': empresaId}) as List;
   final totalVeiculos = veiculosRaw.length;
@@ -170,10 +291,120 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
       .order('cnh_vencimento', ascending: true)
       .limit(5) as List;
 
+  // Ajustes de abastecimento — porta resumoAjustesAbastecimentos()
+  // (ajustesAbastecimentos.ts), lado "cliente" (coluna empresa_cliente_id).
+  final pendentesResp = await supabase
+      .from('ajustes_abastecimentos')
+      .select('id')
+      .eq('empresa_cliente_id', empresaId)
+      .inFilter('status', ['pendente_posto', 'pendente_cliente'])
+      .count(CountOption.exact);
+  final aceitosNoPeriodoRaw = await supabase
+      .from('ajustes_abastecimentos')
+      .select('id, valor_original')
+      .eq('empresa_cliente_id', empresaId)
+      .eq('status', 'aceito')
+      .gte('atualizado_em', desdeAjustes.toIso8601String()) as List;
+  final ultimosAjustesRaw = await supabase
+      .from('ajustes_abastecimentos')
+      .select('id, abastecimento_id, abastecimento_externo_id, status, origem, valor_original, criado_em, atualizado_em')
+      .eq('empresa_cliente_id', empresaId)
+      .order('atualizado_em', ascending: false)
+      .limit(5) as List;
+
+  // Impacto financeiro real = valor que FOI de fato aceito em cada ajuste
+  // (rodada com decisao='aceita') menos o valor_original — não dá pra usar
+  // só o cabeçalho (só guarda o valor de ANTES).
+  final idsAceitos = aceitosNoPeriodoRaw.map((a) => (a as Map<String, dynamic>)['id'] as String).toList();
+  var impactoFinanceiro = 0.0;
+  if (idsAceitos.isNotEmpty) {
+    final rodadasAceitasRaw = await supabase
+        .from('ajustes_abastecimentos_rodadas')
+        .select('ajuste_id, item_valor_total, decisao')
+        .inFilter('ajuste_id', idsAceitos)
+        .eq('decisao', 'aceita') as List;
+    final valorAceitoPorAjuste = <String, double?>{};
+    for (final r in rodadasAceitasRaw) {
+      final m = r as Map<String, dynamic>;
+      valorAceitoPorAjuste[m['ajuste_id'] as String] = (m['item_valor_total'] as num?)?.toDouble();
+    }
+    for (final a in aceitosNoPeriodoRaw) {
+      final m = a as Map<String, dynamic>;
+      final valorOriginal = (m['valor_original'] as num?)?.toDouble();
+      final valorAceito = valorAceitoPorAjuste[m['id'] as String];
+      if (valorAceito != null && valorOriginal != null) {
+        impactoFinanceiro += valorAceito - valorOriginal;
+      }
+    }
+  }
+
+  final resumoAjustes = ResumoAjustes(
+    pendentes: pendentesResp.count,
+    aceitosNoPeriodo: aceitosNoPeriodoRaw.length,
+    impactoFinanceiro: impactoFinanceiro,
+    ultimos: ultimosAjustesRaw.map((u) {
+      final m = u as Map<String, dynamic>;
+      final abastecimentoId = (m['abastecimento_id'] as num?)?.toInt();
+      final tipo = abastecimentoId != null ? 'profrotas' : 'externo';
+      return ItemAjuste(
+        id: m['id'] as String,
+        tipo: tipo,
+        abastecimentoId: abastecimentoId ?? ((m['abastecimento_externo_id'] as num?)?.toInt() ?? 0),
+        status: m['status'] as String,
+        origem: m['origem'] as String,
+        valorOriginal: (m['valor_original'] as num?)?.toDouble(),
+        criadoEm: m['criado_em'] as String,
+        atualizadoEm: m['atualizado_em'] as String,
+      );
+    }).toList(),
+  );
+
+  // Centro de custo — mês atual (ver decisão de escopo no comentário do
+  // topo do arquivo).
+  final centroCustoRaw = await supabase.rpc('indicadores_centro_custo', params: {
+    'p_empresa_id': empresaId,
+    'p_data_inicio': _iso(inicioMesAtual),
+    'p_data_fim': _iso(agora),
+  }) as List;
+  final linhasCentroCusto = centroCustoRaw.map((c) {
+    final m = c as Map<String, dynamic>;
+    return LinhaCentroCusto(
+      id: m['centro_custo_id'] as String,
+      nome: m['centro_custo_nome'] as String? ?? '—',
+      qtdVeiculos: (m['qtd_veiculos'] as num?)?.toInt() ?? 0,
+      custoAbastecimento: (m['custo_abastecimento'] as num?)?.toDouble() ?? 0,
+      custoManutencao: (m['custo_manutencao'] as num?)?.toDouble() ?? 0,
+      custoPorKm: (m['custo_por_km'] as num?)?.toDouble(),
+      consumoMedio: (m['consumo_medio'] as num?)?.toDouble(),
+    );
+  }).toList();
+  final centroCusto = CentroCustoDados(
+    linhas: linhasCentroCusto,
+    totalVeiculos: linhasCentroCusto.fold<int>(0, (s, l) => s + l.qtdVeiculos),
+    totalAbastecimento: linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoAbastecimento),
+    totalManutencao: linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoManutencao),
+  );
+
+  // Manutenção preditiva — estado atual da frota (não depende de período).
+  final manutencaoRaw = await supabase.rpc('manutencao_preditiva_kpis', params: {
+    'p_empresa_id': empresaId,
+  }) as List;
+  ManutencaoResumo? manutencao;
+  if (manutencaoRaw.isNotEmpty) {
+    final m = manutencaoRaw.first as Map<String, dynamic>;
+    manutencao = ManutencaoResumo(
+      totalVeiculos: (m['total_veiculos'] as num?)?.toInt() ?? 0,
+      totalCriticos: (m['total_criticos'] as num?)?.toInt() ?? 0,
+      totalAlertas: (m['total_alertas'] as num?)?.toInt() ?? 0,
+      scoreMedio: (m['score_medio'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
   final totalClientes = totalClientesResp.count;
   final clientesAtivos = clientesAtivosResp.count;
   final totalMotoristas = totalMotoristasResp.count;
   final motoristasAtivos = motoristasAtivosResp.count;
+  final totalPostosProprios = totalPostosPropriosResp.count;
 
   // KPIs do mês atual.
   final doMesAtual = abastecimentosClienteRaw.where((a) {
@@ -265,6 +496,7 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
     motoristasAtivos: motoristasAtivos,
     totalVeiculos: totalVeiculos,
     veiculosAtivos: veiculosAtivos,
+    totalPostosProprios: totalPostosProprios,
     litrosMes: litrosMes,
     valorMes: valorMes,
     custoMedioLitroMes: custoMedioLitroMes,
@@ -272,5 +504,8 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
     serieConsumo: serieConsumo,
     cnhVencendo: cnhVencendo,
     topClientes: topClientes,
+    resumoAjustes: resumoAjustes,
+    centroCusto: centroCusto,
+    manutencao: manutencao,
   );
 });
