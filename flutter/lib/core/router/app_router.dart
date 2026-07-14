@@ -44,6 +44,7 @@ import '../../features/motoristas/screens/motoristas_screen.dart';
 import '../../features/motoristas/screens/motorista_novo_screen.dart';
 import '../../features/motoristas/screens/motorista_editar_screen.dart';
 import '../../features/anomalias/screens/anomalias_screen.dart';
+import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
 import '../../features/notas_fiscais/screens/notas_fiscais_screen.dart';
 import '../../features/notas_fiscais/screens/nota_fiscal_detalhe_screen.dart';
 import '../../features/veiculos/screens/veiculos_screen.dart';
@@ -238,7 +239,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => NotaFiscalDetalheScreen(notaId: state.pathParameters['notaId']!),
             ),
             GoRoute(path: '/anomalias', builder: (_, __) => const AnomaliasScreen()),
-            GoRoute(path: '/roteirizacao', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Roteirização')),
+            GoRoute(path: '/roteirizacao', builder: (_, __) => const RoteirizacaoScreen()),
             GoRoute(path: '/rotograma', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Rotograma')),
             GoRoute(path: '/planos-viagem', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Planos de Viagem')),
             GoRoute(path: '/negociacoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Negociações com Postos')),

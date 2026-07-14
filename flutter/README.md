@@ -804,9 +804,28 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   ação marcar/desfazer revisão. Fora do escopo: seletor de cliente (só
   existe pro admin na web) e paginação de verdade (web pagina 30 em 30;
   aqui traz até 100).
+- **Roteirização** (`lib/features/roteirizacao/`) — porta PARCIAL de
+  `roteirizacao/page.tsx` + `posto/page.tsx` + `actions.ts`. RLS/tabelas
+  conferidas antes de portar: `postos_gf`/`historico_precos` têm
+  self-service completo (já usado em Postos Revendedores);
+  `anp_postos`/`anp_precos_referencia` têm leitura PÚBLICA (`qual: true`,
+  sem tenant-scoping) — dá pra consultar direto, sem RPC, igual à web. A
+  web tem 4 abas; só as 2 mais simples entraram no v1, num único toggle em
+  vez de abas separadas: "Por UF/Município" (lista postos da UF/município,
+  mesclando rede própria + base pública ANP) e "Consulta por Posto" (busca
+  livre por CNPJ ou nome). Cada resultado mostra o score A-D (porta fiel
+  de `calcularScorePosto` — preço 50%/serviços 30%/distância 20%, sem
+  ponto de referência único nesses 2 modos, então o score fica dominado
+  pela % de serviços do posto) e os preços por combustível. Fora do
+  escopo: "Roteirizador Inteligente" (calcula rota real via OSRM, otimiza
+  paradas de abastecimento por veículo/perfil de peso, compara 4
+  estratégias, exporta GPX/PDF/PNG — muita lógica geo-espacial e mapa
+  interativo, natural pra próxima fase) e "Rotas Salvas" (só faz sentido
+  depois que o Roteirizador existir). Sem mapa interativo: os resultados
+  aparecem como lista (o mapa da web é só uma visualização a mais dos
+  mesmos dados).
 
-Demais itens do menu (Roteirização,
-Rotograma, Planos de Viagem, Negociações com Postos, Preços dos Postos
+Demais itens do menu (Rotograma, Planos de Viagem, Negociações com Postos, Preços dos Postos
 Parceiros, Manutenção Preditiva, Parâmetros de Uso, Relatórios,
 Integrações, Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez
 nas próximas fases — várias devem reaproveitar bastante lógica já pronta
