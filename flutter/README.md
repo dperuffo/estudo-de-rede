@@ -962,10 +962,33 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   app já mostra o e-mail direto, sem a tentativa de resolução que seria
   descartada de qualquer forma.
 
-Demais itens do menu (Rotograma, Planos de Viagem, Integrações,
-Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez nas próximas
-fases — várias devem reaproveitar bastante lógica já pronta do lado Posto
-(LGPD, Usuários, Chamados especialmente).
+- **Rotograma de Segurança** (`lib/features/rotograma/`) — porta de
+  `rotograma/page.tsx` + `novo/page.tsx` + `[id]/page.tsx` +
+  `[id]/editar/page.tsx` + `actions.ts` + `tipos.ts`. RLS conferida antes
+  de portar: `rotogramas` tem self-service COMPLETO via `empresa_id`
+  (ALL) — CRUD direto, sem RPC, igual à web. Lista + formulário
+  compartilhado (criar/editar, `rotograma_form.dart`) com dados da
+  viagem (origem/destino obrigatórios, motorista e placa vindos dos
+  cadastros do cliente — `motoristasClienteProvider`/
+  `veiculosClienteProvider` já existentes, reaproveitados via `show`),
+  listas dinâmicas de pontos de risco (perigo/crime/radar) e pontos de
+  parada (abastecimento/alimentação/pernoite) com Km opcional; detalhe
+  com indicadores, observações, linha do tempo horizontal da viagem
+  (origem→destino com riscos acima e paradas abaixo, posicionados pelo Km
+  — porta fiel de `resolverLinhaDoTempo`, desenhada com `CustomPainter`
+  em vez do SVG da web, incluindo as linhas tracejadas dos pontos com Km
+  estimado), listas de risco/parada e contatos de emergência nacionais
+  fixos (PRF/SAMU/Bombeiros/PM/ANTT). Fora do escopo: export em PDF
+  (`RotogramaPdf.tsx` desenha tudo de novo com `@react-pdf/renderer`);
+  "Importar de uma rota salva" no formulário de criação (depende de
+  `rotas_salvas`, já fora do escopo da Roteirização portada); campo
+  "Cliente" do formulário (só aparece pra quem vê mais de uma empresa —
+  aqui sempre usa a empresa da sessão, mesmo padrão do resto do app).
+
+Demais itens do menu (Planos de Viagem, Integrações, Permissões) seguem
+como `EmConstrucaoScreen`, uma de cada vez nas próximas fases — várias
+devem reaproveitar bastante lógica já pronta do lado Posto (LGPD,
+Usuários, Chamados especialmente).
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 

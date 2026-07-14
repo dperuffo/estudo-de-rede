@@ -48,6 +48,10 @@ import '../../features/relatorios/screens/relatorios_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
 import '../../features/precos_postos/screens/precos_postos_screen.dart';
+import '../../features/rotograma/screens/rotograma_screen.dart';
+import '../../features/rotograma/screens/rotograma_novo_screen.dart';
+import '../../features/rotograma/screens/rotograma_editar_screen.dart';
+import '../../features/rotograma/screens/rotograma_detalhe_screen.dart';
 import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
 import '../../features/negociacoes/screens/negociacoes_screen.dart';
 import '../../features/negociacoes/screens/negociacao_detalhe_screen.dart';
@@ -250,7 +254,16 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             ),
             GoRoute(path: '/anomalias', builder: (_, __) => const AnomaliasScreen()),
             GoRoute(path: '/roteirizacao', builder: (_, __) => const RoteirizacaoScreen()),
-            GoRoute(path: '/rotograma', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Rotograma')),
+            GoRoute(path: '/rotograma', builder: (_, __) => const RotogramaScreen()),
+            GoRoute(path: '/rotograma/novo', builder: (_, __) => const RotogramaNovoScreen()),
+            GoRoute(
+              path: '/rotograma/:id/editar',
+              builder: (_, state) => RotogramaEditarScreen(id: state.pathParameters['id']!),
+            ),
+            GoRoute(
+              path: '/rotograma/:id',
+              builder: (_, state) => RotogramaDetalheScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(path: '/planos-viagem', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Planos de Viagem')),
             GoRoute(path: '/negociacoes', builder: (_, __) => const NegociacoesClienteScreen()),
             GoRoute(path: '/negociacoes/novo', builder: (_, __) => const CriarNegociacaoClienteScreen()),
