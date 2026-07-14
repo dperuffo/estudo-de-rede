@@ -1095,16 +1095,30 @@ de celular. Rótulo no menu muda pra "Permissões (padrão global)" e a
 seção vira "Administração" quando `ehAdmin`, pra deixar claro que o
 comportamento é diferente do que um gestor_frota/analista vê.
 
+**Configurações do Sistema** (`lib/features/configuracoes_sistema/`) —
+porta de `configuracoes/page.tsx` +
+`_components/FormularioLogoutInatividade.tsx` + `actions.ts` +
+`src/lib/configuracoesSistema.ts`. RLS conferida antes de portar
+(`configuracoes_sistema`, tabela singleton — 1 linha só, `id` boolean
+sempre `true`): SELECT liberado pra qualquer autenticado, UPDATE só pra
+admin/superusuário — dá pra ler/gravar direto do app, sem RPC. Tela
+exclusiva do admin (mostra "Acesso restrito" pra quem não é, mesmo texto
+da web; item de menu só aparece pro admin). Único parâmetro hoje: tempo
+de logout automático por inatividade (5–480 minutos), global pro sistema
+inteiro — o Flutter ainda não tem um `MonitorInatividade` (a checagem de
+mouse/teclado/scroll é coisa de web), mas o valor é lido e ajustado
+daqui do mesmo jeito, já que ele também vale pra quem usa o site.
+
 **Fora do escopo desta fase** (fica pra próximas rodadas — telas
 exclusivas do menu "Administração" da web, nenhuma delas com
 equivalente hoje no Flutter): Aprovação de Documentos
 (`/documentos-empresas`), Assinaturas de todos os clientes
 (`/assinaturas`), Avaliações dos Clientes (`/avaliacoes`), Rede de
 Postos (visão consolidada do admin — `/rede-postos` já existe só do
-lado posto), Possíveis Duplicados (`/postos-duplicados`), Configurações
-do Sistema (`/configuracoes`), e o menu "Cadastros" (lista de
-Clientes/`/clientes` e Grupo Econômico/`/grupo-economico` no sentido de
-administração global, não os que já existem no shell cliente).
+lado posto), Possíveis Duplicados (`/postos-duplicados`), e o menu
+"Cadastros" (lista de Clientes/`/clientes` e Grupo
+Econômico/`/grupo-economico` no sentido de administração global, não os
+que já existem no shell cliente).
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 

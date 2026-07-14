@@ -46,6 +46,7 @@ import '../../features/motoristas/screens/motorista_editar_screen.dart';
 import '../../features/anomalias/screens/anomalias_screen.dart';
 import '../../features/relatorios/screens/relatorios_screen.dart';
 import '../../features/permissoes/screens/permissoes_screen.dart';
+import '../../features/configuracoes_sistema/screens/configuracoes_sistema_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
 import '../../features/precos_postos/screens/precos_postos_screen.dart';
@@ -297,6 +298,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             // conexões de integração (PróFrotas, planilhas etc.) num PWA de
             // celular; segue existindo só na web.
             GoRoute(path: '/permissoes', builder: (_, __) => const PermissoesScreen()),
+            GoRoute(path: '/configuracoes', builder: (_, __) => const ConfiguracoesSistemaScreen()),
           ],
         ),
 

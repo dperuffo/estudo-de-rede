@@ -175,6 +175,10 @@ class HomeScreen extends ConsumerWidget {
           // literalmente a mesma tela pros dois casos.
           _grp((sessao?.ehAdmin ?? false) ? 'Administração' : 'Configurações'),
           _item(context, Icons.vpn_key, (sessao?.ehAdmin ?? false) ? 'Permissões (padrão global)' : 'Permissões', '/permissoes'),
+          // Fase FLT-4 — Configurações do Sistema: exclusiva do admin (a
+          // própria tela já mostra "Acesso restrito" pra quem não é, mas
+          // nem faz sentido oferecer o item de menu nesse caso).
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.settings, 'Configurações do Sistema', '/configuracoes'),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
