@@ -1,160 +1,118 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+
 import '../providers/inteligencia_rede_provider.dart';
+import '../widgets/inteligencia_shared.dart';
+import 'abas/aba_alertas.dart';
+import 'abas/aba_cobertura_demanda.dart';
+import 'abas/aba_comparativo.dart';
+import 'abas/aba_cruzamentos.dart';
+import 'abas/aba_evolucao_temporal.dart';
+import 'abas/aba_macrorregiao_expansao.dart';
+import 'abas/aba_mapa_municipios.dart';
+import 'abas/aba_operacional.dart';
+import 'abas/aba_precos_anp.dart';
+import 'abas/aba_tendencia_sazonalidade.dart';
 
-final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-final _numero = NumberFormat.decimalPattern('pt_BR');
-
-// Fase FLT-3 — porta reduzida de inteligencia-rede/page.tsx (ver escopo
-// completo, e o que ficou de fora, no comentário de
-// inteligencia_rede_provider.dart).
+// Fase FLT-5 — pedido do Daniel: "verificar se é possível trazer todas as
+// abas de inteligência de rede pro PWA nas visões do admin e cliente".
+// Reescrita completa desta tela (a v1 da Fase FLT-3, com só 1 aba
+// resumida, fica no histórico do git) — agora com as 10 abas completas de
+// src/app/(dashboard)/inteligencia-rede/page.tsx, cada uma em seu próprio
+// arquivo dentro de screens/abas/.
+//
+// Acesso: mesmo padrão de sempre — cliente e admin, nunca perfil "posto"
+// (replicado do gate da web em page.tsx). Admin usa o seletor de empresa
+// já existente (sessao.empresaId) em vez da visão "toda a plataforma" da
+// web — decisão confirmada com o Daniel (ver comentário completo no
+// provider). Todos os dados das 10 abas são carregados de uma vez só
+// (inteligenciaRedeCompletaProvider) e ficam instantâneos ao trocar de
+// aba — só a 1ª carga tem loading.
 class InteligenciaRedeScreen extends ConsumerWidget {
   const InteligenciaRedeScreen({super.key});
 
+  static const _abas = [
+    ('⛽ Preços vs ANP', Icons.local_gas_station),
+    ('⚠️ Alertas', Icons.warning_amber),
+    ('👔 Macrorregião', Icons.map),
+    ('🗺️ Mapa', Icons.public),
+    ('⚖️ Comparativo', Icons.compare_arrows),
+    ('🎯 Cobertura×Demanda', Icons.track_changes),
+    ('🔀 Cruzamentos', Icons.shuffle),
+    ('🚦 Operacional', Icons.dashboard),
+    ('📈 Evolução', Icons.show_chart),
+    ('📅 Sazonalidade', Icons.calendar_month),
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(inteligenciaRedeClienteProvider);
+    final async = ref.watch(inteligenciaRedeCompletaProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Inteligência de Rede')),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
-        data: (dados) {
-          if (dados == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
-          return _buildConteudo(dados);
-        },
-      ),
-    );
-  }
-
-  Widget _buildConteudo(InteligenciaRedeDados d) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      children: [
-        const Text('Visão geral da rede de postos que sua empresa já pesquisou/cadastrou, comparada com a referência ANP.',
-            style: TextStyle(color: Colors.grey, fontSize: 13)),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1.3,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          children: [
-            _indicador('Postos na rede', _numero.format(d.totalPostos)),
-            _indicador('Municípios', _numero.format(d.municipiosUnicos)),
-            _indicador('Estados (UF)', _numero.format(d.estadosCobertos)),
-          ],
-        ),
-        if (d.precoPorCombustivel.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          const Text('Preço médio da rede por combustível', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const SizedBox(height: 4),
-          const Text('Preço mais recente de cada posto da rede, na média por combustível.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 10),
-          ...d.precoPorCombustivel.map((p) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  title: Text(p.combustivel, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  subtitle: Text('${p.qtdPostos} posto(s)'),
-                  trailing: Text('${_moeda.format(p.precoMedio)}/L', style: const TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              )),
-        ],
-        if (d.alertas.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          const Text('Postos acima da referência ANP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const SizedBox(height: 4),
-          const Text('Maiores desvios de preço em relação à referência ANP (município/estado/Brasil).',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 10),
-          ...d.alertas.map((a) => _linhaAlerta(a)),
-        ],
-        if (d.topMunicipios.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          const Text('Top municípios da rede', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const SizedBox(height: 4),
-          const Text('Municípios com mais postos cadastrados na sua rede.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 10),
-          ...d.topMunicipios.asMap().entries.map((e) => _linhaMunicipio(e.key + 1, e.value)),
-        ],
-        if (d.precoPorCombustivel.isEmpty && d.alertas.isEmpty && d.topMunicipios.isEmpty) ...[
-          const SizedBox(height: 40),
-          const Center(
-            child: Text('Ainda não há dados de preço suficientes pra essa rede.', style: TextStyle(color: Colors.grey)),
+    return DefaultTabController(
+      length: _abas.length,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Inteligência de Rede'),
+          bottom: TabBar(
+            isScrollable: true,
+            tabs: _abas.map((a) => Tab(text: a.$1)).toList(),
           ),
-        ],
-      ],
-    );
-  }
-
-  Widget _linhaAlerta(PostoDesvioAnp a) {
-    final corDesvio = a.diffPct >= 10 ? const Color(0xFFB91C1C) : const Color(0xFF92400E);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(a.razaoSocial, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  const SizedBox(height: 2),
-                  Text('${a.municipio ?? '—'}/${a.uf ?? '—'} · ${a.combustivel}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${_moeda.format(a.precoGf)}/L (ANP ${a.precoAnp == null ? '—' : _moeda.format(a.precoAnp)}/L · ${a.nivelAnp ?? '—'})',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+        body: async.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Erro ao carregar: $e', textAlign: TextAlign.center))),
+          data: (dados) {
+            if (dados == null) return const Center(child: Text('Nenhuma empresa selecionada.'));
+            return Column(
+              children: [
+                _cabecalhoKpis(dados),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      AbaPrecosAnp(dados: dados),
+                      AbaAlertas(dados: dados),
+                      AbaMacrorregiaoExpansao(dados: dados),
+                      AbaMapaMunicipios(dados: dados),
+                      AbaComparativo(dados: dados),
+                      AbaCoberturaDemanda(dados: dados),
+                      AbaCruzamentos(dados: dados),
+                      AbaOperacional(dados: dados),
+                      AbaEvolucaoTemporal(dados: dados),
+                      AbaTendenciaSazonalidade(dados: dados),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text('+${a.diffPct.toStringAsFixed(1)}%',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: corDesvio)),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _linhaMunicipio(int posicao, MunicipioRede m) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: const Color(0xFFE3F2FD),
-          child: Text('$posicao', style: const TextStyle(color: Color(0xFF1D4ED8), fontWeight: FontWeight.bold)),
-        ),
-        title: Text('${m.municipio}/${m.uf}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        trailing: Text('${m.total} posto(s)', style: const TextStyle(fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
-
-  Widget _indicador(String label, String valor, {Color? cor}) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(valor,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: cor),
-                overflow: TextOverflow.ellipsis),
-          ],
-        ),
+  Widget _cabecalhoKpis(InteligenciaRedeCompleta d) {
+    final k = d.kpis;
+    return Container(
+      color: Colors.grey.shade50,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: GridView.count(
+        crossAxisCount: 4,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 6,
+        crossAxisSpacing: 6,
+        childAspectRatio: 1.05,
+        children: [
+          CartaoIndicador(label: '⛽ Postos GF', valor: formatarInt(k.totalGf), sub: '${k.estadosComPosto} estados', mini: true),
+          CartaoIndicador(label: '🏙️ Municípios', valor: formatarInt(k.municipiosUnicos), sub: '${k.coberturaBr}% dos estados', mini: true),
+          CartaoIndicador(
+            label: '🚛 Diesel Médio GF',
+            valor: k.dieselGf > 0 ? formatarMoeda(k.dieselGf) : '—',
+            sub: k.dieselGf > 0 && k.deltaDieselPct != null ? '${k.deltaDieselPct! > 0 ? "+" : ""}${k.deltaDieselPct!.toStringAsFixed(1)}% vs ANP' : 'Sem dados',
+            mini: true,
+          ),
+          CartaoIndicador(label: '💰 Saving/Ano', valor: 'R\$ ${(k.savingPotencialAno / 1e6).toStringAsFixed(1)}M', sub: 'base: 100L/sem', mini: true),
+        ],
       ),
     );
   }

@@ -1349,3 +1349,89 @@ aplicado ao modo "Roteirizador Inteligente" — lá o resultado já são as
 paradas ótimas calculadas pra aquela rota específica, não uma lista pra
 navegar/filtrar (mas as bolinhas e a legenda por bandeira valem lá
 também, o `MapaPostos` é o mesmo widget nos 3 modos).
+
+## FLT-5 — Inteligência de Rede: as 10 abas completas (era 1 resumida)
+
+Pedido do Daniel: "a aba de Inteligência de Rede na web tem gráficos
+muito interessantes que queria trazer para o PWA — pode verificar se é
+possível trazer todas as abas pras visões do admin e cliente?". Depois
+de mapear as 21 RPCs/queries e os 20 componentes de gráfico/mapa da web
+(`src/app/(dashboard)/inteligencia-rede/page.tsx`, 941 linhas, e seus
+`_components/*.tsx`), confirmado com o Daniel: sim, dá — `fl_chart` e
+`flutter_map` já são dependências do projeto (usados em Relatórios,
+Financeiro, Dashboard e Roteirização), e as 19 RPCs já existem no banco
+e têm RLS/SECURITY DEFINER verificados. Decisões confirmadas por
+AskUserQuestion: (1) todas as 10 abas de uma vez, não faseado; (2) admin
+usa o MESMO seletor de empresa que já existe (`sessao.empresaId`) em vez
+da visão "toda a plataforma" que a web usa pra admin.
+
+A v1 desta tela (Fase FLT-3, só 3 KPIs + preço médio + desvio ANP >0 +
+top municípios) foi **totalmente reescrita** — `inteligencia_rede_provider.dart`
+agora carrega os 19 RPCs + 2 queries sequenciais de referência ANP (mesmo
+padrão sequencial já usado no resto do app, não `Future.wait`) numa única
+classe `InteligenciaRedeCompleta`, replicando 1:1 toda a lógica de
+derivação de `page.tsx` (resolução de referência ANP por categoria,
+diesel médio ponderado, saving potencial, cobertura por macrorregião,
+score de oportunidade de expansão, gap de cobertura×demanda etc.).
+`inteligencia_rede_screen.dart` virou um `TabBar` de 10 abas, cada uma no
+seu arquivo em `screens/abas/`:
+
+1. `aba_precos_anp.dart` — preço médio vs ANP + saving mensal acumulado
+2. `aba_alertas.dart` — postos com preço >5% acima do ANP
+3. `aba_macrorregiao_expansao.dart` — cobertura por macrorregião + score de expansão
+4. `aba_mapa_municipios.dart` — mapa de densidade + top municípios
+5. `aba_comparativo.dart` — comparação lado a lado (2 estados ou 2 regiões)
+6. `aba_cobertura_demanda.dart` — gap score (demanda real × cobertura GF)
+7. `aba_cruzamentos.dart` — 4 sub-abas (regiões caras/baratas, clusters de
+   oportunidade, GF vs concorrência, frota real) — a maior aba, porta de
+   `CruzamentosAvancados.tsx` (616 linhas, o maior componente da web)
+8. `aba_operacional.dart` — 4 sub-abas (mapa de preços, postos
+   inconsistentes, score por região, distribuição A/B/C/D)
+9. `aba_evolucao_temporal.dart` — tendência por UF, volatilidade, ranking
+   de estabilidade por posto (roda sobre os 14 mil+ registros de
+   `historico_precos_detalhado`, cálculo 100% client-side, igual à web)
+10. `aba_tendencia_sazonalidade.dart` — regressão linear por UF, heatmap
+    de sazonalidade por mês, volatilidade por combustível
+
+**Widgets compartilhados novos** (`widgets/`): `mapa_circulos.dart` — um
+único widget de mapa (`flutter_map` + `CircleMarker`) reaproveitado nas 4
+abas que têm mapa na web (Densidade, Preço Operacional, Gap de Cobertura,
+Frota Real — eram 4 componentes Leaflet quase idênticos lá, aqui é 1 só,
+parametrizado por raio/cor/tooltip por ponto). `inteligencia_shared.dart`
+— formatação de moeda/número, `BarraHorizontal` (barra div-based, usada
+em vários rankings), `TabelaSimples` (lista rolável em vez de `<table>`,
+que não funciona bem em tela estreita), `CartaoIndicador`, `BlocoInsight`.
+`providers/constantes_anp.dart` — REGIOES, TOTAL_MUNICIPIOS_REGIAO/UF,
+UF_CENTROIDES, ESTADO_PARA_UF, ANP_PRECO_REFERENCIA_FALLBACK,
+PRODUTO_PARA_CATEGORIA_ANP — porto das constantes fixas que a web tinha
+duplicadas em 5 arquivos diferentes, centralizadas aqui uma vez.
+
+**Achado real (limitação de banco, não fixável só no Flutter):** existem
+RPCs (`historico_precos_evolucao_mensal`, `preco_medio_por_combustivel_uf`,
+`postos_gf_precos_mapa`, e mais um punhado SECURITY INVOKER como
+`postos_gf_por_uf`, `anp_postos_por_uf`, `postos_gf_top_municipios` etc.)
+que **não têm parâmetro `p_empresa_id` nenhum** — pra essas, um admin
+sempre vê a rede INTEIRA (todas as empresas), sem jeito de restringir à
+empresa selecionada, porque não existe parâmetro pra isso no banco. Pra
+cliente comum isso não é problema (a RLS/checagem interna já restringe
+pela própria empresa via JWT). Isso afeta principalmente as abas
+Macrorregião & Expansão, Mapa & Municípios e parte do Operacional/
+Comparativo quando logado como admin — mas é exatamente o mesmo
+comportamento que a versão web sempre teve pra admin (lá o admin SEMPRE
+via a rede inteira, nunca por empresa), então não é uma regressão, só uma
+particularidade a ter em mente.
+
+**Rota e menu:** não precisou mudar nada — `/inteligencia-rede` e o item
+"Inteligência de Rede" no drawer já existiam desde a Fase FLT-3 e
+continuam funcionando, só o conteúdo por trás da rota que virou 10 abas.
+
+**Risco conhecido:** esta é de longe a maior leva de código Dart novo
+desta sessão (~15 arquivos, milhares de linhas, portando fórmulas de
+regressão linear, quantis, clusterização e agregação sobre 14 mil+
+registros). Só foi possível validar balanceamento de chaves/parênteses
+(script Python), não o `flutter analyze`/`flutter build` real — é
+bem possível que o primeiro build local do Daniel aponte 1-2 erros de
+tipo que precisem de ajuste (parâmetro renomeado numa versão de
+`fl_chart`/`flutter_map`, campo de RPC com nome diferente do esperado
+etc.), igual já aconteceu antes nesta sessão com o bug de
+`import`/`export`.
