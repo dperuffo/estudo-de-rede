@@ -790,8 +790,22 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   o XML), botão "Baixar PDF" da NF-e (a web monta o PDF inteiro em memória
   via jsPDF) e paginação de verdade (web pagina 20 em 20; aqui traz até
   100 linhas).
+- **Anomalias** (`lib/features/anomalias/`) — porta de `anomalias/page.tsx`
+  + `actions.ts`. RLS conferida antes de portar: `anomalias_abastecimento`
+  tem self-service COMPLETO (select/update) via `empresas_do_usuario` —
+  ler e revisar é direto, sem RPC, igual à web. Só a detecção
+  (`detectar_anomalias_abastecimento`, as 4 regras: volume x tanque,
+  postos distantes no mesmo dia, hodômetro retrocedendo, preço fora da
+  média regional) é RPC (SECURITY DEFINER), sempre chamada com
+  `p_empresa_id` da sessão — o "rodar pra todos os clientes" é só do
+  admin, fora de escopo aqui. Tela com KPIs (não revisadas / críticas não
+  revisadas), filtros (tipo + status pendentes/revisadas/todas), botão
+  "Detectar agora" e cada card com badge de severidade/tipo, descrição e
+  ação marcar/desfazer revisão. Fora do escopo: seletor de cliente (só
+  existe pro admin na web) e paginação de verdade (web pagina 30 em 30;
+  aqui traz até 100).
 
-Demais itens do menu (Anomalias, Roteirização,
+Demais itens do menu (Roteirização,
 Rotograma, Planos de Viagem, Negociações com Postos, Preços dos Postos
 Parceiros, Manutenção Preditiva, Parâmetros de Uso, Relatórios,
 Integrações, Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez
