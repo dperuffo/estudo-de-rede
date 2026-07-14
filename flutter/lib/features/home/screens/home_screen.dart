@@ -181,6 +181,11 @@ class HomeScreen extends ConsumerWidget {
           if (sessao?.ehAdmin ?? false) _item(context, Icons.settings, 'Configurações do Sistema', '/configuracoes'),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.star_outline, 'Avaliações dos Clientes', '/avaliacoes'),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.credit_card, 'Assinaturas (todos os clientes)', '/assinaturas'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.folder_open, 'Aprovação de Documentos', '/documentos-empresas'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.hub, 'Rede de Postos (todas)', '/redes-postos'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.find_in_page, 'Possíveis Duplicados', '/postos-duplicados'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.apartment, 'Clientes (todos)', '/clientes-admin'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.account_tree, 'Grupo Econômico (todos)', '/grupos-economicos'),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),

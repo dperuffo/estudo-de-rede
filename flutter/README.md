@@ -1145,14 +1145,121 @@ banco vêm com timezone explícito (`+00:00`), diferente de
 `DateTime.now()` local sem offset; comparar como texto dava resultado
 errado.
 
-**Fora do escopo desta fase** (fica pra próximas rodadas — telas
-exclusivas do menu "Administração" da web, nenhuma delas com
-equivalente hoje no Flutter): Aprovação de Documentos
-(`/documentos-empresas`), Rede de Postos (visão consolidada do admin —
-`/rede-postos` já existe só do lado posto), Possíveis Duplicados
-(`/postos-duplicados`), e o menu "Cadastros" (lista de
-Clientes/`/clientes` e Grupo Econômico/`/grupo-economico` no sentido de
-administração global, não os que já existem no shell cliente).
+**Aprovação de Documentos** (`lib/features/documentos_empresas_admin/`)
+— porta de `documentos-empresas/page.tsx` + `[id]/page.tsx` +
+`_components/PainelRevisao.tsx` + `revisarDocumentacao`
+(`src/lib/empresasDocumentos.ts`). RLS conferida: `empresas_documentos`
+e `empresas_socios` já liberam SELECT total pro admin (mesma policy do
+resto do FLT-4), e o bucket de Storage `documentos-empresas` também
+libera signed URL pro admin em qualquer path — sem policy nova
+necessária. Reaproveita direto as classes/constantes já portadas na
+Fase FLT-2 pra tela self-service (`SocioEmpresa`, `DocumentoEmpresa`,
+`SituacaoDocumentacao`, tipos/labels de documento, nome do bucket) via
+`show` de `posto/providers/documentos_provider.dart` — só a query
+muda: aqui é por `empresaId` arbitrário escolhido na lista, lá é
+sempre `sessao.empresaId`. Fila com chips de status (Não iniciada /
+Pendente / Aprovada / Rejeitada) e contador por status; tela de
+detalhe mostra os documentos da empresa e de cada sócio (abre a URL
+assinada com `url_launcher`), motivo de rejeição anterior se houver, e
+o painel de decisão (motivo obrigatório pra rejeitar, aprovar/rejeitar
+gravando `documentacao_status`/`_revisado_em`/`_revisado_por`/
+`_motivo_rejeicao` na própria empresa — a garantia de "só admin" é a
+RLS de UPDATE em `empresas`, a tela só evita oferecer a ação pra quem
+não é admin). Achado real (build quebrado, pego pelo Daniel):
+`import '...' show X;` só torna `X` visível dentro do próprio arquivo —
+não repassa pra quem importa esse arquivo. As telas importavam só o
+provider (não o `documentos_provider.dart` original) esperando enxergar
+`DocumentoEmpresa`/`statusDocumentacaoLabel`/etc. — corrigido
+adicionando também um `export '...' show X;` no provider, repassando os
+mesmos símbolos adiante. Conferido que esse é o único lugar do projeto
+com esse padrão de reaproveitamento em cadeia (provider → provider); em
+todo o resto do app cada tela importa o arquivo original direto.
+
+**Rede de Postos — visão consolidada** (`lib/features/rede_postos_admin/`)
+— porta de `rede-postos/page.tsx` + `[id]/page.tsx` + `novo/page.tsx`
+(caminho `ehAdmin`) + `src/lib/gruposEconomicos.ts`. Achado ao ler a
+web: não existe página admin separada — é a MESMA rota `/rede-postos`
+pra posto e admin; o que muda é a RLS de `grupos_economicos`/
+`grupos_economicos_empresas` (conferida via `pg_policies`:
+`perfil_usuario_atual() = 'admin'` libera SELECT/INSERT/UPDATE/DELETE
+total nas duas tabelas) e, em `[id]`/`novo`, a lista de postos
+disponíveis pra vincular (admin vê todos os postos Revenda do sistema,
+não só os próprios). Por isso a tela reaproveita 100% do
+`RedePostosService` já portado na Fase FLT-2
+(`posto/services/rede_postos_service.dart` — criarRede/atualizarRede/
+vincularPosto/desvincularPosto já operam por id explícito, sem
+acoplamento a `sessao.empresaId`) e as classes `RedePostoDetalhe`/
+`PostoVinculado` via `show`. Lista com KPIs (total de redes, ativas) e
+contagem de postos por rede (`grupos_economicos_empresas(count)`,
+mesmo padrão embed já usado em `centros_custo_provider.dart`); detalhe
+com edição de nome/CNPJ/ativo e vincular/desvincular qualquer posto do
+sistema; nova Rede escolhendo qualquer posto como fundador. Achado
+real ao portar: o `count` embutido do Postgrest pode vir como `num`
+(não sempre `int`) — copiado o cast `(count as num?)?.toInt()` já
+usado em `centros_custo_provider.dart`, não o cast direto `as int?`.
+
+**Possíveis Duplicados (Postos)** (`lib/features/postos_duplicados/`)
+— porta de `postos-duplicados/page.tsx` + `_components/
+BotoesDuplicata.tsx` + `actions.ts`. Fila de revisão dos possíveis
+duplicados sinalizados pela RPC `verificar_e_registrar_posto_anp` (aba
+"Meu Posto" do posto self-service): endereço/coordenadas muito
+próximos de outro posto já cadastrado (base ANP ou `postos_gf` de
+outro dono), mas CNPJ diferente. O cadastro nunca é bloqueado nesse
+momento — só entra numa fila (`postos_gf_possiveis_duplicados`) pra um
+admin decidir depois "não é duplicata" ou "confirmar duplicata" (não
+faz merge/exclusão automática, só registra a decisão — mesmo
+comportamento da web). RLS conferida: `postos_gf_possiveis_duplicados_
+admin` dá `ALL` só pra `perfil_usuario_atual() = 'admin'`, sem policy
+de leitura pra mais ninguém — não há caminho de escopo reduzido aqui,
+é admin-only fim a fim.
+
+**Cadastros (admin) — Grupo Econômico e Clientes, visão consolidada**
+(`lib/features/grupo_economico_admin/` e `lib/features/clientes_admin/`)
+— porta de `grupo-economico/page.tsx` + `[id]/page.tsx` +
+`novo/page.tsx` e `clientes/page.tsx`. Mesmo achado de `/rede-postos`:
+não existem páginas admin separadas — `/grupo-economico` e `/clientes`
+são as MESMAS rotas que um cliente comum acessa (RLS que restringe o
+que ele vê); a versão admin destas duas telas no Flutter precisou virar
+rotas novas (`/grupos-economicos` e `/clientes-admin`, sem colidir com
+as rotas cliente já existentes) porque o objetivo aqui é literalmente
+"ver TUDO", não "ver o meu".
+- *Grupo Econômico*: diferente de Rede de Postos, a RLS mostra que
+  segmento='Frota' é 100% admin-only pra escrita (`grupos_insert`/
+  `grupos_update`/`gee_insere` só passam com `perfil_usuario_atual() =
+  'admin'` — nunca self-service, confirmado também no comentário já
+  existente em `grupo_economico_provider.dart` da versão cliente, que
+  por isso é só leitura). Criar Grupo aqui é um INSERT direto (sem RPC,
+  diferente da Rede de Postos que usa `criar_rede_posto_self_service`)
+  — o Grupo nasce vazio, empresas são vinculadas depois. Vincular
+  replica o mesmo "achado real" de Rede de Postos: a RLS não valida
+  documentação aprovada sozinha, então o `_exigirDocumentacaoAprovada`
+  foi reproduzido em código aqui também.
+- *Clientes*: lista global de todos os clientes Frota com busca
+  (nome/CNPJ) e KPIs (total/ativos/outros status), toggle Ativar/
+  Suspender (RLS `empresas_update_admin` já garante que só admin grava
+  de verdade). Reaproveita `ClienteCadastro`/`statusEmpresaLabel`/
+  `planoLabel` da versão cliente (FLT-3, só leitura da própria empresa)
+  via `show` direto do arquivo original. **Fora do escopo desta
+  rodada** (documentado, fica pra depois): painel "Últimos acessos"
+  (tabela `acessos_clientes` + badge no menu) e o checkbox "Ignorar
+  limite de veículos do plano" (`bypass_limite_frota`) — o valor
+  central (ver todos os clientes, buscar, suspender/reativar) já está
+  coberto.
+
+**Achado real desta sessão (build quebrado, pego pelo Daniel) que
+afeta o padrão de reaproveitamento usado em toda a Fase FLT-4**:
+`import 'x.dart' show A;` só torna `A` visível DENTRO do arquivo que
+importa — não repassa `A` pra quem importa esse arquivo por sua vez.
+Isso quebrou o build de Aprovação de Documentos (as telas importavam
+só o provider admin, esperando enxergar `DocumentoEmpresa`/
+`statusDocumentacaoLabel`/etc. que só existiam ali via `show`).
+Corrigido de duas formas: (1) no provider de Documentos, adicionado um
+`export` explícito repassando os mesmos símbolos; (2) em todo o resto
+construído depois desse achado (Grupo Econômico admin, Clientes
+admin), as telas voltaram a importar o arquivo ORIGINAL direto (mesmo
+padrão já usado em todo o app antes desta sessão, e também em Rede de
+Postos admin) em vez de depender de reexport em cadeia — mais simples
+e sem essa armadilha.
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 

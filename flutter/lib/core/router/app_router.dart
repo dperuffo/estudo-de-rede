@@ -49,6 +49,16 @@ import '../../features/permissoes/screens/permissoes_screen.dart';
 import '../../features/configuracoes_sistema/screens/configuracoes_sistema_screen.dart';
 import '../../features/avaliacoes_admin/screens/avaliacoes_admin_screen.dart';
 import '../../features/assinaturas_admin/screens/assinaturas_admin_screen.dart';
+import '../../features/documentos_empresas_admin/screens/documentos_empresas_lista_screen.dart';
+import '../../features/documentos_empresas_admin/screens/documentos_empresa_detalhe_screen.dart';
+import '../../features/rede_postos_admin/screens/redes_postos_admin_lista_screen.dart';
+import '../../features/rede_postos_admin/screens/rede_posto_admin_detalhe_screen.dart';
+import '../../features/rede_postos_admin/screens/nova_rede_admin_screen.dart';
+import '../../features/postos_duplicados/screens/postos_duplicados_screen.dart';
+import '../../features/grupo_economico_admin/screens/grupos_economicos_admin_lista_screen.dart';
+import '../../features/grupo_economico_admin/screens/grupo_economico_admin_detalhe_screen.dart';
+import '../../features/grupo_economico_admin/screens/novo_grupo_economico_admin_screen.dart';
+import '../../features/clientes_admin/screens/clientes_admin_lista_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
 import '../../features/precos_postos/screens/precos_postos_screen.dart';
@@ -303,6 +313,25 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/configuracoes', builder: (_, __) => const ConfiguracoesSistemaScreen()),
             GoRoute(path: '/avaliacoes', builder: (_, __) => const AvaliacoesAdminScreen()),
             GoRoute(path: '/assinaturas', builder: (_, __) => const AssinaturasAdminScreen()),
+            GoRoute(path: '/documentos-empresas', builder: (_, __) => const DocumentosEmpresasListaScreen()),
+            GoRoute(
+              path: '/documentos-empresas/:id',
+              builder: (_, state) => DocumentosEmpresaDetalheScreen(empresaId: state.pathParameters['id']!),
+            ),
+            GoRoute(path: '/redes-postos', builder: (_, __) => const RedesPostosAdminListaScreen()),
+            GoRoute(path: '/redes-postos/nova', builder: (_, __) => const NovaRedeAdminScreen()),
+            GoRoute(
+              path: '/redes-postos/:id',
+              builder: (_, state) => RedePostoAdminDetalheScreen(redeId: state.pathParameters['id']!),
+            ),
+            GoRoute(path: '/postos-duplicados', builder: (_, __) => const PostosDuplicadosScreen()),
+            GoRoute(path: '/grupos-economicos', builder: (_, __) => const GruposEconomicosAdminListaScreen()),
+            GoRoute(path: '/grupos-economicos/novo', builder: (_, __) => const NovoGrupoEconomicoAdminScreen()),
+            GoRoute(
+              path: '/grupos-economicos/:id',
+              builder: (_, state) => GrupoEconomicoAdminDetalheScreen(grupoId: state.pathParameters['id']!),
+            ),
+            GoRoute(path: '/clientes-admin', builder: (_, __) => const ClientesAdminListaScreen()),
           ],
         ),
 
