@@ -61,6 +61,15 @@ class InteligenciaRedeScreen extends ConsumerWidget {
           title: const Text('Inteligência de Rede'),
           bottom: TabBar(
             isScrollable: true,
+            // Achado real (reportado pelo Daniel): sem essas 3 cores
+            // explícitas, o Material 3 pinta o texto da aba SELECIONADA
+            // com a cor primária do tema (fica meio cinza escuro em cima
+            // do azul do AppBar — baixo contraste, difícil de ler no
+            // mobile). Mesmo padrão de branco já usado no TabBar de
+            // Análise de Cliente/Manutenção.
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
             tabs: _abas.map((a) => Tab(text: a)).toList(),
           ),
         ),
