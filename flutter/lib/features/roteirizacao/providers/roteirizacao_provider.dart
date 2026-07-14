@@ -1,26 +1,31 @@
 import '../../../core/services/supabase_service.dart';
 import '../../postos/providers/postos_provider.dart' show ufsBrasil;
+import '../services/geo_service.dart' as geo;
+import '../services/roteirizacao_algoritmo.dart';
 
-// Fase FLT-3 — Roteirização (cliente), porta PARCIAL de roteirizacao/
-// page.tsx + posto/page.tsx + actions.ts (funções buscarPostosPorUfAcao +
-// buscarPostoPorTermoAcao). RLS/tabelas conferidas antes de portar:
-// `postos_gf`/`historico_precos` têm self-service completo pra empresa do
-// usuário (já usado em Postos Revendedores); `anp_postos`/
-// `anp_precos_referencia` têm leitura PÚBLICA (`qual: true`, sem
-// tenant-scoping) — dá pra consultar direto, sem RPC, igual à web.
+// Fase FLT-3 — Roteirização (cliente), porta de roteirizacao/page.tsx +
+// posto/page.tsx + planejar/page.tsx + actions.ts (buscarPostosPorUfAcao +
+// buscarPostoPorTermoAcao + calcularRoteirizacaoAcao). RLS/tabelas
+// conferidas antes de portar: `postos_gf`/`historico_precos` têm
+// self-service completo pra empresa do usuário (já usado em Postos
+// Revendedores); `anp_postos`/`anp_precos_referencia` têm leitura PÚBLICA
+// (`qual: true`, sem tenant-scoping) — dá pra consultar direto, sem RPC,
+// igual à web.
 //
-// Escopo reduzido — a web tem 4 abas em Roteirização; só as 2 mais simples
-// entraram no v1 mobile:
-//   - "Por UF/Município" (esta tela, modo 'uf')
-//   - "Consulta por Posto" (esta tela, modo 'posto')
-// Fora do escopo: "Roteirizador Inteligente" (calcula rota real via OSRM,
-// otimiza paradas de abastecimento por veículo/perfil de peso, compara 4
-// estratégias, exporta GPX/PDF/PNG — muita lógica geo-espacial e
-// dependência de mapa interativo, natural pra próxima fase) e "Rotas
-// Salvas" (persistência de consultas — só faz sentido depois que o
-// Roteirizador existir). Sem mapa interativo aqui: os resultados aparecem
-// como lista (cada posto já mostra município/UF, o mapa da web é só uma
-// visualização a mais dos mesmos dados).
+// Escopo reduzido — a web tem 4 abas em Roteirização; 3 entraram no v1
+// mobile:
+//   - "Por UF/Município" (modo 'uf')
+//   - "Consulta por Posto" (modo 'posto')
+//   - "Roteirizador Inteligente" (modo 'planejar' — rota real via OSRM +
+//     otimização de paradas, ver buscarCandidatosCorredor/
+//     calcularRoteirizacao abaixo e roteirizacao_algoritmo.dart)
+// Fora do escopo: comparativo lado a lado das 4 estratégias de peso (a web
+// recalcula as 4 de uma vez pra montar uma tabela comparativa; aqui só
+// calcula a estratégia escolhida — reduz o trabalho sem perder a função
+// principal, dá pra trocar de estratégia e recalcular manualmente), GPX/
+// PDF/PNG export e "Rotas Salvas" (persistência de consultas). Mapa
+// interativo (flutter_map + tiles OSM) incluído nos 3 modos — ver
+// mapa_postos.dart.
 final ufParaEstadoAnp = {
   'AC': 'ACRE', 'AL': 'ALAGOAS', 'AP': 'AMAPA', 'AM': 'AMAZONAS', 'BA': 'BAHIA',
   'CE': 'CEARA', 'DF': 'DISTRITO FEDERAL', 'ES': 'ESPIRITO SANTO', 'GO': 'GOIAS',
@@ -403,7 +408,267 @@ class RoteirizacaoService {
 
     return [...resultadoGf, ...resultadoAnp];
   }
+
+  // ── Modo "Roteirizador Inteligente" ────────────────────────────────
+  Future<List<Map<String, dynamic>>> _carregarPostosGfPorBoxes(String empresaId, List<geo.BoundingBox> boxes) async {
+    final porCnpj = <String, Map<String, dynamic>>{};
+    for (final box in boxes) {
+      final rows = await _supabase
+          .from('postos_gf')
+          .select(
+              'cnpj, razao_social, municipio, uf, bandeira, lat, lon, ativo, funciona_24h, pista_caminhao, arla, conveniencia, conveniencia_am_pm, possui_restaurante, possui_banheiro, possui_estacionamento, possui_troca_oleo, possui_internet')
+          .eq('empresa_id', empresaId)
+          .eq('ativo', true)
+          .not('lat', 'is', null)
+          .not('lon', 'is', null)
+          .gte('lat', box.minLat)
+          .lte('lat', box.maxLat)
+          .gte('lon', box.minLon)
+          .lte('lon', box.maxLon)
+          .limit(3000) as List;
+      for (final r in rows) {
+        final m = r as Map<String, dynamic>;
+        porCnpj[m['cnpj'] as String] = m;
+      }
+    }
+    return porCnpj.values.toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _carregarAnpPostosPorBoxes(List<geo.BoundingBox> boxes) async {
+    final porCnpj = <String, Map<String, dynamic>>{};
+    for (final box in boxes) {
+      final rows = await _supabase
+          .from('anp_postos')
+          .select('cnpj, razao_social, municipio, uf, bandeira, latitude, longitude')
+          .eq('ativo', true)
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+          .gte('latitude', box.minLat)
+          .lte('latitude', box.maxLat)
+          .gte('longitude', box.minLon)
+          .lte('longitude', box.maxLon)
+          .limit(3000) as List;
+      for (final r in rows) {
+        final m = r as Map<String, dynamic>;
+        final cnpj = m['cnpj'] as String?;
+        if (cnpj == null) continue;
+        porCnpj[cnpj] = m;
+      }
+    }
+    return porCnpj.values.toList();
+  }
+
+  // Porta de calcularRoteirizacaoAcao (actions.ts) — só a parte de busca de
+  // candidatos + otimização da estratégia ESCOLHIDA (sem o comparativo das
+  // 4 estratégias de uma vez, ver escopo no comentário do topo do arquivo).
+  Future<ResultadoRoteirizacaoInteligente> calcularRoteirizacao({
+    required String empresaId,
+    required geo.Ponto origem,
+    required geo.Ponto destino,
+    List<geo.Ponto> paradas = const [],
+    required double capacidadeTanqueL,
+    required double autonomiaKmPorL,
+    required String combustivel,
+    double? combustivelInicialL,
+    required PerfilPeso perfil,
+  }) async {
+    const raioCorredorKm = 5.0;
+    final rota = await geo.calcularRotaOsrm(origem, destino, paradas: paradas);
+    final acumuladas = geo.distanciasAcumuladas(rota.coordenadas);
+    final margem = raioCorredorKm / 100;
+    final boxesRota = geo.construirBoundingBoxesDaRota(rota.coordenadas, acumuladas, margem);
+
+    final postosBrutos = await _carregarPostosGfPorBoxes(empresaId, boxesRota);
+    final candidatosBrutosGf = postosBrutos
+        .map((p) {
+          final pos = geo.posicaoNaRotaKm(geo.Ponto((p['lat'] as num).toDouble(), (p['lon'] as num).toDouble()),
+              rota.coordenadas, acumuladas);
+          return (p: p, km: pos.km, desvioKm: pos.desvioKm);
+        })
+        .where((x) => x.desvioKm <= raioCorredorKm)
+        .toList();
+
+    final precosPorCnpj =
+        await _carregarPrecosPorCnpj(candidatosBrutosGf.map((x) => x.p['cnpj'] as String).toList());
+
+    var candidatos = <CandidatoAbastecimento>[];
+    for (final x in candidatosBrutosGf) {
+      final precoRegistrado = (precosPorCnpj[x.p['cnpj']] ?? [])
+          .where((pr) => pr.combustivel.toLowerCase() == combustivel.toLowerCase())
+          .toList();
+      if (precoRegistrado.isEmpty) continue;
+      final score =
+          calcularScorePosto(precoPosto: precoRegistrado.first.preco, servicosAtivos: _contarServicos(x.p), servicosTotal: _camposServico.length);
+      candidatos.add(CandidatoAbastecimento(
+        cnpj: x.p['cnpj'] as String,
+        km: x.km,
+        desvioKm: x.desvioKm,
+        preco: precoRegistrado.first.preco,
+        grade: score.grade,
+        label: x.p['razao_social'] as String? ?? x.p['cnpj'] as String,
+        lat: (x.p['lat'] as num).toDouble(),
+        lon: (x.p['lon'] as num).toDouble(),
+        bandeira: x.p['bandeira'] as String?,
+        uf: x.p['uf'] as String?,
+        origem: 'proprio',
+      ));
+    }
+
+    // Fallback/complemento ANP no corredor — mesma cascata de preço
+    // (município → estado → Brasil) usada nos outros 2 modos, só que
+    // aplicada aos candidatos do corredor da rota.
+    var usouFallbackAnp = false;
+    final categoriaAnp = produtoParaCategoriaAnp[combustivel];
+    if (categoriaAnp != null) {
+      final cnpjsProprios = candidatos.map((c) => c.cnpj.replaceAll(RegExp(r'\D'), '')).toSet();
+      final anpBrutos = await _carregarAnpPostosPorBoxes(boxesRota);
+      final anpNoCorredor = anpBrutos
+          .where((p) => !cnpjsProprios.contains((p['cnpj'] as String).replaceAll(RegExp(r'\D'), '')))
+          .map((p) {
+            final pos = geo.posicaoNaRotaKm(
+                geo.Ponto((p['latitude'] as num).toDouble(), (p['longitude'] as num).toDouble()),
+                rota.coordenadas,
+                acumuladas);
+            return (p: p, km: pos.km, desvioKm: pos.desvioKm);
+          })
+          .where((x) => x.desvioKm <= raioCorredorKm)
+          .toList();
+
+      final estadosNoCorredor = _estadosAnpDePostos(anpNoCorredor.map((x) => x.p).toList());
+      final precoPorMunicipio = <String, double>{};
+      final precoPorEstado = <String, double>{};
+      double? precoBrasil;
+
+      if (estadosNoCorredor.isNotEmpty) {
+        final municRows = await _supabase
+            .from('anp_precos_referencia')
+            .select('municipio, estado, preco_medio, data_final')
+            .eq('nivel', 'municipio')
+            .eq('produto', categoriaAnp)
+            .inFilter('estado', estadosNoCorredor)
+            .order('data_final', ascending: false) as List;
+        for (final r in municRows) {
+          final m = r as Map<String, dynamic>;
+          final chave = '${m['municipio']}__${m['estado']}';
+          if (!precoPorMunicipio.containsKey(chave) && m['preco_medio'] != null) {
+            precoPorMunicipio[chave] = (m['preco_medio'] as num).toDouble();
+          }
+        }
+        final estRows = await _supabase
+            .from('anp_precos_referencia')
+            .select('estado, preco_medio, data_final')
+            .eq('nivel', 'estado')
+            .eq('produto', categoriaAnp)
+            .inFilter('estado', estadosNoCorredor)
+            .order('data_final', ascending: false) as List;
+        for (final r in estRows) {
+          final m = r as Map<String, dynamic>;
+          if (!precoPorEstado.containsKey(m['estado']) && m['preco_medio'] != null) {
+            precoPorEstado[m['estado'] as String] = (m['preco_medio'] as num).toDouble();
+          }
+        }
+      }
+      final brasilRow = await _supabase
+          .from('anp_precos_referencia')
+          .select('preco_medio')
+          .eq('nivel', 'brasil')
+          .eq('produto', categoriaAnp)
+          .order('data_final', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      precoBrasil = (brasilRow?['preco_medio'] as num?)?.toDouble();
+
+      final candidatosAnp = <CandidatoAbastecimento>[];
+      for (final x in anpNoCorredor) {
+        final uf = x.p['uf'] as String?;
+        final estadoAnp = uf != null ? ufParaEstadoAnp[uf.toUpperCase()] : null;
+        final municipioNorm = normalizarTexto(x.p['municipio'] as String?);
+        final preco = (estadoAnp != null ? precoPorMunicipio['${municipioNorm}__$estadoAnp'] : null) ??
+            (estadoAnp != null ? precoPorEstado[estadoAnp] : null) ??
+            precoBrasil;
+        if (preco == null) continue;
+        final score = calcularScorePosto(precoPosto: preco, servicosAtivos: 0, servicosTotal: _camposServico.length);
+        candidatosAnp.add(CandidatoAbastecimento(
+          cnpj: x.p['cnpj'] as String,
+          km: x.km,
+          desvioKm: x.desvioKm,
+          preco: preco,
+          grade: score.grade,
+          label: x.p['razao_social'] as String? ?? x.p['cnpj'] as String,
+          lat: (x.p['latitude'] as num).toDouble(),
+          lon: (x.p['longitude'] as num).toDouble(),
+          bandeira: x.p['bandeira'] as String?,
+          uf: uf,
+          origem: 'anp',
+        ));
+      }
+      candidatos = [...candidatos, ...candidatosAnp];
+      usouFallbackAnp = candidatosAnp.isNotEmpty;
+    }
+
+    final paradas2 = otimizarAbastecimento(
+      candidatos: candidatos,
+      capacidadeTanqueL: capacidadeTanqueL,
+      autonomiaKmPorL: autonomiaKmPorL,
+      distanciaTotalRotaKm: rota.distanciaKm,
+      pesos: perfil.pesos,
+      fillMode: perfil.fillMode,
+      combustivelInicialL: combustivelInicialL,
+    );
+
+    return ResultadoRoteirizacaoInteligente(
+      coordenadas: rota.coordenadas,
+      distanciaKm: (rota.distanciaKm * 10).round() / 10,
+      duracaoMin: rota.duracaoMin.round().toDouble(),
+      linhaReta: rota.linhaReta,
+      paradas: paradas2,
+      litrosTotal: paradas2.fold(0.0, (s, p) => s + p.litrosSugeridos),
+      custoTotal: ((paradas2.fold(0.0, (s, p) => s + p.custoAbastecimento)) * 100).round() / 100,
+      candidatosEncontrados: candidatos.length,
+      usouFallbackAnp: usouFallbackAnp,
+    );
+  }
 }
+
+class ResultadoRoteirizacaoInteligente {
+  final List<geo.Ponto> coordenadas;
+  final double distanciaKm;
+  final double duracaoMin;
+  final bool linhaReta;
+  final List<ParadaSugerida> paradas;
+  final double litrosTotal;
+  final double custoTotal;
+  final int candidatosEncontrados;
+  final bool usouFallbackAnp;
+  const ResultadoRoteirizacaoInteligente({
+    required this.coordenadas,
+    required this.distanciaKm,
+    required this.duracaoMin,
+    required this.linhaReta,
+    required this.paradas,
+    required this.litrosTotal,
+    required this.custoTotal,
+    required this.candidatosEncontrados,
+    required this.usouFallbackAnp,
+  });
+}
+
+// Porta de PRODUTO_PARA_CATEGORIA_ANP (src/lib/constants.ts) — combustível
+// do veículo -> categoria oficial ANP, usado só no Roteirizador Inteligente
+// (os outros 2 modos não filtram por combustível específico do veículo).
+const produtoParaCategoriaAnp = {
+  'Diesel S-500 Comum': 'OLEO DIESEL',
+  'Diesel S-500 Aditivado': 'OLEO DIESEL',
+  'Diesel S-10 Comum': 'OLEO DIESEL S10',
+  'Diesel S-10 Aditivado': 'OLEO DIESEL S10',
+  'Etanol Comum': 'ETANOL HIDRATADO',
+  'Etanol Aditivado': 'ETANOL HIDRATADO',
+  'Gasolina Comum': 'GASOLINA COMUM',
+  'Gasolina Aditivada': 'GASOLINA ADITIVADA',
+  'Gasolina Alta Octanagem': 'GASOLINA ADITIVADA',
+  'GNV': 'GNV',
+  'GLP': 'GLP',
+};
 
 // Reexportado pra tela não precisar importar postos_provider.dart só por
 // causa da lista de UFs.

@@ -45,6 +45,12 @@ import '../../features/motoristas/screens/motorista_novo_screen.dart';
 import '../../features/motoristas/screens/motorista_editar_screen.dart';
 import '../../features/anomalias/screens/anomalias_screen.dart';
 import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
+import '../../features/negociacoes/screens/negociacoes_screen.dart';
+import '../../features/negociacoes/screens/negociacao_detalhe_screen.dart';
+import '../../features/negociacoes/screens/criar_negociacao_screen.dart';
+import '../../features/parametros_uso/screens/parametros_uso_screen.dart';
+import '../../features/parametros_uso/screens/vinculo_novo_screen.dart';
+import '../../features/parametros_uso/screens/vinculo_editar_screen.dart';
 import '../../features/notas_fiscais/screens/notas_fiscais_screen.dart';
 import '../../features/notas_fiscais/screens/nota_fiscal_detalhe_screen.dart';
 import '../../features/veiculos/screens/veiculos_screen.dart';
@@ -242,10 +248,20 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/roteirizacao', builder: (_, __) => const RoteirizacaoScreen()),
             GoRoute(path: '/rotograma', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Rotograma')),
             GoRoute(path: '/planos-viagem', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Planos de Viagem')),
-            GoRoute(path: '/negociacoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Negociações com Postos')),
+            GoRoute(path: '/negociacoes', builder: (_, __) => const NegociacoesClienteScreen()),
+            GoRoute(path: '/negociacoes/novo', builder: (_, __) => const CriarNegociacaoClienteScreen()),
+            GoRoute(
+              path: '/negociacoes/:id',
+              builder: (_, state) => NegociacaoDetalheClienteScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(path: '/precos-postos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Preços dos Postos Parceiros')),
             GoRoute(path: '/manutencao-preditiva', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Manutenção Preditiva')),
-            GoRoute(path: '/parametros-uso', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Parâmetros de Uso')),
+            GoRoute(path: '/parametros-uso', builder: (_, __) => const ParametrosUsoScreen()),
+            GoRoute(path: '/parametros-uso/novo', builder: (_, __) => const VinculoNovoScreen()),
+            GoRoute(
+              path: '/parametros-uso/:id/editar',
+              builder: (_, state) => VinculoEditarScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(path: '/relatorios', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Relatórios')),
             GoRoute(path: '/integracoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Integrações')),
             GoRoute(path: '/permissoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Permissões')),

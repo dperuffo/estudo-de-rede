@@ -23,6 +23,13 @@ dependencies:
   url_launcher: ^6.3.2
   file_picker: ^11.0.2
   web_socket_channel: ^3.0.3
+  # Fase FLT-3 — Roteirizador Inteligente + mapas OSM na Roteirização
+  # (pedido do Daniel). flutter_map é o equivalente Flutter do Leaflet
+  # (usado na web em MapaRota.tsx) — mesma fonte de tiles (OpenStreetMap,
+  # gratuita, sem chave de API). latlong2 é a dependência de coordenadas
+  # que o flutter_map usa internamente.
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

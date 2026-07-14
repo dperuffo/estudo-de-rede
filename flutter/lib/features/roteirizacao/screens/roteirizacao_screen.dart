@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../veiculos/providers/veiculos_provider.dart' show Veiculo, veiculosClienteProvider;
 import '../providers/roteirizacao_provider.dart';
+import '../services/geo_service.dart' as geo;
+import '../services/roteirizacao_algoritmo.dart';
+import 'mapa_postos.dart';
 
-// Fase FLT-3 — Roteirização (cliente): 2 modos ("Por UF/Município" e
-// "Consulta por Posto") num só toggle, em vez de abas separadas — ver
-// escopo completo em roteirizacao_provider.dart.
+// Fase FLT-3 — Roteirização (cliente): 3 modos ("Por UF/Município",
+// "Consulta por Posto" e "Roteirizador Inteligente") num só toggle, em vez
+// de abas separadas — ver escopo completo em roteirizacao_provider.dart.
+// Mapa interativo (flutter_map + tiles OSM, ver mapa_postos.dart) plotado
+// nos 3 modos.
 class RoteirizacaoScreen extends ConsumerStatefulWidget {
   const RoteirizacaoScreen({super.key});
 
@@ -23,11 +29,83 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   String? _erro;
   List<PostoComScore>? _resultado;
 
+  // ── Modo "Roteirizador Inteligente" ──────────────────────────────────
+  final _origemCtrl = TextEditingController();
+  final _destinoCtrl = TextEditingController();
+  geo.SugestaoGeocoding? _origemSel;
+  geo.SugestaoGeocoding? _destinoSel;
+  List<geo.SugestaoGeocoding> _sugestoesOrigem = [];
+  List<geo.SugestaoGeocoding> _sugestoesDestino = [];
+  Veiculo? _veiculo;
+  String _perfilChave = perfisPeso.first.chave;
+  ResultadoRoteirizacaoInteligente? _resultadoPlanejar;
+
   @override
   void dispose() {
     _municipioCtrl.dispose();
     _termoCtrl.dispose();
+    _origemCtrl.dispose();
+    _destinoCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _buscarSugestoes(String texto, bool origem) async {
+    final sugestoes = await geo.geocodificar(texto);
+    if (!mounted) return;
+    setState(() {
+      if (origem) {
+        _sugestoesOrigem = sugestoes;
+      } else {
+        _sugestoesDestino = sugestoes;
+      }
+    });
+  }
+
+  Future<void> _planejar() async {
+    final sessao = await ref.read(sessaoProvider.future);
+    final empresaId = sessao.empresaId;
+    if (empresaId == null) {
+      setState(() => _erro = 'Selecione uma empresa antes.');
+      return;
+    }
+    if (_origemSel == null || _destinoSel == null) {
+      setState(() => _erro = 'Escolha origem e destino nas sugestões de busca.');
+      return;
+    }
+    if (_veiculo == null || _veiculo!.tanque == null || _veiculo!.autonomia == null || _veiculo!.combustivel == null) {
+      setState(() => _erro = 'Escolha um veículo com tanque, autonomia e combustível cadastrados.');
+      return;
+    }
+
+    setState(() {
+      _buscando = true;
+      _erro = null;
+      _resultadoPlanejar = null;
+    });
+
+    try {
+      final perfil = perfisPeso.firstWhere((p) => p.chave == _perfilChave);
+      final resultado = await RoteirizacaoService().calcularRoteirizacao(
+        empresaId: empresaId,
+        origem: geo.Ponto(_origemSel!.lat, _origemSel!.lon),
+        destino: geo.Ponto(_destinoSel!.lat, _destinoSel!.lon),
+        capacidadeTanqueL: _veiculo!.tanque!,
+        autonomiaKmPorL: _veiculo!.autonomia!,
+        combustivel: _veiculo!.combustivel!,
+        perfil: perfil,
+      );
+      if (!mounted) return;
+      setState(() {
+        _resultadoPlanejar = resultado;
+        _buscando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = 'Não foi possível calcular a rota: $e';
+        _buscando = false;
+      });
+    }
   }
 
   Future<void> _buscar() async {
@@ -81,8 +159,9 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Consulte a rede de postos por UF/Município ou busque um posto específico — mistura os postos '
-            'próprios cadastrados com a base pública de preços ANP.',
+            'Consulte a rede de postos por UF/Município, busque um posto específico ou monte um roteiro '
+            'inteligente com paradas de abastecimento otimizadas — mistura os postos próprios cadastrados '
+            'com a base pública de preços ANP.',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 12),
@@ -90,23 +169,31 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             segments: const [
               ButtonSegment(value: 'uf', label: Text('Por UF/Município')),
               ButtonSegment(value: 'posto', label: Text('Consulta por Posto')),
+              ButtonSegment(value: 'planejar', label: Text('Roteirizador Inteligente')),
             ],
             selected: {_modo},
             onSelectionChanged: (s) => setState(() {
               _modo = s.first;
               _resultado = null;
+              _resultadoPlanejar = null;
               _erro = null;
             }),
           ),
           const SizedBox(height: 12),
-          if (_modo == 'uf') ..._formUf() else ..._formPosto(),
+          if (_modo == 'uf')
+            ..._formUf()
+          else if (_modo == 'posto')
+            ..._formPosto()
+          else
+            ..._formPlanejar(),
           if (_erro != null) ...[
             const SizedBox(height: 8),
             Text(_erro!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
           ],
           const SizedBox(height: 16),
           if (_buscando) const Center(child: CircularProgressIndicator()),
-          if (!_buscando && _resultado != null) ..._resultados(),
+          if (!_buscando && _modo != 'planejar' && _resultado != null) ..._resultados(),
+          if (!_buscando && _modo == 'planejar' && _resultadoPlanejar != null) ..._resultadosPlanejar(),
         ],
       ),
     );
@@ -180,10 +267,239 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       ];
     }
     return [
+      MapaPostos(postos: lista),
+      const SizedBox(height: 12),
       Text('Postos (${lista.length})', style: Theme.of(context).textTheme.titleSmall),
       const SizedBox(height: 8),
       ...lista.map(_cardPosto),
     ];
+  }
+
+  Widget _campoBusca({
+    required TextEditingController controller,
+    required String label,
+    required List<geo.SugestaoGeocoding> sugestoes,
+    required void Function(String) onChanged,
+    required void Function(geo.SugestaoGeocoding) onSelecionado,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
+          onChanged: onChanged,
+        ),
+        if (sugestoes.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: sugestoes
+                  .map((s) => ListTile(
+                        dense: true,
+                        title: Text(s.label, style: const TextStyle(fontSize: 13)),
+                        onTap: () => onSelecionado(s),
+                      ))
+                  .toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _formPlanejar() {
+    final veiculosAsync = ref.watch(veiculosClienteProvider);
+    return [
+      _campoBusca(
+        controller: _origemCtrl,
+        label: 'Origem',
+        sugestoes: _sugestoesOrigem,
+        onChanged: (t) {
+          _origemSel = null;
+          _buscarSugestoes(t, true);
+        },
+        onSelecionado: (s) => setState(() {
+          _origemSel = s;
+          _origemCtrl.text = s.label;
+          _sugestoesOrigem = [];
+        }),
+      ),
+      const SizedBox(height: 10),
+      _campoBusca(
+        controller: _destinoCtrl,
+        label: 'Destino',
+        sugestoes: _sugestoesDestino,
+        onChanged: (t) {
+          _destinoSel = null;
+          _buscarSugestoes(t, false);
+        },
+        onSelecionado: (s) => setState(() {
+          _destinoSel = s;
+          _destinoCtrl.text = s.label;
+          _sugestoesDestino = [];
+        }),
+      ),
+      const SizedBox(height: 10),
+      veiculosAsync.when(
+        data: (veiculos) => DropdownButtonFormField<Veiculo>(
+          value: _veiculo,
+          decoration: const InputDecoration(labelText: 'Veículo', border: OutlineInputBorder(), isDense: true),
+          items: veiculos
+              .map((v) => DropdownMenuItem(
+                    value: v,
+                    child: Text(
+                        '${v.placa}${v.combustivel != null ? ' · ${v.combustivel}' : ''}${v.tanque != null ? ' · ${v.tanque!.toStringAsFixed(0)}L' : ''}'),
+                  ))
+              .toList(),
+          onChanged: (v) => setState(() => _veiculo = v),
+        ),
+        loading: () => const LinearProgressIndicator(),
+        error: (e, _) => Text('Erro ao carregar veículos: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
+      ),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        value: _perfilChave,
+        decoration: const InputDecoration(labelText: 'Perfil de otimização', border: OutlineInputBorder(), isDense: true),
+        items: perfisPeso
+            .map((p) => DropdownMenuItem(value: p.chave, child: Text('${p.icone} ${p.nome}')))
+            .toList(),
+        onChanged: (v) => setState(() => _perfilChave = v ?? _perfilChave),
+      ),
+      Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          perfisPeso.firstWhere((p) => p.chave == _perfilChave).descricao,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+      ),
+      const SizedBox(height: 10),
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton(onPressed: _buscando ? null : _planejar, child: const Text('Calcular roteiro')),
+      ),
+    ];
+  }
+
+  List<Widget> _resultadosPlanejar() {
+    final r = _resultadoPlanejar!;
+    final postosParaMapa = r.paradas
+        .map((p) => PostoComScore(
+              cnpj: p.candidato.cnpj,
+              razaoSocial: p.candidato.label,
+              municipio: null,
+              uf: p.candidato.uf,
+              bandeira: p.candidato.bandeira,
+              lat: p.candidato.lat,
+              lon: p.candidato.lon,
+              precos: [PrecoPosto(combustivel: _veiculo?.combustivel ?? '', preco: p.candidato.preco)],
+              score: ScorePosto(
+                score: 0,
+                grade: p.candidato.grade ?? 'D',
+                detalhePreco: '',
+                detalheServicos: '',
+                detalheDistancia: '',
+              ),
+              origem: p.candidato.origem,
+            ))
+        .toList();
+
+    return [
+      if (r.linhaReta)
+        Card(
+          color: Colors.amber.shade50,
+          child: const Padding(
+            padding: EdgeInsets.all(10),
+            child: Text(
+              'Não foi possível calcular a rota real pelos servidores OSRM públicos — usando estimativa em linha reta.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+        ),
+      MapaPostos(postos: postosParaMapa, rota: r.coordenadas, paradas: r.paradas, height: 320),
+      const SizedBox(height: 12),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _resumoItem('Distância', '${r.distanciaKm.toStringAsFixed(0)} km'),
+              _resumoItem('Duração', '${(r.duracaoMin / 60).toStringAsFixed(1)} h'),
+              _resumoItem('Paradas', '${r.paradas.length}'),
+              _resumoItem('Custo total', 'R\$ ${r.custoTotal.toStringAsFixed(2)}'),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Text('Paradas sugeridas (${r.paradas.length})', style: Theme.of(context).textTheme.titleSmall),
+      const SizedBox(height: 8),
+      if (r.paradas.isEmpty)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Nenhuma parada necessária para esse trajeto com o tanque atual.',
+                style: TextStyle(color: Colors.grey.shade600)),
+          ),
+        )
+      else
+        ...r.paradas.map(_cardParada),
+    ];
+  }
+
+  Widget _resumoItem(String label, String valor) {
+    return Column(
+      children: [
+        Text(valor, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+      ],
+    );
+  }
+
+  Widget _cardParada(ParadaSugerida p) {
+    final coresMotivo = {
+      'otimizado': const Color(0xFF10B981),
+      'estrategico': const Color(0xFF0EA5E9),
+      'emergencia': const Color(0xFFDC2626),
+    };
+    final cor = coresMotivo[p.motivo] ?? Colors.grey;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: cor.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                  child: Text(p.motivo, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(p.candidato.label,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), overflow: TextOverflow.ellipsis),
+                ),
+                Text('km ${p.candidato.km.toStringAsFixed(0)}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${p.litrosSugeridos.toStringAsFixed(0)} L · R\$ ${p.candidato.preco.toStringAsFixed(3)}/L · custo R\$ ${p.custoAbastecimento.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            Text(
+              'Chegada: ${p.pctChegada.toStringAsFixed(0)}% tanque · Saída: ${p.pctApos.toStringAsFixed(0)}% tanque',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _cardPosto(PostoComScore p) {

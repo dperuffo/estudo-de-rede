@@ -804,29 +804,86 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   ação marcar/desfazer revisão. Fora do escopo: seletor de cliente (só
   existe pro admin na web) e paginação de verdade (web pagina 30 em 30;
   aqui traz até 100).
-- **Roteirização** (`lib/features/roteirizacao/`) — porta PARCIAL de
-  `roteirizacao/page.tsx` + `posto/page.tsx` + `actions.ts`. RLS/tabelas
+- **Roteirização** (`lib/features/roteirizacao/`) — porta de
+  `roteirizacao/page.tsx` + `posto/page.tsx` + `planejar/page.tsx` +
+  `actions.ts` + `geo.ts` + `roteirizacaoAlgoritmo.ts`. RLS/tabelas
   conferidas antes de portar: `postos_gf`/`historico_precos` têm
   self-service completo (já usado em Postos Revendedores);
   `anp_postos`/`anp_precos_referencia` têm leitura PÚBLICA (`qual: true`,
   sem tenant-scoping) — dá pra consultar direto, sem RPC, igual à web. A
-  web tem 4 abas; só as 2 mais simples entraram no v1, num único toggle em
-  vez de abas separadas: "Por UF/Município" (lista postos da UF/município,
-  mesclando rede própria + base pública ANP) e "Consulta por Posto" (busca
-  livre por CNPJ ou nome). Cada resultado mostra o score A-D (porta fiel
-  de `calcularScorePosto` — preço 50%/serviços 30%/distância 20%, sem
-  ponto de referência único nesses 2 modos, então o score fica dominado
-  pela % de serviços do posto) e os preços por combustível. Fora do
-  escopo: "Roteirizador Inteligente" (calcula rota real via OSRM, otimiza
-  paradas de abastecimento por veículo/perfil de peso, compara 4
-  estratégias, exporta GPX/PDF/PNG — muita lógica geo-espacial e mapa
-  interativo, natural pra próxima fase) e "Rotas Salvas" (só faz sentido
-  depois que o Roteirizador existir). Sem mapa interativo: os resultados
-  aparecem como lista (o mapa da web é só uma visualização a mais dos
-  mesmos dados).
+  web tem 4 abas; 3 entraram no v1, num único toggle em vez de abas
+  separadas: "Por UF/Município" (lista postos da UF/município, mesclando
+  rede própria + base pública ANP), "Consulta por Posto" (busca livre por
+  CNPJ ou nome) e "Roteirizador Inteligente" (pedido do Daniel — calcula a
+  rota real origem→destino via OSRM público, busca postos candidatos num
+  corredor de 5km ao longo da rota via bounding boxes segmentadas a cada
+  150km — porta fiel da Fase 27.21 da web, evita estourar `.limit()` em
+  rotas longas —, e roda o algoritmo guloso "olhar à frente"
+  (`otimizarAbastecimento`, porta fiel de `roteirizacaoAlgoritmo.ts`) pra
+  decidir onde parar e quantos litros abastecer, dado tanque/autonomia/
+  combustível do veículo escolhido e um dos 4 perfis de peso
+  (Economia/Equilíbrio/Qualidade/Mínimas Paradas)). Cada resultado mostra
+  o score A-D (porta fiel de `calcularScorePosto` — preço 50%/serviços
+  30%/distância 20%, sem ponto de referência único nos modos UF/posto,
+  então o score fica dominado pela % de serviços do posto) e os preços
+  por combustível. Mapa interativo (`flutter_map` + tiles OpenStreetMap,
+  `lib/features/roteirizacao/screens/mapa_postos.dart`, mesma fonte
+  gratuita usada no Leaflet da web) plotado nos 3 modos, com a rota
+  desenhada e as paradas sugeridas destacadas no Roteirizador Inteligente.
+  Geocodificação de endereço livre via Nominatim (mesmo serviço público da
+  web). Fora do escopo: comparativo lado a lado das 4 estratégias de peso
+  de uma vez (a web recalcula as 4 pra montar uma tabela comparativa; aqui
+  só calcula a estratégia escolhida — dá pra trocar o perfil e recalcular
+  manualmente), export de GPX/PDF/PNG e "Rotas Salvas" (persistência de
+  consultas).
+- **Parâmetros de Uso** (`lib/features/parametros_uso/`) — porta de
+  `parametros-uso/page.tsx` + `novo`/`[id]/editar` (Vínculo) + `actions.ts`.
+  RLS conferida antes de portar: as 9 tabelas (Vínculo + 8 tipos de regra)
+  têm self-service COMPLETO (ALL) via `empresas_do_usuario` — CRUD direto,
+  sem RPC, igual à web. A web tem 11 abas; 9 entraram no v1 (Vínculo,
+  Intervalo, Valor Diário, Volume Diário, Produto, Hodômetro Leve/Pesado,
+  Dias/Horários, Postos, Cotas), cada uma com lista + criar (formulário em
+  bottom sheet, exceto Vínculo que tem tela própria de criar/editar,
+  espelhando a página dedicada da web) + ativar/desativar + excluir. Cotas
+  mostra o consumo do período atual (mesma agregação sobre
+  `abastecimentos_unificado` que a web faz, com o mesmo cálculo de início
+  de período por semana/quinzena/mês). Fora do escopo: aba "Serviços"
+  (`parametros_limite_servicos`) — o campo `limites` é um array JSONB de
+  objetos (serviço/quantidade/valor) montado por um formulário repetível
+  na web, trabalho bem maior que os outros 9 tipos (todos têm campos
+  fixos) e o tipo de regra menos comum no dia a dia — fica pra uma
+  próxima fase.
+- **Negociações com Postos** (`lib/features/negociacoes/`) — porta de
+  `negociacoes/page.tsx` + `novo/page.tsx` + `[id]/page.tsx` (lado
+  cliente — a web serve os 2 lados na mesma tela; o lado posto já existe
+  desde a FLT-2 em `lib/features/posto/`). RLS conferida antes de portar:
+  `negociacoes_postos`/`negociacoes_postos_rodadas` têm self-service
+  COMPLETO via `empresa_cliente_id` — CRUD direto, sem RPC, igual à web.
+  Modelada de perto no par de telas do posto (mesmos providers de
+  rodada/histórico reaproveitados via `show`, só a classe de detalhe e o
+  service são novos, com "autor" fixo em `'cliente'`) — porta fiel de
+  `src/lib/negociacoesPostos.ts`: lista com indicadores (Negociações/
+  Aguardando sua resposta/Aceitas/Vigentes agora) e filtro por status;
+  criar negociação nova (informando CNPJ do posto); detalhe com histórico
+  de rodadas e o fluxo completo aceitar/recusar/contrapropor/cancelar,
+  incluindo os mesmos achados reais já resolvidos do lado posto (fotografa
+  os termos da rodada aceita no cabeçalho, encerra automaticamente outra
+  negociação já aceita do mesmo par posto+cliente). Achado real conferido
+  na web antes de portar: os gates de assinatura em trial e documentação
+  aprovada em `decidirNegociacao` (Fases 27.125/27.149) só valem pra
+  `autor === "posto"` aceitando — do lado cliente aceitar não passa por
+  eles; já `criarNegociacao` sempre exige documentação aprovada da
+  empresa CLIENTE, dos dois lados. Fora do escopo: provisionamento
+  automático do posto (Fase 27.125) — quando o CNPJ do posto não existe
+  na FNI e o cliente informa e-mail de contato, a web cria a conta do
+  posto em trial e convida via Supabase Auth Admin API
+  (`inviteUserByEmail`), que exige Service Role Key (o app só tem a
+  publishable key); aqui, sem CNPJ encontrado, a negociação é criada do
+  mesmo jeito com `empresa_posto_id` nulo — mesmo fallback que a web já
+  tem quando não informa e-mail.
 
-Demais itens do menu (Rotograma, Planos de Viagem, Negociações com Postos, Preços dos Postos
-Parceiros, Manutenção Preditiva, Parâmetros de Uso, Relatórios,
+Demais itens do menu (Rotograma, Planos de Viagem, Preços dos Postos
+Parceiros, Manutenção Preditiva, Relatórios,
 Integrações, Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez
 nas próximas fases — várias devem reaproveitar bastante lógica já pronta
 do lado Posto (LGPD, Usuários, Chamados especialmente).
