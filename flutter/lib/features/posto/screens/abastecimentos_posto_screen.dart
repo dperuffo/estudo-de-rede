@@ -90,6 +90,18 @@ class _AbastecimentosPostoScreenState extends ConsumerState<AbastecimentosPostoS
 
   @override
   Widget build(BuildContext context) {
+    // Fase FLT-9 (mesmo achado de abastecimentos_screen.dart, lado cliente)
+    // — recarrega sozinho quando o `empresaId` resolvido por sessaoProvider
+    // mudar, em vez de depender só do `initState` (que pode rodar antes
+    // desse FutureProvider terminar de resolver pra empresa nova ao trocar
+    // de posto).
+    ref.listen(sessaoProvider, (prev, next) {
+      final idAnterior = prev?.valueOrNull?.empresaId;
+      final idAtual = next.valueOrNull?.empresaId;
+      if (idAtual != null && idAtual != idAnterior) {
+        _carregar();
+      }
+    });
     return RefreshIndicator(
       onRefresh: () async => _carregar(),
       child: FutureBuilder<ResultadoAbastecimentosPosto>(

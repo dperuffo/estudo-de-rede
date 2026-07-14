@@ -95,6 +95,24 @@ class _AbastecimentosScreenState extends ConsumerState<AbastecimentosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Fase FLT-9 (achado real, mesma classe do FLT-2 documentado em
+    // sessao_provider.dart) — pedido do Daniel: filtro de "meios de
+    // pagamento" sumia ao entrar em Abastecimentos logo depois de trocar de
+    // cliente. Causa: `_carregar()` só rodava uma vez em `initState`, lendo
+    // `sessaoProvider` com `ref.read` — se a tela montasse antes desse
+    // FutureProvider terminar de resolver pra empresa nova (ele recalcula de
+    // forma assíncrona quando `empresaSelecionadaProvider` muda), o fetch
+    // rodava com a empresa errada/antiga e nunca era refeito sozinho depois
+    // (só um "puxar pra atualizar" manual corrigia). Agora ouve
+    // `sessaoProvider` e recarrega automaticamente sempre que o
+    // `empresaId` resolvido mudar.
+    ref.listen(sessaoProvider, (prev, next) {
+      final idAnterior = prev?.valueOrNull?.empresaId;
+      final idAtual = next.valueOrNull?.empresaId;
+      if (idAtual != null && idAtual != idAnterior) {
+        _carregar();
+      }
+    });
     return Scaffold(
       appBar: AppBar(title: const Text('Abastecimentos')),
       floatingActionButton: FloatingActionButton.extended(
