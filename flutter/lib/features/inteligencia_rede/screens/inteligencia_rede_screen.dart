@@ -59,6 +59,19 @@ class InteligenciaRedeScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Inteligência de Rede'),
+          // Achado real (reportado pelo Daniel com print): esta AppBar,
+          // aninhada dentro do Scaffold do HomeScreen, aparecia num azul
+          // ligeiramente diferente do azul do menu principal — mesmo sem
+          // nenhuma cor customizada aqui, o Material 3 aplica um overlay de
+          // "surface tint" em cima do `backgroundColor` do tema sempre que
+          // uma AppBar fica aninhada/elevada, deixando o tom sutilmente
+          // deslocado. Corrigido fixando explicitamente a MESMA cor navy do
+          // menu (AppTheme._primary, 0xFF0D2D6B) e zerando elevação/tint.
+          backgroundColor: const Color(0xFF0D2D6B),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
           bottom: TabBar(
             isScrollable: true,
             // Achado real (reportado pelo Daniel): sem essas 3 cores

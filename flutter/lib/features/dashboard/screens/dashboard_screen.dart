@@ -19,7 +19,12 @@ class DashboardScreen extends StatelessWidget {
       child: Column(
         children: [
           Material(
-            color: Theme.of(context).colorScheme.primary,
+            // Achado real (reportado pelo Daniel com print, mesmo problema
+            // corrigido em inteligencia_rede_screen.dart): `colorScheme.primary`
+            // vem de `ColorScheme.fromSeed()` (AppTheme) e NÃO é o mesmo tom
+            // exato do navy usado no AppBar/menu — fixado com a cor literal
+            // (AppTheme._primary, 0xFF0D2D6B) pra bater 100% com o resto do app.
+            color: const Color(0xFF0D2D6B),
             child: const TabBar(
               indicatorColor: Colors.white,
               labelColor: Colors.white,
