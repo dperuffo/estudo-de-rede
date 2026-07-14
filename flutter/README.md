@@ -699,14 +699,12 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   `motoristas`, igual à web — sem tabela de histórico). A tela de edição
   mostra os motoristas já alocados (com botão pra desalocar) e uma lista
   de disponíveis com checkbox pra alocar em lote. Fora do escopo: alocação
-  de **veículos** — a web mantém histórico completo via
-  `centros_custo_veiculos` (alocar/desalocar em massa, `AlocarVeiculoForm`
-  separado); fica mais natural portar junto com a própria tela de
-  Veículos, que ainda não existe no Flutter. A contagem "Veículos
-  alocados" no card/lista já aparece com dado real (via
-  `cadastro_veiculos(count)`, populado pela web), só não dá pra alocar por
-  aqui ainda. Também fora: importação por planilha
-  (`/centros-custo/importar`).
+  de **veículos** em lote nesta tela — a web mantém histórico completo via
+  `centros_custo_veiculos` (`AlocarVeiculoForm` separado, aloca vários de
+  uma vez). Essa alocação COM histórico acabou portada, sim, mas na tela
+  de Veículos (um veículo por vez, ver bullet abaixo) — mesmo espírito da
+  web, que também faz a alocação individual em `VeiculoForm`. Também fora:
+  importação por planilha (`/centros-custo/importar`).
 - **Postos Revendedores** (`lib/features/postos/`) — porta de
   `postos/page.tsx` + `[cnpj]/page.tsx` + `actions.ts`. RLS conferida antes
   de portar: `postos_gf`/`historico_precos` têm CRUD self-service completo
@@ -755,8 +753,25 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   o cliente nunca teria acesso a essas linhas; só mostra "Emitida" (via
   `notas_fiscais_abastecimento`, que tem `empresa_cliente_id` e portanto É
   legível) ou "Pendente" (sem diferenciar rejeitada).
+- **Veículos** (`lib/features/veiculos/`) — porta de `veiculos/page.tsx` +
+  `[id]/page.tsx` + `actions.ts` + `src/lib/centroCusto.ts`. RLS conferida
+  antes de portar: `cadastro_veiculos`/`centros_custo_veiculos` têm
+  self-service completo pra empresa do usuário. Achado real do schema:
+  `cadastro_veiculos` não tem `empresa_id` (vínculo só por `cnpj_frota`,
+  texto normalizado) — a lista usa a mesma RPC da web,
+  `veiculos_da_empresa`, que resolve essa normalização; criar/editar usa
+  `veiculo_duplicado` pra impedir placa repetida na frota. CRUD completo
+  (identificação, especificações técnicas, localização) + alocação de
+  **centro de custo com histórico** — porta fiel de
+  `alocarVeiculoCentroCusto`: fecha a alocação ativa atual em
+  `centros_custo_veiculos` (`data_fim`/`ativo: false`) e abre uma nova em
+  vez de sobrescrever, sincronizando `cadastro_veiculos.centro_custo_id/
+  nome` como cache — exatamente como a web, sem RPC (é escrita direta em
+  2-3 tabelas). Fora do escopo: paginação de verdade (a web pagina em
+  memória depois de trazer a frota inteira; aqui traz até 1000, suficiente
+  pro celular) e importação por planilha (`/veiculos/importar`).
 
-Demais itens do menu (Veículos, Notas Fiscais, Anomalias, Roteirização,
+Demais itens do menu (Notas Fiscais, Anomalias, Roteirização,
 Rotograma, Planos de Viagem, Negociações com Postos, Preços dos Postos
 Parceiros, Manutenção Preditiva, Parâmetros de Uso, Relatórios,
 Integrações, Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez

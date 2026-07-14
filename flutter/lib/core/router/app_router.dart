@@ -43,6 +43,9 @@ import '../../features/usuarios/screens/usuario_novo_cliente_screen.dart';
 import '../../features/motoristas/screens/motoristas_screen.dart';
 import '../../features/motoristas/screens/motorista_novo_screen.dart';
 import '../../features/motoristas/screens/motorista_editar_screen.dart';
+import '../../features/veiculos/screens/veiculos_screen.dart';
+import '../../features/veiculos/screens/veiculo_novo_screen.dart';
+import '../../features/veiculos/screens/veiculo_editar_screen.dart';
 import '../../features/centros_custo/screens/centros_custo_screen.dart';
 import '../../features/centros_custo/screens/centro_custo_novo_screen.dart';
 import '../../features/centros_custo/screens/centro_custo_editar_screen.dart';
@@ -202,7 +205,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/motoristas/:id',
               builder: (_, state) => MotoristaEditarScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/veiculos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Veículos')),
+            GoRoute(path: '/veiculos', builder: (_, __) => const VeiculosScreen()),
+            GoRoute(path: '/veiculos/novo', builder: (_, __) => const VeiculoNovoScreen()),
+            GoRoute(
+              path: '/veiculos/:id',
+              builder: (_, state) => VeiculoEditarScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(path: '/centros-custo', builder: (_, __) => const CentrosCustoScreen()),
             GoRoute(path: '/centros-custo/novo', builder: (_, __) => const CentroCustoNovoScreen()),
             GoRoute(
