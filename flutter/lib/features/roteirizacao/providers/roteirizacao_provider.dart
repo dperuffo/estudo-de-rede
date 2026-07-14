@@ -621,6 +621,7 @@ class RoteirizacaoService {
       distanciaKm: (rota.distanciaKm * 10).round() / 10,
       duracaoMin: rota.duracaoMin.round().toDouble(),
       linhaReta: rota.linhaReta,
+      candidatos: candidatos,
       paradas: paradas2,
       litrosTotal: paradas2.fold(0.0, (s, p) => s + p.litrosSugeridos),
       custoTotal: ((paradas2.fold(0.0, (s, p) => s + p.custoAbastecimento)) * 100).round() / 100,
@@ -635,6 +636,7 @@ class ResultadoRoteirizacaoInteligente {
   final double distanciaKm;
   final double duracaoMin;
   final bool linhaReta;
+  final List<CandidatoAbastecimento> candidatos;
   final List<ParadaSugerida> paradas;
   final double litrosTotal;
   final double custoTotal;
@@ -645,6 +647,7 @@ class ResultadoRoteirizacaoInteligente {
     required this.distanciaKm,
     required this.duracaoMin,
     required this.linhaReta,
+    required this.candidatos,
     required this.paradas,
     required this.litrosTotal,
     required this.custoTotal,
@@ -668,6 +671,38 @@ const produtoParaCategoriaAnp = {
   'Gasolina Alta Octanagem': 'GASOLINA ADITIVADA',
   'GNV': 'GNV',
   'GLP': 'GLP',
+};
+
+// Porta de PRODUTOS_POSTO (src/lib/constants.ts) — produtos vendidos nos
+// postos, mesma granularidade de historico_precos.combustivel.
+const produtosPosto = [
+  'Gasolina Comum',
+  'Gasolina Aditivada',
+  'Gasolina Alta Octanagem',
+  'Etanol Comum',
+  'Etanol Aditivado',
+  'Diesel S-10 Comum',
+  'Diesel S-10 Aditivado',
+  'Diesel S-500 Comum',
+  'Diesel S-500 Aditivado',
+  'GNV',
+  'GLP',
+];
+
+// Porta de PRODUTOS_POR_TIPO_VEICULO (src/lib/constants.ts) — de-para do
+// tipo de motor do veículo (cadastro_veiculos.combustivel, rótulos de
+// CICLOS_COMBUSTIVEL: "Diesel S10"/"Diesel S500"/"Gasolina"/"Etanol"/"GNV"/
+// "Flex") pros produtos de posto compatíveis. IMPORTANTE: o campo
+// `combustivel` do veículo NUNCA deve ser usado direto como filtro de
+// preço/ANP — precisa passar por este de-para primeiro (um Flex pode
+// abastecer com gasolina OU etanol, por isso pede pro usuário escolher).
+const produtosPorTipoVeiculo = {
+  'diesel s10': ['Diesel S-10 Comum', 'Diesel S-10 Aditivado'],
+  'diesel s500': ['Diesel S-500 Comum', 'Diesel S-500 Aditivado'],
+  'gasolina': ['Gasolina Comum', 'Gasolina Aditivada', 'Gasolina Alta Octanagem'],
+  'etanol': ['Etanol Comum', 'Etanol Aditivado'],
+  'gnv': ['GNV'],
+  'flex': ['Gasolina Comum', 'Gasolina Aditivada', 'Etanol Comum', 'Etanol Aditivado'],
 };
 
 // Reexportado pra tela não precisar importar postos_provider.dart só por

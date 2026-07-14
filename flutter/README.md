@@ -820,18 +820,26 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   150km — porta fiel da Fase 27.21 da web, evita estourar `.limit()` em
   rotas longas —, e roda o algoritmo guloso "olhar à frente"
   (`otimizarAbastecimento`, porta fiel de `roteirizacaoAlgoritmo.ts`) pra
-  decidir onde parar e quantos litros abastecer, dado tanque/autonomia/
-  combustível do veículo escolhido e um dos 4 perfis de peso
-  (Economia/Equilíbrio/Qualidade/Mínimas Paradas)). Cada resultado mostra
-  o score A-D (porta fiel de `calcularScorePosto` — preço 50%/serviços
-  30%/distância 20%, sem ponto de referência único nos modos UF/posto,
-  então o score fica dominado pela % de serviços do posto) e os preços
-  por combustível. Mapa interativo (`flutter_map` + tiles OpenStreetMap,
+  decidir onde parar e quantos litros abastecer, dado tanque/autonomia do
+  veículo escolhido e um dos 4 perfis de peso (Economia/Equilíbrio/
+  Qualidade/Mínimas Paradas)). Cada resultado mostra o score A-D (porta
+  fiel de `calcularScorePosto` — preço 50%/serviços 30%/distância 20%,
+  sem ponto de referência único nos modos UF/posto, então o score fica
+  dominado pela % de serviços do posto) e os preços por combustível. Mapa
+  interativo (`flutter_map` + tiles OpenStreetMap,
   `lib/features/roteirizacao/screens/mapa_postos.dart`, mesma fonte
   gratuita usada no Leaflet da web) plotado nos 3 modos, com a rota
   desenhada e as paradas sugeridas destacadas no Roteirizador Inteligente.
   Geocodificação de endereço livre via Nominatim (mesmo serviço público da
-  web). Fora do escopo: comparativo lado a lado das 4 estratégias de peso
+  web). Bug corrigido: o campo `veiculo.combustivel` guarda o tipo de
+  motor ("Diesel S10", "Flex" etc. — rótulos de `CICLOS_COMBUSTIVEL`), não
+  o produto vendido no posto ("Diesel S-10 Comum" etc. — rótulos de
+  `PRODUTOS_POSTO`); usar o valor bruto direto como filtro de preço nunca
+  batia com `historico_precos`/ANP, zerando os candidatos e escondendo os
+  pinos do mapa. Corrigido com o de-para `produtosPorTipoVeiculo` (porta
+  de `PRODUTOS_POR_TIPO_VEICULO`) — pra veículos Flex (gasolina OU
+  etanol), a tela pede pro usuário escolher o combustível da viagem, igual
+  à web. Fora do escopo: comparativo lado a lado das 4 estratégias de peso
   de uma vez (a web recalcula as 4 pra montar uma tabela comparativa; aqui
   só calcula a estratégia escolhida — dá pra trocar o perfil e recalcular
   manualmente), export de GPX/PDF/PNG e "Rotas Salvas" (persistência de

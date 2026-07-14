@@ -37,8 +37,44 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   List<geo.SugestaoGeocoding> _sugestoesOrigem = [];
   List<geo.SugestaoGeocoding> _sugestoesDestino = [];
   Veiculo? _veiculo;
+  List<String> _opcoesCombustivel = produtosPosto;
+  String? _combustivelEscolhido;
+  String? _avisoCombustivel;
   String _perfilChave = perfisPeso.first.chave;
   ResultadoRoteirizacaoInteligente? _resultadoPlanejar;
+
+  // Porta de onVeiculoSelecionado (FormRoteirizacao.tsx) — o campo
+  // `combustivel` do veículo guarda o tipo de motor ("Diesel S10",
+  // "Flex" etc.), não o produto vendido no posto. Resolve pra lista de
+  // produtos compatíveis via produtosPorTipoVeiculo; se o veículo for Flex
+  // (mais de 1 produto compatível), pede pro usuário escolher.
+  void _onVeiculoSelecionado(Veiculo? v) {
+    setState(() {
+      _veiculo = v;
+      if (v == null) {
+        _opcoesCombustivel = produtosPosto;
+        _combustivelEscolhido = null;
+        _avisoCombustivel = null;
+        return;
+      }
+      final chave = (v.combustivel ?? '').trim().toLowerCase();
+      final compativeis = produtosPorTipoVeiculo[chave];
+      if (compativeis != null && compativeis.length == 1) {
+        _opcoesCombustivel = compativeis;
+        _combustivelEscolhido = compativeis.first;
+        _avisoCombustivel = null;
+      } else if (compativeis != null && compativeis.length > 1) {
+        _opcoesCombustivel = compativeis;
+        _combustivelEscolhido = null;
+        _avisoCombustivel = 'Veículo ${v.combustivel} — escolha o combustível desta viagem.';
+      } else {
+        _opcoesCombustivel = produtosPosto;
+        _combustivelEscolhido = null;
+        _avisoCombustivel =
+            v.combustivel != null ? 'Não reconheço "${v.combustivel}" — escolha o combustível manualmente.' : null;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -72,8 +108,12 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       setState(() => _erro = 'Escolha origem e destino nas sugestões de busca.');
       return;
     }
-    if (_veiculo == null || _veiculo!.tanque == null || _veiculo!.autonomia == null || _veiculo!.combustivel == null) {
-      setState(() => _erro = 'Escolha um veículo com tanque, autonomia e combustível cadastrados.');
+    if (_veiculo == null || _veiculo!.tanque == null || _veiculo!.autonomia == null) {
+      setState(() => _erro = 'Escolha um veículo com tanque e autonomia cadastrados.');
+      return;
+    }
+    if (_combustivelEscolhido == null || _combustivelEscolhido!.isEmpty) {
+      setState(() => _erro = 'Escolha o combustível desta viagem.');
       return;
     }
 
@@ -91,7 +131,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         destino: geo.Ponto(_destinoSel!.lat, _destinoSel!.lon),
         capacidadeTanqueL: _veiculo!.tanque!,
         autonomiaKmPorL: _veiculo!.autonomia!,
-        combustivel: _veiculo!.combustivel!,
+        combustivel: _combustivelEscolhido!,
         perfil: perfil,
       );
       if (!mounted) return;
@@ -353,11 +393,26 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
                         '${v.placa}${v.combustivel != null ? ' · ${v.combustivel}' : ''}${v.tanque != null ? ' · ${v.tanque!.toStringAsFixed(0)}L' : ''}'),
                   ))
               .toList(),
-          onChanged: (v) => setState(() => _veiculo = v),
+          onChanged: _onVeiculoSelecionado,
         ),
         loading: () => const LinearProgressIndicator(),
         error: (e, _) => Text('Erro ao carregar veículos: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
       ),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        value: _combustivelEscolhido,
+        decoration: const InputDecoration(labelText: 'Combustível desta viagem', border: OutlineInputBorder(), isDense: true),
+        items: [
+          const DropdownMenuItem(value: null, child: Text('Selecione...')),
+          for (final c in _opcoesCombustivel) DropdownMenuItem(value: c, child: Text(c)),
+        ],
+        onChanged: (v) => setState(() => _combustivelEscolhido = v),
+      ),
+      if (_avisoCombustivel != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(_avisoCombustivel!, style: TextStyle(fontSize: 11, color: Colors.amber.shade800)),
+        ),
       const SizedBox(height: 10),
       DropdownButtonFormField<String>(
         value: _perfilChave,
@@ -384,24 +439,27 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
 
   List<Widget> _resultadosPlanejar() {
     final r = _resultadoPlanejar!;
-    final postosParaMapa = r.paradas
-        .map((p) => PostoComScore(
-              cnpj: p.candidato.cnpj,
-              razaoSocial: p.candidato.label,
+    // Plota TODOS os candidatos encontrados no corredor da rota (não só as
+    // paradas escolhidas) — o pino fica maior/com ícone quando é uma parada
+    // sugerida (ver cnpjsComParada em mapa_postos.dart).
+    final postosParaMapa = r.candidatos
+        .map((c) => PostoComScore(
+              cnpj: c.cnpj,
+              razaoSocial: c.label,
               municipio: null,
-              uf: p.candidato.uf,
-              bandeira: p.candidato.bandeira,
-              lat: p.candidato.lat,
-              lon: p.candidato.lon,
-              precos: [PrecoPosto(combustivel: _veiculo?.combustivel ?? '', preco: p.candidato.preco)],
+              uf: c.uf,
+              bandeira: c.bandeira,
+              lat: c.lat,
+              lon: c.lon,
+              precos: [PrecoPosto(combustivel: _combustivelEscolhido ?? '', preco: c.preco)],
               score: ScorePosto(
                 score: 0,
-                grade: p.candidato.grade ?? 'D',
+                grade: c.grade ?? 'D',
                 detalhePreco: '',
                 detalheServicos: '',
                 detalheDistancia: '',
               ),
-              origem: p.candidato.origem,
+              origem: c.origem,
             ))
         .toList();
 
@@ -414,6 +472,18 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             child: Text(
               'Não foi possível calcular a rota real pelos servidores OSRM públicos — usando estimativa em linha reta.',
               style: TextStyle(fontSize: 12),
+            ),
+          ),
+        ),
+      if (r.candidatosEncontrados == 0)
+        Card(
+          color: Colors.amber.shade50,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Text(
+              'Nenhum posto da rede — nem da base pública ANP — tem preço registrado para "${_combustivelEscolhido ?? ''}" '
+              'dentro do corredor de 5 km da rota.',
+              style: const TextStyle(fontSize: 12),
             ),
           ),
         ),
