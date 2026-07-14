@@ -1286,6 +1286,23 @@ URLs. Pacote `google_sign_in` ficou sem uso no código (removido do
 `auth_service.dart`); mantido em `pubspec.yaml` por ora pra não mexer no
 lockfile sem rodar `flutter pub get` localmente.
 
+## Hotfix: forçar escolha de conta Google a cada login
+
+Pedido do Daniel: como admin, ele precisa alternar entre contas de teste
+(posto/cliente/admin) no mesmo navegador pra validar cada visão do PWA.
+O sintoma: clicar em "Continuar com Google" sempre pulava direto pra
+tela de MFA do ÚLTIMO usuário logado, mesmo depois de "Sair" e tentar de
+novo com outra conta. Causa: `signInWithOAuth` faz um redirect puro pro
+Google — se já existe uma sessão do Google ativa no navegador pra aquele
+client OAuth, o Google pula a tela de escolha de conta e reusa
+silenciosamente a última conta usada (o "Sair" do app desloga do
+Supabase, não desloga do Google). Corrigido em `auth_service.dart`
+passando `queryParams: {'prompt': 'select_account'}` no
+`signInWithOAuth` — parâmetro padrão do protocolo OAuth do Google que
+força a tela de escolha de conta sempre, independente de sessão
+existente. Agora todo clique em "Continuar com Google" pergunta qual
+conta usar, e a tela de MFA seguinte já corresponde à conta escolhida.
+
 **Correção (2ª rodada de teste):** sem `redirectTo`, o Supabase mandava de
 volta pra "Site URL" do projeto (landing page da web), não pro PWA.
 Corrigido passando `redirectTo: Uri.base.origin` — usa a origem de onde o

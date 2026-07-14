@@ -78,10 +78,22 @@ class AuthService {
   // a barra (`http://localhost:5173/...`) pra bater — sem ela, não casa
   // com nenhum padrão da lista e o Supabase cai no padrão (Site URL).
   // Corrigido adicionando a barra final explicitamente.
+  // Achado real (pedido do Daniel) — sem isso, o Google pula a tela de
+  // escolha de conta quando já existe uma sessão do Google ativa no
+  // navegador: ele reusa silenciosamente a ÚLTIMA conta usada nesse
+  // client OAuth, então a tela de MFA que aparece em seguida é sempre a
+  // do usuário anterior, mesmo clicando "Sair" e "Continuar com Google"
+  // de novo (o logout desloga do Supabase, não do Google). Isso trava
+  // quem precisa alternar entre contas de teste (posto/cliente/admin)
+  // no mesmo navegador. `prompt: 'select_account'` é o parâmetro padrão
+  // do OAuth do Google pra forçar a tela de escolha de conta sempre —
+  // `signInWithOAuth` repassa `queryParams` direto pra URL de autorização
+  // do provider.
   Future<void> signInWithGoogle() async {
     await _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: '${Uri.base.origin}/',
+      queryParams: const {'prompt': 'select_account'},
     );
   }
 
