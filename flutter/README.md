@@ -1109,16 +1109,28 @@ inteiro — o Flutter ainda não tem um `MonitorInatividade` (a checagem de
 mouse/teclado/scroll é coisa de web), mas o valor é lido e ajustado
 daqui do mesmo jeito, já que ele também vale pra quem usa o site.
 
+**Avaliações dos Clientes** (`lib/features/avaliacoes_admin/`) — porta
+de `avaliacoes/page.tsx` + `_components/RespostaAvaliacao.tsx` +
+`actions.ts`. RLS conferida antes de portar (`avaliacoes`): SELECT já
+libera "ver tudo" pra quem é admin (a policy tem
+`perfil_usuario_atual() = 'admin'` como uma das condições — não precisa
+filtrar por empresa), UPDATE (resposta) também só admin/superusuário —
+dá pra ler/gravar direto do app, sem RPC. Tela exclusiva do admin (mesmo
+gate "Acesso restrito" das outras telas de Administração). KPIs (nota
+média, total, pendentes de resposta) + lista de cards com estrelas,
+comentário e caixa de resposta inline (ver resposta já enviada com
+"Editar", ou formulário direto se ainda não respondida — mesmo padrão
+"ver ou editar" da web).
+
 **Fora do escopo desta fase** (fica pra próximas rodadas — telas
 exclusivas do menu "Administração" da web, nenhuma delas com
 equivalente hoje no Flutter): Aprovação de Documentos
 (`/documentos-empresas`), Assinaturas de todos os clientes
-(`/assinaturas`), Avaliações dos Clientes (`/avaliacoes`), Rede de
-Postos (visão consolidada do admin — `/rede-postos` já existe só do
-lado posto), Possíveis Duplicados (`/postos-duplicados`), e o menu
-"Cadastros" (lista de Clientes/`/clientes` e Grupo
-Econômico/`/grupo-economico` no sentido de administração global, não os
-que já existem no shell cliente).
+(`/assinaturas`), Rede de Postos (visão consolidada do admin —
+`/rede-postos` já existe só do lado posto), Possíveis Duplicados
+(`/postos-duplicados`), e o menu "Cadastros" (lista de
+Clientes/`/clientes` e Grupo Econômico/`/grupo-economico` no sentido de
+administração global, não os que já existem no shell cliente).
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 

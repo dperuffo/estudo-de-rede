@@ -179,6 +179,7 @@ class HomeScreen extends ConsumerWidget {
           // própria tela já mostra "Acesso restrito" pra quem não é, mas
           // nem faz sentido oferecer o item de menu nesse caso).
           if (sessao?.ehAdmin ?? false) _item(context, Icons.settings, 'Configurações do Sistema', '/configuracoes'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.star_outline, 'Avaliações dos Clientes', '/avaliacoes'),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
