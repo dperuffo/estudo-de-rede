@@ -53,6 +53,9 @@ import '../../features/rotograma/screens/rotograma_novo_screen.dart';
 import '../../features/rotograma/screens/rotograma_editar_screen.dart';
 import '../../features/rotograma/screens/rotograma_detalhe_screen.dart';
 import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
+import '../../features/planos_viagem/screens/planos_viagem_screen.dart';
+import '../../features/planos_viagem/screens/plano_viagem_novo_screen.dart';
+import '../../features/planos_viagem/screens/plano_viagem_editar_screen.dart';
 import '../../features/negociacoes/screens/negociacoes_screen.dart';
 import '../../features/negociacoes/screens/negociacao_detalhe_screen.dart';
 import '../../features/negociacoes/screens/criar_negociacao_screen.dart';
@@ -264,7 +267,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/rotograma/:id',
               builder: (_, state) => RotogramaDetalheScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/planos-viagem', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Planos de Viagem')),
+            GoRoute(path: '/planos-viagem', builder: (_, __) => const PlanosViagemScreen()),
+            GoRoute(path: '/planos-viagem/novo', builder: (_, __) => const PlanoViagemNovoScreen()),
+            GoRoute(
+              path: '/planos-viagem/:id/editar',
+              builder: (_, state) => PlanoViagemEditarScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(path: '/negociacoes', builder: (_, __) => const NegociacoesClienteScreen()),
             GoRoute(path: '/negociacoes/novo', builder: (_, __) => const CriarNegociacaoClienteScreen()),
             GoRoute(

@@ -985,10 +985,40 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   "Cliente" do formulário (só aparece pra quem vê mais de uma empresa —
   aqui sempre usa a empresa da sessão, mesmo padrão do resto do app).
 
-Demais itens do menu (Planos de Viagem, Integrações, Permissões) seguem
-como `EmConstrucaoScreen`, uma de cada vez nas próximas fases — várias
-devem reaproveitar bastante lógica já pronta do lado Posto (LGPD,
-Usuários, Chamados especialmente).
+- **Planos de Viagem** (`lib/features/planos_viagem/`) — porta de
+  `planos-viagem/page.tsx` + `novo/page.tsx` + `[id]/editar/page.tsx` +
+  `_components/PlanoViagemForm.tsx` + `actions.ts`. RLS conferida antes de
+  portar: `planos_viagem` e `planos_viagem_pedagios` têm self-service
+  COMPLETO via `empresa_id` (ALL) — CRUD direto, sem RPC. A RPC
+  `combustivel_real_periodo` (usada no botão "Revisar" combustível real)
+  não é SECURITY DEFINER — roda com o RLS do próprio usuário sobre
+  `abastecimentos_unificado`, então pode ser chamada direto do app, igual
+  à web. Lista com KPIs (nº de planos, orçamento total estimado, custo
+  médio por km, margem estimada), filtros por status/placa e "Desempenho
+  por Veículo" agrupado em memória; formulário compartilhado
+  (criar/editar, `plano_viagem_form.dart`) com identificação
+  (nome/status/veículo/motorista/rotograma/datas/km — veículo e motorista
+  vindos de `veiculosClienteProvider`/`motoristasClienteProvider` já
+  existentes, reaproveitados via `show`; idem `centrosCustoOpcoesProvider`
+  pro Centro de Custo), seção de combustível com cálculo ao vivo e botão
+  "Revisar" (busca litros/valor reais dos abastecimentos da placa no
+  período viagem), lista dinâmica de pedágios, diárias/pernoites,
+  manutenção+pneus, receita e totais (margem estimada/real calculadas ao
+  vivo no client, recalculadas de novo no `PlanosViagemService` antes de
+  gravar — nunca confia só no que a tela mostrou). "Excluir" (inline na
+  linha da tabela na web) virou ação da AppBar com diálogo de confirmação
+  na tela de editar — mesmo padrão do Rotograma, mais natural em mobile.
+  Fora do escopo: seletor de cliente na listagem/criação (a visão cliente
+  sempre usa a empresa da sessão, mesmo padrão do resto do app — só
+  perfil admin vê múltiplos clientes na web); "Importar de uma rota
+  salva" (campo `rota_salva_id`/dropdown do form) — depende de
+  `rotas_salvas`, já fora do escopo da Roteirização portada (mesmo motivo
+  documentado no Rotograma); coluna "Cliente" da tabela (só pra admin).
+
+Demais itens do menu (Integrações, Permissões) seguem como
+`EmConstrucaoScreen`, uma de cada vez nas próximas fases — várias devem
+reaproveitar bastante lógica já pronta do lado Posto (LGPD, Usuários,
+Chamados especialmente).
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 
