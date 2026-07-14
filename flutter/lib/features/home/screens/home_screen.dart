@@ -168,7 +168,6 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
           _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
           _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
-          _item(context, Icons.power, 'Integrações', '/integracoes'),
           const Divider(),
           _grp('Configurações'),
           _item(context, Icons.vpn_key, 'Permissões', '/permissoes'),

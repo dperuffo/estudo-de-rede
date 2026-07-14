@@ -1015,10 +1015,31 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   `rotas_salvas`, já fora do escopo da Roteirização portada (mesmo motivo
   documentado no Rotograma); coluna "Cliente" da tabela (só pra admin).
 
-Demais itens do menu (Integrações, Permissões) seguem como
-`EmConstrucaoScreen`, uma de cada vez nas próximas fases — várias devem
-reaproveitar bastante lógica já pronta do lado Posto (LGPD, Usuários,
-Chamados especialmente).
+- **Permissões por Perfil** (`lib/features/permissoes/`) — porta de
+  `permissoes/page.tsx` + `_components/TogglePermissao.tsx` +
+  `actions.ts`. RLS conferida antes de portar: `permissoes_perfil` já
+  bloqueia, no próprio banco, tudo que a visão cliente não deveria
+  alcançar (perfil "posto" nunca visível/editável por quem não é posto,
+  nível do perfil editado sempre ≤ nível do próprio usuário, `empresa_id`
+  sempre a própria empresa — nunca o padrão global
+  `00000000-0000-0000-0000-000000000000`, reservado ao admin) — dá pra
+  montar a matriz e gravar (`upsert` com `onConflict` em
+  `funcionalidade,perfil,empresa_id`) direto do app, sem RPC. Matriz
+  funcionalidade × perfil (no máximo 2 colunas pra visão cliente —
+  Gestor de Frota e Analista, mesma regra `HIERARQUIA_FROTA` da web)
+  virou 1 card por funcionalidade com um switch por perfil, em vez da
+  tabela larga da web — mais natural em tela de celular. Fora do escopo:
+  visão do admin (gerencia o padrão global do sistema — não existe
+  "cliente admin" nessa árvore de telas, mesmo padrão de exclusão do
+  resto do FLT-3); coluna "Posto" na matriz (RLS já garante que quem é do
+  lado Frota nunca a vê); seletor de cliente pra grupo econômico com 2+
+  empresas (sempre usa a empresa da sessão, mesmo padrão do resto do
+  app).
+
+"Integrações" foi removida do menu e do router (era `EmConstrucaoScreen`)
+por decisão do Daniel — gerenciar conexões de integração (PróFrotas,
+importação de planilhas etc.) não faz sentido num PWA de celular; segue
+existindo só na web.
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 

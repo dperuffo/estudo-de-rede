@@ -45,6 +45,7 @@ import '../../features/motoristas/screens/motorista_novo_screen.dart';
 import '../../features/motoristas/screens/motorista_editar_screen.dart';
 import '../../features/anomalias/screens/anomalias_screen.dart';
 import '../../features/relatorios/screens/relatorios_screen.dart';
+import '../../features/permissoes/screens/permissoes_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
 import '../../features/precos_postos/screens/precos_postos_screen.dart';
@@ -83,7 +84,6 @@ import '../../features/chamados/screens/chamados_cliente_screen.dart';
 import '../../features/chamados/screens/chamado_novo_cliente_screen.dart';
 import '../../features/clientes/screens/clientes_screen.dart';
 import '../../features/grupo_economico/screens/grupo_economico_screen.dart';
-import '../widgets/em_construcao_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sessao_provider.dart';
 
@@ -292,8 +292,11 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => VinculoEditarScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(path: '/relatorios', builder: (_, __) => const RelatoriosScreen()),
-            GoRoute(path: '/integracoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Integrações')),
-            GoRoute(path: '/permissoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Permissões')),
+            // "Integrações" (era EmConstrucaoScreen) foi removida do menu e
+            // do router por decisão do Daniel — não faz sentido gerenciar
+            // conexões de integração (PróFrotas, planilhas etc.) num PWA de
+            // celular; segue existindo só na web.
+            GoRoute(path: '/permissoes', builder: (_, __) => const PermissoesScreen()),
           ],
         ),
 
