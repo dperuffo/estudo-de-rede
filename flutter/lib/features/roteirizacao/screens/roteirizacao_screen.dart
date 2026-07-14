@@ -439,27 +439,26 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
 
   List<Widget> _resultadosPlanejar() {
     final r = _resultadoPlanejar!;
-    // Plota TODOS os candidatos encontrados no corredor da rota (não só as
-    // paradas escolhidas) — o pino fica maior/com ícone quando é uma parada
-    // sugerida (ver cnpjsComParada em mapa_postos.dart).
-    final postosParaMapa = r.candidatos
-        .map((c) => PostoComScore(
-              cnpj: c.cnpj,
-              razaoSocial: c.label,
+    // Plota só as paradas sugeridas no mapa (não os milhares de candidatos
+    // do corredor inteiro — poluiria demais e pesaria no navegador).
+    final postosParaMapa = r.paradas
+        .map((p) => PostoComScore(
+              cnpj: p.candidato.cnpj,
+              razaoSocial: p.candidato.label,
               municipio: null,
-              uf: c.uf,
-              bandeira: c.bandeira,
-              lat: c.lat,
-              lon: c.lon,
-              precos: [PrecoPosto(combustivel: _combustivelEscolhido ?? '', preco: c.preco)],
+              uf: p.candidato.uf,
+              bandeira: p.candidato.bandeira,
+              lat: p.candidato.lat,
+              lon: p.candidato.lon,
+              precos: [PrecoPosto(combustivel: _combustivelEscolhido ?? '', preco: p.candidato.preco)],
               score: ScorePosto(
                 score: 0,
-                grade: c.grade ?? 'D',
+                grade: p.candidato.grade ?? 'D',
                 detalhePreco: '',
                 detalheServicos: '',
                 detalheDistancia: '',
               ),
-              origem: c.origem,
+              origem: p.candidato.origem,
             ))
         .toList();
 
