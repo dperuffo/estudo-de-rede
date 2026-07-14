@@ -1083,19 +1083,28 @@ texto alternativo ("Selecione o cliente" em vez de "Selecione o posto")
 e um campo de busca (aparece só com mais de 6 clientes) pra quando a
 base crescer — hoje são só 4 empresas Frota.
 
+**Permissões — modo admin (padrão global), feito na sequência** —
+`lib/features/permissoes/`: quando `sessao.ehAdmin`, a MESMA tela/rota
+`/permissoes` passa a ler/gravar `empresa_id = empresaIdGlobal` (padrão
+do sistema, vale pra todo cliente sem customização própria) em vez da
+empresa escolhida, e mostra os 4 perfis (`admin`, `gestor_frota`,
+`analista`, `posto`) em vez de só 2 — RLS já permite (a policy de
+`permissoes_perfil` libera qualquer linha pra quem é admin). Layout
+trocou de `Row`/`Expanded` pra `Wrap` pra caber os 4 switches numa tela
+de celular. Rótulo no menu muda pra "Permissões (padrão global)" e a
+seção vira "Administração" quando `ehAdmin`, pra deixar claro que o
+comportamento é diferente do que um gestor_frota/analista vê.
+
 **Fora do escopo desta fase** (fica pra próximas rodadas — telas
 exclusivas do menu "Administração" da web, nenhuma delas com
-equivalente hoje no Flutter): Permissões no modo "padrão global"
-(`EMPRESA_ID_GLOBAL`; a tela de Permissões que o admin vê agora edita a
-empresa escolhida, igual a um gestor_frota faria — não o padrão do
-sistema), Aprovação de Documentos (`/documentos-empresas`), Assinaturas
-de todos os clientes (`/assinaturas`), Avaliações dos Clientes
-(`/avaliacoes`), Rede de Postos (visão consolidada do admin —
-`/rede-postos` já existe só do lado posto), Possíveis Duplicados
-(`/postos-duplicados`), Configurações do Sistema (`/configuracoes`), e o
-menu "Cadastros" (lista de Clientes/`/clientes` e Grupo
-Econômico/`/grupo-economico` no sentido de administração global, não os
-que já existem no shell cliente).
+equivalente hoje no Flutter): Aprovação de Documentos
+(`/documentos-empresas`), Assinaturas de todos os clientes
+(`/assinaturas`), Avaliações dos Clientes (`/avaliacoes`), Rede de
+Postos (visão consolidada do admin — `/rede-postos` já existe só do
+lado posto), Possíveis Duplicados (`/postos-duplicados`), Configurações
+do Sistema (`/configuracoes`), e o menu "Cadastros" (lista de
+Clientes/`/clientes` e Grupo Econômico/`/grupo-economico` no sentido de
+administração global, não os que já existem no shell cliente).
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 

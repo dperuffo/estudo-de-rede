@@ -169,8 +169,12 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
           _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
           const Divider(),
-          _grp('Configurações'),
-          _item(context, Icons.vpn_key, 'Permissões', '/permissoes'),
+          // Fase FLT-4 — pro admin, esta MESMA rota (/permissoes) edita o
+          // padrão GLOBAL do sistema em vez da empresa escolhida (ver
+          // permissoes_provider.dart) — rótulo avisa a diferença, já que é
+          // literalmente a mesma tela pros dois casos.
+          _grp((sessao?.ehAdmin ?? false) ? 'Administração' : 'Configurações'),
+          _item(context, Icons.vpn_key, (sessao?.ehAdmin ?? false) ? 'Permissões (padrão global)' : 'Permissões', '/permissoes'),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),

@@ -8,8 +8,9 @@ import '../services/permissoes_service.dart';
 // Fase FLT-3 — Permissões por Perfil (cliente): matriz funcionalidade x
 // perfil com toggles, porta de permissoes/page.tsx. Ver escopo em
 // permissoes_provider.dart. Layout em cards (1 por funcionalidade, com um
-// switch por perfil visível — no máximo 2, gestor_frota e analista) em
-// vez da tabela larga da web, mais natural pra tela de celular.
+// switch por perfil visível) em vez da tabela larga da web, mais natural
+// pra tela de celular — `Wrap` em vez de `Row`/`Expanded` porque o admin
+// (Fase FLT-4) vê 4 perfis, não cabem bem numa linha só.
 class PermissoesScreen extends ConsumerStatefulWidget {
   const PermissoesScreen({super.key});
 
@@ -20,10 +21,8 @@ class PermissoesScreen extends ConsumerStatefulWidget {
 class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
   final _salvando = <String>{};
 
-  Future<void> _alternar(String funcionalidade, String perfil, bool novoValor) async {
+  Future<void> _alternar(String funcionalidade, String perfil, bool novoValor, String empresaEdicao) async {
     final sessao = await ref.read(sessaoProvider.future);
-    final empresaId = sessao.empresaId;
-    if (empresaId == null) return;
     final chave = '$funcionalidade|$perfil';
     setState(() => _salvando.add(chave));
     try {
@@ -31,7 +30,7 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
         funcionalidade: funcionalidade,
         perfil: perfil,
         permitido: novoValor,
-        empresaId: empresaId,
+        empresaId: empresaEdicao,
         atualizadoPor: sessao.email,
       );
       ref.invalidate(permissoesMatrizProvider);
@@ -70,9 +69,12 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Você está vendo apenas os perfis do seu nível de gestão ou abaixo, para '
-          '${sessao?.nomeEmpresa ?? 'sua empresa'}. Permissões do Administrador e de outros clientes '
-          'não ficam visíveis nem editáveis por aqui.',
+          matriz.modoGlobal
+              ? 'Você está editando o padrão GLOBAL do sistema — vale pra todo cliente que não tiver uma '
+                  'customização própria. Inclui os perfis Administrador e Posto.'
+              : 'Você está vendo apenas os perfis do seu nível de gestão ou abaixo, para '
+                  '${sessao?.nomeEmpresa ?? 'sua empresa'}. Permissões do Administrador e de outros clientes '
+                  'não ficam visíveis nem editáveis por aqui.',
           style: const TextStyle(fontSize: 12, color: Color(0xFF0369A1)),
         ),
         const SizedBox(height: 16),
@@ -98,10 +100,15 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
           children: [
             Text(formatarFuncionalidade(funcionalidade), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             const SizedBox(height: 10),
-            Row(
+            Wrap(
+              spacing: 16,
+              runSpacing: 10,
               children: [
                 for (final perfil in matriz.perfisVisiveis)
-                  Expanded(child: _celulaPerfil(funcionalidade, perfil, matriz.celula(funcionalidade, perfil))),
+                  SizedBox(
+                    width: 68,
+                    child: _celulaPerfil(funcionalidade, perfil, matriz.celula(funcionalidade, perfil), matriz.empresaEdicao),
+                  ),
               ],
             ),
           ],
@@ -110,14 +117,14 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
     );
   }
 
-  Widget _celulaPerfil(String funcionalidade, String perfil, PermissaoCelula? celula) {
+  Widget _celulaPerfil(String funcionalidade, String perfil, PermissaoCelula? celula, String empresaEdicao) {
     final permitido = celula?.permitido ?? false;
     final chave = '$funcionalidade|$perfil';
     final ocupado = _salvando.contains(chave);
 
     return Column(
       children: [
-        Text(perfilLabel[perfil] ?? perfil, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        Text(perfilLabel[perfil] ?? perfil, style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
         const SizedBox(height: 2),
         SizedBox(
           height: 32,
@@ -126,7 +133,7 @@ class _PermissoesScreenState extends ConsumerState<PermissoesScreen> {
               ? const Padding(padding: EdgeInsets.all(6), child: CircularProgressIndicator(strokeWidth: 2))
               : Switch(
                   value: permitido,
-                  onChanged: (v) => _alternar(funcionalidade, perfil, v),
+                  onChanged: (v) => _alternar(funcionalidade, perfil, v, empresaEdicao),
                 ),
         ),
         if (celula?.customizado == true)
