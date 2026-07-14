@@ -14,9 +14,17 @@ import '../../../core/services/supabase_service.dart';
 //
 // Fase FLT-2 (pedido do Daniel) — além do gate inicial (obrigatório,
 // "Camada 3" em app_router.dart), esta tela também é acessível a qualquer
-// momento pelo item "Trocar posto" no menu do posto — a empresa atual
-// fica destacada na lista, e dá pra voltar sem trocar (botão de voltar,
-// só aparece quando há pra onde voltar).
+// momento pelo item "Trocar posto"/"Trocar empresa" no menu — a empresa
+// atual fica destacada na lista, e dá pra voltar sem trocar (botão de
+// voltar, só aparece quando há pra onde voltar).
+//
+// Fase FLT-4 — mesma tela e mesmo mecanismo (`empresaSelecionadaProvider`)
+// reaproveitados pro admin escolher qual cliente ver: `sessao.empresasIds`
+// já vem pré-filtrada (AuthService.carregarSessao) com todas as empresas
+// segmento Frota quando `ehAdmin`, então nenhuma query nova foi necessária
+// aqui — só o texto muda (admin não está "vinculado a um posto", está
+// escolhendo entre todos os clientes) e ganhou um campo de busca, já que a
+// lista do admin tende a crescer bem mais que a de um grupo econômico.
 class SelecionarEmpresaScreen extends ConsumerStatefulWidget {
   const SelecionarEmpresaScreen({super.key});
 
@@ -26,6 +34,7 @@ class SelecionarEmpresaScreen extends ConsumerStatefulWidget {
 
 class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScreen> {
   Future<List<({String id, String nome})>>? _futuro;
+  String _busca = '';
 
   @override
   void initState() {
@@ -48,10 +57,11 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
   Widget build(BuildContext context) {
     final sessao = ref.watch(sessaoProvider).valueOrNull;
     final empresaAtualId = sessao?.empresaId;
+    final ehAdmin = sessao?.ehAdmin ?? false;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Selecione o posto'),
+        title: Text(ehAdmin ? 'Selecione o cliente' : 'Selecione o posto'),
         leading: context.canPop()
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop())
             : null,
@@ -60,16 +70,40 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
         future: _futuro,
         builder: (context, snap) {
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          final empresas = snap.data!;
+          final todas = snap.data!;
+          final empresas = _busca.trim().isEmpty
+              ? todas
+              : todas.where((e) => e.nome.toLowerCase().contains(_busca.trim().toLowerCase())).toList();
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text(
-                'Seu usuário está vinculado a mais de um posto (Rede de Postos). '
-                'Escolha com qual posto você quer trabalhar agora.',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+              Text(
+                ehAdmin
+                    ? 'Escolha qual cliente você quer visualizar. Dá pra trocar a qualquer momento pelo menu.'
+                    : 'Seu usuário está vinculado a mais de um posto (Rede de Postos). '
+                        'Escolha com qual posto você quer trabalhar agora.',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              if (ehAdmin && todas.length > 6)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Buscar cliente',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => setState(() => _busca = v),
+                  ),
+                ),
+              const SizedBox(height: 4),
+              if (empresas.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: Text('Nenhum cliente encontrado.', style: TextStyle(color: Colors.grey.shade500))),
+                ),
               ...empresas.map((e) {
                 final atual = e.id == empresaAtualId;
                 return Card(
@@ -77,7 +111,7 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
                   color: atual ? const Color(0xFFEFF6FF) : null,
                   child: ListTile(
                     title: Text(e.nome, style: TextStyle(fontWeight: atual ? FontWeight.bold : FontWeight.normal)),
-                    subtitle: atual ? const Text('Posto atual', style: TextStyle(color: Color(0xFF1D4ED8))) : null,
+                    subtitle: atual ? Text(ehAdmin ? 'Cliente atual' : 'Posto atual', style: const TextStyle(color: Color(0xFF1D4ED8))) : null,
                     trailing: atual ? const Icon(Icons.check_circle, color: Color(0xFF1D4ED8)) : const Icon(Icons.chevron_right),
                     onTap: atual
                         ? null

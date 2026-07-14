@@ -1041,6 +1041,62 @@ por decisão do Daniel — gerenciar conexões de integração (PróFrotas,
 importação de planilhas etc.) não faz sentido num PWA de celular; segue
 existindo só na web.
 
+## Fase FLT-4 — visão Admin (início)
+
+Achado real: o admin (time interno FNI) ficava com o PWA travado/vazio.
+`AuthService.carregarSessao()` sempre forçava `empresaId = null` pra
+`perfil == 'admin'` (linha antiga: `if (perfil != 'admin' && ...)`), e
+`SessaoUsuario.precisaEscolherEmpresa` dependia de `empresasIds.length > 1`
+— mas `empresas_do_usuario` (RPC usada pra montar `empresasIds`) só lista
+empresas onde o usuário é MEMBRO via `usuarios_empresas`, e o admin não é
+membro de nenhuma: `empresasIds` vinha sempre vazio. Resultado: nunca
+`precisaEscolherEmpresa`, nunca redireciona pra `/selecionar-empresa`,
+`empresaId` fica `null` pra sempre — toda tela cliente (que checa
+`if (sessao.empresaId == null) return [];`) mostrava vazio/zerado pro
+admin, sem nenhuma forma de escolher um cliente.
+
+Corrigido com 2 mudanças pequenas, reaproveitando 100% do mecanismo já
+existente pra grupo econômico (`empresaSelecionadaProvider` +
+`/selecionar-empresa`, criados na Fase FLT-2):
+
+- `AuthService.carregarSessao()`: quando `perfil == 'admin'`,
+  `empresasIds` passa a listar todas as empresas `segmento = 'Frota'`
+  (`select id from empresas where segmento = 'Frota'` — RLS já libera
+  SELECT total da tabela `empresas` pro admin, mesmo padrão de
+  `resolverEmpresaAtual` na web). Só Frota: empresas segmento "Revenda"
+  (postos) usam o shell `/posto`, com tabelas/telas totalmente
+  diferentes — fora do que este shell genérico sabe mostrar; ver
+  próximas fases pra decidir se o admin também precisa trocar entre
+  postos por aqui.
+- `SessaoUsuario.precisaEscolherEmpresa`: de
+  `!ehAdmin && empresasIds.length > 1 && empresaId == null` para
+  `empresaId == null && (ehAdmin || empresasIds.length > 1)` — admin
+  sempre precisa escolher (nunca existe "a" empresa óbvia dele).
+
+Como `sessaoProvider` preserva `perfil: 'admin'` mesmo depois de escolher
+uma empresa (só sobrescreve `empresaId`/`nomeEmpresa`/`segmento`), o
+admin, após escolher um cliente, passa a ver exatamente as mesmas telas
+já prontas da visão Cliente (Dashboard, Abastecimentos, Veículos,
+Financeiro, Rotograma, Planos de Viagem, Permissões etc. — tudo), sem
+nenhum código novo por tela. `selecionar_empresa_screen.dart` ganhou
+texto alternativo ("Selecione o cliente" em vez de "Selecione o posto")
+e um campo de busca (aparece só com mais de 6 clientes) pra quando a
+base crescer — hoje são só 4 empresas Frota.
+
+**Fora do escopo desta fase** (fica pra próximas rodadas — telas
+exclusivas do menu "Administração" da web, nenhuma delas com
+equivalente hoje no Flutter): Permissões no modo "padrão global"
+(`EMPRESA_ID_GLOBAL`; a tela de Permissões que o admin vê agora edita a
+empresa escolhida, igual a um gestor_frota faria — não o padrão do
+sistema), Aprovação de Documentos (`/documentos-empresas`), Assinaturas
+de todos os clientes (`/assinaturas`), Avaliações dos Clientes
+(`/avaliacoes`), Rede de Postos (visão consolidada do admin —
+`/rede-postos` já existe só do lado posto), Possíveis Duplicados
+(`/postos-duplicados`), Configurações do Sistema (`/configuracoes`), e o
+menu "Cadastros" (lista de Clientes/`/clientes` e Grupo
+Econômico/`/grupo-economico` no sentido de administração global, não os
+que já existem no shell cliente).
+
 ## Hotfix: login com Google (fora da sequência FLT-3)
 
 Achado real testando com o Daniel: o botão "Continuar com Google" sempre

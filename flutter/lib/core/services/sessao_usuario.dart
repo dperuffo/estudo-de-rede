@@ -33,5 +33,11 @@ class SessaoUsuario {
   // precisa de um seletor, igual a web faz em /dashboard, /documentos etc.
   // Por ora a sessão resolve a primeira automaticamente; o seletor fica
   // pra Fase FLT-2 quando isso bloquear algum caso real.
-  bool get precisaEscolherEmpresa => !ehAdmin && empresasIds.length > 1 && empresaId == null;
+  //
+  // Fase FLT-4 — admin SEMPRE precisa escolher (nunca tem 1 empresa óbvia:
+  // `empresasIds`, pro admin, é a lista inteira de clientes Frota — ver
+  // AuthService.carregarSessao). Sem este `ehAdmin ||`, o app ficava
+  // travado/vazio pro admin (nunca caía nesta condição, nunca ia pro
+  // seletor).
+  bool get precisaEscolherEmpresa => empresaId == null && (ehAdmin || empresasIds.length > 1);
 }

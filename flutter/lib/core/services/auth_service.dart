@@ -151,13 +151,34 @@ class AuthService {
   // a mesma regra — com 2+ empresas, `empresaId` fica null
   // (`SessaoUsuario.precisaEscolherEmpresa` vira true) até o usuário
   // escolher na tela `/selecionar-empresa` (ver sessao_provider.dart).
+  // Fase FLT-4 (achado real) — o admin (time interno FNI) não é "membro" de
+  // nenhuma empresa via usuarios_empresas, então empresas_do_usuario sempre
+  // devolvia lista vazia pra ele: `empresaId` ficava permanentemente null
+  // (a guarda `perfil != 'admin'` abaixo já evitava um autoseleção errada),
+  // mas `precisaEscolherEmpresa` também nunca virava true (dependia de
+  // `empresasIds.length > 1`, sempre 0 pro admin) — o app ficava
+  // travado/vazio pro admin, sem seletor pra escolher qual cliente ver.
+  // Corrigido: pro admin, `empresasIds` passa a listar TODAS as empresas
+  // segmento "Frota" (só essas — segmento "Revenda"/postos usa o shell
+  // /posto, com telas e tabelas diferentes, fora do que este shell genérico
+  // sabe mostrar; RLS de `empresas` já libera SELECT total pro admin, mesmo
+  // padrão de resolverEmpresaAtual na web). Com isso, o mecanismo de
+  // seleção — já usado pra grupo econômico — funciona pro admin sem
+  // precisar de nenhum código novo em SessaoUsuario/app_router além da
+  // fórmula de `precisaEscolherEmpresa` (ver sessao_usuario.dart).
   Future<SessaoUsuario> carregarSessao() async {
     final email = emailAtual ?? '';
 
     final perfil = await _supabase.rpc('perfil_usuario_atual') as String?;
 
-    final empresasIdsRaw = await _supabase.rpc('empresas_do_usuario', params: {'p_email': email});
-    final empresasIds = (empresasIdsRaw as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+    List<String> empresasIds;
+    if (perfil == 'admin') {
+      final rows = await _supabase.from('empresas').select('id').eq('segmento', 'Frota').order('nome') as List;
+      empresasIds = rows.map((m) => (m as Map<String, dynamic>)['id'] as String).toList();
+    } else {
+      final empresasIdsRaw = await _supabase.rpc('empresas_do_usuario', params: {'p_email': email});
+      empresasIds = (empresasIdsRaw as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+    }
 
     String? empresaId;
     String? nomeEmpresa;
