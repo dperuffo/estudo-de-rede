@@ -191,19 +191,17 @@ class PostoHomeScreen extends ConsumerWidget {
         dense: true,
         leading: Icon(icon, color: const Color(0xFF0D2D6B), size: 20),
         title: Text(label, style: const TextStyle(fontSize: 14)),
-        // Fase FLT-7 — mesma bolinha vermelha da web (bg-red-500, texto
-        // branco, formato pílula) — só aparece quando badge > 0.
+        // Fase FLT-7 (ajuste) — pedido do Daniel: a pílula com número
+        // (Container com Text dentro) esticava a linha inteira do menu
+        // verticalmente em alguns itens (o texto do Text virava uma coluna
+        // de 1 letra por linha, achado real reportado com print). Trocado
+        // por uma bolinha simples, sem texto dentro — tamanho fixo pequeno,
+        // não tem como "esticar" a linha. Só aparece quando badge > 0.
         trailing: badge > 0
             ? Container(
-                height: 20,
-                constraints: const BoxConstraints(minWidth: 20),
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: const Color(0xFFEF4444), borderRadius: BorderRadius.circular(999)),
-                child: Text(
-                  '$badge',
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
               )
             : null,
         onTap: () {
