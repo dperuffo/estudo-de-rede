@@ -49,6 +49,9 @@ import '../../features/centros_custo/screens/centro_custo_editar_screen.dart';
 import '../../features/postos/screens/postos_screen.dart';
 import '../../features/postos/screens/postos_buscar_screen.dart';
 import '../../features/postos/screens/posto_detalhe_screen.dart';
+import '../../features/abastecimentos/screens/abastecimentos_screen.dart';
+import '../../features/abastecimentos/screens/abastecimento_novo_screen.dart';
+import '../../features/abastecimentos/screens/abastecimento_detalhe_cliente_screen.dart';
 import '../../features/posto/screens/chamados_posto_screen.dart';
 import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
@@ -212,7 +215,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/postos/:cnpj',
               builder: (_, state) => PostoDetalheScreen(cnpj: state.pathParameters['cnpj']!),
             ),
-            GoRoute(path: '/abastecimentos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Abastecimentos')),
+            GoRoute(path: '/abastecimentos', builder: (_, __) => const AbastecimentosScreen()),
+            GoRoute(path: '/abastecimentos/novo', builder: (_, __) => const AbastecimentoNovoScreen()),
+            GoRoute(
+              path: '/abastecimentos/:chave',
+              builder: (_, state) => AbastecimentoDetalheClienteScreen(chave: state.pathParameters['chave']!),
+            ),
             GoRoute(path: '/notas-fiscais', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Notas Fiscais')),
             GoRoute(path: '/anomalias', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Anomalias')),
             GoRoute(path: '/roteirizacao', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Roteirização')),

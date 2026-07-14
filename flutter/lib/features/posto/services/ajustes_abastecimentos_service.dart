@@ -9,14 +9,17 @@ import '../../../core/services/supabase_service.dart';
 // diferença chave: quando aceito, os campos propostos são de fato
 // aplicados no abastecimento (não é só "fotografado"), por isso
 // `decidirAjuste` chama a RPC SECURITY DEFINER `decidir_ajuste_abastecimento`
-// em vez de um UPDATE direto. "autor"/"meuLado" são sempre "posto" aqui,
-// porque esta tela só existe dentro do shell /posto (mesmo raciocínio de
-// negociacoes_service.dart).
+// em vez de um UPDATE direto.
 //
 // Diferente da web (que serve os dois lados e precisa RESOLVER quem é
-// posto/cliente por CNPJ), aqui já sabemos: o posto é a empresa da sessão
-// logada — não precisa de `resolver_empresa_por_cnpj_segmento` nem de
-// `empresas_do_usuario` pra descobrir o lado.
+// posto/cliente por CNPJ), aqui já sabemos o lado por contexto — cada tela
+// que usa esta classe passa o próprio "empresaId" certo. "autor"/"meuLado"
+// era sempre "posto" (única tela existente até a Fase FLT-2); a Fase FLT-3
+// (Abastecimentos do cliente) reaproveita esta MESMA classe pro lado
+// cliente — ganhou um parâmetro opcional `autor` (default `'posto'`,
+// preserva 100% o comportamento original) usado em
+// criarSolicitacaoAjuste/adicionarContraproposta pra decidir o status
+// seguinte (o "turno" da outra parte) e quem assina a rodada.
 
 class IdentificadorAbastecimento {
   final String tipo; // 'profrotas' | 'externo'
@@ -85,9 +88,12 @@ class AjustesAbastecimentosService {
     required CamposAjuste campos,
     String? motivo,
     double? valorOriginal,
+    String autor = 'posto',
   }) async {
     final erroValidacao = validarCamposAjuste(campos);
     if (erroValidacao != null) return erroValidacao;
+
+    final statusInicial = autor == 'posto' ? 'pendente_cliente' : 'pendente_posto';
 
     try {
       final ajuste = await _supabase
@@ -97,8 +103,8 @@ class AjustesAbastecimentosService {
             'abastecimento_externo_id': identificador.tipo == 'externo' ? identificador.id : null,
             'empresa_cliente_id': empresaClienteId,
             'empresa_posto_id': empresaPostoId,
-            'origem': 'posto',
-            'status': 'pendente_cliente',
+            'origem': autor,
+            'status': statusInicial,
             'rodada_atual': 1,
             'criado_por': _meuEmail,
             'atualizado_por': _meuEmail,
@@ -110,7 +116,7 @@ class AjustesAbastecimentosService {
       await _supabase.from('ajustes_abastecimentos_rodadas').insert({
         'ajuste_id': ajuste['id'],
         'numero_rodada': 1,
-        'autor': 'posto',
+        'autor': autor,
         'motivo': motivo,
         'decisao': 'pendente',
         ...campos.toMap(),
@@ -128,9 +134,13 @@ class AjustesAbastecimentosService {
     required String ajusteId,
     required CamposAjuste campos,
     String? motivo,
+    String autor = 'posto',
   }) async {
     final erroValidacao = validarCamposAjuste(campos);
     if (erroValidacao != null) return erroValidacao;
+
+    final meuTurno = autor == 'posto' ? 'pendente_posto' : 'pendente_cliente';
+    final proximoTurno = autor == 'posto' ? 'pendente_cliente' : 'pendente_posto';
 
     try {
       final ajuste = await _supabase
@@ -143,7 +153,7 @@ class AjustesAbastecimentosService {
       if (status == 'aceito' || status == 'recusado' || status == 'cancelado') {
         return 'Esta solicitação já foi encerrada e não aceita novas rodadas.';
       }
-      if (status != 'pendente_posto') return 'Não é a sua vez de responder esta solicitação.';
+      if (status != meuTurno) return 'Não é a sua vez de responder esta solicitação.';
 
       final rodadaAtual = (ajuste['rodada_atual'] as num).toInt();
       final novaRodada = rodadaAtual + 1;
@@ -158,14 +168,14 @@ class AjustesAbastecimentosService {
       await _supabase.from('ajustes_abastecimentos_rodadas').insert({
         'ajuste_id': ajusteId,
         'numero_rodada': novaRodada,
-        'autor': 'posto',
+        'autor': autor,
         'motivo': motivo,
         'decisao': 'pendente',
         ...campos.toMap(),
       });
 
       await _supabase.from('ajustes_abastecimentos').update({
-        'status': 'pendente_cliente',
+        'status': proximoTurno,
         'rodada_atual': novaRodada,
         'atualizado_em': agora,
         'atualizado_por': _meuEmail,

@@ -31,6 +31,11 @@ class AbastecimentoParaAjuste {
   final double? valorTotal;
   final String? empresaClienteId;
   final String? nomeCliente;
+  // Fase FLT-3 — só preenchido pelo provider do lado CLIENTE (resolvido a
+  // partir do posto_cnpj via RPC `resolver_empresa_por_cnpj_segmento`, ver
+  // ajuste_abastecimento_cliente_provider.dart). O provider do lado posto
+  // não precisa disso — já sabe seu próprio empresaId pela sessão.
+  final String? empresaPostoId;
 
   const AbastecimentoParaAjuste({
     required this.id,
@@ -46,6 +51,7 @@ class AbastecimentoParaAjuste {
     this.valorTotal,
     this.empresaClienteId,
     this.nomeCliente,
+    this.empresaPostoId,
   });
 
   String get identificadorTipo => provedor == 'profrotas' ? 'profrotas' : 'externo';

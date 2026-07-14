@@ -727,13 +727,41 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   município/estado/Brasil — aqui mostra direto o histórico manual),
   importação por planilha (`/postos/importar`, `/postos/importar-precos`)
   e "Atualizar universo ANP" (admin only).
+- **Abastecimentos** (`lib/features/abastecimentos/`) — porta de
+  abastecimentos/page.tsx (lado cliente — a web desvia pro
+  `AbastecimentosPosto`, já coberto pela Fase FLT-2, quando a empresa é
+  segmento "Revenda"). Modelada de perto em `AbastecimentosPostoScreen`
+  (mesma view `abastecimentos_unificado`, mesmo layout de indicadores/
+  filtros/cards, inclusive reaproveitando a classe
+  `RegistroAbastecimentoPosto` direto em vez de duplicar), só que filtra
+  por `empresa_id` (consumo desta frota) em vez de `posto_cnpj` (o que um
+  posto forneceu). Inclui: lista com indicadores, filtros (combustível,
+  meio de pagamento, busca, período, "🔴 Pendente de ajuste"), lançamento
+  manual (`/abastecimentos/novo`, pra clientes sem integração automática)
+  e o fluxo completo de **Ajuste de registro** bidirecional (solicitar,
+  contrapropor, aprovar/recusar, cancelar) — o mesmo do lado posto
+  (`AjustesAbastecimentosService`, que ganhou um parâmetro opcional
+  `autor` — default `'posto'`, preserva 100% o comportamento original —
+  usado aqui com `'cliente'` pra derivar o turno certo). Achado real
+  conferido no banco antes de portar: como a view `abastecimentos_unificado`
+  só tem `posto_cnpj` (texto solto, não FK), resolver o `empresaPostoId`
+  (necessário pra abrir uma solicitação de ajuste) usa a mesma RPC
+  SECURITY DEFINER da web, `resolver_empresa_por_cnpj_segmento` — sem ela,
+  a RLS de `empresas` bloquearia a consulta (cliente nunca é "membro" do
+  posto). Fora do escopo: paginação de verdade (só traz os 50 mais
+  recentes), importação por planilha (`/abastecimentos/importar`) e o
+  badge "Rejeitada + motivo" de NF-e — `notas_fiscais_pendencias` só tem
+  RLS de leitura pra quem é `empresa_posto_id` (conferido direto no banco),
+  o cliente nunca teria acesso a essas linhas; só mostra "Emitida" (via
+  `notas_fiscais_abastecimento`, que tem `empresa_cliente_id` e portanto É
+  legível) ou "Pendente" (sem diferenciar rejeitada).
 
-Demais itens do menu (Veículos, Abastecimentos, Notas Fiscais, Anomalias,
-Roteirização, Rotograma, Planos de Viagem, Negociações com Postos, Preços
-dos Postos Parceiros, Manutenção Preditiva, Parâmetros de Uso,
-Relatórios, Integrações, Permissões) seguem como `EmConstrucaoScreen`,
-uma de cada vez nas próximas fases — várias devem reaproveitar bastante
-lógica já pronta do lado Posto (LGPD, Usuários, Chamados especialmente).
+Demais itens do menu (Veículos, Notas Fiscais, Anomalias, Roteirização,
+Rotograma, Planos de Viagem, Negociações com Postos, Preços dos Postos
+Parceiros, Manutenção Preditiva, Parâmetros de Uso, Relatórios,
+Integrações, Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez
+nas próximas fases — várias devem reaproveitar bastante lógica já pronta
+do lado Posto (LGPD, Usuários, Chamados especialmente).
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 
