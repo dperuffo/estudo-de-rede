@@ -144,6 +144,7 @@ class AbaCoberturaDemanda extends StatelessWidget {
                 child: BarChart(
                   BarChartData(
                     maxY: 1.1,
+                    barTouchData: barTouchPadrao(formatarY: (v) => 'Gap ${v.toStringAsFixed(3)}'),
                     barGroups: top15.asMap().entries.map((e) {
                       return BarChartGroupData(x: e.key, barRods: [
                         BarChartRodData(toY: e.value.gap, color: _corGap(e.value.gap), width: 16, borderRadius: const BorderRadius.vertical(top: Radius.circular(3))),

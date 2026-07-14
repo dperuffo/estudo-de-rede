@@ -141,6 +141,7 @@ class _AbaPrecosAnpState extends State<AbaPrecosAnp> {
             child: BarChart(
               BarChartData(
                 maxY: (serie.map((s) => s.precoMedio).reduce((a, b) => a > b ? a : b) * 1.2).clamp(0.01, double.infinity),
+                barTouchData: barTouchPadrao(formatarY: (v) => formatarMoeda(v, casas: 3)),
                 barGroups: serie.asMap().entries.map((e) {
                   final cor = referenciaAtual == null
                       ? const Color(0xFF1565C0)

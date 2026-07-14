@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -5,6 +6,37 @@ import 'package:intl/intl.dart';
 // de Rede — mesmo papel que os vários `formatarMoeda`/`MiniKpi`/
 // `BarraHorizontal` duplicados em cada _components/*.tsx da web, só que
 // centralizados aqui uma vez.
+
+// Achado real (reportado pelo Daniel com print): sem configurar o tooltip
+// explicitamente, o fl_chart usa o estilo padrão dele — caixa cinza com
+// texto também escuro/cinza, contraste ruim, difícil de ler no celular.
+// Essas duas funções dão um tooltip escuro com texto BRANCO em negrito,
+// aplicadas em todo BarChart/LineChart das 10 abas.
+const _corTooltip = Color(0xFF263238);
+const _estiloTooltip = TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12);
+
+BarTouchData barTouchPadrao({required String Function(double valor) formatarY, String Function(int index)? formatarX}) {
+  return BarTouchData(
+    touchTooltipData: BarTouchTooltipData(
+      getTooltipColor: (_) => _corTooltip,
+      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+        final prefixo = formatarX != null ? '${formatarX(group.x)}\n' : '';
+        return BarTooltipItem('$prefixo${formatarY(rod.toY)}', _estiloTooltip);
+      },
+    ),
+  );
+}
+
+LineTouchData lineTouchPadrao({required String Function(double valor) formatarY}) {
+  return LineTouchData(
+    touchTooltipData: LineTouchTooltipData(
+      getTooltipColor: (_) => _corTooltip,
+      getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(formatarY(s.y), _estiloTooltip)).toList(),
+    ),
+  );
+}
+
+PieTouchData pieTouchPadrao() => PieTouchData(enabled: true);
 
 final _moeda3 = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$', decimalDigits: 3);
 final _moeda2 = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$', decimalDigits: 2);

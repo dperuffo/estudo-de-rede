@@ -42,6 +42,27 @@ DateTime _dataDoMes(String mes) {
   return DateTime(ano, m, 1);
 }
 
+// Igual a _dataDoMes, mas preserva o dia — precisa pra data de INÍCIO da
+// semana (semana = date_trunc('week', data_ref) no banco, um dia
+// diferente por semana, não sempre dia 1 como em "mes").
+DateTime _dataCompleta(String iso) {
+  final partes = iso.split('-');
+  final ano = int.tryParse(partes[0]) ?? 2024;
+  final m = partes.length >= 2 ? (int.tryParse(partes[1]) ?? 1) : 1;
+  final d = partes.length >= 3 ? (int.tryParse(partes[2]) ?? 1) : 1;
+  return DateTime(ano, m, d);
+}
+
+// Rótulo de eixo pra semana (dia/mês de início da semana) — pedido do
+// Daniel: trocar a escala de mês pra semana nos gráficos de tendência e de
+// volatilidade, que tinham poucos pontos (um por mês) e ficavam pouco
+// informativos com poucos meses de histórico.
+String _semanaLabel(String semana) {
+  final partes = semana.split('-');
+  if (partes.length < 3) return semana;
+  return '${partes[2]}/${partes[1]}';
+}
+
 ({double slope, double intercept})? _regressaoLinear(List<({double x, double y})> pontos) {
   final n = pontos.length;
   if (n < 2) return null;
@@ -80,7 +101,7 @@ Color _corCelula(double? v, double min, double max) {
 class _SerieUf {
   final String uf;
   final Color cor;
-  final List<({String mes, String uf, double precoMedio, int qtd})> pontos;
+  final List<({String semana, String uf, double precoMedio, int qtd})> pontos;
   final double tendenciaMes;
   final double media;
   final double desvio;
@@ -96,7 +117,7 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
     if (serie.isEmpty) {
       return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Histórico de preços insuficiente para calcular tendências.', style: TextStyle(color: Colors.grey))));
     }
-    final combustiveis = serie.map((s) => s.combustivel).toSet().toList()..sort();
+    final combustiveis = widget.dados.historicoDetalhado.map((r) => r.combustivel).toSet().toList()..sort();
 
     final porMesUfMapa = <String, ({double soma, int qtd})>{};
     for (final s in serie) {
@@ -112,18 +133,42 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
 
     final totalPorUf = <String, int>{};
     for (final p in porMesUf) totalPorUf[p.uf] = (totalPorUf[p.uf] ?? 0) + p.qtd;
+    // "Top 8 UFs" continua escolhido pelo volume mensal (só decide QUAIS
+    // estados aparecem, tanto no gráfico de tendência quanto no heatmap de
+    // sazonalidade) — o que muda é a granularidade dos PONTOS do gráfico de
+    // tendência, que agora vêm por semana (ver bloco abaixo).
     final topUfs = (totalPorUf.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).take(8).map((e) => e.key).toList();
+
+    // Pedido do Daniel: escala de semana (não de mês) no gráfico de
+    // tendência — calculado direto do histórico bruto por posto
+    // (`historicoDetalhado`), que já traz a coluna `semana` pronta do banco
+    // (date_trunc('week', data_ref)), em vez da série já agregada por mês
+    // que a RPC `historico_precos_serie_uf_combustivel` devolve. Dá mais
+    // pontos na linha (uma semana tem histórico de sobra pra virar vários
+    // pontos, mesmo com poucos meses de dados acumulados).
+    final porSemanaUfMapa = <String, ({double soma, int qtd})>{};
+    for (final r in widget.dados.historicoDetalhado) {
+      if (r.uf == null || !topUfs.contains(r.uf)) continue;
+      if (_selecionado != 'Todos' && r.combustivel != _selecionado) continue;
+      final chave = '${r.semana}__${r.uf}';
+      final at = porSemanaUfMapa[chave] ?? (soma: 0.0, qtd: 0);
+      porSemanaUfMapa[chave] = (soma: at.soma + r.preco, qtd: at.qtd + 1);
+    }
+    final porSemanaUf = porSemanaUfMapa.entries.map((e) {
+      final partes = e.key.split('__');
+      return (semana: partes[0], uf: partes[1], precoMedio: e.value.qtd > 0 ? e.value.soma / e.value.qtd : 0.0, qtd: e.value.qtd);
+    }).toList();
 
     final seriesPorUf = <_SerieUf>[];
     for (final entry in topUfs.asMap().entries) {
       final idx = entry.key;
       final uf = entry.value;
-      final pontos = porMesUf.where((p) => p.uf == uf).toList()..sort((a, b) => a.mes.compareTo(b.mes));
+      final pontos = porSemanaUf.where((p) => p.uf == uf).toList()..sort((a, b) => a.semana.compareTo(b.semana));
       if (pontos.isEmpty) continue;
-      final primeiroMesTs = _dataDoMes(pontos.first.mes).millisecondsSinceEpoch.toDouble();
-      final xs = pontos.map((p) => (_dataDoMes(p.mes).millisecondsSinceEpoch.toDouble() - primeiroMesTs) / (1000 * 60 * 60 * 24)).toList();
+      final primeiraSemanaTs = _dataCompleta(pontos.first.semana).millisecondsSinceEpoch.toDouble();
+      final xs = pontos.map((p) => (_dataCompleta(p.semana).millisecondsSinceEpoch.toDouble() - primeiraSemanaTs) / (1000 * 60 * 60 * 24)).toList();
       final reg = pontos.length >= 3 ? _regressaoLinear(List.generate(pontos.length, (i) => (x: xs[i], y: pontos[i].precoMedio))) : null;
-      final tendenciaMes = reg != null ? reg.slope * 30 : 0.0;
+      final tendenciaMes = reg != null ? reg.slope * 30 : 0.0; // slope é R$/dia — ×30 continua dando a variação equivalente por mês, só que calculada com pontos semanais
       final m = media(pontos.map((p) => p.precoMedio).toList());
       final variancia = pontos.isEmpty ? 0.0 : pontos.fold<double>(0, (s, p) => s + (p.precoMedio - m) * (p.precoMedio - m)) / pontos.length;
       seriesPorUf.add(_SerieUf(
@@ -136,7 +181,7 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
       ));
     }
 
-    final todosMeses = porMesUf.map((p) => p.mes).toSet().toList()..sort();
+    final todasSemanas = porSemanaUf.map((p) => p.semana).toSet().toList()..sort();
 
     // Heatmap
     double heatMin = double.infinity;
@@ -163,10 +208,23 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
     if (heatMin == double.infinity) heatMin = 0;
     if (heatMax == -double.infinity) heatMax = 0;
 
-    // Volatilidade por combustível
-    final volatilidade = widget.dados.volatilidadeMensal;
+    // Volatilidade por combustível — pedido do Daniel: escala de semana em
+    // vez de mês (a RPC `historico_precos_volatilidade_mensal` só calcula
+    // por mês, então recalculamos aqui direto do histórico bruto, mesma
+    // fórmula do banco — stddev populacional, `having count(*) >= 2`).
+    final porSemanaCombMapa = <String, List<double>>{};
+    for (final r in widget.dados.historicoDetalhado) {
+      if (r.preco <= 0) continue;
+      porSemanaCombMapa.putIfAbsent('${r.semana}__${r.combustivel}', () => []).add(r.preco);
+    }
+    final volatilidade = porSemanaCombMapa.entries.where((e) => e.value.length >= 2).map((e) {
+      final partes = e.key.split('__');
+      final m = media(e.value);
+      final variancia = e.value.fold<double>(0, (s, v) => s + (v - m) * (v - m)) / e.value.length;
+      return (semana: partes[0], combustivel: partes[1], volatilidade: _raizQuadrada(variancia), qtd: e.value.length);
+    }).toList();
     final combustiveisVol = volatilidade.map((v) => v.combustivel).toSet().toList()..sort();
-    final mesesVol = volatilidade.map((v) => v.mes).toSet().toList()..sort();
+    final semanasVol = volatilidade.map((v) => v.semana).toSet().toList()..sort();
 
     // Insights
     final globalPorMesMapa = <String, ({double soma, int qtd})>{};
@@ -222,15 +280,16 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
           if (maisVolatil != null) BlocoInsight(texto: '⚡ Combustível mais volátil: ${maisVolatil.combustivel} (σ médio de ${formatarMoeda(maisVolatil.media)}).'),
           if (ufMaiorAlta.isNotEmpty) BlocoInsight(texto: '🔺 Maior alta: ${ufMaiorAlta.first.uf}, subindo ${formatarMoeda(ufMaiorAlta.first.tendenciaMes)}/mês em média.'),
           const SizedBox(height: 12),
-          Text('Tendência de preço por estado (regressão linear)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
+          Text('Tendência de preço por estado (regressão linear, por semana)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
           const SizedBox(height: 8),
           SizedBox(
             height: 300,
             child: LineChart(LineChartData(
+              lineTouchData: lineTouchPadrao(formatarY: (v) => formatarMoeda(v)),
               lineBarsData: seriesPorUf.map((s) {
-                final idxPorMes = {for (final p in s.pontos) p.mes: p.precoMedio};
+                final idxPorSemana = {for (final p in s.pontos) p.semana: p.precoMedio};
                 return LineChartBarData(
-                  spots: todosMeses.asMap().entries.where((e) => idxPorMes.containsKey(e.value)).map((e) => FlSpot(e.key.toDouble(), idxPorMes[e.value]!)).toList(),
+                  spots: todasSemanas.asMap().entries.where((e) => idxPorSemana.containsKey(e.value)).map((e) => FlSpot(e.key.toDouble(), idxPorSemana[e.value]!)).toList(),
                   isCurved: false,
                   color: s.cor,
                   barWidth: 2,
@@ -241,8 +300,8 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
                 leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => Text(v.toStringAsFixed(2), style: const TextStyle(fontSize: 9)))),
                 bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 24, getTitlesWidget: (v, _) {
                   final i = v.toInt();
-                  if (i < 0 || i >= todosMeses.length) return const SizedBox.shrink();
-                  return Text(_mesLabel(todosMeses[i]), style: const TextStyle(fontSize: 8));
+                  if (i < 0 || i >= todasSemanas.length) return const SizedBox.shrink();
+                  return Text(_semanaLabel(todasSemanas[i]), style: const TextStyle(fontSize: 8));
                 })),
                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -281,21 +340,22 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
             ),
           ),
           const SizedBox(height: 20),
-          Text('Volatilidade por combustível (desvio padrão mensal)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
+          Text('Volatilidade por combustível (desvio padrão semanal)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
           const SizedBox(height: 8),
-          if (mesesVol.isEmpty)
+          if (semanasVol.isEmpty)
             const Text('Sem dados de volatilidade.', style: TextStyle(color: Colors.grey, fontSize: 12))
           else
             SizedBox(
               height: 240,
               child: LineChart(LineChartData(
+                lineTouchData: lineTouchPadrao(formatarY: (v) => formatarMoeda(v)),
                 lineBarsData: combustiveisVol.asMap().entries.map((entry) {
                   final idx = entry.key;
                   final c = entry.value;
                   final cor = _coresCombustivelTend[idx % _coresCombustivelTend.length];
                   return LineChartBarData(
-                    spots: mesesVol.asMap().entries.map((e) {
-                      final ponto = volatilidade.where((v) => v.mes == e.value && v.combustivel == c).toList();
+                    spots: semanasVol.asMap().entries.map((e) {
+                      final ponto = volatilidade.where((v) => v.semana == e.value && v.combustivel == c).toList();
                       final y = ponto.isNotEmpty ? ponto.first.volatilidade : 0.0;
                       return FlSpot(e.key.toDouble(), y);
                     }).toList(),
@@ -310,8 +370,8 @@ class _AbaTendenciaSazonalidadeState extends State<AbaTendenciaSazonalidade> {
                   leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => Text(v.toStringAsFixed(2), style: const TextStyle(fontSize: 9)))),
                   bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 24, getTitlesWidget: (v, _) {
                     final i = v.toInt();
-                    if (i < 0 || i >= mesesVol.length) return const SizedBox.shrink();
-                    return Text(_mesLabel(mesesVol[i]), style: const TextStyle(fontSize: 8));
+                    if (i < 0 || i >= semanasVol.length) return const SizedBox.shrink();
+                    return Text(_semanaLabel(semanasVol[i]), style: const TextStyle(fontSize: 8));
                   })),
                   rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),

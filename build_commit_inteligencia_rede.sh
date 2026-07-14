@@ -10,7 +10,7 @@ echo "== git =="
 cd "/Users/daniel/Documents/Projetos/estudo-de-rede"
 rm -f .git/index.lock .git/HEAD.lock .git/next-index-*.lock
 git add -A
-git commit -m "Inteligencia de Rede: todas as 10 abas da web portadas pro PWA (admin + cliente)"
+git commit -m "Inteligencia de Rede: escala semanal nos graficos de tendencia/sazonalidade + tooltip legivel + ajustes visuais (abas/cartoes)"
 git push
 
 echo "== pronto. acompanhe o deploy na Railway. =="

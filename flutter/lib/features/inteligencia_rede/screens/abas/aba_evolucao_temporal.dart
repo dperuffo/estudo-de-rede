@@ -162,6 +162,7 @@ class _AbaEvolucaoTemporalState extends State<AbaEvolucaoTemporal> {
             height: 300,
             child: LineChart(
               LineChartData(
+                lineTouchData: lineTouchPadrao(formatarY: (v) => formatarMoeda(v)),
                 lineBarsData: [
                   ...tendenciaPorUf.asMap().entries.map((e) {
                     final idxPorPeriodo = {for (final p in e.value.pontos) p.periodo: p.precoMedio};

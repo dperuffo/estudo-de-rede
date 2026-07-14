@@ -273,6 +273,7 @@ class _ScorePorRegiaoState extends State<_ScorePorRegiao> {
           child: BarChart(
             BarChartData(
               maxY: 105,
+              barTouchData: barTouchPadrao(formatarY: (v) => 'Score ${v.toStringAsFixed(1)}'),
               barGroups: agrupado.asMap().entries.map((e) {
                 final cor = e.value.scoreMedio >= 70 ? const Color(0xFF27AE60) : (e.value.scoreMedio >= 45 ? const Color(0xFFF39C12) : const Color(0xFFE74C3C));
                 return BarChartGroupData(x: e.key, barRods: [BarChartRodData(toY: e.value.scoreMedio, color: cor, width: 18, borderRadius: const BorderRadius.vertical(top: Radius.circular(3)))]);

@@ -96,6 +96,7 @@ class AbaMacrorregiaoExpansao extends StatelessWidget {
                       child: BarChart(
                         BarChartData(
                           maxY: 105,
+                          barTouchData: barTouchPadrao(formatarY: (v) => 'Score ${v.toStringAsFixed(0)}'),
                           barGroups: d.oportunidades.asMap().entries.map((e) {
                             return BarChartGroupData(x: e.key, barRods: [
                               BarChartRodData(toY: e.value.score, color: _corScore(e.value.score), width: 18, borderRadius: const BorderRadius.vertical(top: Radius.circular(3))),

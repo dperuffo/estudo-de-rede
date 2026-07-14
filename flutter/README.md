@@ -1435,3 +1435,45 @@ tipo que precisem de ajuste (parâmetro renomeado numa versão de
 `fl_chart`/`flutter_map`, campo de RPC com nome diferente do esperado
 etc.), igual já aconteceu antes nesta sessão com o bug de
 `import`/`export`.
+
+### Ajustes visuais pós-entrega (mesmo dia)
+
+Depois do primeiro build (sem erro), o Daniel reportou 3 ajustes visuais
+por print, todos corrigidos:
+
+1. **Abas com emoji gigante em cima do azul do AppBar** — Flutter web
+   renderiza emoji como fonte colorida nativa do navegador, bem maior que
+   o texto ao lado, quebrando o alinhamento da `TabBar`. Corrigido
+   tirando os emojis do texto das 10 abas (continuam normalmente nos
+   títulos DENTRO de cada aba).
+2. **Aba selecionada ficava cinza (baixo contraste no azul)** — sem
+   `labelColor`/`unselectedLabelColor`/`indicatorColor` explícitos, o
+   Material 3 pinta a aba ativa com a cor primária do tema. Corrigido com
+   branco explícito (mesmo padrão já usado no TabBar de Análise de
+   Cliente/Manutenção).
+3. **Cartões de KPI vazando texto pra fora da borda** — 4 colunas
+   deixavam cada cartão estreito demais pra rótulos como "Diesel Médio
+   GF". Corrigido com 2 colunas (mais largura) + `FittedBox` no valor
+   (nunca mais estoura, só encolhe a fonte se precisar) + `maxLines`/
+   `ellipsis` no rótulo.
+
+Depois, mais 2 ajustes:
+
+4. **Escala de dias → semanas nos gráficos de tendência/sazonalidade** —
+   as RPCs `historico_precos_serie_uf_combustivel` e
+   `historico_precos_volatilidade_mensal` só agregam por MÊS
+   (`date_trunc('month', data_ref)`), o que deixava a "Tendência de preço
+   por estado (regressão linear)" e a "Volatilidade por combustível" da
+   aba Tendência & Sazonalidade com poucos pontos. Recalculado no cliente
+   direto do histórico bruto (`historico_precos_detalhado`, que já traz a
+   coluna `semana` pronta do banco — `date_trunc('week', data_ref)`),
+   mesma fórmula de volatilidade do banco (stddev populacional). O
+   heatmap "preço médio por mês do ano" continua mensal de propósito —
+   sazonalidade é um conceito de mês do ano, não faz sentido por semana.
+   A aba Evolução Temporal já usava semana por padrão, não precisou mudar.
+5. **Tooltip dos gráficos (caixa cinza, texto pouco legível)** — sem
+   configurar explicitamente, o fl_chart usa o estilo padrão dele (caixa
+   cinza, texto também escuro, contraste ruim no mobile). Criadas
+   `barTouchPadrao()`/`lineTouchPadrao()` em `inteligencia_shared.dart`
+   (caixa escura fixa + texto branco em negrito) e aplicadas nos 9
+   gráficos de barra/linha das 10 abas.

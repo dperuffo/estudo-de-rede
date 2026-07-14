@@ -116,6 +116,7 @@ class _RegioesCarasBaratasState extends State<_RegioesCarasBaratas> {
                     height: 280,
                     child: BarChart(
                       BarChartData(
+                        barTouchData: barTouchPadrao(formatarY: (v) => formatarMoeda(v)),
                         barGroups: linhas.asMap().entries.map((e) {
                           return BarChartGroupData(x: e.key, barRods: [BarChartRodData(toY: e.value.precoMedio, color: e.value.cor, width: 14, borderRadius: const BorderRadius.vertical(top: Radius.circular(3)))]);
                         }).toList(),
@@ -344,6 +345,7 @@ class _GfVsConcorrenciaState extends State<_GfVsConcorrencia> {
               height: 280,
               child: BarChart(
                 BarChartData(
+                  barTouchData: barTouchPadrao(formatarY: (v) => '${v >= 0 ? "+" : ""}${v.toStringAsFixed(1)}%'),
                   barGroups: comp.asMap().entries.map((e) {
                     final cor = e.value.deltaPct > 5 ? const Color(0xFFE53935) : (e.value.deltaPct > 0 ? const Color(0xFFF57C00) : const Color(0xFF43A047));
                     return BarChartGroupData(x: e.key, barRods: [BarChartRodData(toY: e.value.deltaPct, color: cor, width: 14, borderRadius: const BorderRadius.vertical(top: Radius.circular(3)))]);
