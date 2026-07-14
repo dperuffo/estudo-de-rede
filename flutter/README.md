@@ -1307,3 +1307,45 @@ conta usar, e a tela de MFA seguinte já corresponde à conta escolhida.
 volta pra "Site URL" do projeto (landing page da web), não pro PWA.
 Corrigido passando `redirectTo: Uri.base.origin` — usa a origem de onde o
 app está rodando na hora, sem hardcode.
+
+## Hotfix: Roteirização — bolinhas por bandeira + legenda + filtros de consulta
+
+Pedido do Daniel: nas consultas de Roteirização (mesma tela pra cliente e
+admin — ver seção FLT-4 acima sobre reaproveitamento via seletor de
+empresa), as bolinhas do mapa e a lista de resultados precisavam
+diferenciar visualmente a bandeira/distribuidora de cada posto, e a tela
+precisava de mais filtros pra refinar a busca.
+
+**Cores por bandeira** (`corBandeira()`, nova em `mapa_postos.dart`,
+substituiu a cor por score/grade que a bolinha usava antes): Ipiranga
+amarela, Shell e Raízen vermelha, BR/Vibra (mesma distribuidora, só
+trocou de nome) verde — padrão fixo pedido pelo Daniel. Demais bandeiras
+(Alesat, Ale, bandeira branca etc.) ganham uma cor de uma paleta de 10
+cores bem distintas, escolhida por hash do nome normalizado da
+bandeira — sempre a MESMA cor pra mesma bandeira em qualquer tela/
+consulta, sem precisar cadastrar cada bandeira existente em código (a
+base tem variações demais pra isso). O score/grade do posto (que antes
+colorindo a bolinha) continua visível do jeito que já era — no chip
+colorido de cada card da lista (`_cardPosto`).
+
+**Legenda dinâmica** (`_legenda()`, dentro de `MapaPostos`): lista só as
+bandeiras que aparecem no resultado atual (não uma lista fixa fora de
+contexto), cada uma com a bolinha colorida ao lado do nome — aparece
+embaixo do mapa nos 3 modos da tela (a legenda é parte do widget
+`MapaPostos`, reutilizado nos 3).
+
+**Novos filtros** ("Filtrar resultados", painel novo em
+`roteirizacao_screen.dart`, aparece nos modos "Por UF/Município" e
+"Consulta por Posto" assim que há um resultado carregado): Bandeira
+(dropdown dinâmico, só as que aparecem no resultado, com a bolinha
+colorida igual à legenda), Score (grade A/B/C/D), UF, Município, CNPJ e
+Razão Social. São filtros client-side de REFINAMENTO sobre o resultado
+já carregado — não disparam nova consulta ao banco (os 6 campos já vêm
+prontos em cada `PostoComScore`); a busca primária (por UF/Município ou
+CNPJ/nome) continua igual, só ganhou essa camada de refino depois. O
+mapa e a lista de cards mostram só os postos que passam nos filtros
+ativos, com contador "X de Y" quando o filtro reduz o total. Não
+aplicado ao modo "Roteirizador Inteligente" — lá o resultado já são as
+paradas ótimas calculadas pra aquela rota específica, não uma lista pra
+navegar/filtrar (mas as bolinhas e a legenda por bandeira valem lá
+também, o `MapaPostos` é o mesmo widget nos 3 modos).

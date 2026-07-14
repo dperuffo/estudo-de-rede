@@ -29,6 +29,57 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   String? _erro;
   List<PostoComScore>? _resultado;
 
+  // Fase FLT-4 (hotfix, pedido do Daniel) — filtros de refinamento sobre
+  // o resultado já carregado (client-side): a busca primária continua
+  // sendo por UF/Município ou CNPJ/nome (dispara nova consulta ao
+  // banco), mas depois de carregado dá pra refinar por bandeira/score/
+  // município/UF/CNPJ/razão social sem precisar buscar de novo — os
+  // dados dessas 6 dimensões já vêm todos no resultado.
+  String? _filtroBandeira;
+  String? _filtroGrade;
+  final _filtroMunicipioCtrl = TextEditingController();
+  String? _filtroUf;
+  final _filtroCnpjCtrl = TextEditingController();
+  final _filtroRazaoCtrl = TextEditingController();
+
+  bool get _filtrosAtivos =>
+      _filtroBandeira != null ||
+      _filtroGrade != null ||
+      _filtroUf != null ||
+      _filtroMunicipioCtrl.text.trim().isNotEmpty ||
+      _filtroCnpjCtrl.text.trim().isNotEmpty ||
+      _filtroRazaoCtrl.text.trim().isNotEmpty;
+
+  void _limparFiltros() {
+    setState(() {
+      _filtroBandeira = null;
+      _filtroGrade = null;
+      _filtroUf = null;
+      _filtroMunicipioCtrl.clear();
+      _filtroCnpjCtrl.clear();
+      _filtroRazaoCtrl.clear();
+    });
+  }
+
+  List<PostoComScore> _aplicarFiltros(List<PostoComScore> lista) {
+    return lista.where((p) {
+      if (_filtroBandeira != null && rotuloBandeira(p.bandeira) != _filtroBandeira) return false;
+      if (_filtroGrade != null && p.score.grade != _filtroGrade) return false;
+      if (_filtroUf != null && p.uf != _filtroUf) return false;
+      final municipioBusca = _filtroMunicipioCtrl.text.trim();
+      if (municipioBusca.isNotEmpty && !normalizarTexto(p.municipio).contains(normalizarTexto(municipioBusca))) {
+        return false;
+      }
+      final cnpjBusca = _filtroCnpjCtrl.text.replaceAll(RegExp(r'\D'), '');
+      if (cnpjBusca.isNotEmpty && !p.cnpj.replaceAll(RegExp(r'\D'), '').contains(cnpjBusca)) return false;
+      final razaoBusca = _filtroRazaoCtrl.text.trim();
+      if (razaoBusca.isNotEmpty && !normalizarTexto(p.razaoSocial).contains(normalizarTexto(razaoBusca))) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
   // ── Modo "Roteirizador Inteligente" ──────────────────────────────────
   final _origemCtrl = TextEditingController();
   final _destinoCtrl = TextEditingController();
@@ -82,6 +133,9 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
     _termoCtrl.dispose();
     _origemCtrl.dispose();
     _destinoCtrl.dispose();
+    _filtroMunicipioCtrl.dispose();
+    _filtroCnpjCtrl.dispose();
+    _filtroRazaoCtrl.dispose();
     super.dispose();
   }
 
@@ -306,13 +360,149 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         ),
       ];
     }
+
+    final filtrada = _aplicarFiltros(lista);
+
     return [
-      MapaPostos(postos: lista),
+      _painelFiltros(lista),
       const SizedBox(height: 12),
-      Text('Postos (${lista.length})', style: Theme.of(context).textTheme.titleSmall),
-      const SizedBox(height: 8),
-      ...lista.map(_cardPosto),
+      if (filtrada.isEmpty)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Nenhum posto encontrado com os filtros atuais.', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+        )
+      else ...[
+        MapaPostos(postos: filtrada),
+        const SizedBox(height: 12),
+        Text(
+          'Postos (${filtrada.length}${filtrada.length != lista.length ? ' de ${lista.length}' : ''})',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        ...filtrada.map(_cardPosto),
+      ],
     ];
+  }
+
+  // Fase FLT-4 (hotfix, pedido do Daniel) — "Nas telas de consultas,
+  // trazer novos filtros por score de posto, bandeira/distribuidora,
+  // município, UF, CNPJ e Razão Social". Bandeira vem dinâmica (só as
+  // que aparecem no resultado atual); os demais campos são fixos.
+  Widget _painelFiltros(List<PostoComScore> listaCompleta) {
+    final bandeiras = <String>{for (final p in listaCompleta) rotuloBandeira(p.bandeira)}.toList()..sort();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.filter_list, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                const Text('Filtrar resultados', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const Spacer(),
+                if (_filtrosAtivos)
+                  TextButton(
+                    onPressed: _limparFiltros,
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    child: const Text('Limpar', style: TextStyle(fontSize: 12)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                SizedBox(
+                  width: 160,
+                  child: DropdownButtonFormField<String>(
+                    value: _filtroBandeira,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Bandeira', border: OutlineInputBorder(), isDense: true),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todas')),
+                      for (final b in bandeiras)
+                        DropdownMenuItem(
+                          value: b,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(shape: BoxShape.circle, color: b == 'Sem bandeira' ? Colors.grey.shade500 : corBandeira(b)),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(child: Text(b, overflow: TextOverflow.ellipsis)),
+                            ],
+                          ),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _filtroBandeira = v),
+                  ),
+                ),
+                SizedBox(
+                  width: 100,
+                  child: DropdownButtonFormField<String>(
+                    value: _filtroGrade,
+                    decoration: const InputDecoration(labelText: 'Score', border: OutlineInputBorder(), isDense: true),
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('Todos')),
+                      DropdownMenuItem(value: 'A', child: Text('A')),
+                      DropdownMenuItem(value: 'B', child: Text('B')),
+                      DropdownMenuItem(value: 'C', child: Text('C')),
+                      DropdownMenuItem(value: 'D', child: Text('D')),
+                    ],
+                    onChanged: (v) => setState(() => _filtroGrade = v),
+                  ),
+                ),
+                SizedBox(
+                  width: 100,
+                  child: DropdownButtonFormField<String>(
+                    value: _filtroUf,
+                    decoration: const InputDecoration(labelText: 'UF', border: OutlineInputBorder(), isDense: true),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Todas')),
+                      for (final uf in ufsRoteirizacao) DropdownMenuItem(value: uf, child: Text(uf)),
+                    ],
+                    onChanged: (v) => setState(() => _filtroUf = v),
+                  ),
+                ),
+                SizedBox(
+                  width: 150,
+                  child: TextField(
+                    controller: _filtroMunicipioCtrl,
+                    decoration: const InputDecoration(labelText: 'Município', border: OutlineInputBorder(), isDense: true),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                SizedBox(
+                  width: 150,
+                  child: TextField(
+                    controller: _filtroCnpjCtrl,
+                    decoration: const InputDecoration(labelText: 'CNPJ', border: OutlineInputBorder(), isDense: true),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                SizedBox(
+                  width: 180,
+                  child: TextField(
+                    controller: _filtroRazaoCtrl,
+                    decoration: const InputDecoration(labelText: 'Razão Social', border: OutlineInputBorder(), isDense: true),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _campoBusca({
