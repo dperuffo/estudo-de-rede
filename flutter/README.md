@@ -1566,3 +1566,40 @@ Custo, é só pedir que dá pra reavaliar.
   (`indicadores_centro_custo`, `manutencao_preditiva_kpis`) foram todas
   conferidas via `execute_sql` (assinatura exata, tipo de retorno,
   `SECURITY INVOKER`/`DEFINER`) antes de escrever qualquer código Dart.
+
+### Hotfix pós-entrega — "canceling statement due to statement timeout" (mesmo dia)
+
+Daniel reportou erro nas duas abas (Visão Geral e Indicadores Avançados,
+qualquer mês selecionado): `PostgrestException(message: canceling
+statement due to statement timeout, code: 57014, ...)`. Investigado via
+`execute_sql` (Supabase MCP):
+
+- A role `authenticated` tem `statement_timeout = 8s` (a `anon` tem só 3s).
+  O banco em si está `ACTIVE_HEALTHY`, sem query travada/bloqueando outras
+  (só um slot de replicação do Realtime, inofensivo).
+- Testado `EXPLAIN ANALYZE` de cada RPC nova via bypass de RLS (conexão de
+  service role) contra a empresa de teste com mais dados (~8200
+  abastecimentos): `indicadores_centro_custo` 98ms, `indicador_eficiencia_veiculos`
+  257ms — rápidas. Mas `manutencao_preditiva_kpis` (via
+  `manutencao_preditiva_base`) já levou 650ms MESMO sem RLS, processando um
+  scan intermediário de quase 19 mil linhas (janelas/joins/`unnest` sobre
+  TODO o histórico de abastecimentos e manutenções da empresa, sem recorte
+  de período — a mesma classe de problema já visto e documentado antes em
+  `indicador_eficiencia_veiculos`). Sob RLS real (que soma verificações por
+  linha via `empresas_do_usuario`), é a principal suspeita de estourar os
+  8s — mas é uma RPC pré-existente, compartilhada com a página
+  `/manutencao-preditiva` da web e do Flutter, então otimizá-la de verdade
+  fica fora do escopo desta sessão (precisaria confirmar com o Daniel antes
+  de alterar uma função de banco em produção usada em outro lugar).
+
+**Fix aplicado (torna o Dashboard resiliente a isso, em vez de mexer na RPC):**
+cada seção nova do Dashboard agora é "best effort" — um `try/catch` (ou,
+nos Indicadores Avançados, o helper `_rpcSeguro()` em volta de cada uma das
+7 RPCs) garante que UMA consulta lenta/com erro vira `null`/lista vazia
+(aquele card específico mostra "sem dados" ou some) em vez de derrubar a
+tela inteira. Antes, uma exceção em qualquer chamada — incluindo as novas,
+mais pesadas — quebrava até os 6 KPIs principais que já funcionavam desde
+a Fase FLT-3. Se "Manutenção preditiva (resumo)" continuar sumindo do
+Dashboard com frequência, vale revisitar a RPC em si (ex.: limitar
+`manutencao_preditiva_base` a um lookback de N meses em vez de histórico
+completo) — combinado com o Daniel antes, por ser código compartilhado.

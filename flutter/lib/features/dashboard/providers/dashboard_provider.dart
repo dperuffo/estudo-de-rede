@@ -252,8 +252,25 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
       .eq('empresa_id', empresaId)
       .eq('status', 'Ativo')
       .count(CountOption.exact);
-  final totalPostosPropriosResp =
-      await supabase.from('postos_gf').select('cnpj').eq('empresa_id', empresaId).count(CountOption.exact);
+  // Fase FLT-6 (hotfix) — achado real (reportado pelo Daniel: "canceling
+  // statement due to statement timeout" derrubando a aba inteira): a partir
+  // daqui, cada seção NOVA (Primeiros Passos, Ajustes de Abastecimento,
+  // Centro de Custo, Manutenção Preditiva) é "best effort" — try/catch
+  // próprio, defaulta pra vazio/null em vez de propagar a exceção. Antes,
+  // uma única RPC lenta ou travando (ex.: `manutencao_preditiva_kpis`, que
+  // faz várias janelas/joins sobre o histórico inteiro de abastecimentos e
+  // manutenções da empresa — mais pesada sob RLS real do que testado via
+  // bypass de service role) derrubava a tela inteira, inclusive os 6 KPIs
+  // principais que já funcionavam desde a Fase FLT-3.
+  var totalPostosProprios = 0;
+  try {
+    final totalPostosPropriosResp =
+        await supabase.from('postos_gf').select('cnpj').eq('empresa_id', empresaId).count(CountOption.exact);
+    totalPostosProprios = totalPostosPropriosResp.count;
+  } catch (_) {
+    // Só afeta o 3º passo (opcional) de Primeiros Passos — assume "ainda
+    // não carregado" em vez de derrubar o resto do Dashboard.
+  }
 
   final veiculosRaw = await supabase.rpc('veiculos_da_empresa', params: {'p_empresa_id': empresaId}) as List;
   final totalVeiculos = veiculosRaw.length;
@@ -293,118 +310,142 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
 
   // Ajustes de abastecimento — porta resumoAjustesAbastecimentos()
   // (ajustesAbastecimentos.ts), lado "cliente" (coluna empresa_cliente_id).
-  final pendentesResp = await supabase
-      .from('ajustes_abastecimentos')
-      .select('id')
-      .eq('empresa_cliente_id', empresaId)
-      .inFilter('status', ['pendente_posto', 'pendente_cliente'])
-      .count(CountOption.exact);
-  final aceitosNoPeriodoRaw = await supabase
-      .from('ajustes_abastecimentos')
-      .select('id, valor_original')
-      .eq('empresa_cliente_id', empresaId)
-      .eq('status', 'aceito')
-      .gte('atualizado_em', desdeAjustes.toIso8601String()) as List;
-  final ultimosAjustesRaw = await supabase
-      .from('ajustes_abastecimentos')
-      .select('id, abastecimento_id, abastecimento_externo_id, status, origem, valor_original, criado_em, atualizado_em')
-      .eq('empresa_cliente_id', empresaId)
-      .order('atualizado_em', ascending: false)
-      .limit(5) as List;
+  // "Best effort" (ver comentário acima) — null em caso de erro.
+  ResumoAjustes? resumoAjustes;
+  try {
+    final pendentesResp = await supabase
+        .from('ajustes_abastecimentos')
+        .select('id')
+        .eq('empresa_cliente_id', empresaId)
+        .inFilter('status', ['pendente_posto', 'pendente_cliente'])
+        .count(CountOption.exact);
+    final aceitosNoPeriodoRaw = await supabase
+        .from('ajustes_abastecimentos')
+        .select('id, valor_original')
+        .eq('empresa_cliente_id', empresaId)
+        .eq('status', 'aceito')
+        .gte('atualizado_em', desdeAjustes.toIso8601String()) as List;
+    final ultimosAjustesRaw = await supabase
+        .from('ajustes_abastecimentos')
+        .select('id, abastecimento_id, abastecimento_externo_id, status, origem, valor_original, criado_em, atualizado_em')
+        .eq('empresa_cliente_id', empresaId)
+        .order('atualizado_em', ascending: false)
+        .limit(5) as List;
 
-  // Impacto financeiro real = valor que FOI de fato aceito em cada ajuste
-  // (rodada com decisao='aceita') menos o valor_original — não dá pra usar
-  // só o cabeçalho (só guarda o valor de ANTES).
-  final idsAceitos = aceitosNoPeriodoRaw.map((a) => (a as Map<String, dynamic>)['id'] as String).toList();
-  var impactoFinanceiro = 0.0;
-  if (idsAceitos.isNotEmpty) {
-    final rodadasAceitasRaw = await supabase
-        .from('ajustes_abastecimentos_rodadas')
-        .select('ajuste_id, item_valor_total, decisao')
-        .inFilter('ajuste_id', idsAceitos)
-        .eq('decisao', 'aceita') as List;
-    final valorAceitoPorAjuste = <String, double?>{};
-    for (final r in rodadasAceitasRaw) {
-      final m = r as Map<String, dynamic>;
-      valorAceitoPorAjuste[m['ajuste_id'] as String] = (m['item_valor_total'] as num?)?.toDouble();
-    }
-    for (final a in aceitosNoPeriodoRaw) {
-      final m = a as Map<String, dynamic>;
-      final valorOriginal = (m['valor_original'] as num?)?.toDouble();
-      final valorAceito = valorAceitoPorAjuste[m['id'] as String];
-      if (valorAceito != null && valorOriginal != null) {
-        impactoFinanceiro += valorAceito - valorOriginal;
+    // Impacto financeiro real = valor que FOI de fato aceito em cada ajuste
+    // (rodada com decisao='aceita') menos o valor_original — não dá pra usar
+    // só o cabeçalho (só guarda o valor de ANTES).
+    final idsAceitos = aceitosNoPeriodoRaw.map((a) => (a as Map<String, dynamic>)['id'] as String).toList();
+    var impactoFinanceiro = 0.0;
+    if (idsAceitos.isNotEmpty) {
+      final rodadasAceitasRaw = await supabase
+          .from('ajustes_abastecimentos_rodadas')
+          .select('ajuste_id, item_valor_total, decisao')
+          .inFilter('ajuste_id', idsAceitos)
+          .eq('decisao', 'aceita') as List;
+      final valorAceitoPorAjuste = <String, double?>{};
+      for (final r in rodadasAceitasRaw) {
+        final m = r as Map<String, dynamic>;
+        valorAceitoPorAjuste[m['ajuste_id'] as String] = (m['item_valor_total'] as num?)?.toDouble();
+      }
+      for (final a in aceitosNoPeriodoRaw) {
+        final m = a as Map<String, dynamic>;
+        final valorOriginal = (m['valor_original'] as num?)?.toDouble();
+        final valorAceito = valorAceitoPorAjuste[m['id'] as String];
+        if (valorAceito != null && valorOriginal != null) {
+          impactoFinanceiro += valorAceito - valorOriginal;
+        }
       }
     }
+
+    resumoAjustes = ResumoAjustes(
+      pendentes: pendentesResp.count,
+      aceitosNoPeriodo: aceitosNoPeriodoRaw.length,
+      impactoFinanceiro: impactoFinanceiro,
+      ultimos: ultimosAjustesRaw.map((u) {
+        final m = u as Map<String, dynamic>;
+        final abastecimentoId = (m['abastecimento_id'] as num?)?.toInt();
+        final tipo = abastecimentoId != null ? 'profrotas' : 'externo';
+        return ItemAjuste(
+          id: m['id'] as String,
+          tipo: tipo,
+          abastecimentoId: abastecimentoId ?? ((m['abastecimento_externo_id'] as num?)?.toInt() ?? 0),
+          status: m['status'] as String,
+          origem: m['origem'] as String,
+          valorOriginal: (m['valor_original'] as num?)?.toDouble(),
+          criadoEm: m['criado_em'] as String,
+          atualizadoEm: m['atualizado_em'] as String,
+        );
+      }).toList(),
+    );
+  } catch (_) {
+    resumoAjustes = null;
   }
 
-  final resumoAjustes = ResumoAjustes(
-    pendentes: pendentesResp.count,
-    aceitosNoPeriodo: aceitosNoPeriodoRaw.length,
-    impactoFinanceiro: impactoFinanceiro,
-    ultimos: ultimosAjustesRaw.map((u) {
-      final m = u as Map<String, dynamic>;
-      final abastecimentoId = (m['abastecimento_id'] as num?)?.toInt();
-      final tipo = abastecimentoId != null ? 'profrotas' : 'externo';
-      return ItemAjuste(
-        id: m['id'] as String,
-        tipo: tipo,
-        abastecimentoId: abastecimentoId ?? ((m['abastecimento_externo_id'] as num?)?.toInt() ?? 0),
-        status: m['status'] as String,
-        origem: m['origem'] as String,
-        valorOriginal: (m['valor_original'] as num?)?.toDouble(),
-        criadoEm: m['criado_em'] as String,
-        atualizadoEm: m['atualizado_em'] as String,
-      );
-    }).toList(),
-  );
-
   // Centro de custo — mês atual (ver decisão de escopo no comentário do
-  // topo do arquivo).
-  final centroCustoRaw = await supabase.rpc('indicadores_centro_custo', params: {
-    'p_empresa_id': empresaId,
-    'p_data_inicio': _iso(inicioMesAtual),
-    'p_data_fim': _iso(agora),
-  }) as List;
-  final linhasCentroCusto = centroCustoRaw.map((c) {
-    final m = c as Map<String, dynamic>;
-    return LinhaCentroCusto(
-      id: m['centro_custo_id'] as String,
-      nome: m['centro_custo_nome'] as String? ?? '—',
-      qtdVeiculos: (m['qtd_veiculos'] as num?)?.toInt() ?? 0,
-      custoAbastecimento: (m['custo_abastecimento'] as num?)?.toDouble() ?? 0,
-      custoManutencao: (m['custo_manutencao'] as num?)?.toDouble() ?? 0,
-      custoPorKm: (m['custo_por_km'] as num?)?.toDouble(),
-      consumoMedio: (m['consumo_medio'] as num?)?.toDouble(),
+  // topo do arquivo). "Best effort".
+  CentroCustoDados? centroCusto;
+  try {
+    final centroCustoRaw = await supabase.rpc('indicadores_centro_custo', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': _iso(inicioMesAtual),
+      'p_data_fim': _iso(agora),
+    }) as List;
+    final linhasCentroCusto = centroCustoRaw.map((c) {
+      final m = c as Map<String, dynamic>;
+      return LinhaCentroCusto(
+        id: m['centro_custo_id'] as String,
+        nome: m['centro_custo_nome'] as String? ?? '—',
+        qtdVeiculos: (m['qtd_veiculos'] as num?)?.toInt() ?? 0,
+        custoAbastecimento: (m['custo_abastecimento'] as num?)?.toDouble() ?? 0,
+        custoManutencao: (m['custo_manutencao'] as num?)?.toDouble() ?? 0,
+        custoPorKm: (m['custo_por_km'] as num?)?.toDouble(),
+        consumoMedio: (m['consumo_medio'] as num?)?.toDouble(),
+      );
+    }).toList();
+    centroCusto = CentroCustoDados(
+      linhas: linhasCentroCusto,
+      totalVeiculos: linhasCentroCusto.fold<int>(0, (s, l) => s + l.qtdVeiculos),
+      totalAbastecimento: linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoAbastecimento),
+      totalManutencao: linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoManutencao),
     );
-  }).toList();
-  final centroCusto = CentroCustoDados(
-    linhas: linhasCentroCusto,
-    totalVeiculos: linhasCentroCusto.fold<int>(0, (s, l) => s + l.qtdVeiculos),
-    totalAbastecimento: linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoAbastecimento),
-    totalManutencao: linhasCentroCusto.fold<double>(0, (s, l) => s + l.custoManutencao),
-  );
+  } catch (_) {
+    centroCusto = null;
+  }
 
   // Manutenção preditiva — estado atual da frota (não depende de período).
-  final manutencaoRaw = await supabase.rpc('manutencao_preditiva_kpis', params: {
-    'p_empresa_id': empresaId,
-  }) as List;
+  // "Best effort": achado real (Daniel) — esta RPC (`manutencao_preditiva_kpis`
+  // → `manutencao_preditiva_base`) recalcula vários componentes de
+  // manutenção sobre TODO o histórico de abastecimentos/manutenções da
+  // empresa (janelas, joins, unnest) e é sensivelmente mais pesada sob RLS
+  // real do que os ~650ms medidos via bypass de service role — é a
+  // principal suspeita de estourar o `statement_timeout` de 8s da role
+  // `authenticated`. Aqui ela nunca mais derruba o resto do Dashboard; se
+  // continuar demorando, o card de Manutenção Preditiva some (mostra o
+  // resto normalmente) e vale otimizar a RPC em si depois.
   ManutencaoResumo? manutencao;
-  if (manutencaoRaw.isNotEmpty) {
-    final m = manutencaoRaw.first as Map<String, dynamic>;
-    manutencao = ManutencaoResumo(
-      totalVeiculos: (m['total_veiculos'] as num?)?.toInt() ?? 0,
-      totalCriticos: (m['total_criticos'] as num?)?.toInt() ?? 0,
-      totalAlertas: (m['total_alertas'] as num?)?.toInt() ?? 0,
-      scoreMedio: (m['score_medio'] as num?)?.toDouble() ?? 0,
-    );
+  try {
+    final manutencaoRaw = await supabase.rpc('manutencao_preditiva_kpis', params: {
+      'p_empresa_id': empresaId,
+    }) as List;
+    if (manutencaoRaw.isNotEmpty) {
+      final m = manutencaoRaw.first as Map<String, dynamic>;
+      manutencao = ManutencaoResumo(
+        totalVeiculos: (m['total_veiculos'] as num?)?.toInt() ?? 0,
+        totalCriticos: (m['total_criticos'] as num?)?.toInt() ?? 0,
+        totalAlertas: (m['total_alertas'] as num?)?.toInt() ?? 0,
+        scoreMedio: (m['score_medio'] as num?)?.toDouble() ?? 0,
+      );
+    }
+  } catch (_) {
+    manutencao = null;
   }
 
   final totalClientes = totalClientesResp.count;
   final clientesAtivos = clientesAtivosResp.count;
   final totalMotoristas = totalMotoristasResp.count;
   final motoristasAtivos = motoristasAtivosResp.count;
-  final totalPostosProprios = totalPostosPropriosResp.count;
+  // totalPostosProprios já foi resolvido acima (best effort, com fallback 0).
 
   // KPIs do mês atual.
   final doMesAtual = abastecimentosClienteRaw.where((a) {

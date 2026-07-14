@@ -12,6 +12,17 @@ import '../../../core/services/supabase_service.dart';
 // aplica-se normalmente, mesmo mecanismo já usado em toda a Inteligência
 // de Rede e no restante do Dashboard).
 
+// "Best effort" — se a RPC der erro (ex.: statement timeout sob dados
+// pesados), o item correspondente vira lista vazia em vez de derrubar os
+// outros 6 indicadores que já carregaram (ver Future.wait mais abaixo).
+Future<List> _rpcSeguro(Future rpcFuture) async {
+  try {
+    return (await rpcFuture) as List;
+  } catch (_) {
+    return const [];
+  }
+}
+
 const _nomesMes = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
@@ -277,61 +288,63 @@ final indicadoresAvancadosProvider =
 
   // Fase FLT-6 (hotfix) — igual à web (que dispara as 7 RPCs num único
   // Promise.all), aqui também em paralelo via Future.wait em vez de 7
-  // awaits sequenciais. Achado real (reportado pelo Daniel: "canceling
-  // statement due to statement timeout" na aba Indicadores Avançados):
-  // sequencial soma a latência das 7 chamadas (cada RPC é uma ida e volta
-  // HTTP própria via PostgREST) — se qualquer uma demorar um pouco mais
-  // (ex.: pool de conexão frio, RLS mais pesada), o total facilmente
-  // estoura os 8s de `statement_timeout` da role `authenticated`. Em
-  // paralelo, o tempo total passa a ser o da mais lenta, não a soma.
+  // awaits sequenciais (reduz o tempo total de espera pra o da mais lenta,
+  // não a soma). MAS achado real (reportado pelo Daniel: mesmo em
+  // paralelo, "canceling statement due to statement timeout" continuou
+  // aparecendo): pelo menos uma dessas RPCs é genuinamente pesada sob RLS
+  // real (suspeita maior: nenhuma delas isoladamente — o problema era
+  // outro, ver dashboard_provider.dart). De qualquer forma, cada chamada
+  // agora é "best effort" via `_rpcSeguro` — se UMA travar/der erro, ela
+  // vira lista vazia (o item correspondente mostra "sem dados") em vez de
+  // derrubar os outros 6 que já carregaram.
   final resultados = await Future.wait([
-    supabase.rpc('indicador_variacao_precos', params: {
+    _rpcSeguro(supabase.rpc('indicador_variacao_precos', params: {
       'p_empresa_id': empresaId,
       'p_data_inicio': dataInicio,
       'p_data_fim': dataFim,
-    }),
-    supabase.rpc('indicador_consumo_diario', params: {
+    })),
+    _rpcSeguro(supabase.rpc('indicador_consumo_diario', params: {
       'p_empresa_id': empresaId,
       'p_data_inicio': dataInicio,
       'p_data_fim': dataFim,
-    }),
-    supabase.rpc('indicador_padrao_dia_semana', params: {
+    })),
+    _rpcSeguro(supabase.rpc('indicador_padrao_dia_semana', params: {
       'p_empresa_id': empresaId,
       'p_dias_lookback': 90,
-    }),
-    supabase.rpc('indicador_volume_postos', params: {
+    })),
+    _rpcSeguro(supabase.rpc('indicador_volume_postos', params: {
       'p_empresa_id': empresaId,
       'p_data_inicio': dataInicio,
       'p_data_fim': dataFim,
-    }),
-    supabase.rpc('indicador_ranking_veiculos', params: {
-      'p_empresa_id': empresaId,
-      'p_data_inicio': dataInicio,
-      'p_data_fim': dataFim,
-      'p_limit': 10,
-      'p_offset': 0,
-    }),
-    supabase.rpc('indicador_ranking_motoristas', params: {
+    })),
+    _rpcSeguro(supabase.rpc('indicador_ranking_veiculos', params: {
       'p_empresa_id': empresaId,
       'p_data_inicio': dataInicio,
       'p_data_fim': dataFim,
       'p_limit': 10,
       'p_offset': 0,
-    }),
-    supabase.rpc('indicador_eficiencia_veiculos', params: {
+    })),
+    _rpcSeguro(supabase.rpc('indicador_ranking_motoristas', params: {
       'p_empresa_id': empresaId,
       'p_data_inicio': dataInicio,
       'p_data_fim': dataFim,
-    }),
+      'p_limit': 10,
+      'p_offset': 0,
+    })),
+    _rpcSeguro(supabase.rpc('indicador_eficiencia_veiculos', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': dataInicio,
+      'p_data_fim': dataFim,
+    })),
   ]);
 
-  final variacaoPrecosRaw = resultados[0] as List;
-  final consumoDiarioRaw = resultados[1] as List;
-  final padraoDiaSemanaRaw = resultados[2] as List;
-  final volumePostosRaw = resultados[3] as List;
-  final rankingVeiculosRaw = resultados[4] as List;
-  final rankingMotoristasRaw = resultados[5] as List;
-  final eficienciaVeiculosRaw = resultados[6] as List;
+  final variacaoPrecosRaw = resultados[0];
+  final consumoDiarioRaw = resultados[1];
+  final padraoDiaSemanaRaw = resultados[2];
+  final volumePostosRaw = resultados[3];
+  final rankingVeiculosRaw = resultados[4];
+  final rankingMotoristasRaw = resultados[5];
+  final eficienciaVeiculosRaw = resultados[6];
 
   // Item 1 — Variação de preços.
   final variacaoPrecos = variacaoPrecosRaw.map((r) {
