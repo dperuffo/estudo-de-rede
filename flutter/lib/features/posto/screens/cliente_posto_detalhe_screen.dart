@@ -10,7 +10,8 @@ final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
 
 const _statusFaturaLabel = <String, String>{
-  'aberta': 'Em aberto',
+  'fechada': 'Fechada',
+  'a_vencer': 'A vencer',
   'vencida': 'Vencida',
   'paga': 'Paga',
   'cancelada': 'Cancelada',
@@ -27,7 +28,7 @@ String _fmtData(String? iso) {
 }
 
 String _statusFaturaExibicao(String status, String? vencimento) {
-  if (status == 'aberta' && vencimento != null) {
+  if (status == 'a_vencer' && vencimento != null) {
     final hoje = DateFormat('yyyy-MM-dd').format(DateTime.now());
     if (vencimento.substring(0, 10).compareTo(hoje) < 0) return 'vencida';
   }

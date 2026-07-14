@@ -52,6 +52,9 @@ class FaturaPostoDetalhe {
   final double volumeTotal;
   final int quantidadeAbastecimentos;
   final String status;
+  // Fase CICLOS-6 — quando status='fechada', a fatura ainda não tem
+  // valor/boleto travado; esta data diz quando o robô vai gerar (2ª fase).
+  final String? dataGeracaoBoleto;
   final String? clienteNome;
   // Fase FLT-3 — adicionado pra reaproveitar esta MESMA tela/provider na
   // visão Cliente (Cobrança em Aberto → "Ver detalhamento" de uma fatura):
@@ -71,6 +74,7 @@ class FaturaPostoDetalhe {
     required this.volumeTotal,
     required this.quantidadeAbastecimentos,
     required this.status,
+    this.dataGeracaoBoleto,
     this.clienteNome,
     this.postoNome,
     required this.itens,
@@ -84,7 +88,7 @@ final faturaPostoDetalheProvider =
   final fatura = await supabase
       .from('faturas_postos')
       .select('id, numero_fatura, periodo_inicio, periodo_fim, vencimento, valor_total, '
-          'volume_total, quantidade_abastecimentos, status, cliente_nome, empresa_posto_id')
+          'volume_total, quantidade_abastecimentos, status, data_geracao_boleto, cliente_nome, empresa_posto_id')
       .eq('id', faturaId)
       .maybeSingle();
   if (fatura == null) return null;
@@ -108,6 +112,7 @@ final faturaPostoDetalheProvider =
     volumeTotal: (fatura['volume_total'] as num?)?.toDouble() ?? 0,
     quantidadeAbastecimentos: (fatura['quantidade_abastecimentos'] as num?)?.toInt() ?? 0,
     status: fatura['status'] as String? ?? '',
+    dataGeracaoBoleto: fatura['data_geracao_boleto'] as String?,
     clienteNome: fatura['cliente_nome'] as String?,
     postoNome: postoNome,
     itens: itens,

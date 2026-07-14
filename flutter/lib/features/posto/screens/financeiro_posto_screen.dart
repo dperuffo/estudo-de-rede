@@ -7,12 +7,13 @@ import '../../../core/services/sessao_provider.dart';
 import '../providers/financeiro_posto_provider.dart';
 import '../services/financeiro_posto_service.dart';
 
-enum _FiltroCiclo { todos, andamento, aberta, vencida, paga }
+enum _FiltroCiclo { todos, andamento, fechada, aVencer, vencida, paga }
 
 const _filtroCicloLabel = <_FiltroCiclo, String>{
   _FiltroCiclo.todos: 'Todos',
   _FiltroCiclo.andamento: 'Em andamento',
-  _FiltroCiclo.aberta: 'Em aberto',
+  _FiltroCiclo.fechada: 'Fechada',
+  _FiltroCiclo.aVencer: 'A vencer',
   _FiltroCiclo.vencida: 'Vencida',
   _FiltroCiclo.paga: 'Paga',
 };
@@ -102,10 +103,12 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
     final janela = resolverPeriodo(_periodo);
     final janelaPrevista = resolverJanelaPrevista(_periodo, janela.inicio, janela.fim, hojeIso);
 
-    final aReceberAberto = dados.faturas.where((f) => f.status == 'aberta').fold<double>(0, (s, f) => s + f.valorTotal) +
+    final aReceberAberto = dados.faturas
+            .where((f) => f.status == 'fechada' || f.status == 'a_vencer')
+            .fold<double>(0, (s, f) => s + f.valorTotal) +
         dados.cicloAbertoValorTotal;
     final vencido = dados.faturas
-        .where((f) => f.status == 'aberta' && f.vencimento.compareTo(hojeIso) < 0)
+        .where((f) => f.status == 'a_vencer' && f.vencimento.compareTo(hojeIso) < 0)
         .fold<double>(0, (s, f) => s + f.valorTotal);
     final recebidoNoPeriodo = dados.faturas
         .where((f) =>
@@ -124,7 +127,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
         .fold<double>(0, (s, d) => s + d.valor);
     final aReceberVencendo = dados.faturas
         .where((f) =>
-            f.status == 'aberta' &&
+            f.status == 'a_vencer' &&
             f.vencimento.compareTo(janelaPrevista.inicio) >= 0 &&
             f.vencimento.compareTo(janelaPrevista.fim) <= 0)
         .fold<double>(0, (s, f) => s + f.valorTotal);
@@ -338,8 +341,10 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
           return true;
         case _FiltroCiclo.andamento:
           return l.cicloAtual != null;
-        case _FiltroCiclo.aberta:
-          return l.contagem.aberta > 0;
+        case _FiltroCiclo.fechada:
+          return l.contagem.fechada > 0;
+        case _FiltroCiclo.aVencer:
+          return l.contagem.aVencer > 0;
         case _FiltroCiclo.vencida:
           return l.contagem.vencida > 0;
         case _FiltroCiclo.paga:
@@ -409,7 +414,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
             if (l.cicloFaturamentoDias > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Text('Ciclo ${l.cicloFaturamentoDias}+${l.prazoVencimentoDias} dias',
+                child: Text('Ciclo de ${l.cicloFaturamentoDias} dias',
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ),
             const SizedBox(height: 8),
@@ -458,9 +463,10 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
               runSpacing: 4,
               children: [
                 if (l.contagem.vencida > 0) _chipContagem('${l.contagem.vencida} vencida(s)', const Color(0xFFDC2626)),
-                if (l.contagem.aberta > 0) _chipContagem('${l.contagem.aberta} em aberto', const Color(0xFF64748B)),
+                if (l.contagem.fechada > 0) _chipContagem('${l.contagem.fechada} fechada(s)', const Color(0xFF64748B)),
+                if (l.contagem.aVencer > 0) _chipContagem('${l.contagem.aVencer} a vencer', const Color(0xFF64748B)),
                 if (l.contagem.paga > 0) _chipContagem('${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
-                if (l.contagem.vencida == 0 && l.contagem.aberta == 0 && l.contagem.paga == 0)
+                if (l.contagem.vencida == 0 && l.contagem.fechada == 0 && l.contagem.aVencer == 0 && l.contagem.paga == 0)
                   const Text('Nenhuma ainda', style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
@@ -504,7 +510,7 @@ class _FinanceiroPostoScreenState extends ConsumerState<FinanceiroPostoScreen> {
       FinanceiroPostoDetalhe dados, ({String inicio, String fim}) janelaPrevista) {
     final porDia = <String, ({double aReceber, double aPagar})>{};
     for (final f in dados.faturas) {
-      if (f.status != 'aberta') continue;
+      if (f.status != 'a_vencer') continue;
       if (f.vencimento.compareTo(janelaPrevista.inicio) < 0 || f.vencimento.compareTo(janelaPrevista.fim) > 0) continue;
       final atual = porDia[f.vencimento] ?? (aReceber: 0.0, aPagar: 0.0);
       porDia[f.vencimento] = (aReceber: atual.aReceber + f.valorTotal, aPagar: atual.aPagar);

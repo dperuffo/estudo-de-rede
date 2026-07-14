@@ -7,8 +7,12 @@ import '../providers/fatura_posto_detalhe_provider.dart';
 final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
 
+// Fase CICLOS-6 — 5 status agora: fechada (janela terminou, boleto ainda
+// não gerado), a_vencer (boleto gerado, aguardando pagamento), vencida
+// (derivado), paga, cancelada.
 const _statusFaturaLabel = <String, String>{
-  'aberta': 'Em aberto',
+  'fechada': 'Fechada',
+  'a_vencer': 'A vencer',
   'vencida': 'Vencida',
   'paga': 'Paga',
   'cancelada': 'Cancelada',
@@ -24,7 +28,7 @@ String _fmtData(String? iso) {
 }
 
 String _statusExibicao(String status, String? vencimento) {
-  if (status == 'aberta' && vencimento != null) {
+  if (status == 'a_vencer' && vencimento != null) {
     final hoje = DateFormat('yyyy-MM-dd').format(DateTime.now());
     if (vencimento.substring(0, 10).compareTo(hoje) < 0) return 'vencida';
   }
@@ -59,6 +63,10 @@ class FaturaPostoDetalheScreen extends ConsumerWidget {
             'cancelada' => Colors.grey,
             _ => const Color(0xFF92400E),
           };
+          // Fase CICLOS-6 — enquanto 'fechada', ainda não existe valor/boleto
+          // de verdade (o robô só trava isso na 2ª fase, ver
+          // data_geracao_boleto).
+          final boletoJaGerado = f.status != 'fechada';
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(faturaPostoDetalheProvider(id)),
             child: ListView(
@@ -75,6 +83,22 @@ class FaturaPostoDetalheScreen extends ConsumerWidget {
                               style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         Text('${_fmtData(f.periodoInicio)} — ${_fmtData(f.periodoFim)}',
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        if (!boletoJaGerado)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'O ciclo já fechou, mas o boleto ainda não foi gerado — aguardando até '
+                                '${_fmtData(f.dataGeracaoBoleto)} pra dar tempo das notas fiscais chegarem.',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                              ),
+                            ),
+                          ),
                         const SizedBox(height: 4),
                         Text('Cliente: ${f.clienteNome ?? '—'}', style: const TextStyle(fontSize: 13)),
                         Text('Vencimento: ${_fmtData(f.vencimento)}', style: const TextStyle(fontSize: 13)),
@@ -86,7 +110,7 @@ class FaturaPostoDetalheScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('Volume total', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                                  Text('${_numero.format(f.volumeTotal)} L',
+                                  Text(boletoJaGerado ? '${_numero.format(f.volumeTotal)} L' : '—',
                                       style: const TextStyle(fontWeight: FontWeight.w600)),
                                 ],
                               ),
@@ -96,7 +120,7 @@ class FaturaPostoDetalheScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('Valor total', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                                  Text(_moeda.format(f.valorTotal),
+                                  Text(boletoJaGerado ? _moeda.format(f.valorTotal) : '—',
                                       style: const TextStyle(fontWeight: FontWeight.w600)),
                                 ],
                               ),
@@ -122,7 +146,16 @@ class FaturaPostoDetalheScreen extends ConsumerWidget {
                 Text('Abastecimentos que justificam o valor total cobrado.',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 const SizedBox(height: 8),
-                if (f.itens.isEmpty)
+                if (!boletoJaGerado)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                          'Disponível quando o boleto for gerado (${_fmtData(f.dataGeracaoBoleto)}).',
+                          style: TextStyle(color: Colors.grey.shade600)),
+                    ),
+                  )
+                else if (f.itens.isEmpty)
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),

@@ -109,7 +109,7 @@ class FaturaFinanceiro {
         empresaClienteId: m['empresa_cliente_id'] as String?,
         clienteNome: m['cliente_nome'] as String?,
         valorTotal: (m['valor_total'] as num?)?.toDouble() ?? 0,
-        status: m['status'] as String? ?? 'aberta',
+        status: m['status'] as String? ?? 'fechada',
         vencimento: m['vencimento'] as String,
         pagoEm: m['pago_em'] as String?,
       );
@@ -195,20 +195,24 @@ class CicloAbertoResumo {
       );
 }
 
+// Fase CICLOS-6 — mesma mudança da web (5 status): "aberta" (fatura real,
+// valor travado) virou "aVencer"; ganhou "fechada" (janela terminou mas o
+// boleto ainda não foi gerado — valor ainda 0).
 class ContagemFaturas {
-  int aberta;
+  int fechada;
+  int aVencer;
   int vencida;
   int paga;
   int cancelada;
-  ContagemFaturas({this.aberta = 0, this.vencida = 0, this.paga = 0, this.cancelada = 0});
+  ContagemFaturas({this.fechada = 0, this.aVencer = 0, this.vencida = 0, this.paga = 0, this.cancelada = 0});
 }
 
 // Espelha LinhaContraparte (ciclosAbertos.ts) — 1 linha por cliente.
+// `prazoVencimentoDias` saiu (sempre = cicloFaturamentoDias agora).
 class LinhaContraparte {
   final String contraparteId;
   final String contraparteNome;
   final int cicloFaturamentoDias;
-  final int prazoVencimentoDias;
   final CicloAbertoResumo? cicloAtual;
   final ContagemFaturas contagem;
   double valorEmAberto;
@@ -218,7 +222,6 @@ class LinhaContraparte {
     required this.contraparteId,
     required this.contraparteNome,
     required this.cicloFaturamentoDias,
-    required this.prazoVencimentoDias,
     required this.cicloAtual,
     required this.contagem,
     this.valorEmAberto = 0,
@@ -227,10 +230,10 @@ class LinhaContraparte {
 }
 
 // Espelha agruparCiclosPorContraparte (ciclosAbertos.ts) 1:1, inclusive a
-// ordem de prioridade (vencida > aberta > ciclo em andamento > histórico).
+// ordem de prioridade (vencida > fechada/a_vencer > ciclo em andamento >
+// histórico).
 List<LinhaContraparte> agruparPorContraparte({
-  required List<({String contraparteId, String? contraparteNome, int cicloFaturamentoDias, int prazoVencimentoDias})>
-      negociacoes,
+  required List<({String contraparteId, String? contraparteNome, int cicloFaturamentoDias})> negociacoes,
   required List<FaturaFinanceiro> faturas,
   required Map<String, CicloAbertoResumo> ciclosAbertosPorContraparte,
   required String hojeIso,
@@ -242,7 +245,6 @@ List<LinhaContraparte> agruparPorContraparte({
       contraparteId: n.contraparteId,
       contraparteNome: n.contraparteNome ?? '—',
       cicloFaturamentoDias: n.cicloFaturamentoDias,
-      prazoVencimentoDias: n.prazoVencimentoDias,
       cicloAtual: ciclosAbertosPorContraparte[n.contraparteId],
       contagem: ContagemFaturas(),
     );
@@ -257,42 +259,42 @@ List<LinhaContraparte> agruparPorContraparte({
         contraparteId: contraparteId,
         contraparteNome: f.clienteNome ?? '—',
         cicloFaturamentoDias: 0,
-        prazoVencimentoDias: 0,
         cicloAtual: null,
         contagem: ContagemFaturas(),
       );
       linhas[contraparteId] = linha;
     }
 
-    final vencida = f.status == 'aberta' && f.vencimento.compareTo(hojeIso) < 0;
+    final vencida = f.status == 'a_vencer' && f.vencimento.compareTo(hojeIso) < 0;
     if (vencida) {
       linha.contagem.vencida += 1;
-    } else if (f.status == 'aberta') {
-      linha.contagem.aberta += 1;
+    } else if (f.status == 'fechada') {
+      linha.contagem.fechada += 1;
+    } else if (f.status == 'a_vencer') {
+      linha.contagem.aVencer += 1;
     } else if (f.status == 'paga') {
       linha.contagem.paga += 1;
     } else if (f.status == 'cancelada') {
       linha.contagem.cancelada += 1;
     }
 
-    if (f.status == 'aberta') {
+    if (f.status == 'fechada' || f.status == 'a_vencer') {
       linha.valorEmAberto += f.valorTotal;
       if (vencida) linha.valorVencido += f.valorTotal;
     }
   }
 
-  // Ciclo em andamento soma como +1 "aberta" mesmo com valor 0 (Fase 27.91
-  // na web — já está aberto desde o primeiro dia, só ainda não fechou).
+  // Ciclo em andamento (ainda sem linha em faturas_postos) soma no valor em
+  // aberto mesmo antes de virar fatura real (Fase 27.91 na web).
   for (final linha in linhas.values) {
     if (linha.cicloAtual != null) {
-      linha.contagem.aberta += 1;
       linha.valorEmAberto += linha.cicloAtual!.valorAcumulado;
     }
   }
 
   int prioridade(LinhaContraparte l) {
     if (l.contagem.vencida > 0) return 0;
-    if (l.contagem.aberta > 0) return 1;
+    if (l.contagem.fechada > 0 || l.contagem.aVencer > 0) return 1;
     if (l.cicloAtual != null) return 2;
     return 3;
   }
@@ -413,29 +415,22 @@ final financeiroPostoProvider =
       .whereType<String>()
       .toSet()
       .toList();
-  final ciclosPorClienteMap = <String, ({int cicloDias, int prazoDias})>{};
+  final ciclosPorClienteMap = <String, int>{};
   if (idsClientes.isNotEmpty) {
-    final clientesCicloRaw = await supabase
-        .from('empresas')
-        .select('id, ciclo_faturamento_dias, prazo_vencimento_dias')
-        .inFilter('id', idsClientes) as List;
+    final clientesCicloRaw =
+        await supabase.from('empresas').select('id, ciclo_faturamento_dias').inFilter('id', idsClientes) as List;
     for (final c in clientesCicloRaw) {
       final cc = c as Map<String, dynamic>;
-      ciclosPorClienteMap[cc['id'] as String] = (
-        cicloDias: (cc['ciclo_faturamento_dias'] as num?)?.toInt() ?? 30,
-        prazoDias: (cc['prazo_vencimento_dias'] as num?)?.toInt() ?? 30,
-      );
+      ciclosPorClienteMap[cc['id'] as String] = (cc['ciclo_faturamento_dias'] as num?)?.toInt() ?? 30;
     }
   }
   final negociacoesParaAgrupar = negociacoesRaw.map((m) {
     final mm = m as Map<String, dynamic>;
     final clienteId = mm['empresa_cliente_id'] as String;
-    final ciclo = ciclosPorClienteMap[clienteId];
     return (
       contraparteId: clienteId,
       contraparteNome: mm['cliente_nome'] as String?,
-      cicloFaturamentoDias: ciclo?.cicloDias ?? 30,
-      prazoVencimentoDias: ciclo?.prazoDias ?? 30,
+      cicloFaturamentoDias: ciclosPorClienteMap[clienteId] ?? 30,
     );
   }).toList();
 

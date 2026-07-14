@@ -193,6 +193,7 @@ class FinanceiroScreen extends ConsumerWidget {
     final cor = switch (f.status) {
       'paga' => const Color(0xFF16A34A),
       'cancelada' => Colors.grey,
+      'fechada' => const Color(0xFF64748B),
       _ => const Color(0xFF92400E),
     };
     return Card(
@@ -227,7 +228,7 @@ class FinanceiroScreen extends ConsumerWidget {
             if (l.cicloFaturamentoDias > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Text('Ciclo ${l.cicloFaturamentoDias}+${l.prazoVencimentoDias} dias',
+                child: Text('Ciclo de ${l.cicloFaturamentoDias} dias',
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ),
             const SizedBox(height: 8),
@@ -274,9 +275,10 @@ class FinanceiroScreen extends ConsumerWidget {
               runSpacing: 4,
               children: [
                 if (l.contagem.vencida > 0) _chipContagem('${l.contagem.vencida} vencida(s)', const Color(0xFFDC2626)),
-                if (l.contagem.aberta > 0) _chipContagem('${l.contagem.aberta} em aberto', const Color(0xFF64748B)),
+                if (l.contagem.fechada > 0) _chipContagem('${l.contagem.fechada} fechada(s)', const Color(0xFF64748B)),
+                if (l.contagem.aVencer > 0) _chipContagem('${l.contagem.aVencer} a vencer', const Color(0xFF64748B)),
                 if (l.contagem.paga > 0) _chipContagem('${l.contagem.paga} paga(s)', const Color(0xFF16A34A)),
-                if (l.contagem.vencida == 0 && l.contagem.aberta == 0 && l.contagem.paga == 0)
+                if (l.contagem.vencida == 0 && l.contagem.fechada == 0 && l.contagem.aVencer == 0 && l.contagem.paga == 0)
                   const Text('Nenhuma ainda', style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
@@ -308,7 +310,6 @@ class FinanceiroScreen extends ConsumerWidget {
                   extra: PostoCobrancaDetalheScreen(
                     postoNome: l.contraparteNome,
                     cicloFaturamentoDias: l.cicloFaturamentoDias,
-                    prazoVencimentoDias: l.prazoVencimentoDias,
                     cicloAtual: l.cicloAtual,
                     faturas: faturasDoPosto,
                   ),

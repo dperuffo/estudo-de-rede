@@ -1656,3 +1656,45 @@ certo.
 navegação inferior (bottom nav) — a web não tem bottom nav (é só
 sidebar), então não havia "o mesmo" pra portar ali; ficou só no drawer,
 espelhando exatamente a sidebar da web.
+
+
+## Fase CICLOS-6 — Ciclos de abastecimento/pagamento (janelas fixas + 5 status)
+
+Pedido do Daniel: substituir o modelo antigo (ciclo/prazo rolando a partir de uma data qualquer) por
+janelas FIXAS ancoradas no calendário (dia 1 do mês em diante, ex.: 01-07/08-14/15-21/22-31 pra ciclo de
+7 dias), com 5 status: **Aberto** (janela em andamento, sem linha em `faturas_postos` ainda — representado
+só pela RPC `ciclos_abertos_postos()`), **Fechado** (janela terminou, o robô já criou a linha mas o boleto
+ainda não foi gerado — esperando NFe), **A Vencer** (boleto gerado, valor travado, aguardando pagamento),
+**Pago** e **Vencido** (derivado: A Vencer + vencimento < hoje, nunca gravado).
+
+**Banco** (`nedthbeekvwzcjrhsghp`): `faturas_postos.status` agora aceita só `fechada`/`a_vencer`/`paga`/
+`cancelada` (CHECK novo); 3 colunas novas (`ciclo_dias_referencia`, `data_geracao_boleto`,
+`boleto_gerado_em`). Funções auxiliares novas `ciclo_janela_inicio`/`ciclo_janela_fim`/
+`ciclo_data_geracao_boleto` (SQL puro, sem SECURITY DEFINER) calculam a janela de calendário e o gap
+Fechado→A Vencer (`round(ciclo × 3/7)` — pro ciclo de referência 7+7 dá 3 dias, igual ao exemplo original
+do Daniel). `gerar_faturas_postos_robo()` reescrita em 2 fases (continua rodando 1x/dia via pg_cron,
+job `faturas_postos_robo`, 3h): fase 1 fecha a janela (cria a linha 'fechada', valor zerado); fase 2 (só
+quando `data_geracao_boleto <= hoje`) soma os abastecimentos com NFe, trava o valor e vira 'a_vencer'.
+`ciclos_abertos_postos()`/`abastecimentos_do_ciclo_aberto()` atualizadas pra usar os mesmos helpers de
+calendário (não divergem mais do que o robô vai fechar de verdade). Vencimento agora é sempre
+`periodo_fim + ciclo` (prazo = ciclo, não é mais campo separado — `empresas.prazo_vencimento_dias`
+continua existindo na tabela mas sempre igual ao ciclo).
+
+**Web**: `financeiroPostos.ts` ganhou `STATUS_CICLO_FATURA`/`statusCicloFaturaExibicao` (fatura, 5 status)
+separado de `STATUS_FATURA_POSTO`/`statusFaturaExibicao` (despesa do posto, continua com 3 status —
+NÃO mudou). `FormularioCicloPagamento` virou 1 campo só (ciclo). `faturas-postos/[id]/page.tsx` mostra um
+aviso "boleto ainda não gerado" enquanto `status='fechada'` (sem PIX/PDF/detalhamento até virar
+'a_vencer'). `financeiro-posto`/`financeiro`/`CicloAbastecimentoPagamento`/`VisaoCiclosPorContraparte`
+ajustados pros novos status.
+
+**Flutter** (mesma mudança, espelhada): `financeiro_posto_provider.dart` (`ContagemFaturas`,
+`agruparPorContraparte`, `LinhaContraparte` sem `prazoVencimentoDias`), telas de financeiro (posto e
+cliente), `fatura_posto_detalhe_screen.dart`/`fatura_detalhe_screen.dart` (aviso "boleto ainda não
+gerado" quando `status='fechada'`, mesmo espírito da web), `posto_cobranca_detalhe_screen.dart`,
+`cliente_posto_detalhe_screen.dart`. `ciclo_aberto_detalhe_screen.dart` (2 versões, posto e cliente) não
+mudou — já era agnóstico a status, só lê o resultado das RPCs recalculadas no banco.
+
+**Risco conhecido**: não há Flutter/Dart instalado neste ambiente de desenvolvimento (sandbox sem
+internet/pub-cache) — as edições foram feitas por substituição textual direta, verificadas por
+balanceamento de chaves/parênteses em cada arquivo tocado, mas **não foram compiladas** aqui. Rodar
+`flutter analyze` e o build normal antes de confiar no deploy.

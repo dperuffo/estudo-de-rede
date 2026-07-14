@@ -7,7 +7,8 @@ final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 final _numero = NumberFormat.decimalPattern('pt_BR');
 
 const _statusFaturaLabel = <String, String>{
-  'aberta': 'Em aberto',
+  'fechada': 'Fechada',
+  'a_vencer': 'A vencer',
   'vencida': 'Vencida',
   'paga': 'Paga',
   'cancelada': 'Cancelada',
@@ -23,7 +24,7 @@ String _fmtData(String? iso) {
 }
 
 String _statusExibicao(String status, String? vencimento) {
-  if (status == 'aberta' && vencimento != null) {
+  if (status == 'a_vencer' && vencimento != null) {
     final hoje = DateFormat('yyyy-MM-dd').format(DateTime.now());
     if (vencimento.substring(0, 10).compareTo(hoje) < 0) return 'vencida';
   }
@@ -41,7 +42,6 @@ String _statusExibicao(String status, String? vencimento) {
 class PostoCobrancaDetalheScreen extends StatelessWidget {
   final String postoNome;
   final int cicloFaturamentoDias;
-  final int prazoVencimentoDias;
   final CicloAbertoResumo? cicloAtual;
   final List<FaturaFinanceiro> faturas;
 
@@ -49,7 +49,6 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
     super.key,
     required this.postoNome,
     required this.cicloFaturamentoDias,
-    required this.prazoVencimentoDias,
     required this.cicloAtual,
     required this.faturas,
   });
@@ -73,7 +72,7 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
                   Text(postoNome, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   if (cicloFaturamentoDias > 0) ...[
                     const SizedBox(height: 6),
-                    Text('Ciclo $cicloFaturamentoDias+$prazoVencimentoDias dias',
+                    Text('Ciclo de $cicloFaturamentoDias dias',
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ],

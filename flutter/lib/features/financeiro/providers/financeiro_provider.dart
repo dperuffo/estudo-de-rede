@@ -156,9 +156,8 @@ final financeiroClienteProvider = FutureProvider.autoDispose<FinanceiroClienteDa
   // próprio (empresas.ciclo_faturamento_dias/prazo_vencimento_dias),
   // igual pra qualquer posto que me fatura.
   final minhaEmpresa =
-      await supabase.from('empresas').select('ciclo_faturamento_dias, prazo_vencimento_dias').eq('id', empresaId).maybeSingle();
+      await supabase.from('empresas').select('ciclo_faturamento_dias').eq('id', empresaId).maybeSingle();
   final meuCiclo = (minhaEmpresa?['ciclo_faturamento_dias'] as num?)?.toInt() ?? 30;
-  final meuPrazo = (minhaEmpresa?['prazo_vencimento_dias'] as num?)?.toInt() ?? 30;
 
   final negociacoesRaw = await supabase
       .from('negociacoes_postos')
@@ -176,7 +175,6 @@ final financeiroClienteProvider = FutureProvider.autoDispose<FinanceiroClienteDa
             contraparteId: e.key,
             contraparteNome: e.value,
             cicloFaturamentoDias: meuCiclo,
-            prazoVencimentoDias: meuPrazo,
           ))
       .toList();
 
