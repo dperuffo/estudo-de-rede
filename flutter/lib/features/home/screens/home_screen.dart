@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/providers/notificacoes_provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
@@ -55,6 +56,11 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildDrawer(BuildContext context, WidgetRef ref, SessaoUsuario? sessao) {
     final nomeEmpresa = sessao?.nomeEmpresa;
     final temMultiplasEmpresas = (sessao?.empresasIds.length ?? 0) > 1;
+    // Fase FLT-7 — as 7 bolinhas de notificação da web (ver comentário
+    // completo em notificacoes_provider.dart). `valueOrNull` porque o
+    // drawer não deve travar/piscar loading — enquanto carrega (ou se
+    // falhar), simplesmente não mostra bolinha nenhuma.
+    final badges = ref.watch(notificacoesBadgesProvider).valueOrNull ?? NotificacoesBadges.vazio;
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -145,10 +151,10 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.folder, 'Documentos', '/documentos'),
           _item(context, Icons.hub, 'Inteligência de Rede', '/inteligencia-rede'),
           _item(context, Icons.lock, 'Privacidade (LGPD)', '/lgpd'),
-          _item(context, Icons.confirmation_number, 'Chamados', '/chamados'),
+          _item(context, Icons.confirmation_number, 'Chamados', '/chamados', badge: badges.chamados),
           const Divider(),
           _grp('Cadastros'),
-          _item(context, Icons.business, 'Clientes', '/clientes'),
+          _item(context, Icons.business, 'Clientes', '/clientes', badge: badges.acessosClientes),
           _item(context, Icons.account_tree, 'Grupo Econômico', '/grupo-economico'),
           _item(context, Icons.people, 'Usuários', '/usuarios'),
           _item(context, Icons.badge, 'Motoristas', '/motoristas'),
@@ -157,13 +163,13 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.local_gas_station, 'Postos Revendedores', '/postos'),
           const Divider(),
           _grp('Operação'),
-          _item(context, Icons.local_gas_station, 'Abastecimentos', '/abastecimentos'),
+          _item(context, Icons.local_gas_station, 'Abastecimentos', '/abastecimentos', badge: badges.ajustesAbastecimento),
           _item(context, Icons.description, 'Notas Fiscais', '/notas-fiscais'),
-          _item(context, Icons.warning_amber, 'Anomalias', '/anomalias'),
+          _item(context, Icons.warning_amber, 'Anomalias', '/anomalias', badge: badges.anomalias),
           _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
           _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),
           _item(context, Icons.card_travel, 'Planos de Viagem', '/planos-viagem'),
-          _item(context, Icons.handshake, 'Negociações com Postos', '/negociacoes'),
+          _item(context, Icons.handshake, 'Negociações com Postos', '/negociacoes', badge: badges.negociacoes),
           _item(context, Icons.sell, 'Preços dos Postos Parceiros', '/precos-postos'),
           _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
           _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
@@ -179,9 +185,9 @@ class HomeScreen extends ConsumerWidget {
           // própria tela já mostra "Acesso restrito" pra quem não é, mas
           // nem faz sentido oferecer o item de menu nesse caso).
           if (sessao?.ehAdmin ?? false) _item(context, Icons.settings, 'Configurações do Sistema', '/configuracoes'),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.star_outline, 'Avaliações dos Clientes', '/avaliacoes'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.star_outline, 'Avaliações dos Clientes', '/avaliacoes', badge: badges.avaliacoes),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.credit_card, 'Assinaturas (todos os clientes)', '/assinaturas'),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.folder_open, 'Aprovação de Documentos', '/documentos-empresas'),
+          if (sessao?.ehAdmin ?? false) _item(context, Icons.folder_open, 'Aprovação de Documentos', '/documentos-empresas', badge: badges.documentosPendentes),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.hub, 'Rede de Postos (todas)', '/redes-postos'),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.find_in_page, 'Possíveis Duplicados', '/postos-duplicados'),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.apartment, 'Clientes (todos)', '/clientes-admin'),
@@ -207,10 +213,25 @@ class HomeScreen extends ConsumerWidget {
         child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
       );
 
-  ListTile _item(BuildContext context, IconData icon, String label, String route) => ListTile(
+  ListTile _item(BuildContext context, IconData icon, String label, String route, {int badge = 0}) => ListTile(
         dense: true,
         leading: Icon(icon, color: const Color(0xFF0D2D6B), size: 20),
         title: Text(label, style: const TextStyle(fontSize: 14)),
+        // Fase FLT-7 — mesma bolinha vermelha da web (bg-red-500, texto
+        // branco, redonda) — só aparece quando badge > 0.
+        trailing: badge > 0
+            ? Container(
+                height: 20,
+                constraints: const BoxConstraints(minWidth: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: const Color(0xFFEF4444), borderRadius: BorderRadius.circular(999)),
+                child: Text(
+                  '$badge',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              )
+            : null,
         onTap: () {
           Navigator.pop(context);
           context.go(route);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/providers/notificacoes_provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
@@ -48,6 +49,9 @@ class PostoHomeScreen extends ConsumerWidget {
     // gate inicial (ver "Camada 3" em app_router.dart) — só faz sentido
     // pra quem tem 2+ empresas vinculadas.
     final temMultiplasEmpresas = (sessao?.empresasIds.length ?? 0) > 1;
+    // Fase FLT-7 — mesmas bolinhas de notificação da web, ver
+    // notificacoes_provider.dart.
+    final badges = ref.watch(notificacoesBadgesProvider).valueOrNull ?? NotificacoesBadges.vazio;
     return Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -155,11 +159,11 @@ class PostoHomeScreen extends ConsumerWidget {
             _item(context, Icons.account_balance, 'Meus Dados / PIX', '/posto/meus-dados'),
             _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
             _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
-            _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados'),
+            _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados', badge: badges.chamados),
             const Divider(),
             _grp('Operação'),
-            _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes'),
-            _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos'),
+            _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes', badge: badges.negociacoes),
+            _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos', badge: badges.ajustesAbastecimento),
             _item(context, Icons.business, 'Clientes', '/posto/clientes'),
             _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
             const Divider(),
@@ -183,10 +187,25 @@ class PostoHomeScreen extends ConsumerWidget {
         child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
       );
 
-  ListTile _item(BuildContext context, IconData icon, String label, String route) => ListTile(
+  ListTile _item(BuildContext context, IconData icon, String label, String route, {int badge = 0}) => ListTile(
         dense: true,
         leading: Icon(icon, color: const Color(0xFF0D2D6B), size: 20),
         title: Text(label, style: const TextStyle(fontSize: 14)),
+        // Fase FLT-7 — mesma bolinha vermelha da web (bg-red-500, texto
+        // branco, formato pílula) — só aparece quando badge > 0.
+        trailing: badge > 0
+            ? Container(
+                height: 20,
+                constraints: const BoxConstraints(minWidth: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: const Color(0xFFEF4444), borderRadius: BorderRadius.circular(999)),
+                child: Text(
+                  '$badge',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              )
+            : null,
         onTap: () {
           Navigator.pop(context);
           context.go(route);

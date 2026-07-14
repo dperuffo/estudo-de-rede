@@ -1603,3 +1603,56 @@ a Fase FLT-3. Se "Manutenção preditiva (resumo)" continuar sumindo do
 Dashboard com frequência, vale revisitar a RPC em si (ex.: limitar
 `manutencao_preditiva_base` a um lookback de N meses em vez de histórico
 completo) — combinado com o Daniel antes, por ser código compartilhado.
+
+## Fase FLT-7 — Sistema de notificação (bolinhas no menu)
+
+Pedido do Daniel: "o mesmo sistema de notificação no PWA que tem na web,
+nas 3 visões (posto, cliente, admin)". Achado ao investigar a web (ver
+`src/app/(dashboard)/layout.tsx`): não existe um sino/central de
+notificações — são 7 "bolinhas" vermelhas com contagem ao lado de itens
+específicos do menu lateral, cada uma de uma Server Action `contar*Acao()`
+própria. Portado 1:1, mesmas 7 contagens/filtros:
+
+| Contagem | Item do menu | Quem vê |
+|---|---|---|
+| Chamados não vistos (`tickets`, comparando `atualizado_em` com `usuario_visto_em`/`admin_visto_em`) | Chamados | todos |
+| Negociações pendentes (`negociacoes_postos`) | Negociações | todos (admin vê a rede toda; cliente/posto só o que cabe a eles responder) |
+| Ajustes de abastecimento pendentes (`ajustes_abastecimentos`) | Abastecimentos | todos (admin sempre 0 — RLS não dá bypass pra essa tabela, igual à web) |
+| Anomalias não revisadas (`anomalias_abastecimento`) | Anomalias | todos |
+| Acessos de clientes não vistos (`acessos_clientes`) | Clientes | só admin |
+| Avaliações sem resposta (`avaliacoes`) | Avaliações dos Clientes | só admin |
+| Empresas com documentação pendente (`empresas.documentacao_status`) | Aprovação de Documentos | só admin |
+
+**Arquivos:**
+
+- `lib/core/providers/notificacoes_provider.dart` — novo.
+  `notificacoesBadgesProvider` (`FutureProvider.autoDispose`), as 7
+  contagens em paralelo via `Future.wait` (mesma lição aprendida no
+  Dashboard — sequencial soma latência), cada uma "best effort" (falha
+  vira 0 — a própria web já documenta essa blindagem, Fase 27.29 da web,
+  então aqui é fidelidade ao original, não só um hotfix reativo). Usa
+  `sessao.ehAdmin`/`sessao.ehPosto` (já existentes) em vez de chamar
+  `perfil_usuario_atual()` de novo — mesma fonte de verdade já usada em
+  todo o resto do app pra decidir o que é admin/posto/cliente.
+- `lib/features/home/screens/home_screen.dart` — `_item()` ganhou o
+  parâmetro `{int badge = 0}` (bolinha vermelha formato pílula, só
+  aparece se `badge > 0`, mesma cor/estilo do `bg-red-500 rounded-full`
+  da web); aplicado em Chamados, Clientes (admin), Abastecimentos,
+  Anomalias, Negociações com Postos, Avaliações dos Clientes (admin),
+  Aprovação de Documentos (admin).
+- `lib/features/posto/screens/posto_home_screen.dart` — mesmo `_item()`
+  com `badge`, aplicado em Chamados, Negociações, Abastecimentos.
+
+**Risco conhecido:** usei `.filter('coluna', 'is', null)` (operador
+genérico do postgrest-dart) pras 3 contagens "IS NULL"
+(`admin_visto_em`, `resposta_admin`, `revisado_em`) — não consegui
+confirmar contra o pacote instalado (sem acesso a internet/pub cache
+neste ambiente) se o método certo nesta versão do `supabase_flutter`
+(^2.5.6) é `.filter()`, `.isFilter()` ou `.is_()`. Se o build reportar
+erro de método não encontrado nessas 3 linhas, é só trocar pelo nome
+certo.
+
+**Fora de escopo (não pedido, não implementado):** bolinhas na barra de
+navegação inferior (bottom nav) — a web não tem bottom nav (é só
+sidebar), então não havia "o mesmo" pra portar ali; ficou só no drawer,
+espelhando exatamente a sidebar da web.
