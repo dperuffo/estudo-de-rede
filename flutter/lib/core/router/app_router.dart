@@ -44,6 +44,10 @@ import '../../features/motoristas/screens/motoristas_screen.dart';
 import '../../features/motoristas/screens/motorista_novo_screen.dart';
 import '../../features/motoristas/screens/motorista_editar_screen.dart';
 import '../../features/anomalias/screens/anomalias_screen.dart';
+import '../../features/relatorios/screens/relatorios_screen.dart';
+import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.dart';
+import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
+import '../../features/precos_postos/screens/precos_postos_screen.dart';
 import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
 import '../../features/negociacoes/screens/negociacoes_screen.dart';
 import '../../features/negociacoes/screens/negociacao_detalhe_screen.dart';
@@ -254,15 +258,19 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/negociacoes/:id',
               builder: (_, state) => NegociacaoDetalheClienteScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/precos-postos', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Preços dos Postos Parceiros')),
-            GoRoute(path: '/manutencao-preditiva', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Manutenção Preditiva')),
+            GoRoute(path: '/precos-postos', builder: (_, __) => const PrecosPostosScreen()),
+            GoRoute(path: '/manutencao-preditiva', builder: (_, __) => const ManutencaoPreditivaScreen()),
+            GoRoute(
+              path: '/manutencao-preditiva/:placa',
+              builder: (_, state) => ManutencaoPreditivaDetalheScreen(placa: state.pathParameters['placa']!),
+            ),
             GoRoute(path: '/parametros-uso', builder: (_, __) => const ParametrosUsoScreen()),
             GoRoute(path: '/parametros-uso/novo', builder: (_, __) => const VinculoNovoScreen()),
             GoRoute(
               path: '/parametros-uso/:id/editar',
               builder: (_, state) => VinculoEditarScreen(id: state.pathParameters['id']!),
             ),
-            GoRoute(path: '/relatorios', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Relatórios')),
+            GoRoute(path: '/relatorios', builder: (_, __) => const RelatoriosScreen()),
             GoRoute(path: '/integracoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Integrações')),
             GoRoute(path: '/permissoes', builder: (_, __) => const EmConstrucaoScreen(titulo: 'Permissões')),
           ],

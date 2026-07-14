@@ -890,11 +890,82 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   mesmo jeito com `empresa_posto_id` nulo — mesmo fallback que a web já
   tem quando não informa e-mail.
 
-Demais itens do menu (Rotograma, Planos de Viagem, Preços dos Postos
-Parceiros, Manutenção Preditiva, Relatórios,
-Integrações, Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez
-nas próximas fases — várias devem reaproveitar bastante lógica já pronta
-do lado Posto (LGPD, Usuários, Chamados especialmente).
+- **Relatórios Personalizados** (`lib/features/relatorios/`) — porta de
+  `relatorios/page.tsx` + `RelatoriosPersonalizados.tsx`, só a aba
+  "🗂️ Relatórios Personalizados" (pedido do Daniel — as outras 4 abas de
+  Relatórios ficaram de fora, ver abaixo). RLS/RPCs conferidas antes de
+  portar: `relatorio_abastecimentos_bruto`/`relatorio_manutencoes_bruto`/
+  `relatorio_custos_fixos_bruto` NÃO são SECURITY DEFINER — rodam com o
+  privilégio de quem chama, então a RLS das tabelas de baixo
+  (`abastecimentos_unificado` → `profrotas_abastecimentos` +
+  `abastecimentos_externos`; `manutencoes_realizadas`; `custos_fixos`)
+  protege os dados normalmente mesmo passando `p_empresa_id` explícito —
+  todas com self-service completo via `empresas_do_usuario`. Porta fiel do
+  "monte seu relatório": escolhe fonte (Abastecimentos/Manutenção/Custos
+  Fixos), dimensão de agrupamento (período por mês, combustível, veículo,
+  motorista, posto, UF, oficina, tipo de custo, origem — varia por fonte),
+  uma ou mais métricas (nº de registros, volume, valor total, ticket
+  médio, preço médio etc.) e tipo de gráfico; agrupa e ordena os dados
+  igual ao `useMemo` da web. Gráficos com `fl_chart` (já usado no
+  Dashboard/Financeiro/Preços): Barras, Linhas, Pizza — com legenda de
+  cores — e Tabela, além da tabela de resultado completa (todas as
+  métricas) sempre visível abaixo do gráfico. Fora do escopo: as outras 4
+  abas de Relatórios (Executivo, Performance por Posto, Score ×
+  Performance, Anomalias — cada uma com layout/gráficos fixos próprios,
+  não pedidas agora); export em CSV e PDF (`RelatorioPersonalizadoPdf.tsx`
+  serializa o SVG do Recharts como imagem e monta o PDF com
+  `@react-pdf/renderer` — muito específico de browser); tipo de gráfico
+  "Barras Horizontais" (`fl_chart` não tem orientação horizontal nativa —
+  os 4 tipos restantes cobrem o essencial). Redução adicional: com 2+
+  métricas selecionadas, o GRÁFICO plota só a 1ª (mesmo comportamento que
+  a pizza já tinha na própria web) — a tabela continua mostrando todas as
+  métricas selecionadas.
+
+- **Manutenção Preditiva** (`lib/features/manutencao_preditiva/`) — porta
+  1:1 de `manutencao-preditiva/page.tsx` + `[placa]/page.tsx` +
+  `actions.ts` + `src/lib/manutencaoPreditiva.ts` (a tela já é
+  auto-contida, sem redução de escopo relevante). RLS/RPCs conferidas
+  antes de portar: `manutencao_preditiva_resumo`/
+  `manutencao_preditiva_kpis`/`manutencao_preditiva_base` NÃO são
+  SECURITY DEFINER — rodam com o privilégio de quem chama, então a RLS de
+  baixo (`cadastro_veiculos`, `abastecimentos_unificado`,
+  `manutencoes_realizadas`, `empresas`) protege os dados normalmente;
+  todas com self-service completo pra empresa do usuário. Lista com 5
+  indicadores (veículos/críticos/alertas/OK/score médio — de uma RPC
+  dedicada que ignora o filtro de status de propósito, pra mostrar a
+  distribuição real mesmo filtrando só "Crítico"), filtros (busca, centro
+  de custo, status, ordenação) e paginação (50 por página), cada linha
+  com score e badge de status; detalhe do veículo com score geral, 4
+  indicadores (km atual, consumo atual, degradação de consumo, centro de
+  custo), recomendações em texto (porta fiel de `gerarRecomendacoes`),
+  grade de 8 componentes (óleo, pneus, filtros, lubrificação, alinhamento,
+  arrefecimento, ruídos, revisão — cada um com score, barra de progresso,
+  km até vencer e indicação real/estimado), formulário de "Registrar
+  Manutenção Realizada" (mesma tabela `manutencoes_realizadas` e mesmo
+  vocabulário de 16 itens já usados pelo app Flutter de produção, pra
+  manter o histórico compatível) e histórico de manutenções com exclusão.
+
+- **Preços dos Postos Parceiros** (`lib/features/precos_postos/`) — porta
+  de `precos-postos/page.tsx`, só o painel CLIENTE (`PainelCliente`); o
+  painel POSTO (cadastro do próprio preço) já existe desde a FLT-2 em
+  `lib/features/posto/screens/precos_posto_screen.dart`. RLS conferida
+  antes de portar: a policy `precos_postos_leitura` já dá exatamente o
+  recorte que a web usa (preços do próprio posto do usuário OU de
+  qualquer posto com quem a empresa do usuário tenha negociação, pendente
+  ou fechada) — dá pra consultar direto, sem RPC, igual à web. Lista um
+  card por posto parceiro (nome vindo de `negociacoes_postos`) com tabela
+  de combustível/preço por litro/atualizado em/atualizado por. Redução:
+  a web tenta resolver o nome de quem atualizou o preço via
+  `usuarios_app`, mas a RLS de `usuarios_app_select` só libera pra
+  admin/analista ou a própria linha — pro cliente, a resolução nunca
+  funciona mesmo na web (cai no fallback de mostrar o e-mail cru); aqui o
+  app já mostra o e-mail direto, sem a tentativa de resolução que seria
+  descartada de qualquer forma.
+
+Demais itens do menu (Rotograma, Planos de Viagem, Integrações,
+Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez nas próximas
+fases — várias devem reaproveitar bastante lógica já pronta do lado Posto
+(LGPD, Usuários, Chamados especialmente).
 
 ## Hotfix: login com Google (fora da sequência FLT-3)
 
