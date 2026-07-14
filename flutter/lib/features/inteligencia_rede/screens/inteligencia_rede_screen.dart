@@ -31,17 +31,23 @@ import 'abas/aba_tendencia_sazonalidade.dart';
 class InteligenciaRedeScreen extends ConsumerWidget {
   const InteligenciaRedeScreen({super.key});
 
+  // Achado real (reportado pelo Daniel com print): emoji como texto de aba
+  // (ex.: "🚦 Operacional") renderiza gigante e colorido em cima do fundo
+  // azul da TabBar (fonte de emoji nativa do navegador, bem maior que o
+  // texto ao lado) e quebra o alinhamento. Trocado por texto simples, sem
+  // emoji — os emojis continuam nos títulos DENTRO de cada aba, onde
+  // renderizam em linha com o texto normalmente.
   static const _abas = [
-    ('⛽ Preços vs ANP', Icons.local_gas_station),
-    ('⚠️ Alertas', Icons.warning_amber),
-    ('👔 Macrorregião', Icons.map),
-    ('🗺️ Mapa', Icons.public),
-    ('⚖️ Comparativo', Icons.compare_arrows),
-    ('🎯 Cobertura×Demanda', Icons.track_changes),
-    ('🔀 Cruzamentos', Icons.shuffle),
-    ('🚦 Operacional', Icons.dashboard),
-    ('📈 Evolução', Icons.show_chart),
-    ('📅 Sazonalidade', Icons.calendar_month),
+    'Preços vs ANP',
+    'Alertas',
+    'Macrorregião',
+    'Mapa',
+    'Comparativo',
+    'Cobertura×Demanda',
+    'Cruzamentos',
+    'Operacional',
+    'Evolução',
+    'Sazonalidade',
   ];
 
   @override
@@ -55,7 +61,7 @@ class InteligenciaRedeScreen extends ConsumerWidget {
           title: const Text('Inteligência de Rede'),
           bottom: TabBar(
             isScrollable: true,
-            tabs: _abas.map((a) => Tab(text: a.$1)).toList(),
+            tabs: _abas.map((a) => Tab(text: a)).toList(),
           ),
         ),
         body: async.when(
@@ -96,12 +102,16 @@ class InteligenciaRedeScreen extends ConsumerWidget {
       color: Colors.grey.shade50,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: GridView.count(
-        crossAxisCount: 4,
+        // Achado real: 4 colunas deixava cada cartão estreito demais pra
+        // rótulos como "Diesel Médio GF" — trocado pra 2 colunas (mais
+        // largura por cartão) com um aspect ratio mais baixo (cartão mais
+        // baixo/largo em vez de quase quadrado).
+        crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 6,
         crossAxisSpacing: 6,
-        childAspectRatio: 1.05,
+        childAspectRatio: 2.4,
         children: [
           CartaoIndicador(label: '⛽ Postos GF', valor: formatarInt(k.totalGf), sub: '${k.estadosComPosto} estados', mini: true),
           CartaoIndicador(label: '🏙️ Municípios', valor: formatarInt(k.municipiosUnicos), sub: '${k.coberturaBr}% dos estados', mini: true),

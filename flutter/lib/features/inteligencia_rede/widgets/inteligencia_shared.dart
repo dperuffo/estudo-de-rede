@@ -57,19 +57,35 @@ class CartaoIndicador extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Achado real (reportado pelo Daniel com print): com 4 cartões por
+    // linha (cabeçalho de KPIs) e textos como "Diesel Médio GF" / "R$
+    // 6.926", o card ficava estreito demais e o conteúdo vazava pra fora
+    // da borda arredondada — Card não corta conteúdo por padrão. Corrigido
+    // com FittedBox no valor (nunca estoura, só encolhe a fonte se
+    // precisar) e maxLines/ellipsis no rótulo e no complemento.
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 4),
-            Text(valor, style: TextStyle(fontSize: mini ? 16 : 20, fontWeight: FontWeight.w700)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(valor, style: TextStyle(fontSize: mini ? 16 : 20, fontWeight: FontWeight.w700)),
+            ),
             if (sub != null) ...[
               const SizedBox(height: 2),
-              Text(sub!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              Text(sub!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ],
         ),
