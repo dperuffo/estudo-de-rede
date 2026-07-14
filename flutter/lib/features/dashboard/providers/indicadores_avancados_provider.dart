@@ -275,50 +275,63 @@ final indicadoresAvancadosProvider =
   final diaBase = diaAtual == 0 ? diasNoMes : diaAtual;
   final dataFim = _iso(DateTime(ano, mes, diaBase < 1 ? 1 : diaBase));
 
-  final variacaoPrecosRaw = await supabase.rpc('indicador_variacao_precos', params: {
-    'p_empresa_id': empresaId,
-    'p_data_inicio': dataInicio,
-    'p_data_fim': dataFim,
-  }) as List;
+  // Fase FLT-6 (hotfix) — igual à web (que dispara as 7 RPCs num único
+  // Promise.all), aqui também em paralelo via Future.wait em vez de 7
+  // awaits sequenciais. Achado real (reportado pelo Daniel: "canceling
+  // statement due to statement timeout" na aba Indicadores Avançados):
+  // sequencial soma a latência das 7 chamadas (cada RPC é uma ida e volta
+  // HTTP própria via PostgREST) — se qualquer uma demorar um pouco mais
+  // (ex.: pool de conexão frio, RLS mais pesada), o total facilmente
+  // estoura os 8s de `statement_timeout` da role `authenticated`. Em
+  // paralelo, o tempo total passa a ser o da mais lenta, não a soma.
+  final resultados = await Future.wait([
+    supabase.rpc('indicador_variacao_precos', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': dataInicio,
+      'p_data_fim': dataFim,
+    }),
+    supabase.rpc('indicador_consumo_diario', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': dataInicio,
+      'p_data_fim': dataFim,
+    }),
+    supabase.rpc('indicador_padrao_dia_semana', params: {
+      'p_empresa_id': empresaId,
+      'p_dias_lookback': 90,
+    }),
+    supabase.rpc('indicador_volume_postos', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': dataInicio,
+      'p_data_fim': dataFim,
+    }),
+    supabase.rpc('indicador_ranking_veiculos', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': dataInicio,
+      'p_data_fim': dataFim,
+      'p_limit': 10,
+      'p_offset': 0,
+    }),
+    supabase.rpc('indicador_ranking_motoristas', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': dataInicio,
+      'p_data_fim': dataFim,
+      'p_limit': 10,
+      'p_offset': 0,
+    }),
+    supabase.rpc('indicador_eficiencia_veiculos', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': dataInicio,
+      'p_data_fim': dataFim,
+    }),
+  ]);
 
-  final consumoDiarioRaw = await supabase.rpc('indicador_consumo_diario', params: {
-    'p_empresa_id': empresaId,
-    'p_data_inicio': dataInicio,
-    'p_data_fim': dataFim,
-  }) as List;
-
-  final padraoDiaSemanaRaw = await supabase.rpc('indicador_padrao_dia_semana', params: {
-    'p_empresa_id': empresaId,
-    'p_dias_lookback': 90,
-  }) as List;
-
-  final volumePostosRaw = await supabase.rpc('indicador_volume_postos', params: {
-    'p_empresa_id': empresaId,
-    'p_data_inicio': dataInicio,
-    'p_data_fim': dataFim,
-  }) as List;
-
-  final rankingVeiculosRaw = await supabase.rpc('indicador_ranking_veiculos', params: {
-    'p_empresa_id': empresaId,
-    'p_data_inicio': dataInicio,
-    'p_data_fim': dataFim,
-    'p_limit': 10,
-    'p_offset': 0,
-  }) as List;
-
-  final rankingMotoristasRaw = await supabase.rpc('indicador_ranking_motoristas', params: {
-    'p_empresa_id': empresaId,
-    'p_data_inicio': dataInicio,
-    'p_data_fim': dataFim,
-    'p_limit': 10,
-    'p_offset': 0,
-  }) as List;
-
-  final eficienciaVeiculosRaw = await supabase.rpc('indicador_eficiencia_veiculos', params: {
-    'p_empresa_id': empresaId,
-    'p_data_inicio': dataInicio,
-    'p_data_fim': dataFim,
-  }) as List;
+  final variacaoPrecosRaw = resultados[0] as List;
+  final consumoDiarioRaw = resultados[1] as List;
+  final padraoDiaSemanaRaw = resultados[2] as List;
+  final volumePostosRaw = resultados[3] as List;
+  final rankingVeiculosRaw = resultados[4] as List;
+  final rankingMotoristasRaw = resultados[5] as List;
+  final eficienciaVeiculosRaw = resultados[6] as List;
 
   // Item 1 — Variação de preços.
   final variacaoPrecos = variacaoPrecosRaw.map((r) {
