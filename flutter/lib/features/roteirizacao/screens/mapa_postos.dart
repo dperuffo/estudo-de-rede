@@ -54,19 +54,28 @@ class MapaPostos extends StatelessWidget {
       if (rota != null) ...rota!.map((p) => p.lon),
     ];
 
+    final contador = Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        '${pontosComCoord.length} de ${postos.length} postos com coordenada no mapa',
+        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+      ),
+    );
+
     if (todasLat.isEmpty) {
-      return SizedBox(
-        height: height,
-        child: const Center(
-          child: Text('Sem coordenadas para exibir no mapa', style: TextStyle(color: Colors.grey)),
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          contador,
+          SizedBox(
+            height: height,
+            child: const Center(
+              child: Text('Sem coordenadas para exibir no mapa', style: TextStyle(color: Colors.grey)),
+            ),
+          ),
+        ],
       );
     }
-
-    final centro = ll.LatLng(
-      todasLat.reduce((a, b) => a + b) / todasLat.length,
-      todasLon.reduce((a, b) => a + b) / todasLon.length,
-    );
 
     final bounds = LatLngBounds.fromPoints([
       ...pontosComCoord.map((p) => ll.LatLng(p.lat!, p.lon!)),
@@ -75,51 +84,65 @@ class MapaPostos extends StatelessWidget {
 
     final cnpjsComParada = (paradas ?? []).map((p) => p.candidato.cnpj).toSet();
 
-    return SizedBox(
-      height: height,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: centro,
-            initialCameraFit: CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(32)),
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.fni.gestaodefrotas',
-            ),
-            if (rota != null && rota!.isNotEmpty)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: rota!.map((p) => ll.LatLng(p.lat, p.lon)).toList(),
-                    strokeWidth: 4,
-                    color: Colors.blue.shade600,
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        contador,
+        SizedBox(
+          height: height,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: FlutterMap(
+              options: MapOptions(
+                initialCameraFit: CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(32)),
+                minZoom: 2,
+                maxZoom: 18,
               ),
-            MarkerLayer(
-              markers: pontosComCoord.map((p) {
-                final ehParada = cnpjsComParada.contains(p.cnpj);
-                return Marker(
-                  point: ll.LatLng(p.lat!, p.lon!),
-                  width: ehParada ? 36 : 26,
-                  height: ehParada ? 36 : 26,
-                  child: Tooltip(
-                    message: '${p.razaoSocial ?? p.cnpj}${ehParada ? ' — parada sugerida' : ''}',
-                    child: Icon(
-                      ehParada ? Icons.local_gas_station : Icons.circle,
-                      color: _corGrade(p.score.grade),
-                      size: ehParada ? 30 : 16,
-                    ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.fni.gestaodefrotas',
+                ),
+                if (rota != null && rota!.isNotEmpty)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: rota!.map((p) => ll.LatLng(p.lat, p.lon)).toList(),
+                        strokeWidth: 4,
+                        color: Colors.blue.shade600,
+                      ),
+                    ],
                   ),
-                );
-              }).toList(),
+                MarkerLayer(
+                  markers: pontosComCoord.map((p) {
+                    final ehParada = cnpjsComParada.contains(p.cnpj);
+                    final tamanho = ehParada ? 30.0 : 20.0;
+                    return Marker(
+                      point: ll.LatLng(p.lat!, p.lon!),
+                      width: tamanho,
+                      height: tamanho,
+                      child: Tooltip(
+                        message: '${p.razaoSocial ?? p.cnpj}${ehParada ? ' — parada sugerida' : ''}',
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _corGrade(p.score.grade),
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
+                          ),
+                          child: ehParada
+                              ? const Icon(Icons.local_gas_station, color: Colors.white, size: 16)
+                              : null,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
