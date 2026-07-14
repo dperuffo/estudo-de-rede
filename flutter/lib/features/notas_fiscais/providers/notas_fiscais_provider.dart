@@ -1,0 +1,295 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/sessao_provider.dart';
+import '../../../core/services/supabase_service.dart';
+
+// Fase FLT-3 — Notas Fiscais (cliente), porta de notas-fiscais/page.tsx +
+// [notaId]/page.tsx. RLS/RPCs conferidas antes de portar: as duas RPCs de
+// listagem (`indicador_notas_fiscais`, `abastecimentos_com_status_nota_
+// fiscal`) são SECURITY DEFINER mas conferem `p_empresa_id` internamente
+// contra `empresas_do_usuario(email)` — chamar com `sessao.empresaId` é
+// seguro. `notas_fiscais_abastecimento` tem RLS de leitura direta (tem
+// tanto `empresa_posto_id` quanto `empresa_cliente_id`) — a tela de
+// detalhe usa `.from()` igual à web, sem precisar de RPC.
+//
+// Escopo reduzido: sem seção "Uploads sem abastecimento correspondente"
+// (só aparece pro posto, que é quem sobe o XML — fora de escopo aqui) e
+// sem botão "Baixar PDF" da NF-e (a web monta o PDF inteiro em memória
+// via jsPDF — deixado fora do v1 mobile). Também sem paginação de
+// verdade: a web pagina 20 em 20; aqui traz até 100 linhas (90 dias),
+// suficiente pro celular.
+const statusNotasValidos = ['emitida', 'rejeitada', 'pendente'];
+
+class IndicadorNotasFiscais {
+  final int total;
+  final int comNota;
+  final int semNota;
+  final int rejeitadas;
+  final int pendentes;
+  final double percentual;
+
+  const IndicadorNotasFiscais({
+    required this.total,
+    required this.comNota,
+    required this.semNota,
+    required this.rejeitadas,
+    required this.pendentes,
+    required this.percentual,
+  });
+
+  factory IndicadorNotasFiscais.fromMap(Map<String, dynamic>? m) {
+    if (m == null) {
+      return const IndicadorNotasFiscais(total: 0, comNota: 0, semNota: 0, rejeitadas: 0, pendentes: 0, percentual: 0);
+    }
+    final semNota = (m['sem_nota'] as num?)?.toInt() ?? 0;
+    final rejeitadas = (m['rejeitadas'] as num?)?.toInt() ?? 0;
+    return IndicadorNotasFiscais(
+      total: (m['total'] as num?)?.toInt() ?? 0,
+      comNota: (m['com_nota'] as num?)?.toInt() ?? 0,
+      semNota: semNota,
+      rejeitadas: rejeitadas,
+      pendentes: (m['pendentes'] as num?)?.toInt() ?? (semNota - rejeitadas),
+      percentual: (m['percentual'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+final indicadorNotasFiscaisProvider = FutureProvider.autoDispose<IndicadorNotasFiscais>((ref) async {
+  final sessao = await ref.watch(sessaoProvider.future);
+  final empresaId = sessao.empresaId;
+  if (empresaId == null) return const IndicadorNotasFiscais(total: 0, comNota: 0, semNota: 0, rejeitadas: 0, pendentes: 0, percentual: 0);
+  final row = await SupabaseService.client
+      .rpc('indicador_notas_fiscais', params: {'p_empresa_id': empresaId}) as Map<String, dynamic>?;
+  return IndicadorNotasFiscais.fromMap(row);
+});
+
+class LinhaNotaFiscal {
+  final int abastecimentoId;
+  final String provedor;
+  final String? codigoAbastecimento;
+  final String dataAbastecimento;
+  final String? clienteNome;
+  final String? postoNome;
+  final String? veiculoPlaca;
+  final String? itemNome;
+  final double? itemValorTotal;
+  final String? notaId;
+  final int? notaNumero;
+  final String? pendenciaMotivo;
+  final String? pendenciaDetalheTexto;
+  final String? pendenciaNomeArquivo;
+  final String? pendenciaCnpjEmitente;
+  final String? pendenciaProdutoNomeXml;
+  final double? pendenciaQuantidade;
+  final double? pendenciaValorTotal;
+
+  const LinhaNotaFiscal({
+    required this.abastecimentoId,
+    required this.provedor,
+    this.codigoAbastecimento,
+    required this.dataAbastecimento,
+    this.clienteNome,
+    this.postoNome,
+    this.veiculoPlaca,
+    this.itemNome,
+    this.itemValorTotal,
+    this.notaId,
+    this.notaNumero,
+    this.pendenciaMotivo,
+    this.pendenciaDetalheTexto,
+    this.pendenciaNomeArquivo,
+    this.pendenciaCnpjEmitente,
+    this.pendenciaProdutoNomeXml,
+    this.pendenciaQuantidade,
+    this.pendenciaValorTotal,
+  });
+
+  factory LinhaNotaFiscal.fromMap(Map<String, dynamic> m) {
+    return LinhaNotaFiscal(
+      abastecimentoId: (m['abastecimento_id'] as num).toInt(),
+      provedor: m['provedor'] as String? ?? '',
+      codigoAbastecimento: m['codigo_abastecimento'] as String?,
+      dataAbastecimento: m['data_abastecimento'] as String,
+      clienteNome: m['cliente_nome'] as String?,
+      postoNome: m['posto_nome'] as String?,
+      veiculoPlaca: m['veiculo_placa'] as String?,
+      itemNome: m['item_nome'] as String?,
+      itemValorTotal: (m['item_valor_total'] as num?)?.toDouble(),
+      notaId: m['nota_id'] as String?,
+      notaNumero: (m['nota_numero'] as num?)?.toInt(),
+      pendenciaMotivo: m['pendencia_motivo'] as String?,
+      pendenciaDetalheTexto: m['pendencia_detalhe_texto'] as String?,
+      pendenciaNomeArquivo: m['pendencia_nome_arquivo'] as String?,
+      pendenciaCnpjEmitente: m['pendencia_cnpj_emitente'] as String?,
+      pendenciaProdutoNomeXml: m['pendencia_produto_nome_xml'] as String?,
+      pendenciaQuantidade: (m['pendencia_quantidade'] as num?)?.toDouble(),
+      pendenciaValorTotal: (m['pendencia_valor_total'] as num?)?.toDouble(),
+    );
+  }
+
+  // 'emitida' | 'rejeitada' | 'pendente' — mesma derivação da web.
+  String get status {
+    if (notaId != null) return 'emitida';
+    if (pendenciaMotivo != null) return 'rejeitada';
+    return 'pendente';
+  }
+}
+
+class FiltrosNotasFiscais {
+  final String? status;
+  final String? busca;
+  const FiltrosNotasFiscais({this.status, this.busca});
+
+  @override
+  bool operator ==(Object other) =>
+      other is FiltrosNotasFiscais && other.status == status && other.busca == busca;
+  @override
+  int get hashCode => Object.hash(status, busca);
+}
+
+final linhasNotasFiscaisProvider =
+    FutureProvider.autoDispose.family<List<LinhaNotaFiscal>, FiltrosNotasFiscais>((ref, filtros) async {
+  final sessao = await ref.watch(sessaoProvider.future);
+  final empresaId = sessao.empresaId;
+  if (empresaId == null) return [];
+  final rows = await SupabaseService.client.rpc('abastecimentos_com_status_nota_fiscal', params: {
+    'p_empresa_id': empresaId,
+    'p_status': filtros.status,
+    'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty) ? null : filtros.busca!.trim(),
+    'p_limit': 100,
+    'p_offset': 0,
+  }) as List;
+  return rows.map((m) => LinhaNotaFiscal.fromMap(m as Map<String, dynamic>)).toList();
+});
+
+class NotaFiscalDetalhe {
+  final String id;
+  final int numeroNf;
+  final String serieNf;
+  final String chaveAcesso;
+  final String dataEmissao;
+  final String cnpjEmitente;
+  final String nomeEmitente;
+  final String cnpjDestinatario;
+  final String nomeDestinatario;
+  final String produtoNomeXml;
+  final String produtoCodigoAnp;
+  final String produtoDescricaoAnp;
+  final double quantidade;
+  final double valorUnitario;
+  final double valorTotal;
+  final String? abastecimentoData;
+  final String? veiculoPlaca;
+  final String? motoristaNome;
+
+  const NotaFiscalDetalhe({
+    required this.id,
+    required this.numeroNf,
+    required this.serieNf,
+    required this.chaveAcesso,
+    required this.dataEmissao,
+    required this.cnpjEmitente,
+    required this.nomeEmitente,
+    required this.cnpjDestinatario,
+    required this.nomeDestinatario,
+    required this.produtoNomeXml,
+    required this.produtoCodigoAnp,
+    required this.produtoDescricaoAnp,
+    required this.quantidade,
+    required this.valorUnitario,
+    required this.valorTotal,
+    this.abastecimentoData,
+    this.veiculoPlaca,
+    this.motoristaNome,
+  });
+}
+
+final notaFiscalDetalheProvider = FutureProvider.autoDispose.family<NotaFiscalDetalhe?, String>((ref, notaId) async {
+  final supabase = SupabaseService.client;
+  final nota = await supabase
+      .from('notas_fiscais_abastecimento')
+      .select(
+          'id, numero_nf, serie_nf, chave_acesso, data_emissao, cnpj_emitente, nome_emitente, cnpj_destinatario, nome_destinatario, produto_nome_xml, produto_codigo_anp, produto_descricao_anp, quantidade, valor_unitario, valor_total, abastecimento_id, abastecimento_externo_id')
+      .eq('id', notaId)
+      .maybeSingle();
+  if (nota == null) return null;
+
+  String? abastecimentoData;
+  String? veiculoPlaca;
+  String? motoristaNome;
+  if (nota['abastecimento_id'] != null) {
+    final ab = await supabase
+        .from('profrotas_abastecimentos')
+        .select('data_abastecimento, veiculo_placa, motorista_nome')
+        .eq('id', nota['abastecimento_id'])
+        .maybeSingle();
+    abastecimentoData = ab?['data_abastecimento'] as String?;
+    veiculoPlaca = ab?['veiculo_placa'] as String?;
+    motoristaNome = ab?['motorista_nome'] as String?;
+  } else if (nota['abastecimento_externo_id'] != null) {
+    final ab = await supabase
+        .from('abastecimentos_externos')
+        .select('data_abastecimento, placa, motorista_nome')
+        .eq('id', nota['abastecimento_externo_id'])
+        .maybeSingle();
+    abastecimentoData = ab?['data_abastecimento'] as String?;
+    veiculoPlaca = ab?['placa'] as String?;
+    motoristaNome = ab?['motorista_nome'] as String?;
+  }
+
+  return NotaFiscalDetalhe(
+    id: nota['id'] as String,
+    numeroNf: (nota['numero_nf'] as num).toInt(),
+    serieNf: nota['serie_nf'] as String? ?? '',
+    chaveAcesso: nota['chave_acesso'] as String? ?? '',
+    dataEmissao: nota['data_emissao'] as String,
+    cnpjEmitente: nota['cnpj_emitente'] as String? ?? '',
+    nomeEmitente: nota['nome_emitente'] as String? ?? '',
+    cnpjDestinatario: nota['cnpj_destinatario'] as String? ?? '',
+    nomeDestinatario: nota['nome_destinatario'] as String? ?? '',
+    produtoNomeXml: nota['produto_nome_xml'] as String? ?? '',
+    produtoCodigoAnp: nota['produto_codigo_anp'] as String? ?? '',
+    produtoDescricaoAnp: nota['produto_descricao_anp'] as String? ?? '',
+    quantidade: (nota['quantidade'] as num?)?.toDouble() ?? 0,
+    valorUnitario: (nota['valor_unitario'] as num?)?.toDouble() ?? 0,
+    valorTotal: (nota['valor_total'] as num?)?.toDouble() ?? 0,
+    abastecimentoData: abastecimentoData,
+    veiculoPlaca: veiculoPlaca,
+    motoristaNome: motoristaNome,
+  );
+});
+
+// Porta 1:1 de mensagemMotivoPendencia (src/lib/nfe.ts).
+String mensagemMotivoPendencia(String? motivo) {
+  switch (motivo) {
+    case 'sem_correspondencia':
+      return 'Nenhum abastecimento encontrado com o CNPJ, quantidade e valor desta NF-e.';
+    case 'erro_leitura_xml':
+      return 'O XML não pôde ser lido — confira se é o arquivo certo.';
+    case 'modelo_invalido':
+      return 'O XML não é uma NF-e modelo 55.';
+    case 'posto_nao_encontrado':
+      return 'O CNPJ do emitente não corresponde a nenhum posto cadastrado na plataforma.';
+    case 'cliente_nao_encontrado':
+      return 'O CNPJ do destinatário não corresponde a nenhum cliente cadastrado na plataforma.';
+    case 'nao_autorizado':
+      return 'Você não tem permissão para vincular NF-e a este posto.';
+    case 'abastecimento_nao_encontrado':
+      return 'O abastecimento indicado não foi encontrado.';
+    case 'abastecimento_ja_tem_nota':
+      return 'Esse abastecimento já tem uma NF-e vinculada.';
+    case 'cnpj_nao_corresponde_ao_abastecimento':
+      return 'Os CNPJ da NF-e não correspondem aos do abastecimento selecionado.';
+    case 'fora_da_tolerancia':
+      return 'A quantidade ou o valor da NF-e estão fora da margem aceita em relação ao abastecimento (até 0,5 L ou 2% de diferença).';
+    case 'codigo_anp_invalido':
+      return 'O código ANP informado na NF-e não é um código ANP válido.';
+    case 'combustivel_sem_mapeamento_anp':
+      return 'Não há um código ANP cadastrado para o combustível deste abastecimento — avise o suporte da FNI.';
+    case 'codigo_anp_nao_corresponde':
+      return 'O código ANP da NF-e não corresponde ao combustível deste abastecimento.';
+    case 'chave_duplicada':
+      return 'Esta NF-e já foi cadastrada anteriormente.';
+    default:
+      return 'Não foi possível validar esta NF-e.';
+  }
+}

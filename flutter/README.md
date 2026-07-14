@@ -770,8 +770,28 @@ mesma decisão da Fase FLT-1, revisitada e mantida ao iniciar a FLT-3.
   2-3 tabelas). Fora do escopo: paginação de verdade (a web pagina em
   memória depois de trazer a frota inteira; aqui traz até 1000, suficiente
   pro celular) e importação por planilha (`/veiculos/importar`).
+- **Notas Fiscais** (`lib/features/notas_fiscais/`) — porta de
+  `notas-fiscais/page.tsx` + `[notaId]/page.tsx` (lado cliente — `ehPosto`
+  sempre falso aqui). RPCs conferidas antes de portar:
+  `indicador_notas_fiscais`/`abastecimentos_com_status_nota_fiscal` são
+  SECURITY DEFINER mas conferem `p_empresa_id` contra
+  `empresas_do_usuario(email)` internamente — chamar com
+  `sessao.empresaId` é seguro; `notas_fiscais_abastecimento` tem RLS de
+  leitura direta (`empresa_posto_id` OU `empresa_cliente_id`), então o
+  detalhe usa `.from()` direto, sem RPC, igual à web. Lista com painel de
+  indicador (barra de progresso vermelho→âmbar→verde conforme o % de
+  recolha), filtros por status (Todos/Emitida/Rejeitada/Pendente, com
+  contagem) e busca (ID de 10 dígitos, placa, posto ou cliente) sobre os
+  abastecimentos dos últimos 90 dias; cada linha mostra o badge de status,
+  com o motivo detalhado nas rejeitadas (`mensagemMotivoPendencia`,
+  portada 1:1). Detalhe da NF-e mostra emitente/destinatário, item de
+  combustível e o abastecimento vinculado. Fora do escopo: seção "Uploads
+  sem abastecimento correspondente" (só aparece pro posto, que é quem sobe
+  o XML), botão "Baixar PDF" da NF-e (a web monta o PDF inteiro em memória
+  via jsPDF) e paginação de verdade (web pagina 20 em 20; aqui traz até
+  100 linhas).
 
-Demais itens do menu (Notas Fiscais, Anomalias, Roteirização,
+Demais itens do menu (Anomalias, Roteirização,
 Rotograma, Planos de Viagem, Negociações com Postos, Preços dos Postos
 Parceiros, Manutenção Preditiva, Parâmetros de Uso, Relatórios,
 Integrações, Permissões) seguem como `EmConstrucaoScreen`, uma de cada vez
