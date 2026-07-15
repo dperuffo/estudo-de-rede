@@ -3,63 +3,94 @@ import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
 
 // Fase FLT-3 — Notas Fiscais (cliente), porta de notas-fiscais/page.tsx +
-// [notaId]/page.tsx. RLS/RPCs conferidas antes de portar: as duas RPCs de
-// listagem (`indicador_notas_fiscais`, `abastecimentos_com_status_nota_
-// fiscal`) são SECURITY DEFINER mas conferem `p_empresa_id` internamente
-// contra `empresas_do_usuario(email)` — chamar com `sessao.empresaId` é
-// seguro. `notas_fiscais_abastecimento` tem RLS de leitura direta (tem
-// tanto `empresa_posto_id` quanto `empresa_cliente_id`) — a tela de
-// detalhe usa `.from()` igual à web, sem precisar de RPC.
+// [notaId]/page.tsx. RLS/RPCs conferidas antes de portar: as RPCs de
+// listagem são SECURITY DEFINER mas conferem `p_empresa_id`/negociação
+// internamente contra `empresas_do_usuario(email)` — chamar com
+// `sessao.empresaId` é seguro. `notas_fiscais_abastecimento` tem RLS de
+// leitura direta (tem tanto `empresa_posto_id` quanto `empresa_cliente_id`)
+// — a tela de detalhe usa `.from()` igual à web, sem precisar de RPC.
+//
+// Fase NFE-1 — pedido do Daniel: "percentual de recolha por ciclo, seja o
+// status que ele estiver". O indicador único de 90 dias (`indicador_notas_
+// fiscais`/`abastecimentos_com_status_nota_fiscal`) virou 1 ciclo por
+// negociação (`nfe_recolha_por_ciclo`), e a lista de abastecimentos passou
+// a ser escopada ao ciclo selecionado (`abastecimentos_do_ciclo_nfe`) — ver
+// mesma mudança em src/app/(dashboard)/notas-fiscais/page.tsx da web.
 //
 // Escopo reduzido: sem seção "Uploads sem abastecimento correspondente"
 // (só aparece pro posto, que é quem sobe o XML — fora de escopo aqui) e
 // sem botão "Baixar PDF" da NF-e (a web monta o PDF inteiro em memória
 // via jsPDF — deixado fora do v1 mobile). Também sem paginação de
-// verdade: a web pagina 20 em 20; aqui traz até 100 linhas (90 dias),
+// verdade: a web pagina 20 em 20; aqui traz até 100 linhas por ciclo,
 // suficiente pro celular.
 const statusNotasValidos = ['emitida', 'rejeitada', 'pendente'];
 
-class IndicadorNotasFiscais {
+class CicloNfe {
+  final String negociacaoId;
+  final String? postoNome;
+  final String? clienteNome;
+  final String? faturaPostoId;
+  // 'aberto' (virtual) | 'fechada' | 'a_vencer' | 'vencida' (derivado) |
+  // 'paga' | 'cancelada'.
+  final String status;
+  final String periodoInicio;
+  final String periodoFim;
+  final String vencimento;
   final int total;
   final int comNota;
   final int semNota;
   final int rejeitadas;
-  final int pendentes;
-  final double percentual;
+  final double? percentual;
 
-  const IndicadorNotasFiscais({
+  const CicloNfe({
+    required this.negociacaoId,
+    this.postoNome,
+    this.clienteNome,
+    this.faturaPostoId,
+    required this.status,
+    required this.periodoInicio,
+    required this.periodoFim,
+    required this.vencimento,
     required this.total,
     required this.comNota,
     required this.semNota,
     required this.rejeitadas,
-    required this.pendentes,
-    required this.percentual,
+    this.percentual,
   });
 
-  factory IndicadorNotasFiscais.fromMap(Map<String, dynamic>? m) {
-    if (m == null) {
-      return const IndicadorNotasFiscais(total: 0, comNota: 0, semNota: 0, rejeitadas: 0, pendentes: 0, percentual: 0);
-    }
-    final semNota = (m['sem_nota'] as num?)?.toInt() ?? 0;
-    final rejeitadas = (m['rejeitadas'] as num?)?.toInt() ?? 0;
-    return IndicadorNotasFiscais(
-      total: (m['total'] as num?)?.toInt() ?? 0,
-      comNota: (m['com_nota'] as num?)?.toInt() ?? 0,
-      semNota: semNota,
-      rejeitadas: rejeitadas,
-      pendentes: (m['pendentes'] as num?)?.toInt() ?? (semNota - rejeitadas),
-      percentual: (m['percentual'] as num?)?.toDouble() ?? 0,
-    );
-  }
+  int get pendentes => semNota - rejeitadas;
+
+  factory CicloNfe.fromMap(Map<String, dynamic> m) => CicloNfe(
+        negociacaoId: m['negociacao_id'] as String,
+        postoNome: m['posto_nome'] as String?,
+        clienteNome: m['cliente_nome'] as String?,
+        faturaPostoId: m['fatura_posto_id'] as String?,
+        status: m['status'] as String? ?? 'aberto',
+        periodoInicio: m['periodo_inicio'] as String,
+        periodoFim: m['periodo_fim'] as String,
+        vencimento: m['vencimento'] as String,
+        total: (m['total'] as num?)?.toInt() ?? 0,
+        comNota: (m['com_nota'] as num?)?.toInt() ?? 0,
+        semNota: (m['sem_nota'] as num?)?.toInt() ?? 0,
+        rejeitadas: (m['rejeitadas'] as num?)?.toInt() ?? 0,
+        percentual: (m['percentual'] as num?)?.toDouble(),
+      );
 }
 
-final indicadorNotasFiscaisProvider = FutureProvider.autoDispose<IndicadorNotasFiscais>((ref) async {
+final ciclosNfeProvider = FutureProvider.autoDispose<List<CicloNfe>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
-  if (empresaId == null) return const IndicadorNotasFiscais(total: 0, comNota: 0, semNota: 0, rejeitadas: 0, pendentes: 0, percentual: 0);
-  final row = await SupabaseService.client
-      .rpc('indicador_notas_fiscais', params: {'p_empresa_id': empresaId}) as Map<String, dynamic>?;
-  return IndicadorNotasFiscais.fromMap(row);
+  if (empresaId == null) return [];
+  final rows = await SupabaseService.client
+      .rpc('nfe_recolha_por_ciclo', params: {'p_empresa_id': empresaId, 'p_qtd_fechados': 6}) as List;
+  final ciclos = rows.map((m) => CicloNfe.fromMap(m as Map<String, dynamic>)).toList();
+  // ciclo aberto primeiro, depois os fechados do mais recente pro mais antigo.
+  ciclos.sort((a, b) {
+    if (a.status == 'aberto' && b.status != 'aberto') return -1;
+    if (b.status == 'aberto' && a.status != 'aberto') return 1;
+    return b.periodoFim.compareTo(a.periodoFim);
+  });
+  return ciclos;
 });
 
 class LinhaNotaFiscal {
@@ -135,24 +166,37 @@ class LinhaNotaFiscal {
 }
 
 class FiltrosNotasFiscais {
+  final String negociacaoId;
+  final String periodoInicio;
+  final String periodoFim;
   final String? status;
   final String? busca;
-  const FiltrosNotasFiscais({this.status, this.busca});
+  const FiltrosNotasFiscais({
+    required this.negociacaoId,
+    required this.periodoInicio,
+    required this.periodoFim,
+    this.status,
+    this.busca,
+  });
 
   @override
   bool operator ==(Object other) =>
-      other is FiltrosNotasFiscais && other.status == status && other.busca == busca;
+      other is FiltrosNotasFiscais &&
+      other.negociacaoId == negociacaoId &&
+      other.periodoInicio == periodoInicio &&
+      other.periodoFim == periodoFim &&
+      other.status == status &&
+      other.busca == busca;
   @override
-  int get hashCode => Object.hash(status, busca);
+  int get hashCode => Object.hash(negociacaoId, periodoInicio, periodoFim, status, busca);
 }
 
 final linhasNotasFiscaisProvider =
     FutureProvider.autoDispose.family<List<LinhaNotaFiscal>, FiltrosNotasFiscais>((ref, filtros) async {
-  final sessao = await ref.watch(sessaoProvider.future);
-  final empresaId = sessao.empresaId;
-  if (empresaId == null) return [];
-  final rows = await SupabaseService.client.rpc('abastecimentos_com_status_nota_fiscal', params: {
-    'p_empresa_id': empresaId,
+  final rows = await SupabaseService.client.rpc('abastecimentos_do_ciclo_nfe', params: {
+    'p_negociacao_id': filtros.negociacaoId,
+    'p_periodo_inicio': filtros.periodoInicio,
+    'p_periodo_fim': filtros.periodoFim,
     'p_status': filtros.status,
     'p_busca': (filtros.busca == null || filtros.busca!.trim().isEmpty) ? null : filtros.busca!.trim(),
     'p_limit': 100,

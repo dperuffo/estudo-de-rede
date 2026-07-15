@@ -1698,3 +1698,42 @@ mudou — já era agnóstico a status, só lê o resultado das RPCs recalculadas
 internet/pub-cache) — as edições foram feitas por substituição textual direta, verificadas por
 balanceamento de chaves/parênteses em cada arquivo tocado, mas **não foram compiladas** aqui. Rodar
 `flutter analyze` e o build normal antes de confiar no deploy.
+
+## Fase NFE-1 — recolha de NF-e por ciclo (não mais janela fixa de 90 dias)
+
+Pedido do Daniel: "ajustar a aplicação para apresentar o percentual de recolha por ciclo, seja o
+status que ele estiver". A tela Notas Fiscais mostrava 1 indicador global agregando os últimos 90
+dias corridos (`now() - interval '90 days'`), sem nenhuma noção de ciclo de faturamento — virou 1
+card por ciclo de cada negociação posto↔cliente (o ciclo aberto atual + os últimos 6 já fechados em
+`faturas_postos`), cada um com seu próprio % de recolha, independente do status
+(aberto/fechada/a_vencer/vencida/paga/cancelada).
+
+**Banco** (projeto `nedthbeekvwzcjrhsghp`): 2 RPCs novas. `nfe_stats_periodo(cliente_cnpj, posto_cnpj,
+empresa_cliente_id, periodo_inicio, periodo_fim)` — helper que conta abastecimentos (profrotas +
+externos) com/sem NF-e num intervalo de datas pra um par posto↔cliente específico (não usa a coluna
+`fatura_posto_id` como agrupador — ela só é preenchida na fase 2 do robô e só pros abastecimentos que
+JÁ têm NFe, então pendentes nunca ganham esse vínculo; a relação real é por CNPJ + intervalo de datas,
+igual ao que `ciclos_abertos_postos()` já fazia). `nfe_recolha_por_ciclo(p_empresa_id, p_qtd_fechados)`
+— 1 linha por ciclo (o aberto, calculado com os mesmos helpers de calendário do robô, + os últimos
+`p_qtd_fechados` de `faturas_postos`) de cada negociação em que a empresa participa (como posto ou
+cliente). `abastecimentos_do_ciclo_nfe(p_negociacao_id, p_periodo_inicio, p_periodo_fim, ...)` — mesma
+forma de `abastecimentos_com_status_nota_fiscal`, mas escopada a 1 ciclo específico em vez da janela de
+90 dias, usada pra listar os abastecimentos do ciclo selecionado.
+
+**Web**: `notas-fiscais/page.tsx` trocou `indicador_notas_fiscais`/`abastecimentos_com_status_nota_fiscal`
+pelas RPCs novas. Novo componente `RecolhaPorCiclo.tsx` (1 card por ciclo, clicável — troca o ciclo
+selecionado via query param `ciclo=negociacaoId|periodoInicio|periodoFim`) substitui
+`IndicadorNotasFiscais` no topo da tela (o arquivo antigo continua existindo, só exporta
+`corDoPercentual` reaproveitado pelo card novo). A tabela de abastecimentos abaixo passou a ser
+escopada ao ciclo selecionado, com os contadores dos filtros Todos/Emitida/Rejeitada/Pendente vindo do
+próprio ciclo (não mais de um agregado de 90 dias).
+
+**Flutter** (mesma mudança, espelhada — só na visão Cliente, que é a única visão de Notas Fiscais que
+existe no app hoje; não existe ainda uma tela de Notas Fiscais pro lado Posto no Flutter, a web serve
+essa mesma página pras 3 visões mas o Flutter só portou a variante cliente até agora — ver Fase FLT-3
+original): `notas_fiscais_provider.dart` ganhou `CicloNfe`/`ciclosNfeProvider` (chama
+`nfe_recolha_por_ciclo`) substituindo `IndicadorNotasFiscais`/`indicadorNotasFiscaisProvider`;
+`FiltrosNotasFiscais` ganhou `negociacaoId`/`periodoInicio`/`periodoFim` e `linhasNotasFiscaisProvider`
+passou a chamar `abastecimentos_do_ciclo_nfe`. `notas_fiscais_screen.dart` renderiza a lista de cards
+de ciclo (`_cardCiclo`, tap pra selecionar) no lugar do card único, com badge de status colorido por
+cor (mesma paleta de `financeiro_posto_screen.dart`).
