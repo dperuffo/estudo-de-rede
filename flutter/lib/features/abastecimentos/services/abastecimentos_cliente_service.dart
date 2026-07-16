@@ -147,11 +147,24 @@ class AbastecimentosClienteService {
       };
     }
 
-    final provedoresRaw =
-        await _supabase.from('abastecimentos_unificado').select('provedor').eq('empresa_id', empresaId).limit(20000);
+    // Fase FLT-3 — achado real (Daniel, cliente de teste com 8,4k+
+    // abastecimentos): as opções de "meio de pagamento" vinham de
+    // .select('provedor').limit(20000), sujeito ao corte de 1.000 linhas
+    // que o PostgREST aplica por padrão sem paginação (mesmo bug já
+    // documentado e corrigido na Inteligência de Rede, Fase 6, do lado
+    // web). Clientes com mais de 1.000 registros podiam não ver todos os
+    // provedores na lista de filtro. Troca pra RPC agregada no banco
+    // (indicadores_financeiros_por_provedor, já usada em Financeiro) —
+    // sem limite de data, só pra descobrir todo provedor já usado por
+    // este cliente.
+    final provedoresRaw = await _supabase.rpc('indicadores_financeiros_por_provedor', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': '2000-01-01',
+      'p_data_fim': DateTime.now().toIso8601String().substring(0, 10),
+    }) as List;
     final provedoresOpcoes = <String>{
       for (final m in provedoresRaw)
-        if (m['provedor'] != null) m['provedor'] as String,
+        if ((m as Map<String, dynamic>)['provedor'] != null) m['provedor'] as String,
     }.toList()
       ..sort((a, b) => nomeProvedor(a).compareTo(nomeProvedor(b)));
 
@@ -186,14 +199,26 @@ class AbastecimentosClienteService {
         await aplicar(_supabase.from('abastecimentos_unificado').select('id')).count(CountOption.exact);
     final total = contagemResp.count;
 
-    final agregadosRaw =
-        await aplicar(_supabase.from('abastecimentos_unificado').select('litros, valor_total')).limit(50000);
-    var volumeTotal = 0.0;
-    var receitaTotal = 0.0;
-    for (final r in agregadosRaw) {
-      volumeTotal += (r['litros'] as num?)?.toDouble() ?? 0;
-      receitaTotal += (r['valor_total'] as num?)?.toDouble() ?? 0;
-    }
+    // Fase FLT-3 — mesmo bug do corte de 1.000 linhas do PostgREST: Volume
+    // e Valor total vinham de .select('litros, valor_total').limit(50000)
+    // e soma em Dart, então clientes com mais de 1.000 abastecimentos
+    // tinham esses indicadores calculados sobre uma fatia arbitrária dos
+    // dados (quase sempre dominada pelo provedor histórico maior). Troca
+    // pra RPC que soma direto no Postgres (abastecimentos_totais_filtrados,
+    // criada no banco pra este fix), replicando os mesmos filtros desta
+    // busca (combustível, provedor, texto livre, data, ajuste pendente).
+    final totaisRaw = await _supabase.rpc('abastecimentos_totais_filtrados', params: {
+      'p_empresa_id': empresaId,
+      'p_q': (filtros.q?.trim().isEmpty ?? true) ? null : filtros.q!.trim(),
+      'p_de': (filtros.de?.isEmpty ?? true) ? null : filtros.de,
+      'p_ate': (filtros.ate?.isEmpty ?? true) ? null : filtros.ate,
+      'p_provedor': filtros.provedor,
+      'p_apenas_ajuste_pendente': filtros.somenteAjustePendente,
+      'p_produto': filtros.combustivel,
+    }) as List;
+    final totaisLinha = totaisRaw.isNotEmpty ? totaisRaw.first as Map<String, dynamic> : null;
+    final volumeTotal = (totaisLinha?['litros'] as num?)?.toDouble() ?? 0;
+    final receitaTotal = (totaisLinha?['valor_total'] as num?)?.toDouble() ?? 0;
 
     final paginaRaw = await aplicar(_supabase.from('abastecimentos_unificado').select(
           'id, provedor, codigo_abastecimento, data_abastecimento, empresa_id, placa, motorista_nome, produto, litros, valor_total, posto_nome',
