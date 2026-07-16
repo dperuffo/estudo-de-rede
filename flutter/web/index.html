@@ -32,6 +32,20 @@
 
   <title>fni_gestao_frotas</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- MouseFlow — mapa de calor e gravação de sessão (Website ID f691c5cb-2814-4e09-8baf-edc22f4673d5).
+       Lembre de adicionar o domínio deste PWA em Websites > (site) > Settings > Domains
+       no painel MouseFlow, senão o tracking fica bloqueado por domínio não reconhecido. -->
+  <script type="text/javascript">
+    window._mfq = window._mfq || [];
+    (function () {
+      var mf = document.createElement("script");
+      mf.type = "text/javascript";
+      mf.defer = true;
+      mf.src = "//cdn.mouseflow.com/projects/f691c5cb-2814-4e09-8baf-edc22f4673d5.js";
+      document.getElementsByTagName("head")[0].appendChild(mf);
+    })();
+  </script>
 </head>
 <body>
   <!--
