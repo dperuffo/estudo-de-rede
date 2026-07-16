@@ -65,12 +65,15 @@ class ClienteGasto {
 }
 
 // Fase FLT-6 — item da lista "Últimos ajustes" (porta ItemResumoAjuste de
-// ajustesAbastecimentos.ts). O link "Ver" só é confiável quando `tipo` é
-// 'profrotas' (chave da rota /abastecimentos/:chave = "profrotas:$id" —
-// mesmo formato já usado em ajuste_abastecimento_cliente_provider.dart).
-// Pra `tipo` 'externo' não dá pra montar a chave sem saber qual provedor
-// (Valecard/RedeFrota/TicketLog/Veloe) sem uma consulta extra por linha —
-// simplificação: mostramos a linha sem link nesse caso.
+// ajustesAbastecimentos.ts). Achado real (Daniel, print do Dashboard): ajustes
+// de provedor externo (Valecard/RedeFrota/TicketLog/Veloe) apareciam na lista
+// sem o link "Ver", porque a chave da rota /abastecimentos/:chave precisa do
+// nome do provedor (ex.: "ticket:123"), e só sabíamos 'profrotas' | 'externo'
+// (o `tipo`, que só diz qual coluna da tabela ajustes_abastecimentos foi
+// preenchida). Corrigido: o provider agora resolve o provedor real dos
+// ajustes externos com 1 consulta extra em lote (abastecimentos_externos),
+// então `provedor` já vem pronto pra montar a chave — igual à web, que
+// sempre mostra "Ver" (ver caminhoAbastecimento em ajustesAbastecimentos.ts).
 class ItemAjuste {
   final String id;
   final String tipo; // 'profrotas' | 'externo'
@@ -80,6 +83,10 @@ class ItemAjuste {
   final double? valorOriginal;
   final String criadoEm;
   final String atualizadoEm;
+  // Nome real do provedor pra montar a chave da rota — 'profrotas' ou o
+  // provedor do abastecimento externo (ex.: 'ticket'). Null só se a busca
+  // em lote não encontrou o registro (ex.: linha excluída nesse meio tempo).
+  final String? provedor;
   const ItemAjuste({
     required this.id,
     required this.tipo,
@@ -89,9 +96,10 @@ class ItemAjuste {
     required this.valorOriginal,
     required this.criadoEm,
     required this.atualizadoEm,
+    required this.provedor,
   });
 
-  String? get chaveRota => tipo == 'profrotas' ? 'profrotas:$abastecimentoId' : null;
+  String? get chaveRota => provedor != null ? '$provedor:$abastecimentoId' : null;
 }
 
 const statusAjusteLabel = <String, String>{
@@ -332,6 +340,26 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
         .order('atualizado_em', ascending: false)
         .limit(5) as List;
 
+    // Resolve o provedor real dos ajustes externos (Valecard/RedeFrota/
+    // TicketLog/Veloe) em 1 consulta em lote — a lista é sempre pequena
+    // (limit 5), então isso não vira N+1.
+    final idsExternos = ultimosAjustesRaw
+        .map((u) => (u as Map<String, dynamic>)['abastecimento_externo_id'] as num?)
+        .whereType<num>()
+        .map((n) => n.toInt())
+        .toList();
+    final provedorPorIdExterno = <int, String>{};
+    if (idsExternos.isNotEmpty) {
+      final provedoresRaw = await supabase
+          .from('abastecimentos_externos')
+          .select('id, provedor')
+          .inFilter('id', idsExternos) as List;
+      for (final p in provedoresRaw) {
+        final m = p as Map<String, dynamic>;
+        provedorPorIdExterno[(m['id'] as num).toInt()] = m['provedor'] as String;
+      }
+    }
+
     // Impacto financeiro real = valor que FOI de fato aceito em cada ajuste
     // (rodada com decisao='aceita') menos o valor_original — não dá pra usar
     // só o cabeçalho (só guarda o valor de ANTES).
@@ -365,16 +393,18 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
       ultimos: ultimosAjustesRaw.map((u) {
         final m = u as Map<String, dynamic>;
         final abastecimentoId = (m['abastecimento_id'] as num?)?.toInt();
+        final externoId = (m['abastecimento_externo_id'] as num?)?.toInt();
         final tipo = abastecimentoId != null ? 'profrotas' : 'externo';
         return ItemAjuste(
           id: m['id'] as String,
           tipo: tipo,
-          abastecimentoId: abastecimentoId ?? ((m['abastecimento_externo_id'] as num?)?.toInt() ?? 0),
+          abastecimentoId: abastecimentoId ?? externoId ?? 0,
           status: m['status'] as String,
           origem: m['origem'] as String,
           valorOriginal: (m['valor_original'] as num?)?.toDouble(),
           criadoEm: m['criado_em'] as String,
           atualizadoEm: m['atualizado_em'] as String,
+          provedor: tipo == 'profrotas' ? 'profrotas' : provedorPorIdExterno[externoId],
         );
       }).toList(),
     );

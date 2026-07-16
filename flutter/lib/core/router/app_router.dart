@@ -75,6 +75,7 @@ import '../../features/negociacoes/screens/negociacao_detalhe_screen.dart';
 import '../../features/negociacoes/screens/criar_negociacao_screen.dart';
 import '../../features/parametros_uso/screens/parametros_uso_screen.dart';
 import '../../features/parametros_uso/screens/vinculo_novo_screen.dart';
+import '../../features/antifraude/screens/antifraude_screen.dart';
 import '../../features/parametros_uso/screens/vinculo_editar_screen.dart';
 import '../../features/notas_fiscais/screens/notas_fiscais_screen.dart';
 import '../../features/notas_fiscais/screens/nota_fiscal_detalhe_screen.dart';
@@ -299,6 +300,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => ManutencaoPreditivaDetalheScreen(placa: state.pathParameters['placa']!),
             ),
             GoRoute(path: '/parametros-uso', builder: (_, __) => const ParametrosUsoScreen()),
+            GoRoute(path: '/antifraude', builder: (_, __) => const AntifraudeScreen()),
             GoRoute(path: '/parametros-uso/novo', builder: (_, __) => const VinculoNovoScreen()),
             GoRoute(
               path: '/parametros-uso/:id/editar',

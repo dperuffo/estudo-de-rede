@@ -223,8 +223,16 @@ class TabelaSimples extends StatelessWidget {
           children: List.generate(colunas.length, (i) {
             return Expanded(
               flex: flex[i],
+              // Achado real (Daniel, print do Dashboard): sem limite de
+              // linhas, valores em R$ que não cabiam na coluna quebravam no
+              // meio do número (ex.: "R$ 13.389," numa linha e "94" na
+              // seguinte). maxLines:1 + ellipsis evita a quebra feia — se
+              // ainda assim não couber, mostra "..." em vez de cortar o
+              // número ao meio.
               child: Text(
                 valores[i],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: cabecalho
                     ? TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade500)
                     : const TextStyle(fontSize: 12),

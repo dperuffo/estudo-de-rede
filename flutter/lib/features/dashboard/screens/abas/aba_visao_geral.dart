@@ -416,12 +416,20 @@ class AbaVisaoGeral extends ConsumerWidget {
   Widget _graficoConsumo(List<PontoConsumoMensal> pontos) {
     final maxLitros = pontos.map((p) => p.litros).fold<double>(0, (a, b) => a > b ? a : b);
     final valorTotal = pontos.fold<double>(0, (s, p) => s + p.valor);
+    // Achado real (Daniel, print do Dashboard): sem `interval` explícito, o
+    // fl_chart às vezes escolhe um intervalo de grade que cai muito perto do
+    // topo do eixo, desenhando dois rótulos ("10.000" e o próximo) quase um
+    // em cima do outro. Fixando 4 faixas (maxY/4) o espaçamento fica sempre
+    // regular, e passamos o mesmo valor pra grade (horizontalInterval) pra
+    // as linhas horizontais baterem com os números.
+    final maxY = maxLitros <= 0 ? 1.0 : maxLitros * 1.2;
+    final intervaloY = maxY / 4;
 
     return Column(children: [
       SizedBox(
         height: 200,
         child: BarChart(BarChartData(
-          maxY: maxLitros <= 0 ? 1 : maxLitros * 1.2,
+          maxY: maxY,
           barGroups: pontos.asMap().entries.map((e) {
             return BarChartGroupData(x: e.key, barRods: [
               BarChartRodData(
@@ -440,6 +448,7 @@ class AbaVisaoGeral extends ConsumerWidget {
             leftTitles: AxisTitles(sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 44,
+              interval: intervaloY,
               getTitlesWidget: (v, _) => Text(_numero.format(v.round()), style: const TextStyle(fontSize: 9)),
             )),
             bottomTitles: AxisTitles(sideTitles: SideTitles(
@@ -457,6 +466,7 @@ class AbaVisaoGeral extends ConsumerWidget {
           borderData: FlBorderData(show: false),
           gridData: FlGridData(
             drawVerticalLine: false,
+            horizontalInterval: intervaloY,
             getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.15), strokeWidth: 1),
           ),
           barTouchData: BarTouchData(
