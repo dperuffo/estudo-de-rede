@@ -33,18 +33,19 @@
   <title>fni_gestao_frotas</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- MouseFlow — mapa de calor e gravação de sessão (Website ID f691c5cb-2814-4e09-8baf-edc22f4673d5).
-       Lembre de adicionar o domínio deste PWA em Websites > (site) > Settings > Domains
-       no painel MouseFlow, senão o tracking fica bloqueado por domínio não reconhecido. -->
-  <script type="text/javascript">
-    window._mfq = window._mfq || [];
-    (function () {
-      var mf = document.createElement("script");
-      mf.type = "text/javascript";
-      mf.defer = true;
-      mf.src = "//cdn.mouseflow.com/projects/f691c5cb-2814-4e09-8baf-edc22f4673d5.js";
-      document.getElementsByTagName("head")[0].appendChild(mf);
-    })();
+  <!-- Hotjar — mapa de calor e gravação de sessão (Site ID 2318560).
+       Troca do MouseFlow: a instalação nunca saiu do estado "aguardando
+       confirmação" mesmo com o script comprovadamente rodando; Hotjar não
+       tem esse passo extra de ativação manual. -->
+  <script>
+    (function (h, o, t, j, a, r) {
+      h.hj = h.hj || function () { (h.hj.q = h.hj.q || []).push(arguments); };
+      h._hjSettings = { hjid: 2318560, hjsv: 6 };
+      a = o.getElementsByTagName("head")[0];
+      r = o.createElement("script"); r.async = 1;
+      r.src = t + h._hjSettings.hjid + j + h._hjSettings.hjsv;
+      a.appendChild(r);
+    })(window, document, "https://static.hotjar.com/c/hotjar-", ".js?sv=");
   </script>
 </head>
 <body>
