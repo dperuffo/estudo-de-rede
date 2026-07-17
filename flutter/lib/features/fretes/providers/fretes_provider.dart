@@ -289,7 +289,7 @@ final postosRecomendadosProvider = FutureProvider.autoDispose.family<List<PostoR
       .from('fretes_postos_recomendados')
       .select('id, nome_posto, observacao, item_catalogo_id')
       .eq('frete_id', freteId)
-      .order('ordem');
+      .order('ordem', ascending: true);
   return (rows as List).map((r) => PostoRecomendado.fromMap(r as Map<String, dynamic>)).toList();
 });
 
@@ -301,7 +301,7 @@ final eventosFreteProvider = FutureProvider.autoDispose.family<List<EventoFrete>
       .from('fretes_eventos')
       .select('id, tipo_evento, observacao, criado_em, foto_path')
       .eq('frete_id', freteId)
-      .order('criado_em');
+      .order('criado_em', ascending: true);
   final eventos = (rows as List).map((r) => EventoFrete.fromMap(r as Map<String, dynamic>)).toList();
   for (final e in eventos) {
     if (e.fotoPath == null) continue;
