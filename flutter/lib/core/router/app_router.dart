@@ -98,6 +98,13 @@ import '../../features/chamados/screens/chamados_cliente_screen.dart';
 import '../../features/chamados/screens/chamado_novo_cliente_screen.dart';
 import '../../features/clientes/screens/clientes_screen.dart';
 import '../../features/grupo_economico/screens/grupo_economico_screen.dart';
+import '../../features/parcerias_locais/screens/parcerias_locais_screen.dart';
+import '../../features/parcerias_locais/screens/item_parceria_novo_screen.dart';
+import '../../features/parcerias_locais/screens/item_parceria_editar_screen.dart';
+import '../../features/fretes/screens/fretes_screen.dart';
+import '../../features/fretes/screens/frete_novo_screen.dart';
+import '../../features/fretes/screens/frete_detalhe_screen.dart';
+import '../../features/fretes/screens/motoristas_parceiros_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sessao_provider.dart';
 
@@ -281,6 +288,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/rotograma/:id',
               builder: (_, state) => RotogramaDetalheScreen(id: state.pathParameters['id']!),
             ),
+            GoRoute(path: '/parcerias-locais', builder: (_, __) => const ParceriasLocaisScreen()),
+            GoRoute(path: '/parcerias-locais/novo', builder: (_, __) => const ItemParceriaNovoScreen()),
+            GoRoute(
+              path: '/parcerias-locais/:id/editar',
+              builder: (_, state) => ItemParceriaEditarScreen(id: state.pathParameters['id']!),
+            ),
             GoRoute(path: '/planos-viagem', builder: (_, __) => const PlanosViagemScreen()),
             GoRoute(path: '/planos-viagem/novo', builder: (_, __) => const PlanoViagemNovoScreen()),
             GoRoute(
@@ -334,6 +347,16 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => GrupoEconomicoAdminDetalheScreen(grupoId: state.pathParameters['id']!),
             ),
             GoRoute(path: '/clientes-admin', builder: (_, __) => const ClientesAdminListaScreen()),
+            // Fase PWA-Fretes — só visão CLIENTE (o motorista tem seu
+            // próprio app, estrada-que-cuida). Mesmas RPCs SECURITY DEFINER
+            // já usadas pela web (negociação, avaliação, parceiros).
+            GoRoute(path: '/fretes', builder: (_, __) => const FretesScreen()),
+            GoRoute(path: '/fretes/novo', builder: (_, __) => const FreteNovoScreen()),
+            GoRoute(
+              path: '/fretes/:id',
+              builder: (_, state) => FreteDetalheScreen(freteId: state.pathParameters['id']!),
+            ),
+            GoRoute(path: '/motoristas-parceiros', builder: (_, __) => const MotoristasParceirosScreen()),
           ],
         ),
 
@@ -361,6 +384,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/posto/usuarios/:email',
               builder: (_, state) =>
                   UsuarioEditarScreen(email: Uri.decodeComponent(state.pathParameters['email']!)),
+            ),
+            GoRoute(path: '/posto/parcerias-locais', builder: (_, __) => const ParceriasLocaisScreen()),
+            GoRoute(path: '/posto/parcerias-locais/novo', builder: (_, __) => const ItemParceriaNovoScreen()),
+            GoRoute(
+              path: '/posto/parcerias-locais/:id/editar',
+              builder: (_, state) => ItemParceriaEditarScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(path: '/posto/negociacoes', builder: (_, __) => const NegociacoesScreen()),
             GoRoute(path: '/posto/negociacoes/novo', builder: (_, __) => const CriarNegociacaoScreen()),

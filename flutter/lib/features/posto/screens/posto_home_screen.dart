@@ -164,6 +164,7 @@ class PostoHomeScreen extends ConsumerWidget {
             _grp('Operação'),
             _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes', badge: badges.negociacoes),
             _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos', badge: badges.ajustesAbastecimento),
+            _item(context, Icons.card_giftcard, 'Parcerias Locais', '/posto/parcerias-locais'),
             _item(context, Icons.business, 'Clientes', '/posto/clientes'),
             _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
             const Divider(),
