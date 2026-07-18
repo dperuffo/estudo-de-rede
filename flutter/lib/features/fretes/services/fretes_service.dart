@@ -182,12 +182,18 @@ class FretesService {
     await _supabase.from('fretes_postos_recomendados').delete().eq('id', id);
   }
 
-  Future<String?> avaliarMotorista({required String freteId, required int estrelas, String? comentario}) async {
+  Future<String?> avaliarMotorista({
+    required String freteId,
+    required int estrelas,
+    String? comentario,
+    List<String> tags = const [],
+  }) async {
     try {
       await _supabase.rpc('avaliar_frete', params: {
         'p_frete_id': freteId,
         'p_estrelas': estrelas,
         'p_comentario': (comentario == null || comentario.trim().isEmpty) ? null : comentario.trim(),
+        'p_tags': tags,
       });
       return null;
     } catch (e) {

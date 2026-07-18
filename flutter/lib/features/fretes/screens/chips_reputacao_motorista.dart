@@ -25,6 +25,9 @@ class ChipsReputacaoMotorista extends StatelessWidget {
       runSpacing: 4,
       children: [
         if (reputacao.seloVerificado) chip('✅ Motorista verificado', cor: Colors.green),
+        // Fase Destaques-Automaticos — tags que se repetiram em 2+
+        // avaliações de clientes diferentes (ver _reputacao_motorista).
+        ...reputacao.tagsDestaque.map((t) => chip('🏷️ ${t.tag}', cor: Colors.blue)),
         chip(
           reputacao.mediaEstrelas != null
               ? '⭐ ${reputacao.mediaEstrelas!.toStringAsFixed(1)} (${reputacao.totalAvaliacoes})'

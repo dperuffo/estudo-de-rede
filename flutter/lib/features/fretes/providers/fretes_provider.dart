@@ -252,6 +252,10 @@ class ReputacaoMotorista {
   final bool seguranca2faAtivo;
   final int? diasCadastro;
   final bool seloVerificado;
+  // Fase Destaques-Automaticos — tags marcadas pelo cliente na avaliação que
+  // se repetiram em 2+ avaliações diferentes desse motorista (ver
+  // _reputacao_motorista no banco).
+  final List<TagDestaque> tagsDestaque;
 
   const ReputacaoMotorista({
     this.mediaEstrelas,
@@ -264,6 +268,7 @@ class ReputacaoMotorista {
     required this.seguranca2faAtivo,
     this.diasCadastro,
     required this.seloVerificado,
+    this.tagsDestaque = const [],
   });
 
   factory ReputacaoMotorista.fromMap(Map<String, dynamic> m) => ReputacaoMotorista(
@@ -277,6 +282,9 @@ class ReputacaoMotorista {
         seguranca2faAtivo: m['seguranca_2fa_ativo'] as bool? ?? false,
         diasCadastro: (m['dias_cadastro'] as num?)?.toInt(),
         seloVerificado: m['selo_verificado'] as bool? ?? false,
+        tagsDestaque: (m['tags_destaque'] as List<dynamic>? ?? [])
+            .map((t) => TagDestaque.fromMap(t as Map<String, dynamic>))
+            .toList(),
       );
 
   String get tempoCadastroFormatado {
@@ -334,13 +342,29 @@ class AvaliacaoFrete {
   final String avaliador;
   final int estrelas;
   final String? comentario;
+  final List<String> tags;
 
-  const AvaliacaoFrete({required this.avaliador, required this.estrelas, this.comentario});
+  const AvaliacaoFrete({required this.avaliador, required this.estrelas, this.comentario, this.tags = const []});
 
   factory AvaliacaoFrete.fromMap(Map<String, dynamic> m) => AvaliacaoFrete(
         avaliador: m['avaliador'] as String? ?? '',
         estrelas: (m['estrelas'] as num?)?.toInt() ?? 0,
         comentario: m['comentario'] as String?,
+        tags: (m['tags'] as List<dynamic>? ?? []).map((t) => t as String).toList(),
+      );
+}
+
+// Fase Destaques-Automaticos — {tag, quantidade} vindo de
+// _reputacao_motorista.tags_destaque (jsonb).
+class TagDestaque {
+  final String tag;
+  final int quantidade;
+
+  const TagDestaque({required this.tag, required this.quantidade});
+
+  factory TagDestaque.fromMap(Map<String, dynamic> m) => TagDestaque(
+        tag: m['tag'] as String? ?? '',
+        quantidade: (m['quantidade'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -452,7 +476,7 @@ final eventosFreteProvider = FutureProvider.autoDispose.family<List<EventoFrete>
 
 final avaliacoesFreteProvider = FutureProvider.autoDispose.family<List<AvaliacaoFrete>, String>((ref, freteId) async {
   final rows =
-      await SupabaseService.client.from('fretes_avaliacoes').select('avaliador, estrelas, comentario').eq('frete_id', freteId);
+      await SupabaseService.client.from('fretes_avaliacoes').select('avaliador, estrelas, comentario, tags').eq('frete_id', freteId);
   return (rows as List).map((r) => AvaliacaoFrete.fromMap(r as Map<String, dynamic>)).toList();
 });
 

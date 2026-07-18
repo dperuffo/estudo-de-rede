@@ -583,9 +583,14 @@ class _BlocoAvaliacao extends ConsumerStatefulWidget {
   ConsumerState<_BlocoAvaliacao> createState() => _BlocoAvaliacaoState();
 }
 
+// Fase Destaques-Automaticos — mesma lista permitida pela constraint
+// fretes_avaliacoes_tags_validas no banco.
+const _tagsDisponiveis = ['Pontual', 'Cuidado com a carga', 'Comunicativo', 'Educado', 'Recomendo'];
+
 class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
   int _estrelas = 5;
   final _comentarioCtrl = TextEditingController();
+  final Set<String> _tagsSelecionadas = {};
   bool _enviando = false;
   bool _enviado = false;
   String? _erro;
@@ -601,7 +606,12 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
       _enviando = true;
       _erro = null;
     });
-    final erro = await FretesService().avaliarMotorista(freteId: widget.freteId, estrelas: _estrelas, comentario: _comentarioCtrl.text);
+    final erro = await FretesService().avaliarMotorista(
+      freteId: widget.freteId,
+      estrelas: _estrelas,
+      comentario: _comentarioCtrl.text,
+      tags: _tagsSelecionadas.toList(),
+    );
     if (!mounted) return;
     setState(() {
       _enviando = false;
@@ -649,6 +659,18 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
                           );
                         }),
                       ),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _tagsDisponiveis
+                            .map((tag) => FilterChip(
+                                  label: Text(tag, style: const TextStyle(fontSize: 12)),
+                                  selected: _tagsSelecionadas.contains(tag),
+                                  onSelected: (sel) => setState(() => sel ? _tagsSelecionadas.add(tag) : _tagsSelecionadas.remove(tag)),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: _comentarioCtrl,
                         maxLines: 2,
@@ -667,7 +689,9 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
                       const Text('Avaliação enviada. Obrigado!', style: TextStyle(color: Colors.green))
                     else if (doCliente != null)
                       Text(
-                        'Você avaliou o motorista: ${'★' * doCliente.estrelas}${doCliente.comentario != null ? ' — ${doCliente.comentario}' : ''}',
+                        'Você avaliou o motorista: ${'★' * doCliente.estrelas}'
+                        '${doCliente.tags.isNotEmpty ? ' — ${doCliente.tags.join(', ')}' : ''}'
+                        '${doCliente.comentario != null ? ' — ${doCliente.comentario}' : ''}',
                         style: const TextStyle(fontSize: 13),
                       ),
                   ],
