@@ -96,6 +96,8 @@ class Frete {
   final double? cargaComprimentoM;
   final double? cargaLarguraM;
   final double? cargaAlturaM;
+  final List<String> veiculosAceitos;
+  final List<String> carroceriasAceitas;
 
   const Frete({
     required this.id,
@@ -117,6 +119,8 @@ class Frete {
     this.cargaComprimentoM,
     this.cargaLarguraM,
     this.cargaAlturaM,
+    this.veiculosAceitos = const [],
+    this.carroceriasAceitas = const [],
   });
 
   factory Frete.fromMap(Map<String, dynamic> m) => Frete(
@@ -139,6 +143,8 @@ class Frete {
         cargaComprimentoM: (m['carga_comprimento_m'] as num?)?.toDouble(),
         cargaLarguraM: (m['carga_largura_m'] as num?)?.toDouble(),
         cargaAlturaM: (m['carga_altura_m'] as num?)?.toDouble(),
+        veiculosAceitos: (m['veiculos_aceitos'] as List?)?.map((v) => v as String).toList() ?? const [],
+        carroceriasAceitas: (m['carrocerias_aceitas'] as List?)?.map((v) => v as String).toList() ?? const [],
       );
 }
 
@@ -405,7 +411,7 @@ final freteDetalheProvider = FutureProvider.autoDispose.family<Frete?, String>((
           'id, empresa_id, titulo, descricao, status, origem_label, destino_label, tipo_carga, peso_carga_kg, data_saida_prevista, prazo_entrega, km_estimado, valor_oferecido, motorista_id, '
           'coleta_rua, coleta_numero, coleta_bairro, coleta_cidade, coleta_uf, coleta_cep, coleta_referencia, coleta_data, coleta_hora, coleta_contato_nome, coleta_contato_telefone, '
           'entrega_rua, entrega_numero, entrega_bairro, entrega_cidade, entrega_uf, entrega_cep, entrega_referencia, entrega_data, entrega_hora, entrega_contato_nome, entrega_contato_telefone, '
-          'carga_comprimento_m, carga_largura_m, carga_altura_m')
+          'carga_comprimento_m, carga_largura_m, carga_altura_m, veiculos_aceitos, carrocerias_aceitas')
       .eq('id', freteId)
       .maybeSingle();
   return row == null ? null : Frete.fromMap(row);

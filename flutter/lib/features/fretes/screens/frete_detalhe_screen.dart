@@ -110,11 +110,28 @@ class _CartaoFrete extends StatelessWidget {
                 style: const TextStyle(fontSize: 11.5, color: Colors.black54),
               ),
             ],
+            if (frete.veiculosAceitos.isNotEmpty || frete.carroceriasAceitas.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  ...frete.veiculosAceitos.map((v) => _tagPeq('🚚 $v', Colors.blue)),
+                  ...frete.carroceriasAceitas.map((c) => _tagPeq('📦 $c', Colors.black54)),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+
+  Widget _tagPeq(String texto, Color cor) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: cor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+        child: Text(texto, style: TextStyle(fontSize: 10.5, color: cor)),
+      );
 }
 
 class _BlocoEndereco extends StatelessWidget {

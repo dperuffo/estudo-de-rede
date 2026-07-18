@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../roteirizacao/services/geo_service.dart';
+import '../fretes_veiculos_constantes.dart';
 import '../providers/fretes_provider.dart';
 import '../services/fretes_service.dart';
 
@@ -35,6 +36,12 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
   // exato de coleta/entrega, pra o motorista decidir se aceita o frete.
   final _coleta = _EnderecoCompletoDados();
   final _entrega = _EnderecoCompletoDados();
+
+  // Fase Fretes-Dados-Completos-2 — opcional: se vazio, o frete vale pra
+  // qualquer motorista; marcando, só quem tem veículo/carroceria compatível
+  // vê esse frete na lista dele.
+  final Set<String> _veiculosSelecionados = {};
+  final Set<String> _carroceriasSelecionadas = {};
 
   String _modo = 'mercado'; // 'mercado' | 'direto'
   String? _motoristaId;
@@ -105,6 +112,8 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
       cargaAlturaM: double.tryParse(_alturaCtrl.text.replaceAll(',', '.')),
       coleta: _coleta.paraMapa(),
       entrega: _entrega.paraMapa(),
+      veiculosAceitos: _veiculosSelecionados.toList(),
+      carroceriasAceitas: _carroceriasSelecionadas.toList(),
     );
     if (!mounted) return;
     if (erro != null) {
@@ -196,6 +205,64 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                 _BlocoEnderecoCompleto(titulo: '📍 Coleta', dados: _coleta),
                 const SizedBox(height: 16),
                 _BlocoEnderecoCompleto(titulo: '📍 Entrega', dados: _entrega),
+                const Divider(height: 32),
+                const Text('Veículo e carroceria (opcional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text(
+                  'Se não marcar nada, o frete aparece pra qualquer motorista. Marcando, só quem tem veículo '
+                  'compatível vê esse frete na busca dele.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+                const SizedBox(height: 10),
+                ...gruposVeiculoFrete.entries.map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(e.key, style: const TextStyle(fontSize: 11, color: Colors.black45)),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: e.value
+                              .map((v) => FilterChip(
+                                    label: Text(v, style: const TextStyle(fontSize: 12)),
+                                    selected: _veiculosSelecionados.contains(v),
+                                    onSelected: (sel) => setState(() {
+                                      if (sel) {
+                                        _veiculosSelecionados.add(v);
+                                      } else {
+                                        _veiculosSelecionados.remove(v);
+                                      }
+                                    }),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text('Carroceria', style: TextStyle(fontSize: 11, color: Colors.black45)),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: carroceriasFrete
+                      .map((c) => FilterChip(
+                            label: Text(c, style: const TextStyle(fontSize: 12)),
+                            selected: _carroceriasSelecionadas.contains(c),
+                            onSelected: (sel) => setState(() {
+                              if (sel) {
+                                _carroceriasSelecionadas.add(c);
+                              } else {
+                                _carroceriasSelecionadas.remove(c);
+                              }
+                            }),
+                          ))
+                      .toList(),
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _kmCtrl,

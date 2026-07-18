@@ -31,6 +31,8 @@ class FretesService {
     double? cargaAlturaM,
     Map<String, String?>? coleta,
     Map<String, String?>? entrega,
+    List<String> veiculosAceitos = const [],
+    List<String> carroceriasAceitas = const [],
   }) async {
     if (titulo.trim().isEmpty) return 'Título é obrigatório.';
     if (valorOferecido <= 0) return 'Informe um valor de frete válido.';
@@ -105,6 +107,8 @@ class FretesService {
         'entrega_hora': entrega?['hora'],
         'entrega_contato_nome': entrega?['contato_nome'],
         'entrega_contato_telefone': entrega?['contato_telefone'],
+        'veiculos_aceitos': veiculosAceitos,
+        'carrocerias_aceitas': carroceriasAceitas,
       });
       return null;
     } catch (e) {
