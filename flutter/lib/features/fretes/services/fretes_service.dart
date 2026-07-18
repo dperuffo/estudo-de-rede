@@ -37,6 +37,24 @@ class FretesService {
     if (titulo.trim().isEmpty) return 'Título é obrigatório.';
     if (valorOferecido <= 0) return 'Informe um valor de frete válido.';
 
+    // Gestão de Fretes é exclusiva do plano Enterprise (com exceção do
+    // período de trial) — pedido do Daniel (18/07), mesma regra de
+    // verificarAcessoFretes em src/lib/limitePlano.ts (Next.js). A trava de
+    // verdade é a policy RESTRICTIVE fretes_insere_somente_enterprise_ou_
+    // trial na RLS (protege este app E o painel web); esta checagem aqui é
+    // só pra devolver mensagem amigável antes de bater na RLS.
+    final empresa = await _supabase
+        .from('empresas')
+        .select('plano, status')
+        .eq('id', empresaId)
+        .maybeSingle();
+    final plano = empresa?['plano'] as String?;
+    final status = empresa?['status'] as String?;
+    if (empresa != null && plano != 'enterprise' && status != 'trial') {
+      return 'Gestão de Fretes é exclusiva do plano Enterprise (ou liberada durante o período de trial). '
+          'Faça upgrade em Minha Assinatura para publicar novos fretes.';
+    }
+
     // Modo direto exige que o motorista escolhido seja próprio ou parceiro
     // ativo — mesma checagem de empresaPertenceAoUsuario/criarFrete da web
     // (a RLS não valida isso sozinha, motorista_id é só uma FK solta).
