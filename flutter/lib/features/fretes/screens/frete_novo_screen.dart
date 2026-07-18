@@ -21,13 +21,20 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
   final _descricaoCtrl = TextEditingController();
   final _tipoCargaCtrl = TextEditingController();
   final _pesoCtrl = TextEditingController();
+  final _comprimentoCtrl = TextEditingController();
+  final _larguraCtrl = TextEditingController();
+  final _alturaCtrl = TextEditingController();
   final _kmCtrl = TextEditingController();
   final _valorCtrl = TextEditingController();
 
   SugestaoGeocoding? _origem;
   SugestaoGeocoding? _destino;
-  DateTime? _dataSaida;
-  DateTime? _prazoEntrega;
+
+  // Fase Fretes-Dados-Completos — endereço completo (não só a cidade de
+  // origem/destino acima, que serve só pro cálculo de km/mapa) e horário
+  // exato de coleta/entrega, pra o motorista decidir se aceita o frete.
+  final _coleta = _EnderecoCompletoDados();
+  final _entrega = _EnderecoCompletoDados();
 
   String _modo = 'mercado'; // 'mercado' | 'direto'
   String? _motoristaId;
@@ -41,8 +48,13 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
     _descricaoCtrl.dispose();
     _tipoCargaCtrl.dispose();
     _pesoCtrl.dispose();
+    _comprimentoCtrl.dispose();
+    _larguraCtrl.dispose();
+    _alturaCtrl.dispose();
     _kmCtrl.dispose();
     _valorCtrl.dispose();
+    _coleta.dispose();
+    _entrega.dispose();
     super.dispose();
   }
 
@@ -85,11 +97,14 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
       destinoLon: _destino!.lon,
       tipoCarga: _tipoCargaCtrl.text,
       pesoCargaKg: double.tryParse(_pesoCtrl.text.replaceAll(',', '.')),
-      dataSaidaPrevista: _dataSaida?.toIso8601String().split('T').first,
-      prazoEntrega: _prazoEntrega?.toIso8601String().split('T').first,
       kmEstimado: double.tryParse(_kmCtrl.text.replaceAll(',', '.')),
       valorOferecido: valor,
       motoristaId: _modo == 'direto' ? _motoristaId : null,
+      cargaComprimentoM: double.tryParse(_comprimentoCtrl.text.replaceAll(',', '.')),
+      cargaLarguraM: double.tryParse(_larguraCtrl.text.replaceAll(',', '.')),
+      cargaAlturaM: double.tryParse(_alturaCtrl.text.replaceAll(',', '.')),
+      coleta: _coleta.paraMapa(),
+      entrega: _entrega.paraMapa(),
     );
     if (!mounted) return;
     if (erro != null) {
@@ -142,17 +157,45 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                   decoration: const InputDecoration(labelText: 'Peso da carga (kg)', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
-                _CampoData(
-                  label: 'Data de saída prevista',
-                  valor: _dataSaida,
-                  onEscolhido: (d) => setState(() => _dataSaida = d),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _comprimentoCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Compr. (m)', isDense: true, border: OutlineInputBorder()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _larguraCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Largura (m)', isDense: true, border: OutlineInputBorder()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _alturaCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Altura (m)', isDense: true, border: OutlineInputBorder()),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 32),
+                const Text('Endereços completos', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text(
+                  'Aparece pro motorista antes de aceitar o frete — quanto mais completo, mais fácil pra ele avaliar '
+                  'se topa (inclusive a distância até o ponto de coleta).',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
                 ),
                 const SizedBox(height: 12),
-                _CampoData(
-                  label: 'Prazo de entrega',
-                  valor: _prazoEntrega,
-                  onEscolhido: (d) => setState(() => _prazoEntrega = d),
-                ),
+                _BlocoEnderecoCompleto(titulo: '📍 Coleta', dados: _coleta),
+                const SizedBox(height: 16),
+                _BlocoEnderecoCompleto(titulo: '📍 Entrega', dados: _entrega),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _kmCtrl,
@@ -367,6 +410,160 @@ class _CampoData extends StatelessWidget {
         child: Text(
           valor != null ? '${valor!.day.toString().padLeft(2, '0')}/${valor!.month.toString().padLeft(2, '0')}/${valor!.year}' : '—',
         ),
+      ),
+    );
+  }
+}
+
+class _CampoHora extends StatelessWidget {
+  final String label;
+  final TimeOfDay? valor;
+  final ValueChanged<TimeOfDay> onEscolhido;
+
+  const _CampoHora({required this.label, required this.valor, required this.onEscolhido});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () async {
+        final escolhida = await showTimePicker(context: context, initialTime: valor ?? TimeOfDay.now());
+        if (escolhida != null) onEscolhido(escolhida);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        child: Text(valor != null ? valor!.format(context) : '—'),
+      ),
+    );
+  }
+}
+
+// Fase Fretes-Dados-Completos — segura os controllers/estado de um bloco
+// de endereço completo (coleta ou entrega): rua, número, bairro, cidade,
+// UF, CEP, referência, data, hora e contato no local.
+class _EnderecoCompletoDados {
+  final ruaCtrl = TextEditingController();
+  final numeroCtrl = TextEditingController();
+  final bairroCtrl = TextEditingController();
+  final cidadeCtrl = TextEditingController();
+  final ufCtrl = TextEditingController();
+  final cepCtrl = TextEditingController();
+  final referenciaCtrl = TextEditingController();
+  final contatoNomeCtrl = TextEditingController();
+  final contatoTelefoneCtrl = TextEditingController();
+  DateTime? data;
+  TimeOfDay? hora;
+
+  void dispose() {
+    ruaCtrl.dispose();
+    numeroCtrl.dispose();
+    bairroCtrl.dispose();
+    cidadeCtrl.dispose();
+    ufCtrl.dispose();
+    cepCtrl.dispose();
+    referenciaCtrl.dispose();
+    contatoNomeCtrl.dispose();
+    contatoTelefoneCtrl.dispose();
+  }
+
+  String? _semAcento(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+
+  Map<String, String?> paraMapa() => {
+        'rua': _semAcento(ruaCtrl),
+        'numero': _semAcento(numeroCtrl),
+        'bairro': _semAcento(bairroCtrl),
+        'cidade': _semAcento(cidadeCtrl),
+        'uf': _semAcento(ufCtrl),
+        'cep': _semAcento(cepCtrl),
+        'referencia': _semAcento(referenciaCtrl),
+        'data': data?.toIso8601String().split('T').first,
+        'hora': hora != null ? '${hora!.hour.toString().padLeft(2, '0')}:${hora!.minute.toString().padLeft(2, '0')}' : null,
+        'contato_nome': _semAcento(contatoNomeCtrl),
+        'contato_telefone': _semAcento(contatoTelefoneCtrl),
+      };
+}
+
+class _BlocoEnderecoCompleto extends StatefulWidget {
+  final String titulo;
+  final _EnderecoCompletoDados dados;
+
+  const _BlocoEnderecoCompleto({required this.titulo, required this.dados});
+
+  @override
+  State<_BlocoEnderecoCompleto> createState() => _BlocoEnderecoCompletoState();
+}
+
+class _BlocoEnderecoCompletoState extends State<_BlocoEnderecoCompleto> {
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.dados;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.titulo, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 8),
+          TextField(controller: d.ruaCtrl, decoration: const InputDecoration(labelText: 'Rua / Av.', isDense: true, border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(controller: d.numeroCtrl, decoration: const InputDecoration(labelText: 'Número', isDense: true, border: OutlineInputBorder())),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: TextField(controller: d.bairroCtrl, decoration: const InputDecoration(labelText: 'Bairro', isDense: true, border: OutlineInputBorder())),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(controller: d.cidadeCtrl, decoration: const InputDecoration(labelText: 'Cidade', isDense: true, border: OutlineInputBorder())),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: d.ufCtrl,
+                  maxLength: 2,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(labelText: 'UF', isDense: true, border: OutlineInputBorder(), counterText: ''),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(controller: d.cepCtrl, decoration: const InputDecoration(labelText: 'CEP', isDense: true, border: OutlineInputBorder())),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: d.referenciaCtrl,
+            decoration: const InputDecoration(labelText: 'Ponto de referência (opcional)', isDense: true, border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _CampoData(label: 'Data', valor: d.data, onEscolhido: (v) => setState(() => d.data = v))),
+              const SizedBox(width: 8),
+              Expanded(child: _CampoHora(label: 'Hora', valor: d.hora, onEscolhido: (v) => setState(() => d.hora = v))),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: d.contatoNomeCtrl,
+            decoration: const InputDecoration(labelText: 'Contato no local (nome)', isDense: true, border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: d.contatoTelefoneCtrl,
+            decoration: const InputDecoration(labelText: 'Telefone do contato', isDense: true, border: OutlineInputBorder()),
+          ),
+        ],
       ),
     );
   }

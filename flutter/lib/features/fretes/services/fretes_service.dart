@@ -24,6 +24,13 @@ class FretesService {
     double? kmEstimado,
     required double valorOferecido,
     String? motoristaId,
+    // Fase Fretes-Dados-Completos — pedido do Daniel: motorista precisa de
+    // endereço completo, horário e dimensões pra decidir se aceita o frete.
+    double? cargaComprimentoM,
+    double? cargaLarguraM,
+    double? cargaAlturaM,
+    Map<String, String?>? coleta,
+    Map<String, String?>? entrega,
   }) async {
     if (titulo.trim().isEmpty) return 'Título é obrigatório.';
     if (valorOferecido <= 0) return 'Informe um valor de frete válido.';
@@ -63,13 +70,41 @@ class FretesService {
         'destino_lon': destinoLon,
         'tipo_carga': tipoCarga?.trim().isEmpty == true ? null : tipoCarga?.trim(),
         'peso_carga_kg': pesoCargaKg,
-        'data_saida_prevista': dataSaidaPrevista,
-        'prazo_entrega': prazoEntrega,
+        // data_saida_prevista/prazo_entrega (colunas antigas, só data) ficam
+        // preenchidas a partir da coleta/entrega novas quando não vierem
+        // explícitas — quem ainda lê essas colunas não fica sem nada.
+        'data_saida_prevista': dataSaidaPrevista ?? coleta?['data'],
+        'prazo_entrega': prazoEntrega ?? entrega?['data'],
         'km_estimado': kmEstimado,
         'valor_oferecido': valorOferecido,
         'motorista_id': motoristaId,
         'status': motoristaId != null ? 'aguardando_confirmacao' : 'disponivel',
         'criado_por': AuthService().emailAtual,
+        'carga_comprimento_m': cargaComprimentoM,
+        'carga_largura_m': cargaLarguraM,
+        'carga_altura_m': cargaAlturaM,
+        'coleta_rua': coleta?['rua'],
+        'coleta_numero': coleta?['numero'],
+        'coleta_bairro': coleta?['bairro'],
+        'coleta_cidade': coleta?['cidade'],
+        'coleta_uf': coleta?['uf'],
+        'coleta_cep': coleta?['cep'],
+        'coleta_referencia': coleta?['referencia'],
+        'coleta_data': coleta?['data'],
+        'coleta_hora': coleta?['hora'],
+        'coleta_contato_nome': coleta?['contato_nome'],
+        'coleta_contato_telefone': coleta?['contato_telefone'],
+        'entrega_rua': entrega?['rua'],
+        'entrega_numero': entrega?['numero'],
+        'entrega_bairro': entrega?['bairro'],
+        'entrega_cidade': entrega?['cidade'],
+        'entrega_uf': entrega?['uf'],
+        'entrega_cep': entrega?['cep'],
+        'entrega_referencia': entrega?['referencia'],
+        'entrega_data': entrega?['data'],
+        'entrega_hora': entrega?['hora'],
+        'entrega_contato_nome': entrega?['contato_nome'],
+        'entrega_contato_telefone': entrega?['contato_telefone'],
       });
       return null;
     } catch (e) {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/fretes_provider.dart';
 import '../services/fretes_service.dart';
+import 'chips_reputacao_motorista.dart';
 
 final _formatoMoedaFreteDet = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
@@ -28,6 +29,12 @@ class FreteDetalheScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               _CartaoFrete(frete: frete),
+              if (frete.coleta.preenchido || frete.entrega.preenchido) ...[
+                const SizedBox(height: 16),
+                _BlocoEndereco(titulo: '📍 Coleta', endereco: frete.coleta),
+                const SizedBox(height: 8),
+                _BlocoEndereco(titulo: '📍 Entrega', endereco: frete.entrega),
+              ],
               const SizedBox(height: 16),
               if (frete.status == 'aguardando_confirmacao')
                 const Card(
@@ -96,12 +103,63 @@ class _CartaoFrete extends StatelessWidget {
               const SizedBox(height: 10),
               Text(frete.descricao!, style: const TextStyle(fontSize: 13)),
             ],
+            if (frete.cargaComprimentoM != null || frete.cargaLarguraM != null || frete.cargaAlturaM != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '📐 Dimensões: ${frete.cargaComprimentoM ?? '—'}m × ${frete.cargaLarguraM ?? '—'}m × ${frete.cargaAlturaM ?? '—'}m (C×L×A)',
+                style: const TextStyle(fontSize: 11.5, color: Colors.black54),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+class _BlocoEndereco extends StatelessWidget {
+  final String titulo;
+  final EnderecoFrete endereco;
+  const _BlocoEndereco({required this.titulo, required this.endereco});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!endereco.preenchido) return const SizedBox.shrink();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 4),
+            Text(endereco.linhaEndereco, style: const TextStyle(fontSize: 13)),
+            if (endereco.cep != null) Text('CEP ${endereco.cep}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+            if (endereco.referencia != null)
+              Text('Referência: ${endereco.referencia}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+            if (endereco.data != null || endereco.hora != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '🗓️ ${endereco.data ?? 'Data não informada'}${endereco.hora != null ? ' às ${endereco.hora!.substring(0, 5)}' : ''}',
+                  style: const TextStyle(fontSize: 11.5, color: Colors.black54),
+                ),
+              ),
+            if (endereco.contatoNome != null || endereco.contatoTelefone != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '👤 ${endereco.contatoNome ?? 'Contato'}${endereco.contatoTelefone != null ? ' — ${endereco.contatoTelefone}' : ''}',
+                  style: const TextStyle(fontSize: 11.5, color: Colors.black54),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class _PainelPropostas extends ConsumerWidget {
   final String freteId;
@@ -192,6 +250,8 @@ class _LinhaPropostaState extends ConsumerState<_LinhaProposta> {
                     children: [
                       Text(p.nomeMotorista, style: const TextStyle(fontWeight: FontWeight.bold)),
                       Text(p.telefoneMotorista ?? '—', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      ChipsReputacaoMotorista(reputacao: p.reputacao),
                     ],
                   ),
                 ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../providers/fretes_provider.dart';
 import '../services/motoristas_parceiros_service.dart';
+import 'chips_reputacao_motorista.dart';
 
 // Fase PWA-Fretes — porta de motoristas-parceiros/page.tsx: busca por
 // CPF/telefone + convite + tabela de status.
@@ -69,15 +70,29 @@ class _CardParceiro extends StatelessWidget {
     };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        title: Text(parceiro.nomeCompleto, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(parceiro.telefone ?? '—'),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(color: cor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-          child: Text(
-            _labelStatus[parceiro.status] ?? parceiro.status,
-            style: TextStyle(color: cor, fontSize: 10.5, fontWeight: FontWeight.bold),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: ListTile(
+          title: Text(parceiro.nomeCompleto, style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(parceiro.telefone ?? '—'),
+                const SizedBox(height: 4),
+                ChipsReputacaoMotorista(reputacao: parceiro.reputacao),
+              ],
+            ),
+          ),
+          isThreeLine: true,
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: cor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+            child: Text(
+              _labelStatus[parceiro.status] ?? parceiro.status,
+              style: TextStyle(color: cor, fontSize: 10.5, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
       ),

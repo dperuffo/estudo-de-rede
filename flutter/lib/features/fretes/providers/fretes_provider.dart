@@ -87,6 +87,15 @@ class Frete {
   final double? kmEstimado;
   final double valorOferecido;
   final String? motoristaId;
+  // Fase Fretes-Dados-Completos — endereço completo e horário exato de
+  // coleta/entrega, mais dimensões da carga, pra o motorista decidir se
+  // aceita o frete (origemLabel/destinoLabel acima são só a cidade, usada
+  // pro cálculo de km/mapa).
+  final EnderecoFrete coleta;
+  final EnderecoFrete entrega;
+  final double? cargaComprimentoM;
+  final double? cargaLarguraM;
+  final double? cargaAlturaM;
 
   const Frete({
     required this.id,
@@ -103,6 +112,11 @@ class Frete {
     this.kmEstimado,
     required this.valorOferecido,
     this.motoristaId,
+    required this.coleta,
+    required this.entrega,
+    this.cargaComprimentoM,
+    this.cargaLarguraM,
+    this.cargaAlturaM,
   });
 
   factory Frete.fromMap(Map<String, dynamic> m) => Frete(
@@ -120,6 +134,64 @@ class Frete {
         kmEstimado: (m['km_estimado'] as num?)?.toDouble(),
         valorOferecido: (m['valor_oferecido'] as num?)?.toDouble() ?? 0,
         motoristaId: m['motorista_id'] as String?,
+        coleta: EnderecoFrete.fromMap(m, 'coleta'),
+        entrega: EnderecoFrete.fromMap(m, 'entrega'),
+        cargaComprimentoM: (m['carga_comprimento_m'] as num?)?.toDouble(),
+        cargaLarguraM: (m['carga_largura_m'] as num?)?.toDouble(),
+        cargaAlturaM: (m['carga_altura_m'] as num?)?.toDouble(),
+      );
+}
+
+class EnderecoFrete {
+  final String? rua;
+  final String? numero;
+  final String? bairro;
+  final String? cidade;
+  final String? uf;
+  final String? cep;
+  final String? referencia;
+  final String? data;
+  final String? hora;
+  final String? contatoNome;
+  final String? contatoTelefone;
+
+  const EnderecoFrete({
+    this.rua,
+    this.numero,
+    this.bairro,
+    this.cidade,
+    this.uf,
+    this.cep,
+    this.referencia,
+    this.data,
+    this.hora,
+    this.contatoNome,
+    this.contatoTelefone,
+  });
+
+  bool get preenchido => rua != null || cidade != null;
+
+  String get linhaEndereco {
+    final partes = <String>[
+      if (rua != null) (numero != null ? '$rua, $numero' : rua!),
+      if (bairro != null) bairro!,
+      if (cidade != null) (uf != null ? '$cidade/$uf' : cidade!),
+    ];
+    return partes.join(' — ');
+  }
+
+  factory EnderecoFrete.fromMap(Map<String, dynamic> m, String prefixo) => EnderecoFrete(
+        rua: m['${prefixo}_rua'] as String?,
+        numero: m['${prefixo}_numero'] as String?,
+        bairro: m['${prefixo}_bairro'] as String?,
+        cidade: m['${prefixo}_cidade'] as String?,
+        uf: m['${prefixo}_uf'] as String?,
+        cep: m['${prefixo}_cep'] as String?,
+        referencia: m['${prefixo}_referencia'] as String?,
+        data: m['${prefixo}_data'] as String?,
+        hora: m['${prefixo}_hora'] as String?,
+        contatoNome: m['${prefixo}_contato_nome'] as String?,
+        contatoTelefone: m['${prefixo}_contato_telefone'] as String?,
       );
 }
 
@@ -132,6 +204,7 @@ class Proposta {
   final int rodadaAtual;
   final double ultimoValor;
   final String ultimoAutor;
+  final ReputacaoMotorista reputacao;
 
   const Proposta({
     required this.negociacaoId,
@@ -142,6 +215,7 @@ class Proposta {
     required this.rodadaAtual,
     required this.ultimoValor,
     required this.ultimoAutor,
+    required this.reputacao,
   });
 
   factory Proposta.fromMap(Map<String, dynamic> m) => Proposta(
@@ -153,7 +227,59 @@ class Proposta {
         rodadaAtual: (m['rodada_atual'] as num?)?.toInt() ?? 1,
         ultimoValor: (m['ultimo_valor'] as num?)?.toDouble() ?? 0,
         ultimoAutor: m['ultimo_autor'] as String? ?? '',
+        reputacao: ReputacaoMotorista.fromMap(m),
       );
+}
+
+// Fase Fretes-Dados-Completos — pedido do Daniel: "cliente precisa de
+// algumas garantias de que o motorista é idôneo". Consolida sinais que já
+// existiam espalhados (avaliações, CNH+validade, telefone verificado, 2FA)
+// num cartão só — ver _reputacao_motorista() no banco.
+class ReputacaoMotorista {
+  final double? mediaEstrelas;
+  final int totalAvaliacoes;
+  final int fretesConcluidos;
+  final double? taxaConclusao;
+  final bool cnhValida;
+  final String? cnhVencimento;
+  final bool telefoneVerificado;
+  final bool seguranca2faAtivo;
+  final int? diasCadastro;
+  final bool seloVerificado;
+
+  const ReputacaoMotorista({
+    this.mediaEstrelas,
+    required this.totalAvaliacoes,
+    required this.fretesConcluidos,
+    this.taxaConclusao,
+    required this.cnhValida,
+    this.cnhVencimento,
+    required this.telefoneVerificado,
+    required this.seguranca2faAtivo,
+    this.diasCadastro,
+    required this.seloVerificado,
+  });
+
+  factory ReputacaoMotorista.fromMap(Map<String, dynamic> m) => ReputacaoMotorista(
+        mediaEstrelas: (m['media_estrelas'] as num?)?.toDouble(),
+        totalAvaliacoes: (m['total_avaliacoes'] as num?)?.toInt() ?? 0,
+        fretesConcluidos: (m['fretes_concluidos'] as num?)?.toInt() ?? 0,
+        taxaConclusao: (m['taxa_conclusao'] as num?)?.toDouble(),
+        cnhValida: m['cnh_valida'] as bool? ?? false,
+        cnhVencimento: m['cnh_vencimento'] as String?,
+        telefoneVerificado: m['telefone_verificado'] as bool? ?? false,
+        seguranca2faAtivo: m['seguranca_2fa_ativo'] as bool? ?? false,
+        diasCadastro: (m['dias_cadastro'] as num?)?.toInt(),
+        seloVerificado: m['selo_verificado'] as bool? ?? false,
+      );
+
+  String get tempoCadastroFormatado {
+    final dias = diasCadastro;
+    if (dias == null) return '—';
+    if (dias < 30) return '$dias dia${dias == 1 ? '' : 's'} na rede';
+    if (dias < 365) return '${(dias / 30).floor()} mês(es) na rede';
+    return '${(dias / 365).floor()} ano(s) na rede';
+  }
 }
 
 class PostoRecomendado {
@@ -241,6 +367,7 @@ class ParceiroRow {
   final String? telefone;
   final String status;
   final String convidadoEm;
+  final ReputacaoMotorista reputacao;
 
   const ParceiroRow({
     required this.id,
@@ -249,6 +376,7 @@ class ParceiroRow {
     this.telefone,
     required this.status,
     required this.convidadoEm,
+    required this.reputacao,
   });
 
   factory ParceiroRow.fromMap(Map<String, dynamic> m) => ParceiroRow(
@@ -258,6 +386,7 @@ class ParceiroRow {
         telefone: m['telefone'] as String?,
         status: m['status'] as String? ?? '',
         convidadoEm: m['convidado_em'] as String? ?? '',
+        reputacao: ReputacaoMotorista.fromMap(m),
       );
 }
 
@@ -273,7 +402,10 @@ final freteDetalheProvider = FutureProvider.autoDispose.family<Frete?, String>((
   final row = await SupabaseService.client
       .from('fretes')
       .select(
-          'id, empresa_id, titulo, descricao, status, origem_label, destino_label, tipo_carga, peso_carga_kg, data_saida_prevista, prazo_entrega, km_estimado, valor_oferecido, motorista_id')
+          'id, empresa_id, titulo, descricao, status, origem_label, destino_label, tipo_carga, peso_carga_kg, data_saida_prevista, prazo_entrega, km_estimado, valor_oferecido, motorista_id, '
+          'coleta_rua, coleta_numero, coleta_bairro, coleta_cidade, coleta_uf, coleta_cep, coleta_referencia, coleta_data, coleta_hora, coleta_contato_nome, coleta_contato_telefone, '
+          'entrega_rua, entrega_numero, entrega_bairro, entrega_cidade, entrega_uf, entrega_cep, entrega_referencia, entrega_data, entrega_hora, entrega_contato_nome, entrega_contato_telefone, '
+          'carga_comprimento_m, carga_largura_m, carga_altura_m')
       .eq('id', freteId)
       .maybeSingle();
   return row == null ? null : Frete.fromMap(row);
