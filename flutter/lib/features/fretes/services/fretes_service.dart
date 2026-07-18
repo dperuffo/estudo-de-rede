@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/supabase_service.dart';
+import 'cte_parser.dart';
 
 // Fase PWA-Fretes — porta manual de fretes/actions.ts (mesmo aviso já dado
 // nos outros *_service.dart deste app: sem RPC pra criação/cancelamento —
@@ -216,6 +219,106 @@ class FretesService {
       return null;
     } catch (e) {
       return e.toString();
+    }
+  }
+
+  // Fase Fretes-CIOT-CTe (18/07) — porta de documentosActions.ts (Next.js).
+  // Nenhum dos dois é emitido por aqui, ver cte_parser.dart. A trava de
+  // verdade continua sendo a RLS (fretes_cte_dono_empresa/fretes_ciot_dono_
+  // empresa) — isto aqui só devolve mensagem amigável antes de bater nela.
+  Future<String?> enviarCte({required String freteId, required String xmlTexto}) async {
+    final parse = parsearXmlCte(xmlTexto);
+    if (!parse.ok) return parse.erro;
+    final cte = parse.cte!;
+
+    try {
+      final existente =
+          await _supabase.from('fretes_cte').select('id, frete_id').eq('chave_acesso', cte.chaveAcesso).maybeSingle();
+      if (existente != null) {
+        return existente['frete_id'] == freteId
+            ? 'Este CT-e já está registrado neste frete.'
+            : 'Este CT-e já está registrado em outro frete.';
+      }
+
+      await _supabase.from('fretes_cte').insert({
+        'frete_id': freteId,
+        'chave_acesso': cte.chaveAcesso,
+        'numero_cte': cte.numeroCte,
+        'serie': cte.serieCte,
+        'protocolo_autorizacao': cte.protocoloAutorizacao,
+        'cnpj_emitente': cte.cnpjEmitente,
+        'nome_emitente': cte.nomeEmitente,
+        'valor_prestacao': cte.valorPrestacao,
+        'data_emissao': cte.dataEmissao.isEmpty ? null : cte.dataEmissao,
+        'xml_storage_path': '$freteId/cte-${cte.chaveAcesso}.xml',
+        'criado_por': AuthService().emailAtual,
+      });
+
+      try {
+        await _supabase.storage.from('fretes-documentos').uploadBinary(
+              '$freteId/cte-${cte.chaveAcesso}.xml',
+              Uint8List.fromList(xmlTexto.codeUnits),
+              fileOptions: const FileOptions(contentType: 'text/xml'),
+            );
+      } catch (_) {
+        // best-effort — mesmo padrão do site: o registro já foi gravado,
+        // só a cópia do arquivo original pode falhar sem desfazer nada.
+      }
+
+      return null;
+    } catch (e) {
+      return 'Não foi possível registrar o CT-e: $e';
+    }
+  }
+
+  Future<String?> registrarCiot({
+    required String freteId,
+    required String numeroCiot,
+    String? rntrc,
+    String? placaVeiculo,
+    double? valorFrete,
+    String? dataEmissao,
+    String? observacao,
+    Uint8List? anexoBytes,
+    String? anexoNomeArquivo,
+  }) async {
+    final numeroLimpo = numeroCiot.replaceAll(RegExp(r'\D'), '');
+    if (numeroLimpo.length != 12) {
+      return 'O número do CIOT precisa ter 12 dígitos (gerado pela integradora credenciada na ANTT).';
+    }
+
+    String? anexoPath;
+    try {
+      if (anexoBytes != null && anexoBytes.isNotEmpty) {
+        if (anexoBytes.length > 5 * 1024 * 1024) return 'O anexo é grande demais (máximo 5 MB).';
+        final extensao = (anexoNomeArquivo != null && anexoNomeArquivo.contains('.'))
+            ? anexoNomeArquivo.split('.').last
+            : 'pdf';
+        anexoPath = '$freteId/ciot-$numeroLimpo.$extensao';
+        await _supabase.storage.from('fretes-documentos').uploadBinary(
+              anexoPath,
+              anexoBytes,
+              fileOptions: const FileOptions(upsert: true),
+            );
+      }
+
+      await _supabase.from('fretes_ciot').insert({
+        'frete_id': freteId,
+        'numero_ciot': numeroLimpo,
+        'rntrc': (rntrc == null || rntrc.trim().isEmpty) ? null : rntrc.trim(),
+        'placa_veiculo': (placaVeiculo == null || placaVeiculo.trim().isEmpty) ? null : placaVeiculo.trim().toUpperCase(),
+        'valor_frete': valorFrete,
+        'data_emissao': (dataEmissao == null || dataEmissao.isEmpty) ? null : dataEmissao,
+        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+        'anexo_storage_path': anexoPath,
+        'criado_por': AuthService().emailAtual,
+      });
+      return null;
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') return 'Esse número de CIOT já está registrado neste frete.';
+      return 'Não foi possível registrar o CIOT: ${e.message}';
+    } catch (e) {
+      return 'Não foi possível registrar o CIOT: $e';
     }
   }
 }

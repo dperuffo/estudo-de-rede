@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -49,6 +51,8 @@ class FreteDetalheScreen extends ConsumerWidget {
                 _PainelPropostas(freteId: freteId, freteAberto: true),
                 const SizedBox(height: 16),
               ],
+              _BlocoDocumentos(freteId: freteId),
+              const SizedBox(height: 16),
               if (frete.status != 'cancelado' && frete.status != 'recusado') ...[
                 _BlocoPostosRecomendados(freteId: freteId),
                 const SizedBox(height: 16),
@@ -698,6 +702,218 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
                 );
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+final _formatoMoedaDoc = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+
+// Fase Fretes-CIOT-CTe (18/07) — porta de FretesDocumentos.tsx (web). CT-e
+// entra por upload de XML (validado estruturalmente, ver cte_parser.dart);
+// CIOT é cadastro manual (não existe XML público padronizado pra ele) com
+// anexo opcional do comprovante da integradora.
+class _BlocoDocumentos extends ConsumerStatefulWidget {
+  final String freteId;
+  const _BlocoDocumentos({required this.freteId});
+
+  @override
+  ConsumerState<_BlocoDocumentos> createState() => _BlocoDocumentosState();
+}
+
+class _BlocoDocumentosState extends ConsumerState<_BlocoDocumentos> {
+  final _numeroCiotCtrl = TextEditingController();
+  final _rntrcCtrl = TextEditingController();
+  final _placaCtrl = TextEditingController();
+  final _valorFreteCtrl = TextEditingController();
+  final _observacaoCtrl = TextEditingController();
+  PlatformFile? _anexoCiot;
+  bool _enviandoCte = false;
+  bool _enviandoCiot = false;
+  String? _mensagemCte;
+  String? _mensagemCiot;
+  bool _erroCte = false;
+  bool _erroCiot = false;
+
+  @override
+  void dispose() {
+    _numeroCiotCtrl.dispose();
+    _rntrcCtrl.dispose();
+    _placaCtrl.dispose();
+    _valorFreteCtrl.dispose();
+    _observacaoCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enviarCte() async {
+    final resultado = await FilePicker.pickFiles(withData: true, type: FileType.custom, allowedExtensions: ['xml']);
+    if (resultado == null || resultado.files.isEmpty) return;
+    final arquivo = resultado.files.first;
+    if (arquivo.bytes == null) return;
+
+    setState(() {
+      _enviandoCte = true;
+      _mensagemCte = null;
+    });
+    final texto = utf8.decode(arquivo.bytes!, allowMalformed: true);
+    final erro = await FretesService().enviarCte(freteId: widget.freteId, xmlTexto: texto);
+    setState(() {
+      _enviandoCte = false;
+      _erroCte = erro != null;
+      _mensagemCte = erro ?? 'CT-e registrado.';
+    });
+    if (erro == null) ref.invalidate(ctesFreteProvider(widget.freteId));
+  }
+
+  Future<void> _registrarCiot() async {
+    setState(() {
+      _enviandoCiot = true;
+      _mensagemCiot = null;
+    });
+    final valor = _valorFreteCtrl.text.trim().isEmpty ? null : double.tryParse(_valorFreteCtrl.text.trim().replaceAll(',', '.'));
+    final erro = await FretesService().registrarCiot(
+      freteId: widget.freteId,
+      numeroCiot: _numeroCiotCtrl.text,
+      rntrc: _rntrcCtrl.text,
+      placaVeiculo: _placaCtrl.text,
+      valorFrete: valor,
+      observacao: _observacaoCtrl.text,
+      anexoBytes: _anexoCiot?.bytes,
+      anexoNomeArquivo: _anexoCiot?.name,
+    );
+    setState(() {
+      _enviandoCiot = false;
+      _erroCiot = erro != null;
+      _mensagemCiot = erro ?? 'CIOT registrado.';
+    });
+    if (erro == null) {
+      _numeroCiotCtrl.clear();
+      _rntrcCtrl.clear();
+      _placaCtrl.clear();
+      _valorFreteCtrl.clear();
+      _observacaoCtrl.clear();
+      setState(() => _anexoCiot = null);
+      ref.invalidate(ciotsFreteProvider(widget.freteId));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctesAsync = ref.watch(ctesFreteProvider(widget.freteId));
+    final ciotsAsync = ref.watch(ciotsFreteProvider(widget.freteId));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('📄 Documentos do frete (CT-e / CIOT)', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Emitidos fora da plataforma (SEFAZ / integradora credenciada na ANTT) — aqui é só o registro.',
+              style: TextStyle(fontSize: 11, color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            const Text('CT-e', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            const SizedBox(height: 4),
+            ctesAsync.when(
+              loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator()),
+              error: (e, _) => Text('Erro: $e', style: const TextStyle(fontSize: 11, color: Colors.red)),
+              data: (ctes) => ctes.isEmpty
+                  ? const Text('Nenhum CT-e registrado ainda.', style: TextStyle(fontSize: 12, color: Colors.black45))
+                  : Column(
+                      children: ctes
+                          .map((c) => ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text('Nº ${c.numeroCte ?? "—"} / série ${c.serie ?? "—"}', style: const TextStyle(fontSize: 13)),
+                                subtitle: Text(
+                                  '${c.valorPrestacao != null ? _formatoMoedaDoc.format(c.valorPrestacao) : "—"} · protocolo ${c.protocoloAutorizacao ?? "—"}',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                trailing: c.xmlUrlAssinada != null
+                                    ? IconButton(icon: const Icon(Icons.description, size: 18), onPressed: () {})
+                                    : null,
+                              ))
+                          .toList(),
+                    ),
+            ),
+            const SizedBox(height: 6),
+            ElevatedButton.icon(
+              onPressed: _enviandoCte ? null : _enviarCte,
+              icon: const Icon(Icons.upload_file, size: 16),
+              label: Text(_enviandoCte ? 'Validando...' : 'Enviar XML do CT-e'),
+            ),
+            if (_mensagemCte != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(_mensagemCte!, style: TextStyle(fontSize: 11, color: _erroCte ? Colors.red : Colors.green)),
+              ),
+            const Divider(height: 24),
+            const Text('CIOT', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            const SizedBox(height: 4),
+            ciotsAsync.when(
+              loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator()),
+              error: (e, _) => Text('Erro: $e', style: const TextStyle(fontSize: 11, color: Colors.red)),
+              data: (ciots) => ciots.isEmpty
+                  ? const Text('Nenhum CIOT registrado ainda.', style: TextStyle(fontSize: 12, color: Colors.black45))
+                  : Column(
+                      children: ciots
+                          .map((c) => ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(c.numeroCiot, style: const TextStyle(fontSize: 13, fontFamily: 'monospace')),
+                                subtitle: Text(
+                                  '${c.placaVeiculo ?? "—"} · RNTRC ${c.rntrc ?? "—"} · ${c.valorFrete != null ? _formatoMoedaDoc.format(c.valorFrete) : "—"}',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _numeroCiotCtrl,
+              decoration: const InputDecoration(labelText: 'Número do CIOT (12 dígitos)', isDense: true),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(child: TextField(controller: _rntrcCtrl, decoration: const InputDecoration(labelText: 'RNTRC', isDense: true))),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: _placaCtrl, decoration: const InputDecoration(labelText: 'Placa', isDense: true))),
+            ]),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _valorFreteCtrl,
+              decoration: const InputDecoration(labelText: 'Valor do frete', isDense: true),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 6),
+            TextField(controller: _observacaoCtrl, decoration: const InputDecoration(labelText: 'Observação (opcional)', isDense: true)),
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final resultado = await FilePicker.pickFiles(withData: true);
+                if (resultado != null && resultado.files.isNotEmpty) {
+                  setState(() => _anexoCiot = resultado.files.first);
+                }
+              },
+              icon: const Icon(Icons.attach_file, size: 16),
+              label: Text(_anexoCiot?.name ?? 'Anexar comprovante (opcional)'),
+            ),
+            const SizedBox(height: 6),
+            ElevatedButton(
+              onPressed: _enviandoCiot ? null : _registrarCiot,
+              child: Text(_enviandoCiot ? 'Registrando...' : 'Registrar CIOT'),
+            ),
+            if (_mensagemCiot != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(_mensagemCiot!, style: TextStyle(fontSize: 11, color: _erroCiot ? Colors.red : Colors.green)),
+              ),
           ],
         ),
       ),

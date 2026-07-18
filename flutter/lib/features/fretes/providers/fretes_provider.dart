@@ -480,6 +480,108 @@ final avaliacoesFreteProvider = FutureProvider.autoDispose.family<List<Avaliacao
   return (rows as List).map((r) => AvaliacaoFrete.fromMap(r as Map<String, dynamic>)).toList();
 });
 
+// Fase Fretes-CIOT-CTe (18/07) — porta de FretesDocumentos.tsx (web).
+// Nenhum dos dois documentos é EMITIDO por aqui (ver cte_parser.dart) — só
+// registrado depois de emitido em outro lugar. Bucket privado
+// `fretes-documentos`, signed URL por arquivo (1h), mesmo padrão de
+// eventosFreteProvider acima.
+class CteRow {
+  final String id;
+  final String? numeroCte;
+  final String? serie;
+  final String? protocoloAutorizacao;
+  final double? valorPrestacao;
+  final String? dataEmissao;
+  final String? xmlStoragePath;
+  String? xmlUrlAssinada;
+
+  CteRow({
+    required this.id,
+    this.numeroCte,
+    this.serie,
+    this.protocoloAutorizacao,
+    this.valorPrestacao,
+    this.dataEmissao,
+    this.xmlStoragePath,
+  });
+
+  factory CteRow.fromMap(Map<String, dynamic> m) => CteRow(
+        id: m['id'] as String,
+        numeroCte: m['numero_cte'] as String?,
+        serie: m['serie'] as String?,
+        protocoloAutorizacao: m['protocolo_autorizacao'] as String?,
+        valorPrestacao: (m['valor_prestacao'] as num?)?.toDouble(),
+        dataEmissao: m['data_emissao'] as String?,
+        xmlStoragePath: m['xml_storage_path'] as String?,
+      );
+}
+
+class CiotRow {
+  final String id;
+  final String numeroCiot;
+  final String? rntrc;
+  final String? placaVeiculo;
+  final double? valorFrete;
+  final String? dataEmissao;
+  final String? observacao;
+  final String? anexoStoragePath;
+  String? anexoUrlAssinada;
+
+  CiotRow({
+    required this.id,
+    required this.numeroCiot,
+    this.rntrc,
+    this.placaVeiculo,
+    this.valorFrete,
+    this.dataEmissao,
+    this.observacao,
+    this.anexoStoragePath,
+  });
+
+  factory CiotRow.fromMap(Map<String, dynamic> m) => CiotRow(
+        id: m['id'] as String,
+        numeroCiot: m['numero_ciot'] as String? ?? '',
+        rntrc: m['rntrc'] as String?,
+        placaVeiculo: m['placa_veiculo'] as String?,
+        valorFrete: (m['valor_frete'] as num?)?.toDouble(),
+        dataEmissao: m['data_emissao'] as String?,
+        observacao: m['observacao'] as String?,
+        anexoStoragePath: m['anexo_storage_path'] as String?,
+      );
+}
+
+final ctesFreteProvider = FutureProvider.autoDispose.family<List<CteRow>, String>((ref, freteId) async {
+  final rows = await SupabaseService.client
+      .from('fretes_cte')
+      .select('id, numero_cte, serie, protocolo_autorizacao, valor_prestacao, data_emissao, xml_storage_path')
+      .eq('frete_id', freteId)
+      .order('criado_em', ascending: false);
+  final ctes = (rows as List).map((r) => CteRow.fromMap(r as Map<String, dynamic>)).toList();
+  for (final c in ctes) {
+    if (c.xmlStoragePath == null) continue;
+    try {
+      c.xmlUrlAssinada = await SupabaseService.client.storage.from('fretes-documentos').createSignedUrl(c.xmlStoragePath!, 3600);
+    } catch (_) {}
+  }
+  return ctes;
+});
+
+final ciotsFreteProvider = FutureProvider.autoDispose.family<List<CiotRow>, String>((ref, freteId) async {
+  final rows = await SupabaseService.client
+      .from('fretes_ciot')
+      .select('id, numero_ciot, rntrc, placa_veiculo, valor_frete, data_emissao, observacao, anexo_storage_path')
+      .eq('frete_id', freteId)
+      .order('criado_em', ascending: false);
+  final ciots = (rows as List).map((r) => CiotRow.fromMap(r as Map<String, dynamic>)).toList();
+  for (final c in ciots) {
+    if (c.anexoStoragePath == null) continue;
+    try {
+      c.anexoUrlAssinada = await SupabaseService.client.storage.from('fretes-documentos').createSignedUrl(c.anexoStoragePath!, 3600);
+    } catch (_) {}
+  }
+  return ciots;
+});
+
 final itensConvenienciaPostoProvider = FutureProvider.autoDispose<List<ItemParceriaOpcao>>((ref) async {
   final rows = await SupabaseService.client
       .from('fidelidade_catalogo_itens')
