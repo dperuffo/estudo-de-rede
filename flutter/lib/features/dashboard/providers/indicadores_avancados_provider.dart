@@ -11,6 +11,13 @@ import '../../../core/services/supabase_service.dart';
 // abastecimentos_unificado/cadastro_veiculos etc. de quem está logado
 // aplica-se normalmente, mesmo mecanismo já usado em toda a Inteligência
 // de Rede e no restante do Dashboard).
+//
+// Fase Dashboard-Filtro-Combustivel (19/07) — espelha o filtro já feito na
+// web (src/app/(dashboard)/dashboard/page.tsx): itens 2 (previsão de
+// consumo), 3 (evolução de preço médio, derivado do item 2) e 4/5 (volume
+// por posto) aceitam `combustivel` opcional no período, repassado como
+// `p_combustivel` pras RPCs. Item 1 (variação de preços) fica de fora de
+// propósito — já compara todos os combustíveis lado a lado.
 
 // "Best effort" — se a RPC der erro (ex.: statement timeout sob dados
 // pesados), o item correspondente vira lista vazia em vez de derrubar os
@@ -265,8 +272,8 @@ String _diaLabelCurto(String isoData) {
   return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
 }
 
-final indicadoresAvancadosProvider =
-    FutureProvider.autoDispose.family<IndicadoresAvancadosDados, ({int ano, int mes})>((ref, periodo) async {
+final indicadoresAvancadosProvider = FutureProvider.autoDispose
+    .family<IndicadoresAvancadosDados, ({int ano, int mes, String? combustivel})>((ref, periodo) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return IndicadoresAvancadosDados.vazio(periodo.ano, periodo.mes);
@@ -307,15 +314,18 @@ final indicadoresAvancadosProvider =
       'p_empresa_id': empresaId,
       'p_data_inicio': dataInicio,
       'p_data_fim': dataFim,
+      'p_combustivel': periodo.combustivel,
     })),
     _rpcSeguro(supabase.rpc('indicador_padrao_dia_semana', params: {
       'p_empresa_id': empresaId,
       'p_dias_lookback': 90,
+      'p_combustivel': periodo.combustivel,
     })),
     _rpcSeguro(supabase.rpc('indicador_volume_postos', params: {
       'p_empresa_id': empresaId,
       'p_data_inicio': dataInicio,
       'p_data_fim': dataFim,
+      'p_combustivel': periodo.combustivel,
     })),
     _rpcSeguro(supabase.rpc('indicador_ranking_veiculos', params: {
       'p_empresa_id': empresaId,

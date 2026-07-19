@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../inteligencia_rede/widgets/inteligencia_shared.dart';
+import '../../../roteirizacao/providers/roteirizacao_provider.dart' show produtosPosto;
 import '../../providers/indicadores_avancados_provider.dart';
 
 final _moeda2 = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
@@ -23,6 +24,7 @@ class AbaIndicadoresAvancados extends ConsumerStatefulWidget {
 
 class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancados> {
   late ({int ano, int mes}) _periodo;
+  String? _combustivel; // null = todos os combustíveis
 
   @override
   void initState() {
@@ -33,11 +35,12 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
 
   @override
   Widget build(BuildContext context) {
-    final dadosAsync = ref.watch(indicadoresAvancadosProvider(_periodo));
+    final chave = (ano: _periodo.ano, mes: _periodo.mes, combustivel: _combustivel);
+    final dadosAsync = ref.watch(indicadoresAvancadosProvider(chave));
     final opcoes = opcoesMes();
 
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(indicadoresAvancadosProvider(_periodo)),
+      onRefresh: () async => ref.invalidate(indicadoresAvancadosProvider(chave)),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
@@ -45,22 +48,77 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
           const SizedBox(height: 4),
           const Text('Preços, consumo e rankings do período selecionado.', style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16,
+            runSpacing: 8,
             children: [
-              const Text('Período:', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(width: 8),
-              DropdownButton<({int ano, int mes})>(
-                value: _periodo,
-                isDense: true,
-                items: opcoes
-                    .map((o) => DropdownMenuItem(value: o, child: Text(rotuloMesAno(o.ano, o.mes), style: const TextStyle(fontSize: 13))))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _periodo = v);
-                },
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Período:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(width: 8),
+                  DropdownButton<({int ano, int mes})>(
+                    value: _periodo,
+                    isDense: true,
+                    items: opcoes
+                        .map((o) => DropdownMenuItem(value: o, child: Text(rotuloMesAno(o.ano, o.mes), style: const TextStyle(fontSize: 13))))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setState(() => _periodo = v);
+                    },
+                  ),
+                ],
+              ),
+              // Fase Dashboard-Filtro-Combustivel (19/07) — mesma ideia da
+              // web: filtra os itens 2, 3, 4 e 5 por combustível (item 1
+              // fica de fora, já compara todos lado a lado).
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Combustível:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(width: 8),
+                  DropdownButton<String?>(
+                    value: _combustivel,
+                    isDense: true,
+                    items: [
+                      const DropdownMenuItem<String?>(value: null, child: Text('Todos os combustíveis', style: TextStyle(fontSize: 13))),
+                      ...produtosPosto.map((p) => DropdownMenuItem<String?>(value: p, child: Text(p, style: const TextStyle(fontSize: 13)))),
+                    ],
+                    onChanged: (v) => setState(() => _combustivel = v),
+                  ),
+                ],
               ),
             ],
           ),
+          if (_combustivel != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(8)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF0369A1)),
+                        children: [
+                          const TextSpan(text: 'Indicadores 2, 3, 4 e 5 filtrados por '),
+                          TextSpan(text: _combustivel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                          const TextSpan(text: '. O indicador 1 já compara todos os combustíveis lado a lado.'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _combustivel = null),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    child: const Text('Limpar filtro', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           dadosAsync.when(
             loading: () => const Padding(
