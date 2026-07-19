@@ -111,10 +111,36 @@ def _fazer_callback(tabela_nome):
 
 _realtime_channel_status = {"conectado": False}
 
+# Achado de performance (19/07) — pedido do Daniel pra investigar lentidão
+# geral da aplicação: `realtime.list_changes` (função interna do motor de
+# Realtime do Supabase) respondia sozinha por 56% de TODO o tempo de banco
+# de dados do projeto (505 mil chamadas). Causa raiz: a cada reconexão,
+# `_conectar_realtime_uma_vez` criava um `AsyncClient` NOVO e um canal NOVO
+# (nome com timestamp), sem nunca fechar o canal/cliente anterior — cada
+# reconexão (comum em hospedagens que hibernam, como Railway) deixava um
+# canal órfão ainda inscrito, acumulando carga de polling indefinidamente.
+# Agora o client é criado uma única vez e reaproveitado, e o canal anterior
+# é removido (`remove_channel`, que já chama unsubscribe internamente)
+# antes de abrir um canal novo.
+_realtime_async_client: AsyncClient | None = None
+_realtime_channel = None
+
+
 async def _conectar_realtime_uma_vez():
-    """Tenta conectar uma vez. Retorna True se subscreveu com sucesso."""
-    async_client: AsyncClient = await acreate_client(SUPABASE_URL, SUPABASE_KEY)
-    channel = async_client.channel("fni-notificacoes-" + str(int(datetime.now().timestamp())))
+    """Tenta (re)conectar um único canal. Fecha o canal anterior, se houver."""
+    global _realtime_async_client, _realtime_channel
+
+    if _realtime_async_client is None:
+        _realtime_async_client = await acreate_client(SUPABASE_URL, SUPABASE_KEY)
+
+    if _realtime_channel is not None:
+        try:
+            await _realtime_async_client.remove_channel(_realtime_channel)
+        except Exception as e:
+            logging.warning("Falha ao remover canal realtime anterior (seguindo mesmo assim): %s", e)
+        _realtime_channel = None
+
+    channel = _realtime_async_client.channel("fni-notificacoes-" + str(int(datetime.now().timestamp())))
     for tabela in TABELAS_MONITORADAS:
         channel.on_postgres_changes(
             "*", schema="public", table=tabela, callback=_fazer_callback(tabela)
@@ -137,6 +163,7 @@ async def _conectar_realtime_uma_vez():
     except asyncio.TimeoutError:
         logging.warning("Timeout aguardando subscribe do realtime")
 
+    _realtime_channel = channel
     return channel
 
 

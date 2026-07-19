@@ -554,11 +554,21 @@ final dashboardClienteProvider = FutureProvider.autoDispose<DashboardClienteDado
   final idsTop = gastoPorEmpresa.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   final top5Ids = idsTop.take(5).toList();
-  final topClientes = <ClienteGasto>[];
-  for (final entry in top5Ids) {
-    final nome = await supabase.rpc('nome_empresa_publico', params: {'p_empresa_id': entry.key}) as String?;
-    topClientes.add(ClienteGasto(nome: nome ?? entry.key, valor: entry.value));
-  }
+  // Fase Perf-19-07 (achado do Daniel: "lentidão excessiva em muitos
+  // pontos") — antes eram até 5 chamadas RPC individuais dentro deste loop
+  // (uma por cliente do ranking). `nomes_empresas_publico` (mesma RPC já
+  // usada na versão web) resolve todos de uma vez só.
+  final nomesRows = top5Ids.isEmpty
+      ? const []
+      : await supabase.rpc('nomes_empresas_publico', params: {
+          'p_empresa_ids': top5Ids.map((e) => e.key).toList(),
+        }) as List;
+  final nomePorId = <String, String?>{
+    for (final r in nomesRows) (r as Map<String, dynamic>)['id'] as String: r['nome'] as String?,
+  };
+  final topClientes = top5Ids
+      .map((entry) => ClienteGasto(nome: nomePorId[entry.key] ?? entry.key, valor: entry.value))
+      .toList();
 
   return DashboardClienteDados(
     totalClientes: totalClientes,
