@@ -27,6 +27,10 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
   final _alturaCtrl = TextEditingController();
   final _kmCtrl = TextEditingController();
   final _valorCtrl = TextEditingController();
+  // Fase Fretes-Adiantamento-Combustível (19/07).
+  final _percentualAdiantamentoCtrl = TextEditingController(text: '30');
+  final _saldoCombustivelCtrl = TextEditingController();
+  String _tipoSaldoCombustivel = ''; // '' | 'Valor' | 'Volume'
 
   SugestaoGeocoding? _origem;
   SugestaoGeocoding? _destino;
@@ -60,6 +64,8 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
     _alturaCtrl.dispose();
     _kmCtrl.dispose();
     _valorCtrl.dispose();
+    _percentualAdiantamentoCtrl.dispose();
+    _saldoCombustivelCtrl.dispose();
     _coleta.dispose();
     _entrega.dispose();
     super.dispose();
@@ -85,6 +91,16 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
     }
     if (_modo == 'direto' && _motoristaId == null) {
       setState(() => _erro = 'Selecione o motorista.');
+      return;
+    }
+    final percentualAdiantamento = double.tryParse(_percentualAdiantamentoCtrl.text.replaceAll(',', '.')) ?? 30;
+    if (percentualAdiantamento < 0 || percentualAdiantamento > 100) {
+      setState(() => _erro = 'Percentual de adiantamento precisa estar entre 0 e 100.');
+      return;
+    }
+    final saldoCombustivelAlocado = double.tryParse(_saldoCombustivelCtrl.text.replaceAll(',', '.'));
+    if (_tipoSaldoCombustivel.isNotEmpty && (saldoCombustivelAlocado == null || saldoCombustivelAlocado <= 0)) {
+      setState(() => _erro = 'Informe um valor válido pra reserva de combustível.');
       return;
     }
 
@@ -114,6 +130,9 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
       entrega: _entrega.paraMapa(),
       veiculosAceitos: _veiculosSelecionados.toList(),
       carroceriasAceitas: _carroceriasSelecionadas.toList(),
+      percentualAdiantamento: percentualAdiantamento,
+      saldoCombustivelTipo: _tipoSaldoCombustivel.isEmpty ? null : _tipoSaldoCombustivel,
+      saldoCombustivelAlocado: saldoCombustivelAlocado,
     );
     if (!mounted) return;
     if (erro != null) {
@@ -284,6 +303,43 @@ class _FreteNovoScreenState extends ConsumerState<FreteNovoScreen> {
                   maxLines: 3,
                   decoration: const InputDecoration(labelText: 'Descrição (opcional)', border: OutlineInputBorder()),
                 ),
+                const Divider(height: 32),
+                const Text('Adiantamento e combustível', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text(
+                  'O motorista aceita o frete → você paga o % de entrada; o resto fica pra pagar na conclusão. '
+                  'A reserva de combustível é opcional — se preencher, o motorista abastece com ela primeiro, antes '
+                  'da cota normal do veículo.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _percentualAdiantamentoCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Adiantamento na aceitação (%)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _tipoSaldoCombustivel,
+                  decoration: const InputDecoration(labelText: 'Reserva de combustível', border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('Sem reserva de combustível')),
+                    DropdownMenuItem(value: 'Valor', child: Text('Em R\$')),
+                    DropdownMenuItem(value: 'Volume', child: Text('Em litros')),
+                  ],
+                  onChanged: (v) => setState(() => _tipoSaldoCombustivel = v ?? ''),
+                ),
+                if (_tipoSaldoCombustivel.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _saldoCombustivelCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: _tipoSaldoCombustivel == 'Valor' ? 'Valor da reserva (R\$)' : 'Volume da reserva (litros)',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
                 const Divider(height: 32),
                 const Text('Quem vai dirigir?', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),

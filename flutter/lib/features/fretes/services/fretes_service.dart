@@ -36,9 +36,22 @@ class FretesService {
     Map<String, String?>? entrega,
     List<String> veiculosAceitos = const [],
     List<String> carroceriasAceitas = const [],
+    // Fase Fretes-Adiantamento-Combustível (19/07) — pedido do Daniel:
+    // entrada/saldo final (default 30/70, geradas automaticamente pelo
+    // banco quando o frete é aceito) e reserva opcional de combustível
+    // (consumida antes da cota do veículo — ver alocar_abastecimento_saldo).
+    double percentualAdiantamento = 30,
+    String? saldoCombustivelTipo,
+    double? saldoCombustivelAlocado,
   }) async {
     if (titulo.trim().isEmpty) return 'Título é obrigatório.';
     if (valorOferecido <= 0) return 'Informe um valor de frete válido.';
+    if (percentualAdiantamento < 0 || percentualAdiantamento > 100) {
+      return 'Percentual de adiantamento precisa estar entre 0 e 100.';
+    }
+    if (saldoCombustivelTipo != null && (saldoCombustivelAlocado == null || saldoCombustivelAlocado <= 0)) {
+      return 'Informe um valor válido pra reserva de combustível.';
+    }
 
     // Gestão de Fretes é exclusiva do plano Enterprise (com exceção do
     // período de trial) — pedido do Daniel (18/07), mesma regra de
@@ -130,10 +143,27 @@ class FretesService {
         'entrega_contato_telefone': entrega?['contato_telefone'],
         'veiculos_aceitos': veiculosAceitos,
         'carrocerias_aceitas': carroceriasAceitas,
+        'percentual_adiantamento': percentualAdiantamento,
+        'saldo_combustivel_tipo': saldoCombustivelTipo,
+        'saldo_combustivel_alocado': saldoCombustivelAlocado,
       });
       return null;
     } catch (e) {
       return 'Não foi possível publicar o frete: $e';
+    }
+  }
+
+  // Fase Fretes-Adiantamento-Combustível (19/07) — confirma o pagamento de
+  // uma parcela. A regra "saldo_final só após concluído" mora no banco
+  // (marcar_pagamento_frete); aqui só repassa e traduz o erro.
+  Future<String?> marcarPagamento({required String freteId, required String tipo}) async {
+    try {
+      await _supabase.rpc('marcar_pagamento_frete', params: {'p_frete_id': freteId, 'p_tipo': tipo});
+      return null;
+    } on PostgrestException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString();
     }
   }
 

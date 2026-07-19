@@ -31,6 +31,8 @@ class FreteDetalheScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               _CartaoFrete(frete: frete),
+              const SizedBox(height: 16),
+              _BlocoPagamentos(freteId: freteId, freteConcluido: frete.status == 'concluido'),
               if (frete.coleta.preenchido || frete.entrega.preenchido) ...[
                 const SizedBox(height: 16),
                 _BlocoEndereco(titulo: '📍 Coleta', endereco: frete.coleta),
@@ -702,6 +704,120 @@ class _BlocoAvaliacaoState extends ConsumerState<_BlocoAvaliacao> {
                 );
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Fase Fretes-Adiantamento-Combustível (19/07) — porta de
+// PagamentosFrete.tsx (web): parcelas de pagamento do frete (entrada +
+// saldo final), geradas automaticamente pelo banco quando o frete vira
+// "aceito" (trg_gerar_pagamentos_frete). O saldo final só libera o botão
+// depois que o frete está concluído — a regra real mora no banco
+// (marcar_pagamento_frete), aqui é só pra não deixar clicar achando que
+// vai funcionar.
+class _BlocoPagamentos extends ConsumerWidget {
+  final String freteId;
+  final bool freteConcluido;
+  const _BlocoPagamentos({required this.freteId, required this.freteConcluido});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pagamentosAsync = ref.watch(pagamentosFreteProvider(freteId));
+    return pagamentosAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (pagamentos) {
+        if (pagamentos.isEmpty) return const SizedBox.shrink();
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('💰 Pagamento do frete', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text(
+                  'Confirme aqui quando cada parcela for paga ao motorista — não movimenta dinheiro automaticamente, é só pra controle.',
+                  style: TextStyle(fontSize: 11, color: Colors.black54),
+                ),
+                const SizedBox(height: 10),
+                ...pagamentos.map((p) => _LinhaPagamento(
+                      freteId: freteId,
+                      pagamento: p,
+                      bloqueado: p.tipo == 'saldo_final' && !freteConcluido,
+                    )),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LinhaPagamento extends ConsumerStatefulWidget {
+  final String freteId;
+  final PagamentoFrete pagamento;
+  final bool bloqueado;
+  const _LinhaPagamento({required this.freteId, required this.pagamento, required this.bloqueado});
+
+  @override
+  ConsumerState<_LinhaPagamento> createState() => _LinhaPagamentoState();
+}
+
+class _LinhaPagamentoState extends ConsumerState<_LinhaPagamento> {
+  bool _enviando = false;
+  String? _erro;
+
+  Future<void> _confirmar() async {
+    setState(() {
+      _enviando = true;
+      _erro = null;
+    });
+    final erro = await FretesService().marcarPagamento(freteId: widget.freteId, tipo: widget.pagamento.tipo);
+    if (!mounted) return;
+    setState(() {
+      _enviando = false;
+      _erro = erro;
+    });
+    if (erro == null) ref.invalidate(pagamentosFreteProvider(widget.freteId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.pagamento;
+    final pago = p.status == 'pago';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${labelTipoPagamentoFrete[p.tipo] ?? p.tipo} — ${p.percentual.toStringAsFixed(0)}%',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text(_formatoMoedaDoc.format(p.valor), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  if (_erro != null) Text(_erro!, style: const TextStyle(color: Colors.red, fontSize: 11)),
+                ],
+              ),
+            ),
+            if (pago)
+              const Text('✓ Pago', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))
+            else
+              OutlinedButton(
+                onPressed: (_enviando || widget.bloqueado) ? null : _confirmar,
+                child: Text(
+                  _enviando ? '...' : (widget.bloqueado ? 'Aguarda conclusão' : 'Confirmar pagamento'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
           ],
         ),
       ),

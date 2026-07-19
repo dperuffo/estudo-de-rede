@@ -98,6 +98,10 @@ class Frete {
   final double? cargaAlturaM;
   final List<String> veiculosAceitos;
   final List<String> carroceriasAceitas;
+  // Fase Fretes-Adiantamento-Combustível (19/07).
+  final double percentualAdiantamento;
+  final String? saldoCombustivelTipo; // 'Valor' | 'Volume'
+  final double? saldoCombustivelAlocado;
 
   const Frete({
     required this.id,
@@ -121,6 +125,9 @@ class Frete {
     this.cargaAlturaM,
     this.veiculosAceitos = const [],
     this.carroceriasAceitas = const [],
+    this.percentualAdiantamento = 30,
+    this.saldoCombustivelTipo,
+    this.saldoCombustivelAlocado,
   });
 
   factory Frete.fromMap(Map<String, dynamic> m) => Frete(
@@ -145,8 +152,47 @@ class Frete {
         cargaAlturaM: (m['carga_altura_m'] as num?)?.toDouble(),
         veiculosAceitos: (m['veiculos_aceitos'] as List?)?.map((v) => v as String).toList() ?? const [],
         carroceriasAceitas: (m['carrocerias_aceitas'] as List?)?.map((v) => v as String).toList() ?? const [],
+        percentualAdiantamento: (m['percentual_adiantamento'] as num?)?.toDouble() ?? 30,
+        saldoCombustivelTipo: m['saldo_combustivel_tipo'] as String?,
+        saldoCombustivelAlocado: (m['saldo_combustivel_alocado'] as num?)?.toDouble(),
       );
 }
+
+// Fase Fretes-Adiantamento-Combustível (19/07) — porta de
+// PagamentosFrete.tsx (web): parcela de pagamento do frete (entrada ou
+// saldo final), gerada automaticamente pelo banco quando o frete vira
+// "aceito" (trg_gerar_pagamentos_frete).
+class PagamentoFrete {
+  final String id;
+  final String tipo; // 'adiantamento' | 'saldo_final'
+  final double percentual;
+  final double valor;
+  final String status; // 'pendente' | 'pago'
+  final String? pagoEm;
+
+  const PagamentoFrete({
+    required this.id,
+    required this.tipo,
+    required this.percentual,
+    required this.valor,
+    required this.status,
+    this.pagoEm,
+  });
+
+  factory PagamentoFrete.fromMap(Map<String, dynamic> m) => PagamentoFrete(
+        id: m['id'] as String,
+        tipo: m['tipo'] as String? ?? '',
+        percentual: (m['percentual'] as num?)?.toDouble() ?? 0,
+        valor: (m['valor'] as num?)?.toDouble() ?? 0,
+        status: m['status'] as String? ?? 'pendente',
+        pagoEm: m['pago_em'] as String?,
+      );
+}
+
+const labelTipoPagamentoFrete = <String, String>{
+  'adiantamento': 'Adiantamento (entrada)',
+  'saldo_final': 'Saldo final (na conclusão)',
+};
 
 class EnderecoFrete {
   final String? rua;
@@ -435,10 +481,20 @@ final freteDetalheProvider = FutureProvider.autoDispose.family<Frete?, String>((
           'id, empresa_id, titulo, descricao, status, origem_label, destino_label, tipo_carga, peso_carga_kg, data_saida_prevista, prazo_entrega, km_estimado, valor_oferecido, motorista_id, '
           'coleta_rua, coleta_numero, coleta_bairro, coleta_cidade, coleta_uf, coleta_cep, coleta_referencia, coleta_data, coleta_hora, coleta_contato_nome, coleta_contato_telefone, '
           'entrega_rua, entrega_numero, entrega_bairro, entrega_cidade, entrega_uf, entrega_cep, entrega_referencia, entrega_data, entrega_hora, entrega_contato_nome, entrega_contato_telefone, '
-          'carga_comprimento_m, carga_largura_m, carga_altura_m, veiculos_aceitos, carrocerias_aceitas')
+          'carga_comprimento_m, carga_largura_m, carga_altura_m, veiculos_aceitos, carrocerias_aceitas, '
+          'percentual_adiantamento, saldo_combustivel_tipo, saldo_combustivel_alocado')
       .eq('id', freteId)
       .maybeSingle();
   return row == null ? null : Frete.fromMap(row);
+});
+
+final pagamentosFreteProvider = FutureProvider.autoDispose.family<List<PagamentoFrete>, String>((ref, freteId) async {
+  final rows = await SupabaseService.client
+      .from('fretes_pagamentos')
+      .select('id, tipo, percentual, valor, status, pago_em')
+      .eq('frete_id', freteId)
+      .order('tipo');
+  return (rows as List).map((r) => PagamentoFrete.fromMap(r as Map<String, dynamic>)).toList();
 });
 
 final propostasFreteProvider = FutureProvider.autoDispose.family<List<Proposta>, String>((ref, freteId) async {
