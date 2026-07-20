@@ -45,6 +45,8 @@ import '../../features/motoristas/screens/motorista_novo_screen.dart';
 import '../../features/motoristas/screens/motorista_editar_screen.dart';
 import '../../features/anomalias/screens/anomalias_screen.dart';
 import '../../features/acoes_sugeridas/screens/acoes_sugeridas_screen.dart';
+import '../../features/combustivel_ideal/screens/combustivel_ideal_screen.dart';
+import '../../features/pegada_carbono/screens/pegada_carbono_screen.dart';
 import '../../features/relatorios/screens/relatorios_screen.dart';
 import '../../features/permissoes/screens/permissoes_screen.dart';
 import '../../features/configuracoes_sistema/screens/configuracoes_sistema_screen.dart';
@@ -279,6 +281,8 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             ),
             GoRoute(path: '/anomalias', builder: (_, __) => const AnomaliasScreen()),
             GoRoute(path: '/acoes-sugeridas', builder: (_, __) => const AcoesSugeridasScreen()),
+            GoRoute(path: '/combustivel-ideal', builder: (_, __) => const CombustivelIdealScreen()),
+            GoRoute(path: '/pegada-carbono', builder: (_, __) => const PegadaCarbonoScreen()),
             GoRoute(path: '/roteirizacao', builder: (_, __) => const RoteirizacaoScreen()),
             GoRoute(path: '/rotograma', builder: (_, __) => const RotogramaScreen()),
             GoRoute(path: '/rotograma/novo', builder: (_, __) => const RotogramaNovoScreen()),

@@ -176,9 +176,15 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.card_travel, 'Planos de Viagem', '/planos-viagem'),
           _item(context, Icons.handshake, 'Negociações com Postos', '/negociacoes', badge: badges.negociacoes),
           _item(context, Icons.sell, 'Preços dos Postos Parceiros', '/precos-postos'),
+          // Fase Onda-2 (benchmark TicketLog, item #6) — comparador de
+          // combustível ideal por veículo/região.
+          _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
           _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
           _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
           _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
+          // Fase Onda-3 (benchmark TicketLog, item #10) — estimativa de CO2
+          // emitido pela frota a partir dos litros já registrados.
+          _item(context, Icons.public, 'Pegada de Carbono', '/pegada-carbono'),
           const Divider(),
           // Fase FLT-4 — pro admin, esta MESMA rota (/permissoes) edita o
           // padrão GLOBAL do sistema em vez da empresa escolhida (ver
