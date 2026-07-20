@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/supabase_service.dart';
+import '../services/manutencao_preditiva_service.dart';
 
 // Fase FLT-3 — Manutenção Preditiva (cliente), porta de
 // manutencao-preditiva/page.tsx + [placa]/page.tsx + actions.ts +
@@ -302,6 +303,12 @@ class RegistroManutencao {
   final String? dataManutencao, oficina, criadoPor;
   final double? hodometro, custoTotal;
   final List<String> itensRealizados;
+  // Fase Manutencao-Fotos-PWA — caminhos crus no bucket + URLs assinadas já
+  // resolvidas (bucket privado, 1h de validade, mesmo padrão de
+  // frete_detalhe_screen.dart/fretes_provider.dart). Resolvidas no próprio
+  // provider (abaixo) pra tela só consumir `fotosUrls` prontas.
+  final List<String> fotos;
+  final List<String> fotosUrls;
   const RegistroManutencao({
     required this.id,
     this.dataManutencao,
@@ -310,6 +317,8 @@ class RegistroManutencao {
     this.hodometro,
     this.custoTotal,
     required this.itensRealizados,
+    this.fotos = const [],
+    this.fotosUrls = const [],
   });
   factory RegistroManutencao.fromMap(Map<String, dynamic> m) => RegistroManutencao(
         id: (m['id'] as num).toInt(),
@@ -319,15 +328,38 @@ class RegistroManutencao {
         hodometro: (m['hodometro'] as num?)?.toDouble(),
         custoTotal: (m['custo_total'] as num?)?.toDouble(),
         itensRealizados: ((m['itens_realizados'] as List?) ?? []).cast<String>(),
+        fotos: ((m['fotos'] as List?) ?? []).cast<String>(),
+      );
+
+  RegistroManutencao comFotosUrls(List<String> urls) => RegistroManutencao(
+        id: id,
+        dataManutencao: dataManutencao,
+        oficina: oficina,
+        criadoPor: criadoPor,
+        hodometro: hodometro,
+        custoTotal: custoTotal,
+        itensRealizados: itensRealizados,
+        fotos: fotos,
+        fotosUrls: urls,
       );
 }
 
 final historicoManutencaoProvider = FutureProvider.autoDispose.family<List<RegistroManutencao>, String>((ref, placa) async {
   final rows = await SupabaseService.client
       .from('manutencoes_realizadas')
-      .select('id, data_manutencao, hodometro, itens_realizados, oficina, custo_total, criado_por')
+      .select('id, data_manutencao, hodometro, itens_realizados, oficina, custo_total, criado_por, fotos')
       .eq('placa', placa)
       .order('data_manutencao', ascending: false)
       .limit(100) as List;
-  return rows.map((r) => RegistroManutencao.fromMap(r as Map<String, dynamic>)).toList();
+  final registros = rows.map((r) => RegistroManutencao.fromMap(r as Map<String, dynamic>)).toList();
+
+  // Resolve URL assinada só de quem tem foto — best-effort, uma falha não
+  // derruba o histórico inteiro (mesmo espírito de "falha vira vazio" já
+  // usado em notificacoes_provider.dart).
+  final servico = ManutencaoPreditivaService();
+  final comFotos = registros.where((r) => r.fotos.isNotEmpty).toList();
+  if (comFotos.isEmpty) return registros;
+  final listasUrls = await Future.wait(comFotos.map((r) => servico.urlsAssinadas(r.fotos)));
+  final porId = {for (var i = 0; i < comFotos.length; i++) comFotos[i].id: listasUrls[i]};
+  return registros.map((r) => porId.containsKey(r.id) ? r.comFotosUrls(porId[r.id]!) : r).toList();
 });

@@ -165,7 +165,9 @@ class HomeScreen extends ConsumerWidget {
           _grp('Operação'),
           _item(context, Icons.local_gas_station, 'Abastecimentos', '/abastecimentos', badge: badges.ajustesAbastecimento),
           _item(context, Icons.description, 'Notas Fiscais', '/notas-fiscais'),
-          _item(context, Icons.warning_amber, 'Anomalias', '/anomalias', badge: badges.anomalias),
+          // Pedido do Daniel: "Retirar a aba de Anomalias" — mesma decisão já
+          // tomada na web (Ações Sugeridas cobre tudo que Anomalias
+          // detectava, ver comentário em app_router.dart).
           _item(context, Icons.auto_awesome, 'Ações Sugeridas', '/acoes-sugeridas', badge: badges.acoesSugeridas),
           _item(context, Icons.gpp_maybe_outlined, 'Antifraude', '/antifraude', badge: badges.antifraude),
           _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),

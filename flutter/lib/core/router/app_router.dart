@@ -43,7 +43,6 @@ import '../../features/usuarios/screens/usuario_novo_cliente_screen.dart';
 import '../../features/motoristas/screens/motoristas_screen.dart';
 import '../../features/motoristas/screens/motorista_novo_screen.dart';
 import '../../features/motoristas/screens/motorista_editar_screen.dart';
-import '../../features/anomalias/screens/anomalias_screen.dart';
 import '../../features/acoes_sugeridas/screens/acoes_sugeridas_screen.dart';
 import '../../features/combustivel_ideal/screens/combustivel_ideal_screen.dart';
 import '../../features/pegada_carbono/screens/pegada_carbono_screen.dart';
@@ -279,7 +278,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/notas-fiscais/:notaId',
               builder: (_, state) => NotaFiscalDetalheScreen(notaId: state.pathParameters['notaId']!),
             ),
-            GoRoute(path: '/anomalias', builder: (_, __) => const AnomaliasScreen()),
+            // Pedido do Daniel: "Retirar a aba de Anomalias" — mesma decisão
+            // já tomada na web (Ações Sugeridas cobre tudo que Anomalias
+            // detectava). Rota mantida só como redirect pra não quebrar
+            // favoritos/links antigos, mesmo padrão do web
+            // (acoes-sugeridas/actions.ts).
+            GoRoute(path: '/anomalias', redirect: (_, __) => '/acoes-sugeridas'),
             GoRoute(path: '/acoes-sugeridas', builder: (_, __) => const AcoesSugeridasScreen()),
             GoRoute(path: '/combustivel-ideal', builder: (_, __) => const CombustivelIdealScreen()),
             GoRoute(path: '/pegada-carbono', builder: (_, __) => const PegadaCarbonoScreen()),

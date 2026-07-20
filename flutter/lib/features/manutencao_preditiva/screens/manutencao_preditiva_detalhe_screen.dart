@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/sessao_provider.dart';
@@ -23,9 +24,27 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
   final _oficinaCtrl = TextEditingController();
   final _obsCtrl = TextEditingController();
   final _itensSelecionados = <String>{};
+  final _fotosSelecionadas = <PlatformFile>[];
   bool _salvando = false;
   String? _erroForm;
   bool _sucessoForm = false;
+
+  // Pedido do Daniel: "Manutenção Preditiva - faltam fotos como
+  // evidências" — porta do upload que só existia na web
+  // (RegistrarManutencaoForm.tsx, `<input type="file" name="fotos"
+  // multiple>`). Usa file_picker (já é dependência do app, não
+  // image_picker — mesmo padrão de Chamados/Fretes) filtrado pra imagem.
+  Future<void> _selecionarFotos() async {
+    final resultado = await FilePicker.pickFiles(
+      allowMultiple: true,
+      type: FileType.image,
+      withData: true,
+    );
+    if (resultado == null) return;
+    setState(() {
+      _fotosSelecionadas.addAll(resultado.files.where((f) => f.bytes != null));
+    });
+  }
 
   @override
   void dispose() {
@@ -73,7 +92,8 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
 
     setState(() => _salvando = true);
     try {
-      await ManutencaoPreditivaService().registrar(
+      final servico = ManutencaoPreditivaService();
+      final id = await servico.registrar(
         empresaId: empresaId,
         placa: widget.placa,
         dataManutencao: _dataCtrl.text.trim(),
@@ -85,6 +105,20 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
         obsGerais: _obsCtrl.text.trim(),
         criadoPor: sessao.email,
       );
+
+      // Fotos são best-effort: a manutenção já foi salva acima, então uma
+      // falha aqui só vira aviso, não desfaz o registro (mesmo espírito da
+      // web em registrarManutencaoAcao).
+      String? avisoFotos;
+      if (_fotosSelecionadas.isNotEmpty) {
+        avisoFotos = await servico.enviarFotos(
+          manutencaoId: id,
+          arquivos: _fotosSelecionadas
+              .map((f) => (bytes: f.bytes!, nome: f.name, mimeType: null as String?))
+              .toList(),
+        );
+      }
+
       if (!mounted) return;
       _hodometroCtrl.clear();
       _custoCtrl.clear();
@@ -93,7 +127,9 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
       _obsCtrl.clear();
       setState(() {
         _itensSelecionados.clear();
+        _fotosSelecionadas.clear();
         _sucessoForm = true;
+        _erroForm = avisoFotos;
         _salvando = false;
       });
       ref.invalidate(manutencaoDetalheProvider(widget.placa));
@@ -428,6 +464,25 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
             }).toList(),
           ),
         ),
+        const SizedBox(height: 14),
+        const Text('Fotos como evidência', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            ..._fotosSelecionadas.asMap().entries.map((e) => Chip(
+                  label: Text(e.value.name, style: const TextStyle(fontSize: 11)),
+                  avatar: const Icon(Icons.image, size: 16),
+                  onDeleted: () => setState(() => _fotosSelecionadas.removeAt(e.key)),
+                )),
+            ActionChip(
+              avatar: const Icon(Icons.add_a_photo_outlined, size: 16),
+              label: const Text('Adicionar fotos', style: TextStyle(fontSize: 11)),
+              onPressed: _selecionarFotos,
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         TextField(
           controller: _obsCtrl,
@@ -492,6 +547,26 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(r.itensRealizados.join(', '), style: const TextStyle(fontSize: 11)),
+                ),
+              if (r.fotosUrls.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: r.fotosUrls
+                        .map((url) => GestureDetector(
+                              onTap: () => showDialog(
+                                context: context,
+                                builder: (_) => Dialog(child: InteractiveViewer(child: Image.network(url))),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.network(url, width: 44, height: 44, fit: BoxFit.cover),
+                              ),
+                            ))
+                        .toList(),
+                  ),
                 ),
             ],
           ),
