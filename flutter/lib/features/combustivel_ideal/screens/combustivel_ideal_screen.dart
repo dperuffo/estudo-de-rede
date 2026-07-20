@@ -6,11 +6,32 @@ import '../providers/combustivel_ideal_provider.dart';
 // Fase Onda-2 (benchmark TicketLog, item #6) — porta de
 // combustivel-ideal/page.tsx (web). Pedido do Daniel: "Implementar estas
 // duas iniciativas na web e PWA cliente".
-class CombustivelIdealScreen extends ConsumerWidget {
+// Fase Filtro-Placa — pedido do Daniel: "Colocar um filtro para seleção de
+// placa nas visões de cliente, web e pwa, e admin". Filtro client-side (sem
+// nova chamada à RPC) por placa/marca/modelo, mesma ideia da versão web
+// (ListaVeiculosCombustivelIdeal.tsx) — os KPIs no topo continuam mostrando
+// a frota inteira, só a lista de cartões abaixo é filtrada.
+class CombustivelIdealScreen extends ConsumerStatefulWidget {
   const CombustivelIdealScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CombustivelIdealScreen> createState() => _CombustivelIdealScreenState();
+}
+
+class _CombustivelIdealScreenState extends ConsumerState<CombustivelIdealScreen> {
+  String _busca = '';
+
+  List<ItemComparadorCombustivel> _filtrar(List<ItemComparadorCombustivel> itens) {
+    final q = _busca.trim().toUpperCase();
+    if (q.isEmpty) return itens;
+    return itens.where((i) {
+      final alvo = '${i.placa} ${i.marca ?? ''} ${i.modelo ?? ''}'.toUpperCase();
+      return alvo.contains(q);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final itensAsync = ref.watch(combustivelIdealProvider);
 
     return Scaffold(
@@ -26,6 +47,7 @@ class CombustivelIdealScreen extends ConsumerWidget {
           data: (itens) {
             final totalEtanol = itens.where((i) => i.recomendacao == 'etanol').length;
             final totalGasolina = itens.where((i) => i.recomendacao == 'gasolina').length;
+            final itensFiltrados = _filtrar(itens);
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -60,6 +82,18 @@ class CombustivelIdealScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+                if (itens.isNotEmpty)
+                  TextField(
+                    onChanged: (v) => setState(() => _busca = v),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      hintText: 'Buscar por placa, marca ou modelo...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      suffixText: _busca.isNotEmpty ? '${itensFiltrados.length}/${itens.length}' : null,
+                    ),
+                  ),
+                const SizedBox(height: 12),
                 if (itens.isEmpty)
                   const Card(
                     child: Padding(
@@ -67,8 +101,15 @@ class CombustivelIdealScreen extends ConsumerWidget {
                       child: Text('Nenhum veículo flex encontrado.', style: TextStyle(color: Colors.grey)),
                     ),
                   )
+                else if (itensFiltrados.isEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text('Nenhum veículo encontrado para "$_busca".', style: const TextStyle(color: Colors.grey)),
+                    ),
+                  )
                 else
-                  ...itens.map(_cardVeiculo),
+                  ...itensFiltrados.map(_cardVeiculo),
               ],
             );
           },
