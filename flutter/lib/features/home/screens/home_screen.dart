@@ -166,6 +166,7 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.local_gas_station, 'Abastecimentos', '/abastecimentos', badge: badges.ajustesAbastecimento),
           _item(context, Icons.description, 'Notas Fiscais', '/notas-fiscais'),
           _item(context, Icons.warning_amber, 'Anomalias', '/anomalias', badge: badges.anomalias),
+          _item(context, Icons.auto_awesome, 'Ações Sugeridas', '/acoes-sugeridas', badge: badges.acoesSugeridas),
           _item(context, Icons.gpp_maybe_outlined, 'Antifraude', '/antifraude', badge: badges.antifraude),
           _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
           _item(context, Icons.local_shipping, 'Fretes', '/fretes'),

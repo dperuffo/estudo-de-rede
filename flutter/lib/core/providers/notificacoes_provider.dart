@@ -37,6 +37,7 @@ class NotificacoesBadges {
   final int avaliacoes;
   final int documentosPendentes;
   final int antifraude;
+  final int acoesSugeridas;
 
   const NotificacoesBadges({
     required this.chamados,
@@ -47,6 +48,7 @@ class NotificacoesBadges {
     required this.avaliacoes,
     required this.documentosPendentes,
     required this.antifraude,
+    required this.acoesSugeridas,
   });
 
   static const vazio = NotificacoesBadges(
@@ -58,6 +60,7 @@ class NotificacoesBadges {
     avaliacoes: 0,
     documentosPendentes: 0,
     antifraude: 0,
+    acoesSugeridas: 0,
   );
 }
 
@@ -156,6 +159,13 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
     return resp.count;
   }
 
+  // Fase FLT-Ações-Sugeridas — mesma RLS por empresa de acoes_sugeridas
+  // (bypass admin incluso), mesmo padrão de Anomalias/Antifraude acima.
+  Future<int> contarAcoesSugeridas() async {
+    final resp = await supabase.from('acoes_sugeridas').select('id').eq('status', 'pendente').count(CountOption.exact);
+    return resp.count;
+  }
+
   final resultados = await Future.wait([
     _contagemSegura(contarChamados),
     _contagemSegura(contarNegociacoes),
@@ -165,6 +175,7 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
     _contagemSegura(contarAvaliacoes),
     _contagemSegura(contarDocumentosPendentes),
     _contagemSegura(contarAntifraude),
+    _contagemSegura(contarAcoesSugeridas),
   ]);
 
   return NotificacoesBadges(
@@ -176,5 +187,6 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
     avaliacoes: resultados[5],
     documentosPendentes: resultados[6],
     antifraude: resultados[7],
+    acoesSugeridas: resultados[8],
   );
 });
