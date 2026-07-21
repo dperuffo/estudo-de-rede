@@ -413,6 +413,17 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
       .toList();
 
   // Itens 4/5 — Evolutivo e Top 5 postos por volume.
+  //
+  // Fase Correção-Gráfico-Evolutivo-Postos (achado do Daniel: "gráfico
+  // estranho" no dashboard web, mesmo bug aqui) — a RPC indicador_volume_postos
+  // ordena por (posto_nome, dia), não por dia global (cada posto pode ter
+  // uma faixa de dias diferente). O bug: diasOrdenados era montado na ordem
+  // em que os DIAS apareciam pela primeira vez percorrendo as linhas — como
+  // as linhas vêm agrupadas por posto (não por dia), um posto que só começa
+  // a aparecer depois podia trazer um dia anterior aos já vistos, que então
+  // entrava no FIM da lista, quebrando a ordem cronológica do eixo X.
+  // Corrigido guardando o dia ISO (ordenável) junto com o rótulo e
+  // ordenando por ele antes de montar os pontos do gráfico.
   final postosNomesSet = <String>{};
   final postosNomesOrdenados = <String>[];
   for (final v in volumePostosRaw) {
@@ -421,22 +432,24 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
     if (postosNomesSet.add(nome)) postosNomesOrdenados.add(nome);
   }
   final porDiaPostos = <String, Map<String, double>>{};
-  final diasOrdenados = <String>[];
+  final diaIsoParaLabel = <String, String>{};
   final totalPorPosto = <String, double>{};
   for (final v in volumePostosRaw) {
     final m = v as Map<String, dynamic>;
     final nome = (m['posto_nome'] as String?) ?? (m['posto_cnpj'] as String? ?? '—');
-    final diaLabel = _diaLabelCurto(m['dia'] as String);
+    final diaIso = m['dia'] as String;
     final litros = (m['litros'] as num?)?.toDouble() ?? 0;
-    if (!porDiaPostos.containsKey(diaLabel)) {
-      porDiaPostos[diaLabel] = {};
-      diasOrdenados.add(diaLabel);
+    if (!porDiaPostos.containsKey(diaIso)) {
+      porDiaPostos[diaIso] = {};
+      diaIsoParaLabel[diaIso] = _diaLabelCurto(diaIso);
     }
-    porDiaPostos[diaLabel]![nome] = litros;
+    porDiaPostos[diaIso]![nome] = litros;
     totalPorPosto[nome] = (totalPorPosto[nome] ?? 0) + litros;
   }
-  final evolutivoPostos =
-      diasOrdenados.map((d) => PontoEvolutivoPostos(diaLabel: d, valores: porDiaPostos[d]!)).toList();
+  final diasOrdenados = porDiaPostos.keys.toList()..sort();
+  final evolutivoPostos = diasOrdenados
+      .map((d) => PontoEvolutivoPostos(diaLabel: diaIsoParaLabel[d]!, valores: porDiaPostos[d]!))
+      .toList();
   final topPostos = totalPorPosto.entries.map((e) => PontoTopPosto(posto: e.key, litros: (e.value * 10).round() / 10)).toList()
     ..sort((a, b) => b.litros.compareTo(a.litros));
 
