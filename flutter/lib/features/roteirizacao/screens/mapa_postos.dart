@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart' as ll;
 
 import '../providers/roteirizacao_provider.dart';
 import '../services/geo_service.dart' as geo;
+import '../services/pedagio_service.dart' show PracaPedagioNaRota;
 import '../services/roteirizacao_algoritmo.dart' show ParadaSugerida;
 
 // Paleta fixa pras bandeiras "demais" (fora Ipiranga/Shell+Raízen/BR+
@@ -63,6 +64,10 @@ class MapaPostos extends StatelessWidget {
   final List<PostoComScore> postos;
   final List<geo.Ponto>? rota; // só preenchido no modo "planejar"
   final List<ParadaSugerida>? paradas; // idem
+  // Fase FLT-Pedagios — praças de pedágio no corredor da rota (modo
+  // "planejar"), plotadas com emoji 🎫 (diferente das bolinhas de posto),
+  // mesmo padrão da web (MapaRota.tsx).
+  final List<PracaPedagioNaRota>? pracasPedagio;
   final double height;
 
   const MapaPostos({
@@ -70,6 +75,7 @@ class MapaPostos extends StatelessWidget {
     required this.postos,
     this.rota,
     this.paradas,
+    this.pracasPedagio,
     this.height = 280,
   });
 
@@ -109,10 +115,12 @@ class MapaPostos extends StatelessWidget {
     final todasLat = <double>[
       ...pontosComCoord.map((p) => p.lat!),
       if (rota != null) ...rota!.map((p) => p.lat),
+      if (pracasPedagio != null) ...pracasPedagio!.map((p) => p.lat),
     ];
     final todasLon = <double>[
       ...pontosComCoord.map((p) => p.lon!),
       if (rota != null) ...rota!.map((p) => p.lon),
+      if (pracasPedagio != null) ...pracasPedagio!.map((p) => p.lon),
     ];
 
     final contador = Padding(
@@ -141,6 +149,7 @@ class MapaPostos extends StatelessWidget {
     final bounds = LatLngBounds.fromPoints([
       ...pontosComCoord.map((p) => ll.LatLng(p.lat!, p.lon!)),
       if (rota != null) ...rota!.map((p) => ll.LatLng(p.lat, p.lon)),
+      if (pracasPedagio != null) ...pracasPedagio!.map((p) => ll.LatLng(p.lat, p.lon)),
     ]);
 
     final cnpjsComParada = (paradas ?? []).map((p) => p.candidato.cnpj).toSet();
@@ -199,6 +208,20 @@ class MapaPostos extends StatelessWidget {
                     );
                   }).toList(),
                 ),
+                if (pracasPedagio != null && pracasPedagio!.isNotEmpty)
+                  MarkerLayer(
+                    markers: pracasPedagio!.map((p) {
+                      return Marker(
+                        point: ll.LatLng(p.lat, p.lon),
+                        width: 24,
+                        height: 24,
+                        child: Tooltip(
+                          message: '${p.nome}${p.valorCarro != null ? ' — R\$ ${p.valorCarro!.toStringAsFixed(2)}' : ''}',
+                          child: const Text('🎫', style: TextStyle(fontSize: 18)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
               ],
             ),
           ),

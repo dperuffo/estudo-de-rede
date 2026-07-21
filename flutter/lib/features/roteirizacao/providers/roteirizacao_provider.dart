@@ -1,6 +1,7 @@
 import '../../../core/services/supabase_service.dart';
 import '../../postos/providers/postos_provider.dart' show ufsBrasil;
 import '../services/geo_service.dart' as geo;
+import '../services/pedagio_service.dart' as pedagio;
 import '../services/roteirizacao_algoritmo.dart';
 
 // Fase FLT-3 — Roteirização (cliente), porta de roteirizacao/page.tsx +
@@ -616,6 +617,12 @@ class RoteirizacaoService {
       combustivelInicialL: combustivelInicialL,
     );
 
+    // Fase FLT-Pedagios — mesmo corredor da rota já calculado acima (boxesRota
+    // + acumuladas), reaproveitado pra achar as praças de pedágio no trajeto
+    // e somar o custo estimado (categoria "carro" — mesmo padrão da web).
+    final pracasPedagio = await pedagio.buscarPracasPedagioNaRota(rota.coordenadas, acumuladas);
+    final custoPedagioEstimado = pedagio.custoPedagioTotal(pracasPedagio, pedagio.CategoriaVeiculoPedagio.carro);
+
     return ResultadoRoteirizacaoInteligente(
       coordenadas: rota.coordenadas,
       distanciaKm: (rota.distanciaKm * 10).round() / 10,
@@ -627,6 +634,8 @@ class RoteirizacaoService {
       custoTotal: ((paradas2.fold(0.0, (s, p) => s + p.custoAbastecimento)) * 100).round() / 100,
       candidatosEncontrados: candidatos.length,
       usouFallbackAnp: usouFallbackAnp,
+      pracasPedagio: pracasPedagio,
+      custoPedagioEstimado: (custoPedagioEstimado * 100).round() / 100,
     );
   }
 }
@@ -642,6 +651,8 @@ class ResultadoRoteirizacaoInteligente {
   final double custoTotal;
   final int candidatosEncontrados;
   final bool usouFallbackAnp;
+  final List<pedagio.PracaPedagioNaRota> pracasPedagio;
+  final double custoPedagioEstimado;
   const ResultadoRoteirizacaoInteligente({
     required this.coordenadas,
     required this.distanciaKm,
@@ -653,6 +664,8 @@ class ResultadoRoteirizacaoInteligente {
     required this.custoTotal,
     required this.candidatosEncontrados,
     required this.usouFallbackAnp,
+    this.pracasPedagio = const [],
+    this.custoPedagioEstimado = 0,
   });
 }
 

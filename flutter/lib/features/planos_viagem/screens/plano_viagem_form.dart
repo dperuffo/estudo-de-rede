@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import '../../../core/services/sessao_provider.dart';
 import '../../motoristas/providers/motoristas_provider.dart' show Motorista, motoristasClienteProvider, centrosCustoOpcoesProvider;
 import '../../veiculos/providers/veiculos_provider.dart' show Veiculo, veiculosClienteProvider;
 import '../../rotograma/providers/rotograma_provider.dart' show RotogramaResumo, rotogramasListaProvider;
+import '../../roteirizacao/services/pedagio_service.dart' as pedagio;
 import '../providers/planos_viagem_provider.dart';
 import '../services/planos_viagem_service.dart';
 
@@ -29,6 +31,11 @@ class PlanoViagemForm extends ConsumerStatefulWidget {
 class _LinhaPedagio {
   final controllerPraca = TextEditingController();
   final controllerValor = TextEditingController();
+  // Fase FLT-Pedagios — porta de buscarPracasPedagioPorNomeAcao: autocomplete
+  // por nome/rodovia/concessionária consultando `pracas_pedagio`, em vez de
+  // digitação livre pura (mesmo espírito de "Nome da praça" na web).
+  List<pedagio.PracaPedagio> sugestoes = [];
+  Timer? _debounce;
   _LinhaPedagio();
   _LinhaPedagio.de(Pedagio p) {
     controllerPraca.text = p.pracaNome;
@@ -36,7 +43,24 @@ class _LinhaPedagio {
   }
   double get valor => double.tryParse(controllerValor.text.replaceAll(',', '.')) ?? 0;
   Pedagio toPedagio() => Pedagio(pracaNome: controllerPraca.text.trim(), valor: valor);
+
+  void buscarSugestoes(String termo, void Function() onAtualizar) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      final resultado = await pedagio.buscarPracasPedagioPorNome(termo);
+      sugestoes = resultado;
+      onAtualizar();
+    });
+  }
+
+  void selecionar(pedagio.PracaPedagio p) {
+    controllerPraca.text = p.nome;
+    if (p.valorCarro != null) controllerValor.text = p.valorCarro!.toString();
+    sugestoes = [];
+  }
+
   void dispose() {
+    _debounce?.cancel();
     controllerPraca.dispose();
     controllerValor.dispose();
   }
@@ -628,32 +652,61 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
         else
           ..._pedagios.asMap().entries.map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: e.value.controllerPraca,
-                        decoration: const InputDecoration(labelText: 'Nome da praça', border: OutlineInputBorder(), isDense: true),
-                        onChanged: (_) => setState(() {}),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: e.value.controllerPraca,
+                            decoration: const InputDecoration(
+                                labelText: 'Nome da praça', hintText: 'Buscar na base de pedágios...', border: OutlineInputBorder(), isDense: true),
+                            onChanged: (v) {
+                              setState(() {});
+                              e.value.buscarSugestoes(v, () => mounted ? setState(() {}) : null);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: e.value.controllerValor,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(labelText: 'Valor', border: OutlineInputBorder(), isDense: true),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18, color: Colors.red),
+                          onPressed: () => setState(() {
+                            e.value.dispose();
+                            _pedagios = List.of(_pedagios)..removeAt(e.key);
+                          }),
+                        ),
+                      ],
+                    ),
+                    if (e.value.sugestoes.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6)),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: e.value.sugestoes
+                              .map((s) => ListTile(
+                                    dense: true,
+                                    title: Text(s.nome, style: const TextStyle(fontSize: 13)),
+                                    subtitle: Text(
+                                      [s.rodovia, s.concessionaria].where((x) => x != null && x.isNotEmpty).join(' · '),
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    trailing: s.valorCarro != null ? Text(_moedaForm.format(s.valorCarro)) : null,
+                                    onTap: () => setState(() => e.value.selecionar(s)),
+                                  ))
+                              .toList(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: e.value.controllerValor,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Valor', border: OutlineInputBorder(), isDense: true),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 18, color: Colors.red),
-                      onPressed: () => setState(() {
-                        e.value.dispose();
-                        _pedagios = List.of(_pedagios)..removeAt(e.key);
-                      }),
-                    ),
                   ],
                 ),
               )),

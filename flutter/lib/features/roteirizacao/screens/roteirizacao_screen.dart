@@ -676,7 +676,13 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             ),
           ),
         ),
-      MapaPostos(postos: postosParaMapa, rota: r.coordenadas, paradas: r.paradas, height: 320),
+      MapaPostos(
+        postos: postosParaMapa,
+        rota: r.coordenadas,
+        paradas: r.paradas,
+        pracasPedagio: r.pracasPedagio,
+        height: 320,
+      ),
       const SizedBox(height: 12),
       Card(
         child: Padding(
@@ -687,11 +693,33 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
               _resumoItem('Distância', '${r.distanciaKm.toStringAsFixed(0)} km'),
               _resumoItem('Duração', '${(r.duracaoMin / 60).toStringAsFixed(1)} h'),
               _resumoItem('Paradas', '${r.paradas.length}'),
-              _resumoItem('Custo total', 'R\$ ${r.custoTotal.toStringAsFixed(2)}'),
+              _resumoItem('Combustível', 'R\$ ${r.custoTotal.toStringAsFixed(2)}'),
+              _resumoItem('🎫 Pedágio', 'R\$ ${r.custoPedagioEstimado.toStringAsFixed(2)}'),
             ],
           ),
         ),
       ),
+      if (r.pracasPedagio.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        Text('Pedágios na rota (${r.pracasPedagio.length})', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        ...r.pracasPedagio.map((p) => Card(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                dense: true,
+                leading: const Text('🎫', style: TextStyle(fontSize: 18)),
+                title: Text(p.nome, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  '${p.rodovia ?? p.concessionaria ?? '—'} · km ${p.kmNaRota.toStringAsFixed(0)}',
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: Text(
+                  p.valorCarro != null ? 'R\$ ${p.valorCarro!.toStringAsFixed(2)}' : '—',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            )),
+      ],
       const SizedBox(height: 12),
       Text('Paradas sugeridas (${r.paradas.length})', style: Theme.of(context).textTheme.titleSmall),
       const SizedBox(height: 8),

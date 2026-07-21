@@ -43,7 +43,7 @@ class LinhaDoTempoRotograma extends StatelessWidget {
           runSpacing: 4,
           children: [
             for (final c in categoriasRisco) _legendaItem(corRisco(c.valor), c.label),
-            _legendaItem(corParadaHex, 'Abastecimento / Alimentação / Pernoite'),
+            _legendaItem(corParadaHex, 'Abastecimento / Alimentação / Pernoite / Pedágio'),
           ],
         ),
       ],

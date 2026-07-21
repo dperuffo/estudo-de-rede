@@ -183,6 +183,7 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
           _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
           _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
+          _item(context, Icons.receipt_long, 'Parâmetros de NF', '/parametros-nf'),
           _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
           // Fase Onda-3 (benchmark TicketLog, item #10) — estimativa de CO2
           // emitido pela frota a partir dos litros já registrados.

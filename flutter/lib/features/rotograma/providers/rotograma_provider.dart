@@ -22,10 +22,14 @@ const categoriasRisco = [
   (valor: 'radar', label: 'Lombada / Radar', icone: '📸'),
 ];
 
+// Fase FLT-Pedagios — categoria "pedagio" (porta de CATEGORIAS_PARADA em
+// rotograma/tipos.ts): pedido do Daniel pra Base de Pedágios entrar também
+// no Rotograma de Segurança, mesmo emoji 🎫 usado no mapa da Roteirização.
 const categoriasParada = [
   (valor: 'abastecimento', label: 'Abastecimento', icone: '⛽'),
   (valor: 'alimentacao', label: 'Alimentação', icone: '🍽️'),
   (valor: 'pernoite', label: 'Pernoite', icone: '🛏️'),
+  (valor: 'pedagio', label: 'Pedágio', icone: '🎫'),
 ];
 
 const contatosEmergencia = [
