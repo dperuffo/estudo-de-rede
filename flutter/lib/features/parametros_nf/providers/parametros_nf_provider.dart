@@ -22,6 +22,18 @@ const opcoesLocalDestinoNF = [
   'Personalizado CNPJ por Abastecimento',
 ];
 
+// Fase FLT-Parametros-NF-Estado — porta de ModalDestinoEstado.tsx: exceção
+// de destino de NF por UF, dentro de uma regra "Personalizado CNPJ por
+// Estado" (parametros_nota_fiscal_destino_uf).
+class DestinoUf {
+  final String uf;
+  final String cnpjDestino;
+  const DestinoUf({required this.uf, required this.cnpjDestino});
+
+  factory DestinoUf.fromMap(Map<String, dynamic> m) =>
+      DestinoUf(uf: m['uf'] as String, cnpjDestino: m['cnpj_destino'] as String);
+}
+
 class ParametroNF {
   final String id;
   final String? cnpjFrota;
@@ -33,6 +45,7 @@ class ParametroNF {
   final String? dadosAdicionais;
   final String status;
   final String? observacao;
+  final List<DestinoUf> destinoPorUf;
 
   const ParametroNF({
     required this.id,
@@ -45,6 +58,7 @@ class ParametroNF {
     this.dadosAdicionais,
     required this.status,
     this.observacao,
+    this.destinoPorUf = const [],
   });
 
   bool get ativo => status == 'Ativo';
@@ -60,7 +74,24 @@ class ParametroNF {
         dadosAdicionais: m['dados_adicionais'] as String?,
         status: m['status'] as String? ?? 'Ativo',
         observacao: m['observacao'] as String?,
+        destinoPorUf: ((m['parametros_nota_fiscal_destino_uf'] as List?) ?? [])
+            .map((e) => DestinoUf.fromMap(e as Map<String, dynamic>))
+            .toList(),
       );
+}
+
+// Fase FLT-Parametros-NF-Estado — plano em construção no form (antes de
+// salvar): CNPJ padrão + grupos de UFs cada um apontando pra um CNPJ.
+class GrupoUf {
+  final List<String> ufs;
+  final String cnpj;
+  const GrupoUf({required this.ufs, required this.cnpj});
+}
+
+class PlanoDestinoEstado {
+  final String cnpjPadrao;
+  final List<GrupoUf> grupos;
+  const PlanoDestinoEstado({required this.cnpjPadrao, required this.grupos});
 }
 
 final parametrosNFProvider = FutureProvider.autoDispose<List<ParametroNF>>((ref) async {
@@ -70,7 +101,7 @@ final parametrosNFProvider = FutureProvider.autoDispose<List<ParametroNF>>((ref)
   final rows = await SupabaseService.client
       .from('parametros_nota_fiscal')
       .select(
-          'id, cnpj_frota, exige_nota_fiscal, separar_nf_combustivel, forma_emissao, local_destino, cnpj_destino_personalizado, dados_adicionais, status, observacao')
+          'id, cnpj_frota, exige_nota_fiscal, separar_nf_combustivel, forma_emissao, local_destino, cnpj_destino_personalizado, dados_adicionais, status, observacao, parametros_nota_fiscal_destino_uf(uf, cnpj_destino)')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false) as List;
   return rows.map((m) => ParametroNF.fromMap(m as Map<String, dynamic>)).toList();

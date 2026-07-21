@@ -6,6 +6,11 @@ class ParametrosNFService {
 
   String? get _email => _supabase.auth.currentUser?.email;
 
+  // Fase FLT-Parametros-NF-Estado — porta de ExcecaoDestinoUf/
+  // lerExcecoesUf (actions.ts): quando localDestino é "Personalizado CNPJ
+  // por Estado", `cnpjDestinoPersonalizado` é o CNPJ PADRÃO e `excecoesUf`
+  // é a lista achatada (1 item por UF) das exceções — gravadas em
+  // parametros_nota_fiscal_destino_uf após a regra ser criada.
   Future<String?> criar({
     required String empresaId,
     String? cnpjFrota,
@@ -16,24 +21,40 @@ class ParametrosNFService {
     String? cnpjDestinoPersonalizado,
     String? dadosAdicionais,
     String? observacao,
+    List<({String uf, String cnpj})> excecoesUf = const [],
   }) async {
     final personalizado = localDestino.startsWith('Personalizado');
     if (personalizado && (cnpjDestinoPersonalizado == null || cnpjDestinoPersonalizado.trim().isEmpty)) {
       return 'Informe o CNPJ de destino para o tipo de destino personalizado escolhido.';
     }
     try {
-      await _supabase.from('parametros_nota_fiscal').insert({
-        'empresa_id': empresaId,
-        'cnpj_frota': (cnpjFrota == null || cnpjFrota.trim().isEmpty) ? null : cnpjFrota.trim(),
-        'exige_nota_fiscal': exigeNotaFiscal,
-        'separar_nf_combustivel': separarNfCombustivel,
-        'forma_emissao': formaEmissao,
-        'local_destino': localDestino,
-        'cnpj_destino_personalizado': personalizado ? cnpjDestinoPersonalizado?.trim() : null,
-        'dados_adicionais': (dadosAdicionais == null || dadosAdicionais.trim().isEmpty) ? null : dadosAdicionais.trim(),
-        'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
-        'criado_por': _email,
-      });
+      final inserida = await _supabase
+          .from('parametros_nota_fiscal')
+          .insert({
+            'empresa_id': empresaId,
+            'cnpj_frota': (cnpjFrota == null || cnpjFrota.trim().isEmpty) ? null : cnpjFrota.trim(),
+            'exige_nota_fiscal': exigeNotaFiscal,
+            'separar_nf_combustivel': separarNfCombustivel,
+            'forma_emissao': formaEmissao,
+            'local_destino': localDestino,
+            'cnpj_destino_personalizado': personalizado ? cnpjDestinoPersonalizado?.trim() : null,
+            'dados_adicionais':
+                (dadosAdicionais == null || dadosAdicionais.trim().isEmpty) ? null : dadosAdicionais.trim(),
+            'observacao': (observacao == null || observacao.trim().isEmpty) ? null : observacao.trim(),
+            'criado_por': _email,
+          })
+          .select('id')
+          .single();
+
+      if (localDestino == 'Personalizado CNPJ por Estado' && excecoesUf.isNotEmpty) {
+        try {
+          await _supabase.from('parametros_nota_fiscal_destino_uf').insert([
+            for (final e in excecoesUf) {'parametro_nf_id': inserida['id'], 'uf': e.uf, 'cnpj_destino': e.cnpj},
+          ]);
+        } catch (e) {
+          return 'Regra salva, mas as exceções por estado falharam: $e';
+        }
+      }
       return null;
     } catch (e) {
       return 'Não foi possível salvar: $e';

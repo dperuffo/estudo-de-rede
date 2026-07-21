@@ -4,6 +4,7 @@ import '../../../core/services/sessao_provider.dart';
 import '../../veiculos/providers/veiculos_provider.dart' show veiculosClienteProvider;
 import '../providers/parametros_nf_provider.dart';
 import '../services/parametros_nf_service.dart';
+import 'modal_destino_estado.dart';
 
 // Fase FLT-Parametros-NF — porta de parametros-nf/page.tsx +
 // SecaoParametrosNF.tsx. Pedido do Daniel: preferências de emissão de nota
@@ -142,7 +143,8 @@ class _ParametrosNFScreenState extends ConsumerState<ParametrosNFScreen> {
                           style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                       Text('Emissão: ${r.formaEmissao}', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                       Text(
-                          'Destino: ${r.localDestino}${r.cnpjDestinoPersonalizado != null ? ' (${r.cnpjDestinoPersonalizado})' : ''}',
+                          'Destino: ${r.localDestino}${r.cnpjDestinoPersonalizado != null ? ' (${r.cnpjDestinoPersonalizado})' : ''}'
+                          '${r.destinoPorUf.isNotEmpty ? ' — ${r.destinoPorUf.length} exceção(ões) por UF' : ''}',
                           style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                       if (r.observacao != null)
                         Text(r.observacao!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
@@ -198,14 +200,37 @@ class _FormParametroNFState extends State<_FormParametroNF> {
   final _cnpjPersonalizadoCtrl = TextEditingController();
   final _dadosAdicionaisCtrl = TextEditingController();
   final _obsCtrl = TextEditingController();
+  // Fase FLT-Parametros-NF-Estado — plano montado pelo sub-modal
+  // mostrarModalDestinoEstado, usado só quando _localDestino ==
+  // "Personalizado CNPJ por Estado".
+  PlanoDestinoEstado? _planoEstado;
   bool _salvando = false;
   String? _erro;
 
+  Future<void> _configurarDestinoEstado() async {
+    final plano = await mostrarModalDestinoEstado(
+      context,
+      cnpjsFrota: widget.cnpjsFrota,
+      valorInicial: _planoEstado,
+    );
+    if (plano != null && mounted) setState(() => _planoEstado = plano);
+  }
+
   Future<void> _salvar() async {
+    if (_localDestino == 'Personalizado CNPJ por Estado' && _planoEstado == null) {
+      setState(() => _erro = 'Toque em "Configurar destino por Estado" para escolher o CNPJ padrão.');
+      return;
+    }
     setState(() {
       _salvando = true;
       _erro = null;
     });
+    final excecoesUf = _localDestino == 'Personalizado CNPJ por Estado'
+        ? [
+            for (final g in _planoEstado!.grupos)
+              for (final uf in g.ufs) (uf: uf, cnpj: g.cnpj),
+          ]
+        : const <({String uf, String cnpj})>[];
     final erro = await ParametrosNFService().criar(
       empresaId: widget.empresaId,
       cnpjFrota: _cnpjCtrl.text,
@@ -213,9 +238,11 @@ class _FormParametroNFState extends State<_FormParametroNF> {
       separarNfCombustivel: _separarNfCombustivel,
       formaEmissao: _formaEmissao,
       localDestino: _localDestino,
-      cnpjDestinoPersonalizado: _cnpjPersonalizadoCtrl.text,
+      cnpjDestinoPersonalizado:
+          _localDestino == 'Personalizado CNPJ por Estado' ? _planoEstado!.cnpjPadrao : _cnpjPersonalizadoCtrl.text,
       dadosAdicionais: _dadosAdicionaisCtrl.text,
       observacao: _obsCtrl.text,
+      excecoesUf: excecoesUf,
     );
     if (!mounted) return;
     setState(() => _salvando = false);
@@ -289,9 +316,22 @@ class _FormParametroNFState extends State<_FormParametroNF> {
           value: _localDestino,
           decoration: const InputDecoration(labelText: 'Local de destino da Nota Fiscal', border: OutlineInputBorder()),
           items: [for (final o in opcoesLocalDestinoNF) DropdownMenuItem(value: o, child: Text(o))],
-          onChanged: (v) => setState(() => _localDestino = v ?? opcoesLocalDestinoNF.first),
+          onChanged: (v) => setState(() {
+            _localDestino = v ?? opcoesLocalDestinoNF.first;
+            _planoEstado = null;
+          }),
         ),
-        if (_localDestino.startsWith('Personalizado')) ...[
+        if (_localDestino == 'Personalizado CNPJ por Estado') ...[
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: _configurarDestinoEstado,
+            child: Text(
+              _planoEstado != null
+                  ? 'Padrão: ${_planoEstado!.cnpjPadrao} · ${_planoEstado!.grupos.length} exceção(ões)'
+                  : 'Configurar destino por Estado',
+            ),
+          ),
+        ] else if (_localDestino.startsWith('Personalizado')) ...[
           const SizedBox(height: 10),
           TextField(
             controller: _cnpjPersonalizadoCtrl,
