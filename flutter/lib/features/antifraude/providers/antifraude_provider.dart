@@ -10,10 +10,14 @@ import '../../../core/services/supabase_service.dart';
 // provider (family por tipo, mesmo padrão de variacoesHodometroProvider em
 // parametros_uso_provider.dart).
 
+// Fase Antifraude→Ações-Sugeridas — o tipo "localizacao_posto" foi migrado
+// pra Ações Sugeridas (tipo "posto_nao_autorizado", ver
+// features/acoes_sugeridas), reaproveitando parametros_postos_permitidos.
+// Linhas antigas desse tipo continuam em regras_antifraude (não migradas/
+// removidas), só não aparecem mais aqui.
 const tiposRegraAntifraude = [
   ('limite_valor_quantidade', 'Limite de valor/quantidade'),
   ('janela_tempo_frequencia', 'Janela de tempo/frequência'),
-  ('localizacao_posto', 'Localização/posto'),
 ];
 
 const labelEscopoAntifraude = {

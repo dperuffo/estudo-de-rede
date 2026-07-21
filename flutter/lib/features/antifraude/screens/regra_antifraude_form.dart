@@ -6,9 +6,12 @@ import '../providers/antifraude_provider.dart';
 import '../services/antifraude_service.dart';
 
 // Fase 27.15x — formulário único de criar/editar regra antifraude, cobrindo
-// os 3 tipos (troca os campos de "condições" conforme o tipo escolhido) —
+// os tipos (troca os campos de "condições" conforme o tipo escolhido) —
 // porta de RegraAntifraudeForm.tsx (web). Mesmo padrão de showModalBottomSheet
 // já usado em regras_forms.dart (Parâmetros de Uso).
+//
+// Fase Antifraude→Ações-Sugeridas — o tipo "localizacao_posto" que existia
+// aqui foi migrado pra Ações Sugeridas (ver features/acoes_sugeridas).
 
 num? _paraNum(String s) => s.trim().isEmpty ? null : num.tryParse(s.trim().replaceAll(',', '.'));
 
@@ -98,15 +101,13 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
   DateTime? _vigenciaFim;
   late bool _ativo = widget.regraExistente?.ativo ?? true;
 
-  // Condições — controllers cobrindo os 3 tipos (só os do tipo selecionado
+  // Condições — controllers cobrindo os tipos (só os do tipo selecionado
   // são de fato usados/enviados).
   final _litrosMaxDiaCtrl = TextEditingController();
   final _valorMaxAbastecimentoCtrl = TextEditingController();
   final _intervaloMinimoHorasCtrl = TextEditingController();
   final _horarioInicioCtrl = TextEditingController();
   final _horarioFimCtrl = TextEditingController();
-  final _postosCnpjCtrl = TextEditingController();
-  final _distanciaMaximaKmCtrl = TextEditingController();
 
   bool _salvando = false;
   String? _erro;
@@ -125,9 +126,6 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
       final horario = c['horario_permitido'] as Map?;
       _horarioInicioCtrl.text = horario?['inicio']?.toString() ?? '';
       _horarioFimCtrl.text = horario?['fim']?.toString() ?? '';
-      final postos = c['postos_permitidos_cnpj'] as List?;
-      _postosCnpjCtrl.text = postos?.join(', ') ?? '';
-      _distanciaMaximaKmCtrl.text = c['distancia_maxima_km_da_rota']?.toString() ?? '';
     }
   }
 
@@ -136,12 +134,6 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
       _salvando = true;
       _erro = null;
     });
-
-    final postosCnpj = _postosCnpjCtrl.text
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
 
     final service = AntifraudeService();
     final erro = widget.regraExistente == null
@@ -158,8 +150,6 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
             intervaloMinimoHoras: _paraNum(_intervaloMinimoHorasCtrl.text),
             horarioInicio: _horarioInicioCtrl.text.trim().isEmpty ? null : _horarioInicioCtrl.text.trim(),
             horarioFim: _horarioFimCtrl.text.trim().isEmpty ? null : _horarioFimCtrl.text.trim(),
-            postosPermitidosCnpj: postosCnpj,
-            distanciaMaximaKm: _paraNum(_distanciaMaximaKmCtrl.text),
           )
         : await service.atualizar(
             id: widget.regraExistente!.id,
@@ -175,8 +165,6 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
             intervaloMinimoHoras: _paraNum(_intervaloMinimoHorasCtrl.text),
             horarioInicio: _horarioInicioCtrl.text.trim().isEmpty ? null : _horarioInicioCtrl.text.trim(),
             horarioFim: _horarioFimCtrl.text.trim().isEmpty ? null : _horarioFimCtrl.text.trim(),
-            postosPermitidosCnpj: postosCnpj,
-            distanciaMaximaKm: _paraNum(_distanciaMaximaKmCtrl.text),
           );
 
     if (!mounted) return;
@@ -317,56 +305,35 @@ class _FormRegraAntifraudeState extends State<_FormRegraAntifraude> {
         const Text('Preencha ao menos um dos dois campos acima.', style: TextStyle(fontSize: 11, color: Colors.grey)),
       ];
     }
-    if (_tipo == 'janela_tempo_frequencia') {
-      return [
-        TextField(
-          controller: _intervaloMinimoHorasCtrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-              labelText: 'Intervalo mínimo entre abastecimentos (horas)', border: OutlineInputBorder()),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _horarioInicioCtrl,
-                decoration: const InputDecoration(labelText: 'Início (HH:MM)', border: OutlineInputBorder()),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _horarioFimCtrl,
-                decoration: const InputDecoration(labelText: 'Fim (HH:MM)', border: OutlineInputBorder()),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        const Text('Preencha o intervalo mínimo, o horário permitido, ou os dois.',
-            style: TextStyle(fontSize: 11, color: Colors.grey)),
-      ];
-    }
-    // localizacao_posto
+    // janela_tempo_frequencia
     return [
       TextField(
-        controller: _postosCnpjCtrl,
-        maxLines: 2,
+        controller: _intervaloMinimoHorasCtrl,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: const InputDecoration(
-          labelText: 'CNPJs de postos permitidos (separados por vírgula)',
-          border: OutlineInputBorder(),
-        ),
+            labelText: 'Intervalo mínimo entre abastecimentos (horas)', border: OutlineInputBorder()),
       ),
       const SizedBox(height: 10),
-      TextField(
-        controller: _distanciaMaximaKmCtrl,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration:
-            const InputDecoration(labelText: 'Distância máxima da rota planejada (km)', border: OutlineInputBorder()),
+      Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _horarioInicioCtrl,
+              decoration: const InputDecoration(labelText: 'Início (HH:MM)', border: OutlineInputBorder()),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _horarioFimCtrl,
+              decoration: const InputDecoration(labelText: 'Fim (HH:MM)', border: OutlineInputBorder()),
+            ),
+          ),
+        ],
       ),
       const SizedBox(height: 6),
-      const Text('Preencha ao menos um dos dois campos acima.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+      const Text('Preencha o intervalo mínimo, o horário permitido, ou os dois.',
+          style: TextStyle(fontSize: 11, color: Colors.grey)),
     ];
   }
 }

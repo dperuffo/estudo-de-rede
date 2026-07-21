@@ -1,9 +1,15 @@
 import '../../../core/services/supabase_service.dart';
 
 // Fase 27.15x — porta de src/app/(dashboard)/antifraude/actions.ts (web).
-// Mesma ideia: os 3 tipos de regra moram na mesma tabela, `condicoes` é
+// Mesma ideia: os tipos de regra moram na mesma tabela, `condicoes` é
 // montado conforme o tipo — só os campos preenchidos do tipo selecionado
 // entram no jsonb.
+//
+// Fase Antifraude→Ações-Sugeridas — o tipo "localizacao_posto" foi migrado
+// pra Ações Sugeridas (tipo "posto_nao_autorizado", ver
+// features/acoes_sugeridas). Removido daqui (postosPermitidosCnpj/
+// distanciaMaximaKm) pra não aceitar mais criação/edição desse tipo; linhas
+// antigas continuam no banco, só não são mais acessíveis por esta tela.
 class AntifraudeService {
   final _supabase = SupabaseService.client;
 
@@ -16,8 +22,6 @@ class AntifraudeService {
     num? intervaloMinimoHoras,
     String? horarioInicio,
     String? horarioFim,
-    List<String>? postosPermitidosCnpj,
-    num? distanciaMaximaKm,
   }) {
     if (tipo == 'limite_valor_quantidade') {
       final c = <String, dynamic>{};
@@ -25,20 +29,12 @@ class AntifraudeService {
       if (valorMaxAbastecimento != null) c['valor_max_abastecimento'] = valorMaxAbastecimento;
       return c;
     }
-    if (tipo == 'janela_tempo_frequencia') {
-      final c = <String, dynamic>{};
-      if (intervaloMinimoHoras != null) c['intervalo_minimo_horas'] = intervaloMinimoHoras;
-      if ((horarioInicio != null && horarioInicio.isNotEmpty) || (horarioFim != null && horarioFim.isNotEmpty)) {
-        c['horario_permitido'] = {'inicio': horarioInicio, 'fim': horarioFim};
-      }
-      return c;
-    }
-    // localizacao_posto
+    // janela_tempo_frequencia
     final c = <String, dynamic>{};
-    if (postosPermitidosCnpj != null && postosPermitidosCnpj.isNotEmpty) {
-      c['postos_permitidos_cnpj'] = postosPermitidosCnpj;
+    if (intervaloMinimoHoras != null) c['intervalo_minimo_horas'] = intervaloMinimoHoras;
+    if ((horarioInicio != null && horarioInicio.isNotEmpty) || (horarioFim != null && horarioFim.isNotEmpty)) {
+      c['horario_permitido'] = {'inicio': horarioInicio, 'fim': horarioFim};
     }
-    if (distanciaMaximaKm != null) c['distancia_maxima_km_da_rota'] = distanciaMaximaKm;
     return c;
   }
 
@@ -55,8 +51,6 @@ class AntifraudeService {
     num? intervaloMinimoHoras,
     String? horarioInicio,
     String? horarioFim,
-    List<String>? postosPermitidosCnpj,
-    num? distanciaMaximaKm,
   }) async {
     if (nome.trim().isEmpty) return 'Nome é obrigatório.';
     if (escopo != 'empresa' && (escopoReferencia == null || escopoReferencia.trim().isEmpty)) {
@@ -69,8 +63,6 @@ class AntifraudeService {
       intervaloMinimoHoras: intervaloMinimoHoras,
       horarioInicio: horarioInicio,
       horarioFim: horarioFim,
-      postosPermitidosCnpj: postosPermitidosCnpj,
-      distanciaMaximaKm: distanciaMaximaKm,
     );
     if (condicoes.isEmpty) return 'Preencha ao menos uma condição da regra.';
 
@@ -107,8 +99,6 @@ class AntifraudeService {
     num? intervaloMinimoHoras,
     String? horarioInicio,
     String? horarioFim,
-    List<String>? postosPermitidosCnpj,
-    num? distanciaMaximaKm,
   }) async {
     if (nome.trim().isEmpty) return 'Nome é obrigatório.';
     if (escopo != 'empresa' && (escopoReferencia == null || escopoReferencia.trim().isEmpty)) {
@@ -121,8 +111,6 @@ class AntifraudeService {
       intervaloMinimoHoras: intervaloMinimoHoras,
       horarioInicio: horarioInicio,
       horarioFim: horarioFim,
-      postosPermitidosCnpj: postosPermitidosCnpj,
-      distanciaMaximaKm: distanciaMaximaKm,
     );
     if (condicoes.isEmpty) return 'Preencha ao menos uma condição da regra.';
 

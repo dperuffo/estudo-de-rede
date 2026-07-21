@@ -13,6 +13,9 @@ const tipoLabelAcaoSugerida = {
   'volume_tanque': 'Volume acima do tanque',
   'geo_distancia': 'Postos distantes no mesmo dia',
   'preco_regiao': 'Preço fora da média regional',
+  // Fase Antifraude→Ações-Sugeridas — migrado do tipo "localizacao_posto"
+  // de Antifraude.
+  'posto_nao_autorizado': 'Posto não autorizado',
 };
 
 // Mesmo texto de confirmação por tipo da web (CardAcaoSugerida.tsx) —
@@ -26,6 +29,8 @@ const confirmacaoPorTipoAcaoSugerida = {
   'volume_tanque': 'Cadastrar esse limite de volume diário para a placa agora?',
   'geo_distancia': 'Cadastrar esse intervalo mínimo entre abastecimentos para a placa agora?',
   'preco_regiao': 'Marcar todos os abastecimentos com preço fora da média desta placa como revisados?',
+  'posto_nao_autorizado':
+      'Confirmar esta ação agora? Se a restrição automática estiver ligada, o veículo fica bloqueado até você liberar manualmente.',
 };
 
 class AcaoSugerida {

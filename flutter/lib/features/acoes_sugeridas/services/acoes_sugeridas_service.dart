@@ -13,6 +13,8 @@ const _rpcExecucaoPorTipo = {
   'volume_tanque': 'executar_acao_limitar_volume_diario',
   'geo_distancia': 'executar_acao_limitar_intervalo',
   'preco_regiao': 'executar_acao_revisar_preco_regiao',
+  // Fase Antifraude→Ações-Sugeridas
+  'posto_nao_autorizado': 'executar_acao_posto_nao_autorizado',
 };
 
 class AcoesSugeridasService {
@@ -33,9 +35,12 @@ class AcoesSugeridasService {
         _supabase.rpc('detectar_acoes_volume_tanque', params: {'p_empresa_id': empresaId}),
         _supabase.rpc('detectar_acoes_geo_distancia', params: {'p_empresa_id': empresaId}),
         _supabase.rpc('detectar_acoes_preco_regiao', params: {'p_empresa_id': empresaId}),
+        // Fase Antifraude→Ações-Sugeridas — migrado do tipo
+        // "localizacao_posto" de Antifraude.
+        _supabase.rpc('detectar_acoes_posto_nao_autorizado', params: {'p_empresa_id': empresaId}),
       ]);
       // O 1º resultado (detecção de base) não conta pro total de "ações
-      // novas" mostrado ao usuário — só os 6 detectores de ações contam.
+      // novas" mostrado ao usuário — só os detectores de ações contam.
       final inseridas = resultados.skip(1).fold<int>(0, (soma, r) => soma + ((r as num?)?.toInt() ?? 0));
       return (erro: null, inseridas: inseridas);
     } catch (e) {
