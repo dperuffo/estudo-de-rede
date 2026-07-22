@@ -36,6 +36,12 @@ class AbastecimentoParaAjuste {
   // ajuste_abastecimento_cliente_provider.dart). O provider do lado posto
   // não precisa disso — já sabe seu próprio empresaId pela sessão.
   final String? empresaPostoId;
+  // Nova regra do Daniel: abastecimento já alocado numa fatura (ciclo
+  // realmente fechado, faturado) não pode mais ser ajustado — mesma
+  // checagem da web (PainelAjusteAbastecimento.tsx: fatura_posto_id !=
+  // null). Vem da view abastecimentos_unificado (coluna acrescentada nesta
+  // mesma leva de mudanças).
+  final String? faturaPostoId;
 
   const AbastecimentoParaAjuste({
     required this.id,
@@ -52,9 +58,11 @@ class AbastecimentoParaAjuste {
     this.empresaClienteId,
     this.nomeCliente,
     this.empresaPostoId,
+    this.faturaPostoId,
   });
 
   String get identificadorTipo => provedor == 'profrotas' ? 'profrotas' : 'externo';
+  bool get cicloFechado => faturaPostoId != null;
 }
 
 class RodadaAjuste {
@@ -132,7 +140,7 @@ final ajusteAbastecimentoProvider =
   final linha = await supabase
       .from('abastecimentos_unificado')
       .select(
-        'id, provedor, codigo_abastecimento, data_abastecimento, placa, motorista_nome, hodometro, produto, litros, preco_litro, valor_total, empresa_id',
+        'id, provedor, codigo_abastecimento, data_abastecimento, placa, motorista_nome, hodometro, produto, litros, preco_litro, valor_total, empresa_id, fatura_posto_id',
       )
       .eq('id', idTexto)
       .eq('provedor', provedor)
@@ -163,6 +171,7 @@ final ajusteAbastecimentoProvider =
     valorTotal: (linha['valor_total'] as num?)?.toDouble(),
     empresaClienteId: empresaClienteId,
     nomeCliente: nomeCliente,
+    faturaPostoId: linha['fatura_posto_id'] as String?,
   );
 
   if (empresaPostoId == null) {

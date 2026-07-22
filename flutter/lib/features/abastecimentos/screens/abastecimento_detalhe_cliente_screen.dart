@@ -344,7 +344,18 @@ class _AbastecimentoDetalheClienteScreenState extends ConsumerState<Abasteciment
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 12),
-              if (!_formularioAberto)
+              // Nova regra do Daniel: abastecimento já em ciclo fechado
+              // (faturado) não pode mais ser ajustado — botão desabilitado
+              // em vez de escondido, mesmo padrão da web
+              // (PainelAjusteAbastecimento.tsx).
+              if (a.cicloFechado) ...[
+                const OutlinedButton(onPressed: null, child: Text('Solicitar ajuste')),
+                const SizedBox(height: 6),
+                const Text(
+                  'Este abastecimento já está em um ciclo fechado (faturado) e não pode mais ser ajustado.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                ),
+              ] else if (!_formularioAberto)
                 OutlinedButton(
                   onPressed: () {
                     _prepararControllers(a);

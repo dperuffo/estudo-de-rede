@@ -29,7 +29,7 @@ final ajusteAbastecimentoClienteProvider =
   final linha = await supabase
       .from('abastecimentos_unificado')
       .select(
-        'id, provedor, codigo_abastecimento, data_abastecimento, placa, motorista_nome, hodometro, produto, litros, preco_litro, valor_total, empresa_id, posto_nome, posto_cnpj',
+        'id, provedor, codigo_abastecimento, data_abastecimento, placa, motorista_nome, hodometro, produto, litros, preco_litro, valor_total, empresa_id, posto_nome, posto_cnpj, fatura_posto_id',
       )
       .eq('id', idTexto)
       .eq('provedor', provedor)
@@ -70,6 +70,7 @@ final ajusteAbastecimentoClienteProvider =
     // RPC extra pra exibição (só precisa da RPC acima pro id, não pro nome).
     nomeCliente: linha['posto_nome'] as String?,
     empresaPostoId: empresaPostoId,
+    faturaPostoId: linha['fatura_posto_id'] as String?,
   );
 
   if (empresaClienteId == null) {
