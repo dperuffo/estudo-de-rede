@@ -84,13 +84,18 @@ class FiltrosAcoesSugeridas {
   final String? tipo;
   // 'pendentes' | 'decididas' | 'todas'
   final String status;
-  const FiltrosAcoesSugeridas({this.tipo, this.status = 'pendentes'});
+  // Pedido do Daniel: com listas grandes (600+ pendências), fica difícil
+  // achar uma ação pontual de um posto específico — busca por nome no
+  // alvo (posto, placa ou motorista, dependendo do tipo da ação). Mesmo
+  // campo usado na web (acoes-sugeridas/page.tsx).
+  final String? busca;
+  const FiltrosAcoesSugeridas({this.tipo, this.status = 'pendentes', this.busca});
 
   @override
   bool operator ==(Object other) =>
-      other is FiltrosAcoesSugeridas && other.tipo == tipo && other.status == status;
+      other is FiltrosAcoesSugeridas && other.tipo == tipo && other.status == status && other.busca == busca;
   @override
-  int get hashCode => Object.hash(tipo, status);
+  int get hashCode => Object.hash(tipo, status, busca);
 }
 
 final acoesSugeridasProvider =
@@ -108,6 +113,8 @@ final acoesSugeridasProvider =
   if (filtros.tipo != null) query = query.eq('tipo', filtros.tipo!);
   if (filtros.status == 'pendentes') query = query.eq('status', 'pendente');
   if (filtros.status == 'decididas') query = query.neq('status', 'pendente');
+  final busca = filtros.busca?.trim();
+  if (busca != null && busca.isNotEmpty) query = query.ilike('alvo_label', '%$busca%');
 
   final rows = await query.order('severidade', ascending: true).order('criado_em', ascending: false).limit(100);
   return (rows as List).map((m) => AcaoSugerida.fromMap(m as Map<String, dynamic>)).toList();

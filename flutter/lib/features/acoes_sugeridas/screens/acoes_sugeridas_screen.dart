@@ -29,8 +29,16 @@ class AcoesSugeridasScreen extends ConsumerStatefulWidget {
 class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
   String? _tipo;
   String _status = 'pendentes';
+  String? _busca;
+  final _buscaController = TextEditingController();
   bool _detectando = false;
   int? _executandoId;
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
+  }
 
   Future<void> _detectar() async {
     final sessao = await ref.read(sessaoProvider.future);
@@ -47,8 +55,13 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
   }
 
   void _invalidarListas() {
-    ref.invalidate(acoesSugeridasProvider(FiltrosAcoesSugeridas(tipo: _tipo, status: _status)));
+    ref.invalidate(acoesSugeridasProvider(FiltrosAcoesSugeridas(tipo: _tipo, status: _status, busca: _busca)));
     ref.invalidate(kpisAcoesSugeridasProvider);
+  }
+
+  void _aplicarBusca() {
+    final texto = _buscaController.text.trim();
+    setState(() => _busca = texto.isEmpty ? null : texto);
   }
 
   Future<void> _aprovar(AcaoSugerida a) async {
@@ -91,7 +104,7 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtros = FiltrosAcoesSugeridas(tipo: _tipo, status: _status);
+    final filtros = FiltrosAcoesSugeridas(tipo: _tipo, status: _status, busca: _busca);
     final listaAsync = ref.watch(acoesSugeridasProvider(filtros));
     final kpisAsync = ref.watch(kpisAcoesSugeridasProvider);
 
@@ -131,6 +144,26 @@ class _AcoesSugeridasScreenState extends ConsumerState<AcoesSugeridasScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _buscaController,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      hintText: 'Buscar por posto, placa ou motorista...',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    ),
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _aplicarBusca(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(onPressed: _aplicarBusca, child: const Text('Buscar')),
+              ],
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
