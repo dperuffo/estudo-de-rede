@@ -11,6 +11,32 @@ final _numero = NumberFormat.decimalPattern('pt_BR');
 
 const _coresPostos = [Color(0xFF0EA5E9), Color(0xFFF97316), Color(0xFF16A34A), Color(0xFFDB2777), Color(0xFF7C3AED)];
 
+// Achado real (reportado pelo Daniel com print): rótulos do eixo X em
+// gráficos de barra com várias categorias (placas, nomes de motoristas,
+// combustíveis) ficavam colados uns nos outros — texto horizontal simples
+// não sobra espaço lateral suficiente quando há 8-15 barras numa tela
+// estreita de celular. Rotacionado diagonalmente (mesmo truque padrão
+// usado em gráficos com muitas categorias): ocupa bem menos largura por
+// rótulo, então não invade mais o rótulo vizinho.
+Widget _rotuloEixoX(String texto, {double fontSize = 8}) {
+  return Transform.rotate(
+    angle: -0.6,
+    alignment: Alignment.topRight,
+    child: Text(texto, style: TextStyle(fontSize: fontSize)),
+  );
+}
+
+// Achado real: número em R$ (ex. "R$ 2.000,00") quebrava em 2 linhas
+// dentro do espaço reservado do eixo Y — a Text do fl_chart quebra linha
+// por padrão quando não cabe na largura reservada. maxLines:1 +
+// softWrap:false + overflow visible evita a quebra (o número nunca corta
+// nem quebra no meio; se for muito longo só "vaza" um pouco pra fora da
+// área reservada, o que é bem menos confuso que ver "R$ 2.000,0" numa
+// linha e "0" sozinho na linha de baixo).
+Widget _rotuloEixoY(String texto, {double fontSize = 9}) {
+  return Text(texto, style: TextStyle(fontSize: fontSize), maxLines: 1, softWrap: false, overflow: TextOverflow.visible);
+}
+
 // Fase FLT-6 — 2ª aba do Dashboard ("Indicadores Avançados"): os 8 gráficos
 // de src/app/(dashboard)/dashboard/page.tsx que dependem de um período
 // (mês/ano) — seletor próprio desta aba (ver decisão de escopo em
@@ -212,11 +238,11 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => Text(v.toStringAsFixed(2), style: const TextStyle(fontSize: 9)))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 34, getTitlesWidget: (v, _) {
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => _rotuloEixoY(v.toStringAsFixed(2)))),
+                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 42, getTitlesWidget: (v, _) {
                       final i = v.toInt();
                       if (i < 0 || i >= itens.length) return const SizedBox.shrink();
-                      return Padding(padding: const EdgeInsets.only(top: 4), child: Text(truncarTexto(itens[i].itemNome, 8), style: const TextStyle(fontSize: 8)));
+                      return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(truncarTexto(itens[i].itemNome, 8)));
                     })),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -279,7 +305,7 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => Text(_numero.format(v.round()), style: const TextStyle(fontSize: 9)))),
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, _) => _rotuloEixoY(_numero.format(v.round())))),
                     bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 22, interval: 5, getTitlesWidget: (v, _) {
                       final i = v.toInt();
                       if (i < 0 || i >= pontos.length) return const SizedBox.shrink();
@@ -337,7 +363,7 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                     ),
                   ],
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, _) => Text(v.toStringAsFixed(2), style: const TextStyle(fontSize: 9)))),
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, _) => _rotuloEixoY(v.toStringAsFixed(2)))),
                     bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 22, interval: 5, getTitlesWidget: (v, _) {
                       final i = v.toInt();
                       if (i < 0 || i >= pontos.length) return const SizedBox.shrink();
@@ -384,7 +410,7 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                     return LineChartBarData(spots: spots, isCurved: false, color: cor, barWidth: 2, dotData: const FlDotData(show: false));
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => Text(_numero.format(v.round()), style: const TextStyle(fontSize: 9)))),
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, _) => _rotuloEixoY(_numero.format(v.round())))),
                     bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 22, interval: 5, getTitlesWidget: (v, _) {
                       final i = v.toInt();
                       if (i < 0 || i >= pontos.length) return const SizedBox.shrink();
@@ -440,11 +466,11 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => Text(_numero.format(v.round()), style: const TextStyle(fontSize: 9)))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) {
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => _rotuloEixoY(_numero.format(v.round())))),
+                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 46, getTitlesWidget: (v, _) {
                       final i = v.toInt();
                       if (i < 0 || i >= top.length) return const SizedBox.shrink();
-                      return Padding(padding: const EdgeInsets.only(top: 4), child: Text(truncarTexto(top[i].posto, 8), style: const TextStyle(fontSize: 8)));
+                      return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(truncarTexto(top[i].posto, 8)));
                     })),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -483,11 +509,11 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, _) => Text(formatarMoeda(v, casas: 2), style: const TextStyle(fontSize: 8)))),
-                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 34, getTitlesWidget: (v, _) {
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 52, getTitlesWidget: (v, _) => _rotuloEixoY(formatarMoeda(v, casas: 2), fontSize: 8))),
+                    bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 42, getTitlesWidget: (v, _) {
                       final i = v.toInt();
                       if (i < 0 || i >= itens.length) return const SizedBox.shrink();
-                      return Padding(padding: const EdgeInsets.only(top: 4), child: Text(truncarTexto(itens[i].label, 8), style: const TextStyle(fontSize: 8)));
+                      return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(truncarTexto(itens[i].label, 8)));
                     })),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -552,11 +578,11 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
             ]);
           }).toList(),
           titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 36, getTitlesWidget: (v, _) => Text(v.toStringAsFixed(0), style: const TextStyle(fontSize: 9)))),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 30, getTitlesWidget: (v, _) {
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 36, getTitlesWidget: (v, _) => _rotuloEixoY(v.toStringAsFixed(0)))),
+            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 36, getTitlesWidget: (v, _) {
               final i = v.toInt();
               if (i < 0 || i >= top.length) return const SizedBox.shrink();
-              return Padding(padding: const EdgeInsets.only(top: 4), child: Text(top[i].placa, style: const TextStyle(fontSize: 8)));
+              return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(top[i].placa));
             })),
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
