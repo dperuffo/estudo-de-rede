@@ -10,6 +10,7 @@ import 'abas/aba_cruzamentos.dart';
 import 'abas/aba_evolucao_temporal.dart';
 import 'abas/aba_macrorregiao_expansao.dart';
 import 'abas/aba_mapa_municipios.dart';
+import 'abas/aba_meios_pagamento.dart';
 import 'abas/aba_operacional.dart';
 import 'abas/aba_precos_anp.dart';
 import 'abas/aba_tendencia_sazonalidade.dart';
@@ -48,6 +49,7 @@ class InteligenciaRedeScreen extends ConsumerWidget {
     'Operacional',
     'Evolução',
     'Sazonalidade',
+    'Meios de Pagamento',
   ];
 
   @override
@@ -109,6 +111,7 @@ class InteligenciaRedeScreen extends ConsumerWidget {
                       AbaOperacional(dados: dados),
                       AbaEvolucaoTemporal(dados: dados),
                       AbaTendenciaSazonalidade(dados: dados),
+                      AbaMeiosPagamento(dados: dados),
                     ],
                   ),
                 ),

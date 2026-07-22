@@ -460,6 +460,46 @@ class VolatilidadeMensalPonto {
       );
 }
 
+// Fase Inteligência-Rede-Meios-Pagamento — pedido do Daniel: "painel de
+// preços médios com os preços praticados nos abastecimentos nos diversos
+// meios de pagamento... variações por Estado e por Região... indicadores
+// de volumes por combustível". "Meio de pagamento" = provedor de
+// abastecimentos_unificado (profrotas/TicketLog/Valecard/Veloe/RedeFrota —
+// já são cartões/redes reais, não existe outra coluna de forma de
+// pagamento no schema). Vem granular (RPC preco_medio_por_meio_pagamento)
+// e toda agregação (por provedor, combustível, UF, região) acontece na
+// aba, mesmo padrão da web (PrecosPorMeioPagamento.tsx).
+class ItemPrecoMeioPagamento {
+  final String provedor;
+  final String? uf;
+  final String? regiao;
+  final String combustivel;
+  final double precoMedio;
+  final double litrosTotal;
+  final double valorTotal;
+  final int qtd;
+  const ItemPrecoMeioPagamento({
+    required this.provedor,
+    required this.uf,
+    required this.regiao,
+    required this.combustivel,
+    required this.precoMedio,
+    required this.litrosTotal,
+    required this.valorTotal,
+    required this.qtd,
+  });
+  factory ItemPrecoMeioPagamento.fromMap(Map<String, dynamic> m) => ItemPrecoMeioPagamento(
+        provedor: m['provedor'] as String? ?? '—',
+        uf: m['uf'] as String?,
+        regiao: m['regiao'] as String?,
+        combustivel: m['combustivel'] as String? ?? '—',
+        precoMedio: (m['preco_medio'] as num?)?.toDouble() ?? 0,
+        litrosTotal: (m['litros_total'] as num?)?.toDouble() ?? 0,
+        valorTotal: (m['valor_total'] as num?)?.toDouble() ?? 0,
+        qtd: (m['qtd_abastecimentos'] as num?)?.toInt() ?? 0,
+      );
+}
+
 class InteligenciaRedeCompleta {
   final KpisGerais kpis;
   final List<PrecoCombustivelRef> precoPorCombustivel;
@@ -493,6 +533,7 @@ class InteligenciaRedeCompleta {
   final Map<String, int> demandaPorUf;
   final List<SerieTendenciaPonto> serieTendencia;
   final List<VolatilidadeMensalPonto> volatilidadeMensal;
+  final List<ItemPrecoMeioPagamento> precosPorMeioPagamento;
 
   const InteligenciaRedeCompleta({
     required this.kpis,
@@ -527,6 +568,7 @@ class InteligenciaRedeCompleta {
     required this.demandaPorUf,
     required this.serieTendencia,
     required this.volatilidadeMensal,
+    required this.precosPorMeioPagamento,
   });
 }
 
@@ -569,6 +611,7 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
   final desvioAnpRaw = await supabase.rpc('postos_gf_desvio_anp', params: {'p_empresa_id': empresaId}) as List;
   final servicosPostoRaw = await supabase.rpc('postos_gf_servicos', params: {'p_empresa_id': empresaId}) as List;
   final postosVisitadosRaw = await supabase.rpc('abastecimentos_postos_visitados') as List;
+  final precosPorMeioPagamentoRaw = await supabase.rpc('preco_medio_por_meio_pagamento', params: {'p_empresa_id': empresaId}) as List;
 
   // Preço do diesel S10 por estado (ANP) — só pro score de oportunidade de
   // expansão.
@@ -767,6 +810,9 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
     demandaPorUf[p.uf!] = (demandaPorUf[p.uf!] ?? 0) + p.visitas;
   }
 
+  // ---- Meios de Pagamento ----
+  final precosPorMeioPagamento = (precosPorMeioPagamentoRaw).map((m) => ItemPrecoMeioPagamento.fromMap(m as Map<String, dynamic>)).toList();
+
   return InteligenciaRedeCompleta(
     kpis: KpisGerais(
       totalGf: totalGf,
@@ -808,5 +854,6 @@ final inteligenciaRedeCompletaProvider = FutureProvider.autoDispose<Inteligencia
     demandaPorUf: demandaPorUf,
     serieTendencia: serieTendencia,
     volatilidadeMensal: volatilidadeMensal,
+    precosPorMeioPagamento: precosPorMeioPagamento,
   );
 });
