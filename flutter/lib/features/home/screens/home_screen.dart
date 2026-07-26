@@ -172,6 +172,9 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.gpp_maybe_outlined, 'Antifraude', '/antifraude', badge: badges.antifraude),
           _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
           _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
+          // Fase Financeiro-ERP (26/07/2026, pedido do Daniel) — "Aba de
+          // Piso mínimo ANTT tem que estar na visão do cliente, web e PWA".
+          _item(context, Icons.price_check, 'Piso Mínimo ANTT', '/pisos-antt'),
           _item(context, Icons.handshake_outlined, 'Motoristas Parceiros', '/motoristas-parceiros'),
           _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
           _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),

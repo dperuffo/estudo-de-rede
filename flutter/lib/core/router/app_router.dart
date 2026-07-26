@@ -80,6 +80,7 @@ import '../../features/parametros_uso/screens/vinculo_novo_screen.dart';
 import '../../features/antifraude/screens/antifraude_screen.dart';
 import '../../features/parametros_uso/screens/vinculo_editar_screen.dart';
 import '../../features/parametros_nf/screens/parametros_nf_screen.dart';
+import '../../features/pisos_antt/screens/pisos_antt_screen.dart';
 import '../../features/notas_fiscais/screens/notas_fiscais_screen.dart';
 import '../../features/notas_fiscais/screens/nota_fiscal_detalhe_screen.dart';
 import '../../features/veiculos/screens/veiculos_screen.dart';
@@ -331,6 +332,7 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => VinculoEditarScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(path: '/parametros-nf', builder: (_, __) => const ParametrosNFScreen()),
+            GoRoute(path: '/pisos-antt', builder: (_, __) => const PisosAnttScreen()),
             GoRoute(path: '/relatorios', builder: (_, __) => const RelatoriosScreen()),
             // "Integrações" (era EmConstrucaoScreen) foi removida do menu e
             // do router por decisão do Daniel — não faz sentido gerenciar
