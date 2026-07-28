@@ -35,6 +35,25 @@ class PostoOpcao {
   const PostoOpcao({required this.cnpj, required this.nome});
 }
 
+// ── Pré-Pedido — 1 linha por empresa (upsert), não uma lista de regras ──
+// Fase Pré-Pedido (28/07/2026) — porta de SecaoPrePedido.tsx: interruptor
+// único, diferente das 9 abas de regra acima. Quando ligado, todo Plano de
+// Viagem criado a partir de uma rota do Roteirizador Inteligente gera
+// automaticamente um Pré-Pedido (ver planos_viagem_provider.dart e
+// planos_viagem_service.dart), e o antifraude/verificar passa a só
+// autorizar abastecimento nos postos/placas pré-agendados.
+final parametroPrePedidoProvider = FutureProvider.autoDispose<bool>((ref) async {
+  final sessao = await ref.watch(sessaoProvider.future);
+  final empresaId = sessao.empresaId;
+  if (empresaId == null) return false;
+  final row = await SupabaseService.client
+      .from('parametros_pre_pedido')
+      .select('habilitado')
+      .eq('empresa_id', empresaId)
+      .maybeSingle();
+  return row?['habilitado'] == true;
+});
+
 final postosNegociadosOpcoesProvider = FutureProvider.autoDispose<List<PostoOpcao>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;

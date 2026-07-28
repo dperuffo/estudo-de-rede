@@ -90,6 +90,10 @@ class PlanosViagemService {
     double? custoTotalReal,
     String? observacoes,
     required List<Pedagio> pedagios,
+    // Fase Pré-Pedido — paradas de abastecimento sugeridas pelo Roteirizador
+    // Inteligente (só existe quando o plano nasceu de um prefill vindo da
+    // Roteirização, ver roteirizacao_screen.dart).
+    List<ParadaPrePedidoPrefill> paradasPrePedido = const [],
   }) async {
     if (nome.trim().isEmpty) {
       throw Exception('O nome do plano é obrigatório.');
@@ -134,7 +138,69 @@ class PlanosViagemService {
           {'plano_viagem_id': id, 'praca_nome': pedagiosValidos[i].pracaNome, 'valor': pedagiosValidos[i].valor, 'ordem': i},
       ]);
     }
+
+    await _gerarPrePedidoSeHabilitado(
+      empresaId: empresaId,
+      planoViagemId: id,
+      placa: placa,
+      motoristaId: motoristaId,
+      criadoPor: criadoPor,
+      paradas: paradasPrePedido,
+    );
+
     return id;
+  }
+
+  // Gera o Pré-Pedido (número sequencial + paradas pré-agendadas) quando o
+  // parâmetro de uso "Pré-Pedido" está habilitado pra empresa e existem
+  // paradas vindas do prefill da Roteirização. Best-effort — se falhar, o
+  // Plano de Viagem já foi criado normalmente, mesmo espírito de
+  // gerarPrePedidoSeHabilitado (planos-viagem/actions.ts).
+  Future<void> _gerarPrePedidoSeHabilitado({
+    required String empresaId,
+    required String planoViagemId,
+    String? placa,
+    String? motoristaId,
+    required String criadoPor,
+    required List<ParadaPrePedidoPrefill> paradas,
+  }) async {
+    if (paradas.isEmpty) return;
+    try {
+      final parametro = await _supabase
+          .from('parametros_pre_pedido')
+          .select('habilitado')
+          .eq('empresa_id', empresaId)
+          .maybeSingle();
+      if (parametro?['habilitado'] != true) return;
+
+      final prePedido = await _supabase
+          .from('pre_pedidos')
+          .insert({
+            'empresa_id': empresaId,
+            'plano_viagem_id': planoViagemId,
+            'placa': placa,
+            'motorista_id': motoristaId,
+            'criado_por': criadoPor,
+          })
+          .select('id')
+          .single();
+
+      await _supabase.from('pre_pedidos_paradas').insert([
+        for (final p in paradas)
+          {
+            'pre_pedido_id': prePedido['id'],
+            'ordem': p.ordem,
+            'posto_cnpj': p.postoCnpj,
+            'posto_nome': p.postoNome,
+            'km_previsto': p.kmPrevisto,
+            'litros_previstos': p.litrosPrevistos,
+            'lat': p.lat,
+            'lon': p.lon,
+          },
+      ]);
+    } catch (_) {
+      // Best-effort — não derruba a criação do plano, que já concluiu.
+    }
   }
 
   Future<void> atualizar({

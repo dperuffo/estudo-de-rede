@@ -278,6 +278,24 @@ class ParametrosUsoService {
     }
   }
 
+  // ── Pré-Pedido — interruptor único por empresa ────────────────────────
+  Future<String?> salvarParametroPrePedido({required String empresaId, required bool habilitado}) async {
+    try {
+      await _supabase.from('parametros_pre_pedido').upsert(
+        {
+          'empresa_id': empresaId,
+          'habilitado': habilitado,
+          'atualizado_em': DateTime.now().toIso8601String(),
+          'atualizado_por': _email,
+        },
+        onConflict: 'empresa_id',
+      );
+      return null;
+    } catch (e) {
+      return 'Não foi possível salvar: $e';
+    }
+  }
+
   // ── Ações genéricas (iguais nas 8 tabelas de regra + Vínculo) ─────────
   Future<void> alternarStatus({required String tabela, required String id, required bool ativo}) async {
     await _supabase

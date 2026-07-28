@@ -169,6 +169,9 @@ class PostoHomeScreen extends ConsumerWidget {
             _item(context, Icons.card_giftcard, 'Parcerias Locais', '/posto/parcerias-locais'),
             _item(context, Icons.business, 'Clientes', '/posto/clientes'),
             _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
+            // Fase Pré-Pedido (28/07/2026) — consulta pro posto conferir
+            // antes de liberar abastecimento (ver pre_pedidos_posto_screen.dart).
+            _item(context, Icons.checklist, 'Pré-Pedidos', '/posto/pre-pedidos'),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),

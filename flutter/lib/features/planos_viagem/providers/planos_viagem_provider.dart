@@ -254,3 +254,103 @@ final pedagiosPlanoProvider = FutureProvider.autoDispose.family<List<Pedagio>, S
       .order('ordem') as List;
   return rows.map((r) => Pedagio.fromMap(r as Map<String, dynamic>)).toList();
 });
+
+// Fase Pré-Pedido (28/07/2026) — prefill vindo da Roteirização (botão
+// "Criar Plano de Viagem" em roteirizacao_screen.dart), porta de
+// PrefillPlanoViagem/ParadaPrePedidoPrefill em PlanoViagemForm.tsx. Passado
+// via `extra` do GoRouter (objeto Dart direto, sem precisar serializar em
+// query string como a web faz com JSON.stringify).
+class ParadaPrePedidoPrefill {
+  final int ordem;
+  final String postoCnpj;
+  final String? postoNome;
+  final double? kmPrevisto;
+  final double? litrosPrevistos;
+  final double? lat;
+  final double? lon;
+  const ParadaPrePedidoPrefill({
+    required this.ordem,
+    required this.postoCnpj,
+    this.postoNome,
+    this.kmPrevisto,
+    this.litrosPrevistos,
+    this.lat,
+    this.lon,
+  });
+}
+
+class PrefillPlanoViagem {
+  final String? nome;
+  final String? placa;
+  final double? kmEstimado;
+  final double? consumoKmL;
+  final double? precoCombustivel;
+  final List<Pedagio> pedagios;
+  final List<ParadaPrePedidoPrefill> paradas;
+  const PrefillPlanoViagem({
+    this.nome,
+    this.placa,
+    this.kmEstimado,
+    this.consumoKmL,
+    this.precoCombustivel,
+    this.pedagios = const [],
+    this.paradas = const [],
+  });
+}
+
+// ── Pré-Pedido — leitura pra exibição no Plano de Viagem já criado ──────
+// Porta do card de Pré-Pedido em planos-viagem/[id]/editar/page.tsx.
+class ParadaPrePedido {
+  final String id;
+  final int ordem;
+  final String postoCnpj;
+  final String? postoNome;
+  final double? kmPrevisto;
+  final double? litrosPrevistos;
+  final bool atendido;
+  const ParadaPrePedido({
+    required this.id,
+    required this.ordem,
+    required this.postoCnpj,
+    this.postoNome,
+    this.kmPrevisto,
+    this.litrosPrevistos,
+    required this.atendido,
+  });
+  factory ParadaPrePedido.fromMap(Map<String, dynamic> m) => ParadaPrePedido(
+        id: m['id'] as String,
+        ordem: (m['ordem'] as num?)?.toInt() ?? 0,
+        postoCnpj: m['posto_cnpj'] as String? ?? '',
+        postoNome: m['posto_nome'] as String?,
+        kmPrevisto: (m['km_previsto'] as num?)?.toDouble(),
+        litrosPrevistos: (m['litros_previstos'] as num?)?.toDouble(),
+        atendido: m['atendido'] as bool? ?? false,
+      );
+}
+
+class PrePedido {
+  final String id;
+  final int numero;
+  final String status; // ativo | concluido | cancelado
+  final List<ParadaPrePedido> paradas;
+  const PrePedido({required this.id, required this.numero, required this.status, required this.paradas});
+}
+
+final prePedidoDoPlanoProvider = FutureProvider.autoDispose.family<PrePedido?, String>((ref, planoId) async {
+  final row = await SupabaseService.client
+      .from('pre_pedidos')
+      .select(
+          'id, numero, status, pre_pedidos_paradas(id, ordem, posto_cnpj, posto_nome, km_previsto, litros_previstos, atendido)')
+      .eq('plano_viagem_id', planoId)
+      .maybeSingle();
+  if (row == null) return null;
+  final paradasRaw = (row['pre_pedidos_paradas'] as List? ?? []);
+  final paradas = paradasRaw.map((p) => ParadaPrePedido.fromMap(p as Map<String, dynamic>)).toList()
+    ..sort((a, b) => a.ordem.compareTo(b.ordem));
+  return PrePedido(
+    id: row['id'] as String,
+    numero: row['numero'] as int,
+    status: row['status'] as String? ?? 'ativo',
+    paradas: paradas,
+  );
+});

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../veiculos/providers/veiculos_provider.dart' show Veiculo, veiculosClienteProvider;
+import '../../planos_viagem/providers/planos_viagem_provider.dart'
+    show PrefillPlanoViagem, ParadaPrePedidoPrefill, Pedagio;
 import '../providers/roteirizacao_provider.dart';
 import '../services/geo_service.dart' as geo;
 import '../services/roteirizacao_algoritmo.dart';
@@ -699,6 +702,15 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           ),
         ),
       ),
+      const SizedBox(height: 12),
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () => _criarPlanoViagem(r),
+          icon: const Text('🧾'),
+          label: const Text('Criar Plano de Viagem'),
+        ),
+      ),
       if (r.pracasPedagio.isNotEmpty) ...[
         const SizedBox(height: 12),
         Text('Pedágios na rota (${r.pracasPedagio.length})', style: Theme.of(context).textTheme.titleSmall),
@@ -734,6 +746,38 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       else
         ...r.paradas.map(_cardParada),
     ];
+  }
+
+  // Fase Pré-Pedido (28/07/2026) — porta do botão "Criar Plano de Viagem" em
+  // FormRoteirizacao.tsx: leva veículo/combustível/pedágios/paradas
+  // calculados pro form de Plano de Viagem via `extra` do GoRouter (a web
+  // serializa tudo em query string; aqui passa o objeto Dart direto). As
+  // paradas viram Pré-Pedido automaticamente se a empresa tiver o
+  // parâmetro habilitado (ver planos_viagem_service.dart).
+  void _criarPlanoViagem(ResultadoRoteirizacaoInteligente r) {
+    final litrosTotal = r.paradas.fold<double>(0, (s, p) => s + p.litrosSugeridos);
+    final prefill = PrefillPlanoViagem(
+      nome: '${_origemCtrl.text} → ${_destinoCtrl.text}',
+      placa: _veiculo?.placa,
+      kmEstimado: r.distanciaKm.roundToDouble(),
+      consumoKmL: _veiculo?.autonomia,
+      precoCombustivel: litrosTotal > 0 ? (r.custoTotal / litrosTotal) : null,
+      pedagios: r.pracasPedagio.map((p) => Pedagio(pracaNome: p.nome, valor: p.valorCarro ?? 0)).toList(),
+      paradas: r.paradas
+          .asMap()
+          .entries
+          .map((e) => ParadaPrePedidoPrefill(
+                ordem: e.key,
+                postoCnpj: e.value.candidato.cnpj,
+                postoNome: e.value.candidato.label,
+                kmPrevisto: e.value.candidato.km,
+                litrosPrevistos: e.value.litrosSugeridos,
+                lat: e.value.candidato.lat,
+                lon: e.value.candidato.lon,
+              ))
+          .toList(),
+    );
+    context.push('/planos-viagem/novo', extra: prefill);
   }
 
   Widget _resumoItem(String label, String valor) {

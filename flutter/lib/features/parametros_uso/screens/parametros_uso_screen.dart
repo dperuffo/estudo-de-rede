@@ -7,6 +7,7 @@ import '../../veiculos/providers/veiculos_provider.dart' show veiculosClientePro
 import '../providers/parametros_uso_provider.dart';
 import '../services/parametros_uso_service.dart';
 import 'regras_forms.dart';
+import 'secao_pre_pedido.dart';
 
 // Fase FLT-3 — Parâmetros de Uso (cliente): shell com seletor de aba (chips
 // horizontais, mesmo padrão da web) + conteúdo por tipo. Ver escopo
@@ -23,6 +24,7 @@ const _abasParametros = [
   ('dias-horarios', 'Dias/Horários'),
   ('postos', 'Postos'),
   ('cotas', 'Cotas'),
+  ('pre-pedido', 'Pré-Pedido'),
 ];
 
 class ParametrosUsoScreen extends ConsumerStatefulWidget {
@@ -100,6 +102,9 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
         label: const Text('Novo Vínculo'),
       );
     }
+    // Pré-Pedido é um interruptor único (ver SecaoPrePedido), não uma lista
+    // de regras — não tem ação de "adicionar".
+    if (_aba == 'pre-pedido') return null;
     return FloatingActionButton.extended(
       onPressed: _abrirFormRegra,
       icon: const Icon(Icons.add),
@@ -168,8 +173,10 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
         return _listaDiasHorarios();
       case 'postos':
         return _listaPostos();
-      default:
+      case 'cotas':
         return _listaCotas();
+      default:
+        return const SecaoPrePedido();
     }
   }
 
