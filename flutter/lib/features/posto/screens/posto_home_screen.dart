@@ -6,6 +6,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
 import '../../../core/widgets/menu_button.dart';
+import '../../../core/widgets/sino_avisos.dart';
 
 // Fase FLT-1 — shell da visão Posto, espelhando a estrutura de menu de
 // menuPostoGestao + menuPostoOperacao em src/app/(dashboard)/layout.tsx da
@@ -26,6 +27,7 @@ class PostoHomeScreen extends ConsumerWidget {
       drawer: _buildDrawer(context, ref, sessao.valueOrNull),
       appBar: AppBar(
         title: const Text('FNI — Posto'),
+        actions: const [SinoAvisos()],
       ),
       body: child,
       bottomNavigationBar: NavigationBar(

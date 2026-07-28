@@ -100,6 +100,7 @@ import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
 import '../../features/chamados/screens/chamados_cliente_screen.dart';
 import '../../features/chamados/screens/chamado_novo_cliente_screen.dart';
+import '../../features/avisos/screens/avisos_screen.dart';
 import '../../features/clientes/screens/clientes_screen.dart';
 import '../../features/grupo_economico/screens/grupo_economico_screen.dart';
 import '../../features/parcerias_locais/screens/parcerias_locais_screen.dart';
@@ -233,6 +234,11 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/chamados', builder: (_, __) => const ChamadosClienteScreen()),
             GoRoute(path: '/chamados/novo', builder: (_, __) => const ChamadoNovoClienteScreen()),
             GoRoute(path: '/chamados/:id', builder: (_, state) => ChamadoDetalheScreen(id: state.pathParameters['id']!)),
+            // Fase Central-Avisos (28/07/2026) — mesma tela AvisosScreen
+            // reaproveitada pelos dois shells (cliente aqui, posto abaixo em
+            // /posto/avisos) — provider já lê `sessao` sozinho, sem
+            // bifurcação de segmento.
+            GoRoute(path: '/avisos', builder: (_, __) => const AvisosScreen()),
             GoRoute(path: '/clientes', builder: (_, __) => const ClientesScreen()),
             GoRoute(path: '/grupo-economico', builder: (_, __) => const GrupoEconomicoScreen()),
             // Fase FLT-3 — Usuários (cliente): telas próprias (mesmo
@@ -436,6 +442,9 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/posto/chamados/:id',
               builder: (_, state) => ChamadoDetalheScreen(id: state.pathParameters['id']!),
             ),
+            // Fase Central-Avisos (28/07/2026) — mesma AvisosScreen do shell
+            // cliente (ver /avisos acima), só com path prefixado /posto.
+            GoRoute(path: '/posto/avisos', builder: (_, __) => const AvisosScreen()),
           ],
         ),
       ],
