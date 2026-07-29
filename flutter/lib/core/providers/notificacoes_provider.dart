@@ -38,6 +38,10 @@ class NotificacoesBadges {
   final int documentosPendentes;
   final int antifraude;
   final int acoesSugeridas;
+  // Fase Onda-2 (benchmark TicketLog, item #4) — multas com prazo de
+  // indicação vencendo nos próximos 7 dias (ou já vencido), mesma regra da
+  // web (contarMultasPendentesAcao em multas/actions.ts).
+  final int multasPendentes;
 
   const NotificacoesBadges({
     required this.chamados,
@@ -49,6 +53,7 @@ class NotificacoesBadges {
     required this.documentosPendentes,
     required this.antifraude,
     required this.acoesSugeridas,
+    required this.multasPendentes,
   });
 
   static const vazio = NotificacoesBadges(
@@ -61,6 +66,7 @@ class NotificacoesBadges {
     documentosPendentes: 0,
     antifraude: 0,
     acoesSugeridas: 0,
+    multasPendentes: 0,
   );
 }
 
@@ -166,6 +172,24 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
     return resp.count;
   }
 
+  // Fase Onda-2 (benchmark TicketLog, item #4) — mesma consulta de
+  // contarMultasPendentesAcao (multas/actions.ts): pendente_indicacao com
+  // prazo nos próximos 7 dias (ou já vencido).
+  Future<int> contarMultasPendentes() async {
+    final empresaId = sessao.empresaId;
+    if (empresaId == null) return 0;
+    final emSeteDias = DateTime.now().add(const Duration(days: 7)).toIso8601String().substring(0, 10);
+    final resp = await supabase
+        .from('multas')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .eq('status', 'pendente_indicacao')
+        .not('data_limite_indicacao', 'is', null)
+        .lte('data_limite_indicacao', emSeteDias)
+        .count(CountOption.exact);
+    return resp.count;
+  }
+
   final resultados = await Future.wait([
     _contagemSegura(contarChamados),
     _contagemSegura(contarNegociacoes),
@@ -176,6 +200,7 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
     _contagemSegura(contarDocumentosPendentes),
     _contagemSegura(contarAntifraude),
     _contagemSegura(contarAcoesSugeridas),
+    _contagemSegura(contarMultasPendentes),
   ]);
 
   return NotificacoesBadges(
@@ -188,5 +213,6 @@ final notificacoesBadgesProvider = FutureProvider.autoDispose<NotificacoesBadges
     documentosPendentes: resultados[6],
     antifraude: resultados[7],
     acoesSugeridas: resultados[8],
+    multasPendentes: resultados[9],
   );
 });

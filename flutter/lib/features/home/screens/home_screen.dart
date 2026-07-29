@@ -197,6 +197,12 @@ class HomeScreen extends ConsumerWidget {
           // combustível ideal por veículo/região.
           _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
           _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
+          // Fase Onda-2 (benchmark TicketLog, item #4) — ciclo de multas:
+          // captura, indicação de condutor, histórico, prazo de desconto.
+          _item(context, Icons.gavel, 'Multas', '/multas', badge: badges.multasPendentes),
+          // Fase Onda-2 (benchmark TicketLog, item #5) — catálogo de
+          // oficinas credenciadas + solicitação simples de orçamento.
+          _item(context, Icons.build_circle_outlined, 'Rede de Oficinas', '/oficinas'),
           _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
           _item(context, Icons.receipt_long, 'Parâmetros de NF', '/parametros-nf'),
           _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),

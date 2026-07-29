@@ -64,6 +64,10 @@ import '../../features/grupo_economico_admin/screens/novo_grupo_economico_admin_
 import '../../features/clientes_admin/screens/clientes_admin_lista_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
+import '../../features/multas/screens/multas_screen.dart';
+import '../../features/multas/screens/nova_multa_screen.dart';
+import '../../features/multas/screens/multa_detalhe_screen.dart';
+import '../../features/oficinas/screens/oficinas_screen.dart';
 import '../../features/precos_postos/screens/precos_postos_screen.dart';
 import '../../features/rotograma/screens/rotograma_screen.dart';
 import '../../features/rotograma/screens/rotograma_novo_screen.dart';
@@ -337,6 +341,17 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/manutencao-preditiva/:placa',
               builder: (_, state) => ManutencaoPreditivaDetalheScreen(placa: state.pathParameters['placa']!),
             ),
+            // Fase Onda-2 (benchmark TicketLog, item #4) — Gestão de Multas.
+            GoRoute(path: '/multas', builder: (_, __) => const MultasScreen()),
+            GoRoute(path: '/multas/nova', builder: (_, __) => const NovaMultaScreen()),
+            GoRoute(path: '/multas/:id', builder: (_, state) => MultaDetalheScreen(id: state.pathParameters['id']!)),
+            // Fase Onda-2 (benchmark TicketLog, item #5) — Rede de Oficinas
+            // Credenciadas com Orçamento (catálogo + minhas solicitações).
+            // CRUD do catálogo nacional continua exclusivo da web
+            // (/administracao/oficinas-credenciadas) — mesma decisão já
+            // tomada pra Central de Avisos (avisos/avisos_screen.dart é só
+            // leitura no PWA, o CRUD é admin-web-only).
+            GoRoute(path: '/oficinas', builder: (_, __) => const OficinasScreen()),
             GoRoute(path: '/parametros-uso', builder: (_, __) => const ParametrosUsoScreen()),
             GoRoute(path: '/antifraude', builder: (_, __) => const AntifraudeScreen()),
             GoRoute(path: '/parametros-uso/novo', builder: (_, __) => const VinculoNovoScreen()),
