@@ -50,6 +50,13 @@ class Veiculo {
   final double? valorAquisicao;
   final String? dataAquisicao;
   final double? valorResidualEstimado;
+  // Fase TCO 2 (29/07/2026) — vínculo FIPE (usado no card "Vínculo FIPE" da
+  // tela de edição e no refresh via FipeVinculoService).
+  final String? codigoFipe;
+  final double? valorFipe;
+  final String? mesReferencia;
+  final String? fipeTipoVeiculo;
+  final String? fipeAnoCodigo;
 
   const Veiculo({
     required this.id,
@@ -79,6 +86,11 @@ class Veiculo {
     this.valorAquisicao,
     this.dataAquisicao,
     this.valorResidualEstimado,
+    this.codigoFipe,
+    this.valorFipe,
+    this.mesReferencia,
+    this.fipeTipoVeiculo,
+    this.fipeAnoCodigo,
   });
 
   factory Veiculo.fromMap(Map<String, dynamic> m) {
@@ -110,6 +122,11 @@ class Veiculo {
       valorAquisicao: (m['valor_aquisicao'] as num?)?.toDouble(),
       dataAquisicao: m['data_aquisicao'] as String?,
       valorResidualEstimado: (m['valor_residual_estimado'] as num?)?.toDouble(),
+      codigoFipe: m['codigo_fipe'] as String?,
+      valorFipe: (m['valor_fipe'] as num?)?.toDouble(),
+      mesReferencia: m['mes_referencia'] as String?,
+      fipeTipoVeiculo: m['fipe_tipo_veiculo'] as String?,
+      fipeAnoCodigo: m['fipe_ano_codigo'] as String?,
     );
   }
 }

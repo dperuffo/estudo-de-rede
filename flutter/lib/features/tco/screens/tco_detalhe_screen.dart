@@ -146,7 +146,16 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
                     _componenteCard('🚨 Multas', v.custoMultas),
                     _componenteCard('🛠️ Oficinas credenciadas', v.custoOficinas),
                     _componenteCard('📋 Custos fixos', v.custoFixos),
-                    _componenteCard('📉 Depreciação', v.custoDepreciacao),
+                    _componenteCard(
+                      '📉 Depreciação',
+                      v.custoDepreciacao,
+                      selo: v.fonteDepreciacao == 'fipe_curva_real'
+                          ? 'Curva FIPE'
+                          : v.fonteDepreciacao == 'linear_estimado'
+                              ? 'Estimativa linear'
+                              : null,
+                    ),
+                    _componenteCard('💰 Custo de capital', v.custoCapital),
                   ],
                 ),
               ],
@@ -185,6 +194,33 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Vínculo FIPE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const SizedBox(height: 10),
+                if (v.codigoFipe != null) ...[
+                  _linhaDado('Código FIPE', v.codigoFipe!),
+                  _linhaDado('Valor FIPE atual', v.valorFipe != null ? _moeda.format(v.valorFipe!) : '—'),
+                ] else
+                  const Text(
+                    'Este veículo ainda não está vinculado a um código FIPE — a depreciação acima usa a estimativa linear.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => context.push('/veiculos'),
+                  child: const Text('Gerenciar vínculo FIPE em Veículos →', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 12),
 
         Text(
@@ -195,7 +231,7 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
     );
   }
 
-  Widget _componenteCard(String label, double? valor) {
+  Widget _componenteCard(String label, double? valor, {String? selo}) {
     final indisponivel = valor == null;
     return Container(
       padding: const EdgeInsets.all(10),
@@ -204,7 +240,17 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+          Row(
+            children: [
+              Expanded(child: Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600))),
+              if (selo != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(8)),
+                  child: Text(selo, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Color(0xFF0369A1))),
+                ),
+            ],
+          ),
           const SizedBox(height: 4),
           Text(
             indisponivel ? '—' : _moeda.format(valor),

@@ -296,6 +296,14 @@ class _TcoScreenState extends ConsumerState<TcoScreen> {
                       style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: v.tcoCompleto ? const Color(0xFF047857) : const Color(0xFF92400E)),
                     ),
                   ),
+                  if (v.fonteDepreciacao == 'fipe_curva_real') ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(10)),
+                      child: const Text('Curva FIPE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF0369A1))),
+                    ),
+                  ],
                 ],
               ),
             ],

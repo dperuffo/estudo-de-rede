@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../motoristas/providers/motoristas_provider.dart' show centrosCustoOpcoesProvider;
 import '../providers/veiculos_provider.dart';
 import '../services/veiculos_service.dart';
+import '../widgets/vincular_fipe_card.dart';
 
 class VeiculoEditarScreen extends ConsumerStatefulWidget {
   final String id;
@@ -351,6 +352,14 @@ class _VeiculoEditarScreenState extends ConsumerState<VeiculoEditarScreen> {
                   controller: _valorResidualCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(labelText: 'Valor residual estimado (R\$)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 20),
+                VincularFipeCard(
+                  veiculo: v,
+                  onAtualizado: () {
+                    ref.invalidate(veiculosClienteProvider);
+                    ref.invalidate(veiculoDetalheProvider(widget.id));
+                  },
                 ),
                 const SizedBox(height: 20),
                 Text('Localização e centro de custo', style: Theme.of(context).textTheme.titleSmall),
