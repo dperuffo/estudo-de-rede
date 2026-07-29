@@ -6,6 +6,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
 import '../../../core/widgets/menu_button.dart';
+import '../../../core/widgets/sino_avisos.dart';
 
 // Fase FLT-1 — shell da visão Posto, espelhando a estrutura de menu de
 // menuPostoGestao + menuPostoOperacao em src/app/(dashboard)/layout.tsx da
@@ -26,6 +27,7 @@ class PostoHomeScreen extends ConsumerWidget {
       drawer: _buildDrawer(context, ref, sessao.valueOrNull),
       appBar: AppBar(
         title: const Text('FNI — Posto'),
+        actions: const [SinoAvisos()],
       ),
       body: child,
       bottomNavigationBar: NavigationBar(
@@ -167,6 +169,9 @@ class PostoHomeScreen extends ConsumerWidget {
             _item(context, Icons.card_giftcard, 'Parcerias Locais', '/posto/parcerias-locais'),
             _item(context, Icons.business, 'Clientes', '/posto/clientes'),
             _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
+            // Fase Pré-Pedido (28/07/2026) — consulta pro posto conferir
+            // antes de liberar abastecimento (ver pre_pedidos_posto_screen.dart).
+            _item(context, Icons.checklist, 'Pré-Pedidos', '/posto/pre-pedidos'),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),

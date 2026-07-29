@@ -6,6 +6,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
 import '../../../core/widgets/menu_button.dart';
+import '../../../core/widgets/sino_avisos.dart';
 
 // Fase FLT-3 — shell da visão Cliente, reescrito do zero. Antes este era o
 // "shell genérico" (cliente + admin misturados, sem gate de perfil — ver
@@ -37,7 +38,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       key: rootScaffoldKey,
       drawer: _buildDrawer(context, ref, sessao.valueOrNull),
-      appBar: AppBar(title: const Text('FNI — Gestão de Frotas')),
+      appBar: AppBar(title: const Text('FNI — Gestão de Frotas'), actions: const [SinoAvisos()]),
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _idx(loc),

@@ -8,6 +8,7 @@ import '../../motoristas/providers/motoristas_provider.dart' show Motorista, mot
 import '../../veiculos/providers/veiculos_provider.dart' show Veiculo, veiculosClienteProvider;
 import '../../rotograma/providers/rotograma_provider.dart' show RotogramaResumo, rotogramasListaProvider;
 import '../../roteirizacao/services/pedagio_service.dart' as pedagio;
+import '../../parametros_uso/providers/parametros_uso_provider.dart' show parametroPrePedidoProvider;
 import '../providers/planos_viagem_provider.dart';
 import '../services/planos_viagem_service.dart';
 
@@ -22,7 +23,10 @@ final _moedaForm = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 class PlanoViagemForm extends ConsumerStatefulWidget {
   final PlanoViagem? existente;
   final List<Pedagio> pedagiosIniciais;
-  const PlanoViagemForm({super.key, this.existente, this.pedagiosIniciais = const []});
+  // Fase Pré-Pedido — só faz sentido na criação (existente == null); vem do
+  // botão "Criar Plano de Viagem" na Roteirização (ver roteirizacao_screen.dart).
+  final PrefillPlanoViagem? prefill;
+  const PlanoViagemForm({super.key, this.existente, this.pedagiosIniciais = const [], this.prefill});
 
   @override
   ConsumerState<PlanoViagemForm> createState() => _PlanoViagemFormState();
@@ -67,18 +71,19 @@ class _LinhaPedagio {
 }
 
 class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
-  late final _nomeCtrl = TextEditingController(text: widget.existente?.nome ?? '');
+  late final _nomeCtrl = TextEditingController(text: widget.existente?.nome ?? widget.prefill?.nome ?? '');
   late String _status = widget.existente?.status ?? 'rascunho';
-  late String? _placa = widget.existente?.placa;
+  late String? _placa = widget.existente?.placa ?? widget.prefill?.placa;
   late String? _motoristaId = widget.existente?.motoristaId;
   late String? _rotogramaId = widget.existente?.rotogramaId;
   late String? _centroCustoId = widget.existente?.centroCustoId;
   late String? _dataSaida = widget.existente?.dataSaida;
   late String? _retornoPrevisto = widget.existente?.retornoPrevisto;
 
-  late final _kmEstimadoCtrl = TextEditingController(text: _fmtNum(widget.existente?.kmEstimado));
-  late final _consumoKmLCtrl = TextEditingController(text: _fmtNum(widget.existente?.consumoKmL));
-  late final _precoCombustivelCtrl = TextEditingController(text: _fmtNum(widget.existente?.precoCombustivel));
+  late final _kmEstimadoCtrl = TextEditingController(text: _fmtNum(widget.existente?.kmEstimado ?? widget.prefill?.kmEstimado));
+  late final _consumoKmLCtrl = TextEditingController(text: _fmtNum(widget.existente?.consumoKmL ?? widget.prefill?.consumoKmL));
+  late final _precoCombustivelCtrl =
+      TextEditingController(text: _fmtNum(widget.existente?.precoCombustivel ?? widget.prefill?.precoCombustivel));
 
   late final _nDiariasCtrl = TextEditingController(text: _fmtNum(widget.existente?.nDiarias.toDouble()));
   late final _valorRefeicaoCtrl = TextEditingController(text: _fmtNum(widget.existente?.valorRefeicaoDia));
@@ -93,7 +98,9 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
 
   late final _observacoesCtrl = TextEditingController(text: widget.existente?.observacoes ?? '');
 
-  late List<_LinhaPedagio> _pedagios = widget.pedagiosIniciais.map((p) => _LinhaPedagio.de(p)).toList();
+  late List<_LinhaPedagio> _pedagios = widget.pedagiosIniciais.isNotEmpty
+      ? widget.pedagiosIniciais.map((p) => _LinhaPedagio.de(p)).toList()
+      : (widget.prefill?.pedagios ?? const []).map((p) => _LinhaPedagio.de(p)).toList();
 
   double? _combustivelRealLitros;
   double? _combustivelRealValor;
@@ -273,6 +280,7 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
           custoTotalReal: _custoTotalRealNum,
           observacoes: _observacoesCtrl.text,
           pedagios: pedagios,
+          paradasPrePedido: widget.prefill?.paradas ?? const [],
         );
         ref.invalidate(planosViagemListaProvider);
         if (!mounted) return;
@@ -324,6 +332,12 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
     final motoristasAsync = ref.watch(motoristasClienteProvider);
     final rotogramasAsync = ref.watch(rotogramasListaProvider);
     final centrosCustoAsync = ref.watch(centrosCustoOpcoesProvider);
+    // Fase Pré-Pedido — só relevante quando há paradas vindas do prefill da
+    // Roteirização, pra avisar se um Pré-Pedido vai (ou não) ser gerado ao
+    // salvar (mesma lógica condicional de PlanoViagemForm.tsx).
+    final prePedidoHabilitadoAsync = widget.existente == null && (widget.prefill?.paradas.isNotEmpty ?? false)
+        ? ref.watch(parametroPrePedidoProvider)
+        : null;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -334,6 +348,21 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
             child: Text(_erro!, style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        if (widget.existente == null && widget.prefill != null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8)),
+            child: Text(
+              'Veículo, combustível${widget.prefill!.pedagios.isNotEmpty ? " e pedágios" : ""} preenchidos a '
+              'partir da rota calculada na Roteirização. Revise e ajuste o que precisar antes de salvar.'
+              '${_mensagemPrePedido(prePedidoHabilitadoAsync)}',
+              style: const TextStyle(color: Color(0xFF1E40AF), fontSize: 12),
+            ),
           ),
           const SizedBox(height: 12),
         ],
@@ -613,6 +642,20 @@ class _PlanoViagemFormState extends ConsumerState<PlanoViagemForm> {
           ),
         ),
       ],
+    );
+  }
+
+  String _mensagemPrePedido(AsyncValue<bool>? prePedidoHabilitadoAsync) {
+    final paradas = widget.prefill?.paradas ?? const [];
+    if (paradas.isEmpty || prePedidoHabilitadoAsync == null) return '';
+    return prePedidoHabilitadoAsync.maybeWhen(
+      data: (habilitado) => habilitado
+          ? ' Como o parâmetro de uso "Pré-Pedido" está habilitado, um Pré-Pedido com as ${paradas.length} '
+              'parada${paradas.length > 1 ? "s" : ""} de abastecimento previstas será gerado automaticamente ao salvar.'
+          : ' ${paradas.length} parada${paradas.length > 1 ? "s" : ""} de abastecimento da rota foram calculadas, '
+              'mas o parâmetro de uso "Pré-Pedido" não está habilitado pra esta empresa — nenhum Pré-Pedido será '
+              'gerado.',
+      orElse: () => '',
     );
   }
 

@@ -22,6 +22,7 @@ import '../../features/posto/screens/criar_negociacao_screen.dart';
 import '../../features/posto/screens/abastecimentos_posto_screen.dart';
 import '../../features/posto/screens/abastecimento_detalhe_screen.dart';
 import '../../features/posto/screens/clientes_posto_screen.dart';
+import '../../features/posto/screens/pre_pedidos_posto_screen.dart';
 import '../../features/posto/screens/cliente_posto_detalhe_screen.dart';
 import '../../features/posto/screens/fatura_posto_detalhe_screen.dart';
 import '../../features/posto/screens/ciclo_aberto_detalhe_screen.dart';
@@ -72,6 +73,7 @@ import '../../features/roteirizacao/screens/roteirizacao_screen.dart';
 import '../../features/planos_viagem/screens/planos_viagem_screen.dart';
 import '../../features/planos_viagem/screens/plano_viagem_novo_screen.dart';
 import '../../features/planos_viagem/screens/plano_viagem_editar_screen.dart';
+import '../../features/planos_viagem/providers/planos_viagem_provider.dart' show PrefillPlanoViagem;
 import '../../features/negociacoes/screens/negociacoes_screen.dart';
 import '../../features/negociacoes/screens/negociacao_detalhe_screen.dart';
 import '../../features/negociacoes/screens/criar_negociacao_screen.dart';
@@ -100,6 +102,7 @@ import '../../features/posto/screens/chamado_novo_screen.dart';
 import '../../features/posto/screens/chamado_detalhe_screen.dart';
 import '../../features/chamados/screens/chamados_cliente_screen.dart';
 import '../../features/chamados/screens/chamado_novo_cliente_screen.dart';
+import '../../features/avisos/screens/avisos_screen.dart';
 import '../../features/clientes/screens/clientes_screen.dart';
 import '../../features/grupo_economico/screens/grupo_economico_screen.dart';
 import '../../features/parcerias_locais/screens/parcerias_locais_screen.dart';
@@ -233,6 +236,11 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/chamados', builder: (_, __) => const ChamadosClienteScreen()),
             GoRoute(path: '/chamados/novo', builder: (_, __) => const ChamadoNovoClienteScreen()),
             GoRoute(path: '/chamados/:id', builder: (_, state) => ChamadoDetalheScreen(id: state.pathParameters['id']!)),
+            // Fase Central-Avisos (28/07/2026) — mesma tela AvisosScreen
+            // reaproveitada pelos dois shells (cliente aqui, posto abaixo em
+            // /posto/avisos) — provider já lê `sessao` sozinho, sem
+            // bifurcação de segmento.
+            GoRoute(path: '/avisos', builder: (_, __) => const AvisosScreen()),
             GoRoute(path: '/clientes', builder: (_, __) => const ClientesScreen()),
             GoRoute(path: '/grupo-economico', builder: (_, __) => const GrupoEconomicoScreen()),
             // Fase FLT-3 — Usuários (cliente): telas próprias (mesmo
@@ -307,7 +315,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => ItemParceriaEditarScreen(id: state.pathParameters['id']!),
             ),
             GoRoute(path: '/planos-viagem', builder: (_, __) => const PlanosViagemScreen()),
-            GoRoute(path: '/planos-viagem/novo', builder: (_, __) => const PlanoViagemNovoScreen()),
+            // Fase Pré-Pedido (28/07/2026) — `extra` opcional (PrefillPlanoViagem)
+            // vindo do botão "Criar Plano de Viagem" na Roteirização.
+            GoRoute(
+              path: '/planos-viagem/novo',
+              builder: (_, state) => PlanoViagemNovoScreen(prefill: state.extra as PrefillPlanoViagem?),
+            ),
             GoRoute(
               path: '/planos-viagem/:id/editar',
               builder: (_, state) => PlanoViagemEditarScreen(id: state.pathParameters['id']!),
@@ -436,6 +449,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/posto/chamados/:id',
               builder: (_, state) => ChamadoDetalheScreen(id: state.pathParameters['id']!),
             ),
+            // Fase Central-Avisos (28/07/2026) — mesma AvisosScreen do shell
+            // cliente (ver /avisos acima), só com path prefixado /posto.
+            GoRoute(path: '/posto/avisos', builder: (_, __) => const AvisosScreen()),
+            // Fase Pré-Pedido (28/07/2026) — porta de /pre-pedidos (web),
+            // consulta pro posto conferir antes de liberar abastecimento.
+            GoRoute(path: '/posto/pre-pedidos', builder: (_, __) => const PrePedidosPostoScreen()),
           ],
         ),
       ],
