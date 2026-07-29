@@ -30,6 +30,9 @@ class _VeiculoEditarScreenState extends ConsumerState<VeiculoEditarScreen> {
   final _municipioCtrl = TextEditingController();
   final _ufCtrl = TextEditingController();
   final _eixosCtrl = TextEditingController();
+  final _valorAquisicaoCtrl = TextEditingController();
+  final _dataAquisicaoCtrl = TextEditingController();
+  final _valorResidualCtrl = TextEditingController();
 
   String? _tipoVeiculo;
   String _classificacao = 'Próprio';
@@ -60,6 +63,9 @@ class _VeiculoEditarScreenState extends ConsumerState<VeiculoEditarScreen> {
     _municipioCtrl.text = v.municipio ?? '';
     _ufCtrl.text = v.ufVeiculo ?? '';
     _eixosCtrl.text = v.numeroEixos?.toString() ?? '';
+    _valorAquisicaoCtrl.text = v.valorAquisicao?.toString() ?? '';
+    _dataAquisicaoCtrl.text = v.dataAquisicao ?? '';
+    _valorResidualCtrl.text = v.valorResidualEstimado?.toString() ?? '';
     _tipoVeiculo = tiposVeiculo.contains(v.tipoVeiculo) ? v.tipoVeiculo : null;
     _classificacao = classificacoesVeiculo.contains(v.classificacao) ? v.classificacao : 'Próprio';
     _tipo = tiposPorteVeiculo.contains(v.tipo) ? v.tipo : null;
@@ -86,7 +92,23 @@ class _VeiculoEditarScreenState extends ConsumerState<VeiculoEditarScreen> {
     _municipioCtrl.dispose();
     _ufCtrl.dispose();
     _eixosCtrl.dispose();
+    _valorAquisicaoCtrl.dispose();
+    _dataAquisicaoCtrl.dispose();
+    _valorResidualCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _selecionarDataAquisicao() async {
+    final atual = DateTime.tryParse(_dataAquisicaoCtrl.text) ?? DateTime.now();
+    final escolhida = await showDatePicker(
+      context: context,
+      initialDate: atual,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (escolhida != null) {
+      _dataAquisicaoCtrl.text = escolhida.toIso8601String().substring(0, 10);
+    }
   }
 
   Future<void> _salvar() async {
@@ -119,6 +141,9 @@ class _VeiculoEditarScreenState extends ConsumerState<VeiculoEditarScreen> {
       tipo: _tipo,
       ativo: _ativo,
       centroCustoId: _centroCustoId,
+      valorAquisicao: _doubleOuNull(_valorAquisicaoCtrl.text),
+      dataAquisicao: _dataAquisicaoCtrl.text,
+      valorResidualEstimado: _doubleOuNull(_valorResidualCtrl.text),
     );
 
     if (!mounted) return;
@@ -298,6 +323,34 @@ class _VeiculoEditarScreenState extends ConsumerState<VeiculoEditarScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+                Text('TCO / Aquisição', style: Theme.of(context).textTheme.titleSmall),
+                const Padding(
+                  padding: EdgeInsets.only(top: 4, bottom: 8),
+                  child: Text(
+                    'Opcional — usado só pra calcular o TCO (custo total de propriedade, incluindo depreciação) em '
+                    'TCO / Custo por Veículo. Sem esses dados o TCO ainda é calculado, mas sem depreciação.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ),
+                TextFormField(
+                  controller: _valorAquisicaoCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Valor de aquisição (R\$)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _dataAquisicaoCtrl,
+                  readOnly: true,
+                  onTap: _selecionarDataAquisicao,
+                  decoration: const InputDecoration(labelText: 'Data de aquisição', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today, size: 18)),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _valorResidualCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Valor residual estimado (R\$)', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 20),
                 Text('Localização e centro de custo', style: Theme.of(context).textTheme.titleSmall),

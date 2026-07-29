@@ -45,6 +45,11 @@ class Veiculo {
   final String? centroCustoId;
   final String? centroCustoNome;
   final String cnpjFrota;
+  // Fase TCO (29/07/2026) — opcionais, usados só pra calcular depreciação no
+  // módulo de TCO (tco_veiculo/tco_frota_resumo).
+  final double? valorAquisicao;
+  final String? dataAquisicao;
+  final double? valorResidualEstimado;
 
   const Veiculo({
     required this.id,
@@ -71,6 +76,9 @@ class Veiculo {
     this.centroCustoId,
     this.centroCustoNome,
     required this.cnpjFrota,
+    this.valorAquisicao,
+    this.dataAquisicao,
+    this.valorResidualEstimado,
   });
 
   factory Veiculo.fromMap(Map<String, dynamic> m) {
@@ -99,6 +107,9 @@ class Veiculo {
       centroCustoId: m['centro_custo_id'] as String?,
       centroCustoNome: m['centro_custo_nome'] as String?,
       cnpjFrota: m['cnpj_frota'] as String? ?? '',
+      valorAquisicao: (m['valor_aquisicao'] as num?)?.toDouble(),
+      dataAquisicao: m['data_aquisicao'] as String?,
+      valorResidualEstimado: (m['valor_residual_estimado'] as num?)?.toDouble(),
     );
   }
 }

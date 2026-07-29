@@ -29,6 +29,9 @@ class VeiculosService {
     int? numeroEixos,
     required String classificacao,
     String? tipo,
+    double? valorAquisicao,
+    String? dataAquisicao,
+    double? valorResidualEstimado,
   }) {
     return {
       'placa': placa.trim().toUpperCase(),
@@ -50,6 +53,10 @@ class VeiculosService {
       'numero_eixos': numeroEixos,
       'classificacao': classificacoesValidas.contains(classificacao) ? classificacao : 'Próprio',
       'tipo': tiposPorteValidos.contains(tipo) ? tipo : null,
+      // Fase TCO (29/07/2026) — opcionais, usados só pra depreciação no TCO.
+      'valor_aquisicao': valorAquisicao,
+      'data_aquisicao': (dataAquisicao == null || dataAquisicao.trim().isEmpty) ? null : dataAquisicao.trim(),
+      'valor_residual_estimado': valorResidualEstimado,
     };
   }
 
@@ -78,6 +85,9 @@ class VeiculosService {
     String classificacao = 'Próprio',
     String? tipo,
     String? centroCustoId,
+    double? valorAquisicao,
+    String? dataAquisicao,
+    double? valorResidualEstimado,
   }) async {
     final placaLimpa = placa.trim();
     if (placaLimpa.isEmpty) return (erro: 'Placa é obrigatória.', id: null);
@@ -116,6 +126,9 @@ class VeiculosService {
         numeroEixos: numeroEixos,
         classificacao: classificacao,
         tipo: tipo,
+        valorAquisicao: valorAquisicao,
+        dataAquisicao: dataAquisicao,
+        valorResidualEstimado: valorResidualEstimado,
       );
 
       final row = await _supabase
@@ -163,6 +176,9 @@ class VeiculosService {
     String? tipo,
     required bool ativo,
     String? centroCustoId,
+    double? valorAquisicao,
+    String? dataAquisicao,
+    double? valorResidualEstimado,
   }) async {
     final placaLimpa = placa.trim();
     if (placaLimpa.isEmpty) return 'Placa é obrigatória.';
@@ -201,6 +217,9 @@ class VeiculosService {
         numeroEixos: numeroEixos,
         classificacao: classificacao,
         tipo: tipo,
+        valorAquisicao: valorAquisicao,
+        dataAquisicao: dataAquisicao,
+        valorResidualEstimado: valorResidualEstimado,
       );
 
       await _supabase.from('cadastro_veiculos').update({...payload, 'ativo': ativo}).eq('id', id);

@@ -64,6 +64,8 @@ import '../../features/grupo_economico_admin/screens/novo_grupo_economico_admin_
 import '../../features/clientes_admin/screens/clientes_admin_lista_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
+import '../../features/tco/screens/tco_screen.dart';
+import '../../features/tco/screens/tco_detalhe_screen.dart';
 import '../../features/multas/screens/multas_screen.dart';
 import '../../features/multas/screens/nova_multa_screen.dart';
 import '../../features/multas/screens/multa_detalhe_screen.dart';
@@ -340,6 +342,12 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(
               path: '/manutencao-preditiva/:placa',
               builder: (_, state) => ManutencaoPreditivaDetalheScreen(placa: state.pathParameters['placa']!),
+            ),
+            // Fase TCO (29/07/2026) — Custo Total de Propriedade por veículo.
+            GoRoute(path: '/tco', builder: (_, __) => const TcoScreen()),
+            GoRoute(
+              path: '/tco/:placa',
+              builder: (_, state) => TcoDetalheScreen(placa: state.pathParameters['placa']!),
             ),
             // Fase Onda-2 (benchmark TicketLog, item #4) — Gestão de Multas.
             GoRoute(path: '/multas', builder: (_, __) => const MultasScreen()),
