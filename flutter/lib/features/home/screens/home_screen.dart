@@ -170,7 +170,10 @@ class HomeScreen extends ConsumerWidget {
           // tomada na web (Ações Sugeridas cobre tudo que Anomalias
           // detectava, ver comentário em app_router.dart).
           _item(context, Icons.auto_awesome, 'Ações Sugeridas', '/acoes-sugeridas', badge: badges.acoesSugeridas),
-          _item(context, Icons.gpp_maybe_outlined, 'Antifraude', '/antifraude', badge: badges.antifraude),
+          // Fase remove-antifraude-do-menu (mesma decisão já tomada na web,
+          // ver comentário em layout.tsx): as regras de Antifraude já estão
+          // cobertas pelos Parâmetros de Uso — tirado só do menu, a rota
+          // /antifraude continua registrada em app_router.dart.
           _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
           _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
           // Fase Financeiro-ERP (26/07/2026, pedido do Daniel) — "Aba de
