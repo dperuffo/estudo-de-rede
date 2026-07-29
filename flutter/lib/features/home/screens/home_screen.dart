@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/providers/notificacoes_provider.dart';
+import '../../../core/providers/avisos_provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
@@ -62,6 +63,13 @@ class HomeScreen extends ConsumerWidget {
     // drawer não deve travar/piscar loading — enquanto carrega (ou se
     // falhar), simplesmente não mostra bolinha nenhuma.
     final badges = ref.watch(notificacoesBadgesProvider).valueOrNull ?? NotificacoesBadges.vazio;
+    // Fase Central-Avisos (28/07/2026, achado real) — na web o AvisosSino
+    // fica no rodapé do menu lateral, junto de Central de Ajuda/Sair (ver
+    // layout.tsx). Aqui no PWA o sino só existia como ícone na AppBar
+    // (sino_avisos.dart) — sem item no Drawer o Daniel não achava a "aba"
+    // de Avisos (ele navega pelo menu, igual na web). Item adicionado
+    // abaixo, na mesma posição relativa (perto de Sair).
+    final avisosNaoLidos = ref.watch(avisosNaoLidosProvider);
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -213,6 +221,8 @@ class HomeScreen extends ConsumerWidget {
           if (sessao?.ehAdmin ?? false) _item(context, Icons.find_in_page, 'Possíveis Duplicados', '/postos-duplicados'),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.apartment, 'Clientes (todos)', '/clientes-admin'),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.account_tree, 'Grupo Econômico (todos)', '/grupos-economicos'),
+          const Divider(),
+          _item(context, Icons.notifications_outlined, 'Avisos', '/avisos', badge: avisosNaoLidos),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),

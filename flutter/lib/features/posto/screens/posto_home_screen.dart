@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/providers/notificacoes_provider.dart';
+import '../../../core/providers/avisos_provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
@@ -54,6 +55,10 @@ class PostoHomeScreen extends ConsumerWidget {
     // Fase FLT-7 — mesmas bolinhas de notificação da web, ver
     // notificacoes_provider.dart.
     final badges = ref.watch(notificacoesBadgesProvider).valueOrNull ?? NotificacoesBadges.vazio;
+    // Fase Central-Avisos (28/07/2026, achado real) — mesmo raciocínio do
+    // home_screen.dart (cliente): sino só existia na AppBar, sem item no
+    // Drawer. Rota é /posto/avisos (mesma AvisosScreen, ver app_router.dart).
+    final avisosNaoLidos = ref.watch(avisosNaoLidosProvider);
     return Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -172,6 +177,8 @@ class PostoHomeScreen extends ConsumerWidget {
             // Fase Pré-Pedido (28/07/2026) — consulta pro posto conferir
             // antes de liberar abastecimento (ver pre_pedidos_posto_screen.dart).
             _item(context, Icons.checklist, 'Pré-Pedidos', '/posto/pre-pedidos'),
+            const Divider(),
+            _item(context, Icons.notifications_outlined, 'Avisos', '/posto/avisos', badge: avisosNaoLidos),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
