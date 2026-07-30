@@ -767,6 +767,17 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           for (final op in alternativas) _cardOpcaoRota(op, rotulos[op.id] ?? const ['Alternativa ${op.id + 1}']),
         ],
       ),
+      const SizedBox(height: 8),
+      // Pedido do Daniel: "é possível representar no mapa estas duas
+      // rotas, ao mesmo tempo, para que o usuário consiga ver a diferença
+      // e decidir? utilizar cores diferentes ou linha contínua e outra
+      // tracejada". Selecionada em azul sólido, demais em cinza tracejado.
+      MapaPostos(
+        postos: const [],
+        rotasAlternativas: alternativas,
+        rotaSelecionadaId: _rotaEscolhidaId,
+        height: 220,
+      ),
     ];
   }
 

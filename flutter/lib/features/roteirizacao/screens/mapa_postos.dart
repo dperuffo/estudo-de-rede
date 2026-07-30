@@ -68,6 +68,14 @@ class MapaPostos extends StatelessWidget {
   // "planejar"), plotadas com emoji 🎫 (diferente das bolinhas de posto),
   // mesmo padrão da web (MapaRota.tsx).
   final List<PracaPedagioNaRota>? pracasPedagio;
+  // Fase Rotas-Alternativas (30/07/2026) — pedido do Daniel: "é possível
+  // representar no mapa estas duas rotas, ao mesmo tempo, para que o
+  // usuário consiga ver a diferença e decidir? utilizar cores diferentes
+  // ou linha contínua e outra tracejada". Quando presente, tem prioridade
+  // sobre `rota` (que continua existindo pro resultado final já calculado,
+  // com 1 rota só).
+  final List<geo.OpcaoRota>? rotasAlternativas;
+  final int? rotaSelecionadaId;
   final double height;
 
   const MapaPostos({
@@ -76,6 +84,8 @@ class MapaPostos extends StatelessWidget {
     this.rota,
     this.paradas,
     this.pracasPedagio,
+    this.rotasAlternativas,
+    this.rotaSelecionadaId,
     this.height = 280,
   });
 
@@ -116,11 +126,13 @@ class MapaPostos extends StatelessWidget {
       ...pontosComCoord.map((p) => p.lat!),
       if (rota != null) ...rota!.map((p) => p.lat),
       if (pracasPedagio != null) ...pracasPedagio!.map((p) => p.lat),
+      if (rotasAlternativas != null) ...rotasAlternativas!.expand((r) => r.coordenadas.map((p) => p.lat)),
     ];
     final todasLon = <double>[
       ...pontosComCoord.map((p) => p.lon!),
       if (rota != null) ...rota!.map((p) => p.lon),
       if (pracasPedagio != null) ...pracasPedagio!.map((p) => p.lon),
+      if (rotasAlternativas != null) ...rotasAlternativas!.expand((r) => r.coordenadas.map((p) => p.lon)),
     ];
 
     final contador = Padding(
@@ -150,6 +162,8 @@ class MapaPostos extends StatelessWidget {
       ...pontosComCoord.map((p) => ll.LatLng(p.lat!, p.lon!)),
       if (rota != null) ...rota!.map((p) => ll.LatLng(p.lat, p.lon)),
       if (pracasPedagio != null) ...pracasPedagio!.map((p) => ll.LatLng(p.lat, p.lon)),
+      if (rotasAlternativas != null)
+        ...rotasAlternativas!.expand((r) => r.coordenadas.map((p) => ll.LatLng(p.lat, p.lon))),
     ]);
 
     final cnpjsComParada = (paradas ?? []).map((p) => p.candidato.cnpj).toSet();
@@ -173,7 +187,31 @@ class MapaPostos extends StatelessWidget {
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.fni.gestaodefrotas',
                 ),
-                if (rota != null && rota!.isNotEmpty)
+                if (rotasAlternativas != null && rotasAlternativas!.isNotEmpty)
+                  PolylineLayer(
+                    // Não-selecionadas primeiro (cinza, tracejada) e a
+                    // selecionada por último (azul, sólida, por cima) —
+                    // assim ela nunca fica escondida atrás de outra rota
+                    // que passe pelo mesmo trecho.
+                    polylines: [
+                      for (final op in rotasAlternativas!)
+                        if (op.id != rotaSelecionadaId)
+                          Polyline(
+                            points: op.coordenadas.map((p) => ll.LatLng(p.lat, p.lon)).toList(),
+                            strokeWidth: 3,
+                            color: Colors.grey.shade500,
+                            pattern: StrokePattern.dashed(segments: const [8, 6]),
+                          ),
+                      for (final op in rotasAlternativas!)
+                        if (op.id == rotaSelecionadaId)
+                          Polyline(
+                            points: op.coordenadas.map((p) => ll.LatLng(p.lat, p.lon)).toList(),
+                            strokeWidth: 5,
+                            color: Colors.blue.shade600,
+                          ),
+                    ],
+                  )
+                else if (rota != null && rota!.isNotEmpty)
                   PolylineLayer(
                     polylines: [
                       Polyline(
@@ -227,6 +265,26 @@ class MapaPostos extends StatelessWidget {
           ),
         ),
         _legenda(pontosComCoord),
+        if (rotasAlternativas != null && rotasAlternativas!.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(width: 16, height: 3, color: Colors.blue.shade600),
+                  const SizedBox(width: 4),
+                  Text('Rota selecionada', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                ]),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(width: 16, height: 2, color: Colors.grey.shade500),
+                  const SizedBox(width: 4),
+                  Text('Alternativa', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                ]),
+              ],
+            ),
+          ),
       ],
     );
   }
