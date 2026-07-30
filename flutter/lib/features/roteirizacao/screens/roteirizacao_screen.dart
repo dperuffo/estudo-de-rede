@@ -654,6 +654,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
       ),
       const SizedBox(height: 10),
       ..._seletorRotas(),
+      ..._mapaPrincipal(),
       const SizedBox(height: 10),
       veiculosAsync.when(
         data: (veiculos) => DropdownButtonFormField<Veiculo>(
@@ -767,18 +768,66 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           for (final op in alternativas) _cardOpcaoRota(op, rotulos[op.id] ?? const ['Alternativa ${op.id + 1}']),
         ],
       ),
-      const SizedBox(height: 8),
-      // Pedido do Daniel: "é possível representar no mapa estas duas
-      // rotas, ao mesmo tempo, para que o usuário consiga ver a diferença
-      // e decidir? utilizar cores diferentes ou linha contínua e outra
-      // tracejada". Selecionada em azul sólido, demais em cinza tracejado.
-      MapaPostos(
-        postos: const [],
-        rotasAlternativas: alternativas,
-        rotaSelecionadaId: _rotaEscolhidaId,
-        height: 220,
-      ),
     ];
+  }
+
+  // Fase Rotas-Alternativas (30/07/2026) — pedido do Daniel: "as linhas das
+  // opções de rota seriam traçadas no mapa principal, não criado outro
+  // mapa". Um único MapaPostos reaproveitado nas duas fases: antes de
+  // calcular, mostra as alternativas sobrepostas (selecionada em azul
+  // sólido, as demais tracejadas em cinza); depois de calcular, vira o
+  // mapa de resultado de sempre (postos/pedágios/paradas) — sem duplicar
+  // o widget.
+  List<Widget> _mapaPrincipal() {
+    final resultado = _resultadoPlanejar;
+    if (resultado != null) {
+      // Plota só as paradas sugeridas no mapa (não os milhares de
+      // candidatos do corredor inteiro — poluiria demais e pesaria no
+      // navegador).
+      final postosParaMapa = resultado.paradas
+          .map((p) => PostoComScore(
+                cnpj: p.candidato.cnpj,
+                razaoSocial: p.candidato.label,
+                municipio: null,
+                uf: p.candidato.uf,
+                bandeira: p.candidato.bandeira,
+                lat: p.candidato.lat,
+                lon: p.candidato.lon,
+                precos: [PrecoPosto(combustivel: _combustivelEscolhido ?? '', preco: p.candidato.preco)],
+                score: ScorePosto(
+                  score: 0,
+                  grade: p.candidato.grade ?? 'D',
+                  detalhePreco: '',
+                  detalheServicos: '',
+                  detalheDistancia: '',
+                ),
+                origem: p.candidato.origem,
+              ))
+          .toList();
+      return [
+        MapaPostos(
+          postos: postosParaMapa,
+          rota: resultado.coordenadas,
+          paradas: resultado.paradas,
+          pracasPedagio: resultado.pracasPedagio,
+          height: 320,
+        ),
+        const SizedBox(height: 10),
+      ];
+    }
+    final alternativas = _alternativas;
+    if (alternativas != null && alternativas.isNotEmpty) {
+      return [
+        MapaPostos(
+          postos: const [],
+          rotasAlternativas: alternativas,
+          rotaSelecionadaId: _rotaEscolhidaId,
+          height: 220,
+        ),
+        const SizedBox(height: 10),
+      ];
+    }
+    return const [];
   }
 
   Widget _cardOpcaoRota(geo.OpcaoRota op, List<String> rotulos) {
@@ -811,31 +860,11 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
     );
   }
 
+  // Fase Rotas-Alternativas — o mapa em si saiu daqui: agora é o mapa
+  // principal e persistente construído por _mapaPrincipal() (reaproveitado
+  // desde a etapa de escolha de rota), pra não duplicar o widget na tela.
   List<Widget> _resultadosPlanejar() {
     final r = _resultadoPlanejar!;
-    // Plota só as paradas sugeridas no mapa (não os milhares de candidatos
-    // do corredor inteiro — poluiria demais e pesaria no navegador).
-    final postosParaMapa = r.paradas
-        .map((p) => PostoComScore(
-              cnpj: p.candidato.cnpj,
-              razaoSocial: p.candidato.label,
-              municipio: null,
-              uf: p.candidato.uf,
-              bandeira: p.candidato.bandeira,
-              lat: p.candidato.lat,
-              lon: p.candidato.lon,
-              precos: [PrecoPosto(combustivel: _combustivelEscolhido ?? '', preco: p.candidato.preco)],
-              score: ScorePosto(
-                score: 0,
-                grade: p.candidato.grade ?? 'D',
-                detalhePreco: '',
-                detalheServicos: '',
-                detalheDistancia: '',
-              ),
-              origem: p.candidato.origem,
-            ))
-        .toList();
-
     return [
       if (r.linhaReta)
         Card(
@@ -860,13 +889,6 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
             ),
           ),
         ),
-      MapaPostos(
-        postos: postosParaMapa,
-        rota: r.coordenadas,
-        paradas: r.paradas,
-        pracasPedagio: r.pracasPedagio,
-        height: 320,
-      ),
       const SizedBox(height: 12),
       Card(
         child: Padding(
