@@ -200,6 +200,12 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.attach_money, 'TCO / Custo por Veículo', '/tco'),
           // Fase Indicadores-da-Frota (30/07/2026) — Icons.speed = PWA: Gauge (web).
           _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),
+          // Fase Indicadores-da-Frota C (30/07/2026) — Icons.fact_check =
+          // PWA: ShieldCheck (web). Alimenta conformidade/TMRNC.
+          _item(context, Icons.fact_check, 'Checklist de Inspeção', '/checklist-veiculos'),
+          // Fase Indicadores-da-Frota C (30/07/2026) — Icons.warning_amber =
+          // PWA: AlertTriangle (web). Alimenta índice de sinistralidade.
+          _item(context, Icons.warning_amber, 'Sinistros', '/sinistros'),
           // Fase Onda-2 (benchmark TicketLog, item #4) — ciclo de multas:
           // captura, indicação de condutor, histórico, prazo de desconto.
           _item(context, Icons.gavel, 'Multas', '/multas', badge: badges.multasPendentes),

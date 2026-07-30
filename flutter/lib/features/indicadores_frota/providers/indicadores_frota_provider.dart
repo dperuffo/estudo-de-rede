@@ -10,6 +10,10 @@ class KpisFrota {
   final int totalVeiculos, diasPeriodo, diasParadoTotal, diasDisponivelTotal, diasComMovimentoTotal;
   final double? disponibilidadePct, kmTotal, cpkOperacional, litrosTotal, mediaKmL, utilizacaoPct, pctCorretiva;
   final double custoOperacionalTotal, manutencaoPreventivaCusto, manutencaoCorretivaCusto, manutencaoNaoClassificadaCusto;
+  // Fase C (30/07/2026) — checklist de inspeção (conformidade/TMRNC) e
+  // sinistros (sinistralidade), os 3 KPIs que faltavam do benchmark.
+  final int itensInspecionados, itensConformes, totalSinistros;
+  final double? conformidadePct, tmrncHoras, indiceSinistralidade;
   const KpisFrota({
     required this.totalVeiculos,
     required this.diasPeriodo,
@@ -27,6 +31,12 @@ class KpisFrota {
     required this.manutencaoPreventivaCusto,
     required this.manutencaoCorretivaCusto,
     required this.manutencaoNaoClassificadaCusto,
+    required this.itensInspecionados,
+    required this.itensConformes,
+    required this.totalSinistros,
+    this.conformidadePct,
+    this.tmrncHoras,
+    this.indiceSinistralidade,
   });
   factory KpisFrota.fromMap(Map<String, dynamic> m) => KpisFrota(
         totalVeiculos: (m['total_veiculos'] as num?)?.toInt() ?? 0,
@@ -45,6 +55,12 @@ class KpisFrota {
         manutencaoPreventivaCusto: (m['manutencao_preventiva_custo'] as num?)?.toDouble() ?? 0,
         manutencaoCorretivaCusto: (m['manutencao_corretiva_custo'] as num?)?.toDouble() ?? 0,
         manutencaoNaoClassificadaCusto: (m['manutencao_nao_classificada_custo'] as num?)?.toDouble() ?? 0,
+        itensInspecionados: (m['itens_inspecionados'] as num?)?.toInt() ?? 0,
+        itensConformes: (m['itens_conformes'] as num?)?.toInt() ?? 0,
+        totalSinistros: (m['total_sinistros'] as num?)?.toInt() ?? 0,
+        conformidadePct: (m['conformidade_pct'] as num?)?.toDouble(),
+        tmrncHoras: (m['tmrnc_horas'] as num?)?.toDouble(),
+        indiceSinistralidade: (m['indice_sinistralidade'] as num?)?.toDouble(),
       );
 }
 

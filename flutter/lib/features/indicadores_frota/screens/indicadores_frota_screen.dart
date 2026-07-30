@@ -113,6 +113,17 @@ class _IndicadoresFrotaScreenState extends ConsumerState<IndicadoresFrotaScreen>
               destaque: k.pctCorretiva != null && k.pctCorretiva! > 20,
             ),
             _card('Veículos ativos', '${k.totalVeiculos}'),
+            _card(
+              'Conformidade (checklist)',
+              k.conformidadePct != null ? '${k.conformidadePct}%' : 'Sem inspeções',
+              destaque: k.conformidadePct != null && k.conformidadePct! < 90,
+            ),
+            _card('TMRNC (resolução)', k.tmrncHoras != null ? '${k.tmrncHoras}h' : 'Sem pendências resolvidas'),
+            _card(
+              'Índice de sinistralidade',
+              k.indiceSinistralidade != null ? '${k.indiceSinistralidade}%' : '—',
+              destaque: k.indiceSinistralidade != null && k.indiceSinistralidade! > 10,
+            ),
           ],
         ),
         if (k.manutencaoNaoClassificadaCusto > 0) ...[
@@ -133,17 +144,19 @@ class _IndicadoresFrotaScreenState extends ConsumerState<IndicadoresFrotaScreen>
             child: const Text('Ir para Manutenção Preditiva →', style: TextStyle(fontSize: 12)),
           ),
         ],
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
-          child: const Text(
-            'Taxa de conformidade (checklist de inspeção), tempo médio de resolução de não conformidades e índice de '
-            'sinistralidade não aparecem aqui porque a plataforma ainda não tem um fluxo de captura desses dados.',
-            style: TextStyle(fontSize: 11, color: Colors.grey),
+        if (k.itensInspecionados == 0) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+            child: const Text(
+              'Nenhuma inspeção registrada neste período — a conformidade e o TMRNC aparecem assim que a primeira '
+              'inspeção for feita em Checklist de Inspeção.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

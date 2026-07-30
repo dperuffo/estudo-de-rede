@@ -70,6 +70,10 @@ import '../../features/indicadores_frota/screens/indicadores_frota_screen.dart';
 import '../../features/multas/screens/multas_screen.dart';
 import '../../features/multas/screens/nova_multa_screen.dart';
 import '../../features/multas/screens/multa_detalhe_screen.dart';
+import '../../features/checklist_veiculos/screens/checklist_veiculos_screen.dart';
+import '../../features/checklist_veiculos/screens/checklist_veiculo_detalhe_screen.dart';
+import '../../features/sinistros/screens/sinistros_screen.dart';
+import '../../features/sinistros/screens/novo_sinistro_screen.dart';
 import '../../features/oficinas/screens/oficinas_screen.dart';
 import '../../features/precos_postos/screens/precos_postos_screen.dart';
 import '../../features/rotograma/screens/rotograma_screen.dart';
@@ -356,6 +360,16 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/multas', builder: (_, __) => const MultasScreen()),
             GoRoute(path: '/multas/nova', builder: (_, __) => const NovaMultaScreen()),
             GoRoute(path: '/multas/:id', builder: (_, state) => MultaDetalheScreen(id: state.pathParameters['id']!)),
+            // Fase Indicadores-da-Frota C (30/07/2026) — checklist de inspeção
+            // veicular e sinistros/acidentes, os 2 fluxos de captura que
+            // faltavam pros 8 KPIs do benchmark.
+            GoRoute(path: '/checklist-veiculos', builder: (_, __) => const ChecklistVeiculosScreen()),
+            GoRoute(
+              path: '/checklist-veiculos/:placa',
+              builder: (_, state) => ChecklistVeiculoDetalheScreen(placa: state.pathParameters['placa']!),
+            ),
+            GoRoute(path: '/sinistros', builder: (_, __) => const SinistrosScreen()),
+            GoRoute(path: '/sinistros/novo', builder: (_, __) => const NovoSinistroScreen()),
             // Fase Onda-2 (benchmark TicketLog, item #5) — Rede de Oficinas
             // Credenciadas com Orçamento (catálogo + minhas solicitações).
             // CRUD do catálogo nacional continua exclusivo da web
