@@ -16,7 +16,11 @@ import '../../../core/services/supabase_service.dart';
 // que suficiente pro celular) e sem importação por planilha
 // (`/veiculos/importar`).
 const classificacoesVeiculo = ['Próprio', 'Agregado'];
-const tiposVeiculo = ['Cavalo Mecânico', 'Carreta', 'Truck', 'Toco', 'VUC', 'Utilitário', 'Outro'];
+// Achado real (30/07/2026, mesmo ajuste da web/constants.ts): "Outro" virou
+// "Carro de Passeio" — quase toda a frota cadastrada usava esse rótulo
+// genérico e é, na prática, veículo leve de passeio. Dados existentes já
+// migrados no banco (migração renomear_outro_para_carro_passeio).
+const tiposVeiculo = ['Cavalo Mecânico', 'Carreta', 'Truck', 'Toco', 'VUC', 'Utilitário', 'Carro de Passeio'];
 const tiposPorteVeiculo = ['Leve', 'Pesado'];
 const ciclosCombustivel = ['Diesel S10', 'Diesel S500', 'Gasolina', 'Etanol', 'GNV', 'Flex'];
 
