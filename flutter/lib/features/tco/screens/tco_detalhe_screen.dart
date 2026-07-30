@@ -156,6 +156,11 @@ class _TcoDetalheScreenState extends ConsumerState<TcoDetalheScreen> {
                               : null,
                     ),
                     _componenteCard('💰 Custo de capital', v.custoCapital),
+                    _componenteCard(
+                      '⏸️ Downtime',
+                      v.custoDowntime,
+                      selo: v.diasParadoPeriodo > 0 ? '${v.diasParadoPeriodo} dia(s) parado' : null,
+                    ),
                   ],
                 ),
               ],

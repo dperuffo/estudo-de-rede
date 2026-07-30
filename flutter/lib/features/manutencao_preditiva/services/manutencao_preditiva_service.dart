@@ -50,6 +50,9 @@ class ManutencaoPreditivaService {
     String? tecnico,
     String? oficina,
     double? custoTotal,
+    // Fase TCO 3 (29/07/2026) — opcional, usado no cálculo de custo de
+    // downtime no TCO. Sem telemetria/GPS é preenchimento manual mesmo.
+    int? diasParado,
     required List<String> itensRealizados,
     String? obsGerais,
     String? criadoPor,
@@ -70,6 +73,7 @@ class ManutencaoPreditivaService {
           'tecnico': (tecnico == null || tecnico.isEmpty) ? null : tecnico,
           'oficina': (oficina == null || oficina.isEmpty) ? null : oficina,
           'custo_total': custoTotal,
+          'dias_parado': diasParado,
           'itens_realizados': itensRealizados,
           'obs_gerais': (obsGerais == null || obsGerais.isEmpty) ? null : obsGerais,
           'criado_por': criadoPor,

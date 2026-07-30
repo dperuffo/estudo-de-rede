@@ -302,6 +302,9 @@ class RegistroManutencao {
   final int id;
   final String? dataManutencao, oficina, criadoPor;
   final double? hodometro, custoTotal;
+  // Fase TCO 3 (29/07/2026) — opcional, usado no cálculo de custo de
+  // downtime no TCO.
+  final int? diasParado;
   final List<String> itensRealizados;
   // Fase Manutencao-Fotos-PWA — caminhos crus no bucket + URLs assinadas já
   // resolvidas (bucket privado, 1h de validade, mesmo padrão de
@@ -316,6 +319,7 @@ class RegistroManutencao {
     this.criadoPor,
     this.hodometro,
     this.custoTotal,
+    this.diasParado,
     required this.itensRealizados,
     this.fotos = const [],
     this.fotosUrls = const [],
@@ -327,6 +331,7 @@ class RegistroManutencao {
         criadoPor: m['criado_por'] as String?,
         hodometro: (m['hodometro'] as num?)?.toDouble(),
         custoTotal: (m['custo_total'] as num?)?.toDouble(),
+        diasParado: (m['dias_parado'] as num?)?.toInt(),
         itensRealizados: ((m['itens_realizados'] as List?) ?? []).cast<String>(),
         fotos: ((m['fotos'] as List?) ?? []).cast<String>(),
       );
@@ -338,6 +343,7 @@ class RegistroManutencao {
         criadoPor: criadoPor,
         hodometro: hodometro,
         custoTotal: custoTotal,
+        diasParado: diasParado,
         itensRealizados: itensRealizados,
         fotos: fotos,
         fotosUrls: urls,
@@ -347,7 +353,7 @@ class RegistroManutencao {
 final historicoManutencaoProvider = FutureProvider.autoDispose.family<List<RegistroManutencao>, String>((ref, placa) async {
   final rows = await SupabaseService.client
       .from('manutencoes_realizadas')
-      .select('id, data_manutencao, hodometro, itens_realizados, oficina, custo_total, criado_por, fotos')
+      .select('id, data_manutencao, hodometro, itens_realizados, oficina, custo_total, dias_parado, criado_por, fotos')
       .eq('placa', placa)
       .order('data_manutencao', ascending: false)
       .limit(100) as List;

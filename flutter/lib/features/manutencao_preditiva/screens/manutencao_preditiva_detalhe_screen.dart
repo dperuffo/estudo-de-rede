@@ -20,6 +20,7 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
   final _dataCtrl = TextEditingController(text: DateTime.now().toIso8601String().substring(0, 10));
   final _hodometroCtrl = TextEditingController();
   final _custoCtrl = TextEditingController();
+  final _diasParadoCtrl = TextEditingController();
   final _tecnicoCtrl = TextEditingController();
   final _oficinaCtrl = TextEditingController();
   final _obsCtrl = TextEditingController();
@@ -51,6 +52,7 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
     _dataCtrl.dispose();
     _hodometroCtrl.dispose();
     _custoCtrl.dispose();
+    _diasParadoCtrl.dispose();
     _tecnicoCtrl.dispose();
     _oficinaCtrl.dispose();
     _obsCtrl.dispose();
@@ -101,6 +103,7 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
         tecnico: _tecnicoCtrl.text.trim(),
         oficina: _oficinaCtrl.text.trim(),
         custoTotal: double.tryParse(_custoCtrl.text.replaceAll(',', '.')),
+        diasParado: int.tryParse(_diasParadoCtrl.text.trim()),
         itensRealizados: _itensSelecionados.toList(),
         obsGerais: _obsCtrl.text.trim(),
         criadoPor: sessao.email,
@@ -122,6 +125,7 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
       if (!mounted) return;
       _hodometroCtrl.clear();
       _custoCtrl.clear();
+      _diasParadoCtrl.clear();
       _tecnicoCtrl.clear();
       _oficinaCtrl.clear();
       _obsCtrl.clear();
@@ -443,9 +447,25 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
           ],
         ),
         const SizedBox(height: 10),
-        TextField(
-          controller: _oficinaCtrl,
-          decoration: const InputDecoration(labelText: 'Oficina', border: OutlineInputBorder(), isDense: true),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _oficinaCtrl,
+                decoration: const InputDecoration(labelText: 'Oficina', border: OutlineInputBorder(), isDense: true),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Fase TCO 3 (29/07/2026) — opcional, usado no cálculo de custo
+            // de downtime no TCO. Sem telemetria/GPS é preenchimento manual.
+            Expanded(
+              child: TextField(
+                controller: _diasParadoCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Dias parado', border: OutlineInputBorder(), isDense: true),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         const Text('Itens realizados *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -540,7 +560,8 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
               ),
               const SizedBox(height: 4),
               Text(
-                '${r.hodometro != null ? '${_milhar(r.hodometro!.round())} km · ' : ''}${r.oficina ?? '—'}',
+                '${r.hodometro != null ? '${_milhar(r.hodometro!.round())} km · ' : ''}${r.oficina ?? '—'}'
+                '${r.diasParado != null && r.diasParado! > 0 ? ' · ${r.diasParado} dia(s) parado' : ''}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
               if (r.itensRealizados.isNotEmpty)

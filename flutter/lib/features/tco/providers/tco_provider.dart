@@ -13,10 +13,13 @@ class VeiculoResumoTco {
   final String placa;
   final String? marca, modelo, centroCustoId, centroCustoNome;
   final int? anoFabricacao;
-  final double? valorAquisicao, kmPeriodo, custoPorKm, custoDepreciacao, custoCapital;
+  final double? valorAquisicao, kmPeriodo, custoPorKm, custoDepreciacao, custoCapital, custoDowntime;
   final double custoCombustivel, custoManutencao, custoMultas, custoOficinas, custoFixos, tcoTotal;
   // Fase TCO 2 (29/07/2026) — 'fipe_curva_real' | 'linear_estimado' | null.
   final String? fonteDepreciacao;
+  // Fase TCO 3 (29/07/2026) — dias parados no período (soma de
+  // manutencoes_realizadas.dias_parado) e o custo correspondente.
+  final int diasParadoPeriodo;
   final bool tcoCompleto;
   final int totalCount;
   const VeiculoResumoTco({
@@ -32,6 +35,8 @@ class VeiculoResumoTco {
     this.custoDepreciacao,
     this.custoCapital,
     this.fonteDepreciacao,
+    this.custoDowntime,
+    required this.diasParadoPeriodo,
     required this.custoCombustivel,
     required this.custoManutencao,
     required this.custoMultas,
@@ -54,6 +59,8 @@ class VeiculoResumoTco {
         custoDepreciacao: (m['custo_depreciacao'] as num?)?.toDouble(),
         custoCapital: (m['custo_capital'] as num?)?.toDouble(),
         fonteDepreciacao: m['fonte_depreciacao'] as String?,
+        custoDowntime: (m['custo_downtime'] as num?)?.toDouble(),
+        diasParadoPeriodo: (m['dias_parado_periodo'] as num?)?.toInt() ?? 0,
         custoCombustivel: (m['custo_combustivel'] as num?)?.toDouble() ?? 0,
         custoManutencao: (m['custo_manutencao'] as num?)?.toDouble() ?? 0,
         custoMultas: (m['custo_multas'] as num?)?.toDouble() ?? 0,
@@ -98,10 +105,12 @@ class VeiculoDetalheTco {
   final String placa;
   final String? marca, modelo, centroCustoNome, dataAquisicao, codigoFipe;
   final int? anoFabricacao;
-  final double? valorAquisicao, valorResidualEstimado, valorFipe, kmPeriodo, custoPorKm, custoDepreciacao, custoCapital;
+  final double? valorAquisicao, valorResidualEstimado, valorFipe, kmPeriodo, custoPorKm, custoDepreciacao, custoCapital, custoDowntime;
   final double custoCombustivel, custoManutencao, custoMultas, custoOficinas, custoFixos, tcoTotal;
   // Fase TCO 2 (29/07/2026) — 'fipe_curva_real' | 'linear_estimado' | null.
   final String? fonteDepreciacao;
+  // Fase TCO 3 (29/07/2026) — dias parados no período.
+  final int diasParadoPeriodo;
   final bool tcoCompleto;
   const VeiculoDetalheTco({
     required this.placa,
@@ -119,6 +128,8 @@ class VeiculoDetalheTco {
     this.custoDepreciacao,
     this.custoCapital,
     this.fonteDepreciacao,
+    this.custoDowntime,
+    required this.diasParadoPeriodo,
     required this.custoCombustivel,
     required this.custoManutencao,
     required this.custoMultas,
@@ -143,6 +154,8 @@ class VeiculoDetalheTco {
         custoDepreciacao: (m['custo_depreciacao'] as num?)?.toDouble(),
         custoCapital: (m['custo_capital'] as num?)?.toDouble(),
         fonteDepreciacao: m['fonte_depreciacao'] as String?,
+        custoDowntime: (m['custo_downtime'] as num?)?.toDouble(),
+        diasParadoPeriodo: (m['dias_parado_periodo'] as num?)?.toInt() ?? 0,
         custoCombustivel: (m['custo_combustivel'] as num?)?.toDouble() ?? 0,
         custoManutencao: (m['custo_manutencao'] as num?)?.toDouble() ?? 0,
         custoMultas: (m['custo_multas'] as num?)?.toDouble() ?? 0,
