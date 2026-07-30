@@ -66,6 +66,7 @@ import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
 import '../../features/tco/screens/tco_screen.dart';
 import '../../features/tco/screens/tco_detalhe_screen.dart';
+import '../../features/indicadores_frota/screens/indicadores_frota_screen.dart';
 import '../../features/multas/screens/multas_screen.dart';
 import '../../features/multas/screens/nova_multa_screen.dart';
 import '../../features/multas/screens/multa_detalhe_screen.dart';
@@ -349,6 +350,8 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/tco/:placa',
               builder: (_, state) => TcoDetalheScreen(placa: state.pathParameters['placa']!),
             ),
+            // Fase Indicadores-da-Frota (30/07/2026).
+            GoRoute(path: '/indicadores-frota', builder: (_, __) => const IndicadoresFrotaScreen()),
             // Fase Onda-2 (benchmark TicketLog, item #4) — Gestão de Multas.
             GoRoute(path: '/multas', builder: (_, __) => const MultasScreen()),
             GoRoute(path: '/multas/nova', builder: (_, __) => const NovaMultaScreen()),

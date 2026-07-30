@@ -26,6 +26,9 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
   final _obsCtrl = TextEditingController();
   final _itensSelecionados = <String>{};
   final _fotosSelecionadas = <PlatformFile>[];
+  // Fase Indicadores-da-Frota (30/07/2026) — alimenta o KPI de proporção
+  // corretiva/preventiva (kpis_frota_resumo).
+  String? _tipoManutencao;
   bool _salvando = false;
   String? _erroForm;
   bool _sucessoForm = false;
@@ -85,6 +88,10 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
       setState(() => _erroForm = 'Selecione ao menos um item realizado.');
       return;
     }
+    if (_tipoManutencao == null) {
+      setState(() => _erroForm = 'Selecione o tipo: Preventiva ou Corretiva.');
+      return;
+    }
     final sessao = await ref.read(sessaoProvider.future);
     final empresaId = sessao.empresaId;
     if (empresaId == null) {
@@ -104,6 +111,7 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
         oficina: _oficinaCtrl.text.trim(),
         custoTotal: double.tryParse(_custoCtrl.text.replaceAll(',', '.')),
         diasParado: int.tryParse(_diasParadoCtrl.text.trim()),
+        tipo: _tipoManutencao,
         itensRealizados: _itensSelecionados.toList(),
         obsGerais: _obsCtrl.text.trim(),
         criadoPor: sessao.email,
@@ -132,6 +140,7 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
       setState(() {
         _itensSelecionados.clear();
         _fotosSelecionadas.clear();
+        _tipoManutencao = null;
         _sucessoForm = true;
         _erroForm = avisoFotos;
         _salvando = false;
@@ -467,6 +476,19 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
             ),
           ],
         ),
+        const SizedBox(height: 10),
+        // Fase Indicadores-da-Frota (30/07/2026) — sem valor padrão de
+        // propósito: força o técnico/gestor a classificar toda manutenção
+        // nova, pra alimentar o KPI de proporção corretiva/preventiva.
+        DropdownButtonFormField<String>(
+          value: _tipoManutencao,
+          decoration: const InputDecoration(labelText: 'Tipo *', border: OutlineInputBorder(), isDense: true),
+          items: const [
+            DropdownMenuItem(value: 'Preventiva', child: Text('Preventiva')),
+            DropdownMenuItem(value: 'Corretiva', child: Text('Corretiva')),
+          ],
+          onChanged: (v) => setState(() => _tipoManutencao = v),
+        ),
         const SizedBox(height: 14),
         const Text('Itens realizados *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
@@ -544,7 +566,29 @@ class _ManutencaoPreditivaDetalheScreenState extends ConsumerState<ManutencaoPre
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(r.dataManutencao ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  Row(
+                    children: [
+                      Text(r.dataManutencao ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                      if (r.tipo != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: r.tipo == 'Preventiva' ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            r.tipo!,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: r.tipo == 'Preventiva' ? const Color(0xFF047857) : const Color(0xFFB91C1C),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   Row(
                     children: [
                       if (r.custoTotal != null) Text('R\$ ${r.custoTotal!.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),

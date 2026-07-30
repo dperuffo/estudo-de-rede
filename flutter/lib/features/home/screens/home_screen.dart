@@ -198,6 +198,8 @@ class HomeScreen extends ConsumerWidget {
           _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
           _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
           _item(context, Icons.attach_money, 'TCO / Custo por Veículo', '/tco'),
+          // Fase Indicadores-da-Frota (30/07/2026) — Icons.speed = PWA: Gauge (web).
+          _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),
           // Fase Onda-2 (benchmark TicketLog, item #4) — ciclo de multas:
           // captura, indicação de condutor, histórico, prazo de desconto.
           _item(context, Icons.gavel, 'Multas', '/multas', badge: badges.multasPendentes),
