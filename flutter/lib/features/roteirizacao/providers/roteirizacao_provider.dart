@@ -472,9 +472,18 @@ class RoteirizacaoService {
     required String combustivel,
     double? combustivelInicialL,
     required PerfilPeso perfil,
+    // Fase Rotas-Alternativas (30/07/2026) — pedido do Daniel: "Aplicar este
+    // conceito no roteirizador do PWA Cliente" (mesmo seletor estilo Waze
+    // da web). O cliente busca as opções de rota primeiro
+    // (geo.buscarAlternativasRotaOsrm) e escolhe uma — essa rota já
+    // calculada é repassada aqui pra não reconsultar o OSRM (garante que o
+    // resultado usa EXATAMENTE a rota que ele viu e escolheu na tela). Se
+    // omitida (fluxo antigo, direto "Calcular"), busca a rota principal
+    // (mais rápida) na hora, igual sempre foi.
+    geo.ResultadoRota? rotaEscolhida,
   }) async {
     const raioCorredorKm = 5.0;
-    final rota = await geo.calcularRotaOsrm(origem, destino, paradas: paradas);
+    final rota = rotaEscolhida ?? await geo.calcularRotaOsrm(origem, destino, paradas: paradas);
     final acumuladas = geo.distanciasAcumuladas(rota.coordenadas);
     final margem = raioCorredorKm / 100;
     final boxesRota = geo.construirBoundingBoxesDaRota(rota.coordenadas, acumuladas, margem);

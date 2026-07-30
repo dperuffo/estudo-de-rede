@@ -97,6 +97,64 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
   String _perfilChave = perfisPeso.first.chave;
   ResultadoRoteirizacaoInteligente? _resultadoPlanejar;
 
+  // Fase Rotas-Alternativas (30/07/2026) — pedido do Daniel: "Aplicar este
+  // conceito no roteirizador do PWA Cliente" (mesmo seletor estilo Waze já
+  // implementado na web). `_alternativas` guarda as opções devolvidas pelo
+  // OSRM; `_rotaEscolhidaId` é a que o cliente selecionou pra usar no
+  // cálculo. Mudar origem/destino invalida a busca anterior (ver
+  // _limparAlternativas) — senão calcularia com uma rota que não
+  // corresponde mais aos pontos preenchidos.
+  List<geo.OpcaoRota>? _alternativas;
+  int? _rotaEscolhidaId;
+  bool _buscandoRotas = false;
+
+  void _limparAlternativas() {
+    setState(() {
+      _alternativas = null;
+      _rotaEscolhidaId = null;
+    });
+  }
+
+  Map<int, List<String>> get _rotulosAlternativas {
+    final alternativas = _alternativas;
+    if (alternativas == null || alternativas.length < 2) return {};
+    final maisRapida = alternativas.reduce((a, b) => a.duracaoMin < b.duracaoMin ? a : b);
+    final maisCurta = alternativas.reduce((a, b) => a.distanciaKm < b.distanciaKm ? a : b);
+    final mapa = <int, List<String>>{for (final op in alternativas) op.id: []};
+    mapa[maisRapida.id]!.add('🚀 Terminar mais rápido');
+    if (maisCurta.id != maisRapida.id) mapa[maisCurta.id]!.add('📏 Reduzir distâncias');
+    return mapa;
+  }
+
+  Future<void> _buscarRotas() async {
+    if (_origemSel == null || _destinoSel == null) {
+      setState(() => _erro = 'Escolha origem e destino nas sugestões de busca antes de ver as rotas.');
+      return;
+    }
+    setState(() {
+      _erro = null;
+      _buscandoRotas = true;
+    });
+    try {
+      final opcoes = await geo.buscarAlternativasRotaOsrm(
+        geo.Ponto(_origemSel!.lat, _origemSel!.lon),
+        geo.Ponto(_destinoSel!.lat, _destinoSel!.lon),
+      );
+      if (!mounted) return;
+      setState(() {
+        _alternativas = opcoes;
+        _rotaEscolhidaId = opcoes.isNotEmpty ? opcoes.first.id : null;
+        _buscandoRotas = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = 'Não consegui buscar as rotas agora. Tente de novo em instantes.';
+        _buscandoRotas = false;
+      });
+    }
+  }
+
   // Porta de onVeiculoSelecionado (FormRoteirizacao.tsx) — o campo
   // `combustivel` do veículo guarda o tipo de motor ("Diesel S10",
   // "Flex" etc.), não o produto vendido no posto. Resolve pra lista de
@@ -182,6 +240,16 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
 
     try {
       final perfil = perfisPeso.firstWhere((p) => p.chave == _perfilChave);
+      final alternativas = _alternativas;
+      geo.OpcaoRota? opcaoEscolhida;
+      if (alternativas != null) {
+        for (final op in alternativas) {
+          if (op.id == _rotaEscolhidaId) {
+            opcaoEscolhida = op;
+            break;
+          }
+        }
+      }
       final resultado = await RoteirizacaoService().calcularRoteirizacao(
         empresaId: empresaId,
         origem: geo.Ponto(_origemSel!.lat, _origemSel!.lon),
@@ -190,6 +258,14 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         autonomiaKmPorL: _veiculo!.autonomia!,
         combustivel: _combustivelEscolhido!,
         perfil: perfil,
+        rotaEscolhida: opcaoEscolhida == null
+            ? null
+            : geo.ResultadoRota(
+                coordenadas: opcaoEscolhida.coordenadas,
+                distanciaKm: opcaoEscolhida.distanciaKm,
+                duracaoMin: opcaoEscolhida.duracaoMin,
+                linhaReta: opcaoEscolhida.linhaReta,
+              ),
       );
       if (!mounted) return;
       setState(() {
@@ -557,6 +633,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           _origemSel = s;
           _origemCtrl.text = s.label;
           _sugestoesOrigem = [];
+          _limparAlternativas();
         }),
       ),
       const SizedBox(height: 10),
@@ -572,8 +649,11 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           _destinoSel = s;
           _destinoCtrl.text = s.label;
           _sugestoesDestino = [];
+          _limparAlternativas();
         }),
       ),
+      const SizedBox(height: 10),
+      ..._seletorRotas(),
       const SizedBox(height: 10),
       veiculosAsync.when(
         data: (veiculos) => DropdownButtonFormField<Veiculo>(
@@ -628,6 +708,96 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         child: FilledButton(onPressed: _buscando ? null : _planejar, child: const Text('Calcular roteiro')),
       ),
     ];
+  }
+
+  // Fase Rotas-Alternativas — seletor de rotas estilo Waze: mostra as
+  // opções devolvidas pelo OSRM (`_alternativas`) como cards selecionáveis.
+  // Antes de buscar, mostra um botão; com 1 opção só, avisa que não há
+  // alternativa; com 2+ opções, grade de cards clicáveis (rótulos "🚀
+  // Terminar mais rápido" / "📏 Reduzir distâncias" quando aplicável).
+  List<Widget> _seletorRotas() {
+    final alternativas = _alternativas;
+    final origemDestinoOk = _origemSel != null && _destinoSel != null;
+
+    if (alternativas == null) {
+      return [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: (!origemDestinoOk || _buscandoRotas) ? null : _buscarRotas,
+            icon: _buscandoRotas
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.alt_route, size: 18),
+            label: Text(_buscandoRotas ? 'Buscando rotas...' : '🔍 Ver opções de rota'),
+          ),
+        ),
+        if (!origemDestinoOk)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text('Escolha origem e destino nas sugestões de busca para ver as opções de rota.',
+                style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ),
+      ];
+    }
+
+    if (alternativas.length < 2) {
+      return const [
+        Padding(
+          padding: EdgeInsets.only(bottom: 4),
+          child: Text('Só encontrei uma opção de rota entre esses pontos.',
+              style: TextStyle(fontSize: 11, color: Colors.grey)),
+        ),
+      ];
+    }
+
+    final rotulos = _rotulosAlternativas;
+    return [
+      const Padding(
+        padding: EdgeInsets.only(bottom: 6),
+        child: Text('Escolha a rota:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      ),
+      GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1.9,
+        children: [
+          for (final op in alternativas) _cardOpcaoRota(op, rotulos[op.id] ?? const ['Alternativa ${op.id + 1}']),
+        ],
+      ),
+    ];
+  }
+
+  Widget _cardOpcaoRota(geo.OpcaoRota op, List<String> rotulos) {
+    final selecionada = _rotaEscolhidaId == op.id;
+    return InkWell(
+      onTap: () => setState(() => _rotaEscolhidaId = op.id),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: selecionada ? const Color(0xFF10B981).withOpacity(0.10) : null,
+          border: Border.all(color: selecionada ? const Color(0xFF10B981) : Colors.grey.shade300, width: selecionada ? 2 : 1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (final r in rotulos)
+              Text(r, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
+            if (rotulos.isEmpty || rotulos.first.startsWith('Alternativa'))
+              const SizedBox.shrink()
+            else
+              const SizedBox(height: 2),
+            Text('${op.distanciaKm.toStringAsFixed(0)} km · ${(op.duracaoMin / 60).toStringAsFixed(1)} h',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+          ],
+        ),
+      ),
+    );
   }
 
   List<Widget> _resultadosPlanejar() {

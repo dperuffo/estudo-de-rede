@@ -229,6 +229,81 @@ Future<ResultadoRota> calcularRotaOsrm(Ponto origem, Ponto destino, {List<Ponto>
   );
 }
 
+// Fase Rotas-Alternativas (30/07/2026) — porta de buscarAlternativasRotaOsrm
+// (src/lib/geo.ts), pedido do Daniel: "Aplicar este conceito no roteirizador
+// do PWA Cliente". Igual à web: pede alternatives=true ao OSRM e devolve
+// TODAS as rotas encontradas (não escolhe nenhuma) — quem decide é a tela,
+// mostrando km/tempo de cada uma pro cliente escolher, estilo Waze.
+class OpcaoRota {
+  final int id;
+  final List<Ponto> coordenadas;
+  final double distanciaKm;
+  final double duracaoMin;
+  final bool linhaReta;
+  const OpcaoRota({
+    required this.id,
+    required this.coordenadas,
+    required this.distanciaKm,
+    required this.duracaoMin,
+    required this.linhaReta,
+  });
+}
+
+Future<List<OpcaoRota>> buscarAlternativasRotaOsrm(Ponto origem, Ponto destino, {List<Ponto> paradas = const []}) async {
+  final pontos = [origem, ...paradas, destino];
+  final coordsStr = pontos.map((p) => '${p.lon},${p.lat}').join(';');
+
+  for (final servidor in _osrmServidores) {
+    try {
+      final url = '$servidor/$coordsStr';
+      final resp = await _dio.get(
+        url,
+        queryParameters: {'overview': 'full', 'geometries': 'geojson', 'alternatives': 'true'},
+        options: Options(sendTimeout: const Duration(seconds: 12), receiveTimeout: const Duration(seconds: 12)),
+      );
+      final rotas = resp.data['routes'] as List?;
+      if (rotas == null || rotas.isEmpty) continue;
+
+      final opcoes = <OpcaoRota>[];
+      for (var i = 0; i < rotas.length; i++) {
+        final rota = rotas[i] as Map<String, dynamic>;
+        final coords = (rota['geometry']['coordinates'] as List)
+            .map((c) => Ponto((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+            .toList();
+        final distanciaKm = ((rota['distance'] as num) / 1000 * 10).round() / 10;
+        final duracaoMin = ((rota['duration'] as num) / 60).round().toDouble();
+        opcoes.add(OpcaoRota(id: i, coordenadas: coords, distanciaKm: distanciaKm, duracaoMin: duracaoMin, linhaReta: false));
+      }
+
+      // Descarta "alternativas" praticamente idênticas à principal (mesmo
+      // critério da web) — não ajudam o cliente a decidir nada.
+      final distintas = <OpcaoRota>[];
+      for (final op in opcoes) {
+        final duplicada = distintas.any(
+          (v) => (v.distanciaKm - op.distanciaKm).abs() < 1 && (v.duracaoMin - op.duracaoMin).abs() < 2,
+        );
+        if (!duplicada) distintas.add(op);
+      }
+      return distintas;
+    } catch (_) {
+      continue;
+    }
+  }
+
+  // Fallback: OSRM indisponível — mesma linha reta de calcularRotaOsrm,
+  // como opção única (tela pula o seletor nesse caso).
+  final linhaReta = await calcularRotaOsrm(origem, destino, paradas: paradas);
+  return [
+    OpcaoRota(
+      id: 0,
+      coordenadas: linhaReta.coordenadas,
+      distanciaKm: linhaReta.distanciaKm,
+      duracaoMin: linhaReta.duracaoMin,
+      linhaReta: linhaReta.linhaReta,
+    ),
+  ];
+}
+
 extension _FirstOrNull<T> on List<T> {
   T? get firstOrNull => isEmpty ? null : first;
 }
