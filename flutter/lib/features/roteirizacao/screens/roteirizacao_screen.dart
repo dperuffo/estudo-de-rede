@@ -810,7 +810,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           rota: resultado.coordenadas,
           paradas: resultado.paradas,
           pracasPedagio: resultado.pracasPedagio,
-          height: 320,
+          height: 460,
         ),
         const SizedBox(height: 10),
       ];
@@ -822,7 +822,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
           postos: const [],
           rotasAlternativas: alternativas,
           rotaSelecionadaId: _rotaEscolhidaId,
-          height: 220,
+          height: 320,
         ),
         const SizedBox(height: 10),
       ];
