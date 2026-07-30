@@ -93,13 +93,28 @@ class Inspecao {
   final String dataInspecao;
   final double? hodometro;
   final String? responsavel;
+  // Fase Inspeção-pelo-Motorista (30/07/2026) — 'motorista' vem do app
+  // Estrada que Cuida (checklist feito rotineiramente pelo próprio
+  // motorista); 'gestor' é o registrado por aqui/pelo painel web.
+  final String? origem;
+  final String? motoristaNome;
   final List<ItemInspecao> itens;
-  const Inspecao({required this.id, required this.dataInspecao, this.hodometro, this.responsavel, required this.itens});
+  const Inspecao({
+    required this.id,
+    required this.dataInspecao,
+    this.hodometro,
+    this.responsavel,
+    this.origem,
+    this.motoristaNome,
+    required this.itens,
+  });
   factory Inspecao.fromMap(Map<String, dynamic> m) => Inspecao(
         id: (m['id'] as num).toInt(),
         dataInspecao: m['data_inspecao'] as String,
         hodometro: (m['hodometro'] as num?)?.toDouble(),
         responsavel: m['responsavel'] as String?,
+        origem: m['origem'] as String?,
+        motoristaNome: (m['motoristas'] as Map<String, dynamic>?)?['nome_completo'] as String?,
         itens: ((m['inspecoes_veiculos_itens'] as List?) ?? [])
             .map((i) => ItemInspecao.fromMap(i as Map<String, dynamic>))
             .toList(),
@@ -110,7 +125,7 @@ final inspecoesVeiculoProvider = FutureProvider.autoDispose.family<List<Inspecao
   final rows = await SupabaseService.client
       .from('inspecoes_veiculos')
       .select(
-          'id, data_inspecao, hodometro, responsavel, criado_por, inspecoes_veiculos_itens(id, item, critico, conforme, observacao, resolvido_em, resolvido_por)')
+          'id, data_inspecao, hodometro, responsavel, criado_por, origem, motoristas(nome_completo), inspecoes_veiculos_itens(id, item, critico, conforme, observacao, resolvido_em, resolvido_por)')
       .eq('placa', placa)
       .order('data_inspecao', ascending: false)
       .limit(50) as List;

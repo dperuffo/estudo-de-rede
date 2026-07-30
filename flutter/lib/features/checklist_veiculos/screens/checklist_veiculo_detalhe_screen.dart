@@ -244,10 +244,21 @@ class _ChecklistVeiculoDetalheScreenState extends ConsumerState<ChecklistVeiculo
                   ],
                   ...inspecoes.map((insp) {
                     final naoConformes = insp.itens.where((it) => !it.conforme).length;
+                    // Fase Inspeção-pelo-Motorista (30/07/2026) — pedido do
+                    // Daniel: "manutenção do histórico na visao do cliente"
+                    // mostrando se a inspeção veio do motorista (app Estrada
+                    // que Cuida) ou do gestor (aqui/painel web).
+                    final ehMotorista = insp.origem == 'motorista';
                     return ExpansionTile(
                       title: Text(
                         '${_fmtData(insp.dataInspecao)}${insp.hodometro != null ? ' · ${insp.hodometro!.round()} km' : ''}',
                         style: const TextStyle(fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        ehMotorista
+                            ? 'Motorista${insp.motoristaNome != null ? ' · ${insp.motoristaNome}' : ''}'
+                            : 'Gestor${insp.responsavel != null ? ' · ${insp.responsavel}' : ''}',
+                        style: TextStyle(fontSize: 11, color: ehMotorista ? const Color(0xFF1D4ED8) : const Color(0xFF64748B)),
                       ),
                       trailing: naoConformes > 0
                           ? Text('$naoConformes não conforme(s)', style: const TextStyle(fontSize: 10, color: Color(0xFF991B1B)))

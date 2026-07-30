@@ -30,6 +30,7 @@ class ChecklistVeiculosService {
           'hodometro': hodometro,
           'responsavel': responsavel,
           'criado_por': criadoPor,
+          'origem': 'gestor',
         })
         .select('id')
         .single();
