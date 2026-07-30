@@ -765,7 +765,7 @@ class _RoteirizacaoScreenState extends ConsumerState<RoteirizacaoScreen> {
         crossAxisSpacing: 8,
         childAspectRatio: 1.9,
         children: [
-          for (final op in alternativas) _cardOpcaoRota(op, rotulos[op.id] ?? const ['Alternativa ${op.id + 1}']),
+          for (final op in alternativas) _cardOpcaoRota(op, rotulos[op.id] ?? ['Alternativa ${op.id + 1}']),
         ],
       ),
     ];
