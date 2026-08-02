@@ -58,10 +58,17 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
     final sessao = ref.watch(sessaoProvider).valueOrNull;
     final empresaAtualId = sessao?.empresaId;
     final ehAdmin = sessao?.ehAdmin ?? false;
+    // Achado real (02/08/2026, reportado pelo Daniel) — o "else" cobria dois
+    // perfis bem diferentes (posto e cliente de frota) com o mesmo texto de
+    // posto/Rede de Postos. Vira checagem de 3 vias usando os getters já
+    // resolvidos em SessaoUsuario (não depende de `segmento`, que só é
+    // preenchido quando o usuário tem 1 única empresa — ver AuthService.
+    // carregarSessao — e por isso não daria pra usar aqui, no caso de 2+).
+    final ehPosto = sessao?.ehPosto ?? false;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(ehAdmin ? 'Selecione o cliente' : 'Selecione o posto'),
+        title: Text(ehAdmin ? 'Selecione o cliente' : (ehPosto ? 'Selecione o posto' : 'Selecione a empresa')),
         leading: context.canPop()
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop())
             : null,
@@ -80,8 +87,11 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
               Text(
                 ehAdmin
                     ? 'Escolha qual cliente você quer visualizar. Dá pra trocar a qualquer momento pelo menu.'
-                    : 'Seu usuário está vinculado a mais de um posto (Rede de Postos). '
-                        'Escolha com qual posto você quer trabalhar agora.',
+                    : ehPosto
+                        ? 'Seu usuário está vinculado a mais de um posto (Rede de Postos). '
+                            'Escolha com qual posto você quer trabalhar agora.'
+                        : 'Seu usuário está vinculado a mais de uma empresa (Grupo Econômico). '
+                            'Escolha com qual empresa você quer trabalhar agora.',
                 style: const TextStyle(color: Colors.grey, fontSize: 13),
               ),
               const SizedBox(height: 12),
@@ -111,7 +121,9 @@ class _SelecionarEmpresaScreenState extends ConsumerState<SelecionarEmpresaScree
                   color: atual ? const Color(0xFFEFF6FF) : null,
                   child: ListTile(
                     title: Text(e.nome, style: TextStyle(fontWeight: atual ? FontWeight.bold : FontWeight.normal)),
-                    subtitle: atual ? Text(ehAdmin ? 'Cliente atual' : 'Posto atual', style: const TextStyle(color: Color(0xFF1D4ED8))) : null,
+                    subtitle: atual
+                        ? Text(ehAdmin ? 'Cliente atual' : (ehPosto ? 'Posto atual' : 'Empresa atual'), style: const TextStyle(color: Color(0xFF1D4ED8)))
+                        : null,
                     trailing: atual ? const Icon(Icons.check_circle, color: Color(0xFF1D4ED8)) : const Icon(Icons.chevron_right),
                     onTap: atual
                         ? null

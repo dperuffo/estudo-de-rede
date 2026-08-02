@@ -57,15 +57,22 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
     );
   }
 
+  // Fase relatorios-mais-dimensoes (porte 02/08/2026) — antes um switch com
+  // só 3 casos; virou mapa fonte->lista pra escalar às 9 fontes sem crescer
+  // indefinidamente (mesmo espírito de dadosPorFonte em RelatoriosPersonalizados.tsx).
   List<Object> _dadosBase(RelatoriosBrutos brutos) {
-    switch (_fonte) {
-      case 'manutencao':
-        return brutos.manutencoes.cast<Object>();
-      case 'custos_fixos':
-        return brutos.custosFixos.cast<Object>();
-      default:
-        return brutos.abastecimentos.cast<Object>();
-    }
+    final Map<String, List<Object>> dadosPorFonte = {
+      'abastecimentos': brutos.abastecimentos.cast<Object>(),
+      'manutencao': brutos.manutencoes.cast<Object>(),
+      'custos_fixos': brutos.custosFixos.cast<Object>(),
+      'notas_fiscais': brutos.notasFiscais.cast<Object>(),
+      'fretes': brutos.fretes.cast<Object>(),
+      'financeiro': brutos.financeiro.cast<Object>(),
+      'acoes_sugeridas': brutos.acoesSugeridas.cast<Object>(),
+      'chamados': brutos.chamados.cast<Object>(),
+      'avaliacoes': brutos.avaliacoes.cast<Object>(),
+    };
+    return dadosPorFonte[_fonte] ?? brutos.abastecimentos.cast<Object>();
   }
 
   Widget _conteudo(RelatoriosBrutos brutos) {
@@ -108,6 +115,12 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
             DropdownMenuItem(value: 'abastecimentos', child: Text('⛽ Abastecimentos')),
             DropdownMenuItem(value: 'manutencao', child: Text('🔧 Manutenção')),
             DropdownMenuItem(value: 'custos_fixos', child: Text('💰 Custos Fixos')),
+            DropdownMenuItem(value: 'notas_fiscais', child: Text('🧾 Notas Fiscais')),
+            DropdownMenuItem(value: 'fretes', child: Text('🚚 Fretes')),
+            DropdownMenuItem(value: 'financeiro', child: Text('🏦 Financeiro (Receber/Pagar)')),
+            DropdownMenuItem(value: 'acoes_sugeridas', child: Text('💡 Ações Sugeridas')),
+            DropdownMenuItem(value: 'chamados', child: Text('🎫 Chamados')),
+            DropdownMenuItem(value: 'avaliacoes', child: Text('⭐ Avaliações')),
           ],
           onChanged: (v) => _trocarFonte(v ?? _fonte),
         ),
@@ -164,7 +177,7 @@ class _RelatoriosScreenState extends ConsumerState<RelatoriosScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text(
-              'Nenhum dado de ${_fonte == 'abastecimentos' ? 'abastecimento' : _fonte == 'manutencao' ? 'manutenção' : 'custo fixo'} '
+              'Nenhum dado de ${fonteLabel[_fonte] ?? _fonte} '
               'encontrado no período (últimos 12 meses${_fonte == 'custos_fixos' ? ', e também os próximos 12' : ''}).',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
