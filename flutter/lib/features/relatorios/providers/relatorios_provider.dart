@@ -345,7 +345,10 @@ final relatoriosBrutosProvider = FutureProvider.autoDispose<RelatoriosBrutos>((r
   );
 });
 
-// Porta de TIPO_CUSTO_FIXO_LABEL (src/lib/financeiro.ts).
+// Porta de TIPO_CUSTO_FIXO_LABEL (src/lib/financeiro.ts). 'frete' fica de
+// fora de propósito (não existe fonte "fretes" só de custo fixo no
+// Flutter ainda). 'diarias_viagem' adicionado 02/08/2026 junto com o
+// trigger trg_lancar_diarias_viagem_financeiro (ver financeiro.ts na web).
 const tipoCustoFixoLabel = {
   'seguro': 'Seguro',
   'ipva': 'IPVA',
@@ -353,6 +356,7 @@ const tipoCustoFixoLabel = {
   'rastreamento': 'Rastreamento',
   'multa': 'Multa',
   'pedagio': 'Pedágio',
+  'diarias_viagem': 'Diárias de viagem',
   'outro': 'Outro',
 };
 
