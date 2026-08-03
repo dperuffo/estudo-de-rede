@@ -204,6 +204,11 @@ class HomeScreen extends ConsumerWidget {
           // combustível ideal por veículo/região.
           _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
           _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
+          // Fase Grupo 1 Rodopar item 2 (03/08/2026, benchmark FNI vs
+          // Rodopar/Datapar) — Icons.inventory_2 = PWA: Boxes (web).
+          // Catálogo de peças com saldo/custo médio calculado a partir de um
+          // ledger imutável, integrado à Manutenção (vincula saída à OS).
+          _item(context, Icons.inventory_2, 'Estoque de Peças', '/estoque-pecas'),
           _item(context, Icons.attach_money, 'TCO / Custo por Veículo', '/tco'),
           // Fase Indicadores-da-Frota (30/07/2026) — Icons.speed = PWA: Gauge (web).
           _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),

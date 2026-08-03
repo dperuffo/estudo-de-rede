@@ -64,6 +64,9 @@ import '../../features/grupo_economico_admin/screens/novo_grupo_economico_admin_
 import '../../features/clientes_admin/screens/clientes_admin_lista_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_screen.dart';
 import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe_screen.dart';
+import '../../features/estoque_pecas/screens/estoque_pecas_screen.dart';
+import '../../features/estoque_pecas/screens/nova_peca_screen.dart';
+import '../../features/estoque_pecas/screens/peca_detalhe_screen.dart';
 import '../../features/tco/screens/tco_screen.dart';
 import '../../features/tco/screens/tco_detalhe_screen.dart';
 import '../../features/indicadores_frota/screens/indicadores_frota_screen.dart';
@@ -350,6 +353,11 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               path: '/manutencao-preditiva/:placa',
               builder: (_, state) => ManutencaoPreditivaDetalheScreen(placa: state.pathParameters['placa']!),
             ),
+            // Fase Grupo 1 Rodopar item 2 (03/08/2026, benchmark FNI vs
+            // Rodopar/Datapar) — Estoque de Peças na Manutenção.
+            GoRoute(path: '/estoque-pecas', builder: (_, __) => const EstoquePecasScreen()),
+            GoRoute(path: '/estoque-pecas/nova', builder: (_, __) => const NovaPecaScreen()),
+            GoRoute(path: '/estoque-pecas/:id', builder: (_, state) => PecaDetalheScreen(id: state.pathParameters['id']!)),
             // Fase TCO (29/07/2026) — Custo Total de Propriedade por veículo.
             GoRoute(path: '/tco', builder: (_, __) => const TcoScreen()),
             GoRoute(
