@@ -184,6 +184,13 @@ class HomeScreen extends ConsumerWidget {
           // /antifraude continua registrada em app_router.dart.
           _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
           _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
+          // Fase Torre-de-Controle-Leve (03/08/2026, benchmark FNI vs KMM,
+          // Grupo 1 item 1) — Icons.radar = PWA: Radar (web).
+          _item(context, Icons.radar, 'Torre de Controle', '/torre-de-controle'),
+          // Fase Programacao-Frota (03/08/2026, benchmark FNI vs
+          // Rodopar/Datapar, Grupo 1 item 1) — Icons.calendar_month = PWA:
+          // CalendarClock (web).
+          _item(context, Icons.calendar_month, 'Programação', '/programacao'),
           // Fase Financeiro-ERP (26/07/2026, pedido do Daniel) — "Aba de
           // Piso mínimo ANTT tem que estar na visão do cliente, web e PWA".
           _item(context, Icons.price_check, 'Piso Mínimo ANTT', '/pisos-antt'),

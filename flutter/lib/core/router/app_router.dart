@@ -67,6 +67,8 @@ import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe
 import '../../features/tco/screens/tco_screen.dart';
 import '../../features/tco/screens/tco_detalhe_screen.dart';
 import '../../features/indicadores_frota/screens/indicadores_frota_screen.dart';
+import '../../features/torre_de_controle/screens/torre_de_controle_screen.dart';
+import '../../features/programacao_frota/screens/programacao_frota_screen.dart';
 import '../../features/multas/screens/multas_screen.dart';
 import '../../features/multas/screens/nova_multa_screen.dart';
 import '../../features/multas/screens/multa_detalhe_screen.dart';
@@ -424,6 +426,10 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
               builder: (_, state) => FreteDetalheScreen(freteId: state.pathParameters['id']!),
             ),
             GoRoute(path: '/motoristas-parceiros', builder: (_, __) => const MotoristasParceirosScreen()),
+            // Fase Torre-de-Controle-Leve + Programacao-Frota (03/08/2026,
+            // benchmark FNI vs KMM/Rodopar) — porta das telas web equivalentes.
+            GoRoute(path: '/torre-de-controle', builder: (_, __) => const TorreDeControleScreen()),
+            GoRoute(path: '/programacao', builder: (_, __) => const ProgramacaoFrotaScreen()),
           ],
         ),
 
