@@ -214,6 +214,10 @@ class HomeScreen extends ConsumerWidget {
           // ledger imutável, integrado à Manutenção (vincula saída à OS).
           _item(context, Icons.inventory_2, 'Estoque de Peças', '/estoque-pecas'),
           _item(context, Icons.attach_money, 'TCO / Custo por Veículo', '/tco'),
+          // Fase Grupo 2 (Rodopar, item 6, 03/08/2026) — Icons.account_balance
+          // = PWA: Landmark (web). Depreciação contábil linha reta + correções
+          // do ativo (reavaliação/melhoria/baixa).
+          _item(context, Icons.account_balance, 'Patrimônio', '/patrimonio'),
           // Fase Indicadores-da-Frota (30/07/2026) — Icons.speed = PWA: Gauge (web).
           _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),
           // Fase Indicadores-da-Frota C (30/07/2026) — Icons.fact_check =

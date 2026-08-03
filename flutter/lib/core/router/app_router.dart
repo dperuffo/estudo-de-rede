@@ -73,6 +73,8 @@ import '../../features/crm_comercial/screens/cliente_crm_detalhe_screen.dart';
 import '../../features/crm_comercial/screens/editar_cliente_crm_screen.dart';
 import '../../features/tco/screens/tco_screen.dart';
 import '../../features/tco/screens/tco_detalhe_screen.dart';
+import '../../features/patrimonio/screens/patrimonio_screen.dart';
+import '../../features/patrimonio/screens/patrimonio_detalhe_screen.dart';
 import '../../features/indicadores_frota/screens/indicadores_frota_screen.dart';
 import '../../features/torre_de_controle/screens/torre_de_controle_screen.dart';
 import '../../features/programacao_frota/screens/programacao_frota_screen.dart';
@@ -374,6 +376,13 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(
               path: '/tco/:placa',
               builder: (_, state) => TcoDetalheScreen(placa: state.pathParameters['placa']!),
+            ),
+            // Fase Grupo 2 (Rodopar, item 6, 03/08/2026) — Patrimônio formal
+            // (depreciação contábil linha reta + correções do ativo).
+            GoRoute(path: '/patrimonio', builder: (_, __) => const PatrimonioScreen()),
+            GoRoute(
+              path: '/patrimonio/:placa',
+              builder: (_, state) => PatrimonioDetalheScreen(placa: state.pathParameters['placa']!),
             ),
             // Fase Indicadores-da-Frota (30/07/2026).
             GoRoute(path: '/indicadores-frota', builder: (_, __) => const IndicadoresFrotaScreen()),
