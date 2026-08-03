@@ -74,3 +74,56 @@ final torreDeControleProvider = FutureProvider.autoDispose<List<FreteAndamento>>
   }) as List;
   return rows.map((r) => FreteAndamento.fromMap(r as Map<String, dynamic>)).toList();
 });
+
+// Fase Grupo 2 (Rodopar/Datapar, item 4, 03/08/2026) — mapa ao vivo,
+// alimentado pelo endpoint GENÉRICO de ingestão GPS
+// (/api/integracoes/gps, escopo gps:write) — qualquer sistema de
+// rastreamento (Sascar, Positron, Onixsat, Autotrac ou outro) que o
+// cliente conectar. Porta de torre-de-controle/page.tsx (web).
+class PosicaoVeiculo {
+  final String placa;
+  final double lat;
+  final double lon;
+  final double? velocidadeKmh;
+  final DateTime timestampGps;
+  final String? provedor;
+
+  const PosicaoVeiculo({
+    required this.placa,
+    required this.lat,
+    required this.lon,
+    this.velocidadeKmh,
+    required this.timestampGps,
+    this.provedor,
+  });
+
+  factory PosicaoVeiculo.fromMap(Map<String, dynamic> m) => PosicaoVeiculo(
+        placa: m['placa'] as String,
+        lat: (m['lat'] as num).toDouble(),
+        lon: (m['lon'] as num).toDouble(),
+        velocidadeKmh: (m['velocidade_kmh'] as num?)?.toDouble(),
+        timestampGps: DateTime.parse(m['timestamp_gps'] as String),
+        provedor: m['provedor'] as String?,
+      );
+}
+
+final posicoesVeiculosProvider = FutureProvider.autoDispose<List<PosicaoVeiculo>>((ref) async {
+  final sessao = await ref.watch(sessaoProvider.future);
+  final empresaId = sessao.empresaId;
+  if (empresaId == null) return [];
+  final rows = await SupabaseService.client
+      .from('veiculos_posicoes')
+      .select('placa, lat, lon, velocidade_kmh, timestamp_gps, provedor')
+      .eq('empresa_id', empresaId)
+      .order('timestamp_gps', ascending: false)
+      .limit(500) as List;
+
+  // Última posição por placa — mesmo dedupe em memória da web (sem
+  // DISTINCT ON via PostgREST).
+  final ultimaPorPlaca = <String, PosicaoVeiculo>{};
+  for (final r in rows) {
+    final p = PosicaoVeiculo.fromMap(r as Map<String, dynamic>);
+    ultimaPorPlaca.putIfAbsent(p.placa, () => p);
+  }
+  return ultimaPorPlaca.values.toList();
+});

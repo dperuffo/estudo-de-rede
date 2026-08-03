@@ -194,6 +194,10 @@ class HomeScreen extends ConsumerWidget {
           // Fase Financeiro-ERP (26/07/2026, pedido do Daniel) — "Aba de
           // Piso mínimo ANTT tem que estar na visão do cliente, web e PWA".
           _item(context, Icons.price_check, 'Piso Mínimo ANTT', '/pisos-antt'),
+          // Fase Grupo 2 (Rodopar/Datapar, item 5, 03/08/2026) —
+          // Icons.work_outline = PWA: Briefcase (web). Carteira de clientes
+          // + funil de propostas (lê cotacoes) + histórico de relacionamento.
+          _item(context, Icons.work_outline, 'CRM Comercial', '/crm-comercial'),
           _item(context, Icons.handshake_outlined, 'Motoristas Parceiros', '/motoristas-parceiros'),
           _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
           _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),

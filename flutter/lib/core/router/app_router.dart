@@ -67,6 +67,10 @@ import '../../features/manutencao_preditiva/screens/manutencao_preditiva_detalhe
 import '../../features/estoque_pecas/screens/estoque_pecas_screen.dart';
 import '../../features/estoque_pecas/screens/nova_peca_screen.dart';
 import '../../features/estoque_pecas/screens/peca_detalhe_screen.dart';
+import '../../features/crm_comercial/screens/crm_clientes_screen.dart';
+import '../../features/crm_comercial/screens/novo_cliente_crm_screen.dart';
+import '../../features/crm_comercial/screens/cliente_crm_detalhe_screen.dart';
+import '../../features/crm_comercial/screens/editar_cliente_crm_screen.dart';
 import '../../features/tco/screens/tco_screen.dart';
 import '../../features/tco/screens/tco_detalhe_screen.dart';
 import '../../features/indicadores_frota/screens/indicadores_frota_screen.dart';
@@ -358,6 +362,13 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             GoRoute(path: '/estoque-pecas', builder: (_, __) => const EstoquePecasScreen()),
             GoRoute(path: '/estoque-pecas/nova', builder: (_, __) => const NovaPecaScreen()),
             GoRoute(path: '/estoque-pecas/:id', builder: (_, state) => PecaDetalheScreen(id: state.pathParameters['id']!)),
+            // Fase Grupo 2 (Rodopar/Datapar, item 5, 03/08/2026) — CRM
+            // Comercial: carteira de clientes-tomadores + funil de propostas
+            // (lê cotacoes) + histórico de relacionamento.
+            GoRoute(path: '/crm-comercial', builder: (_, __) => const CrmClientesScreen()),
+            GoRoute(path: '/crm-comercial/novo', builder: (_, __) => const NovoClienteCrmScreen()),
+            GoRoute(path: '/crm-comercial/:id', builder: (_, state) => ClienteCrmDetalheScreen(id: state.pathParameters['id']!)),
+            GoRoute(path: '/crm-comercial/:id/editar', builder: (_, state) => EditarClienteCrmScreen(clienteId: state.pathParameters['id']!)),
             // Fase TCO (29/07/2026) — Custo Total de Propriedade por veículo.
             GoRoute(path: '/tco', builder: (_, __) => const TcoScreen()),
             GoRoute(

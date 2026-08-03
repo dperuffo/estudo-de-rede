@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/torre_de_controle_provider.dart';
+import 'mapa_veiculos.dart';
 
 final _dataHora = DateFormat('dd/MM HH:mm');
 
@@ -39,13 +40,17 @@ class TorreDeControleScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fretesAsync = ref.watch(torreDeControleProvider);
+    final posicoesAsync = ref.watch(posicoesVeiculosProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Torre de Controle')),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(torreDeControleProvider),
+        onRefresh: () async {
+          ref.invalidate(torreDeControleProvider);
+          ref.invalidate(posicoesVeiculosProvider);
+        },
         child: fretesAsync.when(
-          data: (fretes) => _corpo(context, fretes),
+          data: (fretes) => _corpo(context, fretes, posicoesAsync.value ?? const []),
           loading: () => ListView(children: const [
             SizedBox(height: 120),
             Center(child: CircularProgressIndicator()),
@@ -59,7 +64,7 @@ class TorreDeControleScreen extends ConsumerWidget {
     );
   }
 
-  Widget _corpo(BuildContext context, List<FreteAndamento> fretes) {
+  Widget _corpo(BuildContext context, List<FreteAndamento> fretes, List<PosicaoVeiculo> posicoes) {
     final totalVencendo = fretes.where((f) => f.vencendoEmBreve).length;
     final totalAtrasados = fretes.where((f) => f.atrasado).length;
     final totalPanico = fretes.where((f) => f.tevePanico).length;
@@ -67,11 +72,19 @@ class TorreDeControleScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
+        Text(
           'Visão única dos fretes em andamento agora, com o último checkpoint registrado pelo motorista e alerta '
-          'de prazo. Não é rastreamento por GPS — é baseado nos eventos que o motorista confirma no app.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          'de prazo. Não é rastreamento por GPS — é baseado nos eventos que o motorista confirma no app.'
+          '${posicoes.isEmpty ? ' Se você conectar um sistema de rastreamento (qualquer provedor) em Integrações, um mapa ao vivo aparece aqui também.' : ''}',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
+        if (posicoes.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Mapa ao vivo (${posicoes.length} veículo${posicoes.length == 1 ? '' : 's'})',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          const SizedBox(height: 8),
+          MapaVeiculos(posicoes: posicoes),
+        ],
         const SizedBox(height: 16),
         Row(
           children: [
