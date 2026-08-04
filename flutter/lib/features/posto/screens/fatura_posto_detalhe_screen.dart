@@ -49,7 +49,13 @@ class FaturaPostoDetalheScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Fatura'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        // Fase Botão-Voltar (04/08/2026) — guard de canPop(). Sem lista
+        // própria `/posto/faturas` (a fatura só é alcançada a partir de um
+        // card dentro de /posto/financeiro), então o fallback é essa tela.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/posto/financeiro'),
+        ),
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),

@@ -58,7 +58,11 @@ class PostoCobrancaDetalheScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(postoNome),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        // Fase Botão-Voltar (04/08/2026) — guard de canPop().
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/financeiro'),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

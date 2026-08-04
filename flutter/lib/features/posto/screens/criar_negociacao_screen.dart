@@ -121,7 +121,13 @@ class _CriarNegociacaoScreenState extends ConsumerState<CriarNegociacaoScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nova negociação'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        // Fase Botão-Voltar (04/08/2026) — guard de canPop() (padrão já usado
+        // em cliente_posto_detalhe_screen.dart): sem isso, deep link/refresh
+        // do PWA direto nesta rota deixava o botão sem nada pra dar pop.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/posto/negociacoes'),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),

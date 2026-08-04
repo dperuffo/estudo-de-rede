@@ -169,7 +169,11 @@ class _NegociacaoDetalheScreenState extends ConsumerState<NegociacaoDetalheScree
     return Scaffold(
       appBar: AppBar(
         title: const Text('Negociação'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        // Fase Botão-Voltar (04/08/2026) — guard de canPop().
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/posto/negociacoes'),
+        ),
       ),
       body: detalheAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

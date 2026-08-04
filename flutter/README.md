@@ -1982,3 +1982,46 @@ mesmo caso das fases anteriores); revisão manual completa dos dois shells linha
 conferidos direto no Postgres via `pg_get_function_arguments`); RPCs testadas end-to-end no
 banco (pin manual sempre primeiro, frecência ordenando o resto, `search_path` fixo, RLS
 ativo) antes de portar — mesmos testes já feitos pro lado web.
+
+## Fase Botão-Voltar (04/08/2026)
+
+Pedido do Daniel: "dar continuidade no botão voltar nas telas" (mesma fase feita no app web
+irmão, onde cada `page.tsx` de detalhe precisou de um componente `BotaoVoltar` novo — Next.js
+não tem navegação "voltar" nativa embutida na página). Investigação prévia mostrou que aqui a
+lógica é bem diferente: os dois apps (Cliente+Posto neste repo, Motorista em
+`estrada-que-cuida`) usam **go_router** em 100% das rotas, e o Material já desenha
+automaticamente uma seta "← voltar" no `AppBar` de qualquer tela alcançada via navegação —
+não havia nada de fato faltando na maioria das ~85 telas de detalhe dos 3 perfis.
+
+O problema real, achado em 10 telas do lado Cliente+Posto, era mais sutil: o `leading:` do
+`AppBar` tinha `onPressed: () => context.pop()` sem checar se havia algo pra dar pop —
+funciona bem quando a tela foi alcançada navegando dentro do app, mas quebra (ou some o botão)
+se o usuário chega direto nela por deep link ou dá refresh no PWA (comum no navegador, sem pilha
+de navegação nenhuma por trás). O padrão correto já existia em
+`lib/features/posto/screens/cliente_posto_detalhe_screen.dart`:
+
+```dart
+onPressed: () => context.canPop() ? context.pop() : context.go('/posto/clientes'),
+```
+
+Replicado, com o fallback correto pra cada tela (a rota-lista pai, conferida direto em
+`lib/core/router/app_router.dart`), nos 10 arquivos que tinham o bug:
+`posto/criar_negociacao_screen.dart` (→ `/posto/negociacoes`),
+`posto/ciclo_aberto_detalhe_screen.dart` (→ `/posto/financeiro`, não tem lista própria),
+`posto/chamado_detalhe_screen.dart` (→ `/posto/chamados`),
+`posto/abastecimento_detalhe_screen.dart` (→ `/posto/abastecimentos`),
+`posto/negociacao_detalhe_screen.dart` (→ `/posto/negociacoes`),
+`posto/fatura_posto_detalhe_screen.dart` (→ `/posto/financeiro`, idem),
+`financeiro/fatura_detalhe_screen.dart` (→ `/financeiro`),
+`financeiro/ciclo_aberto_detalhe_screen.dart` (→ `/financeiro`),
+`financeiro/posto_cobranca_detalhe_screen.dart` (→ `/financeiro`),
+`abastecimentos/abastecimento_detalhe_cliente_screen.dart` (→ `/abastecimentos`).
+
+Não recriamos nenhum componente — o resto das telas já funciona de graça via Material/go_router
+(inclusive as ~9 outras sem `leading:` customizado nenhum). No app Motorista
+(`estrada-que-cuida`, repo separado) não foi achado nenhum bug do mesmo tipo.
+
+Validado: revisão manual completa + balanceamento de parênteses/chaves/colchetes por script
+(sandbox sem Flutter/Dart instalado, mesma limitação já registrada nas fases anteriores) nos 10
+arquivos editados — todos balanceados, todos com o guard `canPop()` presente, `go_router`
+já importado em todos (o `.pop()` antigo já dependia dele).
