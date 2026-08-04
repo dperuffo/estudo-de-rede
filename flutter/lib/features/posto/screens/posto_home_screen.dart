@@ -171,29 +171,46 @@ class PostoHomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            _grp('Gestão'),
+            // Fase reorganizacao-menu (04/08/2026, pedido do Daniel: "Fazer
+            // uma sugestao de reorganizacao do menu" / "Organizacao de
+            // temas iguais", implementada web + PWA cliente e posto — ver
+            // comentário grande em layout.tsx pro porquê completo) — mesmos
+            // 6 grupos temáticos do menuPosto* da web, adaptados ao
+            // subconjunto de telas que existe neste PWA (Notas Fiscais,
+            // Central de Treinamento e Integrações continuam só na web;
+            // "Meus Dados / PIX" aqui cobre o mesmo tema financeiro que
+            // "Minha Empresa" cobre na web).
+            _grp('Visão Geral'),
             if (pode('/posto')) _item(context, Icons.dashboard, 'Dashboard', '/posto'),
             if (pode('/posto/meu-posto')) _item(context, Icons.place, 'Meu Posto', '/posto/meu-posto'),
             if (pode('/posto/rede-postos')) _item(context, Icons.hub, 'Rede de Postos', '/posto/rede-postos'),
-            if (pode('/posto/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/posto/assistente'),
-            if (pode('/posto/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/posto/assinatura'),
-            if (pode('/posto/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/posto/avaliar'),
-            if (pode('/posto/financeiro')) _item(context, Icons.attach_money, 'Financeiro', '/posto/financeiro'),
-            if (pode('/posto/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
-            if (pode('/posto/meus-dados')) _item(context, Icons.account_balance, 'Meus Dados / PIX', '/posto/meus-dados'),
-            if (pode('/posto/documentos')) _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
+            const Divider(),
+            _grp('Cadastros'),
             if (pode('/posto/usuarios')) _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
-            if (pode('/posto/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados', badge: badges.chamados),
+            if (pode('/posto/clientes')) _item(context, Icons.business, 'Clientes', '/posto/clientes'),
             const Divider(),
             _grp('Operação'),
             if (pode('/posto/negociacoes')) _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes', badge: badges.negociacoes),
             if (pode('/posto/abastecimentos')) _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos', badge: badges.ajustesAbastecimento),
             if (pode('/posto/parcerias-locais')) _item(context, Icons.card_giftcard, 'Parcerias Locais', '/posto/parcerias-locais'),
-            if (pode('/posto/clientes')) _item(context, Icons.business, 'Clientes', '/posto/clientes'),
             if (pode('/posto/precos')) _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
             // Fase Pré-Pedido (28/07/2026) — consulta pro posto conferir
             // antes de liberar abastecimento (ver pre_pedidos_posto_screen.dart).
             if (pode('/posto/pre-pedidos')) _item(context, Icons.checklist, 'Pré-Pedidos', '/posto/pre-pedidos'),
+            const Divider(),
+            _grp('Financeiro'),
+            if (pode('/posto/financeiro')) _item(context, Icons.attach_money, 'Financeiro', '/posto/financeiro'),
+            if (pode('/posto/meus-dados')) _item(context, Icons.account_balance, 'Meus Dados / PIX', '/posto/meus-dados'),
+            const Divider(),
+            _grp('Conta e Ajuda'),
+            if (pode('/posto/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/posto/assistente'),
+            if (pode('/posto/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/posto/assinatura'),
+            if (pode('/posto/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/posto/avaliar'),
+            if (pode('/posto/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados', badge: badges.chamados),
+            const Divider(),
+            _grp('Sistema'),
+            if (pode('/posto/documentos')) _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
+            if (pode('/posto/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
             const Divider(),
             if (pode('/posto/avisos')) _item(context, Icons.notifications_outlined, 'Avisos', '/posto/avisos', badge: avisosNaoLidos),
             const Divider(),

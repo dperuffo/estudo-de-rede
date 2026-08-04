@@ -1780,3 +1780,30 @@ desenvolvimento, a validação foi feita por revisão manual linha a linha + bal
 parênteses/chaves/colchetes por script em cada arquivo tocado, **não compilado** aqui. Rodar `flutter
 analyze` antes de confiar no deploy — em especial a Camada 5 do `app_router.dart` (é lógica de
 navegação, o tipo de bug que só aparece rodando de verdade).
+
+## Fase reorganizacao-menu — menu lateral agrupado por tema (web + PWA cliente e posto)
+
+Pedido do Daniel: depois de colar o menu renderizado da web e comentar "Acho que esta bastante
+confuso para o usuario" / "Organizacao de temas iguais" — a seção "Operação" tinha crescido, fase
+após fase, até virar uma lista só de 29-33 itens sem nenhuma subdivisão (bem mais desbalanceada que
+Cadastros ou a antiga Gestão). Confirmado: "sim, quero que implemente nas visoes web e PWA de
+clientes e postos" — mesmo reagrupamento temático nos 4 lugares (web cliente, web posto, PWA
+cliente, PWA posto), zero mudança de rota/permissão/funcionalidade, só reorganização visual.
+
+**`home_screen.dart`** (shell cliente): os antigos `_grp('Gestão')` + `_grp('Cadastros')` +
+`_grp('Operação')` viraram 10 grupos: Visão Geral, Cadastros (inalterado), Roteirização e
+Abastecimento, Fretes, Manutenção e Ativos, Financeiro, Relatórios e Sustentabilidade, Engajamento,
+Conta e Ajuda, Sistema — mesma divisão temática já implementada em `layout.tsx` da web. O bloco
+exclusivo do admin ganhou seu próprio `_grp('Administração')` (antes dividia cabeçalho com
+Permissões via `_grp(admin ? 'Administração' : 'Configurações')`); Permissões agora mora dentro de
+"Sistema", visível a todos os perfis (aqui nunca existiu duplicidade de item pra deduplicated como
+na web, então não precisou de exclusão extra pro admin).
+
+**`posto_home_screen.dart`**: os antigos `_grp('Gestão')` (12 itens) + `_grp('Operação')` (6 itens)
+viraram 6 grupos, espelhando `menuPosto*` da web: Visão Geral, Cadastros, Operação, Financeiro,
+Conta e Ajuda, Sistema.
+
+Cada item manteve exatamente seu `if (pode('/rota'))`, ícone, label, badge e comentário de fase
+original — só mudou em qual `_grp(...)` ele está. Validado por: contagem de rotas únicas (sem
+duplicata em nenhum dos dois arquivos), balanceamento de parênteses/chaves/colchetes por script
+(mesma limitação de sandbox sem Flutter/Dart instalado — `flutter analyze` ainda não rodado aqui).

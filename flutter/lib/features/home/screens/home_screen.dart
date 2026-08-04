@@ -173,16 +173,22 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-          _grp('Gestão'),
+          // Fase reorganizacao-menu (04/08/2026, pedido do Daniel: "Fazer
+          // uma sugestao de reorganizacao do menu" / "Organizacao de temas
+          // iguais", implementada web + PWA cliente e posto — ver
+          // comentário grande em src/app/(dashboard)/layout.tsx pro porquê
+          // completo: a antiga Operação (29 itens numa lista só) tinha
+          // crescido fase após fase até virar confusa demais) — mesmos 9
+          // grupos temáticos da web, adaptados ao subconjunto de telas que
+          // existe neste PWA (nem toda rota web tem equivalente aqui —
+          // Cotações/Tabelas de Frete/Faturas de Frete/Conciliação
+          // Bancária/Fiscal/Fidelidade dos Motoristas/Central de
+          // Treinamento/Integrações continuam só na web).
+          _grp('Visão Geral'),
           if (pode('/dashboard')) _item(context, Icons.dashboard, 'Dashboard', '/dashboard'),
-          if (pode('/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/assistente'),
-          if (pode('/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/assinatura'),
-          if (pode('/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/avaliar'),
-          if (pode('/financeiro')) _item(context, Icons.attach_money, 'Painel Financeiro', '/financeiro'),
-          if (pode('/documentos')) _item(context, Icons.folder, 'Documentos', '/documentos'),
-          if (pode('/inteligencia-rede')) _item(context, Icons.hub, 'Inteligência de Rede', '/inteligencia-rede'),
-          if (pode('/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/lgpd'),
-          if (pode('/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/chamados', badge: badges.chamados),
+          if (pode('/torre-de-controle')) _item(context, Icons.radar, 'Torre de Controle', '/torre-de-controle'),
+          if (pode('/indicadores-frota')) _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),
+          if (pode('/acoes-sugeridas')) _item(context, Icons.auto_awesome, 'Ações Sugeridas', '/acoes-sugeridas', badge: badges.acoesSugeridas),
           const Divider(),
           _grp('Cadastros'),
           if (pode('/clientes')) _item(context, Icons.business, 'Clientes', '/clientes', badge: badges.acessosClientes),
@@ -193,42 +199,38 @@ class HomeScreen extends ConsumerWidget {
           if (pode('/centros-custo')) _item(context, Icons.receipt_long, 'Centros de Custo', '/centros-custo'),
           if (pode('/postos')) _item(context, Icons.local_gas_station, 'Postos Revendedores', '/postos'),
           const Divider(),
-          _grp('Operação'),
+          _grp('Roteirização e Abastecimento'),
+          if (pode('/roteirizacao')) _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
+          if (pode('/rotograma')) _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),
+          if (pode('/planos-viagem')) _item(context, Icons.card_travel, 'Planos de Viagem', '/planos-viagem'),
           if (pode('/abastecimentos')) _item(context, Icons.local_gas_station, 'Abastecimentos', '/abastecimentos', badge: badges.ajustesAbastecimento),
           if (pode('/notas-fiscais')) _item(context, Icons.description, 'Notas Fiscais', '/notas-fiscais'),
-          // Pedido do Daniel: "Retirar a aba de Anomalias" — mesma decisão já
-          // tomada na web (Ações Sugeridas cobre tudo que Anomalias
-          // detectava, ver comentário em app_router.dart).
-          if (pode('/acoes-sugeridas')) _item(context, Icons.auto_awesome, 'Ações Sugeridas', '/acoes-sugeridas', badge: badges.acoesSugeridas),
-          // Fase remove-antifraude-do-menu (mesma decisão já tomada na web,
-          // ver comentário em layout.tsx): as regras de Antifraude já estão
-          // cobertas pelos Parâmetros de Uso — tirado só do menu, a rota
-          // /antifraude continua registrada em app_router.dart.
-          if (pode('/parcerias-locais')) _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
+          // Fase Onda-2 (benchmark TicketLog, item #6) — comparador de
+          // combustível ideal por veículo/região.
+          if (pode('/combustivel-ideal')) _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
+          if (pode('/precos-postos')) _item(context, Icons.sell, 'Preços dos Postos Parceiros', '/precos-postos'),
+          if (pode('/negociacoes')) _item(context, Icons.handshake, 'Negociações com Postos', '/negociacoes', badge: badges.negociacoes),
+          if (pode('/parametros-nf')) _item(context, Icons.receipt_long, 'Parâmetros de NF', '/parametros-nf'),
+          const Divider(),
+          _grp('Fretes'),
           if (pode('/fretes')) _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
-          // Fase Torre-de-Controle-Leve (03/08/2026, benchmark FNI vs KMM,
-          // Grupo 1 item 1) — Icons.radar = PWA: Radar (web).
-          if (pode('/torre-de-controle')) _item(context, Icons.radar, 'Torre de Controle', '/torre-de-controle'),
           // Fase Programacao-Frota (03/08/2026, benchmark FNI vs
           // Rodopar/Datapar, Grupo 1 item 1) — Icons.calendar_month = PWA:
           // CalendarClock (web).
           if (pode('/programacao')) _item(context, Icons.calendar_month, 'Programação', '/programacao'),
-          // Fase Financeiro-ERP (26/07/2026, pedido do Daniel) — "Aba de
-          // Piso mínimo ANTT tem que estar na visão do cliente, web e PWA".
-          if (pode('/pisos-antt')) _item(context, Icons.price_check, 'Piso Mínimo ANTT', '/pisos-antt'),
           // Fase Grupo 2 (Rodopar/Datapar, item 5, 03/08/2026) —
           // Icons.work_outline = PWA: Briefcase (web). Carteira de clientes
           // + funil de propostas (lê cotacoes) + histórico de relacionamento.
           if (pode('/crm-comercial')) _item(context, Icons.work_outline, 'CRM Comercial', '/crm-comercial'),
           if (pode('/motoristas-parceiros')) _item(context, Icons.handshake_outlined, 'Motoristas Parceiros', '/motoristas-parceiros'),
-          if (pode('/roteirizacao')) _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
-          if (pode('/rotograma')) _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),
-          if (pode('/planos-viagem')) _item(context, Icons.card_travel, 'Planos de Viagem', '/planos-viagem'),
-          if (pode('/negociacoes')) _item(context, Icons.handshake, 'Negociações com Postos', '/negociacoes', badge: badges.negociacoes),
-          if (pode('/precos-postos')) _item(context, Icons.sell, 'Preços dos Postos Parceiros', '/precos-postos'),
-          // Fase Onda-2 (benchmark TicketLog, item #6) — comparador de
-          // combustível ideal por veículo/região.
-          if (pode('/combustivel-ideal')) _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
+          // Fase Financeiro-ERP (26/07/2026, pedido do Daniel) — "Aba de
+          // Piso mínimo ANTT tem que estar na visão do cliente, web e PWA".
+          // Na web esta tabela vive dentro de /cotacoes (leitura); aqui
+          // como não existe uma tela de Cotações própria, ganhou rota e
+          // item de menu próprios — mesmo dado, entrega diferente.
+          if (pode('/pisos-antt')) _item(context, Icons.price_check, 'Piso Mínimo ANTT', '/pisos-antt'),
+          const Divider(),
+          _grp('Manutenção e Ativos'),
           if (pode('/manutencao-preditiva')) _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
           // Fase Grupo 1 Rodopar item 2 (03/08/2026, benchmark FNI vs
           // Rodopar/Datapar) — Icons.inventory_2 = PWA: Boxes (web).
@@ -240,8 +242,6 @@ class HomeScreen extends ConsumerWidget {
           // = PWA: Landmark (web). Depreciação contábil linha reta + correções
           // do ativo (reavaliação/melhoria/baixa).
           if (pode('/patrimonio')) _item(context, Icons.account_balance, 'Patrimônio', '/patrimonio'),
-          // Fase Indicadores-da-Frota (30/07/2026) — Icons.speed = PWA: Gauge (web).
-          if (pode('/indicadores-frota')) _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),
           // Fase Indicadores-da-Frota C (30/07/2026) — Icons.fact_check =
           // PWA: ShieldCheck (web). Alimenta conformidade/TMRNC.
           if (pode('/checklist-veiculos')) _item(context, Icons.fact_check, 'Checklist de Inspeção', '/checklist-veiculos'),
@@ -254,30 +254,55 @@ class HomeScreen extends ConsumerWidget {
           // Fase Onda-2 (benchmark TicketLog, item #5) — catálogo de
           // oficinas credenciadas + solicitação simples de orçamento.
           if (pode('/oficinas')) _item(context, Icons.build_circle_outlined, 'Rede de Oficinas', '/oficinas'),
-          if (pode('/parametros-uso')) _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
-          if (pode('/parametros-nf')) _item(context, Icons.receipt_long, 'Parâmetros de NF', '/parametros-nf'),
+          const Divider(),
+          _grp('Financeiro'),
+          if (pode('/financeiro')) _item(context, Icons.attach_money, 'Painel Financeiro', '/financeiro'),
+          const Divider(),
+          _grp('Relatórios e Sustentabilidade'),
           if (pode('/relatorios')) _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
           // Fase Onda-3 (benchmark TicketLog, item #10) — estimativa de CO2
           // emitido pela frota a partir dos litros já registrados.
           if (pode('/pegada-carbono')) _item(context, Icons.public, 'Pegada de Carbono', '/pegada-carbono'),
+          if (pode('/inteligencia-rede')) _item(context, Icons.hub, 'Inteligência de Rede', '/inteligencia-rede'),
           const Divider(),
+          _grp('Engajamento'),
+          // Fase Parcerias Locais (17/07) — o cliente cria seus próprios
+          // benefícios (treinamentos, marketplace, telemedicina etc.) no
+          // catálogo de fidelidade.
+          if (pode('/parcerias-locais')) _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
+          const Divider(),
+          _grp('Conta e Ajuda'),
+          if (pode('/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/assistente'),
+          if (pode('/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/assinatura'),
+          if (pode('/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/avaliar'),
+          if (pode('/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/chamados', badge: badges.chamados),
+          const Divider(),
+          _grp('Sistema'),
+          if (pode('/documentos')) _item(context, Icons.folder, 'Documentos', '/documentos'),
+          if (pode('/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/lgpd'),
+          if (pode('/parametros-uso')) _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
           // Fase FLT-4 — pro admin, esta MESMA rota (/permissoes) edita o
           // padrão GLOBAL do sistema em vez da empresa escolhida (ver
           // permissoes_provider.dart) — rótulo avisa a diferença, já que é
-          // literalmente a mesma tela pros dois casos.
-          _grp((sessao?.ehAdmin ?? false) ? 'Administração' : 'Configurações'),
+          // literalmente a mesma tela pros dois casos. Diferente da web,
+          // aqui nunca existiu uma 2ª entrada de Permissões pro admin — só
+          // esta, relabelada — então não precisa de exclusão extra.
           if (pode('/permissoes')) _item(context, Icons.vpn_key, (sessao?.ehAdmin ?? false) ? 'Permissões (padrão global)' : 'Permissões', '/permissoes'),
-          // Fase FLT-4 — Configurações do Sistema: exclusiva do admin (a
-          // própria tela já mostra "Acesso restrito" pra quem não é, mas
-          // nem faz sentido oferecer o item de menu nesse caso).
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.settings, 'Configurações do Sistema', '/configuracoes'),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.star_outline, 'Avaliações dos Clientes', '/avaliacoes', badge: badges.avaliacoes),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.credit_card, 'Assinaturas (todos os clientes)', '/assinaturas'),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.folder_open, 'Aprovação de Documentos', '/documentos-empresas', badge: badges.documentosPendentes),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.hub, 'Rede de Postos (todas)', '/redes-postos'),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.find_in_page, 'Possíveis Duplicados', '/postos-duplicados'),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.apartment, 'Clientes (todos)', '/clientes-admin'),
-          if (sessao?.ehAdmin ?? false) _item(context, Icons.account_tree, 'Grupo Econômico (todos)', '/grupos-economicos'),
+          // Fase FLT-4 — bloco exclusivo do admin (a própria tela de cada
+          // uma já mostra "Acesso restrito" pra quem não é, mas nem faz
+          // sentido oferecer o item de menu nesse caso).
+          if (sessao?.ehAdmin ?? false) ...[
+            const Divider(),
+            _grp('Administração'),
+            _item(context, Icons.settings, 'Configurações do Sistema', '/configuracoes'),
+            _item(context, Icons.star_outline, 'Avaliações dos Clientes', '/avaliacoes', badge: badges.avaliacoes),
+            _item(context, Icons.credit_card, 'Assinaturas (todos os clientes)', '/assinaturas'),
+            _item(context, Icons.folder_open, 'Aprovação de Documentos', '/documentos-empresas', badge: badges.documentosPendentes),
+            _item(context, Icons.hub, 'Rede de Postos (todas)', '/redes-postos'),
+            _item(context, Icons.find_in_page, 'Possíveis Duplicados', '/postos-duplicados'),
+            _item(context, Icons.apartment, 'Clientes (todos)', '/clientes-admin'),
+            _item(context, Icons.account_tree, 'Grupo Econômico (todos)', '/grupos-economicos'),
+          ],
           const Divider(),
           if (pode('/avisos')) _item(context, Icons.notifications_outlined, 'Avisos', '/avisos', badge: avisosNaoLidos),
           const Divider(),
