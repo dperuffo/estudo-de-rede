@@ -204,6 +204,10 @@ class HomeScreen extends ConsumerWidget {
           if (pode('/rotograma')) _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),
           if (pode('/planos-viagem')) _item(context, Icons.card_travel, 'Planos de Viagem', '/planos-viagem'),
           if (pode('/abastecimentos')) _item(context, Icons.local_gas_station, 'Abastecimentos', '/abastecimentos', badge: badges.ajustesAbastecimento),
+          // Fase reorganizacao-menu-2 (04/08/2026, pedido do Daniel) —
+          // movida de "Sistema" pra cá: é regra de abastecimento, não
+          // configuração geral. Icons.tune = web: SlidersHorizontal.
+          if (pode('/parametros-uso')) _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
           if (pode('/notas-fiscais')) _item(context, Icons.description, 'Notas Fiscais', '/notas-fiscais'),
           // Fase Onda-2 (benchmark TicketLog, item #6) — comparador de
           // combustível ideal por veículo/região.
@@ -218,6 +222,11 @@ class HomeScreen extends ConsumerWidget {
           // Rodopar/Datapar, Grupo 1 item 1) — Icons.calendar_month = PWA:
           // CalendarClock (web).
           if (pode('/programacao')) _item(context, Icons.calendar_month, 'Programação', '/programacao'),
+          // Fase agendamento-patio (04/08/2026, benchmark FNI vs KMM, Grupo
+          // 2 item 8) — YMS leve. Icons.calendar_month = PWA: CalendarClock
+          // (web, mesmo ícone de Programação lá também).
+          if (pode('/agendamentos-patio'))
+            _item(context, Icons.calendar_month, 'Agendamento de Pátio', '/agendamentos-patio'),
           // Fase Grupo 2 (Rodopar/Datapar, item 5, 03/08/2026) —
           // Icons.work_outline = PWA: Briefcase (web). Carteira de clientes
           // + funil de propostas (lê cotacoes) + histórico de relacionamento.
@@ -280,7 +289,6 @@ class HomeScreen extends ConsumerWidget {
           _grp('Sistema'),
           if (pode('/documentos')) _item(context, Icons.folder, 'Documentos', '/documentos'),
           if (pode('/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/lgpd'),
-          if (pode('/parametros-uso')) _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
           // Fase FLT-4 — pro admin, esta MESMA rota (/permissoes) edita o
           // padrão GLOBAL do sistema em vez da empresa escolhida (ver
           // permissoes_provider.dart) — rótulo avisa a diferença, já que é

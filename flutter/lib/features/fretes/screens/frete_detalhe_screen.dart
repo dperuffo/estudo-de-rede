@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../providers/fretes_provider.dart';
 import '../services/fretes_service.dart';
 import 'chips_reputacao_motorista.dart';
+import '../../agendamentos_patio/providers/agendamentos_patio_provider.dart';
+import '../../agendamentos_patio/widgets/agendamento_patio_card.dart';
 
 final _formatoMoedaFreteDet = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
@@ -39,6 +41,15 @@ class FreteDetalheScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 _BlocoEndereco(titulo: '📍 Entrega', endereco: frete.entrega),
               ],
+              const SizedBox(height: 16),
+              _BlocoAgendamentoPatio(
+                freteId: freteId,
+                empresaId: frete.empresaId,
+                origemLabel: frete.origemLabel,
+                destinoLabel: frete.destinoLabel,
+                coleta: frete.coleta,
+                entrega: frete.entrega,
+              ),
               const SizedBox(height: 16),
               if (frete.status == 'aguardando_confirmacao')
                 const Card(
@@ -183,6 +194,86 @@ class _BlocoEndereco extends StatelessWidget {
   }
 }
 
+// Fase agendamento-patio (04/08/2026, item 8 do benchmark FNI vs KMM, Grupo
+// 2) — porta do card do mesmo nome em fretes/[id]/page.tsx (web): 1 card
+// pra coleta, 1 pra entrega, cada um com o próprio agendamento (ou
+// formulário de criar, se ainda não tem).
+class _BlocoAgendamentoPatio extends ConsumerWidget {
+  final String freteId;
+  final String empresaId;
+  final String origemLabel;
+  final String destinoLabel;
+  final EnderecoFrete coleta;
+  final EnderecoFrete entrega;
+
+  const _BlocoAgendamentoPatio({
+    required this.freteId,
+    required this.empresaId,
+    required this.origemLabel,
+    required this.destinoLabel,
+    required this.coleta,
+    required this.entrega,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final agendamentosAsync = ref.watch(agendamentosPatioFreteProvider(freteId));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('🗓️ Agendamento de Pátio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 4),
+            const Text(
+              'Janela de carga/descarga combinada com o local. Confirma sozinho pra "em andamento"/"concluído" quando '
+              'você bate o checkpoint — não precisa marcar chegada/saída aqui.',
+              style: TextStyle(fontSize: 11, color: Colors.black45),
+            ),
+            const SizedBox(height: 10),
+            agendamentosAsync.when(
+              loading: () => const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator()),
+              error: (e, _) => Text('Erro ao carregar agendamento: $e', style: const TextStyle(fontSize: 12, color: Colors.red)),
+              data: (agendamentos) {
+                AgendamentoPatio? achar(String tipo) {
+                  for (final a in agendamentos) {
+                    if (a.tipo == tipo) return a;
+                  }
+                  return null;
+                }
+
+                final localColeta = coleta.cidade != null ? '${coleta.cidade}/${coleta.uf ?? ''}' : origemLabel;
+                final localEntrega = entrega.cidade != null ? '${entrega.cidade}/${entrega.uf ?? ''}' : destinoLabel;
+
+                return Column(
+                  children: [
+                    AgendamentoPatioCard(
+                      freteId: freteId,
+                      empresaId: empresaId,
+                      tipo: 'coleta',
+                      localLabelPadrao: localColeta,
+                      agendamento: achar('coleta'),
+                    ),
+                    const SizedBox(height: 8),
+                    AgendamentoPatioCard(
+                      freteId: freteId,
+                      empresaId: empresaId,
+                      tipo: 'entrega',
+                      localLabelPadrao: localEntrega,
+                      agendamento: achar('entrega'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _PainelPropostas extends ConsumerWidget {
   final String freteId;

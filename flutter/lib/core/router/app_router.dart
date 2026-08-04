@@ -78,6 +78,7 @@ import '../../features/patrimonio/screens/patrimonio_detalhe_screen.dart';
 import '../../features/indicadores_frota/screens/indicadores_frota_screen.dart';
 import '../../features/torre_de_controle/screens/torre_de_controle_screen.dart';
 import '../../features/programacao_frota/screens/programacao_frota_screen.dart';
+import '../../features/agendamentos_patio/screens/agendamentos_patio_screen.dart';
 import '../../features/multas/screens/multas_screen.dart';
 import '../../features/multas/screens/nova_multa_screen.dart';
 import '../../features/multas/screens/multa_detalhe_screen.dart';
@@ -474,6 +475,9 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             // benchmark FNI vs KMM/Rodopar) — porta das telas web equivalentes.
             GoRoute(path: '/torre-de-controle', builder: (_, __) => const TorreDeControleScreen()),
             GoRoute(path: '/programacao', builder: (_, __) => const ProgramacaoFrotaScreen()),
+            // Fase agendamento-patio (04/08/2026, benchmark FNI vs KMM,
+            // Grupo 2 item 8) — porta de agendamentos-patio/page.tsx (web).
+            GoRoute(path: '/agendamentos-patio', builder: (_, __) => const AgendamentosPatioScreen()),
           ],
         ),
 

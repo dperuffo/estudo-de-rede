@@ -88,55 +88,80 @@ final catalogoOficinasProvider = FutureProvider.autoDispose.family<List<Oficina>
   return rows.map((r) => Oficina.fromMap(r as Map<String, dynamic>)).toList();
 });
 
-class SolicitacaoOrcamento {
+// Fase marketplace-pecas (04/08/2026) — 1 pedido pode ter N propostas
+// (1 por oficina escolhida na hora de solicitar); PropostaOrcamento é a
+// resposta de UMA oficina, PedidoOrcamento agrupa todas as propostas de um
+// mesmo pedido pra comparação lado a lado.
+class PropostaOrcamento {
   final String id;
-  final String? placa;
-  final String descricaoServico;
   final String status;
   final double? valorOrcado;
   final String? prazoExecucao;
   final String? observacoesOficina;
-  final String criadoEm;
   final String? oficinaNome;
 
-  const SolicitacaoOrcamento({
+  const PropostaOrcamento({
     required this.id,
-    this.placa,
-    required this.descricaoServico,
     required this.status,
     this.valorOrcado,
     this.prazoExecucao,
     this.observacoesOficina,
-    required this.criadoEm,
     this.oficinaNome,
   });
 
-  factory SolicitacaoOrcamento.fromMap(Map<String, dynamic> m) {
+  factory PropostaOrcamento.fromMap(Map<String, dynamic> m) {
     final oficina = m['oficinas_credenciadas'] as Map<String, dynamic>?;
-    return SolicitacaoOrcamento(
+    return PropostaOrcamento(
       id: m['id'] as String,
-      placa: m['placa'] as String?,
-      descricaoServico: m['descricao_servico'] as String,
       status: m['status'] as String? ?? 'solicitado',
       valorOrcado: (m['valor_orcado'] as num?)?.toDouble(),
       prazoExecucao: m['prazo_execucao'] as String?,
       observacoesOficina: m['observacoes_oficina'] as String?,
-      criadoEm: m['criado_em'] as String? ?? '',
       oficinaNome: oficina?['nome'] as String?,
     );
   }
 }
 
-final minhasSolicitacoesOficinaProvider = FutureProvider.autoDispose<List<SolicitacaoOrcamento>>((ref) async {
+class PedidoOrcamento {
+  final String id;
+  final String? placa;
+  final String descricaoServico;
+  final String status;
+  final String criadoEm;
+  final List<PropostaOrcamento> propostas;
+
+  const PedidoOrcamento({
+    required this.id,
+    this.placa,
+    required this.descricaoServico,
+    required this.status,
+    required this.criadoEm,
+    required this.propostas,
+  });
+
+  factory PedidoOrcamento.fromMap(Map<String, dynamic> m) {
+    final propostasRaw = (m['propostas_orcamento_oficina'] as List?) ?? [];
+    return PedidoOrcamento(
+      id: m['id'] as String,
+      placa: m['placa'] as String?,
+      descricaoServico: m['descricao_servico'] as String,
+      status: m['status'] as String? ?? 'aberto',
+      criadoEm: m['criado_em'] as String? ?? '',
+      propostas: propostasRaw.map((p) => PropostaOrcamento.fromMap(p as Map<String, dynamic>)).toList(),
+    );
+  }
+}
+
+final meusPedidosOrcamentoProvider = FutureProvider.autoDispose<List<PedidoOrcamento>>((ref) async {
   final sessao = await ref.watch(sessaoProvider.future);
   final empresaId = sessao.empresaId;
   if (empresaId == null) return [];
   final rows = await SupabaseService.client
-      .from('solicitacoes_orcamento_oficina')
+      .from('pedidos_orcamento_oficina')
       .select(
-          'id, placa, descricao_servico, status, valor_orcado, prazo_execucao, observacoes_oficina, criado_em, oficinas_credenciadas(nome)')
+          'id, placa, descricao_servico, status, criado_em, propostas_orcamento_oficina(id, status, valor_orcado, prazo_execucao, observacoes_oficina, oficinas_credenciadas(nome))')
       .eq('empresa_id', empresaId)
       .order('criado_em', ascending: false)
       .limit(100) as List;
-  return rows.map((r) => SolicitacaoOrcamento.fromMap(r as Map<String, dynamic>)).toList();
+  return rows.map((r) => PedidoOrcamento.fromMap(r as Map<String, dynamic>)).toList();
 });

@@ -44,6 +44,7 @@ const rotaFuncionalidade = <String, String>{
   '/fretes': 'aba_fretes',
   '/torre-de-controle': 'aba_torre_controle',
   '/programacao': 'aba_programacao_frota',
+  '/agendamentos-patio': 'aba_agendamento_patio',
   '/pisos-antt': 'aba_pisos_antt',
   '/crm-comercial': 'aba_crm_comercial',
   '/motoristas-parceiros': 'aba_motoristas_parceiros',

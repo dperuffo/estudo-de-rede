@@ -1807,3 +1807,85 @@ Cada item manteve exatamente seu `if (pode('/rota'))`, ícone, label, badge e co
 original — só mudou em qual `_grp(...)` ele está. Validado por: contagem de rotas únicas (sem
 duplicata em nenhum dos dois arquivos), balanceamento de parênteses/chaves/colchetes por script
 (mesma limitação de sandbox sem Flutter/Dart instalado — `flutter analyze` ainda não rodado aqui).
+
+**Achado real (deploy não refletiu no PWA após o `git push`)**: `flutter/.gitignore` tem uma regra
+`/build/` — `git add -A` (usado nos scripts `build_commit_*.sh`) pula silenciosamente arquivos
+ignorados que não estão sendo rastreados, então os dois primeiros commits desta fase levaram só o
+código-fonte `.dart`, sem o `build/web` recompilado (o `Dockerfile` só faz `COPY build/web` pro
+nginx — é literalmente tudo que a Railway serve). Sem erro em lugar nenhum: `flutter build`, `git
+commit` e `git push` funcionaram normal, só que o bundle novo nunca chegou no repositório.
+Confirmado comparando bytes do `main.dart.js` local contra strings novas do menu (`Engajamento`
+etc. ausentes no primeiro build enviado) e, na virada, com `git show --stat HEAD` mostrando
+145 mil linhas de diff em `main.dart.js` só depois de um `git add -f flutter/build/web` explícito.
+Corrigido forçando o build pro rastreamento do git uma vez — como o arquivo passa a estar
+rastreado, `git add -A` normal volta a pegar as próximas modificações dele sem precisar de `-f`
+de novo (`.gitignore` só bloqueia arquivo NUNCA rastreado, não atualização de um já rastreado).
+Vale conferir de vez em quando com `git status --porcelain -- flutter/build/web` antes de um
+`build_commit_*.sh` importante, pra não repetir esse silêncio.
+
+## Fase marketplace-pecas — cotação multi-fornecedor (port da web)
+
+Item 7 do Grupo 2 do benchmark FNI vs KMM — porte pro PWA Cliente do que foi feito na web:
+Rede de Oficinas evolui de "1 solicitação = 1 oficina" pra "1 pedido pode ir pra N oficinas
+escolhidas de uma vez, com propostas comparadas lado a lado". Sem migração aqui — o schema
+novo (`pedidos_orcamento_oficina` + `propostas_orcamento_oficina`) já foi aplicado no Supabase
+pela web (ver README da "Gestão de Frotas").
+
+`oficinas_service.dart`: `solicitar` (1 oficina) virou `solicitarMulti` (recebe
+`List<String> oficinaIds`, cria 1 pedido + N propostas). `decidir`, ao aceitar uma proposta,
+agora também marca o pedido pai como "decidido" com a oficina vencedora e recusa
+automaticamente as demais propostas do mesmo pedido ainda em aberto (`.inFilter('status',
+['solicitado', 'respondido'])` — confirmado como o método certo do postgrest-dart nesta
+versão, já usado em outros serviços do app).
+
+`oficinas_provider.dart`: `SolicitacaoOrcamento`/`minhasSolicitacoesOficinaProvider` deram
+lugar a `PropostaOrcamento` (1 oficina) + `PedidoOrcamento` (agrupa a lista de propostas de um
+mesmo pedido) + `meusPedidosOrcamentoProvider`, com query aninhada igual à da web
+(`pedidos_orcamento_oficina` selecionando `propostas_orcamento_oficina(...)` via FK).
+
+`oficinas_screen.dart`: aba de catálogo ganhou seleção multi-card (`Set<String> _selecionadas`
++ checkbox em cada `_cardOficina`, com destaque de borda quando selecionado) e uma barra fixa
+no rodapé ("N oficinas selecionadas" + botão pra abrir o formulário de pedido) que só aparece
+quando há seleção. Aba "Minhas Solicitações" trocou o card único por `_cardPedido` (cabeçalho
+do pedido) contendo N `_cardProposta` (uma por oficina cotada).
+
+Sem item de menu novo — mudança acontece dentro da tela `/oficinas`, já dentro do grupo
+"Manutenção" no menu reorganizado.
+
+Validado: balanceamento de parênteses/chaves/colchetes por script nos 3 arquivos tocados
+(mesma limitação de sandbox sem Flutter/Dart instalado — `flutter analyze` ainda não rodado
+aqui); grep confirmou zero referência residual a `SolicitacaoOrcamento`/
+`minhasSolicitacoesOficinaProvider`/`solicitacoes_orcamento_oficina` no código (só 1 comentário
+histórico inofensivo).
+
+**Importante**: como esta fase mexeu em `.dart`, o deploy exige o mesmo cuidado documentado
+acima — rodar `flutter build web --release` ANTES do commit, senão a Railway não reflete nada
+(ela só serve o `build/web` já compilado, não builda a partir do source).
+
+## Fase agendamento-patio — YMS leve, agenda de carga/descarga (port da web)
+
+Item 8 do Grupo 2 do benchmark FNI vs KMM. Porte de `agendamentos-patio` (web): nova feature
+`lib/features/agendamentos_patio/` com `providers/agendamentos_patio_provider.dart` (modelo
+`AgendamentoPatio` + `agendamentosPatioFreteProvider`, usado dentro do detalhe do frete, e
+`agendamentosPatioDiaProvider`, usado na agenda do dia), `services/agendamentos_patio_service.dart`
+(criar/reagendar com a mesma checagem de conflito de doca da web, confirmar, cancelar),
+`widgets/agendamento_patio_card.dart` (1 card por ponta — coleta ou entrega — com formulário
+de criar ou badge de status + ações) e `screens/agendamentos_patio_screen.dart` (agenda do dia
+com navegação anterior/próximo, sem seletor de empresa — o app já opera numa sessão de 1
+empresa só, diferente da web multi-cliente).
+
+Sem migração aqui — reaproveita a tabela `agendamentos_patio` e a RPC `registrar_evento_frete`
+já estendida pela web (ver README da "Gestão de Frotas"), que também é a mesma RPC que os
+botões de checkpoint deste app já chamam — então o status "em_andamento"/"concluido" já veio
+de graça, sem precisar mexer em `fretes_provider.dart`/`registrarEventoFrete`.
+
+`frete_detalhe_screen.dart` ganhou `_BlocoAgendamentoPatio` (novo), inserido logo depois do
+bloco de endereço de coleta/entrega — mesma posição do card equivalente na web.
+
+Rota `/agendamentos-patio` + item de menu "Agendamento de Pátio" no grupo Fretes (mesmo ícone
+`Icons.calendar_month` de Programação) + entrada em `permissoes_acesso.dart`.
+
+Validado: balanceamento de parênteses/chaves/colchetes por script em todos os arquivos
+tocados (mesma limitação de sandbox sem Flutter/Dart instalado — `flutter analyze` ainda não
+rodado aqui); conferido que `.gt`/`.lt`/`.gte`/`.lte`/`.neq` já são usados em outros arquivos
+do repo com essa versão do postgrest-dart, mesmo padrão da checagem de conflito de doca.
