@@ -104,7 +104,7 @@ String? resolverFuncionalidadeDaRota(String pathname) {
   String? melhorFuncionalidade;
   for (final entry in rotaFuncionalidade.entries) {
     final bate = pathname == entry.key || pathname.startsWith('${entry.key}/');
-    if (bate && (melhorHref == null || entry.key.length > melhorHref!.length)) {
+    if (bate && (melhorHref == null || entry.key.length > melhorHref.length)) {
       melhorHref = entry.key;
       melhorFuncionalidade = entry.value;
     }
@@ -139,8 +139,7 @@ final permissoesMapaProvider = FutureProvider.family<Map<String, bool>, String?>
         .select('funcionalidade, permitido')
         .eq('empresa_id', empresaIdGlobal)
         .eq('perfil', perfil);
-    for (final l in linhas) {
-      final m = l as Map<String, dynamic>;
+    for (final m in linhas) {
       mapa[m['funcionalidade'] as String] = m['permitido'] as bool? ?? false;
     }
   } catch (e) {
