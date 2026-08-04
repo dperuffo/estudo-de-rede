@@ -3,12 +3,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/providers/notificacoes_provider.dart';
 import '../../../core/providers/avisos_provider.dart';
+import '../../../core/providers/menu_favoritos_provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
 import '../../../core/services/permissoes_acesso.dart';
+import '../../../core/widgets/barra_atalhos_favoritos.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../../core/widgets/sino_avisos.dart';
+
+// Fase Acesso-Rápido-Favoritos (04/08/2026) — mesma ideia de
+// _itensMenuCliente em home_screen.dart, aqui pro subconjunto de rotas do
+// shell Posto. Ver comentário completo lá pro porquê da duplicação
+// (Drawer monta itens via chamadas inline, não um array reutilizável).
+const List<({String href, String label, IconData icon})> _itensMenuPosto = [
+  (href: '/posto', label: 'Dashboard', icon: Icons.dashboard),
+  (href: '/posto/meu-posto', label: 'Meu Posto', icon: Icons.place),
+  (href: '/posto/rede-postos', label: 'Rede de Postos', icon: Icons.hub),
+  (href: '/posto/usuarios', label: 'Usuários', icon: Icons.people),
+  (href: '/posto/clientes', label: 'Clientes', icon: Icons.business),
+  (href: '/posto/negociacoes', label: 'Negociações', icon: Icons.handshake),
+  (href: '/posto/abastecimentos', label: 'Abastecimentos', icon: Icons.local_gas_station),
+  (href: '/posto/parcerias-locais', label: 'Parcerias Locais', icon: Icons.card_giftcard),
+  (href: '/posto/precos', label: 'Meus Preços', icon: Icons.sell),
+  (href: '/posto/pre-pedidos', label: 'Pré-Pedidos', icon: Icons.checklist),
+  (href: '/posto/financeiro', label: 'Financeiro', icon: Icons.attach_money),
+  (href: '/posto/meus-dados', label: 'Meus Dados / PIX', icon: Icons.account_balance),
+  (href: '/posto/assistente', label: 'Assistente FNI', icon: Icons.smart_toy),
+  (href: '/posto/assinatura', label: 'Minha Assinatura', icon: Icons.credit_card),
+  (href: '/posto/avaliar', label: 'Avaliar Plataforma', icon: Icons.star),
+  (href: '/posto/chamados', label: 'Chamados', icon: Icons.confirmation_number),
+  (href: '/posto/documentos', label: 'Documentos', icon: Icons.folder),
+  (href: '/posto/lgpd', label: 'Privacidade (LGPD)', icon: Icons.lock),
+  (href: '/posto/avisos', label: 'Avisos', icon: Icons.notifications_outlined),
+];
+final List<String> _hrefsRastreaveisPosto = _itensMenuPosto.map((i) => i.href).toList();
 
 // Fase FLT-1 — shell da visão Posto, espelhando a estrutura de menu de
 // menuPostoGestao + menuPostoOperacao em src/app/(dashboard)/layout.tsx da
@@ -32,14 +61,36 @@ class PostoHomeScreen extends ConsumerWidget {
         ? const <String, bool>{}
         : ref.watch(permissoesMapaProvider(perfilAtual)).valueOrNull ?? const <String, bool>{};
 
+    // Fase Acesso-Rápido-Favoritos (04/08/2026) — ver comentário completo
+    // no HomeScreen (shell cliente); mesmo raciocínio aqui pro shell posto.
+    if (_hrefsRastreaveisPosto.contains(loc)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (ref.read(ultimaRotaRegistradaProvider) == loc) return;
+        ref.read(ultimaRotaRegistradaProvider.notifier).state = loc;
+        registrarAcessoMenu(loc);
+      });
+    }
+
+    bool podeAcessar(String rota) => bypassPermissao || temAcesso(mapaPermissoes, resolverFuncionalidadeDaRota(rota));
+    final favoritosHrefs = (ref.watch(favoritosMenuProvider).valueOrNull ?? const []).map((f) => f.href).toSet();
+    final mapaItensFavoritos = {
+      for (final i in _itensMenuPosto)
+        if (podeAcessar(i.href)) i.href: ItemAtalhoMenu(href: i.href, label: i.label, icon: i.icon),
+    };
+
     return Scaffold(
       key: rootScaffoldKey,
-      drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao, mapaPermissoes),
+      drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao, mapaPermissoes, favoritosHrefs),
       appBar: AppBar(
         title: const Text('FNI — Posto'),
         actions: const [SinoAvisos()],
       ),
-      body: child,
+      body: Column(
+        children: [
+          BarraAtalhosFavoritos(mapaItens: mapaItensFavoritos),
+          Expanded(child: child),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _idx(loc),
         onDestinationSelected: (i) => _nav(context, i),
@@ -60,9 +111,52 @@ class PostoHomeScreen extends ConsumerWidget {
     SessaoUsuario? sessao,
     bool bypassPermissao,
     Map<String, bool> mapaPermissoes,
+    Set<String> favoritosHrefs,
   ) {
     bool pode(String rota) =>
         bypassPermissao || temAcesso(mapaPermissoes, resolverFuncionalidadeDaRota(rota));
+
+    // Fase Acesso-Rápido-Favoritos (04/08/2026) — ver comentário completo
+    // no HomeScreen (shell cliente): closure local pra capturar
+    // `ref`/`favoritosHrefs` sem precisar tocar nas chamadas `_item(...)`
+    // já espalhadas pelo Drawer abaixo.
+    ListTile _item(BuildContext context, IconData icon, String label, String route, {int badge = 0}) {
+      final favoritado = favoritosHrefs.contains(route);
+      return ListTile(
+        dense: true,
+        leading: Icon(icon, color: const Color(0xFF0D2D6B), size: 20),
+        title: Text(label, style: const TextStyle(fontSize: 14)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (badge > 0)
+              Container(
+                width: 10,
+                height: 10,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
+              ),
+            InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => alternarFavoritoMenu(ref, route, !favoritado),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  favoritado ? Icons.star : Icons.star_border,
+                  size: 18,
+                  color: favoritado ? Colors.amber.shade700 : Colors.grey.shade400,
+                ),
+              ),
+            ),
+          ],
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          context.go(route);
+        },
+      );
+    }
+
     final nomeEmpresa = sessao?.nomeEmpresa;
     // Fase FLT-2 — pedido do Daniel: seletor pra alternar entre os postos
     // da Rede de Postos (grupo econômico) a qualquer momento, não só no
@@ -233,29 +327,6 @@ class PostoHomeScreen extends ConsumerWidget {
   Widget _grp(String label) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-      );
-
-  ListTile _item(BuildContext context, IconData icon, String label, String route, {int badge = 0}) => ListTile(
-        dense: true,
-        leading: Icon(icon, color: const Color(0xFF0D2D6B), size: 20),
-        title: Text(label, style: const TextStyle(fontSize: 14)),
-        // Fase FLT-7 (ajuste) — pedido do Daniel: a pílula com número
-        // (Container com Text dentro) esticava a linha inteira do menu
-        // verticalmente em alguns itens (o texto do Text virava uma coluna
-        // de 1 letra por linha, achado real reportado com print). Trocado
-        // por uma bolinha simples, sem texto dentro — tamanho fixo pequeno,
-        // não tem como "esticar" a linha. Só aparece quando badge > 0.
-        trailing: badge > 0
-            ? Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
-              )
-            : null,
-        onTap: () {
-          Navigator.pop(context);
-          context.go(route);
-        },
       );
 
   int _idx(String loc) {

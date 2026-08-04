@@ -1889,3 +1889,96 @@ Validado: balanceamento de parênteses/chaves/colchetes por script em todos os a
 tocados (mesma limitação de sandbox sem Flutter/Dart instalado — `flutter analyze` ainda não
 rodado aqui); conferido que `.gt`/`.lt`/`.gte`/`.lte`/`.neq` já são usados em outros arquivos
 do repo com essa versão do postgrest-dart, mesmo padrão da checagem de conflito de doca.
+
+## Fase Replicação-Grupo — "Replicar para o grupo" (port da web)
+
+Porte do mecanismo genérico descrito no README da "Gestão de Frotas" (mesma migração no
+Supabase, sem nada novo aqui): usuário de Grupo Econômico ou Rede de Postos replica uma
+parametrização/cadastro já preenchido numa empresa pra todas as empresas irmãs do grupo, sem
+repetir manualmente. Todo o trabalho pesado (allow-list de tabelas, motor de cópia, relatório
+por empresa) já roda inteiro dentro de RPCs no Postgres — o Flutter só chama e mostra.
+
+`lib/features/replicacao_grupo/services/replicacao_grupo_service.dart` (novo): espelha
+`replicacaoGrupo.ts` da web — `EmpresaAlvoReplicacao`, `ItemResultadoReplicacao`,
+`ResultadoReplicacao` + `ReplicacaoGrupoService.buscarEmpresasAlvo`/`.replicar`, chamando as
+mesmas RPCs `listar_empresas_alvo_replicacao`/`replicar_para_grupo` e depois lendo
+`replicacoes_lote`/`replicacoes_lote_itens` pro relatório.
+
+`lib/features/replicacao_grupo/widgets/replicar_para_grupo_button.dart` (novo):
+`ReplicarParaGrupoButton` (TextButton.icon) + diálogo com duas fases — confirmação (lista as
+empresas que vão receber a cópia) e resultado (status por empresa: Atualizado/Já existia/Erro).
+
+Ligado em 3 telas: `parametros_uso_screen.dart` (por aba, mesmo mapa `_chaveReplicacaoPorAba`
+da web), `centros_custo_screen.dart` e `precos_posto_screen.dart` (lado posto). Sem tela de
+`tabelas_frete` no Flutter ainda (feature não existe neste app) — nada ligado lá de propósito.
+
+Nenhuma tela nova, nenhuma rota nova — o botão só aparece dentro de telas que já existiam.
+
+Validado: balanceamento de parênteses/chaves/colchetes por script nos 3 arquivos novos + 3
+telas editadas (mesma limitação de sandbox sem Flutter/Dart instalado — `flutter analyze`
+ainda não rodado aqui); conferido visualmente que os 3 arquivos editados importam
+`sessao_provider.dart` corretamente pra obter o `empresaId` da sessão atual antes de renderizar
+o botão.
+
+**Como este port só mexeu em `.dart`, vale o mesmo cuidado de sempre**: rodar
+`flutter build web --release` antes do commit, senão a Railway continua servindo o `build/web`
+antigo.
+
+## Fase Acesso-Rápido-Favoritos — barra de atalhos + estrela de favoritar (port da web)
+
+Pedido do Daniel: "mecanismo de acesso rápido em funcionalidades mais utilizadas pelos
+usuários, uma espécie de favoritos... usar inteligência artificial pra posicionar as abas
+mais utilizadas". Esclarecido com ele antes de implementar (pergunta direta): a "IA" é
+frecência — frequência + recência com meia-vida de 14 dias, calculada inteiramente em uma
+função no Postgres, não uma chamada de IA de verdade. Modelo híbrido: o sistema sugere
+sozinho pelas telas mais/mais recentemente usadas, e o usuário pode fixar manualmente
+(estrela, sempre no topo) ou remover manualmente (nunca mais volta sozinho). Escopo pedido
+pelo Daniel: web e PWA (Cliente + Posto) juntos, nesta mesma rodada — port 1:1 da web (ver
+README da "Gestão de Frotas", Fase Acesso-Rápido-Favoritos, pro schema/RPCs/algoritmo
+completos: tabela `menu_favoritos` + `registrar_acesso_menu`/`alternar_favorito_menu`/
+`favoritos_menu_do_usuario`, todas com `search_path=public` fixo e RLS por
+`usuario_email`/`auth.jwt()`).
+
+`lib/core/providers/menu_favoritos_provider.dart` (novo): `ItemFavoritoMenu` (href, fixado),
+`favoritosMenuProvider` (FutureProvider.autoDispose, chama a RPC `favoritos_menu_do_usuario`,
+best-effort — falha vira lista vazia, nunca trava o menu), `registrarAcessoMenu(href)`
+(best-effort, silencioso), `alternarFavoritoMenu(ref, href, fixar)` (devolve `bool` de
+sucesso, usado pra reverter estado otimista em caso de falha, e invalida
+`favoritosMenuProvider` em caso de sucesso) e `ultimaRotaRegistradaProvider` (StateProvider
+comum, não autoDispose — guarda a última rota já registrada nesta sessão do app, pra não
+regravar acesso a cada rebuild do shell sem navegação real).
+
+`lib/core/widgets/barra_atalhos_favoritos.dart` (novo): `BarraAtalhosFavoritos` — chips
+roláveis horizontalmente (decisão explícita do Daniel: barra no topo do conteúdo, não no
+menu lateral) com as telas favoritadas deste usuário, resolvidas via um `Map<String,
+ItemAtalhoMenu>` passado por quem a instancia (cada shell só conhece as próprias rotas). Some
+sozinha (`SizedBox.shrink()`) pra quem ainda não tem uso registrado. Remoção (botão "x" no
+chip) é otimista — some da barra na hora, sem esperar o round-trip da RPC; se falhar, volta.
+
+`lib/features/home/screens/home_screen.dart` (shell Cliente) e
+`lib/features/posto/screens/posto_home_screen.dart` (shell Posto), ambos com o mesmo
+tratamento:
+- Lista achatada `_itensMenuCliente`/`_itensMenuPosto` (href → ícone/rótulo, usando Dart
+  records) de todo item de menu do shell — equivalente a TODOS_ITENS_MENU/MAPA_ITENS_MENU em
+  `layout.tsx` (web). Como aqui os itens do Drawer são montados via chamadas inline
+  (`_item(...)`), não um array reutilizável como na web, esta lista fica mantida em paralelo
+  — precisa acompanhar manualmente qualquer item novo/removido do Drawer.
+- `build()`: registra 1 acesso (pra frecência) via `addPostFrameCallback` toda vez que a rota
+  muda pra uma rota rastreável, com dedup por `ultimaRotaRegistradaProvider` (mesma ideia do
+  `useRef` em `RastreadorAcessoMenu.tsx` da web); monta o `Map<String, ItemAtalhoMenu>`
+  (filtrado por permissão, mesma checagem `podeAcessar` já usada no resto do Drawer) e passa
+  pra `BarraAtalhosFavoritos`, inserida como primeiro filho do `body` (`Column` com
+  `Expanded(child: child)` logo abaixo).
+- `_buildDrawer(...)`: a função `_item(...)` que desenha cada linha do menu virou uma closure
+  local (antes era método de instância) só pra poder capturar `ref`/`favoritosHrefs` sem
+  precisar tocar em nenhuma das dezenas de chamadas `_item(...)` já espalhadas pelo Drawer —
+  todas continuam exatamente iguais, e cada uma ganhou a estrela de fixar/desfixar (cheia em
+  âmbar quando favoritado) ao lado do badge existente.
+
+Validado: balanceamento de parênteses/chaves/colchetes por script nos 4 arquivos (mesma
+limitação de sandbox sem Flutter/Dart instalado — `flutter analyze` ainda não rodado aqui,
+mesmo caso das fases anteriores); revisão manual completa dos dois shells linha a linha
+(closures declaradas antes do primeiro uso, imports corretos, nomes de parâmetro da RPC
+conferidos direto no Postgres via `pg_get_function_arguments`); RPCs testadas end-to-end no
+banco (pin manual sempre primeiro, frecência ordenando o resto, `search_path` fixo, RLS
+ativo) antes de portar — mesmos testes já feitos pro lado web.

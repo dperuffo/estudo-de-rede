@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/services/sessao_provider.dart';
+import '../../replicacao_grupo/widgets/replicar_para_grupo_button.dart';
 import '../providers/centros_custo_provider.dart';
 
 // Fase FLT-3 — Centros de Custo (cliente). Ver escopo completo (sem
@@ -12,6 +14,7 @@ class CentrosCustoScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(centrosCustoClienteProvider);
+    final empresaId = ref.watch(sessaoProvider).maybeWhen(data: (s) => s.empresaId, orElse: () => null);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Centros de Custo')),
@@ -40,6 +43,15 @@ class CentrosCustoScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
               children: [
+                if (empresaId != null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ReplicarParaGrupoButton(
+                      chaveTabela: 'centros_custo',
+                      empresaId: empresaId,
+                      rotuloRegistro: 'os centros de custo',
+                    ),
+                  ),
                 Row(
                   children: [
                     Expanded(child: _indicador('Total', centros.length.toString())),

@@ -4,10 +4,27 @@ import 'package:go_router/go_router.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../motoristas/providers/motoristas_provider.dart' show motoristasClienteProvider;
 import '../../veiculos/providers/veiculos_provider.dart' show veiculosClienteProvider;
+import '../../replicacao_grupo/widgets/replicar_para_grupo_button.dart';
 import '../providers/parametros_uso_provider.dart';
 import '../services/parametros_uso_service.dart';
 import 'regras_forms.dart';
 import 'secao_pre_pedido.dart';
+
+// Fase Replicação-Grupo — mesmo mapeamento aba→chave da web
+// (CHAVE_REPLICACAO_POR_ABA em parametros-uso/page.tsx). "vinculo" e
+// "cotas" ficam de fora: são regras amarradas a um veículo específico
+// (placa), que só existe na empresa de origem.
+const _chaveReplicacaoPorAba = {
+  'intervalo': 'parametros_intervalo_abastecimento',
+  'valor-diario': 'parametros_valor_diario_motorista',
+  'volume-diario': 'parametros_volume_diario_veiculo',
+  'produto': 'parametros_produto_abastecido',
+  'hodometro-leve': 'parametros_variacao_hodometro',
+  'hodometro-pesado': 'parametros_variacao_hodometro',
+  'dias-horarios': 'parametros_dias_horarios',
+  'postos': 'parametros_postos_permitidos',
+  'pre-pedido': 'parametros_pre_pedido',
+};
 
 // Fase FLT-3 — Parâmetros de Uso (cliente): shell com seletor de aba (chips
 // horizontais, mesmo padrão da web) + conteúdo por tipo. Ver escopo
@@ -87,9 +104,27 @@ class _ParametrosUsoScreenState extends ConsumerState<ParametrosUsoScreen> {
               ),
             ),
           ),
+          if (_chaveReplicacaoPorAba.containsKey(_aba)) _linhaReplicar(),
           const Divider(height: 1),
           Expanded(child: _conteudoAba()),
         ],
+      ),
+    );
+  }
+
+  Widget _linhaReplicar() {
+    final sessaoAsync = ref.watch(sessaoProvider);
+    final empresaId = sessaoAsync.maybeWhen(data: (s) => s.empresaId, orElse: () => null);
+    if (empresaId == null) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ReplicarParaGrupoButton(
+          chaveTabela: _chaveReplicacaoPorAba[_aba]!,
+          empresaId: empresaId,
+          rotuloRegistro: 'os parâmetros gerais desta aba',
+        ),
       ),
     );
   }

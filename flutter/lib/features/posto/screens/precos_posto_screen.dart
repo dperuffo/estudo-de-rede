@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/sessao_provider.dart';
+import '../../replicacao_grupo/widgets/replicar_para_grupo_button.dart';
 import '../providers/negociacoes_provider.dart' show produtosPosto;
 import '../providers/precos_posto_provider.dart';
 
@@ -89,6 +90,7 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
       data: (precos) {
         _preencher(precos);
         final auditoria = {for (final p in precos) p.combustivel: p};
+        final empresaId = ref.watch(sessaoProvider).maybeWhen(data: (s) => s.empresaId, orElse: () => null);
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -100,6 +102,15 @@ class _PrecosPostoScreenState extends ConsumerState<PrecosPostoScreen> {
               'Deixe em branco o combustível que você não vende.',
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
+            if (empresaId != null && precos.isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ReplicarParaGrupoButton(
+                  chaveTabela: 'precos_postos',
+                  empresaId: empresaId,
+                  rotuloRegistro: 'a tabela de preços',
+                ),
+              ),
             const SizedBox(height: 16),
             if (_erro != null) ...[
               Container(
