@@ -6,6 +6,7 @@ import '../../../core/providers/avisos_provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
+import '../../../core/services/permissoes_acesso.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../../core/widgets/sino_avisos.dart';
 
@@ -22,10 +23,18 @@ class PostoHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = GoRouterState.of(context).matchedLocation;
     final sessao = ref.watch(sessaoProvider);
+    // Fase enforcement-permissoes (04/08/2026) — mesmo raciocínio do
+    // home_screen.dart (shell cliente): só esconde do menu o que o
+    // app_router.dart (Camada 5) já bloquearia ao navegar.
+    final perfilAtual = sessao.valueOrNull?.perfil;
+    final bypassPermissao = ehBypassPermissao(perfilAtual, sessao.valueOrNull?.email);
+    final mapaPermissoes = bypassPermissao
+        ? const <String, bool>{}
+        : ref.watch(permissoesMapaProvider(perfilAtual)).valueOrNull ?? const <String, bool>{};
 
     return Scaffold(
       key: rootScaffoldKey,
-      drawer: _buildDrawer(context, ref, sessao.valueOrNull),
+      drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao, mapaPermissoes),
       appBar: AppBar(
         title: const Text('FNI — Posto'),
         actions: const [SinoAvisos()],
@@ -45,7 +54,15 @@ class PostoHomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDrawer(BuildContext context, WidgetRef ref, SessaoUsuario? sessao) {
+  Widget _buildDrawer(
+    BuildContext context,
+    WidgetRef ref,
+    SessaoUsuario? sessao,
+    bool bypassPermissao,
+    Map<String, bool> mapaPermissoes,
+  ) {
+    bool pode(String rota) =>
+        bypassPermissao || temAcesso(mapaPermissoes, resolverFuncionalidadeDaRota(rota));
     final nomeEmpresa = sessao?.nomeEmpresa;
     // Fase FLT-2 — pedido do Daniel: seletor pra alternar entre os postos
     // da Rede de Postos (grupo econômico) a qualquer momento, não só no
@@ -155,30 +172,30 @@ class PostoHomeScreen extends ConsumerWidget {
               ),
             ),
             _grp('Gestão'),
-            _item(context, Icons.dashboard, 'Dashboard', '/posto'),
-            _item(context, Icons.place, 'Meu Posto', '/posto/meu-posto'),
-            _item(context, Icons.hub, 'Rede de Postos', '/posto/rede-postos'),
-            _item(context, Icons.smart_toy, 'Assistente FNI', '/posto/assistente'),
-            _item(context, Icons.credit_card, 'Minha Assinatura', '/posto/assinatura'),
-            _item(context, Icons.star, 'Avaliar Plataforma', '/posto/avaliar'),
-            _item(context, Icons.attach_money, 'Financeiro', '/posto/financeiro'),
-            _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
-            _item(context, Icons.account_balance, 'Meus Dados / PIX', '/posto/meus-dados'),
-            _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
-            _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
-            _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados', badge: badges.chamados),
+            if (pode('/posto')) _item(context, Icons.dashboard, 'Dashboard', '/posto'),
+            if (pode('/posto/meu-posto')) _item(context, Icons.place, 'Meu Posto', '/posto/meu-posto'),
+            if (pode('/posto/rede-postos')) _item(context, Icons.hub, 'Rede de Postos', '/posto/rede-postos'),
+            if (pode('/posto/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/posto/assistente'),
+            if (pode('/posto/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/posto/assinatura'),
+            if (pode('/posto/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/posto/avaliar'),
+            if (pode('/posto/financeiro')) _item(context, Icons.attach_money, 'Financeiro', '/posto/financeiro'),
+            if (pode('/posto/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
+            if (pode('/posto/meus-dados')) _item(context, Icons.account_balance, 'Meus Dados / PIX', '/posto/meus-dados'),
+            if (pode('/posto/documentos')) _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
+            if (pode('/posto/usuarios')) _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
+            if (pode('/posto/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados', badge: badges.chamados),
             const Divider(),
             _grp('Operação'),
-            _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes', badge: badges.negociacoes),
-            _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos', badge: badges.ajustesAbastecimento),
-            _item(context, Icons.card_giftcard, 'Parcerias Locais', '/posto/parcerias-locais'),
-            _item(context, Icons.business, 'Clientes', '/posto/clientes'),
-            _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
+            if (pode('/posto/negociacoes')) _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes', badge: badges.negociacoes),
+            if (pode('/posto/abastecimentos')) _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos', badge: badges.ajustesAbastecimento),
+            if (pode('/posto/parcerias-locais')) _item(context, Icons.card_giftcard, 'Parcerias Locais', '/posto/parcerias-locais'),
+            if (pode('/posto/clientes')) _item(context, Icons.business, 'Clientes', '/posto/clientes'),
+            if (pode('/posto/precos')) _item(context, Icons.sell, 'Meus Preços', '/posto/precos'),
             // Fase Pré-Pedido (28/07/2026) — consulta pro posto conferir
             // antes de liberar abastecimento (ver pre_pedidos_posto_screen.dart).
-            _item(context, Icons.checklist, 'Pré-Pedidos', '/posto/pre-pedidos'),
+            if (pode('/posto/pre-pedidos')) _item(context, Icons.checklist, 'Pré-Pedidos', '/posto/pre-pedidos'),
             const Divider(),
-            _item(context, Icons.notifications_outlined, 'Avisos', '/posto/avisos', badge: avisosNaoLidos),
+            if (pode('/posto/avisos')) _item(context, Icons.notifications_outlined, 'Avisos', '/posto/avisos', badge: avisosNaoLidos),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -187,6 +204,7 @@ class PostoHomeScreen extends ConsumerWidget {
                 await AuthService().signOut();
                 ref.invalidate(sessaoProvider);
                 ref.invalidate(empresaSelecionadaProvider);
+                ref.invalidate(permissoesMapaProvider);
                 if (context.mounted) context.go('/login');
               },
             ),

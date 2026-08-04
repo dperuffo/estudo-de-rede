@@ -1737,3 +1737,46 @@ original): `notas_fiscais_provider.dart` ganhou `CicloNfe`/`ciclosNfeProvider` (
 passou a chamar `abastecimentos_do_ciclo_nfe`. `notas_fiscais_screen.dart` renderiza a lista de cards
 de ciclo (`_cardCiclo`, tap pra selecionar) no lugar do card único, com badge de status colorido por
 cor (mesma paleta de `financeiro_posto_screen.dart`).
+
+## Fase enforcement-permissoes — permissões passam a travar de verdade (web + PWA)
+
+Pedido do Daniel: "mas as permissoes deveriam travar se estiverem desligadas, tanto na web quanto no
+PWA" — até aqui `permissoes_perfil` só alimentava a tela `/permissoes` (matriz de edição, ver
+`permissoes_provider.dart`/`permissoes_service.dart`), sem nada no app ler essas linhas pra esconder
+item de menu ou bloquear rota (mesmo achado já registrado na web). Confirmado com o Daniel: aplicar nas
+64 funcionalidades existentes de uma vez, web e Flutter juntos.
+
+**`core/services/permissoes_acesso.dart`** (novo, porta 1:1 de `src/lib/permissoes.ts` da web, mesmos
+slugs `aba_*` — um toggle em `/permissoes` trava igual dos dois lados): `rotaFuncionalidade` (mapa rota
+→ `aba_*`, cobre os dois shells — cliente `/x` e posto `/posto/x` — na mesma tabela, já que os
+prefixos não colidem), `rotasNuncaBloqueadas` (`/`, `/dashboard`, `/posto`, `/chamados`,
+`/posto/chamados`, `/assinatura`, `/posto/assinatura`, `/mfa-pendente`, `/login`,
+`/selecionar-empresa` — evita loop de redirecionamento e travar quem precisa da tela pra sair de
+qualquer bloqueio), `resolverFuncionalidadeDaRota` (prefixo com borda de `/`),
+`ehBypassPermissao` (admin e o e-mail do Daniel nunca travam), `temAcesso` (linha ausente = liberado,
+fail-open) e `permissoesMapaProvider` (`FutureProvider.family<Map<String,bool>, String?>` por perfil,
+cacheado pelo próprio Riverpod — a mesma instância serve o redirect do router e o filtro de menu dos
+dois shells sem repetir a consulta ao Supabase a cada navegação; invalidado no logout, mesmo padrão de
+`sessaoProvider`).
+
+**`core/router/app_router.dart`**: nova "Camada 5" no `redirect` do GoRouter, depois da Camada 4
+(perfil posto x demais) — só roda pra quem não tem bypass, resolve a funcionalidade da rota atual e
+redireciona pra `/` (cliente) ou `/posto` (posto) se `temAcesso` disser não. Como esse destino está em
+`rotasNuncaBloqueadas` e a Camada 4 já garante que `loc` está no shell certo antes da Camada 5 rodar,
+não tem como entrar em loop.
+
+**`home_screen.dart` / `posto_home_screen.dart`**: cada item do Drawer ganhou um `if (pode('/rota'))`
+(mesmo padrão collection-if já usado pros itens exclusivos de admin, ex. `if (sessao?.ehAdmin ??
+false) _item(...)`) — esconde do menu o que o router já bloquearia ao clicar. `pode` é um helper local
+dentro de `_buildDrawer`, computado a partir do mapa carregado em `build()` (`ref.watch` do
+`permissoesMapaProvider(perfil)`, com bypass pra admin/Daniel).
+
+**Limitações conhecidas, deixadas de propósito** (mesmas da web): bloqueio de rota só olha o padrão
+GLOBAL de permissões, não a customização por empresa feita em `/permissoes`; e não existe hoje um
+segundo mapeamento pra "colaborador" porque esse perfil não tem shell próprio neste PWA.
+
+**Risco conhecido**: mesmo aviso das fases anteriores — sem Flutter/Dart instalado neste ambiente de
+desenvolvimento, a validação foi feita por revisão manual linha a linha + balanceamento de
+parênteses/chaves/colchetes por script em cada arquivo tocado, **não compilado** aqui. Rodar `flutter
+analyze` antes de confiar no deploy — em especial a Camada 5 do `app_router.dart` (é lógica de
+navegação, o tipo de bug que só aparece rodando de verdade).

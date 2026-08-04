@@ -136,6 +136,7 @@ import '../../features/fretes/screens/frete_detalhe_screen.dart';
 import '../../features/fretes/screens/motoristas_parceiros_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sessao_provider.dart';
+import '../services/permissoes_acesso.dart';
 
 // Fase FLT-1 — pedido do Daniel: "dependendo de quem acessa o PWA será
 // direcionado para o seu perfil". O redirect agora tem 3 camadas, na mesma
@@ -196,6 +197,21 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
         final estaEmRotaPosto = loc == '/posto' || loc.startsWith('/posto/');
         if (sessao.ehPosto && !estaEmRotaPosto) return '/posto';
         if (!sessao.ehPosto && estaEmRotaPosto) return '/';
+
+        // Camada 5 — permissões (Fase enforcement-permissoes, 04/08/2026,
+        // pedido do Daniel: "as permissoes deveriam travar se estiverem
+        // desligadas, tanto na web quanto no PWA"). Mesma lógica da web
+        // ((dashboard)/layout.tsx + src/lib/permissoes.ts): admin e o
+        // e-mail do Daniel nunca são bloqueados; uma rota sem "aba_"
+        // mapeada (ou sem linha na matriz) fica liberada por padrão
+        // (fail-open); o destino do redirect (`/` ou `/posto`) está em
+        // `rotasNuncaBloqueadas`, então não tem como entrar em loop.
+        if (!ehBypassPermissao(sessao.perfil, sessao.email)) {
+          final mapa = await ref.read(permissoesMapaProvider(sessao.perfil).future);
+          if (!temAcesso(mapa, resolverFuncionalidadeDaRota(loc))) {
+            return sessao.ehPosto ? '/posto' : '/';
+          }
+        }
 
         return null;
       },

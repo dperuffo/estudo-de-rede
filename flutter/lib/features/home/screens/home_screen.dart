@@ -6,6 +6,7 @@ import '../../../core/providers/avisos_provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
+import '../../../core/services/permissoes_acesso.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../../core/widgets/sino_avisos.dart';
 
@@ -35,10 +36,20 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = GoRouterState.of(context).matchedLocation;
     final sessao = ref.watch(sessaoProvider);
+    // Fase enforcement-permissoes (04/08/2026) — mesmo mapa usado pelo
+    // bloqueio de rota em app_router.dart (Camada 5), aqui só pra esconder
+    // do menu o que já seria bloqueado ao clicar (evita a pessoa navegar
+    // pra tela, cair no redirect e achar que é bug). `bypass` cobre
+    // admin/e-mail do Daniel, que sempre veem o menu completo.
+    final perfilAtual = sessao.valueOrNull?.perfil;
+    final bypassPermissao = ehBypassPermissao(perfilAtual, sessao.valueOrNull?.email);
+    final mapaPermissoes = bypassPermissao
+        ? const <String, bool>{}
+        : ref.watch(permissoesMapaProvider(perfilAtual)).valueOrNull ?? const <String, bool>{};
 
     return Scaffold(
       key: rootScaffoldKey,
-      drawer: _buildDrawer(context, ref, sessao.valueOrNull),
+      drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao, mapaPermissoes),
       appBar: AppBar(title: const Text('FNI — Gestão de Frotas'), actions: const [SinoAvisos()]),
       body: child,
       bottomNavigationBar: NavigationBar(
@@ -55,7 +66,18 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDrawer(BuildContext context, WidgetRef ref, SessaoUsuario? sessao) {
+  Widget _buildDrawer(
+    BuildContext context,
+    WidgetRef ref,
+    SessaoUsuario? sessao,
+    bool bypassPermissao,
+    Map<String, bool> mapaPermissoes,
+  ) {
+    // Fase enforcement-permissoes (04/08/2026) — mesma checagem usada na
+    // web (podeAcessarItem em layout.tsx): rota sem "aba_" mapeada
+    // (resolverFuncionalidadeDaRota devolve null) fica sempre liberada.
+    bool pode(String rota) =>
+        bypassPermissao || temAcesso(mapaPermissoes, resolverFuncionalidadeDaRota(rota));
     final nomeEmpresa = sessao?.nomeEmpresa;
     final temMultiplasEmpresas = (sessao?.empresasIds.length ?? 0) > 1;
     // Fase FLT-7 — as 7 bolinhas de notificação da web (ver comentário
@@ -152,99 +174,99 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
           _grp('Gestão'),
-          _item(context, Icons.dashboard, 'Dashboard', '/dashboard'),
-          _item(context, Icons.smart_toy, 'Assistente FNI', '/assistente'),
-          _item(context, Icons.credit_card, 'Minha Assinatura', '/assinatura'),
-          _item(context, Icons.star, 'Avaliar Plataforma', '/avaliar'),
-          _item(context, Icons.attach_money, 'Painel Financeiro', '/financeiro'),
-          _item(context, Icons.folder, 'Documentos', '/documentos'),
-          _item(context, Icons.hub, 'Inteligência de Rede', '/inteligencia-rede'),
-          _item(context, Icons.lock, 'Privacidade (LGPD)', '/lgpd'),
-          _item(context, Icons.confirmation_number, 'Chamados', '/chamados', badge: badges.chamados),
+          if (pode('/dashboard')) _item(context, Icons.dashboard, 'Dashboard', '/dashboard'),
+          if (pode('/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/assistente'),
+          if (pode('/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/assinatura'),
+          if (pode('/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/avaliar'),
+          if (pode('/financeiro')) _item(context, Icons.attach_money, 'Painel Financeiro', '/financeiro'),
+          if (pode('/documentos')) _item(context, Icons.folder, 'Documentos', '/documentos'),
+          if (pode('/inteligencia-rede')) _item(context, Icons.hub, 'Inteligência de Rede', '/inteligencia-rede'),
+          if (pode('/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/lgpd'),
+          if (pode('/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/chamados', badge: badges.chamados),
           const Divider(),
           _grp('Cadastros'),
-          _item(context, Icons.business, 'Clientes', '/clientes', badge: badges.acessosClientes),
-          _item(context, Icons.account_tree, 'Grupo Econômico', '/grupo-economico'),
-          _item(context, Icons.people, 'Usuários', '/usuarios'),
-          _item(context, Icons.badge, 'Motoristas', '/motoristas'),
-          _item(context, Icons.directions_car, 'Veículos', '/veiculos'),
-          _item(context, Icons.receipt_long, 'Centros de Custo', '/centros-custo'),
-          _item(context, Icons.local_gas_station, 'Postos Revendedores', '/postos'),
+          if (pode('/clientes')) _item(context, Icons.business, 'Clientes', '/clientes', badge: badges.acessosClientes),
+          if (pode('/grupo-economico')) _item(context, Icons.account_tree, 'Grupo Econômico', '/grupo-economico'),
+          if (pode('/usuarios')) _item(context, Icons.people, 'Usuários', '/usuarios'),
+          if (pode('/motoristas')) _item(context, Icons.badge, 'Motoristas', '/motoristas'),
+          if (pode('/veiculos')) _item(context, Icons.directions_car, 'Veículos', '/veiculos'),
+          if (pode('/centros-custo')) _item(context, Icons.receipt_long, 'Centros de Custo', '/centros-custo'),
+          if (pode('/postos')) _item(context, Icons.local_gas_station, 'Postos Revendedores', '/postos'),
           const Divider(),
           _grp('Operação'),
-          _item(context, Icons.local_gas_station, 'Abastecimentos', '/abastecimentos', badge: badges.ajustesAbastecimento),
-          _item(context, Icons.description, 'Notas Fiscais', '/notas-fiscais'),
+          if (pode('/abastecimentos')) _item(context, Icons.local_gas_station, 'Abastecimentos', '/abastecimentos', badge: badges.ajustesAbastecimento),
+          if (pode('/notas-fiscais')) _item(context, Icons.description, 'Notas Fiscais', '/notas-fiscais'),
           // Pedido do Daniel: "Retirar a aba de Anomalias" — mesma decisão já
           // tomada na web (Ações Sugeridas cobre tudo que Anomalias
           // detectava, ver comentário em app_router.dart).
-          _item(context, Icons.auto_awesome, 'Ações Sugeridas', '/acoes-sugeridas', badge: badges.acoesSugeridas),
+          if (pode('/acoes-sugeridas')) _item(context, Icons.auto_awesome, 'Ações Sugeridas', '/acoes-sugeridas', badge: badges.acoesSugeridas),
           // Fase remove-antifraude-do-menu (mesma decisão já tomada na web,
           // ver comentário em layout.tsx): as regras de Antifraude já estão
           // cobertas pelos Parâmetros de Uso — tirado só do menu, a rota
           // /antifraude continua registrada em app_router.dart.
-          _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
-          _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
+          if (pode('/parcerias-locais')) _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
+          if (pode('/fretes')) _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
           // Fase Torre-de-Controle-Leve (03/08/2026, benchmark FNI vs KMM,
           // Grupo 1 item 1) — Icons.radar = PWA: Radar (web).
-          _item(context, Icons.radar, 'Torre de Controle', '/torre-de-controle'),
+          if (pode('/torre-de-controle')) _item(context, Icons.radar, 'Torre de Controle', '/torre-de-controle'),
           // Fase Programacao-Frota (03/08/2026, benchmark FNI vs
           // Rodopar/Datapar, Grupo 1 item 1) — Icons.calendar_month = PWA:
           // CalendarClock (web).
-          _item(context, Icons.calendar_month, 'Programação', '/programacao'),
+          if (pode('/programacao')) _item(context, Icons.calendar_month, 'Programação', '/programacao'),
           // Fase Financeiro-ERP (26/07/2026, pedido do Daniel) — "Aba de
           // Piso mínimo ANTT tem que estar na visão do cliente, web e PWA".
-          _item(context, Icons.price_check, 'Piso Mínimo ANTT', '/pisos-antt'),
+          if (pode('/pisos-antt')) _item(context, Icons.price_check, 'Piso Mínimo ANTT', '/pisos-antt'),
           // Fase Grupo 2 (Rodopar/Datapar, item 5, 03/08/2026) —
           // Icons.work_outline = PWA: Briefcase (web). Carteira de clientes
           // + funil de propostas (lê cotacoes) + histórico de relacionamento.
-          _item(context, Icons.work_outline, 'CRM Comercial', '/crm-comercial'),
-          _item(context, Icons.handshake_outlined, 'Motoristas Parceiros', '/motoristas-parceiros'),
-          _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
-          _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),
-          _item(context, Icons.card_travel, 'Planos de Viagem', '/planos-viagem'),
-          _item(context, Icons.handshake, 'Negociações com Postos', '/negociacoes', badge: badges.negociacoes),
-          _item(context, Icons.sell, 'Preços dos Postos Parceiros', '/precos-postos'),
+          if (pode('/crm-comercial')) _item(context, Icons.work_outline, 'CRM Comercial', '/crm-comercial'),
+          if (pode('/motoristas-parceiros')) _item(context, Icons.handshake_outlined, 'Motoristas Parceiros', '/motoristas-parceiros'),
+          if (pode('/roteirizacao')) _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
+          if (pode('/rotograma')) _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),
+          if (pode('/planos-viagem')) _item(context, Icons.card_travel, 'Planos de Viagem', '/planos-viagem'),
+          if (pode('/negociacoes')) _item(context, Icons.handshake, 'Negociações com Postos', '/negociacoes', badge: badges.negociacoes),
+          if (pode('/precos-postos')) _item(context, Icons.sell, 'Preços dos Postos Parceiros', '/precos-postos'),
           // Fase Onda-2 (benchmark TicketLog, item #6) — comparador de
           // combustível ideal por veículo/região.
-          _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
-          _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
+          if (pode('/combustivel-ideal')) _item(context, Icons.eco, 'Combustível Ideal', '/combustivel-ideal'),
+          if (pode('/manutencao-preditiva')) _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
           // Fase Grupo 1 Rodopar item 2 (03/08/2026, benchmark FNI vs
           // Rodopar/Datapar) — Icons.inventory_2 = PWA: Boxes (web).
           // Catálogo de peças com saldo/custo médio calculado a partir de um
           // ledger imutável, integrado à Manutenção (vincula saída à OS).
-          _item(context, Icons.inventory_2, 'Estoque de Peças', '/estoque-pecas'),
-          _item(context, Icons.attach_money, 'TCO / Custo por Veículo', '/tco'),
+          if (pode('/estoque-pecas')) _item(context, Icons.inventory_2, 'Estoque de Peças', '/estoque-pecas'),
+          if (pode('/tco')) _item(context, Icons.attach_money, 'TCO / Custo por Veículo', '/tco'),
           // Fase Grupo 2 (Rodopar, item 6, 03/08/2026) — Icons.account_balance
           // = PWA: Landmark (web). Depreciação contábil linha reta + correções
           // do ativo (reavaliação/melhoria/baixa).
-          _item(context, Icons.account_balance, 'Patrimônio', '/patrimonio'),
+          if (pode('/patrimonio')) _item(context, Icons.account_balance, 'Patrimônio', '/patrimonio'),
           // Fase Indicadores-da-Frota (30/07/2026) — Icons.speed = PWA: Gauge (web).
-          _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),
+          if (pode('/indicadores-frota')) _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),
           // Fase Indicadores-da-Frota C (30/07/2026) — Icons.fact_check =
           // PWA: ShieldCheck (web). Alimenta conformidade/TMRNC.
-          _item(context, Icons.fact_check, 'Checklist de Inspeção', '/checklist-veiculos'),
+          if (pode('/checklist-veiculos')) _item(context, Icons.fact_check, 'Checklist de Inspeção', '/checklist-veiculos'),
           // Fase Indicadores-da-Frota C (30/07/2026) — Icons.warning_amber =
           // PWA: AlertTriangle (web). Alimenta índice de sinistralidade.
-          _item(context, Icons.warning_amber, 'Sinistros', '/sinistros'),
+          if (pode('/sinistros')) _item(context, Icons.warning_amber, 'Sinistros', '/sinistros'),
           // Fase Onda-2 (benchmark TicketLog, item #4) — ciclo de multas:
           // captura, indicação de condutor, histórico, prazo de desconto.
-          _item(context, Icons.gavel, 'Multas', '/multas', badge: badges.multasPendentes),
+          if (pode('/multas')) _item(context, Icons.gavel, 'Multas', '/multas', badge: badges.multasPendentes),
           // Fase Onda-2 (benchmark TicketLog, item #5) — catálogo de
           // oficinas credenciadas + solicitação simples de orçamento.
-          _item(context, Icons.build_circle_outlined, 'Rede de Oficinas', '/oficinas'),
-          _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
-          _item(context, Icons.receipt_long, 'Parâmetros de NF', '/parametros-nf'),
-          _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
+          if (pode('/oficinas')) _item(context, Icons.build_circle_outlined, 'Rede de Oficinas', '/oficinas'),
+          if (pode('/parametros-uso')) _item(context, Icons.tune, 'Parâmetros de Uso', '/parametros-uso'),
+          if (pode('/parametros-nf')) _item(context, Icons.receipt_long, 'Parâmetros de NF', '/parametros-nf'),
+          if (pode('/relatorios')) _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
           // Fase Onda-3 (benchmark TicketLog, item #10) — estimativa de CO2
           // emitido pela frota a partir dos litros já registrados.
-          _item(context, Icons.public, 'Pegada de Carbono', '/pegada-carbono'),
+          if (pode('/pegada-carbono')) _item(context, Icons.public, 'Pegada de Carbono', '/pegada-carbono'),
           const Divider(),
           // Fase FLT-4 — pro admin, esta MESMA rota (/permissoes) edita o
           // padrão GLOBAL do sistema em vez da empresa escolhida (ver
           // permissoes_provider.dart) — rótulo avisa a diferença, já que é
           // literalmente a mesma tela pros dois casos.
           _grp((sessao?.ehAdmin ?? false) ? 'Administração' : 'Configurações'),
-          _item(context, Icons.vpn_key, (sessao?.ehAdmin ?? false) ? 'Permissões (padrão global)' : 'Permissões', '/permissoes'),
+          if (pode('/permissoes')) _item(context, Icons.vpn_key, (sessao?.ehAdmin ?? false) ? 'Permissões (padrão global)' : 'Permissões', '/permissoes'),
           // Fase FLT-4 — Configurações do Sistema: exclusiva do admin (a
           // própria tela já mostra "Acesso restrito" pra quem não é, mas
           // nem faz sentido oferecer o item de menu nesse caso).
@@ -257,7 +279,7 @@ class HomeScreen extends ConsumerWidget {
           if (sessao?.ehAdmin ?? false) _item(context, Icons.apartment, 'Clientes (todos)', '/clientes-admin'),
           if (sessao?.ehAdmin ?? false) _item(context, Icons.account_tree, 'Grupo Econômico (todos)', '/grupos-economicos'),
           const Divider(),
-          _item(context, Icons.notifications_outlined, 'Avisos', '/avisos', badge: avisosNaoLidos),
+          if (pode('/avisos')) _item(context, Icons.notifications_outlined, 'Avisos', '/avisos', badge: avisosNaoLidos),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
@@ -266,6 +288,7 @@ class HomeScreen extends ConsumerWidget {
               await AuthService().signOut();
               ref.invalidate(sessaoProvider);
               ref.invalidate(empresaSelecionadaProvider);
+              ref.invalidate(permissoesMapaProvider);
               if (context.mounted) context.go('/login');
             },
           ),
