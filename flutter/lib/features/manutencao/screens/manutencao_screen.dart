@@ -98,6 +98,13 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
     final obsCtrl      = TextEditingController(text: dados?['obs_gerais'] ?? '');
     final id = dados?['id'];
     
+    // 10/08/2026 — "Lubrificação Geral" e "Monitoramento de Ruídos" (2 dos 8
+    // componentes de manutencao_preditiva_base) não tinham nenhum item aqui
+    // que casasse com as palavras-chave 'lubrific'/'ruido' usadas pela
+    // função SQL — ficavam sempre "estimados"/vencidos, sem forma de o
+    // usuário confirmar que o serviço foi feito. Mesmo fix já aplicado no
+    // app Next.js (src/lib/manutencaoPreditiva.ts) — mantendo os dois apps
+    // com o mesmo vocabulário, já que escrevem na mesma tabela.
     const _itensOpcoes = [
       'Troca de óleo e filtro',
       'Revisão de freios',
@@ -115,6 +122,8 @@ class _State extends State<ManutencaoScreen> with SingleTickerProviderStateMixin
       'Troca de fluido de freio',
       'Revisão de transmissão',
       'Troca de amortecedores',
+      'Lubrificação geral',
+      'Verificação de ruídos e vibrações',
     ];
     final itensSelecionados = <String>{};
 

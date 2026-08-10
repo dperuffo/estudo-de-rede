@@ -52,6 +52,14 @@ Color corBarraScore(double score) {
 // Porta de ITENS_MANUTENCAO (src/lib/manutencaoPreditiva.ts) — mesmo
 // vocabulário usado pelo app Flutter de produção, pra manter o histórico
 // compatível entre os apps que escrevem em manutencoes_realizadas.
+//
+// 10/08/2026 — "Lubrificação Geral" e "Monitoramento de Ruídos" (2 dos 8
+// componentes em ordemComponentes acima) não tinham nenhum item aqui que
+// casasse com as palavras-chave 'lubrific'/'ruido' da função SQL
+// manutencao_preditiva_base — ficavam sempre "estimados"/vencidos, sem
+// forma de o usuário confirmar que o serviço foi feito. Mesmo fix já
+// aplicado no app Next.js e em manutencao_screen.dart (tela irmã mais
+// antiga, mesmo formulário duplicado).
 const itensManutencao = [
   'Troca de óleo e filtro',
   'Revisão de freios',
@@ -69,6 +77,8 @@ const itensManutencao = [
   'Troca de fluido de freio',
   'Revisão de transmissão',
   'Troca de amortecedores',
+  'Lubrificação geral',
+  'Verificação de ruídos e vibrações',
 ];
 
 class VeiculoResumoManutencao {
