@@ -148,6 +148,41 @@ class ItemEficienciaVeiculo {
   });
 }
 
+// Item 9 — Desempenho por marca/modelo/motor (Fase FLT-Desempenho-Ativo,
+// 12/08/2026) — mesma RPC desempenho_veiculos_grupo usada pelo card 9 do
+// Dashboard web (TabelaDesempenhoPorAtivo.tsx). Agrupa por marca+modelo+motor
+// em vez de por placa individual, pra apoiar decisão de compra/customização.
+class ItemDesempenhoAtivo {
+  final String marca;
+  final String modelo;
+  final String motor;
+  final int qtdVeiculos;
+  final double? kmTotal;
+  final double? litrosTotal;
+  final double? mediaKmL;
+  final double? precoMedioLitro;
+  final double? custoCombustivelTotal;
+  final double? tcoTotal;
+  final double? custoPorKm;
+  final double? scoreManutencaoMedio;
+  final int qtdCriticos;
+  const ItemDesempenhoAtivo({
+    required this.marca,
+    required this.modelo,
+    required this.motor,
+    required this.qtdVeiculos,
+    required this.kmTotal,
+    required this.litrosTotal,
+    required this.mediaKmL,
+    required this.precoMedioLitro,
+    required this.custoCombustivelTotal,
+    required this.tcoTotal,
+    required this.custoPorKm,
+    required this.scoreManutencaoMedio,
+    required this.qtdCriticos,
+  });
+}
+
 class IndicadoresAvancadosDados {
   final bool temEmpresa;
   final int ano;
@@ -166,6 +201,7 @@ class IndicadoresAvancadosDados {
   final List<ItemRankingGasto> rankingVeiculos;
   final List<ItemRankingGasto> rankingMotoristas;
   final List<ItemEficienciaVeiculo> eficienciaVeiculos;
+  final List<ItemDesempenhoAtivo> desempenhoPorAtivo;
 
   const IndicadoresAvancadosDados({
     required this.temEmpresa,
@@ -185,6 +221,7 @@ class IndicadoresAvancadosDados {
     required this.rankingVeiculos,
     required this.rankingMotoristas,
     required this.eficienciaVeiculos,
+    required this.desempenhoPorAtivo,
   });
 
   factory IndicadoresAvancadosDados.vazio(int ano, int mes) => IndicadoresAvancadosDados(
@@ -205,6 +242,7 @@ class IndicadoresAvancadosDados {
         rankingVeiculos: const [],
         rankingMotoristas: const [],
         eficienciaVeiculos: const [],
+        desempenhoPorAtivo: const [],
       );
 }
 
@@ -346,6 +384,12 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
       'p_data_inicio': dataInicio,
       'p_data_fim': dataFim,
     })),
+    // Item 9 — Desempenho por marca/modelo/motor (12/08/2026).
+    _rpcSeguro(supabase.rpc('desempenho_veiculos_grupo', params: {
+      'p_empresa_id': empresaId,
+      'p_data_inicio': dataInicio,
+      'p_data_fim': dataFim,
+    })),
   ]);
 
   final variacaoPrecosRaw = resultados[0];
@@ -355,6 +399,7 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
   final rankingVeiculosRaw = resultados[4];
   final rankingMotoristasRaw = resultados[5];
   final eficienciaVeiculosRaw = resultados[6];
+  final desempenhoPorAtivoRaw = resultados[7];
 
   // Item 1 — Variação de preços.
   final variacaoPrecos = variacaoPrecosRaw.map((r) {
@@ -497,6 +542,26 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
     );
   }).toList();
 
+  // Item 9 — Desempenho por marca/modelo/motor.
+  final desempenhoPorAtivo = desempenhoPorAtivoRaw.map((r) {
+    final m = r as Map<String, dynamic>;
+    return ItemDesempenhoAtivo(
+      marca: m['marca'] as String? ?? 'Não informado',
+      modelo: m['modelo'] as String? ?? 'Não informado',
+      motor: m['motor'] as String? ?? 'Não informado',
+      qtdVeiculos: (m['qtd_veiculos'] as num?)?.toInt() ?? 0,
+      kmTotal: (m['km_total'] as num?)?.toDouble(),
+      litrosTotal: (m['litros_total'] as num?)?.toDouble(),
+      mediaKmL: (m['media_km_l'] as num?)?.toDouble(),
+      precoMedioLitro: (m['preco_medio_litro'] as num?)?.toDouble(),
+      custoCombustivelTotal: (m['custo_combustivel_total'] as num?)?.toDouble(),
+      tcoTotal: (m['tco_total'] as num?)?.toDouble(),
+      custoPorKm: (m['custo_por_km'] as num?)?.toDouble(),
+      scoreManutencaoMedio: (m['score_manutencao_medio'] as num?)?.toDouble(),
+      qtdCriticos: (m['qtd_criticos'] as num?)?.toInt() ?? 0,
+    );
+  }).toList();
+
   return IndicadoresAvancadosDados(
     temEmpresa: true,
     ano: ano,
@@ -515,5 +580,6 @@ final indicadoresAvancadosProvider = FutureProvider.autoDispose
     rankingVeiculos: rankingVeiculos,
     rankingMotoristas: rankingMotoristas,
     eficienciaVeiculos: eficienciaVeiculos,
+    desempenhoPorAtivo: desempenhoPorAtivo,
   );
 });

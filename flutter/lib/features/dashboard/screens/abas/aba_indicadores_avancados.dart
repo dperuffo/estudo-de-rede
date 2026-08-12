@@ -177,6 +177,8 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                   _item7RankingMotoristas(dados),
                   const SizedBox(height: 20),
                   _item8EficienciaVeiculos(dados),
+                  const SizedBox(height: 20),
+                  _item9DesempenhoPorAtivo(dados),
                 ],
               );
             },
@@ -622,6 +624,121 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
                           i.kmMedio.toStringAsFixed(0),
                           i.mediaKmL != null ? i.mediaKmL!.toStringAsFixed(2) : '—',
                           _moeda2.format(i.custoTotal),
+                        ])
+                    .toList(),
+                maxHeight: 260,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Item 9 — Desempenho por marca/modelo/motor (Fase FLT-Desempenho-Ativo,
+  // 12/08/2026) — espelha TabelaDesempenhoPorAtivo.tsx da web: agrupa por
+  // marca+modelo+motor (não por placa) pra apoiar decisão de compra/
+  // customização ("vale continuar comprando essa marca/modelo/motor?").
+  // Cada grupo já vem calculado no banco via razão de somas (RPC
+  // desempenho_veiculos_grupo, mesmo cuidado estatístico do item 8).
+  Widget _item9DesempenhoPorAtivo(IndicadoresAvancadosDados dados) {
+    final itens = dados.desempenhoPorAtivo;
+    final comKmL = itens.where((i) => i.mediaKmL != null).toList();
+    final comCustoKm = itens.where((i) => i.custoPorKm != null).toList();
+
+    final q33Kml = quantil(comKmL.map((i) => i.mediaKmL!).toList(), 0.33);
+    final q66Kml = quantil(comKmL.map((i) => i.mediaKmL!).toList(), 0.66);
+    Color corKml(double v) => v >= q66Kml ? const Color(0xFF43A047) : (v >= q33Kml ? const Color(0xFFF57C00) : const Color(0xFFE53935));
+
+    final q33Custo = quantil(comCustoKm.map((i) => i.custoPorKm!).toList(), 0.33);
+    final q66Custo = quantil(comCustoKm.map((i) => i.custoPorKm!).toList(), 0.66);
+    // Aqui o "melhor" é o MENOR custo/km — tercis invertidos em relação ao km/L.
+    Color corCusto(double v) => v <= q33Custo ? const Color(0xFF43A047) : (v <= q66Custo ? const Color(0xFFF57C00) : const Color(0xFFE53935));
+
+    String rotuloAtivo(ItemDesempenhoAtivo i) => '${i.marca} ${i.modelo}${i.motor != 'Não informado' ? ' (${i.motor})' : ''}';
+
+    final top12Kml = [...comKmL]..sort((a, b) => b.mediaKmL!.compareTo(a.mediaKmL!));
+    final top12KmlFinal = top12Kml.take(12).toList();
+    final top12Custo = [...comCustoKm]..sort((a, b) => a.custoPorKm!.compareTo(b.custoPorKm!));
+    final top12CustoFinal = top12Custo.take(12).toList();
+
+    Widget miniBarChart(
+      List<ItemDesempenhoAtivo> lista,
+      double Function(ItemDesempenhoAtivo) valor,
+      Color Function(ItemDesempenhoAtivo) cor,
+      String Function(double) formatarY,
+    ) {
+      return SizedBox(
+        height: 200,
+        child: BarChart(BarChartData(
+          barTouchData: barTouchPadrao(formatarY: formatarY, formatarX: (i) => i >= 0 && i < lista.length ? rotuloAtivo(lista[i]) : ''),
+          barGroups: lista.asMap().entries.map((e) {
+            return BarChartGroupData(x: e.key, barRods: [
+              BarChartRodData(toY: valor(e.value), color: cor(e.value), width: 10, borderRadius: const BorderRadius.vertical(top: Radius.circular(2))),
+            ]);
+          }).toList(),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (v, _) => _rotuloEixoY(v.toStringAsFixed(v >= 100 ? 0 : 1)))),
+            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 46, getTitlesWidget: (v, _) {
+              final i = v.toInt();
+              if (i < 0 || i >= lista.length) return const SizedBox.shrink();
+              return Padding(padding: const EdgeInsets.only(top: 4), child: _rotuloEixoX(truncarTexto(rotuloAtivo(lista[i]), 10)));
+            })),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: const FlGridData(drawVerticalLine: false),
+          borderData: FlBorderData(show: false),
+        )),
+      );
+    }
+
+    final mediaKmLGeral = comKmL.isEmpty ? null : comKmL.map((i) => i.mediaKmL!).reduce((a, b) => a + b) / comKmL.length;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _tituloItem('9. Desempenho por marca/modelo/motor',
+                subtitulo: 'km/L, R\$/L, custo/km (TCO) e manutenção agrupados pelas características do veículo — apoia decisão de customização.'),
+            if (itens.isEmpty)
+              const Padding(padding: EdgeInsets.all(12), child: Text('Sem dados suficientes no período (precisa de veículos com marca, modelo e abastecimentos).', style: TextStyle(color: Colors.grey, fontSize: 12)))
+            else ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  SizedBox(width: 150, child: CartaoIndicador(label: 'Combinações marca/modelo/motor', valor: formatarInt(itens.length), mini: true)),
+                  SizedBox(width: 150, child: CartaoIndicador(label: 'Veículos considerados', valor: formatarInt(itens.fold<int>(0, (s, i) => s + i.qtdVeiculos)), mini: true)),
+                  SizedBox(width: 150, child: CartaoIndicador(label: 'Média km/L (todos)', valor: mediaKmLGeral != null ? '${mediaKmLGeral.toStringAsFixed(1)} km/L' : '—', mini: true)),
+                  SizedBox(width: 150, child: CartaoIndicador(label: 'Veículos críticos', valor: formatarInt(itens.fold<int>(0, (s, i) => s + i.qtdCriticos)), mini: true)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (top12KmlFinal.isNotEmpty) ...[
+                Text('⛽ Consumo médio km/L por marca/modelo/motor', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                const SizedBox(height: 6),
+                miniBarChart(top12KmlFinal, (i) => i.mediaKmL!, corKml, (v) => '${v.toStringAsFixed(1)} km/L'),
+                const SizedBox(height: 16),
+              ],
+              if (top12CustoFinal.isNotEmpty) ...[
+                Text('💰 Custo por km (TCO) por marca/modelo/motor', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                const SizedBox(height: 6),
+                miniBarChart(top12CustoFinal, (i) => i.custoPorKm!, corCusto, (v) => formatarMoeda(v, casas: 2)),
+                const SizedBox(height: 12),
+              ],
+              TabelaSimples(
+                colunas: const ['Marca/Modelo', 'Motor', 'Veíc.', 'km/L', 'Custo/km'],
+                flexColunas: const [3, 2, 1, 2, 2],
+                linhas: itens
+                    .map((i) => [
+                          '${i.marca} ${i.modelo}',
+                          i.motor,
+                          '${i.qtdVeiculos}',
+                          i.mediaKmL != null ? i.mediaKmL!.toStringAsFixed(1) : '—',
+                          i.custoPorKm != null ? formatarMoeda(i.custoPorKm!, casas: 2) : '—',
                         ])
                     .toList(),
                 maxHeight: 260,
