@@ -102,3 +102,50 @@ final indicadoresJornadaProvider = FutureProvider.autoDispose.family<List<Indica
   }) as List;
   return rows.map((r) => IndicadorDiarioMotorista.fromMap(r as Map<String, dynamic>)).toList();
 });
+
+// Fase Painel-Jornada-Motorista (17/08/2026, pedido do Daniel: "senti falta
+// de um relatório que traga os tempos registrados... como se fosse um
+// tracking por motorista") — porta de jornada_motorista_registro_detalhado
+// (web). 1 linha por segmento (trecho contínuo dirigindo/pausa/descanso
+// entre dois eventos consecutivos), pra montar uma timeline por motorista.
+class RegistroDetalhadoMotorista {
+  final String motoristaId;
+  final String nomeCompleto;
+  final String tipoSegmento; // 'dirigindo' | 'pausa' | 'descanso'
+  final DateTime inicio;
+  final DateTime fim;
+  final int duracaoMinutos;
+  final bool emAndamento;
+
+  const RegistroDetalhadoMotorista({
+    required this.motoristaId,
+    required this.nomeCompleto,
+    required this.tipoSegmento,
+    required this.inicio,
+    required this.fim,
+    required this.duracaoMinutos,
+    required this.emAndamento,
+  });
+
+  factory RegistroDetalhadoMotorista.fromMap(Map<String, dynamic> m) => RegistroDetalhadoMotorista(
+        motoristaId: m['motorista_id'] as String,
+        nomeCompleto: m['nome_completo'] as String,
+        tipoSegmento: m['tipo_segmento'] as String,
+        inicio: DateTime.parse(m['inicio'] as String),
+        fim: DateTime.parse(m['fim'] as String),
+        duracaoMinutos: (m['duracao_minutos'] as num?)?.toInt() ?? 0,
+        emAndamento: m['em_andamento'] as bool? ?? false,
+      );
+}
+
+final registroDetalhadoJornadaProvider = FutureProvider.autoDispose.family<List<RegistroDetalhadoMotorista>, FiltroJornada>((ref, filtro) async {
+  final sessao = await ref.watch(sessaoProvider.future);
+  final empresaId = sessao.empresaId;
+  if (empresaId == null) return [];
+  final rows = await SupabaseService.client.rpc('jornada_motorista_registro_detalhado', params: {
+    'p_empresa_id': empresaId,
+    'p_data_inicio': filtro.dataInicio,
+    'p_data_fim': filtro.dataFim,
+  }) as List;
+  return rows.map((r) => RegistroDetalhadoMotorista.fromMap(r as Map<String, dynamic>)).toList();
+});

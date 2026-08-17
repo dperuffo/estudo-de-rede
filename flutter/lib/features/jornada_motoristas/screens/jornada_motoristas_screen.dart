@@ -7,6 +7,7 @@ import '../providers/jornada_motoristas_provider.dart';
 final _dataBr = DateFormat('dd/MM/yyyy');
 final _dataIso = DateFormat('yyyy-MM-dd');
 final _diaCurto = DateFormat('dd/MM');
+final _dataHoraBr = DateFormat('dd/MM/yyyy HH:mm');
 
 const _corDirigindo = Color(0xFF1B7A43);
 const _corPausa = Color(0xFFB8860B);
@@ -41,6 +42,7 @@ class JornadaMotoristasScreen extends ConsumerStatefulWidget {
 class _JornadaMotoristasScreenState extends ConsumerState<JornadaMotoristasScreen> {
   DateTime _dataInicio = DateTime.now().subtract(const Duration(days: 30));
   DateTime _dataFim = DateTime.now();
+  String? _motoristaSelecionadoId;
 
   Future<void> _escolherData({required bool inicio}) async {
     final atual = inicio ? _dataInicio : _dataFim;
@@ -60,6 +62,7 @@ class _JornadaMotoristasScreenState extends ConsumerState<JornadaMotoristasScree
     final filtro = (dataInicio: _dataIso.format(_dataInicio), dataFim: _dataIso.format(_dataFim));
     final statusAsync = ref.watch(statusAtualJornadaProvider);
     final diariosAsync = ref.watch(indicadoresJornadaProvider(filtro));
+    final registroAsync = ref.watch(registroDetalhadoJornadaProvider(filtro));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Jornada dos Motoristas')),
@@ -67,6 +70,7 @@ class _JornadaMotoristasScreenState extends ConsumerState<JornadaMotoristasScree
         onRefresh: () async {
           ref.invalidate(statusAtualJornadaProvider);
           ref.invalidate(indicadoresJornadaProvider);
+          ref.invalidate(registroDetalhadoJornadaProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -114,9 +118,88 @@ class _JornadaMotoristasScreenState extends ConsumerState<JornadaMotoristasScree
                 child: Text('Erro ao carregar indicadores: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
               ),
             ),
+            const SizedBox(height: 24),
+            _tituloSecao('Registro detalhado (tracking)'),
+            registroAsync.when(
+              data: (registros) => _secaoRegistroDetalhado(registros, statusAsync.asData?.value ?? const []),
+              loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator())),
+              error: (e, _) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text('Erro ao carregar registro detalhado: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  // Fase Painel-Jornada-Motorista (17/08/2026, pedido do Daniel: "senti
+  // falta de um relatório que traga os tempos registrados... como se fosse
+  // um tracking por motorista") — porta de jornada-motoristas/page.tsx
+  // (web): seletor de motorista + lista de segmentos (dirigindo/pausa/
+  // descanso) com início, fim e duração.
+  Widget _secaoRegistroDetalhado(List<RegistroDetalhadoMotorista> registros, List<StatusAtualMotorista> status) {
+    final motoristas = <String, String>{};
+    for (final s in status) {
+      motoristas[s.motoristaId] = s.nomeCompleto;
+    }
+    final motoristasOrdenados = motoristas.entries.toList()..sort((a, b) => a.value.compareTo(b.value));
+
+    if (motoristasOrdenados.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: Text('Nenhum motorista com jornada registrada.', style: TextStyle(color: Colors.grey))),
+      );
+    }
+
+    final selecionadoValido = _motoristaSelecionadoId != null && motoristas.containsKey(_motoristaSelecionadoId);
+    final segmentos = selecionadoValido ? registros.where((r) => r.motoristaId == _motoristaSelecionadoId).toList() : const <RegistroDetalhadoMotorista>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          value: selecionadoValido ? _motoristaSelecionadoId : null,
+          decoration: const InputDecoration(labelText: 'Motorista', isDense: true, border: OutlineInputBorder()),
+          items: motoristasOrdenados
+              .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 13))))
+              .toList(),
+          onChanged: (v) => setState(() => _motoristaSelecionadoId = v),
+        ),
+        const SizedBox(height: 12),
+        if (!selecionadoValido)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text('Selecione um motorista para ver o registro detalhado.', style: TextStyle(color: Colors.grey, fontSize: 12))),
+          )
+        else if (segmentos.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text('Nenhum registro encontrado para esse motorista no período.', style: TextStyle(color: Colors.grey, fontSize: 12))),
+          )
+        else
+          ...segmentos.map((r) {
+            final cor = r.tipoSegmento == 'dirigindo' ? _corDirigindo : r.tipoSegmento == 'pausa' ? _corPausa : _corDescanso;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(top: 4),
+                  decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
+                ),
+                title: Text(_labelEstado[r.tipoSegmento] ?? r.tipoSegmento, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cor)),
+                subtitle: Text(
+                  '${_dataHoraBr.format(r.inicio)} → ${r.emAndamento ? "Em andamento" : _dataHoraBr.format(r.fim)}',
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: Text(_formatarDuracao(r.duracaoMinutos), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            );
+          }),
+      ],
     );
   }
 
