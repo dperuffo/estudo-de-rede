@@ -76,6 +76,7 @@ import '../../features/tco/screens/tco_detalhe_screen.dart';
 import '../../features/patrimonio/screens/patrimonio_screen.dart';
 import '../../features/patrimonio/screens/patrimonio_detalhe_screen.dart';
 import '../../features/indicadores_frota/screens/indicadores_frota_screen.dart';
+import '../../features/jornada_motoristas/screens/jornada_motoristas_screen.dart';
 import '../../features/torre_de_controle/screens/torre_de_controle_screen.dart';
 import '../../features/programacao_frota/screens/programacao_frota_screen.dart';
 import '../../features/agendamentos_patio/screens/agendamentos_patio_screen.dart';
@@ -403,6 +404,10 @@ final appRouterProvider = Provider<GoRouter>((ref) => GoRouter(
             ),
             // Fase Indicadores-da-Frota (30/07/2026).
             GoRoute(path: '/indicadores-frota', builder: (_, __) => const IndicadoresFrotaScreen()),
+            // Fase Painel-Jornada-Motorista (17/08/2026, pedido do Daniel:
+            // painel do gestor com indicadores de jornada, "Web e PWA juntos
+            // desde já").
+            GoRoute(path: '/jornada-motoristas', builder: (_, __) => const JornadaMotoristasScreen()),
             // Fase Onda-2 (benchmark TicketLog, item #4) — Gestão de Multas.
             GoRoute(path: '/multas', builder: (_, __) => const MultasScreen()),
             GoRoute(path: '/multas/nova', builder: (_, __) => const NovaMultaScreen()),
