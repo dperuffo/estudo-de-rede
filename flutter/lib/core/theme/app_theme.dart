@@ -14,31 +14,42 @@ class AppTheme {
 
   // Fase Liquid-Glass-PWA (20/08/2026, pedido do Daniel: aplicar nos PWAs
   // cliente e motorista o mesmo liquid glass ja feito na web) - mesma
-  // paleta bronze/champanhe do menu lateral web (ver globals.css:
-  // .glass-nav/.glass-nav-*/.glass-tab-ativa). Diferente do CSS, o Flutter
-  // nao tem "backdrop-filter" aplicavel via Theme a qualquer widget - o
-  // efeito vidro aqui vem da combinacao gradiente + opacidade + borda
-  // clara + sombra suave, sem desfoque literal. Mesma linguagem visual da
-  // web, sem o blur que o framework nao oferece de graca nesses pontos.
-  static const Color glassBronzeClaro = Color(0xF0C4A884);
-  static const Color glassBronzeMedio = Color(0xF08B6C52);
-  static const Color glassBronzeEscuro = Color(0xF54A3A2A);
-  static const Color glassTexto = Color(0xFFF8ECD9);
-  static const Color glassTextoMuted = Color(0xFFE4CBA8);
-  static const Color glassIcone = Color(0xFFF0DCBC);
+  // paleta do menu lateral web (ver globals.css: .glass-nav/.glass-nav-*/
+  // .glass-tab-ativa). Diferente do CSS, o Flutter nao tem
+  // "backdrop-filter" aplicavel via Theme a qualquer widget - o efeito
+  // vidro aqui vem da combinacao gradiente + opacidade + borda clara +
+  // sombra suave, sem desfoque literal. Mesma linguagem visual da web, sem
+  // o blur que o framework nao oferece de graca nesses pontos.
+  //
+  // Fase Liquid-Glass-Cinza (20/08/2026, pedido do Daniel: "queria este
+  // gradiente na aplicacao Web e PWA" - nova imagem de referencia: vidro
+  // curvo cinza-arroxeado/azulado, escuro num canto e claro no outro, com
+  // uma faixa de brilho na diagonal) - troca a paleta bronze/champanhe da
+  // fase anterior por esta nova, extraida por amostragem de pixel da
+  // propria imagem. Nomes das constantes mantidos (glassBronze*) por
+  // estabilidade - so o valor de cor mudou, quem ja usa AppTheme.glassNavGradient
+  // (todas as telas) recebe a cor nova automaticamente.
+  static const Color glassBronzeClaro = Color(0xF0ABAFBA);
+  static const Color glassBronzeMedio = Color(0xF07A8494);
+  static const Color glassBronzeEscuro = Color(0xF53D3C4E);
+  static const Color glassBrilho = Color(0xE0E2E4EE);
+  static const Color glassTexto = Color(0xFFF3F4F8);
+  static const Color glassTextoMuted = Color(0xFFC9CCD6);
+  static const Color glassIcone = Color(0xFFECECF3);
   static const Color glassAcento = Color(0xFFFFD9A0);
   // Mesmos tons do preenchimento "aba ativa" da web (.glass-tab-ativa:
-  // linear-gradient(#f7ecdc, #d9bd9a), texto #6b4a2b) - usado no indicador
+  // linear-gradient(#f0f1f7, #c8ccd6), texto #3d3c4e) - usado no indicador
   // das TabBar (Dashboard/Inteligencia de Rede) e no item selecionado da
   // NavigationBar inferior.
-  static const Color glassPillClaro = Color(0xFFF7ECDC);
-  static const Color glassPillEscuro = Color(0xFFD9BD9A);
-  static const Color glassTextoAtivo = Color(0xFF6B4A2B);
+  static const Color glassPillClaro = Color(0xFFF0F1F7);
+  static const Color glassPillEscuro = Color(0xFFC8CCD6);
+  static const Color glassTextoAtivo = Color(0xFF3D3C4E);
 
   static const LinearGradient glassNavGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [glassBronzeClaro, glassBronzeMedio, glassBronzeEscuro],
+    colors: [glassBronzeClaro, glassBrilho, glassBronzeMedio, glassBronzeEscuro],
+    stops: [0.0, 0.42, 0.6, 1.0],
   );
 
   static const LinearGradient glassPillGradient = LinearGradient(
