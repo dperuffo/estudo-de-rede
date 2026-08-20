@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../providers/inteligencia_rede_provider.dart';
 import '../widgets/inteligencia_shared.dart';
 import 'abas/aba_alertas.dart';
@@ -61,32 +62,28 @@ class InteligenciaRedeScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Inteligência de Rede'),
-          // Achado real (reportado pelo Daniel com print, 2 rodadas): esta
-          // AppBar, aninhada dentro do Scaffold do HomeScreen, aparecia num
-          // azul diferente do menu/drawer principal — 1ª causa (Material 3
-          // aplicando "surface tint" numa AppBar aninhada) corrigida fixando
-          // a cor explícita; 2ª causa (pedido do Daniel: a barra do topo tem
-          // que usar a MESMA cor do MENU, não a antiga AppTheme._primary)
-          // corrigida trocando pra `AppTheme._menu` (0xFF0B1220 — o mesmo
-          // hex hardcoded no cabeçalho do Drawer em home_screen.dart), que
-          // agora também é o `appBarTheme.backgroundColor` padrão do app
-          // inteiro (ver app_theme.dart).
-          backgroundColor: const Color(0xFF0B1220),
-          foregroundColor: Colors.white,
+          // Fase Liquid-Glass-PWA (20/08/2026, pedido do Daniel: "implementar
+          // estas mudanças nos PWAs cliente e motorista") — mesma superfície
+          // bronze/champanhe do menu/AppBar dos shells (ver home_screen.dart),
+          // com a aba ativa em pill claro (mesma receita do .glass-tab-ativa
+          // na web) em vez do sublinhado branco sobre navy.
+          backgroundColor: Colors.transparent,
+          foregroundColor: AppTheme.glassTexto,
+          iconTheme: const IconThemeData(color: AppTheme.glassIcone),
           elevation: 0,
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
+          flexibleSpace: Container(decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient)),
           bottom: TabBar(
             isScrollable: true,
-            // Achado real (reportado pelo Daniel): sem essas 3 cores
-            // explícitas, o Material 3 pinta o texto da aba SELECIONADA
-            // com a cor primária do tema (fica meio cinza escuro em cima
-            // do azul do AppBar — baixo contraste, difícil de ler no
-            // mobile). Mesmo padrão de branco já usado no TabBar de
-            // Análise de Cliente/Manutenção.
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
+            indicator: BoxDecoration(
+              gradient: AppTheme.glassPillGradient,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicatorPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+            labelColor: AppTheme.glassTextoAtivo,
+            unselectedLabelColor: AppTheme.glassTextoMuted,
             tabs: _abas.map((a) => Tab(text: a)).toList(),
           ),
         ),

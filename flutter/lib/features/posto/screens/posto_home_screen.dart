@@ -8,6 +8,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
 import '../../../core/services/permissoes_acesso.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/barra_atalhos_favoritos.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../../core/widgets/sino_avisos.dart';
@@ -81,8 +82,18 @@ class PostoHomeScreen extends ConsumerWidget {
     return Scaffold(
       key: rootScaffoldKey,
       drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao, mapaPermissoes, favoritosHrefs),
+      // Fase Liquid-Glass-PWA (20/08/2026) — mesma superfície bronze/champanhe
+      // do menu (ver _buildDrawer), agora na barra do topo.
       appBar: AppBar(
         title: const Text('FNI — Posto'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        titleTextStyle: const TextStyle(color: AppTheme.glassTexto, fontSize: 18, fontWeight: FontWeight.w600),
+        flexibleSpace: Container(decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient)),
         actions: const [SinoAvisos()],
       ),
       body: Column(
@@ -91,16 +102,42 @@ class PostoHomeScreen extends ConsumerWidget {
           Expanded(child: child),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _idx(loc),
-        onDestinationSelected: (i) => _nav(context, i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'Painel'),
-          NavigationDestination(icon: Icon(Icons.handshake), label: 'Negoc.'),
-          NavigationDestination(icon: Icon(Icons.local_gas_station), label: 'Abastec.'),
-          NavigationDestination(icon: Icon(Icons.attach_money), label: 'Financ.'),
-          NavigationDestination(icon: Icon(Icons.menu), label: 'Mais'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.glassNavGradient,
+          border: Border(top: BorderSide(color: Colors.white24)),
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            navigationBarTheme: NavigationBarThemeData(
+              backgroundColor: Colors.transparent,
+              indicatorColor: AppTheme.glassPillClaro,
+              iconTheme: MaterialStateProperty.resolveWith(
+                (states) => IconThemeData(
+                  color: states.contains(MaterialState.selected) ? AppTheme.glassTextoAtivo : AppTheme.glassIcone,
+                ),
+              ),
+              labelTextStyle: MaterialStateProperty.resolveWith(
+                (states) => TextStyle(
+                  fontSize: 11,
+                  fontWeight: states.contains(MaterialState.selected) ? FontWeight.w700 : FontWeight.w500,
+                  color: states.contains(MaterialState.selected) ? AppTheme.glassTextoAtivo : AppTheme.glassTextoMuted,
+                ),
+              ),
+            ),
+          ),
+          child: NavigationBar(
+            selectedIndex: _idx(loc),
+            onDestinationSelected: (i) => _nav(context, i),
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.dashboard), label: 'Painel'),
+              NavigationDestination(icon: Icon(Icons.handshake), label: 'Negoc.'),
+              NavigationDestination(icon: Icon(Icons.local_gas_station), label: 'Abastec.'),
+              NavigationDestination(icon: Icon(Icons.attach_money), label: 'Financ.'),
+              NavigationDestination(icon: Icon(Icons.menu), label: 'Mais'),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -124,8 +161,8 @@ class PostoHomeScreen extends ConsumerWidget {
       final favoritado = favoritosHrefs.contains(route);
       return ListTile(
         dense: true,
-        leading: Icon(icon, color: const Color(0xFF0D2D6B), size: 20),
-        title: Text(label, style: const TextStyle(fontSize: 14)),
+        leading: Icon(icon, color: AppTheme.glassIcone, size: 20),
+        title: Text(label, style: const TextStyle(fontSize: 14, color: AppTheme.glassTexto)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -144,7 +181,7 @@ class PostoHomeScreen extends ConsumerWidget {
                 child: Icon(
                   favoritado ? Icons.star : Icons.star_border,
                   size: 18,
-                  color: favoritado ? Colors.amber.shade700 : Colors.grey.shade400,
+                  color: favoritado ? Colors.amber.shade400 : AppTheme.glassIcone.withOpacity(0.35),
                 ),
               ),
             ),
@@ -171,31 +208,23 @@ class PostoHomeScreen extends ConsumerWidget {
     // Drawer. Rota é /posto/avisos (mesma AvisosScreen, ver app_router.dart).
     final avisosNaoLidos = ref.watch(avisosNaoLidosProvider);
     return Drawer(
+      backgroundColor: Colors.transparent,
+      // Fase Liquid-Glass-PWA (20/08/2026, pedido do Daniel: "implementar
+      // estas mudanças nos PWAs cliente e motorista") — todo o Drawer (não
+      // só o cabeçalho) vira uma única superfície bronze/champanhe contínua,
+      // igual ao <aside> da web. Sem blur literal (ver mesmo comentário em
+      // home_screen.dart): o drawer do celular fica sobre um scrim escuro,
+      // não sobre conteúdo real pra desfocar.
+      child: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            // Fase FLT-2 — pedido do Daniel: mesma identidade visual da
-            // sidebar da web (src/app/(dashboard)/layout.tsx): fundo
-            // `frota-950` (#0B1220, não o azul genérico usado antes), logo
-            // dentro de um card branco 95% opaco com cantos arredondados
-            // (a imagem `assets/logo_fni.png` agora é a MESMA
-            // public/logo-fni.png da web — larga, com fundo transparente;
-            // antes era um recorte diferente, quadrado, que ficava
-            // minúsculo dentro da altura fixa) e o rótulo "POSTO" no ciano
-            // `frota-500` (#0EA5E9), igual ao `cargoExibido` da web.
-            // Achado real (correção): `DrawerHeader` impõe uma altura
-            // MÍNIMA fixa (~160 + status bar) mas o Column de dentro tinha
-            // `mainAxisSize.max` (o padrão) + `mainAxisAlignment: end` —
-            // com o card do logo em largura cheia (mais alto que os 44px
-            // antigos) o conteúdo passou dessa altura e "empurrou" tudo pra
-            // baixo, vazando por cima da lista (Gestão/Dashboard). Trocado
-            // por um `Container` comum (sem altura mínima imposta) dentro
-            // do próprio `ListView`, com o Column em `mainAxisSize.min` —
-            // a altura do cabeçalho agora é sempre exatamente o que o
-            // conteúdo precisa, sem overflow.
             Container(
               width: double.infinity,
-              color: const Color(0xFF0B1220),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.white24)),
+              ),
               child: SafeArea(
                 bottom: false,
                 child: Padding(
@@ -229,13 +258,13 @@ class PostoHomeScreen extends ConsumerWidget {
                         nomeEmpresa ?? 'Posto',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                        style: const TextStyle(color: AppTheme.glassTexto, fontSize: 14, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 2),
                       const Text(
                         'POSTO',
                         style: TextStyle(
-                          color: Color(0xFF0EA5E9),
+                          color: AppTheme.glassAcento,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 2,
@@ -252,10 +281,10 @@ class PostoHomeScreen extends ConsumerWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: const [
-                                Icon(Icons.swap_horiz, color: Colors.white, size: 16),
+                                Icon(Icons.swap_horiz, color: AppTheme.glassTexto, size: 16),
                                 SizedBox(width: 4),
                                 Text('Trocar posto',
-                                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                                    style: TextStyle(color: AppTheme.glassTexto, fontSize: 12, fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
@@ -278,11 +307,11 @@ class PostoHomeScreen extends ConsumerWidget {
             if (pode('/posto')) _item(context, Icons.dashboard, 'Dashboard', '/posto'),
             if (pode('/posto/meu-posto')) _item(context, Icons.place, 'Meu Posto', '/posto/meu-posto'),
             if (pode('/posto/rede-postos')) _item(context, Icons.hub, 'Rede de Postos', '/posto/rede-postos'),
-            const Divider(),
+            const Divider(color: Colors.white24, height: 1),
             _grp('Cadastros'),
             if (pode('/posto/usuarios')) _item(context, Icons.people, 'Usuários', '/posto/usuarios'),
             if (pode('/posto/clientes')) _item(context, Icons.business, 'Clientes', '/posto/clientes'),
-            const Divider(),
+            const Divider(color: Colors.white24, height: 1),
             _grp('Operação'),
             if (pode('/posto/negociacoes')) _item(context, Icons.handshake, 'Negociações', '/posto/negociacoes', badge: badges.negociacoes),
             if (pode('/posto/abastecimentos')) _item(context, Icons.local_gas_station, 'Abastecimentos', '/posto/abastecimentos', badge: badges.ajustesAbastecimento),
@@ -291,23 +320,23 @@ class PostoHomeScreen extends ConsumerWidget {
             // Fase Pré-Pedido (28/07/2026) — consulta pro posto conferir
             // antes de liberar abastecimento (ver pre_pedidos_posto_screen.dart).
             if (pode('/posto/pre-pedidos')) _item(context, Icons.checklist, 'Pré-Pedidos', '/posto/pre-pedidos'),
-            const Divider(),
+            const Divider(color: Colors.white24, height: 1),
             _grp('Financeiro'),
             if (pode('/posto/financeiro')) _item(context, Icons.attach_money, 'Financeiro', '/posto/financeiro'),
             if (pode('/posto/meus-dados')) _item(context, Icons.account_balance, 'Meus Dados / PIX', '/posto/meus-dados'),
-            const Divider(),
+            const Divider(color: Colors.white24, height: 1),
             _grp('Conta e Ajuda'),
             if (pode('/posto/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/posto/assistente'),
             if (pode('/posto/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/posto/assinatura'),
             if (pode('/posto/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/posto/avaliar'),
             if (pode('/posto/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/posto/chamados', badge: badges.chamados),
-            const Divider(),
+            const Divider(color: Colors.white24, height: 1),
             _grp('Sistema'),
             if (pode('/posto/documentos')) _item(context, Icons.folder, 'Documentos', '/posto/documentos'),
             if (pode('/posto/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/posto/lgpd'),
-            const Divider(),
+            const Divider(color: Colors.white24, height: 1),
             if (pode('/posto/avisos')) _item(context, Icons.notifications_outlined, 'Avisos', '/posto/avisos', badge: avisosNaoLidos),
-            const Divider(),
+            const Divider(color: Colors.white24, height: 1),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sair', style: TextStyle(color: Colors.red)),
@@ -321,12 +350,13 @@ class PostoHomeScreen extends ConsumerWidget {
             ),
           ],
         ),
-      );
+      ),
+    );
   }
 
   Widget _grp(String label) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+        child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.glassTextoMuted)),
       );
 
   int _idx(String loc) {

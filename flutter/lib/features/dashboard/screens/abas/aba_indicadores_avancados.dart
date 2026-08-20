@@ -720,13 +720,13 @@ class _AbaIndicadoresAvancadosState extends ConsumerState<AbaIndicadoresAvancado
               if (top12KmlFinal.isNotEmpty) ...[
                 Text('⛽ Consumo médio km/L por marca/modelo/motor', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                 const SizedBox(height: 6),
-                miniBarChart(top12KmlFinal, (i) => i.mediaKmL!, corKml, (v) => '${v.toStringAsFixed(1)} km/L'),
+                miniBarChart(top12KmlFinal, (i) => i.mediaKmL!, (i) => corKml(i.mediaKmL!), (v) => '${v.toStringAsFixed(1)} km/L'),
                 const SizedBox(height: 16),
               ],
               if (top12CustoFinal.isNotEmpty) ...[
                 Text('💰 Custo por km (TCO) por marca/modelo/motor', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                 const SizedBox(height: 6),
-                miniBarChart(top12CustoFinal, (i) => i.custoPorKm!, corCusto, (v) => formatarMoeda(v, casas: 2)),
+                miniBarChart(top12CustoFinal, (i) => i.custoPorKm!, (i) => corCusto(i.custoPorKm!), (v) => formatarMoeda(v, casas: 2)),
                 const SizedBox(height: 12),
               ],
               TabelaSimples(

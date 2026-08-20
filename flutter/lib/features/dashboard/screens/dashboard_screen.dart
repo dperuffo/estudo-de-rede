@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import 'abas/aba_indicadores_avancados.dart';
 import 'abas/aba_visao_geral.dart';
 
@@ -18,24 +19,29 @@ class DashboardScreen extends StatelessWidget {
       length: 2,
       child: Column(
         children: [
-          Material(
-            // Achado real (reportado pelo Daniel, 2 rodadas): 1ª causa
-            // (`colorScheme.primary` vem de `ColorScheme.fromSeed()` e não é
-            // o mesmo tom do navy do AppBar) corrigida com cor literal; 2ª
-            // causa (pedido do Daniel: a barra do topo tem que usar a MESMA
-            // cor do MENU) corrigida usando `AppTheme._menu` (0xFF0B1220 —
-            // mesmo hex do cabeçalho do Drawer em home_screen.dart), que
-            // agora também é o `appBarTheme.backgroundColor` padrão do app
-            // inteiro (ver app_theme.dart).
-            color: const Color(0xFF0B1220),
-            child: const TabBar(
-              indicatorColor: Colors.white,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              tabs: [
-                Tab(text: 'Visão Geral'),
-                Tab(text: 'Indicadores Avançados'),
-              ],
+          // Fase Liquid-Glass-PWA (20/08/2026, pedido do Daniel: "implementar
+          // estas mudanças nos PWAs cliente e motorista") — mesma superfície
+          // bronze/champanhe do menu, com a aba ativa virando um "pill" claro
+          // (mesma receita do .glass-tab-ativa na web), em vez do sublinhado
+          // branco sobre navy.
+          Container(
+            decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient),
+            child: Material(
+              color: Colors.transparent,
+              child: TabBar(
+                indicator: BoxDecoration(
+                  gradient: AppTheme.glassPillGradient,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicatorPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                labelColor: AppTheme.glassTextoAtivo,
+                unselectedLabelColor: AppTheme.glassTextoMuted,
+                tabs: const [
+                  Tab(text: 'Visão Geral'),
+                  Tab(text: 'Indicadores Avançados'),
+                ],
+              ),
             ),
           ),
           const Expanded(

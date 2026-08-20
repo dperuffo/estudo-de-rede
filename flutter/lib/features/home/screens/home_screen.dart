@@ -8,6 +8,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/sessao_provider.dart';
 import '../../../core/services/sessao_usuario.dart';
 import '../../../core/services/permissoes_acesso.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/barra_atalhos_favoritos.dart';
 import '../../../core/widgets/menu_button.dart';
 import '../../../core/widgets/sino_avisos.dart';
@@ -138,23 +139,64 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       key: rootScaffoldKey,
       drawer: _buildDrawer(context, ref, sessao.valueOrNull, bypassPermissao, mapaPermissoes, favoritosHrefs),
-      appBar: AppBar(title: const Text('FNI — Gestão de Frotas'), actions: const [SinoAvisos()]),
+      // Fase Liquid-Glass-PWA (20/08/2026) — mesma superfície bronze/champanhe
+      // do menu (ver _buildDrawer), agora na barra do topo. `flexibleSpace` +
+      // fundo transparente troca a cor sólida (frota-950) pelo gradiente,
+      // com texto/ícone recolorido pra manter contraste (glassTexto/glassIcone).
+      appBar: AppBar(
+        title: const Text('FNI — Gestão de Frotas'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: AppTheme.glassTexto,
+        iconTheme: const IconThemeData(color: AppTheme.glassIcone),
+        titleTextStyle: const TextStyle(color: AppTheme.glassTexto, fontSize: 18, fontWeight: FontWeight.w600),
+        flexibleSpace: Container(decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient)),
+        actions: const [SinoAvisos()],
+      ),
       body: Column(
         children: [
           BarraAtalhosFavoritos(mapaItens: mapaItensFavoritos),
           Expanded(child: child),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _idx(loc),
-        onDestinationSelected: (i) => _nav(context, i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'Painel'),
-          NavigationDestination(icon: Icon(Icons.local_gas_station), label: 'Abastec.'),
-          NavigationDestination(icon: Icon(Icons.directions_car), label: 'Veículos'),
-          NavigationDestination(icon: Icon(Icons.attach_money), label: 'Financ.'),
-          NavigationDestination(icon: Icon(Icons.menu), label: 'Mais'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.glassNavGradient,
+          border: Border(top: BorderSide(color: Colors.white24)),
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            navigationBarTheme: NavigationBarThemeData(
+              backgroundColor: Colors.transparent,
+              indicatorColor: AppTheme.glassPillClaro,
+              iconTheme: MaterialStateProperty.resolveWith(
+                (states) => IconThemeData(
+                  color: states.contains(MaterialState.selected) ? AppTheme.glassTextoAtivo : AppTheme.glassIcone,
+                ),
+              ),
+              labelTextStyle: MaterialStateProperty.resolveWith(
+                (states) => TextStyle(
+                  fontSize: 11,
+                  fontWeight: states.contains(MaterialState.selected) ? FontWeight.w700 : FontWeight.w500,
+                  color: states.contains(MaterialState.selected) ? AppTheme.glassTextoAtivo : AppTheme.glassTextoMuted,
+                ),
+              ),
+            ),
+          ),
+          child: NavigationBar(
+            selectedIndex: _idx(loc),
+            onDestinationSelected: (i) => _nav(context, i),
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.dashboard), label: 'Painel'),
+              NavigationDestination(icon: Icon(Icons.local_gas_station), label: 'Abastec.'),
+              NavigationDestination(icon: Icon(Icons.directions_car), label: 'Veículos'),
+              NavigationDestination(icon: Icon(Icons.attach_money), label: 'Financ.'),
+              NavigationDestination(icon: Icon(Icons.menu), label: 'Mais'),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -183,8 +225,8 @@ class HomeScreen extends ConsumerWidget {
       final favoritado = favoritosHrefs.contains(route);
       return ListTile(
         dense: true,
-        leading: Icon(icon, color: const Color(0xFF0D2D6B), size: 20),
-        title: Text(label, style: const TextStyle(fontSize: 14)),
+        leading: Icon(icon, color: AppTheme.glassIcone, size: 20),
+        title: Text(label, style: const TextStyle(fontSize: 14, color: AppTheme.glassTexto)),
         // Fase FLT-7 (ajuste) — pedido do Daniel: a pílula com número
         // (Container com Text dentro) esticava a linha inteira do menu
         // verticalmente em alguns itens (o texto do Text virava uma coluna
@@ -209,7 +251,7 @@ class HomeScreen extends ConsumerWidget {
                 child: Icon(
                   favoritado ? Icons.star : Icons.star_border,
                   size: 18,
-                  color: favoritado ? Colors.amber.shade700 : Colors.grey.shade400,
+                  color: favoritado ? Colors.amber.shade400 : AppTheme.glassIcone.withOpacity(0.35),
                 ),
               ),
             ),
@@ -237,17 +279,25 @@ class HomeScreen extends ConsumerWidget {
     // abaixo, na mesma posição relativa (perto de Sair).
     final avisosNaoLidos = ref.watch(avisosNaoLidosProvider);
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          // Mesmo cabeçalho da visão Posto (identidade visual da web:
-          // fundo frota-950, card branco com a logo, rótulo do perfil em
-          // ciano frota-500) — ver posto_home_screen.dart pro histórico do
-          // porquê desse formato (DrawerHeader trocado por Container
-          // simples pra não ter altura mínima forçada / overflow).
+      backgroundColor: Colors.transparent,
+      // Fase Liquid-Glass-PWA (20/08/2026, pedido do Daniel: "implementar
+      // estas mudanças nos PWAs cliente e motorista") — todo o Drawer (não
+      // só o cabeçalho) vira uma única superfície bronze/champanhe contínua,
+      // igual ao <aside> da web. O drawer do celular fica sobre um scrim
+      // escuro (não sobre o conteúdo real da tela, que continua atrás dele
+      // dimerizado) — por isso não há blur literal aqui: não há nada visível
+      // atrás do painel pra desfocar, só a superfície em si com gradiente +
+      // realce + sombra, mesma linguagem visual da web.
+      child: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.glassNavGradient),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
           Container(
             width: double.infinity,
-            color: const Color(0xFF0B1220),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.white24)),
+            ),
             child: SafeArea(
               bottom: false,
               child: Padding(
@@ -281,13 +331,13 @@ class HomeScreen extends ConsumerWidget {
                       nomeEmpresa ?? 'Minha empresa',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                      style: const TextStyle(color: AppTheme.glassTexto, fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
                     const Text(
                       'FROTA',
                       style: TextStyle(
-                        color: Color(0xFF0EA5E9),
+                        color: AppTheme.glassAcento,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 2,
@@ -304,10 +354,10 @@ class HomeScreen extends ConsumerWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: const [
-                              Icon(Icons.swap_horiz, color: Colors.white, size: 16),
+                              Icon(Icons.swap_horiz, color: AppTheme.glassTexto, size: 16),
                               SizedBox(width: 4),
                               Text('Trocar empresa',
-                                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                                  style: TextStyle(color: AppTheme.glassTexto, fontSize: 12, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -334,7 +384,7 @@ class HomeScreen extends ConsumerWidget {
           if (pode('/indicadores-frota')) _item(context, Icons.speed, 'Indicadores da Frota', '/indicadores-frota'),
           if (pode('/jornada-motoristas')) _item(context, Icons.timer_outlined, 'Jornada dos Motoristas', '/jornada-motoristas'),
           if (pode('/acoes-sugeridas')) _item(context, Icons.auto_awesome, 'Ações Sugeridas', '/acoes-sugeridas', badge: badges.acoesSugeridas),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Cadastros'),
           if (pode('/clientes')) _item(context, Icons.business, 'Clientes', '/clientes', badge: badges.acessosClientes),
           if (pode('/grupo-economico')) _item(context, Icons.account_tree, 'Grupo Econômico', '/grupo-economico'),
@@ -343,7 +393,7 @@ class HomeScreen extends ConsumerWidget {
           if (pode('/veiculos')) _item(context, Icons.directions_car, 'Veículos', '/veiculos'),
           if (pode('/centros-custo')) _item(context, Icons.receipt_long, 'Centros de Custo', '/centros-custo'),
           if (pode('/postos')) _item(context, Icons.local_gas_station, 'Postos Revendedores', '/postos'),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Roteirização e Abastecimento'),
           if (pode('/roteirizacao')) _item(context, Icons.route, 'Roteirização', '/roteirizacao'),
           if (pode('/rotograma')) _item(context, Icons.shield_outlined, 'Rotograma', '/rotograma'),
@@ -360,7 +410,7 @@ class HomeScreen extends ConsumerWidget {
           if (pode('/precos-postos')) _item(context, Icons.sell, 'Preços dos Postos Parceiros', '/precos-postos'),
           if (pode('/negociacoes')) _item(context, Icons.handshake, 'Negociações com Postos', '/negociacoes', badge: badges.negociacoes),
           if (pode('/parametros-nf')) _item(context, Icons.receipt_long, 'Parâmetros de NF', '/parametros-nf'),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Fretes'),
           if (pode('/fretes')) _item(context, Icons.local_shipping, 'Fretes', '/fretes'),
           // Fase Programacao-Frota (03/08/2026, benchmark FNI vs
@@ -383,7 +433,7 @@ class HomeScreen extends ConsumerWidget {
           // como não existe uma tela de Cotações própria, ganhou rota e
           // item de menu próprios — mesmo dado, entrega diferente.
           if (pode('/pisos-antt')) _item(context, Icons.price_check, 'Piso Mínimo ANTT', '/pisos-antt'),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Manutenção e Ativos'),
           if (pode('/manutencao-preditiva')) _item(context, Icons.build, 'Manutenção Preditiva', '/manutencao-preditiva'),
           // Fase Grupo 1 Rodopar item 2 (03/08/2026, benchmark FNI vs
@@ -408,29 +458,29 @@ class HomeScreen extends ConsumerWidget {
           // Fase Onda-2 (benchmark TicketLog, item #5) — catálogo de
           // oficinas credenciadas + solicitação simples de orçamento.
           if (pode('/oficinas')) _item(context, Icons.build_circle_outlined, 'Rede de Oficinas', '/oficinas'),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Financeiro'),
           if (pode('/financeiro')) _item(context, Icons.attach_money, 'Painel Financeiro', '/financeiro'),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Relatórios e Sustentabilidade'),
           if (pode('/relatorios')) _item(context, Icons.bar_chart, 'Relatórios', '/relatorios'),
           // Fase Onda-3 (benchmark TicketLog, item #10) — estimativa de CO2
           // emitido pela frota a partir dos litros já registrados.
           if (pode('/pegada-carbono')) _item(context, Icons.public, 'Pegada de Carbono', '/pegada-carbono'),
           if (pode('/inteligencia-rede')) _item(context, Icons.hub, 'Inteligência de Rede', '/inteligencia-rede'),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Engajamento'),
           // Fase Parcerias Locais (17/07) — o cliente cria seus próprios
           // benefícios (treinamentos, marketplace, telemedicina etc.) no
           // catálogo de fidelidade.
           if (pode('/parcerias-locais')) _item(context, Icons.card_giftcard, 'Parcerias Locais', '/parcerias-locais'),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Conta e Ajuda'),
           if (pode('/assistente')) _item(context, Icons.smart_toy, 'Assistente FNI', '/assistente'),
           if (pode('/assinatura')) _item(context, Icons.credit_card, 'Minha Assinatura', '/assinatura'),
           if (pode('/avaliar')) _item(context, Icons.star, 'Avaliar Plataforma', '/avaliar'),
           if (pode('/chamados')) _item(context, Icons.confirmation_number, 'Chamados', '/chamados', badge: badges.chamados),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           _grp('Sistema'),
           if (pode('/documentos')) _item(context, Icons.folder, 'Documentos', '/documentos'),
           if (pode('/lgpd')) _item(context, Icons.lock, 'Privacidade (LGPD)', '/lgpd'),
@@ -445,7 +495,7 @@ class HomeScreen extends ConsumerWidget {
           // uma já mostra "Acesso restrito" pra quem não é, mas nem faz
           // sentido oferecer o item de menu nesse caso).
           if (sessao?.ehAdmin ?? false) ...[
-            const Divider(),
+            const Divider(color: Colors.white24, height: 1),
             _grp('Administração'),
             _item(context, Icons.settings, 'Configurações do Sistema', '/configuracoes'),
             _item(context, Icons.star_outline, 'Avaliações dos Clientes', '/avaliacoes', badge: badges.avaliacoes),
@@ -456,9 +506,9 @@ class HomeScreen extends ConsumerWidget {
             _item(context, Icons.apartment, 'Clientes (todos)', '/clientes-admin'),
             _item(context, Icons.account_tree, 'Grupo Econômico (todos)', '/grupos-economicos'),
           ],
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           if (pode('/avisos')) _item(context, Icons.notifications_outlined, 'Avisos', '/avisos', badge: avisosNaoLidos),
-          const Divider(),
+          const Divider(color: Colors.white24, height: 1),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Sair', style: TextStyle(color: Colors.red)),
@@ -470,14 +520,15 @@ class HomeScreen extends ConsumerWidget {
               if (context.mounted) context.go('/login');
             },
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _grp(String label) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+        child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.glassTextoMuted)),
       );
 
   int _idx(String loc) {
